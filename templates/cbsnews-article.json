@@ -1,0 +1,41 @@
+{
+  "name": "CBS News Article",
+  "description": "Extract article content from CBS News",
+  "site": "cbsnews.com",
+  "category": "news",
+  "icon": "\ud83d\udcf0",
+  "schema": {
+    "name": "cbs_article",
+    "base_selector": "article",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "author",
+        "selector": "[class*='author']",
+        "type": "text"
+      },
+      {
+        "name": "published_date",
+        "selector": "time",
+        "type": "attribute",
+        "attribute": "datetime"
+      },
+      {
+        "name": "content",
+        "selector": "[class*='content']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "figure img, [class*='image'] img",
+        "type": "attribute",
+        "attribute": "src"
+      }
+    ]
+  },
+  "url_pattern": "*://www.cbsnews.com/*"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "Wayfair Product",
+  "description": "Extract product details from Wayfair",
+  "site": "wayfair.com",
+  "category": "ecommerce",
+  "icon": "🏠",
+  "url_pattern": "*://www.wayfair.com/*/pdp/*",
+  "schema": {
+    "name": "wayfair_product",
+    "base_selector": ".ProductPage",
+    "fields": [
+      {"name": "title", "selector": "h1", "type": "text"},
+      {"name": "price", "selector": ".hf-price-box", "type": "text", "transform": "float"},
+      {"name": "rating", "selector": ".ProductReviewStars", "type": "attribute", "attribute": "aria-label"},
+      {"name": "description", "selector": "#product-description", "type": "text"},
+      {"name": "image_url", "selector": ".ProductHeroImage img", "type": "attribute", "attribute": "src"}
+    ]
+  }
+}

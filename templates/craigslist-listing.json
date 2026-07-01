@@ -1,0 +1,41 @@
+{
+  "name": "Craigslist Listing",
+  "description": "Extract listing details from Craigslist",
+  "site": "craigslist.org",
+  "category": "classifieds",
+  "icon": "\ud83d\udccb",
+  "schema": {
+    "name": "craigslist_listing",
+    "base_selector": ".page-container",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "#titletextonly",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": ".price",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "location",
+        "selector": ".postingtitletext small",
+        "type": "text"
+      },
+      {
+        "name": "description",
+        "selector": "#postingbody",
+        "type": "text"
+      },
+      {
+        "name": "posted_date",
+        "selector": ".date.timeago",
+        "type": "attribute",
+        "attribute": "datetime"
+      }
+    ]
+  },
+  "url_pattern": "*://www.craigslist.org/*"
+}

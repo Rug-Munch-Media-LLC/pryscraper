@@ -1,0 +1,51 @@
+{
+  "name": "Adidas Product",
+  "description": "Extract product details from Adidas",
+  "site": "adidas.com",
+  "category": "ecommerce",
+  "icon": "\ud83d\udc5f",
+  "schema": {
+    "name": "adidas_product",
+    "base_selector": ".product-detail",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": "[class*='price']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "description",
+        "selector": "[class*='description']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "[class*='image'] img",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "color_options",
+        "selector": "[class*='color']",
+        "type": "count"
+      },
+      {
+        "name": "size_options",
+        "selector": "[class*='size']",
+        "type": "count"
+      },
+      {
+        "name": "sport",
+        "selector": "[class*='sport']",
+        "type": "text"
+      }
+    ]
+  },
+  "url_pattern": "*://www.adidas.com/*"
+}

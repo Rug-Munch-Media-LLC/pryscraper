@@ -1,0 +1,46 @@
+{
+  "name": "Al Jazeera Article",
+  "description": "Extract article content from Al Jazeera",
+  "site": "aljazeera.com",
+  "category": "news",
+  "icon": "\ud83d\udcf0",
+  "schema": {
+    "name": "aj_article",
+    "base_selector": "article",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "author",
+        "selector": "[class*='author']",
+        "type": "text"
+      },
+      {
+        "name": "published_date",
+        "selector": "time, [class*='date']",
+        "type": "attribute",
+        "attribute": "datetime"
+      },
+      {
+        "name": "content",
+        "selector": "[class*='article-body']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "figure img, [class*='image'] img",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "section",
+        "selector": "[class*='section'] a",
+        "type": "text"
+      }
+    ]
+  },
+  "url_pattern": "*://www.aljazeera.com/*"
+}

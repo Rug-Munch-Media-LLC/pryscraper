@@ -1,0 +1,52 @@
+{
+  "name": "Yahoo Finance Quote",
+  "description": "Extract stock quote from Yahoo Finance",
+  "site": "finance.yahoo.com",
+  "category": "financial",
+  "icon": "\ud83d\udcc8",
+  "schema": {
+    "name": "yahoo_finance",
+    "base_selector": "[data-testid='quote-header']",
+    "fields": [
+      {
+        "name": "ticker",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": "[data-testid='qsp-price']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "change",
+        "selector": "[data-testid='qsp-price-change']",
+        "type": "text"
+      },
+      {
+        "name": "change_percent",
+        "selector": "[data-testid='qsp-price-change-percent']",
+        "type": "text"
+      },
+      {
+        "name": "previous_close",
+        "selector": "[data-test='PREV_CLOSE-value']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "market_cap",
+        "selector": "[data-test='MARKET_CAP-value']",
+        "type": "text"
+      },
+      {
+        "name": "volume",
+        "selector": "[data-test='TD_VOLUME-value']",
+        "type": "text",
+        "transform": "int"
+      }
+    ]
+  },
+  "url_pattern": "*://www.finance.yahoo.com/*"
+}

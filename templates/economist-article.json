@@ -1,0 +1,41 @@
+{
+  "name": "The Economist Article",
+  "description": "Extract article content from The Economist",
+  "site": "economist.com",
+  "category": "news",
+  "icon": "\ud83d\udcf0",
+  "schema": {
+    "name": "economist_article",
+    "base_selector": "article, main",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "published_date",
+        "selector": "time",
+        "type": "attribute",
+        "attribute": "datetime"
+      },
+      {
+        "name": "content",
+        "selector": "[class*='article-body'], [class*='content']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "figure img",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "rubric",
+        "selector": "[class*='rubric'], h2",
+        "type": "text"
+      }
+    ]
+  },
+  "url_pattern": "*://www.economist.com/*"
+}

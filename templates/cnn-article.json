@@ -1,0 +1,40 @@
+{
+  "name": "CNN Article",
+  "description": "Extract article content from CNN",
+  "site": "cnn.com",
+  "category": "news",
+  "icon": "\ud83d\udcf0",
+  "schema": {
+    "name": "cnn_article",
+    "base_selector": ".article__content",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "author",
+        "selector": ".byline",
+        "type": "text"
+      },
+      {
+        "name": "published_date",
+        "selector": ".timestamp",
+        "type": "text"
+      },
+      {
+        "name": "content",
+        "selector": ".article__content-container",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": ".image__container img",
+        "type": "attribute",
+        "attribute": "src"
+      }
+    ]
+  },
+  "url_pattern": "*://www.cnn.com/*"
+}

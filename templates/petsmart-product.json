@@ -1,0 +1,63 @@
+{
+  "name": "PetSmart Product",
+  "description": "Extract product details from PetSmart",
+  "site": "petsmart.com",
+  "category": "ecommerce",
+  "icon": "\ud83d\udc3e",
+  "schema": {
+    "name": "petsmart_product",
+    "base_selector": ".product-detail",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": "[class*='price']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "rating",
+        "selector": "[class*='rating']",
+        "type": "attribute",
+        "attribute": "aria-label"
+      },
+      {
+        "name": "review_count",
+        "selector": "[class*='review']",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "brand",
+        "selector": "[class*='brand']",
+        "type": "text"
+      },
+      {
+        "name": "description",
+        "selector": "[class*='description']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "[class*='image'] img",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "pet_type",
+        "selector": "[class*='pet']",
+        "type": "text"
+      },
+      {
+        "name": "in_store",
+        "selector": "[class*='store']",
+        "type": "exists"
+      }
+    ]
+  },
+  "url_pattern": "*://www.petsmart.com/*"
+}

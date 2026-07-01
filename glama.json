@@ -1,0 +1,47 @@
+{
+  "$schema": "https://glama.ai/mcp/schema.json",
+  "name": "pry",
+  "title": "Pry — Web Scraping & Browser Automation MCP",
+  "description": "Self-hosted web intelligence platform: scrape, crawl, extract, automate, and parse any website. Exposed as a Model Context Protocol server.",
+  "version": "3.0.0",
+  "license": "MIT",
+  "author": {
+    "name": "Rug Munch Media LLC",
+    "url": "https://rugmunch.io"
+  },
+  "homepage": "https://github.com/cryptorugmuncher/pry",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cryptorugmuncher/pry"
+  },
+  "transports": [
+    {
+      "type": "stdio",
+      "command": "python3 -m mcp_production",
+      "description": "Run the MCP server locally over stdio"
+    },
+    {
+      "type": "sse",
+      "url": "https://mcp.pry.dev/sse",
+      "description": "Hosted Cloudflare Worker SSE endpoint"
+    }
+  ],
+  "tools": [
+    { "name": "pry_scrape", "description": "Scrape a URL to clean markdown" },
+    { "name": "pry_crawl", "description": "Crawl a website from a starting URL" },
+    { "name": "pry_extract", "description": "Extract structured data with CSS selectors" },
+    { "name": "pry_template", "description": "Execute a pre-built scraper template" },
+    { "name": "pry_search_templates", "description": "Search scraper templates" },
+    { "name": "pry_enrich", "description": "Enrich a URL with company and tech intelligence" },
+    { "name": "pry_x402_pricing", "description": "Get x402 pay-per-call pricing" },
+    { "name": "pry_referrals", "description": "Get the referral catalog" }
+  ],
+  "tags": [
+    "web-scraping",
+    "browser-automation",
+    "data-extraction",
+    "x402",
+    "self-hosted",
+    "mcp"
+  ]
+}

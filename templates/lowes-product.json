@@ -1,0 +1,47 @@
+{
+  "name": "Lowe's Product",
+  "description": "Extract product details from Lowe's",
+  "site": "lowes.com",
+  "category": "ecommerce",
+  "icon": "\ud83c\udfea",
+  "schema": {
+    "name": "lowes_product",
+    "base_selector": ".product-details",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": ".price-main",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "rating",
+        "selector": ".rating-stars",
+        "type": "attribute",
+        "attribute": "aria-label"
+      },
+      {
+        "name": "sku",
+        "selector": "[itemprop='sku']",
+        "type": "text"
+      },
+      {
+        "name": "description",
+        "selector": "#product-description",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": ".gallery-image img",
+        "type": "attribute",
+        "attribute": "src"
+      }
+    ]
+  },
+  "url_pattern": "*://www.lowes.com/*"
+}

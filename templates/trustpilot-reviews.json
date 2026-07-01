@@ -1,0 +1,46 @@
+{
+  "name": "Trustpilot Reviews",
+  "description": "Extract reviews from Trustpilot",
+  "site": "trustpilot.com",
+  "category": "reviews",
+  "icon": "\u2b50",
+  "schema": {
+    "name": "trustpilot_reviews",
+    "base_selector": ".styles_reviewCard",
+    "fields": [
+      {
+        "name": "title",
+        "selector": ".typography_heading-s",
+        "type": "text"
+      },
+      {
+        "name": "body",
+        "selector": ".typography_body-l",
+        "type": "text"
+      },
+      {
+        "name": "rating",
+        "selector": "img[alt*='stars']",
+        "type": "attribute",
+        "attribute": "alt"
+      },
+      {
+        "name": "author",
+        "selector": ".typography_heading-xxs",
+        "type": "text"
+      },
+      {
+        "name": "date",
+        "selector": "time",
+        "type": "attribute",
+        "attribute": "datetime"
+      },
+      {
+        "name": "review_count",
+        "selector": ".styles_reviewCard",
+        "type": "count"
+      }
+    ]
+  },
+  "url_pattern": "*://www.trustpilot.com/*"
+}

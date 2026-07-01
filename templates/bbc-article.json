@@ -1,0 +1,51 @@
+{
+  "name": "BBC News Article",
+  "description": "Extract article content from BBC News",
+  "site": "bbc.com",
+  "category": "news",
+  "icon": "\ud83d\udcf0",
+  "schema": {
+    "name": "bbc_article",
+    "base_selector": "article",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "author",
+        "selector": "[data-component='byline-block']",
+        "type": "text"
+      },
+      {
+        "name": "published_date",
+        "selector": "time, [data-testid='timestamp']",
+        "type": "attribute",
+        "attribute": "datetime"
+      },
+      {
+        "name": "content",
+        "selector": "[data-component='text-block']",
+        "type": "text"
+      },
+      {
+        "name": "summary",
+        "selector": "[data-component='lead-block']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "figure img",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "section",
+        "selector": "[data-component='topic-tags'] a",
+        "type": "text"
+      }
+    ]
+  },
+  "url_pattern": "*://www.bbc.com/*"
+}

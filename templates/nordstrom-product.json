@@ -1,0 +1,69 @@
+{
+  "name": "Nordstrom Product",
+  "description": "Extract product details from Nordstrom",
+  "site": "nordstrom.com",
+  "category": "ecommerce",
+  "icon": "\ud83d\udecd\ufe0f",
+  "schema": {
+    "name": "nordstrom_product",
+    "base_selector": ".product-details",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": "[class*='price']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "original_price",
+        "selector": "[class*='original']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "brand",
+        "selector": "[class*='brand']",
+        "type": "text"
+      },
+      {
+        "name": "description",
+        "selector": "[class*='description']",
+        "type": "text"
+      },
+      {
+        "name": "rating",
+        "selector": "[class*='rating']",
+        "type": "attribute",
+        "attribute": "aria-label"
+      },
+      {
+        "name": "review_count",
+        "selector": "[class*='reviews']",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "image_url",
+        "selector": "[class*='image'] img, figure img",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "color_options",
+        "selector": "[class*='swatch']",
+        "type": "count"
+      },
+      {
+        "name": "availability",
+        "selector": "[class*='fulfillment'], [class*='availability']",
+        "type": "text"
+      }
+    ]
+  },
+  "url_pattern": "*://www.nordstrom.com/*"
+}

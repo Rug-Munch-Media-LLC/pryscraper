@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Pry Scraper</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { width: 360px; font-family: -apple-system, system-ui, sans-serif; background: #0a0a0b; color: #e4e4e7; }
+    .header { background: #18181b; padding: 12px 16px; border-bottom: 1px solid #27272a; display: flex; align-items: center; gap: 10px; }
+    .header h1 { font-size: 16px; color: #f59e0b; }
+    .content { padding: 12px 16px; }
+    .section { margin-bottom: 16px; }
+    .section h2 { font-size: 13px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .btn { display: block; width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; text-align: center; margin-bottom: 8px; font-weight: 500; }
+    .btn-primary { background: #f59e0b; color: #000; }
+    .btn-primary:hover { background: #d97706; }
+    .btn-secondary { background: #27272a; color: #e4e4e7; border: 1px solid #3f3f46; }
+    .btn-secondary:hover { background: #3f3f46; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-small { padding: 6px 12px; font-size: 12px; width: auto; display: inline-block; }
+    .status { padding: 8px 12px; border-radius: 4px; font-size: 12px; margin-top: 8px; display: none; }
+    .status.success { display: block; background: #065f46; color: #6ee7b7; }
+    .status.error { display: block; background: #7f1d1d; color: #fca5a5; }
+    .status.loading { display: block; background: #1e3a5f; color: #93c5fd; }
+    .field { margin-bottom: 10px; }
+    .field label { display: block; font-size: 12px; color: #a1a1aa; margin-bottom: 4px; }
+    .field input, .field select, .field textarea { width: 100%; padding: 8px; background: #18181b; border: 1px solid #27272a; border-radius: 4px; color: #e4e4e7; font-size: 13px; }
+    .field textarea { resize: vertical; min-height: 60px; font-family: monospace; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+    .tab { padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; background: #18181b; color: #a1a1aa; border: none; }
+    .tab.active { background: #f59e0b; color: #000; }
+    .result-box { background: #18181b; border: 1px solid #27272a; border-radius: 4px; padding: 8px; max-height: 200px; overflow: auto; font-family: monospace; font-size: 11px; line-height: 1.4; margin-top: 8px; }
+    .destinations { display: flex; gap: 4px; flex-wrap: wrap; margin: 8px 0; }
+    .dest-btn { padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; background: #27272a; color: #a1a1aa; border: 1px solid #3f3f46; }
+    .dest-btn.active { background: #065f46; color: #6ee7b7; border-color: #059669; }
+    .footer { padding: 8px 16px; border-top: 1px solid #27272a; font-size: 11px; color: #52525b; text-align: center; }
+    a { color: #f59e0b; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span style="font-size:20px;">🔍</span>
+    <h1>Pry Scraper</h1>
+  </div>
+  <div class="content">
+    <div class="tabs">
+      <button class="tab active" data-tab="scrape">Scrape</button>
+      <button class="tab" data-tab="extract">Extract</button>
+      <button class="tab" data-tab="settings">Settings</button>
+    </div>
+
+    <!-- Scrape Tab -->
+    <div class="tab-content" id="tab-scrape">
+      <div class="section">
+        <button class="btn btn-primary" id="scrape-current">Scrape This Page</button>
+        <div class="destinations">
+          <button class="dest-btn" data-dest="clipboard">📋 Clipboard</button>
+          <button class="dest-btn" data-dest="slack">💬 Slack</button>
+          <button class="dest-btn" data-dest="email">📧 Email</button>
+        </div>
+      </div>
+      <div class="status" id="scrape-status"></div>
+      <div id="scrape-result" class="result-box" style="display:none;"></div>
+    </div>
+
+    <!-- Extract Tab -->
+    <div class="tab-content" id="tab-extract" style="display:none;">
+      <div class="field">
+        <label>What to extract</label>
+        <select id="extract-type">
+          <option value="prices">Prices</option>
+          <option value="products">Products</option>
+          <option value="reviews">Reviews</option>
+          <option value="links">All Links</option>
+          <option value="images">Images</option>
+          <option value="custom">Custom CSS Selector</option>
+        </select>
+      </div>
+      <div class="field" id="custom-selector-field" style="display:none;">
+        <label>CSS Selector</label>
+        <input type="text" id="custom-selector" placeholder=".product-price, h2.title" />
+      </div>
+      <button class="btn btn-primary" id="extract-current">Extract from Page</button>
+      <div class="status" id="extract-status"></div>
+      <div id="extract-result" class="result-box" style="display:none;"></div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div class="tab-content" id="tab-settings" style="display:none;">
+      <div class="field">
+        <label>Pry Server URL</label>
+        <input type="url" id="pry-server-url" placeholder="http://localhost:8002" />
+      </div>
+      <div class="field">
+        <label>API Key (optional)</label>
+        <input type="password" id="pry-api-key" placeholder="Leave blank if no auth" />
+      </div>
+      <div class="field">
+        <label>Default Destination</label>
+        <select id="default-destination">
+          <option value="clipboard">Clipboard</option>
+          <option value="slack">Slack</option>
+          <option value="email">Email</option>
+        </select>
+      </div>
+      <button class="btn btn-secondary" id="save-settings">Save Settings</button>
+      <div class="status" id="settings-status"></div>
+    </div>
+  </div>
+  <div class="footer">
+    Powered by <a href="#" id="pry-version">Pry v3.0</a>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

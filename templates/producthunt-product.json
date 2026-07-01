@@ -1,0 +1,58 @@
+{
+  "name": "Product Hunt Product",
+  "description": "Extract product details from Product Hunt",
+  "site": "producthunt.com",
+  "category": "business",
+  "icon": "\ud83d\ude80",
+  "schema": {
+    "name": "product_hunt",
+    "base_selector": "[data-test^='post']",
+    "fields": [
+      {
+        "name": "name",
+        "selector": "h1, [data-test='post-name']",
+        "type": "text"
+      },
+      {
+        "name": "tagline",
+        "selector": "[data-test='post-tagline']",
+        "type": "text"
+      },
+      {
+        "name": "upvotes",
+        "selector": "[data-test='vote-button']",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "comments",
+        "selector": "[data-test='comment-count']",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "description",
+        "selector": "[data-test='post-description']",
+        "type": "text"
+      },
+      {
+        "name": "website",
+        "selector": "[data-test='post-website'] a",
+        "type": "attribute",
+        "attribute": "href"
+      },
+      {
+        "name": "maker",
+        "selector": "[data-test='maker-card']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "[data-test='post-thumbnail'] img",
+        "type": "attribute",
+        "attribute": "src"
+      }
+    ]
+  },
+  "url_pattern": "*://www.producthunt.com/*"
+}

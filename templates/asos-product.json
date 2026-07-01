@@ -1,0 +1,69 @@
+{
+  "name": "ASOS Product",
+  "description": "Extract product details from ASOS",
+  "site": "asos.com",
+  "category": "ecommerce",
+  "icon": "\ud83d\udc57",
+  "schema": {
+    "name": "asos_product",
+    "base_selector": ".product-detail",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "brand",
+        "selector": "[class*='brand']",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": "[class*='price']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "original_price",
+        "selector": "[class*='original'], [class*='was']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "description",
+        "selector": "[class*='description']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "[class*='image'] img",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "color_options",
+        "selector": "[class*='color'], [class*='colour']",
+        "type": "count"
+      },
+      {
+        "name": "size_options",
+        "selector": "[class*='size']",
+        "type": "count"
+      },
+      {
+        "name": "rating",
+        "selector": "[class*='rating']",
+        "type": "attribute",
+        "attribute": "aria-label"
+      },
+      {
+        "name": "review_count",
+        "selector": "[class*='review']",
+        "type": "text",
+        "transform": "int"
+      }
+    ]
+  },
+  "url_pattern": "*://www.asos.com/*"
+}

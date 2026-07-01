@@ -1,0 +1,39 @@
+{
+  "name": "USPTO Patent",
+  "description": "Extract patent data from USPTO",
+  "site": "uspto.gov",
+  "category": "reference",
+  "icon": "\ud83d\udcdc",
+  "schema": {
+    "name": "uspto_patent",
+    "base_selector": "body",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "patent_number",
+        "selector": "[class*='patent-number']",
+        "type": "text"
+      },
+      {
+        "name": "inventors",
+        "selector": "[class*='inventors']",
+        "type": "text"
+      },
+      {
+        "name": "filing_date",
+        "selector": "[class*='filing-date']",
+        "type": "text"
+      },
+      {
+        "name": "abstract",
+        "selector": ".abstract",
+        "type": "text"
+      }
+    ]
+  },
+  "url_pattern": "*://www.uspto.gov/*"
+}

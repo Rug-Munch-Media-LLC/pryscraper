@@ -1,0 +1,51 @@
+{
+  "name": "Crunchbase Company",
+  "description": "Extract company info from Crunchbase",
+  "site": "crunchbase.com",
+  "category": "business",
+  "icon": "\ud83c\udfe2",
+  "schema": {
+    "name": "crunchbase_company",
+    "base_selector": ".page-container",
+    "fields": [
+      {
+        "name": "name",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "description",
+        "selector": "[class*='short-description']",
+        "type": "text"
+      },
+      {
+        "name": "website",
+        "selector": "a[href*='http']:not([href*='crunchbase'])",
+        "type": "attribute",
+        "attribute": "href"
+      },
+      {
+        "name": "founded",
+        "selector": "[class*='field-type-date_founded']",
+        "type": "text"
+      },
+      {
+        "name": "employees",
+        "selector": "[class*='field-type-organization_num_employees']",
+        "type": "text"
+      },
+      {
+        "name": "funding",
+        "selector": "[class*='field-type-money-raised']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "headquarters",
+        "selector": "[class*='field-type-location']",
+        "type": "text"
+      }
+    ]
+  },
+  "url_pattern": "*://www.crunchbase.com/*"
+}

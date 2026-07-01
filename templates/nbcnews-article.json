@@ -1,0 +1,41 @@
+{
+  "name": "NBC News Article",
+  "description": "Extract article content from NBC News",
+  "site": "nbcnews.com",
+  "category": "news",
+  "icon": "\ud83d\udcf0",
+  "schema": {
+    "name": "nbc_article",
+    "base_selector": "article",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "author",
+        "selector": "[class*='byline']",
+        "type": "text"
+      },
+      {
+        "name": "published_date",
+        "selector": "time",
+        "type": "attribute",
+        "attribute": "datetime"
+      },
+      {
+        "name": "content",
+        "selector": "[class*='article-body']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "figure img",
+        "type": "attribute",
+        "attribute": "src"
+      }
+    ]
+  },
+  "url_pattern": "*://www.nbcnews.com/*"
+}

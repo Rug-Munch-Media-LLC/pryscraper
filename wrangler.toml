@@ -1,0 +1,15 @@
+name = "pry-mcp"
+main = "workers/mcp-worker.js"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.production]
+vars = { PRY_API_URL = "https://pry.dev" }
+
+# Optional: route a custom subdomain to this worker
+# routes = [
+#   { pattern = "mcp.pry.dev", custom_domain = true }
+# ]
+
+# Secrets (set via `wrangler secret put PRY_API_KEY`):
+# PRY_API_KEY = ""

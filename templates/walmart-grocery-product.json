@@ -1,0 +1,68 @@
+{
+  "name": "Walmart Grocery Product",
+  "description": "Extract grocery product details from Walmart",
+  "site": "walmart.com",
+  "category": "ecommerce",
+  "icon": "\ud83d\uded2",
+  "schema": {
+    "name": "walmart_grocery",
+    "base_selector": ".product-detail",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": "[class*='price']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "unit_price",
+        "selector": "[class*='unit']",
+        "type": "text"
+      },
+      {
+        "name": "rating",
+        "selector": "[class*='rating'], .stars",
+        "type": "attribute",
+        "attribute": "aria-label"
+      },
+      {
+        "name": "review_count",
+        "selector": "[class*='review']",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "brand",
+        "selector": "[class*='brand']",
+        "type": "text"
+      },
+      {
+        "name": "description",
+        "selector": "[class*='description']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "[class*='image'] img",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "nutrition",
+        "selector": "[class*='nutrition']",
+        "type": "text"
+      },
+      {
+        "name": "pickup_available",
+        "selector": "[class*='pickup']",
+        "type": "exists"
+      }
+    ]
+  },
+  "url_pattern": "*://www.walmart.com/*"
+}

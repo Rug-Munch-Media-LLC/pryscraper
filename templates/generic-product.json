@@ -1,0 +1,20 @@
+{
+  "name": "Generic E-commerce Product",
+  "description": "Extract product details from most standard e-commerce sites",
+  "site": "generic",
+  "category": "ecommerce",
+  "icon": "📦",
+  "url_pattern": "*",
+  "schema": {
+    "name": "generic_product",
+    "base_selector": "body",
+    "fields": [
+      {"name": "title", "selector": "h1, [class*='title'], [class*='product-name'], [itemprop='name']", "type": "text"},
+      {"name": "price", "selector": "[class*='price'], [itemprop='price'], [class*='cost']", "type": "text", "transform": "float"},
+      {"name": "description", "selector": "[class*='description'], [class*='desc'], [itemprop='description']", "type": "text"},
+      {"name": "image_url", "selector": "[class*='gallery'] img, [class*='product-image'] img, [itemprop='image']", "type": "attribute", "attribute": "src"},
+      {"name": "availability", "selector": "[itemprop='availability'], [class*='stock'], [class*='availability']", "type": "text"},
+      {"name": "sku", "selector": "[itemprop='sku'], [class*='sku']", "type": "text"}
+    ]
+  }
+}

@@ -1,0 +1,334 @@
+"""Pry — Referral / Affiliate revenue system.
+Tracks clicks, conversions, and revenue across 60+ providers.
+Supports x402 (HTTP 402) pay-per-scrape protocol for monetization."""
+
+import json
+import logging
+import os
+import uuid
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+REFERRAL_DIR = Path(os.path.expanduser("~/.pry/referrals"))
+REFERRAL_DIR.mkdir(parents=True, exist_ok=True)
+
+# Provider catalog with referral program details
+# Format: { category: [ {name, url, commission, cookie_days, ...} ] }
+PROVIDER_CATALOG: dict[str, list[dict[str, Any]]] = {
+    "llm": [
+        {"name": "OpenAI", "url": "https://platform.openai.com/signup?via=pry",
+         "commission": "20% first 6 months", "cookie_days": 30, "tag": "openai"},
+        {"name": "Anthropic", "url": "https://console.anthropic.com/?ref=pry",
+         "commission": "Enterprise referrals", "cookie_days": 30, "tag": "anthropic"},
+        {"name": "Google AI Studio", "url": "https://aistudio.google.com/?utm_source=pry",
+         "commission": "Google Cloud Partner tiered", "cookie_days": 30, "tag": "google"},
+        {"name": "Cohere", "url": "https://dashboard.cohere.com/welcome?ref=pry",
+         "commission": "Partner program", "cookie_days": 30, "tag": "cohere"},
+        {"name": "Mistral AI", "url": "https://console.mistral.ai/?ref=pry",
+         "commission": "Partner program", "cookie_days": 30, "tag": "mistral"},
+        {"name": "OpenRouter", "url": "https://openrouter.ai/?ref=pry",
+         "commission": "$1/signup + usage share", "cookie_days": 30, "tag": "openrouter"},
+        {"name": "Groq", "url": "https://console.groq.com/?ref=pry",
+         "commission": "Developer program", "cookie_days": 30, "tag": "groq"},
+        {"name": "Together AI", "url": "https://api.together.xyz/?ref=pry",
+         "commission": "$5/signup + usage share", "cookie_days": 30, "tag": "together"},
+        {"name": "Replicate", "url": "https://replicate.com/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "replicate"},
+        {"name": "Fireworks AI", "url": "https://fireworks.ai/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "fireworks"},
+        {"name": "xAI (Grok)", "url": "https://console.x.ai/?ref=pry",
+         "commission": "Partner program", "cookie_days": 30, "tag": "xai"},
+        {"name": "DeepInfra", "url": "https://deepinfra.com/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "deepinfra"},
+        {"name": "Novita AI", "url": "https://novita.ai/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "novita"},
+        {"name": "Anyscale", "url": "https://anyscale.com/?ref=pry",
+         "commission": "Partner program", "cookie_days": 30, "tag": "anyscale"},
+        {"name": "Lepton AI", "url": "https://www.lepton.ai/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "lepton"},
+    ],
+    "hosting": [
+        {"name": "Hetzner", "url": "https://hetzner.com/?ref=pry",
+         "commission": "€25/signup + 10% recurring", "cookie_days": 90, "tag": "hetzner"},
+        {"name": "DigitalOcean", "url": "https://m.do.co/c/pry",
+         "commission": "$25/paid referral", "cookie_days": 60, "tag": "do"},
+        {"name": "Linode (Akamai)", "url": "https://www.linode.com/?ref=pry",
+         "commission": "$20/paid referral", "cookie_days": 60, "tag": "linode"},
+        {"name": "Vultr", "url": "https://www.vultr.com/?ref=pry",
+         "commission": "$10-$50/signup", "cookie_days": 30, "tag": "vultr"},
+        {"name": "OVHcloud", "url": "https://www.ovhcloud.com/?ref=pry",
+         "commission": "Partner program", "cookie_days": 30, "tag": "ovh"},
+        {"name": "UpCloud", "url": "https://upcloud.com/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "upcloud"},
+        {"name": "Netcup", "url": "https://netcup.com/?ref=pry",
+         "commission": "€5/signup", "cookie_days": 90, "tag": "netcup"},
+    ],
+    "domains": [
+        {"name": "Namecheap", "url": "https://namecheap.com/?affiliateid=pry",
+         "commission": "Up to $50/domain", "cookie_days": 365, "tag": "namecheap"},
+        {"name": "Cloudflare Registrar", "url": "https://cloudflare.com/?ref=pry",
+         "commission": "At-cost pricing", "cookie_days": 0, "tag": "cloudflare"},
+        {"name": "Porkbun", "url": "https://porkbun.com/?affiliate=pry",
+         "commission": "$0.50-$2/domain", "cookie_days": 365, "tag": "porkbun"},
+        {"name": "Spaceship", "url": "https://spaceship.com/?affiliate=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "spaceship"},
+    ],
+    "cdn": [
+        {"name": "Cloudflare", "url": "https://cloudflare.com/?ref=pry",
+         "commission": "Partner program", "cookie_days": 30, "tag": "cloudflare"},
+        {"name": "Bunny CDN", "url": "https://bunny.net?affiliate=pry",
+         "commission": "10% recurring lifetime", "cookie_days": 60, "tag": "bunny"},
+        {"name": "Fastly", "url": "https://fastly.com/?ref=pry",
+         "commission": "Partner program", "cookie_days": 30, "tag": "fastly"},
+    ],
+    "email": [
+        {"name": "SendGrid", "url": "https://sendgrid.com/?ref=pry",
+         "commission": "$30/referral", "cookie_days": 30, "tag": "sendgrid"},
+        {"name": "Mailgun", "url": "https://mailgun.com/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "mailgun"},
+        {"name": "Resend", "url": "https://resend.com/?ref=pry",
+         "commission": "$20/signup", "cookie_days": 30, "tag": "resend"},
+        {"name": "Postmark", "url": "https://postmarkapp.com/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "postmark"},
+        {"name": "Brevo (Sendinblue)", "url": "https://www.brevo.com/?ref=pry",
+         "commission": "Paid plan share", "cookie_days": 30, "tag": "brevo"},
+    ],
+    "monitoring": [
+        {"name": "Sentry", "url": "https://sentry.io/?ref=pry",
+         "commission": "$100-$1,000 (tiered)", "cookie_days": 60, "tag": "sentry"},
+        {"name": "Datadog", "url": "https://datadoghq.com/?ref=pry",
+         "commission": "Partner program", "cookie_days": 30, "tag": "datadog"},
+        {"name": "Better Stack", "url": "https://betterstack.com/?ref=pry",
+         "commission": "$50/paid signup", "cookie_days": 30, "tag": "betterstack"},
+        {"name": "Highlight.io", "url": "https://highlight.io/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "highlight"},
+        {"name": "PostHog", "url": "https://posthog.com/?ref=pry",
+         "commission": "20% recurring for 2 years", "cookie_days": 60, "tag": "posthog"},
+    ],
+    "proxies": [
+        {"name": "Bright Data", "url": "https://brightdata.com/cp/start?aff_id=pry",
+         "commission": "$2-$50/signup, up to 10% recurring", "cookie_days": 30, "tag": "brightdata",
+         "free_trial": "$5 credit", "min_price": "$0.10/GB residential",
+         "note": "Industry leader. Best for high-volume scraping."},
+        {"name": "Smartproxy", "url": "https://dashboard.smartproxy.com/registration?aff_id=pry",
+         "commission": "20% recurring lifetime", "cookie_days": 60, "tag": "smartproxy",
+         "free_trial": "100MB free", "min_price": "$0.10/GB residential",
+         "note": "Good balance of price and quality."},
+        {"name": "Oxylabs", "url": "https://dashboard.oxylabs.io/?aff_id=pry",
+         "commission": "10-30% recurring", "cookie_days": 30, "tag": "oxylabs",
+         "free_trial": "5K requests", "min_price": "$1.20/GB residential",
+         "note": "Enterprise-grade. Best for big data scraping."},
+        {"name": "IPRoyal", "url": "https://dashboard.iproyal.com/signup?aff=pry",
+         "commission": "30% recurring lifetime", "cookie_days": 60, "tag": "iproyal",
+         "free_trial": "None", "min_price": "$0.04/GB residential",
+         "note": "Cheapest. Good for budget scraping."},
+        {"name": "Webshare", "url": "https://proxy.webshare.io/register?aff=pry",
+         "commission": "30% recurring lifetime", "cookie_days": 60, "tag": "webshare",
+         "free_trial": "10 free proxies", "min_price": "$0.03/proxy/month",
+         "note": "Best free tier. Try before you buy."},
+        {"name": "Proxy-Seller", "url": "https://proxy-seller.com/?partner=pry",
+         "commission": "30% recurring", "cookie_days": 60, "tag": "proxyseller",
+         "free_trial": "None", "min_price": "$1.40/proxy/month",
+         "note": "Cheap private proxies."},
+        {"name": "NetNut", "url": "https://netnut.io/?aff=pry",
+         "commission": "Partner program", "cookie_days": 30, "tag": "netnut",
+         "free_trial": "7 days free", "min_price": "$0.20/GB",
+         "note": "Fast residential IPs from ISPs."},
+        {"name": "ProxyMesh", "url": "https://proxymesh.com/?aff=pry",
+         "commission": "20% recurring", "cookie_days": 30, "tag": "proxymesh",
+         "free_trial": "None", "min_price": "$0.80/proxy",
+         "note": "Simple rotating proxies."},
+        {"name": "Decodo (Smartproxy)", "url": "https://decodo.com/signup?aff=pry",
+         "commission": "20% recurring", "cookie_days": 60, "tag": "decodo",
+         "note": "Budget option from Smartproxy."},
+        {"name": "PacketStream", "url": "https://packetstream.io/signup?aff=pry",
+         "commission": "20% revenue share", "cookie_days": 60, "tag": "packetstream",
+         "free_trial": "Pay-as-you-go", "min_price": "$0.05/GB",
+         "note": "Bandwidth-sharing residential proxies."},
+    ],
+    "voice": [
+        {"name": "ElevenLabs", "url": "https://elevenlabs.io/?ref=pry",
+         "commission": "22% recurring for 12 months", "cookie_days": 30, "tag": "elevenlabs"},
+        {"name": "Murf AI", "url": "https://murf.ai/?ref=pry",
+         "commission": "30% recurring", "cookie_days": 30, "tag": "murf"},
+        {"name": "Play.ht", "url": "https://play.ht/?ref=pry",
+         "commission": "20% recurring", "cookie_days": 30, "tag": "playht"},
+    ],
+    "media": [
+        {"name": "RunwayML", "url": "https://runwayml.com/?ref=pry",
+         "commission": "20% first year", "cookie_days": 30, "tag": "runway"},
+        {"name": "HeyGen", "url": "https://heygen.com/?ref=pry",
+         "commission": "20% recurring for 12 months", "cookie_days": 30, "tag": "heygen"},
+        {"name": "Synthesia", "url": "https://synthesia.io/?ref=pry",
+         "commission": "20% recurring", "cookie_days": 30, "tag": "synthesia"},
+        {"name": "Pika", "url": "https://pika.art/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "pika"},
+        {"name": "Suno", "url": "https://suno.com/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "suno"},
+        {"name": "ElevenLabs Image", "url": "https://elevenlabs.io/image?ref=pry",
+         "commission": "22% recurring", "cookie_days": 30, "tag": "elevenlabs-image"},
+    ],
+    "devtools": [
+        {"name": "Cursor", "url": "https://cursor.com/?ref=pry",
+         "commission": "Varies", "cookie_days": 30, "tag": "cursor"},
+        {"name": "v0.dev", "url": "https://v0.dev/?ref=pry",
+         "commission": "Varies", "cookie_days": 30, "tag": "v0"},
+        {"name": "Bolt.new", "url": "https://bolt.new/?ref=pry",
+         "commission": "Varies", "cookie_days": 30, "tag": "bolt"},
+        {"name": "Lovable", "url": "https://lovable.dev/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "lovable"},
+        {"name": "Replit", "url": "https://replit.com/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "replit"},
+    ],
+    "search": [
+        {"name": "Algolia", "url": "https://algolia.com/?ref=pry",
+         "commission": "$200/paid signup", "cookie_days": 30, "tag": "algolia"},
+        {"name": "Meilisearch Cloud", "url": "https://meilisearch.com/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "meilisearch"},
+        {"name": "Typesense Cloud", "url": "https://typesense.org/?ref=pry",
+         "commission": "Usage share", "cookie_days": 30, "tag": "typesense"},
+    ],
+    "captcha": [
+        {"name": "Capsolver", "url": "https://capsolver.com/?ref=pry",
+         "commission": "20% recurring lifetime", "cookie_days": 60, "tag": "capsolver"},
+        {"name": "2Captcha", "url": "https://2captcha.com/?ref=pry",
+         "commission": "10% recurring lifetime", "cookie_days": 60, "tag": "2captcha"},
+        {"name": "Anti-Captcha", "url": "https://anti-captcha.com/?ref=pry",
+         "commission": "10% recurring lifetime", "cookie_days": 60, "tag": "anticaptcha"},
+        {"name": "CapMonster Cloud", "url": "https://capmonster.cloud/?ref=pry",
+         "commission": "10% recurring", "cookie_days": 60, "tag": "capmonster"},
+        {"name": "NextCaptcha", "url": "https://nextcaptcha.com/?ref=pry",
+         "commission": "10% recurring", "cookie_days": 60, "tag": "nextcaptcha"},
+    ],
+    "flaresolverr": [
+        {"name": "FlareSolverr (Self-hosted)", "url": "https://github.com/FlareSolverr/FlareSolverr",
+         "commission": "Open source (no affiliate)", "cookie_days": 0, "tag": "flaresolverr",
+         "note": "Self-host for free; recommend on Hydra"},
+    ],
+}
+
+
+class ReferralTracker:
+    """Track referral clicks, conversions, and revenue."""
+
+    def __init__(self):
+        self.clicks_file = REFERRAL_DIR / "clicks.jsonl"
+        self.conversions_file = REFERRAL_DIR / "conversions.jsonl"
+        self._load_state()
+
+    def _load_state(self) -> None:
+        self.clicks: list[dict[str, Any]] = []
+        self.conversions: list[dict[str, Any]] = []
+        for path in (self.clicks_file, self.conversions_file):
+            if path.exists():
+                try:
+                    for line in path.read_text().splitlines():
+                        if line.strip():
+                            record = json.loads(line)
+                            (self.clicks if path == self.clicks_file else self.conversions).append(record)
+                except (json.JSONDecodeError, OSError):
+                    pass
+
+    def record_click(self, provider_tag: str, url: str, source: str = "pry",
+                     user_id: str = "") -> str:
+        """Record a referral link click. Returns the tracking ID."""
+        click_id = uuid.uuid4().hex[:12]
+        record = {
+            "id": click_id, "provider": provider_tag, "url": url,
+            "source": source, "user_id": user_id,
+            "timestamp": datetime.now(UTC).isoformat(),
+            "converted": False,
+        }
+        try:
+            with open(self.clicks_file, "a") as f:
+                f.write(json.dumps(record) + "\n")
+            self.clicks.append(record)
+        except OSError:
+            pass
+        logger.info("referral_click", extra={"provider": provider_tag, "source": source})
+        return click_id
+
+    def record_conversion(self, click_id: str, revenue_usd: float = 0.0,
+                          notes: str = "") -> bool:
+        """Record a conversion for a click."""
+        for click in self.clicks:
+            if click["id"] == click_id:
+                click["converted"] = True
+                click["revenue_usd"] = revenue_usd
+                click["conversion_notes"] = notes
+                conversion = {
+                    "click_id": click_id, "provider": click["provider"],
+                    "revenue_usd": revenue_usd, "notes": notes,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+                try:
+                    with open(self.conversions_file, "a") as f:
+                        f.write(json.dumps(conversion) + "\n")
+                    self.conversions.append(conversion)
+                except OSError:
+                    pass
+                return True
+        return False
+
+    def get_catalog(self, category: str = "") -> list[dict[str, Any]]:
+        """Get the provider catalog, optionally filtered by category."""
+        if category:
+            return PROVIDER_CATALOG.get(category, [])
+        return [{"category": cat, "providers": providers}
+                for cat, providers in PROVIDER_CATALOG.items()]
+
+    def get_stats(self, days_back: int = 30) -> dict[str, Any]:
+        """Get referral statistics for the last N days."""
+        cutoff = datetime.now(UTC) - timedelta(days=days_back)
+        recent_clicks = []
+        for c in self.clicks:
+            try:
+                ts = datetime.fromisoformat(c["timestamp"])
+                if ts >= cutoff:
+                    recent_clicks.append(c)
+            except (ValueError, TypeError):
+                pass
+        recent_conversions = []
+        for c in self.conversions:
+            try:
+                ts = datetime.fromisoformat(c.get("timestamp", ""))
+                if ts >= cutoff:
+                    recent_conversions.append(c)
+            except (ValueError, TypeError):
+                pass
+        clicks_by_provider: dict[str, int] = {}
+        for c in recent_clicks:
+            clicks_by_provider[c["provider"]] = clicks_by_provider.get(c["provider"], 0) + 1
+        conversions_by_provider: dict[str, int] = {}
+        revenue_by_provider: dict[str, float] = {}
+        for c in recent_conversions:
+            p = c["provider"]
+            conversions_by_provider[p] = conversions_by_provider.get(p, 0) + 1
+            revenue_by_provider[p] = revenue_by_provider.get(p, 0.0) + c.get("revenue_usd", 0.0)
+        return {
+            "period_days": days_back,
+            "total_clicks": len(recent_clicks),
+            "total_conversions": len(recent_conversions),
+            "clicks_by_provider": clicks_by_provider,
+            "conversions_by_provider": conversions_by_provider,
+            "revenue_by_provider_usd": revenue_by_provider,
+            "total_revenue_usd": sum(revenue_by_provider.values()),
+            "conversion_rate": len(recent_conversions) / max(len(recent_clicks), 1),
+            "catalog_size": sum(len(v) for v in PROVIDER_CATALOG.values()),
+        }
+
+    def track_in_app_usage(self, provider_tag: str, revenue_usd: float) -> None:
+        """Track revenue from in-app LLM provider usage (per-call)."""
+        record = {
+            "type": "in_app_usage", "provider": provider_tag,
+            "revenue_usd": revenue_usd,
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+        try:
+            with open(REFERRAL_DIR / "in_app_usage.jsonl", "a") as f:
+                f.write(json.dumps(record) + "\n")
+        except OSError:
+            pass

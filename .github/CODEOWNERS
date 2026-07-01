@@ -1,0 +1,15 @@
+# Default owners
+*       @crmuncher
+
+# Standards + fleet (slower review)
+/AGENTS.md       @crmuncher
+/ARCHITECTURE.md @crmuncher
+/README.md       @crmuncher
+/STATUS.md       @crmuncher
+/PLAN.md         @crmuncher
+/ROADMAP.md      @crmuncher
+/DECISIONS.md    @crmuncher
+
+# Sensitive paths
+/.secrets/       @crmuncher
+/backend/chain_vault/  @crmuncher

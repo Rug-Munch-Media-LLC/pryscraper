@@ -1,0 +1,40 @@
+{
+  "name": "Wikipedia Article",
+  "description": "Extract article content and infobox from Wikipedia",
+  "site": "wikipedia.org",
+  "category": "reference",
+  "icon": "\ud83d\udcda",
+  "schema": {
+    "name": "wikipedia_article",
+    "base_selector": "#content",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "#firstHeading",
+        "type": "text"
+      },
+      {
+        "name": "summary",
+        "selector": ".mw-parser-output > p:first-of-type",
+        "type": "text"
+      },
+      {
+        "name": "body",
+        "selector": ".mw-parser-output",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": ".infobox img",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "categories",
+        "selector": ".mw-normal-catlinks ul li a",
+        "type": "text"
+      }
+    ]
+  },
+  "url_pattern": "*://www.wikipedia.org/*"
+}

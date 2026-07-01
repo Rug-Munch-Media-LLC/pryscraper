@@ -1,0 +1,53 @@
+{
+  "name": "Home Depot Product",
+  "description": "Extract product details from Home Depot",
+  "site": "homedepot.com",
+  "category": "ecommerce",
+  "icon": "\ud83c\udfea",
+  "schema": {
+    "name": "homedepot_product",
+    "base_selector": ".product-details",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": ".price-format__large",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "rating",
+        "selector": ".rating-stars",
+        "type": "attribute",
+        "attribute": "aria-label"
+      },
+      {
+        "name": "review_count",
+        "selector": ".product-reviews",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "model",
+        "selector": ".product-details__model-number",
+        "type": "text"
+      },
+      {
+        "name": "description",
+        "selector": "#product-description",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": ".product-images img",
+        "type": "attribute",
+        "attribute": "src"
+      }
+    ]
+  },
+  "url_pattern": "*://www.homedepot.com/*"
+}

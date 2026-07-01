@@ -1,0 +1,48 @@
+{
+  "name": "TikTok Profile",
+  "description": "Extract profile info from TikTok",
+  "site": "tiktok.com",
+  "category": "social",
+  "icon": "\ud83c\udfb5",
+  "schema": {
+    "name": "tiktok_profile",
+    "base_selector": "body",
+    "fields": [
+      {
+        "name": "username",
+        "selector": "h1, [class*='share-title'], [data-e2e='user-title']",
+        "type": "text"
+      },
+      {
+        "name": "bio",
+        "selector": "h2, [class*='share-desc'], [data-e2e='user-desc']",
+        "type": "text"
+      },
+      {
+        "name": "followers",
+        "selector": "[class*='follower-count'], strong:contains('Followers')",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "following",
+        "selector": "[class*='following-count'], strong:contains('Following')",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "likes",
+        "selector": "[class*='like-count'], strong:contains('Likes')",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "avatar",
+        "selector": "[class*='avatar'] img",
+        "type": "attribute",
+        "attribute": "src"
+      }
+    ]
+  },
+  "url_pattern": "*://www.tiktok.com/*"
+}

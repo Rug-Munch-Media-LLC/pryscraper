@@ -1,0 +1,57 @@
+{
+  "name": "H&M Product",
+  "description": "Extract product details from H&M",
+  "site": "hm.com",
+  "category": "ecommerce",
+  "icon": "\ud83d\udc55",
+  "schema": {
+    "name": "hm_product",
+    "base_selector": ".product-detail",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": "[class*='price']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "original_price",
+        "selector": "[class*='original']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "description",
+        "selector": "[class*='description']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "[class*='image'] img",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "color_options",
+        "selector": "[class*='color'], [class*='swatch']",
+        "type": "count"
+      },
+      {
+        "name": "size_options",
+        "selector": "[class*='size']",
+        "type": "count"
+      },
+      {
+        "name": "material",
+        "selector": "[class*='material']",
+        "type": "text"
+      }
+    ]
+  },
+  "url_pattern": "*://www.hm.com/*"
+}

@@ -1,0 +1,40 @@
+{
+  "name": "Bloomberg Article",
+  "description": "Extract article content from Bloomberg",
+  "site": "bloomberg.com",
+  "category": "news",
+  "icon": "\ud83d\udcf0",
+  "schema": {
+    "name": "bloomberg_article",
+    "base_selector": "article",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "author",
+        "selector": "[class*='author']",
+        "type": "text"
+      },
+      {
+        "name": "published_date",
+        "selector": "time",
+        "type": "attribute",
+        "attribute": "datetime"
+      },
+      {
+        "name": "content",
+        "selector": ".body-content",
+        "type": "text"
+      },
+      {
+        "name": "summary",
+        "selector": "[class*='lede-text']",
+        "type": "text"
+      }
+    ]
+  },
+  "url_pattern": "*://www.bloomberg.com/*"
+}

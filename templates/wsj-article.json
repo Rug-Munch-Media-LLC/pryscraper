@@ -1,0 +1,46 @@
+{
+  "name": "Wall Street Journal Article",
+  "description": "Extract article content from WSJ",
+  "site": "wsj.com",
+  "category": "news",
+  "icon": "\ud83d\udcf0",
+  "schema": {
+    "name": "wsj_article",
+    "base_selector": "article",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "author",
+        "selector": "[class*='author'], [class*='byline']",
+        "type": "text"
+      },
+      {
+        "name": "published_date",
+        "selector": "time",
+        "type": "attribute",
+        "attribute": "datetime"
+      },
+      {
+        "name": "content",
+        "selector": "[class*='article-body'], [class*='wsj-article-body']",
+        "type": "text"
+      },
+      {
+        "name": "summary",
+        "selector": "[class*='summary'], h2",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "figure img, [class*='image'] img",
+        "type": "attribute",
+        "attribute": "src"
+      }
+    ]
+  },
+  "url_pattern": "*://www.wsj.com/*"
+}

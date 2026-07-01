@@ -1,0 +1,41 @@
+{
+  "name": "TechCrunch Article",
+  "description": "Extract article content from TechCrunch",
+  "site": "techcrunch.com",
+  "category": "news",
+  "icon": "\ud83d\udcf0",
+  "schema": {
+    "name": "tc_article",
+    "base_selector": "article",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "author",
+        "selector": "[class*='author'], .author-name",
+        "type": "text"
+      },
+      {
+        "name": "published_date",
+        "selector": "time",
+        "type": "attribute",
+        "attribute": "datetime"
+      },
+      {
+        "name": "content",
+        "selector": ".article-content",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "[class*='featured'] img, figure img",
+        "type": "attribute",
+        "attribute": "src"
+      }
+    ]
+  },
+  "url_pattern": "*://www.techcrunch.com/*"
+}

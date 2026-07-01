@@ -1,0 +1,13 @@
+{
+  "name": "pry-mcp-worker",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Cloudflare Worker exposing Pry as an MCP server over HTTP+SSE",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

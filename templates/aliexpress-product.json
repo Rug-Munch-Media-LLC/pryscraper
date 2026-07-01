@@ -1,0 +1,47 @@
+{
+  "name": "AliExpress Product",
+  "description": "Extract product details from AliExpress",
+  "site": "aliexpress.com",
+  "category": "ecommerce",
+  "icon": "\ud83d\udce6",
+  "schema": {
+    "name": "aliexpress_product",
+    "base_selector": ".product-detail",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": ".product-price-current",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "orders",
+        "selector": ".product-reviewer",
+        "type": "text"
+      },
+      {
+        "name": "rating",
+        "selector": ".star-wrap",
+        "type": "attribute",
+        "attribute": "aria-label"
+      },
+      {
+        "name": "description",
+        "selector": ".product-description",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": ".gallery-main img",
+        "type": "attribute",
+        "attribute": "src"
+      }
+    ]
+  },
+  "url_pattern": "*://www.aliexpress.com/*"
+}

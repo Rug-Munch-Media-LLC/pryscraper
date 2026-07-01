@@ -1,0 +1,68 @@
+{
+  "name": "Sam's Club Product",
+  "description": "Extract product details from Sam's Club",
+  "site": "samsclub.com",
+  "category": "ecommerce",
+  "icon": "\ud83c\udfea",
+  "schema": {
+    "name": "samsclub_product",
+    "base_selector": ".product-detail",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": "[class*='price']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "rating",
+        "selector": "[class*='rating']",
+        "type": "attribute",
+        "attribute": "aria-label"
+      },
+      {
+        "name": "review_count",
+        "selector": "[class*='review']",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "brand",
+        "selector": "[class*='brand']",
+        "type": "text"
+      },
+      {
+        "name": "description",
+        "selector": "[class*='description']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "[class*='image'] img",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "item_number",
+        "selector": "[class*='item'], [class*='sku']",
+        "type": "text"
+      },
+      {
+        "name": "in_club_only",
+        "selector": "[class*='club'], [class*='warehouse']",
+        "type": "exists"
+      },
+      {
+        "name": "shipping_info",
+        "selector": "[class*='shipping']",
+        "type": "text"
+      }
+    ]
+  },
+  "url_pattern": "*://www.samsclub.com/*"
+}

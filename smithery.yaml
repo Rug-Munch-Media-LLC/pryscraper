@@ -1,0 +1,54 @@
+# Smithery configuration for Pry MCP server
+# https://smithery.ai/docs/config
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration for your MCP server
+    type: object
+    required:
+      - pryApiUrl
+    properties:
+      pryApiUrl:
+        type: string
+        default: https://pry.dev
+        description: Base URL of the Pry backend API
+      pryApiKey:
+        type: string
+        description: Optional API key for private Pry instances
+  commandFunction: |
+    (config) => ({
+      command: 'python3',
+      args: ['-m', 'mcp_production'],
+      env: {
+        PRY_API_URL: config.pryApiUrl,
+        PRY_API_KEY: config.pryApiKey || ''
+      }
+    })
+
+buildCommand:
+  type: script
+  script: |
+    pip install -e ".[dev]"
+
+examples:
+  - name: research_company
+    description: Research a company website
+    arguments:
+      company_name: Anthropic
+      website: https://anthropic.com
+
+  - name: compare_products
+    description: Compare products across e-commerce sites
+    arguments:
+      product_query: wireless headphones
+      sites:
+        - amazon
+        - walmart
+        - target
+
+  - name: extract_contacts
+    description: Extract contacts from a website
+    arguments:
+      url: https://example.com
+      max_pages: 20

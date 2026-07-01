@@ -1,0 +1,293 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Pry Web Intelligence API",
+    "version": "3.0.0",
+    "description": "Scrape, crawl, extract, and monitor any website. AI-ready API for web data extraction. Self-hosted, no API keys needed (optional auth)."
+  },
+  "servers": [
+    {"url": "http://localhost:8002", "description": "Local Pry instance"}
+  ],
+  "paths": {
+    "/v1/scrape": {
+      "post": {
+        "summary": "Scrape a single URL to markdown",
+        "description": "Scrape any URL and return clean markdown content. Handles Cloudflare, JS rendering, and anti-bot protection automatically.",
+        "operationId": "scrape",
+        "tags": ["Scraping"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                  "url": {"type": "string", "description": "URL to scrape", "example": "https://example.com"},
+                  "bypassCloudflare": {"type": "boolean", "default": true, "description": "Auto-bypass Cloudflare protection"},
+                  "jsRender": {"type": "boolean", "default": false, "description": "Enable JavaScript rendering"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Scrape result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {"type": "boolean", "example": true},
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "content": {"type": "string", "description": "Clean markdown content"},
+                        "title": {"type": "string"},
+                        "url": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/crawl": {
+      "post": {
+        "summary": "Crawl multiple pages from a URL",
+        "description": "Crawl a website starting from a seed URL. Discovers and scrapes linked pages up to maxPages.",
+        "operationId": "crawl",
+        "tags": ["Scraping"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                  "url": {"type": "string", "example": "https://example.com"},
+                  "maxPages": {"type": "integer", "default": 10},
+                  "maxDepth": {"type": "integer", "default": 2}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Crawl result with array of pages",
+            "content": {"application/json": {"schema": {"type": "object"}}}
+          }
+        }
+      }
+    },
+    "/v1/extract/css": {
+      "post": {
+        "summary": "Extract structured data with CSS selectors",
+        "description": "Extract structured JSON from any URL using CSS selectors. No LLM needed — 100x cheaper than AI extraction. Define a schema with selectors and get clean data back.",
+        "operationId": "extractCss",
+        "tags": ["Extraction"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url", "schema"],
+                "properties": {
+                  "url": {"type": "string", "example": "https://www.amazon.com/dp/B0ABC123"},
+                  "schema": {
+                    "type": "object",
+                    "description": "Extraction schema with CSS selectors",
+                    "example": {
+                      "name": "products",
+                      "baseSelector": ".product-card",
+                      "fields": [{"name": "title", "selector": "h3", "type": "text"}, {"name": "price", "selector": ".price", "type": "text", "transform": "float"}]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Extracted structured data",
+            "content": {"application/json": {"schema": {"type": "object"}}}
+          }
+        }
+      }
+    },
+    "/v1/extract/llm": {
+      "post": {
+        "summary": "Extract with LLM + chunking",
+        "description": "Extract structured data using AI with intelligent chunking. Automatically chunks content by topic/sentence/regex and extracts relevant information.",
+        "operationId": "extractLlm",
+        "tags": ["Extraction"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                  "url": {"type": "string"},
+                  "instruction": {"type": "string", "example": "Extract all product prices and discounts"},
+                  "chunk_strategy": {"type": "string", "enum": ["topic", "sentence", "regex"], "default": "topic"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {"200": {"description": "Extraction result"}}
+      }
+    },
+    "/v1/map": {
+      "post": {
+        "summary": "Discover URLs on a site",
+        "description": "Discover all URLs on a website. Returns a list of internal links found on the page.",
+        "operationId": "mapUrls",
+        "tags": ["Scraping"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                  "url": {"type": "string"},
+                  "limit": {"type": "integer", "default": 50}
+                }
+              }
+            }
+          }
+        },
+        "responses": {"200": {"description": "List of discovered URLs"}}
+      }
+    },
+    "/v1/compliance/check": {
+      "post": {
+        "summary": "Legal compliance check for a URL",
+        "description": "Check if scraping a URL is legally compliant. Analyzes robots.txt, Terms of Service, GDPR/CCPA jurisdiction, and sensitive data. Returns green/yellow/red risk level with recommendations.",
+        "operationId": "complianceCheck",
+        "tags": ["Compliance"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                  "url": {"type": "string"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {"200": {"description": "Compliance check result with risk level"}}
+      }
+    },
+    "/v1/monitor": {
+      "post": {
+        "summary": "Create a content change monitor",
+        "description": "Create a scheduled monitor that tracks content changes on a URL. Get notified when content changes with AI-powered meaningful-change detection.",
+        "operationId": "createMonitor",
+        "tags": ["Monitoring"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "url"],
+                "properties": {
+                  "name": {"type": "string", "example": "Competitor Pricing Page"},
+                  "url": {"type": "string", "example": "https://competitor.com/pricing"},
+                  "schedule_cron": {"type": "string", "default": "0 */6 * * *", "description": "Cron schedule (default: every 6 hours)"},
+                  "goal": {"type": "string", "description": "Natural language description of what changes matter"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {"200": {"description": "Created monitor"}}
+      }
+    },
+    "/v1/search": {
+      "get": {
+        "summary": "Search for templates and sites",
+        "description": "Search for available scraper templates and sites by keyword. Returns matching templates and their schemas.",
+        "operationId": "search",
+        "tags": ["Discovery"],
+        "parameters": [
+          {"name": "q", "in": "query", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {"200": {"description": "Search results"}}
+      }
+    },
+    "/v1/templates": {
+      "get": {
+        "summary": "List all pre-built scraper templates",
+        "description": "Get one-click scraper templates for Amazon, Walmart, LinkedIn, GitHub, Twitter, and 15+ other sites. Each template is a ready-to-use extraction schema.",
+        "operationId": "listTemplates",
+        "tags": ["Templates"],
+        "responses": {"200": {"description": "List of available templates"}}
+      }
+    },
+    "/v1/templates/execute": {
+      "post": {
+        "summary": "Execute a scraper template",
+        "description": "Scrape a URL using a pre-built template. For example, use 'amazon-product' to extract product data from any Amazon product page.",
+        "operationId": "executeTemplate",
+        "tags": ["Templates"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["template_id", "url"],
+                "properties": {
+                  "template_id": {"type": "string", "example": "amazon-product"},
+                  "url": {"type": "string", "example": "https://www.amazon.com/dp/B0ABC123"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {"200": {"description": "Extracted template data"}}
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "description": "Check if the Pry service is running and healthy.",
+        "operationId": "health",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "string", "example": "ok"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

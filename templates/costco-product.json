@@ -1,0 +1,41 @@
+{
+  "name": "Costco Product",
+  "description": "Extract product details from Costco",
+  "site": "costco.com",
+  "category": "ecommerce",
+  "icon": "\ud83c\udfea",
+  "schema": {
+    "name": "costco_product",
+    "base_selector": ".product-details",
+    "fields": [
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": ".your-price",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "item_number",
+        "selector": ".item-number",
+        "type": "text"
+      },
+      {
+        "name": "description",
+        "selector": "#product-description",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": ".product-image img",
+        "type": "attribute",
+        "attribute": "src"
+      }
+    ]
+  },
+  "url_pattern": "*://www.costco.com/*"
+}

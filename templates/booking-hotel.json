@@ -1,0 +1,53 @@
+{
+  "name": "Booking.com Hotel",
+  "description": "Extract hotel details from Booking.com",
+  "site": "booking.com",
+  "category": "travel",
+  "icon": "\ud83c\udfe8",
+  "schema": {
+    "name": "booking_hotel",
+    "base_selector": ".page-wrapper",
+    "fields": [
+      {
+        "name": "name",
+        "selector": "h2",
+        "type": "text"
+      },
+      {
+        "name": "rating",
+        "selector": ".review-score-badge",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "review_count",
+        "selector": ".review-score-widget",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "price_per_night",
+        "selector": ".prco-valign-middle-helper",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "location",
+        "selector": ".hp_address_subtitle",
+        "type": "text"
+      },
+      {
+        "name": "description",
+        "selector": "#property_description_content",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": ".hotel_image img",
+        "type": "attribute",
+        "attribute": "src"
+      }
+    ]
+  },
+  "url_pattern": "*://www.booking.com/*"
+}

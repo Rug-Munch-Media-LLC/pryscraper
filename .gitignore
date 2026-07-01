@@ -1,0 +1,84 @@
+# ═══════════════════════════════════════════════════════════
+# PryScraper — .gitignore (RMI universal + Pry-specific)
+# ═══════════════════════════════════════════════════════════
+
+# ── SECRETS (zero tolerance) ────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+*.session
+credentials.json
+service-account.json
+wallet.json
+vault.json
+.secrets/
+.rmi/wallets/
+
+# ── Python ──────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+htmlcov/
+.coverage
+
+# ── Pry-specific cache ──────────────────────────────────────
+.warmed_cookies/
+.proxy_cache/
+.browser_profiles/
+.screenshots/
+scraped_data/
+
+# ── Node (extension) ────────────────────────────────────────
+node_modules/
+.npm/
+.pnpm-store/
+
+# ── Docker ──────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── Data (too large for git, use HF S3) ─────────────────────
+data/
+*.dump
+*.rdb
+*.dfs
+*.tar.gz
+!requirements/*.tar.gz
+
+# ── IDE ─────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ── OS ──────────────────────────────────────────────────────
+Thumbs.db
+desktop.ini
+
+# ── Logs ────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Cache ───────────────────────────────────────────────────
+.cache/
+tmp/
+*.tmp
