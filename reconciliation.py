@@ -362,9 +362,9 @@ def build_reconciliation_report(
 # ── API helpers ──
 
 
-
-
-async def llm_enhance_reconciliation(entities: list[dict[str, Any]], low_confidence_threshold: float = 0.5) -> dict[str, Any]:
+async def llm_enhance_reconciliation(
+    entities: list[dict[str, Any]], low_confidence_threshold: float = 0.5
+) -> dict[str, Any]:
     """Use the LLM to verify or refute low-confidence entity matches.
 
     For each entity group whose field-based confidence is below the threshold,
@@ -377,6 +377,7 @@ async def llm_enhance_reconciliation(entities: list[dict[str, Any]], low_confide
     """
     try:
         from llm_features import llm_entity_reconcile
+
         low_conf = [e for e in entities if e.get("confidence", 1.0) < low_confidence_threshold]
         if not low_conf:
             return {"llm_enhanced": False, "verified": 0, "refuted": 0, "low_confidence_groups": 0}
@@ -402,6 +403,7 @@ async def llm_enhance_reconciliation(entities: list[dict[str, Any]], low_confide
     except Exception as e:  # noqa: BLE001
         logger.debug("llm_reconciliation_failed", extra={"error": str(e)[:80]})
         return {"llm_enhanced": False, "error": str(e)[:200]}
+
 
 async def reconcile(
     records: list[dict[str, Any]],

@@ -56,12 +56,33 @@ def sample_schema() -> dict:
 #
 # Production code is unaffected (this conftest only runs in tests).
 # If you actually want strict mode in tests, set PRY_LOG_STRICT_EXTRAS=1.
-_RESERVED = frozenset({
-    "name", "msg", "args", "levelname", "levelno", "pathname", "filename",
-    "module", "exc_info", "exc_text", "stack_info", "lineno", "funcName",
-    "created", "msecs", "relativeCreated", "thread", "threadName",
-    "processName", "process", "message", "asctime", "taskName",
-})
+_RESERVED = frozenset(
+    {
+        "name",
+        "msg",
+        "args",
+        "levelname",
+        "levelno",
+        "pathname",
+        "filename",
+        "module",
+        "exc_info",
+        "exc_text",
+        "stack_info",
+        "lineno",
+        "funcName",
+        "created",
+        "msecs",
+        "relativeCreated",
+        "thread",
+        "threadName",
+        "processName",
+        "process",
+        "message",
+        "asctime",
+        "taskName",
+    }
+)
 
 
 def _make_lenient_logrecord() -> None:

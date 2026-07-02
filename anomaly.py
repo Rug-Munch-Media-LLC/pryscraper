@@ -82,7 +82,9 @@ class AnomalyDetector:
             if isinstance(v, (int, float)) and not isinstance(v, bool):
                 common.add(k)
         for r in records[1:]:
-            rkeys = {k for k, v in r.items() if isinstance(v, (int, float)) and not isinstance(v, bool)}
+            rkeys = {
+                k for k, v in r.items() if isinstance(v, (int, float)) and not isinstance(v, bool)
+            }
             common &= rkeys
         return list(common)
 
@@ -139,16 +141,14 @@ class AnomalyDetector:
         if current_dow in dow_values and len(dow_values[current_dow]) >= 2:
             dow_mean = statistics.mean(dow_values[current_dow])
             dow_stdev = (
-                statistics.stdev(dow_values[current_dow])
-                if len(dow_values[current_dow]) > 1
-                else 0
+                statistics.stdev(dow_values[current_dow]) if len(dow_values[current_dow]) > 1 else 0
             )
             if dow_stdev > 0 and abs((current - dow_mean) / dow_stdev) < 1.5:
                 return {
                     "seasonal_anomaly": False,
                     "seasonal_explanation": (
                         f"Value fits "
-                        f"{['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][current_dow]} pattern"
+                        f"{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][current_dow]} pattern"
                     ),
                 }
         if context.get("is_promotional"):

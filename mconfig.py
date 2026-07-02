@@ -131,5 +131,3 @@ class PryConfig:
         except OSError:
             pass
         return {"status": "ok", "config": self.to_dict()}
-
-

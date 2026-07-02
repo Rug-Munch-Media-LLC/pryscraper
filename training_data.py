@@ -1,24 +1,22 @@
 """Pry — AI Training Data Pipeline.
 Per-record provenance, license classifier, clean room export, compliance reports."""
-from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import hashlib
 import json
 import logging
-import os
 import re
 import uuid
 from collections import defaultdict
 from contextlib import suppress
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, Literal
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 

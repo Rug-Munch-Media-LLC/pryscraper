@@ -35,8 +35,14 @@ def test_x402_middleware_signing() -> None:
 
 def test_actor_marketplace_create() -> None:
     m = ActorMarketplace()
-    actor = m.create("Test Actor", "Test description", template_id="amazon-product",
-                     price_per_run=0.01, visibility=ActorVisibility.PRIVATE, tags=["e-commerce"])
+    actor = m.create(
+        "Test Actor",
+        "Test description",
+        template_id="amazon-product",
+        price_per_run=0.01,
+        visibility=ActorVisibility.PRIVATE,
+        tags=["e-commerce"],
+    )
     assert actor.name == "Test Actor"
     assert actor.template_id == "amazon-product"
     assert actor.price_per_run == 0.01

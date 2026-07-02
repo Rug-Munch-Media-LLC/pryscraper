@@ -130,27 +130,34 @@ def set_active_mcp_server(server: Any) -> None:
 
 def notify_resource_changed(uri: str) -> None:
     """Notify all connected MCP clients that a resource has changed."""
-    _send_mcp_notification({
-        "jsonrpc": "2.0",
-        "method": "notifications/resources/updated",
-        "params": {"uri": uri},
-    })
+    _send_mcp_notification(
+        {
+            "jsonrpc": "2.0",
+            "method": "notifications/resources/updated",
+            "params": {"uri": uri},
+        }
+    )
 
 
 def notify_resource_list_changed() -> None:
     """Notify all connected MCP clients that the resource list changed."""
-    _send_mcp_notification({
-        "jsonrpc": "2.0",
-        "method": "notifications/resources/list_changed",
-    })
+    _send_mcp_notification(
+        {
+            "jsonrpc": "2.0",
+            "method": "notifications/resources/list_changed",
+        }
+    )
 
 
 def notify_tool_list_changed() -> None:
     """Notify all connected MCP clients that the tool list changed."""
-    _send_mcp_notification({
-        "jsonrpc": "2.0",
-        "method": "notifications/tools/list_changed",
-    })
+    _send_mcp_notification(
+        {
+            "jsonrpc": "2.0",
+            "method": "notifications/tools/list_changed",
+        }
+    )
+
 
 # Try to import official MCP SDK
 try:
@@ -510,8 +517,16 @@ PRY_PROMPTS = [
         "title": "Research a Company",
         "description": "Scrape and analyze a company website for competitive intelligence. Use the pry_scrape and pry_enrich tools to gather data, then summarize findings.",
         "arguments": [
-            {"name": "company_name", "description": "Company name (e.g., 'Anthropic')", "required": True},
-            {"name": "website", "description": "Company website URL (e.g., 'https://anthropic.com')", "required": True},
+            {
+                "name": "company_name",
+                "description": "Company name (e.g., 'Anthropic')",
+                "required": True,
+            },
+            {
+                "name": "website",
+                "description": "Company website URL (e.g., 'https://anthropic.com')",
+                "required": True,
+            },
         ],
     },
     {
@@ -519,8 +534,16 @@ PRY_PROMPTS = [
         "title": "Compare Products",
         "description": "Scrape product pages from multiple e-commerce sites and create a side-by-side comparison. Use pry_template tool with amazon-product, walmart-product, etc.",
         "arguments": [
-            {"name": "product_query", "description": "What to search for (e.g., 'wireless headphones')", "required": True},
-            {"name": "sites", "description": "Sites to compare (e.g., ['amazon', 'walmart', 'target'])", "required": True},
+            {
+                "name": "product_query",
+                "description": "What to search for (e.g., 'wireless headphones')",
+                "required": True,
+            },
+            {
+                "name": "sites",
+                "description": "Sites to compare (e.g., ['amazon', 'walmart', 'target'])",
+                "required": True,
+            },
         ],
     },
     {
@@ -529,7 +552,11 @@ PRY_PROMPTS = [
         "description": "Crawl a website and extract all email addresses, phone numbers, and social media handles using CSS selectors and regex patterns.",
         "arguments": [
             {"name": "url", "description": "Starting URL", "required": True},
-            {"name": "max_pages", "description": "Maximum pages to crawl (default: 20)", "required": False},
+            {
+                "name": "max_pages",
+                "description": "Maximum pages to crawl (default: 20)",
+                "required": False,
+            },
         ],
     },
     {
@@ -538,7 +565,11 @@ PRY_PROMPTS = [
         "description": "Set up continuous monitoring for a competitor's pricing, product listings, or content. Get notified via webhook on changes.",
         "arguments": [
             {"name": "url", "description": "Competitor URL to monitor", "required": True},
-            {"name": "what_to_track", "description": "What to track (e.g., 'product prices', 'blog posts', 'job listings')", "required": True},
+            {
+                "name": "what_to_track",
+                "description": "What to track (e.g., 'product prices', 'blog posts', 'job listings')",
+                "required": True,
+            },
             {"name": "webhook_url", "description": "Where to send notifications", "required": True},
         ],
     },
@@ -548,7 +579,11 @@ PRY_PROMPTS = [
         "description": "Scrape an article, summarize key points, and provide structured analysis (sentiment, entities, key claims).",
         "arguments": [
             {"name": "url", "description": "Article URL", "required": True},
-            {"name": "focus", "description": "What to focus on (e.g., 'financial implications', 'competitive threats')", "required": False},
+            {
+                "name": "focus",
+                "description": "What to focus on (e.g., 'financial implications', 'competitive threats')",
+                "required": False,
+            },
         ],
     },
     {
@@ -557,7 +592,11 @@ PRY_PROMPTS = [
         "description": "Find and extract a specific data table from a webpage. Returns structured CSV/JSON rows.",
         "arguments": [
             {"name": "url", "description": "Page URL", "required": True},
-            {"name": "table_description", "description": "Description of the table you want (e.g., 'product pricing table', 'league standings')", "required": True},
+            {
+                "name": "table_description",
+                "description": "Description of the table you want (e.g., 'product pricing table', 'league standings')",
+                "required": True,
+            },
         ],
     },
     {
@@ -566,7 +605,11 @@ PRY_PROMPTS = [
         "description": "Scrape any URL with a custom JSON schema. Use pry_extract or pry_scrape with a schema definition.",
         "arguments": [
             {"name": "url", "description": "URL to scrape", "required": True},
-            {"name": "fields", "description": "Comma-separated list of fields to extract (e.g., 'title,price,description,image')", "required": True},
+            {
+                "name": "fields",
+                "description": "Comma-separated list of fields to extract (e.g., 'title,price,description,image')",
+                "required": True,
+            },
         ],
     },
 ]
@@ -574,7 +617,8 @@ PRY_PROMPTS = [
 
 def make_fallback_server(
     base_url: str = DEFAULT_BASE_URL,
-    tool_executor: Callable[[str, dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]] | None = None,
+    tool_executor: Callable[[str, dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
+    | None = None,
 ) -> Any:
     """Build a minimal stdio JSON-RPC server if official MCP SDK not available.
     This implements the MCP 2024-11-05 protocol with all required methods."""
@@ -583,7 +627,8 @@ def make_fallback_server(
         def __init__(
             self,
             base_url: str = DEFAULT_BASE_URL,
-            tool_executor: Callable[[str, dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]] | None = None,
+            tool_executor: Callable[[str, dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
+            | None = None,
         ) -> None:
             self.tools: dict[str, dict[str, Any]] = {}
             self.resources: dict[str, dict[str, Any]] = {}
@@ -656,7 +701,9 @@ def make_fallback_server(
                     result = await self.tool_executor(name, arguments)
                     return self._tool_result_to_content(result, name)
                 except Exception as e:  # noqa: BLE001
-                    logger.warning("mcp_tool_executor_failed", extra={"tool": name, "error": str(e)})
+                    logger.warning(
+                        "mcp_tool_executor_failed", extra={"tool": name, "error": str(e)}
+                    )
                     return {
                         "content": [{"type": "text", "text": f"Tool {name} failed: {e}"}],
                         "isError": True,
@@ -744,36 +791,45 @@ def make_fallback_server(
             if uri == "pry://catalog":
                 try:
                     from template_engine import list_templates
+
                     templates = list_templates()
                     categories: dict[str, list[str]] = {}
                     for t in templates:
                         cat = t.get("category", "general")
                         categories.setdefault(cat, []).append(t.get("template_id", "unknown"))
-                    return json.dumps({
-                        "total_templates": len(templates),
-                        "categories": categories,
-                        "note": "Use pry_search_templates to query dynamically.",
-                    }, indent=2)
+                    return json.dumps(
+                        {
+                            "total_templates": len(templates),
+                            "categories": categories,
+                            "note": "Use pry_search_templates to query dynamically.",
+                        },
+                        indent=2,
+                    )
                 except (json.JSONDecodeError, ValueError) as e:
                     return json.dumps({"error": f"Could not load template catalog: {e}"})
             if uri == "pry://stats":
-                return json.dumps({
-                    "server": SERVER_NAME,
-                    "version": SERVER_VERSION,
-                    "protocol_version": MCP_PROTOCOL_VERSION,
-                    "tools_count": len(self.tools),
-                    "resources_count": len(self.resources),
-                    "prompts_count": len(self.prompts),
-                }, indent=2)
+                return json.dumps(
+                    {
+                        "server": SERVER_NAME,
+                        "version": SERVER_VERSION,
+                        "protocol_version": MCP_PROTOCOL_VERSION,
+                        "tools_count": len(self.tools),
+                        "resources_count": len(self.resources),
+                        "prompts_count": len(self.prompts),
+                    },
+                    indent=2,
+                )
             if uri == "pry://x402/pricing":
                 try:
                     from x402 import X402Handler
+
                     return json.dumps(X402Handler().get_stats(), indent=2)
                 except (json.JSONDecodeError, ValueError) as e:
                     return json.dumps({"error": f"Could not load x402 pricing: {e}"})
             if uri == "pry://referrals":
                 try:
                     from referrals import ReferralTracker
+
                     return json.dumps(ReferralTracker().get_catalog(), indent=2)  # type: ignore[no-untyped-call]
                 except (json.JSONDecodeError, ValueError) as e:
                     return json.dumps({"error": f"Could not load referrals: {e}"})
@@ -795,110 +851,126 @@ def make_fallback_server(
             if name == "research_company":
                 company = arguments.get("company_name", "the company")
                 website = arguments.get("website", "")
-                return [{
-                    "role": "user",
-                    "content": {
-                        "type": "text",
-                        "text": (
-                            f"Research {company}. "
-                            f"{'Start by scraping ' + website + '. ' if website else ''}"
-                            "Use pry_scrape and pry_enrich to gather data, then summarize: "
-                            "what they do, target market, key products, competitive positioning, "
-                            "and any risks or opportunities."
-                        ),
-                    },
-                }]
+                return [
+                    {
+                        "role": "user",
+                        "content": {
+                            "type": "text",
+                            "text": (
+                                f"Research {company}. "
+                                f"{'Start by scraping ' + website + '. ' if website else ''}"
+                                "Use pry_scrape and pry_enrich to gather data, then summarize: "
+                                "what they do, target market, key products, competitive positioning, "
+                                "and any risks or opportunities."
+                            ),
+                        },
+                    }
+                ]
             if name == "compare_products":
                 query = arguments.get("product_query", "the product")
                 sites = arguments.get("sites", [])
-                return [{
-                    "role": "user",
-                    "content": {
-                        "type": "text",
-                        "text": (
-                            f"Compare prices and details for '{query}' across {', '.join(sites)}. "
-                            "Use pry_template with amazon-product, walmart-product, etc. "
-                            "Return a side-by-side comparison table."
-                        ),
-                    },
-                }]
+                return [
+                    {
+                        "role": "user",
+                        "content": {
+                            "type": "text",
+                            "text": (
+                                f"Compare prices and details for '{query}' across {', '.join(sites)}. "
+                                "Use pry_template with amazon-product, walmart-product, etc. "
+                                "Return a side-by-side comparison table."
+                            ),
+                        },
+                    }
+                ]
             if name == "extract_contacts":
                 url = arguments.get("url", "")
                 max_pages = arguments.get("max_pages", 20)
-                return [{
-                    "role": "user",
-                    "content": {
-                        "type": "text",
-                        "text": (
-                            f"Extract all contact information from {url}. "
-                            f"Crawl up to {max_pages} pages. "
-                            "Use pry_crawl and regex to find emails, phones, and social profiles."
-                        ),
-                    },
-                }]
+                return [
+                    {
+                        "role": "user",
+                        "content": {
+                            "type": "text",
+                            "text": (
+                                f"Extract all contact information from {url}. "
+                                f"Crawl up to {max_pages} pages. "
+                                "Use pry_crawl and regex to find emails, phones, and social profiles."
+                            ),
+                        },
+                    }
+                ]
             if name == "monitor_competitor":
                 url = arguments.get("url", "")
                 what = arguments.get("what_to_track", "changes")
                 webhook = arguments.get("webhook_url", "")
-                return [{
-                    "role": "user",
-                    "content": {
-                        "type": "text",
-                        "text": (
-                            f"Set up monitoring for {url}. Track {what}. "
-                            f"{'Notify via webhook: ' + webhook + '. ' if webhook else ''}"
-                            "Use pry_monitor."
-                        ),
-                    },
-                }]
+                return [
+                    {
+                        "role": "user",
+                        "content": {
+                            "type": "text",
+                            "text": (
+                                f"Set up monitoring for {url}. Track {what}. "
+                                f"{'Notify via webhook: ' + webhook + '. ' if webhook else ''}"
+                                "Use pry_monitor."
+                            ),
+                        },
+                    }
+                ]
             if name == "analyze_article":
                 url = arguments.get("url", "")
                 focus = arguments.get("focus", "")
-                return [{
-                    "role": "user",
-                    "content": {
-                        "type": "text",
-                        "text": (
-                            f"Scrape and analyze this article: {url}. "
-                            f"{'Focus on: ' + focus + '. ' if focus else ''}"
-                            "Summarize key points, sentiment, entities, and claims."
-                        ),
-                    },
-                }]
+                return [
+                    {
+                        "role": "user",
+                        "content": {
+                            "type": "text",
+                            "text": (
+                                f"Scrape and analyze this article: {url}. "
+                                f"{'Focus on: ' + focus + '. ' if focus else ''}"
+                                "Summarize key points, sentiment, entities, and claims."
+                            ),
+                        },
+                    }
+                ]
             if name == "extract_table":
                 url = arguments.get("url", "")
                 desc = arguments.get("table_description", "")
-                return [{
-                    "role": "user",
-                    "content": {
-                        "type": "text",
-                        "text": (
-                            f"Extract the data table from {url}. Table: {desc}. "
-                            "Use pry_extract with CSS selectors or pry_scrape + structured output."
-                        ),
-                    },
-                }]
+                return [
+                    {
+                        "role": "user",
+                        "content": {
+                            "type": "text",
+                            "text": (
+                                f"Extract the data table from {url}. Table: {desc}. "
+                                "Use pry_extract with CSS selectors or pry_scrape + structured output."
+                            ),
+                        },
+                    }
+                ]
             if name == "scrape_with_schema":
                 url = arguments.get("url", "")
                 fields = arguments.get("fields", "")
-                return [{
+                return [
+                    {
+                        "role": "user",
+                        "content": {
+                            "type": "text",
+                            "text": (
+                                f"Scrape {url} and extract these fields: {fields}. "
+                                "Use pry_extract with a custom JSON schema."
+                            ),
+                        },
+                    }
+                ]
+            arg_text = ", ".join(f"{k}={v}" for k, v in arguments.items())
+            return [
+                {
                     "role": "user",
                     "content": {
                         "type": "text",
-                        "text": (
-                            f"Scrape {url} and extract these fields: {fields}. "
-                            "Use pry_extract with a custom JSON schema."
-                        ),
+                        "text": f"Execute the {self.prompts[name].get('title', name)} prompt with arguments: {arg_text}",
                     },
-                }]
-            arg_text = ", ".join(f"{k}={v}" for k, v in arguments.items())
-            return [{
-                "role": "user",
-                "content": {
-                    "type": "text",
-                    "text": f"Execute the {self.prompts[name].get('title', name)} prompt with arguments: {arg_text}",
-                },
-            }]
+                }
+            ]
 
         def complete(self, ref: dict[str, Any], argument: dict[str, Any]) -> dict[str, Any]:
             """Provide argument completion suggestions."""
@@ -907,11 +979,16 @@ def make_fallback_server(
             arg_name = argument.get("name", "")
             arg_value = argument.get("value", "")
             values: list[str] = []
-            if ref_type == "ref/prompt" and ref_name == "extract_contacts" and arg_name == "max_pages":
+            if (
+                ref_type == "ref/prompt"
+                and ref_name == "extract_contacts"
+                and arg_name == "max_pages"
+            ):
                 values = ["10", "20", "50", "100"]
             elif ref_type == "ref/tool" and arg_name == "template_id":
                 try:
                     from template_engine import list_templates
+
                     templates = list_templates()
                     values = [
                         t["template_id"]
@@ -963,7 +1040,9 @@ def make_fallback_server(
                         "result": {"tools": list(self.tools.values())},
                     }
                 if method == "tools/call":
-                    tool_result = await self.call_tool(params.get("name", ""), params.get("arguments", {}))
+                    tool_result = await self.call_tool(
+                        params.get("name", ""), params.get("arguments", {})
+                    )
                     if "error" in tool_result:
                         return {
                             "jsonrpc": "2.0",

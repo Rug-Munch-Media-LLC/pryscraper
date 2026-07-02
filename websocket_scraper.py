@@ -56,10 +56,7 @@ class WebSocketScraper:
                 subprotocols=protocols,
             ) as ws:
                 start = time.time()
-                while (
-                    len(messages) < self.max_messages
-                    and (time.time() - start) < self.timeout
-                ):
+                while len(messages) < self.max_messages and (time.time() - start) < self.timeout:
                     try:
                         msg = await asyncio.wait_for(ws.recv(), timeout=2)
                     except TimeoutError:
@@ -72,9 +69,7 @@ class WebSocketScraper:
                         parsed: Any = json.loads(msg)
                     except (json.JSONDecodeError, ValueError):
                         parsed = msg
-                    messages.append(
-                        {"data": parsed, "raw": msg, "received_at": time.time()}
-                    )
+                    messages.append({"data": parsed, "raw": msg, "received_at": time.time()})
         except (json.JSONDecodeError, ValueError) as e:
             return {"success": False, "error": str(e)[:300]}
 

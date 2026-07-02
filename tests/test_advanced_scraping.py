@@ -107,12 +107,12 @@ def test_schema_extractor_jsonld_invalid() -> None:
 def test_schema_extractor_all() -> None:
     e = SchemaExtractor()
     html = (
-        '<html><body>'
+        "<html><body>"
         '<script type="application/ld+json">{"@type":"Article","headline":"Test"}</script>'
         '<div itemscope itemtype="https://schema.org/Product">'
         '<span itemprop="name">Widget</span>'
-        '</div>'
-        '</body></html>'
+        "</div>"
+        "</body></html>"
     )
     result = e.extract_all(html)
     assert result["count"] >= 2

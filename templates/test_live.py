@@ -128,7 +128,7 @@ TEMPLATES = [
 async def test_all():
     failures = []
     async with httpx.AsyncClient(timeout=30) as c:
-        for tid, site, cat in TEMPLATES:
+        for tid, site, _cat in TEMPLATES:
             print(f"Testing {tid}...", end=" ", flush=True)
             try:
                 r = await c.post(
@@ -146,7 +146,7 @@ async def test_all():
                 print(f"ERR: {e}")
                 failures.append(tid)
 
-    print(f"\n{len([t for t in TEMPLATES])} tested, {len(failures)} failed")
+    print(f"\n{len(list(TEMPLATES))} tested, {len(failures)} failed")
     if failures:
         print("Failed:", ", ".join(failures))
     return 1 if failures else 0

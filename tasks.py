@@ -1,29 +1,28 @@
 """Pry — Background job system using asyncio (built-in) or Celery if available.
 Long-running jobs like crawls, monitors, and bulk imports should not block request threads."""
-from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import asyncio
 import json
 import logging
-import os
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
-from enum import Enum
-from pathlib import Path
+from enum import StrEnum
 from typing import Any
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 
 # Try Celery
 try:
     from celery import Celery
+
     _has_celery = True
 except ImportError:
     _has_celery = False
@@ -32,7 +31,7 @@ JOBS_DIR = PRY_DATA_DIR / "jobs"
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -42,7 +41,10 @@ class JobStatus(str, Enum):
 
 class Job:
     """Represents a background job."""
-    def __init__(self, job_id: str, name: str, func: Callable, args: tuple = (), kwargs: dict | None = None):
+
+    def __init__(
+        self, job_id: str, name: str, func: Callable, args: tuple = (), kwargs: dict | None = None
+    ):
         self.id = job_id
         self.name = name
         self.func = func
@@ -57,9 +59,14 @@ class Job:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "id": self.id, "name": self.name, "status": self.status.value,
-            "created_at": self.created_at, "started_at": self.started_at,
-            "completed_at": self.completed_at, "result": self.result, "error": self.error,
+            "id": self.id,
+            "name": self.name,
+            "status": self.status.value,
+            "created_at": self.created_at,
+            "started_at": self.started_at,
+            "completed_at": self.completed_at,
+            "result": self.result,
+            "error": self.error,
         }
 
 
@@ -75,7 +82,9 @@ class JobQueue:
         self._workers: list[asyncio.Task] = []
         self._running = False
 
-    async def submit(self, name: str, func: Callable, args: tuple = (), kwargs: dict | None = None) -> str:
+    async def submit(
+        self, name: str, func: Callable, args: tuple = (), kwargs: dict | None = None
+    ) -> str:
         job_id = uuid.uuid4().hex[:12]
         job = Job(job_id, name, func, args, kwargs)
         self.jobs[job_id] = job
@@ -86,7 +95,8 @@ class JobQueue:
         return job_id
 
     async def start(self) -> None:
-        if self._running or self._queue is None: return
+        if self._running or self._queue is None:
+            return
         self._running = True
         for i in range(self.max_workers):
             worker = asyncio.create_task(self._worker(f"worker-{i}"))
@@ -109,7 +119,7 @@ class JobQueue:
             else:
                 job.result = await asyncio.to_thread(job.func, *job.args, **job.kwargs)
             job.status = JobStatus.COMPLETED
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             job.error = str(e)[:500]
             job.status = JobStatus.FAILED
             logger.exception("job_failed", extra={"job_id": job.id, "error": str(e)})

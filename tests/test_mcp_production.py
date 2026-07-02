@@ -70,9 +70,7 @@ def test_resources() -> None:
 def test_fallback_initialize() -> None:
     server = make_fallback_server()
     register_all(server)
-    result = asyncio.run(
-        server.handle_request({"method": "initialize", "id": 1, "params": {}})
-    )
+    result = asyncio.run(server.handle_request({"method": "initialize", "id": 1, "params": {}}))
     assert "protocolVersion" in result["result"]
     assert result["result"]["serverInfo"]["name"] == "pry"
     assert result["result"]["serverInfo"]["version"] == "3.0.0"

@@ -1,20 +1,19 @@
 """Pry — White-Label Agency Dashboard.
 Multi-tenant reseller platform: custom branding, client management, sub-accounts."""
-from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import json
 import logging
 import os
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, cast
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 

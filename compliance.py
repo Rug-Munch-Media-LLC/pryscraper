@@ -354,6 +354,7 @@ async def run_compliance_check(url: str) -> dict[str, Any]:
     if tos_result.get("confidence") == "low" or not tos_text:
         try:
             from llm_features import llm_compliance_analyze
+
             llm_input = tos_text if tos_text else html[:8000]
             llm_result = await llm_compliance_analyze(llm_input, url=url)
             if llm_result and llm_result.get("risk_level"):

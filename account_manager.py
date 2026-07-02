@@ -1,4 +1,4 @@
-import httpx
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
@@ -11,10 +11,12 @@ import logging
 import os
 import time
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
+import httpx
+
 from paths import PRY_DATA_DIR
+
 logger = logging.getLogger(__name__)
 
 ACCOUNTS_DIR = PRY_DATA_DIR / "accounts"
@@ -24,14 +26,27 @@ ACCOUNTS_DIR.mkdir(parents=True, exist_ok=True)
 class AccountPool:
     """Manage pool of registered accounts with session persistence."""
 
-    def store(self, site: str, credentials: dict[str, Any], profile_id: str = "", metadata: dict | None = None) -> str:
+    def store(
+        self,
+        site: str,
+        credentials: dict[str, Any],
+        profile_id: str = "",
+        metadata: dict | None = None,
+    ) -> str:
         import uuid
+
         account_id = uuid.uuid4().hex[:12]
         account = {
-            "id": account_id, "site": site, "credentials": credentials,
-            "profile_id": profile_id, "metadata": metadata or {},
-            "status": "active", "created_at": datetime.now(UTC).isoformat(),
-            "last_used": None, "use_count": 0, "errors": [],
+            "id": account_id,
+            "site": site,
+            "credentials": credentials,
+            "profile_id": profile_id,
+            "metadata": metadata or {},
+            "status": "active",
+            "created_at": datetime.now(UTC).isoformat(),
+            "last_used": None,
+            "use_count": 0,
+            "errors": [],
         }
         path = ACCOUNTS_DIR / f"{site}_{account_id}.json"
         path.write_text(json.dumps(account, indent=2))
@@ -51,6 +66,7 @@ class AccountPool:
         if not accounts:
             return None
         import random
+
         return random.choice(accounts)
 
     def mark_error(self, account_id: str, error: str) -> None:
@@ -90,15 +106,23 @@ class AccountPool:
 class ProxyScorer:
     """Score and rank proxies for reliability."""
 
-    async def test_proxy(self, proxy_url: str, test_url: str = "https://httpbin.org/ip", timeout: int = 10) -> dict[str, Any]:
+    async def test_proxy(
+        self, proxy_url: str, test_url: str = "https://httpbin.org/ip", timeout: int = 10
+    ) -> dict[str, Any]:
         from client import get_client
+
         client = await get_client()
         start = time.time()
         try:
             resp = await client.get(test_url, timeout=timeout)
             elapsed = time.time() - start
-            return {"proxy": proxy_url, "working": resp.is_success, "latency": round(elapsed, 2),
-                    "status": resp.status_code, "ip": resp.text[:50] if resp.is_success else ""}
+            return {
+                "proxy": proxy_url,
+                "working": resp.is_success,
+                "latency": round(elapsed, 2),
+                "status": resp.status_code,
+                "ip": resp.text[:50] if resp.is_success else "",
+            }
         except (httpx.HTTPError, httpx.RequestError) as e:
             return {"proxy": proxy_url, "working": False, "error": str(e)[:80]}
 

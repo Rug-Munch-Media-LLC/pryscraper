@@ -67,10 +67,10 @@ class SchemaExtractor:
 
         tree = lxml_html.fromstring(html)
         results: list[dict[str, Any]] = []
-        for elem in tree.xpath('//*[@itemtype]'):
+        for elem in tree.xpath("//*[@itemtype]"):
             itemtype = elem.get("itemtype") or ""
             item: dict[str, Any] = {"@type": itemtype.split("/")[-1]}
-            for prop in elem.xpath('.//*[@itemprop]'):
+            for prop in elem.xpath(".//*[@itemprop]"):
                 key = prop.get("itemprop")
                 if not key:
                     continue
@@ -90,9 +90,9 @@ class SchemaExtractor:
 
         tree = lxml_html.fromstring(html)
         results: list[dict[str, Any]] = []
-        for elem in tree.xpath('//*[@typeof]'):
+        for elem in tree.xpath("//*[@typeof]"):
             item: dict[str, Any] = {"@type": elem.get("typeof")}
-            for prop in elem.xpath('.//*[@property]'):
+            for prop in elem.xpath(".//*[@property]"):
                 raw_key = prop.get("property") or ""
                 key = raw_key.split(":")[-1]
                 value = prop.get("content") or prop.text_content().strip()

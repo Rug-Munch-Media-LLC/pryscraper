@@ -16,6 +16,7 @@ Endpoints (6):
 Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
 Licensed under MIT. See LICENSE.
 """
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
@@ -58,9 +59,7 @@ async def list_credentials_endpoint() -> dict[str, Any]:
     return {"success": True, "data": {"credentials": creds, "total": len(creds)}}
 
 
-@router.delete(
-    "/v1/auth/credentials/{credential_id}", summary="Delete stored credentials"
-)
+@router.delete("/v1/auth/credentials/{credential_id}", summary="Delete stored credentials")
 async def delete_credentials_endpoint(credential_id: str) -> dict[str, Any]:
     """Delete stored credentials from the vault."""
     from auth_connector import delete_credential

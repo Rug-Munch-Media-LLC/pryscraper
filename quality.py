@@ -1,23 +1,21 @@
 """Pry — Data Quality SLA Dashboard.
 Per-extraction quality metrics, anomaly detection, freshness tracking."""
-from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import difflib
 import hashlib
 import json
 import logging
-import os
 import time
 from contextlib import suppress
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 

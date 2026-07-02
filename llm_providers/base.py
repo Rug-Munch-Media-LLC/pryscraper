@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class LLMResponse:
     """Standard response from any LLM provider."""
+
     text: str
     model: str
     provider: str
@@ -33,6 +34,7 @@ class LLMResponse:
 @dataclass
 class ReferralConfig:
     """Referral/affiliate config for revenue sharing."""
+
     enabled: bool = True
     program_id: str = "pry-default"
     # Provider-specific referral links (with our affiliate ID)
@@ -43,6 +45,7 @@ class ReferralConfig:
     def __post_init__(self):
         if not self.referral_links:
             from referrals import PROVIDER_CATALOG
+
             for _category, providers in PROVIDER_CATALOG.items():
                 for p in providers:
                     self.referral_links[p["tag"]] = p["url"]
@@ -58,8 +61,14 @@ class LLMProvider(ABC):
     referral_url: str = ""
 
     @abstractmethod
-    async def complete(self, prompt: str, system: str = "", max_tokens: int = 1024,
-                       temperature: float = 0.7, model: str = "") -> LLMResponse:
+    async def complete(
+        self,
+        prompt: str,
+        system: str = "",
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+        model: str = "",
+    ) -> LLMResponse:
         """Send completion request to provider."""
         raise NotImplementedError
 
@@ -69,4 +78,6 @@ class LLMProvider(ABC):
         raise NotImplementedError
 
     def estimate_cost(self, input_tokens: int, output_tokens: int) -> float:
-        return (input_tokens / 1000) * self.cost_per_1k_input + (output_tokens / 1000) * self.cost_per_1k_output
+        return (input_tokens / 1000) * self.cost_per_1k_input + (
+            output_tokens / 1000
+        ) * self.cost_per_1k_output

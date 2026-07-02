@@ -7,16 +7,14 @@
 
 import json
 import logging
-import os
 import time
 from collections import defaultdict
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 from llm_providers.base import LLMProvider, LLMResponse, ReferralConfig
-
 from paths import PRY_DATA_DIR
+
 logger = logging.getLogger(__name__)
 
 USAGE_DIR = PRY_DATA_DIR / "llm_usage"
@@ -31,10 +29,15 @@ class LLMRegistry:
         self.referral = referral or ReferralConfig()
         self.fallback_chain: list[str] = []
         # Usage tracking
-        self.usage: dict[str, dict[str, Any]] = defaultdict(lambda: {
-            "calls": 0, "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0,
-            "last_used": None,
-        })
+        self.usage: dict[str, dict[str, Any]] = defaultdict(
+            lambda: {
+                "calls": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cost_usd": 0.0,
+                "last_used": None,
+            }
+        )
         self._load_usage()
 
     def register(self, provider: LLMProvider) -> None:
@@ -46,13 +49,26 @@ class LLMRegistry:
     def set_fallback_chain(self, chain: list[str]) -> None:
         self.fallback_chain = chain
 
-    async def complete(self, prompt: str, system: str = "", provider_name: str = "",
-                      max_tokens: int = 1024, temperature: float = 0.7, model: str = "",
-                      fallback: bool = True) -> LLMResponse:
+    async def complete(
+        self,
+        prompt: str,
+        system: str = "",
+        provider_name: str = "",
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+        model: str = "",
+        fallback: bool = True,
+    ) -> LLMResponse:
         """Complete via specified provider or fallback chain."""
         names = [provider_name] if provider_name else list(self.fallback_chain)
         if not fallback:
-            names = [provider_name] if provider_name else [self.fallback_chain[0]] if self.fallback_chain else []
+            names = (
+                [provider_name]
+                if provider_name
+                else [self.fallback_chain[0]]
+                if self.fallback_chain
+                else []
+            )
 
         last_error = ""
         for name in names:
@@ -63,14 +79,17 @@ class LLMRegistry:
                 start = time.time()
                 response = await provider.complete(prompt, system, max_tokens, temperature, model)
                 response.latency_ms = int((time.time() - start) * 1000)
-                response.cost_usd = provider.estimate_cost(response.input_tokens, response.output_tokens)
+                response.cost_usd = provider.estimate_cost(
+                    response.input_tokens, response.output_tokens
+                )
                 response.referral_id = self.referral.program_id
                 self._track(response)
                 return response
             except Exception as e:  # noqa: BLE001
                 last_error = str(e)
-                logger.warning("llm_provider_failed",
-                               extra={"provider": name, "error": str(e)[:100]})
+                logger.warning(
+                    "llm_provider_failed", extra={"provider": name, "error": str(e)[:100]}
+                )
                 if not fallback:
                     break
         raise Exception(f"All LLM providers failed. Last: {last_error}")
@@ -84,7 +103,9 @@ class LLMRegistry:
             try:
                 return await provider.embed(text, model)
             except Exception as e:  # noqa: BLE001
-                logger.warning("embed_provider_failed", extra={"provider": name, "error": str(e)[:80]})
+                logger.warning(
+                    "embed_provider_failed", extra={"provider": name, "error": str(e)[:80]}
+                )
         raise Exception("All embedding providers failed")
 
     def _track(self, response: LLMResponse) -> None:
@@ -97,7 +118,8 @@ class LLMRegistry:
         # NEW: track in-app LLM usage as referral revenue
         try:
             from referrals import ReferralTracker
-            if not hasattr(self, '_referral_tracker'):
+
+            if not hasattr(self, "_referral_tracker"):
                 self._referral_tracker = ReferralTracker()
             # Estimate revenue at 5% of user cost (typical affiliate share)
             self._referral_tracker.track_in_app_usage(response.provider, response.cost_usd * 0.05)
@@ -108,14 +130,20 @@ class LLMRegistry:
         path = USAGE_DIR / f"usage_{today}.jsonl"
         try:
             with open(path, "a") as f:
-                f.write(json.dumps({
-                    "ts": datetime.now(UTC).isoformat(),
-                    "provider": response.provider, "model": response.model,
-                    "input_tokens": response.input_tokens,
-                    "output_tokens": response.output_tokens,
-                    "cost_usd": response.cost_usd,
-                    "referral_id": response.referral_id,
-                }) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "ts": datetime.now(UTC).isoformat(),
+                            "provider": response.provider,
+                            "model": response.model,
+                            "input_tokens": response.input_tokens,
+                            "output_tokens": response.output_tokens,
+                            "cost_usd": response.cost_usd,
+                            "referral_id": response.referral_id,
+                        }
+                    )
+                    + "\n"
+                )
         except OSError:
             pass
 
@@ -157,5 +185,6 @@ def get_registry() -> LLMRegistry:
         _registry = LLMRegistry()
         # Register providers lazily (only if API keys are set)
         from llm_providers.providers import register_default_providers
+
         register_default_providers(_registry)
     return _registry

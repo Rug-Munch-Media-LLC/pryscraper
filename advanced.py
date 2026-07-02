@@ -251,5 +251,3 @@ class PryAdvanced:
             level = "very difficult"
 
         return {"score": round(score, 1), "level": level, "words": words, "sentences": sentences}
-
-

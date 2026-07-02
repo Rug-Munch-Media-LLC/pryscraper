@@ -1,4 +1,5 @@
 """Tests for secrets_backend module."""
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
@@ -8,17 +9,11 @@ from __future__ import annotations
 
 import importlib
 import os
-from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 import secrets_backend
 from secrets_backend import (
     BACKEND_AUTO,
-    BACKEND_ENV,
-    BACKEND_FILE,
-    BACKEND_GOPASS,
     _normalize_name,
     backend_info,
     get_secret,

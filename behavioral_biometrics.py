@@ -56,14 +56,14 @@ class HumanBehaviorSimulator:
             x = (
                 (1 - t) ** 3 * start[0]
                 + 3 * (1 - t) ** 2 * t * ctrl1[0]
-                + 3 * (1 - t) * t ** 2 * ctrl2[0]
-                + t ** 3 * end[0]
+                + 3 * (1 - t) * t**2 * ctrl2[0]
+                + t**3 * end[0]
             )
             y = (
                 (1 - t) ** 3 * start[1]
                 + 3 * (1 - t) ** 2 * t * ctrl1[1]
-                + 3 * (1 - t) * t ** 2 * ctrl2[1]
-                + t ** 3 * end[1]
+                + 3 * (1 - t) * t**2 * ctrl2[1]
+                + t**3 * end[1]
             )
             # Speed: slow at start/end, fast in middle
             speed_mod = math.sin(t * math.pi) * 0.5 + 0.5  # 0 at endpoints, 1 in middle
@@ -91,9 +91,7 @@ class HumanBehaviorSimulator:
         micro_pauses = max(0, words // 20) * random.uniform(0.5, 2.0)
         return round(seconds * variance + micro_pauses, 2)
 
-    def scroll_pattern(
-        self, page_height: int, viewport_height: int = 800
-    ) -> list[dict[str, Any]]:
+    def scroll_pattern(self, page_height: int, viewport_height: int = 800) -> list[dict[str, Any]]:
         """Generate realistic scroll pattern for a page.
 
         Humans don't scroll linearly — they scroll, pause, scroll back, etc.
@@ -129,9 +127,7 @@ class HumanBehaviorSimulator:
                 current_y = min(page_height, current_y + scroll_amount)
                 # Pause longer on certain content (images, headings)
                 pause = (
-                    random.uniform(1.0, 4.0)
-                    if random.random() < 0.2
-                    else random.uniform(0.2, 1.0)
+                    random.uniform(1.0, 4.0) if random.random() < 0.2 else random.uniform(0.2, 1.0)
                 )
                 patterns.append(
                     {
@@ -141,9 +137,7 @@ class HumanBehaviorSimulator:
                     }
                 )
         # Final scroll to bottom
-        patterns.append(
-            {"y": page_height, "speed": "fast", "pause_after": 0.5}
-        )
+        patterns.append({"y": page_height, "speed": "fast", "pause_after": 0.5})
         return patterns
 
     def typing_pattern(self, text: str) -> list[dict[str, Any]]:
@@ -154,8 +148,22 @@ class HumanBehaviorSimulator:
         """
         timings: list[dict[str, Any]] = []
         common_words = {
-            "the", "a", "an", "is", "are", "was", "and", "or", "but",
-            "in", "on", "at", "to", "for", "of", "with",
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "and",
+            "or",
+            "but",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+            "of",
+            "with",
         }
         words = text.split(" ")
         for i, word in enumerate(words):

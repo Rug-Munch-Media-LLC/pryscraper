@@ -5,6 +5,7 @@
 # Licensed under MIT. See LICENSE.
 
 """Proxy provider referral links — monetize Pry by referring users to proxy services."""
+
 from __future__ import annotations
 
 # Each provider has a referral URL and commission structure

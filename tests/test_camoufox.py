@@ -24,7 +24,7 @@ def test_camoufox_init() -> None:
 
 
 def test_camoufox_config_completeness() -> None:
-    for name, config in CamoufoxBrowser.DEFAULT_CONFIGS.items():
+    for _name, config in CamoufoxBrowser.DEFAULT_CONFIGS.items():
         assert "headless" in config
         assert "os" in config
         assert "browser" in config

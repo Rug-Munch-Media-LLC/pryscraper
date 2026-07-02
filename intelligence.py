@@ -1,21 +1,20 @@
 """Pry — Competitive Intelligence Engine.
 Historical snapshots, anomaly detection, natural-language alerts, weekly reports."""
-from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import json
 import logging
-import os
 import statistics
 import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 

@@ -1,15 +1,12 @@
-import httpx
+
 """Pry — Enterprise SSO / Auth Connector System.
 Credential vault, session persistence, SSO flow automation, CAPTCHA integration."""
-from paths import PRY_DATA_DIR
-
 # SPDX-License-Identifier: BSL-1.1
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — Stealth / Anti-Detection Module
 # Licensed under Business Source License 1.1 — see LICENSE-BSL-STEALTH.
 # Change Date: 2029-01-01 (converts to MIT).
-
 import asyncio
 import json
 import logging
@@ -19,6 +16,10 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, cast
+
+import httpx
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,11 @@ def store_credential(
         path.write_text(json.dumps(entry, indent=2))
         logger.info(
             "credential_stored",
-            extra={"credential_id": credential_id, "credential_name": name, "type": credential_type},
+            extra={
+                "credential_id": credential_id,
+                "credential_name": name,
+                "type": credential_type,
+            },
         )
         return {"success": True, "credential_id": credential_id, "credential": entry}
     except OSError as e:

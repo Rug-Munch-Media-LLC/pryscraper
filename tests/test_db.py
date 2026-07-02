@@ -4,6 +4,7 @@ Uses a temp directory for PRY_DATA_DIR so we don't pollute the user's
 real data dir. Tests verify schema creation, basic CRUD, and the
 JSON store importer.
 """
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
@@ -13,8 +14,6 @@ from __future__ import annotations
 
 import importlib
 import json
-import os
-from pathlib import Path
 
 import pytest
 
@@ -25,8 +24,9 @@ def temp_data_dir(monkeypatch, tmp_path):
     monkeypatch.setenv("PRY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/test.db")
     # Force re-import of paths and db
-    import paths
     import db
+    import paths
+
     importlib.reload(paths)
     importlib.reload(db)
     # Reset the cached engine
@@ -40,6 +40,7 @@ def temp_data_dir(monkeypatch, tmp_path):
 
 def test_get_engine_creates_db_file(temp_data_dir):
     import db
+
     eng = db.get_engine()
     assert eng is not None
     # The DB file should exist now
@@ -47,33 +48,58 @@ def test_get_engine_creates_db_file(temp_data_dir):
 
 
 def test_all_tables_created(temp_data_dir):
-    import db
     from sqlalchemy import inspect
+
+    import db
+
     db.get_engine()
     inspector = inspect(db.get_engine())
     tables = inspector.get_table_names()
     # Should have all 24 model tables
     expected_tables = {
-        "quality_checks", "review_items", "intel_snapshots", "costing_entries",
-        "freshness_snapshots", "structure_snapshots", "seo_snapshots", "monitors",
-        "monitor_runs", "accounts", "browser_sessions", "reports", "training_datasets",
-        "pipelines", "pipeline_runs", "gdpr_requests", "agencies", "agency_clients",
-        "referral_clicks", "actors", "actor_runs", "llm_usage", "webhooks", "x402_receipts",
+        "quality_checks",
+        "review_items",
+        "intel_snapshots",
+        "costing_entries",
+        "freshness_snapshots",
+        "structure_snapshots",
+        "seo_snapshots",
+        "monitors",
+        "monitor_runs",
+        "accounts",
+        "browser_sessions",
+        "reports",
+        "training_datasets",
+        "pipelines",
+        "pipeline_runs",
+        "gdpr_requests",
+        "agencies",
+        "agency_clients",
+        "referral_clicks",
+        "actors",
+        "actor_runs",
+        "llm_usage",
+        "webhooks",
+        "x402_receipts",
     }
     assert expected_tables.issubset(set(tables)), f"missing: {expected_tables - set(tables)}"
 
 
 def test_session_scope_commits_on_success(temp_data_dir):
     import db
+
     with db.session_scope() as s:
-        s.add(db.QualityCheck(
-            extraction_id="test-1",
-            url="https://example.com",
-            completeness=0.9,
-        ))
+        s.add(
+            db.QualityCheck(
+                extraction_id="test-1",
+                url="https://example.com",
+                completeness=0.9,
+            )
+        )
     # Verify it was committed
     with db.session_scope() as s:
         from sqlalchemy import select
+
         result = s.execute(select(db.QualityCheck).where(db.QualityCheck.extraction_id == "test-1"))
         row = result.scalar_one_or_none()
         assert row is not None
@@ -83,15 +109,19 @@ def test_session_scope_commits_on_success(temp_data_dir):
 
 def test_session_scope_rolls_back_on_error(temp_data_dir):
     import db
+
     try:
         with db.session_scope() as s:
-            s.add(db.QualityCheck(extraction_id="test-2", url="https://example.com", completeness=0.5))
+            s.add(
+                db.QualityCheck(extraction_id="test-2", url="https://example.com", completeness=0.5)
+            )
             raise ValueError("intentional")
     except ValueError:
         pass
     # Verify it was NOT committed
     with db.session_scope() as s:
         from sqlalchemy import select
+
         result = s.execute(select(db.QualityCheck).where(db.QualityCheck.extraction_id == "test-2"))
         assert result.scalar_one_or_none() is None
 
@@ -102,31 +132,42 @@ def test_import_json_stores_reads_existing_data(temp_data_dir):
     intel_dir = temp_data_dir / "intel"
     intel_dir.mkdir(parents=True, exist_ok=True)
     (intel_dir / "snapshots.jsonl").write_text(  # use the canonical filename
-        json.dumps({
-            "competitor_id": "acme",
-            "competitor_name": "Acme Corp",
-            "url": "https://acme.com",
-            "fields": {"price": 99.99},
-        }) + "\n" +
-        json.dumps({
-            "competitor_id": "acme",
-            "competitor_name": "Acme Corp",
-            "url": "https://acme.com/pricing",
-            "fields": {"price": 89.99},
-        }) + "\n"
+        json.dumps(
+            {
+                "competitor_id": "acme",
+                "competitor_name": "Acme Corp",
+                "url": "https://acme.com",
+                "fields": {"price": 99.99},
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "competitor_id": "acme",
+                "competitor_name": "Acme Corp",
+                "url": "https://acme.com/pricing",
+                "fields": {"price": 89.99},
+            }
+        )
+        + "\n"
     )
 
     monitor_dir = temp_data_dir / "monitors"
     monitor_dir.mkdir(parents=True, exist_ok=True)
-    (monitor_dir / "m1.json").write_text(json.dumps({
-        "monitor_id": "m1",
-        "url": "https://example.com",
-        "name": "Example Monitor",
-        "schedule_cron": "0 * * * *",
-        "active": True,
-    }))
+    (monitor_dir / "m1.json").write_text(
+        json.dumps(
+            {
+                "monitor_id": "m1",
+                "url": "https://example.com",
+                "name": "Example Monitor",
+                "schedule_cron": "0 * * * *",
+                "active": True,
+            }
+        )
+    )
 
     import db
+
     counts = db.import_json_stores(data_dir=temp_data_dir)
     assert counts.get("intel") == 2
     assert counts.get("monitors") == 1
@@ -135,9 +176,16 @@ def test_import_json_stores_reads_existing_data(temp_data_dir):
     # Verify in SQL
     with db.session_scope() as s:
         from sqlalchemy import select
-        intel_rows = s.execute(select(db.IntelSnapshot).where(db.IntelSnapshot.competitor_id == "acme")).scalars().all()
+
+        intel_rows = (
+            s.execute(select(db.IntelSnapshot).where(db.IntelSnapshot.competitor_id == "acme"))
+            .scalars()
+            .all()
+        )
         assert len(intel_rows) == 2
-        monitor_row = s.execute(select(db.Monitor).where(db.Monitor.monitor_id == "m1")).scalar_one_or_none()
+        monitor_row = s.execute(
+            select(db.Monitor).where(db.Monitor.monitor_id == "m1")
+        ).scalar_one_or_none()
         assert monitor_row is not None
         # 'name' from JSON was renamed to 'monitor_name' in SQL
         assert monitor_row.monitor_name == "Example Monitor"
@@ -145,6 +193,7 @@ def test_import_json_stores_reads_existing_data(temp_data_dir):
 
 def test_db_health_returns_dict(temp_data_dir):
     import db
+
     health = db.db_health()
     assert isinstance(health, dict)
     assert "available" in health
@@ -155,8 +204,10 @@ def test_db_health_returns_dict(temp_data_dir):
 def test_models_have_unique_constraints(temp_data_dir):
     """Tables that map to JSON stores with _id fields should have unique indexes
     so that re-importing the same data is idempotent (or at least detectable)."""
-    import db
     from sqlalchemy import inspect
+
+    import db
+
     db.get_engine()
     inspector = inspect(db.get_engine())
     # monitor_id should be unique in monitors

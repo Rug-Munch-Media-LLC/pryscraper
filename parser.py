@@ -10,6 +10,7 @@ Temp files are always cleaned up in finally blocks.
 # Licensed under MIT. See LICENSE.
 
 import asyncio
+import contextlib
 import io
 import os
 import tempfile
@@ -121,7 +122,5 @@ class DocumentParser:
             return {"text": f"[Image OCR failed: {e}]", "format": "image", "pages": 0}
         finally:
             if fname and os.path.exists(fname):
-                try:
+                with contextlib.suppress(OSError):
                     os.unlink(fname)
-                except OSError:
-                    pass

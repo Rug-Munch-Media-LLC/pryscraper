@@ -1,4 +1,4 @@
-import httpx
+
 """Pry — Reverse ETL to CRM.
 Sync scraped data to Salesforce, HubSpot, Pipedrive, and Close.com."""
 
@@ -10,6 +10,8 @@ Sync scraped data to Salesforce, HubSpot, Pipedrive, and Close.com."""
 
 import logging
 from typing import Any
+
+import httpx
 
 logger = logging.getLogger(__name__)
 

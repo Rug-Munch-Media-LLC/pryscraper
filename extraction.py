@@ -1,4 +1,4 @@
-import httpx
+
 """Pry — structured extraction strategies.
 CSS/XPath-based extraction (no LLM needed) + chunking strategies for LLM extraction."""
 
@@ -14,6 +14,7 @@ import re
 from collections.abc import Sequence
 from typing import Any
 
+import httpx
 from lxml import html as lxml_html
 
 logger = logging.getLogger(__name__)

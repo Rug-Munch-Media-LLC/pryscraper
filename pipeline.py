@@ -76,7 +76,7 @@ class Pipeline:
                     result = cast(SyncHookFn, fn)(**context)
                 if isinstance(result, dict):
                     context.update(result)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.exception(
                     "hook_failed",
                     extra={"point": hook_point, "fn": getattr(fn, "__name__", str(fn))},

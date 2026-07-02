@@ -1,13 +1,11 @@
 """Pry — GDPR Compliance Portal.
 Data deletion API, consent management, retention policies, audit log."""
-from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import hashlib
 import json
 import logging
@@ -17,6 +15,8 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 

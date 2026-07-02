@@ -50,6 +50,7 @@ the corresponding JSON store is migrated.
 Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
 Licensed under MIT. See LICENSE.
 """
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
@@ -61,10 +62,11 @@ import json
 import logging
 import os
 import sqlite3
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 try:
     from sqlalchemy import (
@@ -88,7 +90,7 @@ try:
 except ImportError:  # pragma: no cover
     _HAS_SA = False
 
-from paths import PRY_DATA_DIR  # noqa: E402
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -98,9 +100,10 @@ DEFAULT_DB_PATH = PRY_DATA_DIR / "pry.db"
 _has_sqlalchemy = _HAS_SA
 
 
-def get_db() -> "Engine":
+def get_db() -> Engine:
     """Backward-compat alias for get_engine()."""
     return get_engine()
+
 
 DATABASE_URL_ENV = "PRY_DATABASE_URL"
 DEFAULT_SQLITE_URL = f"sqlite:///{DEFAULT_DB_PATH}"
@@ -114,11 +117,11 @@ def _resolve_database_url() -> str:
     return DEFAULT_SQLITE_URL
 
 
-_engine: "Engine | None" = None
-_SessionLocal: "sessionmaker[Session] | None" = None
+_engine: Engine | None = None
+_SessionLocal: sessionmaker[Session] | None = None
 
 
-def get_engine() -> "Engine":
+def get_engine() -> Engine:
     """Get the SQLAlchemy engine. Lazily creates one on first call."""
     global _engine, _SessionLocal
     if not _HAS_SA:
@@ -131,19 +134,23 @@ def get_engine() -> "Engine":
         _engine = create_engine(url, connect_args=connect_args, future=True, echo=False)
         # Enable foreign keys for SQLite (off by default)
         if url.startswith("sqlite"):
+
             @event.listens_for(_engine, "connect")
             def _enable_sqlite_fk(dbapi_conn: sqlite3.Connection, _conn_record: Any) -> None:
                 cur = dbapi_conn.cursor()
                 cur.execute("PRAGMA foreign_keys=ON")
                 cur.close()
+
         _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
         # Auto-create tables on first import (idempotent)
         Base.metadata.create_all(_engine)
-        logger.info("db_engine_initialized", extra={"url": url.split("@")[-1] if "@" in url else url})
+        logger.info(
+            "db_engine_initialized", extra={"url": url.split("@")[-1] if "@" in url else url}
+        )
     return _engine
 
 
-def get_session() -> "Session":
+def get_session() -> Session:
     """Get a new Session. Caller is responsible for closing it.
 
     Use `with db_session() as s:` or the `session_scope()` context manager
@@ -156,7 +163,7 @@ def get_session() -> "Session":
 
 
 @contextmanager
-def session_scope() -> Iterator["Session"]:
+def session_scope() -> Iterator[Session]:
     """Context manager: yields a Session, commits on success, rolls back on error.
 
     Usage:
@@ -178,6 +185,7 @@ def session_scope() -> Iterator["Session"]:
 # ── Model base ────────────────────────────────────────────────────
 
 if _HAS_SA:
+
     class Base(DeclarativeBase):
         pass
 
@@ -282,7 +290,9 @@ if _HAS_SA:
     class MonitorRun(Base):
         __tablename__ = "monitor_runs"
         id = Column(Integer, primary_key=True)
-        monitor_id = Column(String(64), ForeignKey("monitors.monitor_id"), index=True, nullable=False)
+        monitor_id = Column(
+            String(64), ForeignKey("monitors.monitor_id"), index=True, nullable=False
+        )
         ts = Column(DateTime, default=_now, index=True)
         status = Column(String(16), default="success")  # success|changed|error
         diff = Column(JSON, default=dict)
@@ -350,7 +360,9 @@ if _HAS_SA:
     class PipelineRun(Base):
         __tablename__ = "pipeline_runs"
         id = Column(Integer, primary_key=True)
-        pipeline_id = Column(String(64), ForeignKey("pipelines.pipeline_id"), index=True, nullable=False)
+        pipeline_id = Column(
+            String(64), ForeignKey("pipelines.pipeline_id"), index=True, nullable=False
+        )
         ts = Column(DateTime, default=_now, index=True)
         status = Column(String(16), default="success")
         result = Column(JSON, default=dict)
@@ -477,6 +489,7 @@ else:  # pragma: no cover
 
 # ── Importer: JSON store -> SQL ───────────────────────────────────
 
+
 def _iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
     if not path.exists():
         return
@@ -526,29 +539,33 @@ def import_json_stores(data_dir: Path | None = None) -> dict[str, int]:
         # Quality
         n = 0
         for rec in _iter_jsonl(data_dir / "quality" / "checks.jsonl"):
-            s.add(QualityCheck(
-                extraction_id=rec.get("extraction_id", rec.get("id", ""))[:64],
-                url=rec.get("url", ""),
-                completeness=rec.get("completeness", 0.0),
-                accuracy=rec.get("accuracy", 0.0),
-                freshness=rec.get("freshness", 0.0),
-                overall_score=rec.get("overall_score", 0.0),
-                risk_level=rec.get("risk_level", "unknown"),
-                issues=rec.get("issues", []),
-                data=rec,
-            ))
+            s.add(
+                QualityCheck(
+                    extraction_id=rec.get("extraction_id", rec.get("id", ""))[:64],
+                    url=rec.get("url", ""),
+                    completeness=rec.get("completeness", 0.0),
+                    accuracy=rec.get("accuracy", 0.0),
+                    freshness=rec.get("freshness", 0.0),
+                    overall_score=rec.get("overall_score", 0.0),
+                    risk_level=rec.get("risk_level", "unknown"),
+                    issues=rec.get("issues", []),
+                    data=rec,
+                )
+            )
             n += 1
         counts["quality"] = n
 
         # Intel (JSONL)
         n = 0
         for rec in _iter_jsonl(data_dir / "intel" / "snapshots.jsonl"):
-            s.add(IntelSnapshot(
-                competitor_id=rec.get("competitor_id", "")[:64],
-                competitor_name=rec.get("competitor_name", "")[:256],
-                url=rec.get("url", ""),
-                fields=rec.get("fields", {}),
-            ))
+            s.add(
+                IntelSnapshot(
+                    competitor_id=rec.get("competitor_id", "")[:64],
+                    competitor_name=rec.get("competitor_name", "")[:256],
+                    url=rec.get("url", ""),
+                    fields=rec.get("fields", {}),
+                )
+            )
             n += 1
         counts["intel"] = n
 
@@ -556,15 +573,17 @@ def import_json_stores(data_dir: Path | None = None) -> dict[str, int]:
         n = 0
         for rec in _iter_json_files(data_dir / "monitors"):
             mid = rec.get("monitor_id") or rec.get("id", "")
-            s.add(Monitor(
-                monitor_id=mid[:64],
-                url=rec.get("url", ""),
-                monitor_name=rec.get("name", ""),  # was 'name' in JSON
-                schedule_cron=rec.get("schedule_cron", ""),
-                check_type=rec.get("check_type", "content"),
-                active=rec.get("active", True),
-                webhook_url=rec.get("webhook_url", ""),
-            ))
+            s.add(
+                Monitor(
+                    monitor_id=mid[:64],
+                    url=rec.get("url", ""),
+                    monitor_name=rec.get("name", ""),  # was 'name' in JSON
+                    schedule_cron=rec.get("schedule_cron", ""),
+                    check_type=rec.get("check_type", "content"),
+                    active=rec.get("active", True),
+                    webhook_url=rec.get("webhook_url", ""),
+                )
+            )
             n += 1
         counts["monitors"] = n
 
@@ -572,14 +591,16 @@ def import_json_stores(data_dir: Path | None = None) -> dict[str, int]:
         n = 0
         for rec in _iter_json_files(data_dir / "accounts"):
             aid = rec.get("account_id") or rec.get("id", "")
-            s.add(Account(
-                account_id=aid[:64],
-                service=rec.get("service", "unknown")[:64],
-                username=rec.get("username", ""),
-                email=rec.get("email", ""),
-                status=rec.get("status", "active"),
-                used_count=rec.get("used_count", 0),
-            ))
+            s.add(
+                Account(
+                    account_id=aid[:64],
+                    service=rec.get("service", "unknown")[:64],
+                    username=rec.get("username", ""),
+                    email=rec.get("email", ""),
+                    status=rec.get("status", "active"),
+                    used_count=rec.get("used_count", 0),
+                )
+            )
             n += 1
         counts["accounts"] = n
 
@@ -587,20 +608,22 @@ def import_json_stores(data_dir: Path | None = None) -> dict[str, int]:
         n = 0
         for rec in _iter_json_files(data_dir / "actors"):
             aid = rec.get("actor_id") or rec.get("id", "")
-            s.add(Actor(
-                actor_id=aid[:64],
-                name=rec.get("name", ""),
-                description=rec.get("description", ""),
-                template_id=rec.get("template_id", ""),
-                code=rec.get("code", ""),
-                price_per_run=rec.get("price_per_run", 0.0),
-                visibility=rec.get("visibility", "private"),
-                schedule_cron=rec.get("schedule_cron", ""),
-                tags=rec.get("tags", []),
-                author=rec.get("author", ""),
-                run_count=rec.get("run_count", 0),
-                revenue_usd=rec.get("revenue_usd", 0.0),
-            ))
+            s.add(
+                Actor(
+                    actor_id=aid[:64],
+                    name=rec.get("name", ""),
+                    description=rec.get("description", ""),
+                    template_id=rec.get("template_id", ""),
+                    code=rec.get("code", ""),
+                    price_per_run=rec.get("price_per_run", 0.0),
+                    visibility=rec.get("visibility", "private"),
+                    schedule_cron=rec.get("schedule_cron", ""),
+                    tags=rec.get("tags", []),
+                    author=rec.get("author", ""),
+                    run_count=rec.get("run_count", 0),
+                    revenue_usd=rec.get("revenue_usd", 0.0),
+                )
+            )
             n += 1
         counts["actors"] = n
 
@@ -608,13 +631,15 @@ def import_json_stores(data_dir: Path | None = None) -> dict[str, int]:
         n = 0
         for rec in _iter_json_files(data_dir / "pipelines"):
             pid = rec.get("pipeline_id") or rec.get("id", "")
-            s.add(Pipeline(
-                pipeline_id=pid[:64],
-                pipeline_name=rec.get("name", ""),
-                steps=rec.get("steps", []),
-                schedule_cron=rec.get("schedule_cron", ""),
-                active=rec.get("active", True),
-            ))
+            s.add(
+                Pipeline(
+                    pipeline_id=pid[:64],
+                    pipeline_name=rec.get("name", ""),
+                    steps=rec.get("steps", []),
+                    schedule_cron=rec.get("schedule_cron", ""),
+                    active=rec.get("active", True),
+                )
+            )
             n += 1
         counts["pipelines"] = n
 
@@ -622,13 +647,15 @@ def import_json_stores(data_dir: Path | None = None) -> dict[str, int]:
         n = 0
         for rec in _iter_json_files(data_dir / "sessions"):
             sid = rec.get("session_id") or rec.get("id", "")
-            s.add(BrowserSession(
-                session_id=sid[:64],
-                cookies=rec.get("cookies", []),
-                local_storage=rec.get("local_storage", {}),
-                user_agent=rec.get("user_agent", ""),
-                proxy=rec.get("proxy", ""),
-            ))
+            s.add(
+                BrowserSession(
+                    session_id=sid[:64],
+                    cookies=rec.get("cookies", []),
+                    local_storage=rec.get("local_storage", {}),
+                    user_agent=rec.get("user_agent", ""),
+                    proxy=rec.get("proxy", ""),
+                )
+            )
             n += 1
         counts["sessions"] = n
 
@@ -636,15 +663,17 @@ def import_json_stores(data_dir: Path | None = None) -> dict[str, int]:
         n = 0
         for rec in _iter_json_files(data_dir / "agency"):
             aid = rec.get("agency_id") or rec.get("id", "")
-            s.add(Agency(
-                agency_id=aid[:64],
-                agency_name=rec.get("name", ""),
-                owner_email=rec.get("owner_email", ""),
-                custom_domain=rec.get("custom_domain", ""),
-                brand_color=rec.get("brand_color", "#f59e0b"),
-                logo_url=rec.get("logo_url", ""),
-                quota=rec.get("quota", 10000),
-            ))
+            s.add(
+                Agency(
+                    agency_id=aid[:64],
+                    agency_name=rec.get("name", ""),
+                    owner_email=rec.get("owner_email", ""),
+                    custom_domain=rec.get("custom_domain", ""),
+                    brand_color=rec.get("brand_color", "#f59e0b"),
+                    logo_url=rec.get("logo_url", ""),
+                    quota=rec.get("quota", 10000),
+                )
+            )
             n += 1
         counts["agency"] = n
 
@@ -666,7 +695,9 @@ def db_health() -> dict[str, Any]:
                 sqlite_version = None
         return {
             "available": True,
-            "url": _resolve_database_url().split("@")[-1] if "@" in _resolve_database_url() else _resolve_database_url(),
+            "url": _resolve_database_url().split("@")[-1]
+            if "@" in _resolve_database_url()
+            else _resolve_database_url(),
             "sqlite_version": sqlite_version,
         }
     except Exception as e:

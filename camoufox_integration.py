@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 try:
     from camoufox import AsyncCamoufox
     from camoufox.utils import DefaultAddons
+
     _has_camoufox = True
 except ImportError:
     _has_camoufox = False
@@ -31,28 +32,42 @@ class CamoufoxBrowser:
 
     DEFAULT_CONFIGS = {
         "chrome_windows": {
-            "headless": True, "os": "windows", "browser": "chrome",
-            "screen": (1920, 1080), "window": (1920, 1080),
+            "headless": True,
+            "os": "windows",
+            "browser": "chrome",
+            "screen": (1920, 1080),
+            "window": (1920, 1080),
         },
         "firefox_windows": {
-            "headless": True, "os": "windows", "browser": "firefox",
-            "screen": (1920, 1080), "window": (1920, 1080),
+            "headless": True,
+            "os": "windows",
+            "browser": "firefox",
+            "screen": (1920, 1080),
+            "window": (1920, 1080),
         },
         "chrome_mac": {
-            "headless": True, "os": "macos", "browser": "chrome",
-            "screen": (2560, 1600), "window": (1440, 900),
+            "headless": True,
+            "os": "macos",
+            "browser": "chrome",
+            "screen": (2560, 1600),
+            "window": (1440, 900),
         },
         "firefox_linux": {
-            "headless": True, "os": "linux", "browser": "firefox",
-            "screen": (1920, 1080), "window": (1920, 1080),
+            "headless": True,
+            "os": "linux",
+            "browser": "firefox",
+            "screen": (1920, 1080),
+            "window": (1920, 1080),
         },
     }
 
     def __init__(self, default_profile: str = "chrome_windows"):
         self.default_profile = default_profile
         if not _has_camoufox:
-            logger.warning("camoufox_not_available",
-                           extra={"hint": "pip install camoufox && python -m camoufox fetch"})
+            logger.warning(
+                "camoufox_not_available",
+                extra={"hint": "pip install camoufox && python -m camoufox fetch"},
+            )
 
     async def fetch(
         self,
@@ -74,10 +89,16 @@ class CamoufoxBrowser:
             cookies: Cookies to set before navigation
         """
         if not _has_camoufox:
-            return {"success": False, "error": "camoufox not installed. Run: pip install camoufox && python -m camoufox fetch"}
+            return {
+                "success": False,
+                "error": "camoufox not installed. Run: pip install camoufox && python -m camoufox fetch",
+            }
         profile_name = profile or self.default_profile
-        config = dict(self.DEFAULT_CONFIGS.get(profile_name, self.DEFAULT_CONFIGS["chrome_windows"]))
-        if proxy: config["proxy"] = proxy
+        config = dict(
+            self.DEFAULT_CONFIGS.get(profile_name, self.DEFAULT_CONFIGS["chrome_windows"])
+        )
+        if proxy:
+            config["proxy"] = proxy
         try:
             start = time.time()
             async with AsyncCamoufox(**config) as browser:
@@ -98,10 +119,15 @@ class CamoufoxBrowser:
                 elapsed = time.time() - start
                 cookies_received = await page.context.cookies()
                 return {
-                    "success": True, "url": url, "title": title,
-                    "content": content, "raw_html": content,
-                    "status_code": 200, "elapsed": round(elapsed, 2),
-                    "profile": profile_name, "cookies": cookies_received,
+                    "success": True,
+                    "url": url,
+                    "title": title,
+                    "content": content,
+                    "raw_html": content,
+                    "status_code": 200,
+                    "elapsed": round(elapsed, 2),
+                    "profile": profile_name,
+                    "cookies": cookies_received,
                 }
         except Exception as e:  # noqa: BLE001
             return {"success": False, "error": str(e)[:300], "url": url}
@@ -120,8 +146,10 @@ class CamoufoxBrowser:
         if human_behavior:
             try:
                 from camoufox import AsyncCamoufox
+
                 config = dict(self.DEFAULT_CONFIGS.get(self.default_profile, {}))
-                if proxy: config["proxy"] = proxy
+                if proxy:
+                    config["proxy"] = proxy
                 async with AsyncCamoufox(**config) as browser:
                     page = await browser.new_page()
                     await page.goto(url, wait_until="domcontentloaded")

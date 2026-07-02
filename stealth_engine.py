@@ -24,7 +24,13 @@ class StealthEngine:
 
     def generate_all(self) -> str:
         """Generate complete stealth script with all fingerprint protections."""
-        return self.webgl_noise() + self.canvas_noise() + self.audio_noise() + self.font_spoof() + self.webdriver_hide()
+        return (
+            self.webgl_noise()
+            + self.canvas_noise()
+            + self.audio_noise()
+            + self.font_spoof()
+            + self.webdriver_hide()
+        )
 
     def webgl_noise(self) -> str:
         """Add random noise to WebGL rendering to prevent GPU fingerprinting."""
@@ -87,7 +93,16 @@ class StealthEngine:
 
     def font_spoof(self) -> str:
         """Spoof system fonts to avoid font fingerprinting."""
-        fonts = ["Arial", "Helvetica", "Times New Roman", "Courier New", "Verdana", "Georgia", "Palatino", "Garamond"]
+        fonts = [
+            "Arial",
+            "Helvetica",
+            "Times New Roman",
+            "Courier New",
+            "Verdana",
+            "Georgia",
+            "Palatino",
+            "Garamond",
+        ]
         return f"""
         (() => {{
             const fonts = {json.dumps(fonts)};

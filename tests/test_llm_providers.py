@@ -30,15 +30,21 @@ def test_llm_registry_register() -> None:
 
     class FakeProvider(LLMProvider):
         name = "fake"
-        async def complete(self, *args, **kwargs): return LLMResponse(text="ok", model="fake", provider="fake")
-        async def embed(self, *args, **kwargs): return [0.1, 0.2]
+
+        async def complete(self, *args, **kwargs):
+            return LLMResponse(text="ok", model="fake", provider="fake")
+
+        async def embed(self, *args, **kwargs):
+            return [0.1, 0.2]
 
     r.register(FakeProvider())
     assert "fake" in r.providers
 
 
 def test_llm_response_dataclass() -> None:
-    r = LLMResponse(text="hello", model="m", provider="p", input_tokens=10, output_tokens=5, cost_usd=0.001)
+    r = LLMResponse(
+        text="hello", model="m", provider="p", input_tokens=10, output_tokens=5, cost_usd=0.001
+    )
     assert r.text == "hello"
     assert r.cost_usd == 0.001
 
@@ -47,8 +53,13 @@ def test_provider_cost_estimation() -> None:
     class TestProvider(LLMProvider):
         cost_per_1k_input = 0.001
         cost_per_1k_output = 0.002
-        async def complete(self, *args, **kwargs): return LLMResponse(text="", model="t", provider="t")
-        async def embed(self, *args, **kwargs): return []
+
+        async def complete(self, *args, **kwargs):
+            return LLMResponse(text="", model="t", provider="t")
+
+        async def embed(self, *args, **kwargs):
+            return []
+
     p = TestProvider()
     cost = p.estimate_cost(1000, 500)
     assert abs(cost - 0.002) < 0.0001  # 0.001 + 0.001
@@ -58,5 +69,6 @@ def test_referral_link_format() -> None:
     rc = ReferralConfig()
     for provider, link in rc.referral_links.items():
         # FlareSolverr is open-source, no affiliate
-        if provider == "flaresolverr": continue
+        if provider == "flaresolverr":
+            continue
         assert "pry" in link, f"Link for {provider} missing referral: {link}"

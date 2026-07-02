@@ -8,6 +8,7 @@ These tests verify that:
 
 The tests monkeypatch llm_features so we don't need a real LLM.
 """
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
@@ -15,13 +16,12 @@ The tests monkeypatch llm_features so we don't need a real LLM.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # ── compliance.py ────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_compliance_llm_fallback_merges_into_tos_result():
@@ -29,15 +29,17 @@ async def test_compliance_llm_fallback_merges_into_tos_result():
     with the llm_enhanced flag set to True."""
     from compliance import run_compliance_check
 
-    fake_llm = AsyncMock(return_value={
-        "risk_level": "red",
-        "confidence": "high",
-        "risk_summary": "Strict scraping prohibition",
-        "recommendation": "Contact site owner",
-        "key_restrictions": ["no bots", "rate limited"],
-        "llm_provider": "openrouter",
-        "llm_cost_usd": 0.001,
-    })
+    fake_llm = AsyncMock(
+        return_value={
+            "risk_level": "red",
+            "confidence": "high",
+            "risk_summary": "Strict scraping prohibition",
+            "recommendation": "Contact site owner",
+            "key_restrictions": ["no bots", "rate limited"],
+            "llm_provider": "openrouter",
+            "llm_cost_usd": 0.001,
+        }
+    )
 
     with patch("llm_features.llm_compliance_analyze", fake_llm):
         result = await run_compliance_check("https://example.com/")
@@ -70,31 +72,36 @@ async def test_compliance_llm_fallback_preserves_result_on_error():
 
 # ── seo_monitor.py ───────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_seo_llm_enhancement_fills_empty_critical_fields():
     """When the regex pass leaves title/meta_description/h1 empty, the LLM
     should be invoked and its suggestions should fill the gaps."""
     from seo_monitor import analyze_seo
 
-    fake_llm = AsyncMock(return_value={
-        "title": "Pry - Web Intelligence",
-        "meta_description": "Open any website with Pry's free API",
-        "h1": "Web Scraping Made Simple",
-        "llm_provider": "ollama",
-        "llm_cost_usd": 0.0,
-    })
+    fake_llm = AsyncMock(
+        return_value={
+            "title": "Pry - Web Intelligence",
+            "meta_description": "Open any website with Pry's free API",
+            "h1": "Web Scraping Made Simple",
+            "llm_provider": "ollama",
+            "llm_cost_usd": 0.0,
+        }
+    )
 
     # Patch the regex helpers to return empty
-    with patch("seo_monitor._get_title", return_value=""), \
-         patch("seo_monitor._get_meta_content", return_value=""), \
-         patch("seo_monitor._get_headings", return_value=[]), \
-         patch("seo_monitor._count_words", return_value=100), \
-         patch("seo_monitor._has_schema", return_value=False), \
-         patch("seo_monitor._get_hreflangs", return_value=[]), \
-         patch("seo_monitor._get_charset", return_value="utf-8"), \
-         patch("seo_monitor._get_attr", return_value=""), \
-         patch("seo_monitor._count_links", return_value=0), \
-         patch("llm_features.llm_seo_analyze", fake_llm):
+    with (
+        patch("seo_monitor._get_title", return_value=""),
+        patch("seo_monitor._get_meta_content", return_value=""),
+        patch("seo_monitor._get_headings", return_value=[]),
+        patch("seo_monitor._count_words", return_value=100),
+        patch("seo_monitor._has_schema", return_value=False),
+        patch("seo_monitor._get_hreflangs", return_value=[]),
+        patch("seo_monitor._get_charset", return_value="utf-8"),
+        patch("seo_monitor._get_attr", return_value=""),
+        patch("seo_monitor._count_links", return_value=0),
+        patch("llm_features.llm_seo_analyze", fake_llm),
+    ):
         # Mock the HTTP client to return a fake HTML response
         with patch("client.get_client") as mock_get_client:
             mock_resp = MagicMock()
@@ -116,6 +123,7 @@ async def test_seo_llm_enhancement_fills_empty_critical_fields():
 
 # ── reconciliation.py ────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_reconciliation_llm_enhance_function_exists():
     """llm_enhance_reconciliation should be a callable that returns a dict."""
@@ -124,11 +132,13 @@ async def test_reconciliation_llm_enhance_function_exists():
     fake_llm = AsyncMock(return_value={"is_same_entity": True})
 
     with patch("llm_features.llm_entity_reconcile", fake_llm):
-        result = await llm_enhance_reconciliation([
-            {"id": "1", "name": "Acme Widget", "confidence": 0.3, "group_id": "g1"},
-            {"id": "2", "name": "Acme Widget Pro", "confidence": 0.4, "group_id": "g1"},
-            {"id": "3", "name": "Other Product", "confidence": 0.95, "group_id": "g2"},
-        ])
+        result = await llm_enhance_reconciliation(
+            [
+                {"id": "1", "name": "Acme Widget", "confidence": 0.3, "group_id": "g1"},
+                {"id": "2", "name": "Acme Widget Pro", "confidence": 0.4, "group_id": "g1"},
+                {"id": "3", "name": "Other Product", "confidence": 0.95, "group_id": "g2"},
+            ]
+        )
 
     assert result["llm_enhanced"] is True
     # Only the low-confidence group (g1) should have been sent to the LLM
@@ -145,10 +155,12 @@ async def test_reconciliation_llm_enhance_handles_no_low_confidence():
     fake_llm = AsyncMock(return_value={"is_same_entity": True})
 
     with patch("llm_features.llm_entity_reconcile", fake_llm):
-        result = await llm_enhance_reconciliation([
-            {"id": "1", "name": "A", "confidence": 0.9},
-            {"id": "2", "name": "B", "confidence": 0.95},
-        ])
+        result = await llm_enhance_reconciliation(
+            [
+                {"id": "1", "name": "A", "confidence": 0.9},
+                {"id": "2", "name": "B", "confidence": 0.95},
+            ]
+        )
 
     assert not fake_llm.called
     assert result["llm_enhanced"] is False
@@ -163,9 +175,11 @@ async def test_reconciliation_llm_enhance_handles_llm_error():
     fake_llm = AsyncMock(side_effect=ConnectionError("timeout"))
 
     with patch("llm_features.llm_entity_reconcile", fake_llm):
-        result = await llm_enhance_reconciliation([
-            {"id": "1", "name": "A", "confidence": 0.3, "group_id": "g1"},
-        ])
+        result = await llm_enhance_reconciliation(
+            [
+                {"id": "1", "name": "A", "confidence": 0.3, "group_id": "g1"},
+            ]
+        )
 
     assert result["llm_enhanced"] is False
     assert "error" in result

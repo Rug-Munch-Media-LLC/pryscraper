@@ -217,9 +217,12 @@ class PryScraper:
                 if not self.playwright_available:
                     try:
                         import subprocess
+
                         r = subprocess.run(
                             ["python3", "-m", "playwright", "install", "--dry-run", "chromium"],
-                            capture_output=True, text=True, timeout=10
+                            capture_output=True,
+                            text=True,
+                            timeout=10,
                         )
                         if "chromium" in r.stdout:
                             self.playwright_available = True
@@ -258,13 +261,11 @@ class PryScraper:
             if indicator.lower() in html_lower:
                 return True
         # Check for very short / challenge-looking pages
-        if (
+        return bool(
             len(html) < 2000
             and "document" in html_lower
             and ("var " in html_lower or "function" in html_lower)
-        ):
-            return True
-        return False
+        )
 
     def _quality_score(self, content: str) -> int:
         """Score content quality 0-100. Low score triggers retry with better tier."""
@@ -288,6 +289,7 @@ class PryScraper:
         # Use UltimateScraper for the 10-tier fetching
         if self._ultimate is None:
             from ultimate_scraper import UltimateScraper
+
             self._ultimate = UltimateScraper()
 
         result = await self._ultimate.scrape(url, opts)
@@ -563,5 +565,3 @@ class PryScraper:
             if urlparse(link).netloc == base_domain:
                 links.add(link.split("#")[0].rstrip("/"))
         return sorted(links)[: opts.get("limit", 50)]
-
-

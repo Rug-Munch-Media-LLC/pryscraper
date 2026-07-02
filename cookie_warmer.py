@@ -27,16 +27,29 @@ WARMER_DIR.mkdir(parents=True, exist_ok=True)
 
 # Realistic pages to "warm" cookies against (these are common referrers/browsing paths)
 WARMING_PAGES = {
-    "amazon": ["https://www.amazon.com/", "https://www.amazon.com/gp/help/customer/contact-us",
-               "https://www.amazon.com/privacy", "https://www.amazon.com/conditions-of-use"],
-    "ebay": ["https://www.ebay.com/", "https://www.ebay.com/help/home",
-             "https://www.ebay.com/myp/PurchaseHistory"],
+    "amazon": [
+        "https://www.amazon.com/",
+        "https://www.amazon.com/gp/help/customer/contact-us",
+        "https://www.amazon.com/privacy",
+        "https://www.amazon.com/conditions-of-use",
+    ],
+    "ebay": [
+        "https://www.ebay.com/",
+        "https://www.ebay.com/help/home",
+        "https://www.ebay.com/myp/PurchaseHistory",
+    ],
     "shopify": ["https://www.shopify.com/", "https://www.shopify.com/pricing"],
-    "twitter": ["https://twitter.com/", "https://twitter.com/explore",
-                "https://twitter.com/settings/account"],
+    "twitter": [
+        "https://twitter.com/",
+        "https://twitter.com/explore",
+        "https://twitter.com/settings/account",
+    ],
     "linkedin": ["https://www.linkedin.com/", "https://www.linkedin.com/help/intro"],
-    "generic": ["https://www.google.com/", "https://en.wikipedia.org/wiki/Main_Page",
-                "https://github.com/"],
+    "generic": [
+        "https://www.google.com/",
+        "https://en.wikipedia.org/wiki/Main_Page",
+        "https://github.com/",
+    ],
 }
 
 

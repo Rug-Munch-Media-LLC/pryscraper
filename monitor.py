@@ -1,14 +1,11 @@
-import httpx
+
 """Pry — scheduled monitors with AI change detection.
 Cron-based monitors that diff content and judge meaningful changes."""
-from paths import PRY_DATA_DIR
-
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import difflib
 import json
 import logging
@@ -19,6 +16,10 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+import httpx
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 

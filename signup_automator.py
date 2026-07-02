@@ -1,4 +1,4 @@
-import httpx
+
 # SPDX-License-Identifier: BSL-1.1
 # Copyright (c) 2026 Rug Munch Media LLC
 #
@@ -17,6 +17,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, ClassVar
 
+import httpx
+
 logger = logging.getLogger(__name__)
 
 PROFILES_DIR = Path(__file__).parent / "profiles"
@@ -26,18 +28,132 @@ PROFILES_DIR.mkdir(parents=True, exist_ok=True)
 class ProfileGenerator:
     """Generate realistic human identities for account registration."""
 
-    FIRST_NAMES: ClassVar[list[str]] = ["James", "Mary", "John", "Patricia", "Robert", "Jennifer", "Michael", "Linda", "William", "Elizabeth",
-                                         "David", "Barbara", "Richard", "Susan", "Joseph", "Jessica", "Thomas", "Sarah", "Christopher", "Karen"]
-    LAST_NAMES: ClassVar[list[str]] = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez",
-                                        "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin"]
-    DOMAINS: ClassVar[list[str]] = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "protonmail.com", "icloud.com", "aol.com", "mail.com"]
-    STREETS: ClassVar[list[str]] = ["Oak", "Maple", "Cedar", "Pine", "Elm", "Birch", "Walnut", "Cherry", "Ash", "Willow"]
-    STREET_TYPES: ClassVar[list[str]] = ["St", "Ave", "Rd", "Dr", "Ln", "Blvd", "Way", "Ct", "Pl", "Cir"]
-    CITIES: ClassVar[list[str]] = ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego",
-                                    "Dallas", "Austin", "Portland", "Seattle", "Denver", "Boston", "Nashville"]
-    STATES: ClassVar[list[str]] = ["NY", "CA", "IL", "TX", "AZ", "PA", "TX", "CA", "TX", "TX", "OR", "WA", "CO", "MA", "TN"]
-    JOBS: ClassVar[list[str]] = ["Software Engineer", "Teacher", "Nurse", "Accountant", "Marketing Manager", "Data Analyst", "Graphic Designer",
-                                  "Project Manager", "Sales Associate", "Customer Support", "HR Coordinator", "Financial Analyst"]
+    FIRST_NAMES: ClassVar[list[str]] = [
+        "James",
+        "Mary",
+        "John",
+        "Patricia",
+        "Robert",
+        "Jennifer",
+        "Michael",
+        "Linda",
+        "William",
+        "Elizabeth",
+        "David",
+        "Barbara",
+        "Richard",
+        "Susan",
+        "Joseph",
+        "Jessica",
+        "Thomas",
+        "Sarah",
+        "Christopher",
+        "Karen",
+    ]
+    LAST_NAMES: ClassVar[list[str]] = [
+        "Smith",
+        "Johnson",
+        "Williams",
+        "Brown",
+        "Jones",
+        "Garcia",
+        "Miller",
+        "Davis",
+        "Rodriguez",
+        "Martinez",
+        "Hernandez",
+        "Lopez",
+        "Gonzalez",
+        "Wilson",
+        "Anderson",
+        "Thomas",
+        "Taylor",
+        "Moore",
+        "Jackson",
+        "Martin",
+    ]
+    DOMAINS: ClassVar[list[str]] = [
+        "gmail.com",
+        "yahoo.com",
+        "outlook.com",
+        "hotmail.com",
+        "protonmail.com",
+        "icloud.com",
+        "aol.com",
+        "mail.com",
+    ]
+    STREETS: ClassVar[list[str]] = [
+        "Oak",
+        "Maple",
+        "Cedar",
+        "Pine",
+        "Elm",
+        "Birch",
+        "Walnut",
+        "Cherry",
+        "Ash",
+        "Willow",
+    ]
+    STREET_TYPES: ClassVar[list[str]] = [
+        "St",
+        "Ave",
+        "Rd",
+        "Dr",
+        "Ln",
+        "Blvd",
+        "Way",
+        "Ct",
+        "Pl",
+        "Cir",
+    ]
+    CITIES: ClassVar[list[str]] = [
+        "New York",
+        "Los Angeles",
+        "Chicago",
+        "Houston",
+        "Phoenix",
+        "Philadelphia",
+        "San Antonio",
+        "San Diego",
+        "Dallas",
+        "Austin",
+        "Portland",
+        "Seattle",
+        "Denver",
+        "Boston",
+        "Nashville",
+    ]
+    STATES: ClassVar[list[str]] = [
+        "NY",
+        "CA",
+        "IL",
+        "TX",
+        "AZ",
+        "PA",
+        "TX",
+        "CA",
+        "TX",
+        "TX",
+        "OR",
+        "WA",
+        "CO",
+        "MA",
+        "TN",
+    ]
+    JOBS: ClassVar[list[str]] = [
+        "Software Engineer",
+        "Teacher",
+        "Nurse",
+        "Accountant",
+        "Marketing Manager",
+        "Data Analyst",
+        "Graphic Designer",
+        "Project Manager",
+        "Sales Associate",
+        "Customer Support",
+        "HR Coordinator",
+        "Financial Analyst",
+    ]
 
     def generate(self, locale: str = "US") -> dict[str, Any]:
         idx = random.randint(0, len(self.FIRST_NAMES) - 1)
@@ -77,6 +193,7 @@ class ProfileGenerator:
 
     def _generate_id(self) -> str:
         import uuid
+
         return uuid.uuid4().hex[:12]
 
     def save_profile(self, profile: dict[str, Any]) -> str:
@@ -102,28 +219,44 @@ class EmailVerifier:
     async def create_temp_inbox(self) -> dict[str, Any]:
         """Create a temporary email inbox for receiving verification links."""
         from client import get_client
+
         client = await get_client()
         try:
             resp = await client.get("https://api.mail.tm/accounts", timeout=10)
             domains = resp.json().get("hydra:member", [])
             domain = domains[0]["domain"] if domains else "@mail.tm"
             import uuid
+
             name = f"pry_{uuid.uuid4().hex[:8]}"
             pw = uuid.uuid4().hex[:16]
-            r = await client.post("https://api.mail.tm/accounts",
-                json={"address": f"{name}{domain}", "password": pw}, timeout=10)
+            r = await client.post(
+                "https://api.mail.tm/accounts",
+                json={"address": f"{name}{domain}", "password": pw},
+                timeout=10,
+            )
             if r.is_success:
-                token_r = await client.post("https://api.mail.tm/token",
-                    json={"address": f"{name}{domain}", "password": pw}, timeout=10)
+                token_r = await client.post(
+                    "https://api.mail.tm/token",
+                    json={"address": f"{name}{domain}", "password": pw},
+                    timeout=10,
+                )
                 token = token_r.json().get("token", "")
-                return {"email": f"{name}{domain}", "password": pw, "token": token, "provider": "mail.tm"}
+                return {
+                    "email": f"{name}{domain}",
+                    "password": pw,
+                    "token": token,
+                    "provider": "mail.tm",
+                }
         except (httpx.HTTPError, httpx.RequestError) as e:
             logger.warning("temp_mail_failed", extra={"error": str(e)[:80]})
         return {"email": "", "error": "Temp mail unavailable"}
 
-    async def check_verification_link(self, token: str, max_wait: int = 120, check_interval: int = 5) -> str | None:
+    async def check_verification_link(
+        self, token: str, max_wait: int = 120, check_interval: int = 5
+    ) -> str | None:
         """Poll temp inbox for verification link."""
         from client import get_client
+
         client = await get_client()
         headers = {"Authorization": f"Bearer {token}"}
         for _ in range(max_wait // check_interval):
@@ -133,12 +266,22 @@ class EmailVerifier:
                     messages = r.json().get("hydra:member", [])
                     for msg in messages:
                         msg_id = msg.get("id", "")
-                        mr = await client.get(f"https://api.mail.tm/messages/{msg_id}", headers=headers, timeout=10)
+                        mr = await client.get(
+                            f"https://api.mail.tm/messages/{msg_id}", headers=headers, timeout=10
+                        )
                         if mr.is_success:
-                            html = mr.json().get("html", [""])[0] if isinstance(mr.json().get("html"), list) else str(mr.json())
+                            html = (
+                                mr.json().get("html", [""])[0]
+                                if isinstance(mr.json().get("html"), list)
+                                else str(mr.json())
+                            )
                             links = re.findall(r'https?://[^\s"<>]+', html)
                             for link in links:
-                                if "verify" in link.lower() or "confirm" in link.lower() or "activate" in link.lower():
+                                if (
+                                    "verify" in link.lower()
+                                    or "confirm" in link.lower()
+                                    or "activate" in link.lower()
+                                ):
                                     return link
             except (httpx.HTTPError, httpx.RequestError):
                 pass
@@ -149,30 +292,42 @@ class EmailVerifier:
 class SMSVerifier:
     """Handle SMS verification via Twilio or SMS-activate."""
 
-    async def send_sms(self, phone: str, message: str, provider: str = "twilio", **creds: Any) -> dict[str, Any]:
+    async def send_sms(
+        self, phone: str, message: str, provider: str = "twilio", **creds: Any
+    ) -> dict[str, Any]:
         if provider == "twilio":
             return await self._twilio_send(phone, message, creds)
         return {"success": False, "error": f"Unknown SMS provider: {provider}"}
 
     async def _twilio_send(self, phone: str, message: str, creds: dict) -> dict[str, Any]:
         from client import get_client
+
         client = await get_client()
         import base64
-        auth = base64.b64encode(f"{creds.get('account_sid','')}:{creds.get('auth_token','')}".encode()).decode()
+
+        auth = base64.b64encode(
+            f"{creds.get('account_sid', '')}:{creds.get('auth_token', '')}".encode()
+        ).decode()
         resp = await client.post(
-            f"https://api.twilio.com/2010-04-01/Accounts/{creds.get('account_sid','')}/Messages.json",
+            f"https://api.twilio.com/2010-04-01/Accounts/{creds.get('account_sid', '')}/Messages.json",
             data={"To": phone, "From": creds.get("from_number", ""), "Body": message},
-            headers={"Authorization": f"Basic {auth}"}, timeout=15)
+            headers={"Authorization": f"Basic {auth}"},
+            timeout=15,
+        )
         return {"success": resp.is_success, "status": resp.status_code}
 
     async def request_activation_number(self, service: str, country: str = "us") -> dict[str, Any]:
         """Get a phone number for SMS activation via SMS-activate.org."""
         from client import get_client
+
         api_key = self._get_key()
         if not api_key:
             return {"success": False, "error": "SMS-activate API key required"}
         client = await get_client()
-        resp = await client.get(f"https://sms-activate.org/stubs/handler_api.php?api_key={api_key}&action=getNumber&service={service}&country={country}", timeout=15)
+        resp = await client.get(
+            f"https://sms-activate.org/stubs/handler_api.php?api_key={api_key}&action=getNumber&service={service}&country={country}",
+            timeout=15,
+        )
         data = resp.text
         if "ACCESS_NUMBER" in data:
             parts = data.split(":")
@@ -181,4 +336,5 @@ class SMSVerifier:
 
     def _get_key(self) -> str:
         import os
+
         return os.getenv("PRY_SMS_ACTIVATE_KEY", "")

@@ -77,7 +77,10 @@ def test_db_is_available() -> None:
 def test_job_queue_submit() -> None:
     async def _test():
         q = JobQueue()
-        async def my_task(x): return x * 2
+
+        async def my_task(x):
+            return x * 2
+
         job_id = await q.submit("double", my_task, args=(5,))
         assert job_id in q.jobs
         # Run inline
@@ -85,11 +88,12 @@ def test_job_queue_submit() -> None:
         await q._execute(job)
         assert job.status == JobStatus.COMPLETED
         assert job.result == 10
+
     asyncio.run(_test())
 
 
 def test_job_listing() -> None:
     q = JobQueue()
-    job = q.jobs["test"] = type('J', (), {'to_dict': lambda self: {"id": "test", "name": "x"}})()
+    q.jobs["test"] = type("J", (), {"to_dict": lambda self: {"id": "test", "name": "x"}})()
     # Simple smoke test
     assert hasattr(q, "list_jobs")

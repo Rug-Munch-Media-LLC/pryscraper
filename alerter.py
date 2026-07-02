@@ -1,4 +1,4 @@
-import httpx
+
 """Pry — Multi-Channel Alerting System.
 SMS, Email, Microsoft Teams, Discord, Telegram alerts."""
 
@@ -10,6 +10,8 @@ SMS, Email, Microsoft Teams, Discord, Telegram alerts."""
 
 import logging
 from typing import Any
+
+import httpx
 
 logger = logging.getLogger(__name__)
 

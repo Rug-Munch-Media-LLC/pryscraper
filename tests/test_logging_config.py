@@ -1,4 +1,5 @@
 """Tests for the logging_config module."""
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
@@ -6,11 +7,8 @@
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
-import io
 import json
 import logging
-import os
-import sys
 
 import pytest
 
@@ -89,6 +87,7 @@ def test_get_logger_returns_logger():
 def test_setup_logging_without_structlog_falls_back(monkeypatch):
     """If structlog isn't available, setup_logging should still work."""
     import builtins
+
     real_import = builtins.__import__
 
     def fake_import(name, *args, **kwargs):
@@ -99,6 +98,7 @@ def test_setup_logging_without_structlog_falls_back(monkeypatch):
     monkeypatch.setattr(builtins, "__import__", fake_import)
     # Force a fresh import
     import importlib
+
     importlib.reload(logging_config)
     try:
         logging_config.setup_logging()

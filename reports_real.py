@@ -6,13 +6,13 @@
 """Pry — Real data-driven auto-reports with PDF generation."""
 
 import logging
-import os
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
 from paths import PRY_DATA_DIR
+
 logger = logging.getLogger(__name__)
 
 REPORTS_DIR = PRY_DATA_DIR / "reports_real"
@@ -84,7 +84,7 @@ class ReportGenerator:
         changes = data.get("changes", [])
         body = f"""
         <h2>Competitive Analysis</h2>
-        <p>Report generated: {datetime.now(UTC).strftime('%B %d, %Y')}</p>
+        <p>Report generated: {datetime.now(UTC).strftime("%B %d, %Y")}</p>
         <h3>Competitors Tracked ({len(competitors)})</h3>
         <table>
             <thead><tr><th>Name</th><th>Price</th><th>Change</th><th>Last Updated</th></tr></thead>
@@ -95,10 +95,10 @@ class ReportGenerator:
             change_str = f"{change:+.1f}%" if change else "—"
             change_class = "up" if change > 0 else "down" if change < 0 else "stable"
             body += (
-                f"<tr><td>{c.get('name','')}</td>"
-                f"<td>${c.get('price',0):.2f}</td>"
+                f"<tr><td>{c.get('name', '')}</td>"
+                f"<td>${c.get('price', 0):.2f}</td>"
                 f"<td class='{change_class}'>{change_str}</td>"
-                f"<td>{c.get('last_updated','')}</td></tr>"
+                f"<td>{c.get('last_updated', '')}</td></tr>"
             )
         body += "</tbody></table>"
 
@@ -115,7 +115,7 @@ class ReportGenerator:
         rises = sum(1 for p in products if (p.get("price_change") or 0) > 0)
         body = f"""
         <h2>Price Monitoring Report</h2>
-        <p>Generated: {datetime.now(UTC).strftime('%B %d, %Y')}</p>
+        <p>Generated: {datetime.now(UTC).strftime("%B %d, %Y")}</p>
         <div class='summary'>
             <div class='stat'><h3>{len(products)}</h3><p>Products</p></div>
             <div class='stat up'><h3>{drops}</h3><p>Price Drops</p></div>
@@ -128,9 +128,9 @@ class ReportGenerator:
             change_str = f"{pc:+.1f}%" if pc else "stable"
             change_class = "down" if pc < 0 else "up" if pc > 0 else "stable"
             body += (
-                f"<tr><td>{p.get('name','')}</td>"
-                f"<td>${p.get('previous_price',0):.2f}</td>"
-                f"<td>${p.get('current_price',0):.2f}</td>"
+                f"<tr><td>{p.get('name', '')}</td>"
+                f"<td>${p.get('previous_price', 0):.2f}</td>"
+                f"<td>${p.get('current_price', 0):.2f}</td>"
                 f"<td class='{change_class}'>{change_str}</td></tr>"
             )
         body += "</tbody></table>"
@@ -143,23 +143,21 @@ class ReportGenerator:
         desc = (seo.get("meta_description") or "N/A")[:200]
         body = f"""
         <h2>SEO Audit Report</h2>
-        <p>Generated: {datetime.now(UTC).strftime('%B %d, %Y')}</p>
+        <p>Generated: {datetime.now(UTC).strftime("%B %d, %Y")}</p>
         <h3>Current SEO Status</h3>
         <table>
             <tr><td><strong>Title</strong></td><td>{title_text}</td></tr>
             <tr><td><strong>Meta Description</strong></td><td>{desc}</td></tr>
-            <tr><td><strong>Word Count</strong></td><td>{seo.get('word_count', 0):,}</td></tr>
-            <tr><td><strong>Internal Links</strong></td><td>{seo.get('links_internal', 0)}</td></tr>
-            <tr><td><strong>External Links</strong></td><td>{seo.get('links_external', 0)}</td></tr>
-            <tr><td><strong>Schema Markup</strong></td><td>{'Yes' if seo.get('has_schema') else 'No'}</td></tr>
+            <tr><td><strong>Word Count</strong></td><td>{seo.get("word_count", 0):,}</td></tr>
+            <tr><td><strong>Internal Links</strong></td><td>{seo.get("links_internal", 0)}</td></tr>
+            <tr><td><strong>External Links</strong></td><td>{seo.get("links_external", 0)}</td></tr>
+            <tr><td><strong>Schema Markup</strong></td><td>{"Yes" if seo.get("has_schema") else "No"}</td></tr>
         </table>
         """
         if changes:
             body += "<h3>Recent SEO Changes</h3><ul>"
             for c in changes[:20]:
-                body += (
-                    f"<li>{c.get('field','')}: {str(c.get('to',''))[:80]}</li>"
-                )
+                body += f"<li>{c.get('field', '')}: {str(c.get('to', ''))[:80]}</li>"
             body += "</ul>"
         return body
 
@@ -167,16 +165,16 @@ class ReportGenerator:
         anomalies = data.get("anomalies", [])
         body = f"""
         <h2>Anomaly Summary Report</h2>
-        <p>Generated: {datetime.now(UTC).strftime('%B %d, %Y')}</p>
+        <p>Generated: {datetime.now(UTC).strftime("%B %d, %Y")}</p>
         <h3>Detected Anomalies ({len(anomalies)})</h3>
         <table><thead><tr><th>Field</th><th>Type</th><th>Severity</th><th>Reason</th></tr></thead><tbody>
         """
         for a in anomalies:
             body += (
-                f"<tr><td>{a.get('field','')}</td>"
-                f"<td>{a.get('type','')}</td>"
-                f"<td>{a.get('severity','')}</td>"
-                f"<td>{a.get('reason','')}</td></tr>"
+                f"<tr><td>{a.get('field', '')}</td>"
+                f"<td>{a.get('type', '')}</td>"
+                f"<td>{a.get('severity', '')}</td>"
+                f"<td>{a.get('reason', '')}</td></tr>"
             )
         body += "</tbody></table>"
         return body
@@ -213,6 +211,7 @@ class ReportGenerator:
             def handle_endtag(self, tag: str) -> None:
                 if tag == "tr" and self.current_row:
                     import contextlib
+
                     with contextlib.suppress(Exception):
                         self.story.append(
                             Table(
@@ -234,6 +233,7 @@ class ReportGenerator:
                     self.current_row.append(safe)
                 else:
                     import contextlib
+
                     with contextlib.suppress(Exception):
                         self.story.append(Paragraph(safe, self.styles["Normal"]))
 
@@ -266,5 +266,5 @@ td {{ padding: 8px; border-bottom: 1px solid #eee; }}
 <body>
 <h1>{title}</h1>
 {body}
-<div class='footer'>Generated by {company} on {datetime.now(UTC).strftime('%B %d, %Y at %H:%M UTC')}</div>
+<div class='footer'>Generated by {company} on {datetime.now(UTC).strftime("%B %d, %Y at %H:%M UTC")}</div>
 </body></html>"""

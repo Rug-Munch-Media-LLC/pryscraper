@@ -14,6 +14,7 @@ all user inputs validated before passing to Playwright.
 
 import asyncio
 import base64
+import contextlib
 import json
 import os
 import time
@@ -291,15 +292,11 @@ class PryAutomator:
         async with self._lock:
             if session_id in self.sessions:
                 session = self.sessions.pop(session_id)
-                try:
+                with contextlib.suppress(OSError):
                     await session.browser.close()
-                except OSError:
-                    pass
                 if os.path.exists(session.cookies_file):
-                    try:
+                    with contextlib.suppress(OSError):
                         os.remove(session.cookies_file)
-                    except OSError:
-                        pass
 
     def list_sessions(self) -> list[dict]:
         return [
@@ -317,9 +314,5 @@ class PryAutomator:
             stale = [sid for sid, s in self.sessions.items() if now - s.last_used > SESSION_MAX_AGE]
             for sid in stale:
                 session = self.sessions.pop(sid)
-                try:
+                with contextlib.suppress(OSError):
                     await session.browser.close()
-                except OSError:
-                    pass
-
-

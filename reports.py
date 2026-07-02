@@ -1,19 +1,18 @@
 """Pry — Automated White-Label Report Generator.
 Generate branded PDF/HTML reports from scraped data for client delivery."""
-from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import logging
 import os
 import uuid
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 

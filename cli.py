@@ -47,7 +47,7 @@ def _api():
     return os.getenv("PRY_URL", API_DEFAULT)
 
 
-def _req(method: str, path: str, data: dict = None, timeout=30):
+def _req(method: str, path: str, data: dict | None = None, timeout=30):
     import httpx
 
     url = f"{_api()}{path}"
@@ -101,7 +101,7 @@ def cmd_open(url, output_json=False, schema_path=None, timeout=30):
     if schema_path:
         with open(schema_path) as f:
             payload["jsonSchema"] = json.load(f)
-    s = _spinner(f"Prying open {url[:50]}")
+    _spinner(f"Prying open {url[:50]}")
     data = _req("POST", "/v1/scrape", payload, timeout + 10)
     print(f"{GREEN}✓{NC} Pry opened {url}\n", end="")
     if output_json or schema_path:
@@ -113,7 +113,7 @@ def cmd_open(url, output_json=False, schema_path=None, timeout=30):
 
 def cmd_watch(url, webhook="", interval=3600):
     """Register a page for change monitoring."""
-    s = _spinner(f"Registering {url[:50]} for monitoring")
+    _spinner(f"Registering {url[:50]} for monitoring")
     data = _req("POST", "/v1/watch", {"url": url, "webhook": webhook, "interval": interval}, 45)
     if data.get("success"):
         status = data.get("data", {}).get("status", "registered")
@@ -126,7 +126,7 @@ def cmd_watch(url, webhook="", interval=3600):
 
 def cmd_crawl(url, max_pages=10, output=None, timeout=120):
     """Crawl multiple pages from a starting URL."""
-    s = _spinner(f"Crawling {url[:50]} (up to {max_pages} pages)")
+    _spinner(f"Crawling {url[:50]} (up to {max_pages} pages)")
     data = _req("POST", "/v1/crawl", {"url": url, "maxPages": max_pages}, timeout)
     pages = data.get("data", {}).get("pages", [])
     print(f"{GREEN}✓{NC} Crawled {len(pages)} page(s) from {url}")
@@ -148,7 +148,7 @@ def cmd_batch(filepath, template_str="", timeout=30):
         print(f"{RED}✖ File not found: {filepath}{NC}")
         sys.exit(1)
     template = json.loads(template_str) if template_str else {"body": "body"}
-    s = _spinner(f"Processing {filepath}")
+    _spinner(f"Processing {filepath}")
     data = _req(
         "POST",
         "/v1/batch-file",
@@ -168,7 +168,7 @@ def cmd_batch(filepath, template_str="", timeout=30):
 
 def cmd_parse(url, timeout=60):
     """Parse a document to text."""
-    s = _spinner(f"Parsing {url[:50]}")
+    _spinner(f"Parsing {url[:50]}")
     data = _req("POST", "/v1/parse", {"url": url, "timeout": timeout}, timeout + 10)
     text = data.get("data", {}).get("text", "")
     fmt = data.get("data", {}).get("format", "unknown")
@@ -179,7 +179,7 @@ def cmd_parse(url, timeout=60):
 
 def cmd_screenshot(url, output=None, timeout=30):
     """Take a screenshot."""
-    s = _spinner(f"Capturing {url[:50]}")
+    _spinner(f"Capturing {url[:50]}")
     data = _req("POST", "/v1/screenshot", {"url": url}, timeout + 10)
     b64 = data.get("data", {}).get("screenshot", "")
     if not b64:
@@ -199,7 +199,7 @@ def cmd_run(pryfile_path="pry.yml"):
         print(f"{RED}✖ No {pryfile_path} found{NC}")
         print(f"  Create one: {CYAN}pry open https://example.com{NC}")
         sys.exit(1)
-    s = _spinner(f"Running jobs from {pryfile_path}")
+    _spinner(f"Running jobs from {pryfile_path}")
     data = _req("POST", "/v1/run", {"path": pryfile_path}, 120)
     jobs = data.get("data", {}).get("jobs", [])
     print(f"{GREEN}✓{NC} Executed {len(jobs)} job(s)")
@@ -376,10 +376,12 @@ if click is not None:
     def mcp_serve() -> None:
         """Start the MCP server (stdio transport)."""
         import sys
+
         sys.path.insert(0, ".")
         import asyncio
 
         from mcp_production import main
+
         asyncio.run(main())
 
     @mcp.command(name="info")
@@ -455,8 +457,7 @@ if click is not None:
             creds["proxy_url"] = proxy_url
         if not creds:
             click.echo(
-                "Need at least one credential "
-                "(--username, --password, --api-key, or --proxy-url)"
+                "Need at least one credential (--username, --password, --api-key, or --proxy-url)"
             )
             return
         result = pm.select_provider(provider, creds)

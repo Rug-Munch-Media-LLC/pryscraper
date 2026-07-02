@@ -74,9 +74,7 @@ class X402Middleware:
             return
 
         path = scope.get("path", "")
-        if path in self.free_paths or not any(
-            path.startswith(p) for p in PAID_ENDPOINTS
-        ):
+        if path in self.free_paths or not any(path.startswith(p) for p in PAID_ENDPOINTS):
             await self.app(scope, receive, send)
             return
 
@@ -93,6 +91,7 @@ class X402Middleware:
         # Check pre-verified batch payment
         if batch_id_header:
             from x402 import is_batch_paid
+
             if is_batch_paid(batch_id_header):
                 await self.app(scope, receive, send)
                 return
@@ -113,9 +112,7 @@ class X402Middleware:
                         settlement = await self.handler.settle_payment(
                             payment_id, tx_hash, network=network, asset=asset, amount_usd=amount_usd
                         )
-                        response_b64 = base64.b64encode(
-                            json.dumps(settlement).encode()
-                        ).decode()
+                        response_b64 = base64.b64encode(json.dumps(settlement).encode()).decode()
                         self.payments[payment_id] = {
                             "payment_id": payment_id,
                             "tx_hash": tx_hash,
@@ -136,16 +133,12 @@ class X402Middleware:
             except (ValueError, KeyError, TypeError) as e:
                 logger.warning("x402_payment_decode_failed err=%s", e)
 
-        operation = next(
-            (op for ep, op in PAID_ENDPOINTS.items() if path.startswith(ep)), None
-        )
+        operation = next((op for ep, op in PAID_ENDPOINTS.items() if path.startswith(ep)), None)
         if not operation or operation not in X402_PRICING:
             await self.app(scope, receive, send)
             return
 
-        body, x402_headers = self.handler.create_payment_required(
-            operation, resource=path
-        )
+        body, x402_headers = self.handler.create_payment_required(operation, resource=path)
         body_bytes = json.dumps(body).encode()
 
         response_headers = [
@@ -155,9 +148,11 @@ class X402Middleware:
         for k, v in x402_headers.items():
             response_headers.append((k.lower().encode(), v.encode()))
 
-        await send({
-            "type": "http.response.start",
-            "status": 402,
-            "headers": response_headers,
-        })
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 402,
+                "headers": response_headers,
+            }
+        )
         await send({"type": "http.response.body", "body": body_bytes})

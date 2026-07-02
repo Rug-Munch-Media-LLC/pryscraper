@@ -19,6 +19,7 @@ handler on the root logger (we do this in setup_logging()).
 Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
 Licensed under MIT. See LICENSE.
 """
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
@@ -33,6 +34,7 @@ from typing import Any
 
 try:
     import structlog
+
     _HAS_STRUCTLOG = True
 except ImportError:  # pragma: no cover
     _HAS_STRUCTLOG = False
@@ -42,7 +44,7 @@ except ImportError:  # pragma: no cover
 DEFAULT_LEVEL = "INFO"
 SERVICE_NAME = "pry"
 LOG_FORMAT_ENV = "PRY_LOG_FORMAT"  # "json" (default) or "console"
-LOG_LEVEL_ENV = "PRY_LOG_LEVEL"     # "DEBUG", "INFO", "WARNING", "ERROR"
+LOG_LEVEL_ENV = "PRY_LOG_LEVEL"  # "DEBUG", "INFO", "WARNING", "ERROR"
 
 _configured = False
 
@@ -160,12 +162,33 @@ def _add_request_id_if_present(_, __, event_dict: dict[str, Any]) -> dict[str, A
 # the foreign_pre_chain so existing code keeps working. In strict mode
 # (PRY_LOG_STRICT_EXTRAS=1) the filtering is disabled and the stdlib
 # default behavior takes over.
-_RESERVED_LOGRECORD_KEYS = frozenset({
-    "name", "msg", "args", "levelname", "levelno", "pathname", "filename",
-    "module", "exc_info", "exc_text", "stack_info", "lineno", "funcName",
-    "created", "msecs", "relativeCreated", "thread", "threadName",
-    "processName", "process", "message", "asctime", "taskName",
-})
+_RESERVED_LOGRECORD_KEYS = frozenset(
+    {
+        "name",
+        "msg",
+        "args",
+        "levelname",
+        "levelno",
+        "pathname",
+        "filename",
+        "module",
+        "exc_info",
+        "exc_text",
+        "stack_info",
+        "lineno",
+        "funcName",
+        "created",
+        "msecs",
+        "relativeCreated",
+        "thread",
+        "threadName",
+        "processName",
+        "process",
+        "message",
+        "asctime",
+        "taskName",
+    }
+)
 
 
 def _filter_reserved_extras(_, __, event_dict: dict[str, Any]) -> dict[str, Any]:

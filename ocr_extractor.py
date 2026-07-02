@@ -1,4 +1,4 @@
-import httpx
+
 """Pry — Image OCR using Tesseract.
 Extract text from images on web pages. Uses pytesseract + Pillow."""
 
@@ -12,6 +12,8 @@ import io
 import logging
 import os
 from typing import Any, ClassVar
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +30,18 @@ class ImageOCR:
     """Extract text from images using Tesseract OCR."""
 
     SUPPORTED_LANGUAGES: ClassVar[list[str]] = [
-        "eng", "chi_sim", "chi_tra", "spa", "fra", "deu", "ita",
-        "por", "rus", "jpn", "kor", "ara",
+        "eng",
+        "chi_sim",
+        "chi_tra",
+        "spa",
+        "fra",
+        "deu",
+        "ita",
+        "por",
+        "rus",
+        "jpn",
+        "kor",
+        "ara",
     ]
 
     def __init__(self, language: str = "eng"):

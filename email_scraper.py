@@ -1,4 +1,4 @@
-import httpx
+
 """Pry — Email Inbox Scraping.
 Connect Gmail/Outlook, extract structured data from emails."""
 
@@ -13,6 +13,8 @@ import logging
 import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
+
+import httpx
 
 logger = logging.getLogger(__name__)
 

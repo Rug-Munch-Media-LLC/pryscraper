@@ -65,7 +65,9 @@ logger = logging.getLogger(__name__)
 # service, and event. setup_logging() bridges stdlib logging through
 # structlog so that any logger.info("event", k=v) becomes a JSON record.
 try:
-    from logging_config import setup_logging, get_logger as _get_logger
+    from logging_config import get_logger as _get_logger
+    from logging_config import setup_logging
+
     setup_logging()
     logger = _get_logger(__name__)
 except ImportError:
@@ -649,7 +651,7 @@ async def scrape(request: ScrapeRequest) -> dict[str, Any]:
         return response
     except PryError:
         raise
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise ExternalServiceError(str(e)) from e
 
 
@@ -934,7 +936,7 @@ async def _run_crawl_job(job_id: str, request: CrawlRequest) -> None:
             },
         )
         await queue.complete_job(job_id, {"pages": pages})
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.exception("crawl_job_failed", extra={"job_id": job_id, "url": request.url})
         await queue.fail_job(job_id, str(e))
 
@@ -976,7 +978,7 @@ async def parse_document(request: ParseRequest) -> dict[str, Any]:
         return {"success": True, "data": result}
     except PryError:
         raise
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise ExternalServiceError(str(e)) from e
 
 
@@ -3134,6 +3136,7 @@ async def list_schemas() -> dict[str, Any]:
 # ── Auth ──
 # (split into routers/auth.py on the api-router-split refactor)
 from routers.auth import router as auth_router
+
 app.include_router(auth_router)
 
 # ── Review ──
@@ -4051,6 +4054,7 @@ async def proxy_signup(provider: str = Body(...)) -> dict[str, Any]:
     url = pm.get_signup_link(provider)
     return {"success": True, "data": {"signup_url": url, "provider": provider}}
 
+
 @app.get("/v1/proxy/referrals", tags=["Proxy"], summary="List proxy provider affiliate referrals")
 async def list_proxy_referrals() -> dict[str, Any]:
     """Return the curated proxy provider affiliate catalog (proxy_referrals.py).
@@ -4074,7 +4078,9 @@ async def list_proxy_referrals() -> dict[str, Any]:
     }
 
 
-@app.get("/v1/proxy/referrals/{tag}", tags=["Proxy"], summary="Get a single proxy provider referral")
+@app.get(
+    "/v1/proxy/referrals/{tag}", tags=["Proxy"], summary="Get a single proxy provider referral"
+)
 async def get_proxy_referral(tag: str) -> dict[str, Any]:
     """Return the affiliate info for a single proxy provider by tag."""
     from proxy_manager import ProxyManager

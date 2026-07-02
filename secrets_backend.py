@@ -23,6 +23,7 @@ The gopass lookup path is `pry/<name>`. If you pass a name with leading
 Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
 Licensed under MIT. See LICENSE.
 """
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
@@ -60,7 +61,9 @@ def _detect_backend() -> str:
     """Resolve which backend to use right now, based on env + availability."""
     requested = os.getenv("PRY_SECRET_BACKEND", _DEFAULT_BACKEND).lower()
     if requested not in VALID_BACKENDS:
-        logger.warning("invalid_secret_backend", extra={"value": requested, "fallback": BACKEND_AUTO})
+        logger.warning(
+            "invalid_secret_backend", extra={"value": requested, "fallback": BACKEND_AUTO}
+        )
         return BACKEND_AUTO
     if requested == BACKEND_AUTO:
         return BACKEND_GOPASS if _gopass_available() else BACKEND_ENV
@@ -163,7 +166,7 @@ def _get_from_file(name: str) -> str | None:
     """Read a secret from the .env file."""
     values = _read_env_file()
     for key in (name, name.upper(), f"PRY_{name.upper()}", f"PRY_{name}"):
-        if key in values and values[key]:
+        if values.get(key):
             return values[key]
     return None
 
@@ -205,7 +208,9 @@ def set_secret(name: str, value: str) -> bool:
     Returns True on success, False on failure.
     """
     if not _gopass_available():
-        logger.warning("set_secret_skipped", extra={"reason": "gopass not available", "secret_name": name})
+        logger.warning(
+            "set_secret_skipped", extra={"reason": "gopass not available", "secret_name": name}
+        )
         return False
     bin_path = shutil.which("gopass")
     path = _normalize_name(name)

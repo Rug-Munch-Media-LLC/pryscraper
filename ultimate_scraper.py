@@ -266,9 +266,7 @@ class UltimateScraper:
         try:
             import httpx
 
-            async with httpx.AsyncClient(
-                timeout=30, follow_redirects=True, proxy=proxy_url
-            ) as c:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True, proxy=proxy_url) as c:
                 r = await c.get(url, headers=self._build_headers(url))
                 if r.is_success:
                     return r.text
@@ -283,9 +281,7 @@ class UltimateScraper:
         try:
             import httpx
 
-            async with httpx.AsyncClient(
-                timeout=45, follow_redirects=True, proxy=proxy_url
-            ) as c:
+            async with httpx.AsyncClient(timeout=45, follow_redirects=True, proxy=proxy_url) as c:
                 r = await c.get(url, headers=self._build_headers(url))
                 if r.is_success:
                     return r.text
@@ -400,9 +396,7 @@ class UltimateScraper:
             headers["User-Agent"] = (
                 "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
             )
-            async with httpx.AsyncClient(
-                timeout=30, follow_redirects=True, proxy=proxy_url
-            ) as c:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True, proxy=proxy_url) as c:
                 r = await c.get(url, headers=headers)
                 if r.is_success:
                     return r.text

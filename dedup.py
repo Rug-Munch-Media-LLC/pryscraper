@@ -118,9 +118,12 @@ class Deduplicator:
             "hamming_distance": distance,
             "changed": sim < self.threshold,
             "change_severity": (
-                "high" if distance > 20
-                else "medium" if distance > 10
-                else "low" if distance > 3
+                "high"
+                if distance > 20
+                else "medium"
+                if distance > 10
+                else "low"
+                if distance > 3
                 else "minimal"
             ),
         }

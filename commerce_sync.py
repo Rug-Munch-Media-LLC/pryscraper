@@ -1,18 +1,17 @@
-import httpx
+
 """Pry — Commerce Platform Sync Engine.
 Unified interface for WooCommerce, Shopify, and generic API sync."""
-from paths import PRY_DATA_DIR
-
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import logging
-import os
-from pathlib import Path
 from typing import Any
+
+import httpx
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 

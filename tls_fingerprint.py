@@ -20,18 +20,47 @@ logger = logging.getLogger(__name__)
 # Check if curl_cffi is available
 try:
     from curl_cffi.requests import AsyncSession
+
     _has_curl_cffi = True
 except ImportError:
     _has_curl_cffi = False
 
 # Browser fingerprints that curl_cffi can impersonate
 BROWSER_FINGERPRINTS = [
-    "chrome", "chrome99", "chrome100", "chrome101", "chrome104", "chrome107", "chrome110",
-    "chrome116", "chrome119", "chrome120", "chrome123", "chrome124", "chrome131", "chrome133",
-    "chrome99_android", "chrome131_android",
-    "edge", "edge99", "edge101", "edge122", "edge127",
-    "firefox", "firefox109", "firefox117", "firefox120", "firefox123", "firefox124", "firefox132",
-    "safari", "safari15_3", "safari15_5", "safari16_5", "safari17_0", "safari17_2_ios",
+    "chrome",
+    "chrome99",
+    "chrome100",
+    "chrome101",
+    "chrome104",
+    "chrome107",
+    "chrome110",
+    "chrome116",
+    "chrome119",
+    "chrome120",
+    "chrome123",
+    "chrome124",
+    "chrome131",
+    "chrome133",
+    "chrome99_android",
+    "chrome131_android",
+    "edge",
+    "edge99",
+    "edge101",
+    "edge122",
+    "edge127",
+    "firefox",
+    "firefox109",
+    "firefox117",
+    "firefox120",
+    "firefox123",
+    "firefox124",
+    "firefox132",
+    "safari",
+    "safari15_3",
+    "safari15_5",
+    "safari16_5",
+    "safari17_0",
+    "safari17_2_ios",
     "tor",
 ]
 

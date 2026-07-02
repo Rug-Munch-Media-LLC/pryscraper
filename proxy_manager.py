@@ -1,14 +1,12 @@
 """Pry — Proxy Manager with affiliate-signup flow.
 Tries free proxies first (Tor, public rotating). When premium proxy is needed,
 prompts user to sign up via affiliate links. Pre-wired to 5+ providers."""
-from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import json
 import logging
 import os
@@ -17,6 +15,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -465,7 +465,6 @@ class ProxyManager:
             logger.debug("recent_clicks_failed", extra={"error": str(e)[:80]})
             return []
 
-
     # ── Proxy referral catalog (from proxy_referrals.py) ────────────────
     def get_proxy_referral(self, provider_tag: str) -> dict[str, Any]:
         """Get the curated referral info for a proxy provider.
@@ -487,9 +486,7 @@ class ProxyManager:
 
     def list_proxy_referrals(self) -> list[dict[str, Any]]:
         """List all proxy provider referrals (curated, marketing-friendly view)."""
-        return [
-            {"tag": tag, **info} for tag, info in _PROXY_REFERRALS.items()
-        ]
+        return [{"tag": tag, **info} for tag, info in _PROXY_REFERRALS.items()]
 
     def get_proxy_referral_summary(self) -> dict[str, Any]:
         """Return a per-tier summary of proxy referrals (count, providers, total commission ceiling)."""
@@ -502,7 +499,6 @@ class ProxyManager:
             "total_providers": len(_PROXY_REFERRALS),
             "by_tag": _PROXY_REFERRALS,
         }
-
 
 
 def _parse_ts(ts: str) -> float:

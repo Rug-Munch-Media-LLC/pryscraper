@@ -3,21 +3,20 @@ JSON-defined workflow engine. Users define pipelines as structured steps,
 the engine executes them sequentially with branching and error handling.
 
 A UI can render these steps as drag-and-drop blocks."""
-from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import json
 import logging
 import os
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, cast
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -459,7 +458,8 @@ def save_pipeline(pipeline: dict[str, Any]) -> dict[str, Any]:
     try:
         path.write_text(json.dumps(pipeline, indent=2))
         logger.info(
-            "pipeline_saved", extra={"pipeline_id": pipeline_id, "pipeline_name": pipeline.get("name")}
+            "pipeline_saved",
+            extra={"pipeline_id": pipeline_id, "pipeline_name": pipeline.get("name")},
         )
         return {"success": True, "pipeline_id": pipeline_id}
     except OSError as e:

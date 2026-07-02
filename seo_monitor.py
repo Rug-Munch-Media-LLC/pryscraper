@@ -1,23 +1,22 @@
-import httpx
+
 """Pry — SEO Content Change Monitor.
 Track competitor meta tags, titles, descriptions, headings, content changes."""
-from paths import PRY_DATA_DIR
-
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import hashlib
 import json
 import logging
-import os
 import re
 from contextlib import suppress
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
+
+import httpx
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +75,7 @@ async def analyze_seo(url: str) -> dict[str, Any]:
         if missing_critical:
             try:
                 from llm_features import llm_seo_analyze
+
                 llm_enhancement = await llm_seo_analyze(
                     url=url,
                     html=resp.text[:6000],

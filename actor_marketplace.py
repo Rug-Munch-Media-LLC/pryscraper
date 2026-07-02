@@ -1,22 +1,20 @@
 """Pry — Actor Marketplace (Apify-style).
 Pre-built scrapers that can be subscribed to and run on schedule.
 Users can publish their own actors. We earn from usage."""
-from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import json
 import logging
-import os
 import uuid
 from datetime import UTC, datetime
 from enum import StrEnum
-from pathlib import Path
 from typing import Any
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +31,18 @@ class ActorVisibility(StrEnum):
 class Actor:
     """A reusable scraper actor that can be run on demand or schedule."""
 
-    def __init__(self, actor_id: str, name: str, description: str,
-                 template_id: str = "", code: str = "",
-                 price_per_run: float = 0.0, visibility: ActorVisibility = ActorVisibility.PRIVATE,
-                 schedule_cron: str = "", tags: list[str] | None = None):
+    def __init__(
+        self,
+        actor_id: str,
+        name: str,
+        description: str,
+        template_id: str = "",
+        code: str = "",
+        price_per_run: float = 0.0,
+        visibility: ActorVisibility = ActorVisibility.PRIVATE,
+        schedule_cron: str = "",
+        tags: list[str] | None = None,
+    ):
         self.actor_id = actor_id
         self.name = name
         self.description = description
@@ -93,13 +99,29 @@ class ActorMarketplace:
         except OSError as e:
             logger.warning("actor_save_failed", extra={"actor_id": actor.actor_id, "error": str(e)})
 
-    def create(self, name: str, description: str, template_id: str = "",
-               code: str = "", price_per_run: float = 0.0,
-               visibility: ActorVisibility = ActorVisibility.PRIVATE,
-               schedule_cron: str = "", tags: list[str] | None = None,
-               author: str = "") -> Actor:
-        actor = Actor(uuid.uuid4().hex[:12], name, description, template_id, code,
-                      price_per_run, visibility, schedule_cron, tags)
+    def create(
+        self,
+        name: str,
+        description: str,
+        template_id: str = "",
+        code: str = "",
+        price_per_run: float = 0.0,
+        visibility: ActorVisibility = ActorVisibility.PRIVATE,
+        schedule_cron: str = "",
+        tags: list[str] | None = None,
+        author: str = "",
+    ) -> Actor:
+        actor = Actor(
+            uuid.uuid4().hex[:12],
+            name,
+            description,
+            template_id,
+            code,
+            price_per_run,
+            visibility,
+            schedule_cron,
+            tags,
+        )
         actor.author = author
         self.actors[actor.actor_id] = actor
         self._save(actor)
@@ -125,9 +147,14 @@ class ActorMarketplace:
         self._save(actor)
         if actor.template_id:
             from template_engine import execute_template
+
             url = (inputs or {}).get("url", "")
             if not url:
                 return {"success": False, "error": "Missing 'url' input"}
             result = await execute_template(actor.template_id, url)
             return {"success": True, "actor_id": actor_id, "data": result.get("data", {})}
-        return {"success": True, "actor_id": actor_id, "message": "Custom actor code not yet executed"}
+        return {
+            "success": True,
+            "actor_id": actor_id,
+            "message": "Custom actor code not yet executed",
+        }

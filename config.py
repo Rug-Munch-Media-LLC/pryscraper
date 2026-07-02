@@ -11,11 +11,9 @@ All secrets come from gopass, never from .env files committed to git.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

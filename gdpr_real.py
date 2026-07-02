@@ -16,15 +16,31 @@ from pathlib import Path
 from typing import Any
 
 from paths import PRY_DATA_DIR
+
 logger = logging.getLogger(__name__)
 
 GDPR_DIR = PRY_DATA_DIR / "gdpr_real"
 GDPR_DIR.mkdir(parents=True, exist_ok=True)
 
 DATA_RESIDENCES = [
-    "quality/", "reviews/", "intel/", "costing/", "freshness/", "structure/", "seo/",
-    "monitors/", "vault/", "accounts/", "reports/", "training/", "pipelines/",
-    "agency/", "compliance/", "caching/", "stealth_scripts/", "jobs/",
+    "quality/",
+    "reviews/",
+    "intel/",
+    "costing/",
+    "freshness/",
+    "structure/",
+    "seo/",
+    "monitors/",
+    "vault/",
+    "accounts/",
+    "reports/",
+    "training/",
+    "pipelines/",
+    "agency/",
+    "compliance/",
+    "caching/",
+    "stealth_scripts/",
+    "jobs/",
 ]
 
 
@@ -77,13 +93,13 @@ class GDPRService:
                     continue
                 if subject_id in content or subject_lower in content.lower():
                     data_found["data_categories"].append(str(subdir))
-                    data_found["records"].setdefault(str(subdir), []).append({
-                        "file": str(f.relative_to(pry_dir)),
-                        "size": f.stat().st_size,
-                        "modified": datetime.fromtimestamp(
-                            f.stat().st_mtime, UTC
-                        ).isoformat(),
-                    })
+                    data_found["records"].setdefault(str(subdir), []).append(
+                        {
+                            "file": str(f.relative_to(pry_dir)),
+                            "size": f.stat().st_size,
+                            "modified": datetime.fromtimestamp(f.stat().st_mtime, UTC).isoformat(),
+                        }
+                    )
                     data_found["total_records"] += 1
         return data_found
 
@@ -130,9 +146,7 @@ class GDPRService:
                     s.query(QualityCheckRecord).filter(
                         QualityCheckRecord.url.like(f"%{subject_id}%")
                     ).delete()
-                    s.query(ApiKey).filter(
-                        ApiKey.name.like(f"%{subject_id}%")
-                    ).delete()
+                    s.query(ApiKey).filter(ApiKey.name.like(f"%{subject_id}%")).delete()
             except OSError:
                 pass
 
@@ -197,9 +211,7 @@ class GDPRService:
             "files_count": access_data["total_records"],
         }
 
-    def get_audit_log(
-        self, days_back: int = 30, subject_id: str = ""
-    ) -> list[dict[str, Any]]:
+    def get_audit_log(self, days_back: int = 30, subject_id: str = "") -> list[dict[str, Any]]:
         """Get audit log entries."""
         entries: list[dict[str, Any]] = []
         if not self._audit_log_path.exists():

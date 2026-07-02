@@ -1,4 +1,4 @@
-import httpx
+
 """Pry — Data Enrichment Pipeline.
 Enrich scraped data with company info, social profiles, tech stack detection."""
 
@@ -11,6 +11,8 @@ Enrich scraped data with company info, social profiles, tech stack detection."""
 import logging
 import re
 from typing import Any
+
+import httpx
 
 logger = logging.getLogger(__name__)
 

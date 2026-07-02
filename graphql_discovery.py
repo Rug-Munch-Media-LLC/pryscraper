@@ -1,4 +1,4 @@
-import httpx
+
 """Pry — GraphQL Auto-Discovery.
 Detects GraphQL endpoints, runs introspection queries, generates optimized queries.
 Many modern sites (Shopify, GitHub, Twitter/X, etc.) have GraphQL APIs that are
@@ -15,6 +15,8 @@ import logging
 import re
 from typing import Any, ClassVar
 
+import httpx
+
 logger = logging.getLogger(__name__)
 
 
@@ -23,9 +25,20 @@ class GraphQLDiscovery:
 
     # Common paths where GraphQL endpoints live
     COMMON_PATHS: ClassVar[list[str]] = [
-        "/graphql", "/api/graphql", "/api/v1/graphql", "/v1/graphql", "/v2/graphql",
-        "/graphql/v1", "/graphql/v2", "/gql", "/api/gql", "/query", "/api/query",
-        "/__graphql", "/altair", "/playground",
+        "/graphql",
+        "/api/graphql",
+        "/api/v1/graphql",
+        "/v1/graphql",
+        "/v2/graphql",
+        "/graphql/v1",
+        "/graphql/v2",
+        "/gql",
+        "/api/gql",
+        "/query",
+        "/api/query",
+        "/__graphql",
+        "/altair",
+        "/playground",
     ]
 
     # Patterns in JS bundles that indicate GraphQL endpoints
@@ -65,9 +78,7 @@ class GraphQLDiscovery:
         for path in self.COMMON_PATHS:
             url = base_url.rstrip("/") + path
             try:
-                resp = await client.post(
-                    url, json={"query": "{ __typename }"}, timeout=10
-                )
+                resp = await client.post(url, json={"query": "{ __typename }"}, timeout=10)
                 if resp.is_success:
                     try:
                         data = resp.json()
@@ -86,9 +97,7 @@ class GraphQLDiscovery:
 
         client = await get_client()
         try:
-            resp = await client.post(
-                endpoint, json={"query": self.INTROSPECTION_QUERY}, timeout=30
-            )
+            resp = await client.post(endpoint, json={"query": self.INTROSPECTION_QUERY}, timeout=30)
             if resp.is_success:
                 return resp.json()
         except (httpx.HTTPError, httpx.RequestError) as e:

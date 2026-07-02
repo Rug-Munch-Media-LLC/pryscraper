@@ -20,9 +20,9 @@ def _strip_fence(text: str) -> str:
     """Strip markdown code fences that LLMs commonly wrap JSON in."""
     t = text.strip()
     if t.startswith("```json"):
-        t = t[len("```json"):]
+        t = t[len("```json") :]
     elif t.startswith("```"):
-        t = t[len("```"):]
+        t = t[len("```") :]
     if t.endswith("```"):
         t = t[: -len("```")]
     return t.strip()

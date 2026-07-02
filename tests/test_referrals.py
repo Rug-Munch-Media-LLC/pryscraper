@@ -27,15 +27,24 @@ def test_provider_format() -> None:
         for p in providers:
             assert "name" in p, f"Provider in {cat} missing name"
             assert "url" in p, f"Provider in {cat} missing url"
-            is_open_source = "open source" in str(p.get("commission", "")).lower() or "no affiliate" in str(p.get("note", "")).lower()
+            is_open_source = (
+                "open source" in str(p.get("commission", "")).lower()
+                or "no affiliate" in str(p.get("note", "")).lower()
+            )
             if is_open_source:
                 continue
-            assert "pry" in p["url"].lower() or "ref" in p["url"].lower() or "affiliate" in p["url"].lower(), f"Provider {p['name']} URL missing referral: {p['url']}"
+            assert (
+                "pry" in p["url"].lower()
+                or "ref" in p["url"].lower()
+                or "affiliate" in p["url"].lower()
+            ), f"Provider {p['name']} URL missing referral: {p['url']}"
 
 
 def test_referral_click() -> None:
     rt = ReferralTracker()
-    click_id = rt.record_click("openai", "https://platform.openai.com/signup?via=pry", source="test")
+    click_id = rt.record_click(
+        "openai", "https://platform.openai.com/signup?via=pry", source="test"
+    )
     assert click_id is not None
     assert any(c["id"] == click_id for c in rt.clicks)
 

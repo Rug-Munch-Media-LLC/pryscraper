@@ -19,7 +19,7 @@ class ResponseCache:
     Default TTL: 300 seconds (5 min) for pages, 3600 (1 hr) for API calls.
     """
 
-    def __init__(self, capacity: int = 500, redis_url: str = None):
+    def __init__(self, capacity: int = 500, redis_url: str | None = None):
         self.capacity = capacity
         self._cache: OrderedDict = OrderedDict()
         self._redis = None

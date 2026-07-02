@@ -19,7 +19,6 @@ Standards compliance:
 # Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
-from paths import PRY_DATA_DIR
 
 import base64
 import json
@@ -30,10 +29,11 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
-from pathlib import Path
 from typing import Any, cast
 
 import httpx
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -103,8 +103,11 @@ class X402Asset(StrEnum):
 #   PRY_X402_WALLET=0x...                          # one-off override (CI, dev)
 try:
     from secrets_backend import get_secret as _gs
+
     X402_WALLET = _gs("x402_wallet") or os.getenv("PRY_X402_WALLET", "pry-default-wallet")
-    X402_FACILITATOR_URL = _gs("x402_facilitator") or os.getenv("PRY_X402_FACILITATOR", "https://x402.org/facilitator")
+    X402_FACILITATOR_URL = _gs("x402_facilitator") or os.getenv(
+        "PRY_X402_FACILITATOR", "https://x402.org/facilitator"
+    )
 except ImportError:
     X402_WALLET = os.getenv("PRY_X402_WALLET", "pry-default-wallet")
     X402_FACILITATOR_URL = os.getenv("PRY_X402_FACILITATOR", "https://x402.org/facilitator")
@@ -260,30 +263,34 @@ def build_payment_required(
                 if not _asset_on_network(asset, network):
                     continue
                 amount = _to_atomic(price_info["price_usd"], asset)
-                accepts.append({
+                accepts.append(
+                    {
+                        "scheme": X402Scheme.EXACT.value,
+                        "network": network,
+                        "maxAmountRequired": str(amount),
+                        "resource": resource_url,
+                        "description": description or price_info.get("description", operation),
+                        "mimeType": mime_type,
+                        "payToAddress": X402_WALLET,
+                        "asset": asset,
+                        "extra": {"name": asset, "version": "2", "operation": operation},
+                    }
+                )
+        if not accepts:
+            # Final fallback so we never return an empty accepts array
+            accepts.append(
+                {
                     "scheme": X402Scheme.EXACT.value,
-                    "network": network,
-                    "maxAmountRequired": str(amount),
+                    "network": X402Network.BASE.value,
+                    "maxAmountRequired": str(amount_atomic),
                     "resource": resource_url,
                     "description": description or price_info.get("description", operation),
                     "mimeType": mime_type,
                     "payToAddress": X402_WALLET,
-                    "asset": asset,
-                    "extra": {"name": asset, "version": "2", "operation": operation},
-                })
-        if not accepts:
-            # Final fallback so we never return an empty accepts array
-            accepts.append({
-                "scheme": X402Scheme.EXACT.value,
-                "network": X402Network.BASE.value,
-                "maxAmountRequired": str(amount_atomic),
-                "resource": resource_url,
-                "description": description or price_info.get("description", operation),
-                "mimeType": mime_type,
-                "payToAddress": X402_WALLET,
-                "asset": X402_DEFAULT_ASSET,
-                "extra": {"name": X402_DEFAULT_ASSET, "version": "2", "operation": operation},
-            })
+                    "asset": X402_DEFAULT_ASSET,
+                    "extra": {"name": X402_DEFAULT_ASSET, "version": "2", "operation": operation},
+                }
+            )
 
     return {
         "x402Version": 1,
@@ -397,7 +404,9 @@ class FacilitatorRouter:
                     response.raise_for_status()
                     data = response.json()
                     self._mark_success(facilitator)
-                    verified = bool(data.get("isValid") or data.get("verified") or data.get("success"))
+                    verified = bool(
+                        data.get("isValid") or data.get("verified") or data.get("success")
+                    )
                     return {
                         "verified": verified,
                         "reason": data.get("error", data.get("reason", "")) if not verified else "",
@@ -458,7 +467,9 @@ class FacilitatorRouter:
                     response.raise_for_status()
                     data = response.json()
                     self._mark_success(facilitator)
-                    return self._normalize_settlement(data, payment_id, tx_hash, network, facilitator.name)
+                    return self._normalize_settlement(
+                        data, payment_id, tx_hash, network, facilitator.name
+                    )
                 except httpx.HTTPStatusError as e:
                     last_error = f"{facilitator.name}: HTTP {e.response.status_code}"
                     self._mark_failure(facilitator)
@@ -819,7 +830,9 @@ async def create_batch_payment(operations: list[str]) -> dict[str, Any]:
     }
 
 
-async def verify_batch_payment(batch_id: str, tx_hash: str, network: str = "", asset: str = "") -> dict[str, Any]:
+async def verify_batch_payment(
+    batch_id: str, tx_hash: str, network: str = "", asset: str = ""
+) -> dict[str, Any]:
     """Verify a batch payment on-chain and mark it paid if valid."""
     with _batch_lock:
         batch = _batch_payments.get(batch_id)
@@ -853,6 +866,8 @@ def is_batch_paid(batch_id: str) -> bool:
     """Check whether a batch payment has been verified."""
     batch = _batch_payments.get(batch_id)
     return bool(batch and batch.get("paid"))
+
+
 # These return the pre-spec response format. Prefer the spec-compliant methods
 # above in new code.
 

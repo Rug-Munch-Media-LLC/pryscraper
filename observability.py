@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 # Try to import Prometheus
 try:
     from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+
     _has_prometheus = True
 except ImportError:
     _has_prometheus = False
@@ -23,6 +24,7 @@ try:
     from opentelemetry import trace
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+
     _has_otel = True
 except ImportError:
     _has_otel = False
@@ -30,7 +32,9 @@ except ImportError:
 
 # Metrics
 if _has_prometheus:
-    REQUEST_COUNT = Counter("pry_requests_total", "Total requests", ["method", "endpoint", "status"])
+    REQUEST_COUNT = Counter(
+        "pry_requests_total", "Total requests", ["method", "endpoint", "status"]
+    )
     REQUEST_LATENCY = Histogram("pry_request_duration_seconds", "Request latency", ["endpoint"])
     SCRAPE_COUNT = Counter("pry_scrapes_total", "Total scrapes", ["method", "status"])
     SCRAPE_LATENCY = Histogram("pry_scrape_duration_seconds", "Scrape latency", ["method"])
@@ -46,7 +50,8 @@ else:
 
 def setup_tracing(service_name: str = "pry") -> None:
     """Initialize OpenTelemetry tracing."""
-    if not _has_otel: return
+    if not _has_otel:
+        return
     try:
         provider = TracerProvider()
         processor = SimpleSpanProcessor(ConsoleSpanExporter())
@@ -64,7 +69,7 @@ def track_request(endpoint: str, method: str = "GET"):
     status = "success"
     try:
         yield
-    except Exception:  # noqa: BLE001
+    except Exception:
         status = "error"
         raise
     finally:
@@ -81,7 +86,7 @@ def track_scrape(method: str = "direct"):
     status = "success"
     try:
         yield
-    except Exception:  # noqa: BLE001
+    except Exception:
         status = "error"
         raise
     finally:

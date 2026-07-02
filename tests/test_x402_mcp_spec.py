@@ -65,6 +65,7 @@ class _AlwaysVerifyRouter(FacilitatorRouter):
             "settled_at": "2026-01-01T00:00:00+00:00",
         }
 
+
 # ── MCP spec compliance ──
 
 
@@ -114,12 +115,14 @@ def test_initialize_response() -> None:
     """Test that initialize returns proper protocol version and capabilities."""
     server = make_fallback_server()
     response = asyncio.run(
-        server.handle_request({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {"clientInfo": {"name": "test", "version": "1.0"}},
-        })
+        server.handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {"clientInfo": {"name": "test", "version": "1.0"}},
+            }
+        )
     )
     assert response["jsonrpc"] == "2.0"
     assert response["id"] == 1
@@ -144,12 +147,14 @@ def test_tool_call_returns_content_array() -> None:
     server = make_fallback_server()
     register_all(server)
     response = asyncio.run(
-        server.handle_request({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "tools/call",
-            "params": {"name": "pry_x402_pricing", "arguments": {}},
-        })
+        server.handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "pry_x402_pricing", "arguments": {}},
+            }
+        )
     )
     assert "content" in response["result"]
     assert isinstance(response["result"]["content"], list)
@@ -170,12 +175,14 @@ def test_resource_read_returns_contents() -> None:
     server = make_fallback_server()
     register_all(server)
     response = asyncio.run(
-        server.handle_request({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "resources/read",
-            "params": {"uri": "pry://stats"},
-        })
+        server.handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "resources/read",
+                "params": {"uri": "pry://stats"},
+            }
+        )
     )
     assert "contents" in response["result"]
 
@@ -194,12 +201,14 @@ def test_prompt_get_returns_messages() -> None:
     server = make_fallback_server()
     register_all(server)
     response = asyncio.run(
-        server.handle_request({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "prompts/get",
-            "params": {"name": "research_company", "arguments": {"company_name": "Anthropic"}},
-        })
+        server.handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "prompts/get",
+                "params": {"name": "research_company", "arguments": {"company_name": "Anthropic"}},
+            }
+        )
     )
     assert "messages" in response["result"]
     assert len(response["result"]["messages"]) > 0
@@ -207,9 +216,7 @@ def test_prompt_get_returns_messages() -> None:
 
 def test_ping() -> None:
     server = make_fallback_server()
-    response = asyncio.run(
-        server.handle_request({"jsonrpc": "2.0", "id": 1, "method": "ping"})
-    )
+    response = asyncio.run(server.handle_request({"jsonrpc": "2.0", "id": 1, "method": "ping"}))
     assert response["result"] == {}
 
 
@@ -272,9 +279,7 @@ def test_x402_signature_decoding() -> None:
 
 def test_x402_handler_create_payment_required() -> None:
     handler = X402Handler()
-    body, headers = handler.create_payment_required(
-        "scrape", "https://pry.dev/api/scrape"
-    )
+    body, headers = handler.create_payment_required("scrape", "https://pry.dev/api/scrape")
     assert body["x402Version"] == 1
     assert "PAYMENT-REQUIRED" in headers
     decoded = json.loads(base64.b64decode(headers["PAYMENT-REQUIRED"]).decode())

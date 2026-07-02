@@ -1,22 +1,21 @@
-import httpx
+
 """Pry — Adaptive Freshness Scheduling.
 Conditional scraping, content fingerprinting, staleness dashboard, adaptive frequency."""
-from paths import PRY_DATA_DIR
-
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import hashlib
 import json
 import logging
-import os
 from contextlib import suppress
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
+
+import httpx
+
+from paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 
