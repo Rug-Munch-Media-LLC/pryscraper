@@ -1,3 +1,5 @@
+[//]: # (SPDX-License-Identifier: MIT)
+[//]: # (Copyright (c) 2026 Rug Munch Media LLC)
 # Pry — Open any website
 
 Self-hosted web scraping + browser automation API. Cloudflare bypass, document parsing, AI summarization. No API keys needed.
@@ -205,4 +207,19 @@ make check        # Full audit
 
 ## License
 
-MIT — Rug Munch Media LLC
+Pry is dual-licensed to balance community openness with the protection of its advanced anti-detection and stealth capabilities.
+
+- **Most code** (core functionality, utilities, and standard modules) is licensed under the **MIT License**. This permissive license encourages community contributions and wide adoption. See [LICENSE](./LICENSE).
+
+- **The anti-detection / stealth module** is licensed under the **BSL 1.1 (Business Source License)**. This module is free to use for non-production purposes; a commercial license is required for any production use. See [LICENSE-BSL-STEALTH](./LICENSE-BSL-STEALTH).
+
+### Additional Use Grant
+
+Under the BSL 1.1, an Additional Use Grant permits free use of the stealth module for:
+- Personal, non-commercial projects
+- Non-production testing and evaluation
+- Academic research
+- Non-commercial open source software development
+- A 90-day evaluation period for any other purpose
+
+For commercial licensing (production use, enterprise deployment, or embedding in proprietary products), please contact: **enterprise@rugmunch.io**

@@ -2,6 +2,12 @@
 Detects near-duplicate content (e.g., 95% similar pages) using SimHash.
 Useful for crawl deduplication, change detection, and content grouping."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import hashlib
 import logging
 import re

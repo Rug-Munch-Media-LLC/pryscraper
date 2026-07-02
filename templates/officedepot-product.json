@@ -54,5 +54,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.officedepot.com/*"
+  "url_pattern": "*://www.officedepot.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

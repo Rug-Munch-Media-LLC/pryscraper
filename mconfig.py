@@ -1,6 +1,12 @@
 """Pry Config — runtime configuration for proxy, Tor, VPN, and anti-detection.
 Users can configure at startup (env vars) or at runtime (API calls)."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import json
 import os
 

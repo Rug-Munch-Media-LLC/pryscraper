@@ -44,5 +44,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.tiktok.com/*"
+  "url_pattern": "*://www.tiktok.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

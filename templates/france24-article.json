@@ -37,5 +37,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.france24.com/*"
+  "url_pattern": "*://www.france24.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

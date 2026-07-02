@@ -1,6 +1,12 @@
 """Pry — Background job system using asyncio (built-in) or Celery if available.
 Long-running jobs like crawls, monitors, and bulk imports should not block request threads."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import asyncio
 import json
 import logging

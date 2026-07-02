@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: BSL-1.1
+// Copyright (c) 2026 Rug Munch Media LLC
+//
+// Part of Pry — Stealth Script.
+// Licensed under Business Source License 1.1 — see LICENSE-BSL-STEALTH.
 
         (() => {
             window.__pry_mouse = { x: 0, y: 0, clicks: 0 };

@@ -1,6 +1,12 @@
 """Pry — Data Enrichment Pipeline.
 Enrich scraped data with company info, social profiles, tech stack detection."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import logging
 import re
 from typing import Any

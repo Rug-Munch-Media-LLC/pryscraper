@@ -3,17 +3,41 @@
   "description": "Extract post details from Hacker News",
   "site": "news.ycombinator.com",
   "category": "news",
-  "icon": "📰",
+  "icon": "\ud83d\udcf0",
   "url_pattern": "*://news.ycombinator.com/item*",
   "schema": {
     "name": "hackernews_post",
     "base_selector": ".fatitem",
     "fields": [
-      {"name": "title", "selector": ".title a", "type": "text"},
-      {"name": "url", "selector": ".title a", "type": "attribute", "attribute": "href"},
-      {"name": "points", "selector": ".score", "type": "text", "transform": "int"},
-      {"name": "author", "selector": ".hnuser", "type": "text"},
-      {"name": "comment_count", "selector": ".subtext a:last-child", "type": "text"}
+      {
+        "name": "title",
+        "selector": ".title a",
+        "type": "text"
+      },
+      {
+        "name": "url",
+        "selector": ".title a",
+        "type": "attribute",
+        "attribute": "href"
+      },
+      {
+        "name": "points",
+        "selector": ".score",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "author",
+        "selector": ".hnuser",
+        "type": "text"
+      },
+      {
+        "name": "comment_count",
+        "selector": ".subtext a:last-child",
+        "type": "text"
+      }
     ]
-  }
+  },
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

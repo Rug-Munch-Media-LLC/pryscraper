@@ -3,19 +3,53 @@
   "description": "Extract profile information from Twitter/X profiles",
   "site": "twitter.com",
   "category": "social",
-  "icon": "🐦",
+  "icon": "\ud83d\udc26",
   "url_pattern": "*://twitter.com/*",
   "schema": {
     "name": "twitter_profile",
     "base_selector": "[data-testid='primaryColumn']",
     "fields": [
-      {"name": "display_name", "selector": "[data-testid='UserName']", "type": "text"},
-      {"name": "bio", "selector": "[data-testid='UserDescription']", "type": "text"},
-      {"name": "followers", "selector": "a[href*='/followers'] span", "type": "text", "transform": "int"},
-      {"name": "following", "selector": "a[href*='/following'] span", "type": "text", "transform": "int"},
-      {"name": "location", "selector": "[data-testid='UserProfileHeader_Items']", "type": "text"},
-      {"name": "website", "selector": "[data-testid='UserProfileHeader_Items'] a", "type": "attribute", "attribute": "href"},
-      {"name": "avatar", "selector": "img[alt*='avatar']", "type": "attribute", "attribute": "src"}
+      {
+        "name": "display_name",
+        "selector": "[data-testid='UserName']",
+        "type": "text"
+      },
+      {
+        "name": "bio",
+        "selector": "[data-testid='UserDescription']",
+        "type": "text"
+      },
+      {
+        "name": "followers",
+        "selector": "a[href*='/followers'] span",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "following",
+        "selector": "a[href*='/following'] span",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "location",
+        "selector": "[data-testid='UserProfileHeader_Items']",
+        "type": "text"
+      },
+      {
+        "name": "website",
+        "selector": "[data-testid='UserProfileHeader_Items'] a",
+        "type": "attribute",
+        "attribute": "href"
+      },
+      {
+        "name": "avatar",
+        "selector": "img[alt*='avatar']",
+        "type": "attribute",
+        "attribute": "src"
+      }
     ]
-  }
+  },
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

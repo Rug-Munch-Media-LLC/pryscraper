@@ -1,6 +1,12 @@
 """Pry — scheduled monitors with AI change detection.
 Cron-based monitors that diff content and judge meaningful changes."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import difflib
 import json
 import logging

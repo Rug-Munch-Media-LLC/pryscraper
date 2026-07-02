@@ -42,5 +42,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.wsj.com/*"
+  "url_pattern": "*://www.wsj.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

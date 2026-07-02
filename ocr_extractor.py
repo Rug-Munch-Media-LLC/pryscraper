@@ -1,6 +1,12 @@
 """Pry — Image OCR using Tesseract.
 Extract text from images on web pages. Uses pytesseract + Pillow."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import io
 import logging
 import os

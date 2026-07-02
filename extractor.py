@@ -4,6 +4,12 @@ LLM failures fall back gracefully to pattern mode.
 No hallucination: JSON output is always parsed and validated.
 """
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import json
 import re
 from typing import Any

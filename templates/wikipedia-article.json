@@ -36,5 +36,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.wikipedia.org/*"
+  "url_pattern": "*://www.wikipedia.org/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

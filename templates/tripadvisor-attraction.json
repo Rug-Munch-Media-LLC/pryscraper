@@ -42,5 +42,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.tripadvisor.com/*"
+  "url_pattern": "*://www.tripadvisor.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

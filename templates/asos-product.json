@@ -65,5 +65,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.asos.com/*"
+  "url_pattern": "*://www.asos.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

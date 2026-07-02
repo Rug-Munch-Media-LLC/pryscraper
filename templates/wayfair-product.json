@@ -3,17 +3,42 @@
   "description": "Extract product details from Wayfair",
   "site": "wayfair.com",
   "category": "ecommerce",
-  "icon": "🏠",
+  "icon": "\ud83c\udfe0",
   "url_pattern": "*://www.wayfair.com/*/pdp/*",
   "schema": {
     "name": "wayfair_product",
     "base_selector": ".ProductPage",
     "fields": [
-      {"name": "title", "selector": "h1", "type": "text"},
-      {"name": "price", "selector": ".hf-price-box", "type": "text", "transform": "float"},
-      {"name": "rating", "selector": ".ProductReviewStars", "type": "attribute", "attribute": "aria-label"},
-      {"name": "description", "selector": "#product-description", "type": "text"},
-      {"name": "image_url", "selector": ".ProductHeroImage img", "type": "attribute", "attribute": "src"}
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": ".hf-price-box",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "rating",
+        "selector": ".ProductReviewStars",
+        "type": "attribute",
+        "attribute": "aria-label"
+      },
+      {
+        "name": "description",
+        "selector": "#product-description",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": ".ProductHeroImage img",
+        "type": "attribute",
+        "attribute": "src"
+      }
     ]
-  }
+  },
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

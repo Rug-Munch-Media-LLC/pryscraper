@@ -35,5 +35,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.uspto.gov/*"
+  "url_pattern": "*://www.uspto.gov/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

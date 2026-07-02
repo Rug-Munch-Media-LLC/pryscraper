@@ -1,3 +1,5 @@
+[//]: # (SPDX-License-Identifier: MIT)
+[//]: # (Copyright (c) 2026 Rug Munch Media LLC)
 # Pry Monitor — WordPress Plugin
 
 Competitor price & content monitoring directly in your WordPress dashboard. Track competitors, get email alerts on changes, and sync competitor products to WooCommerce.

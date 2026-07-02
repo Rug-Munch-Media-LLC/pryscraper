@@ -1,6 +1,12 @@
 """Pry — Real LLM-powered features. Replaces regex stubs with actual LLM calls.
 Used by compliance, SEO, entity reconciliation, PII redaction, and other AI features."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import json
 import logging
 from typing import Any

@@ -3,6 +3,13 @@ Camoufox patches Firefox at the source level to bypass fingerprinting
 more effectively than Playwright/Puppeteer. It's a drop-in alternative
 for Playwright that focuses on stealth."""
 
+# SPDX-License-Identifier: BSL-1.1
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — Stealth / Anti-Detection Module
+# Licensed under Business Source License 1.1 — see LICENSE-BSL-STEALTH.
+# Change Date: 2029-01-01 (converts to MIT).
+
 import logging
 import random
 import time

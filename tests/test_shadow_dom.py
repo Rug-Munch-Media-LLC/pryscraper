@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
 """Tests for shadow DOM flattening."""
 
 from shadow_dom import ShadowDOMProcessor, flatten_shadow_dom, has_shadow_dom

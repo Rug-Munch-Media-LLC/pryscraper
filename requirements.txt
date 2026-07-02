@@ -1,3 +1,5 @@
+[//]: # (SPDX-License-Identifier: MIT
+[//]: # (Copyright (c) 2026 Rug Munch Media LLC)
 # Pry - Free web scraping + automation API
 # Better than Firecrawl, self-hosted, no API keys needed
 

@@ -1,3 +1,5 @@
+[//]: # (SPDX-License-Identifier: MIT)
+[//]: # (Copyright (c) 2026 Rug Munch Media LLC)
 # DEPLOYMENT.md — PryScraper
 
 > How to deploy. Build, push, restart, rollback.

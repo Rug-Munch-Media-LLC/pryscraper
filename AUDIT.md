@@ -1,3 +1,5 @@
+[//]: # (SPDX-License-Identifier: MIT)
+[//]: # (Copyright (c) 2026 Rug Munch Media LLC)
 ---
 title: Pry — Brutal Honest Audit & Action Plan
 status: canonical

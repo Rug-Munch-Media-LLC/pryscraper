@@ -1,6 +1,12 @@
 """Pry — structured extraction strategies.
 CSS/XPath-based extraction (no LLM needed) + chunking strategies for LLM extraction."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import logging
 import math
 import re

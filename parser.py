@@ -3,6 +3,12 @@ Uses asyncio subprocess for CPU-bound OCR to avoid blocking the event loop.
 Temp files are always cleaned up in finally blocks.
 """
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import asyncio
 import io
 import os

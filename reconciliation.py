@@ -1,6 +1,12 @@
 """Pry — Multi-Source Entity Reconciliation.
 Cross-source entity matching, unified schema mapping, diff dashboard."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import difflib
 import hashlib
 import logging

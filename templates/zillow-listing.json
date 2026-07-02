@@ -3,19 +3,52 @@
   "description": "Extract real estate listing details from Zillow",
   "site": "zillow.com",
   "category": "real_estate",
-  "icon": "🏡",
+  "icon": "\ud83c\udfe1",
   "url_pattern": "*://www.zillow.com/homedetails/*",
   "schema": {
     "name": "zillow_listing",
     "base_selector": ".ds-home-details-chip",
     "fields": [
-      {"name": "address", "selector": "[data-testid='home-details-chip-address']", "type": "text"},
-      {"name": "price", "selector": "[data-testid='home-details-chip-price']", "type": "text", "transform": "float"},
-      {"name": "bedrooms", "selector": "[data-testid='bed-bath-beyond']", "type": "text"},
-      {"name": "bathrooms", "selector": "[data-testid='bed-bath-beyond']", "type": "text"},
-      {"name": "sqft", "selector": "[data-testid='bed-bath-beyond']", "type": "text", "transform": "int"},
-      {"name": "description", "selector": "[data-testid='description']", "type": "text"},
-      {"name": "image_url", "selector": ".media-stream img", "type": "attribute", "attribute": "src"}
+      {
+        "name": "address",
+        "selector": "[data-testid='home-details-chip-address']",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": "[data-testid='home-details-chip-price']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "bedrooms",
+        "selector": "[data-testid='bed-bath-beyond']",
+        "type": "text"
+      },
+      {
+        "name": "bathrooms",
+        "selector": "[data-testid='bed-bath-beyond']",
+        "type": "text"
+      },
+      {
+        "name": "sqft",
+        "selector": "[data-testid='bed-bath-beyond']",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "description",
+        "selector": "[data-testid='description']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": ".media-stream img",
+        "type": "attribute",
+        "attribute": "src"
+      }
     ]
-  }
+  },
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

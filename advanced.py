@@ -3,6 +3,12 @@ Diff tracking, LLM summarization, RSS generation, change monitoring,
 schema.org extraction, email finder, and more.
 All powered by local Ollama — no API keys needed."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import difflib
 import hashlib
 import json

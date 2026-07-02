@@ -1,3 +1,5 @@
+[//]: # (SPDX-License-Identifier: MIT)
+[//]: # (Copyright (c) 2026 Rug Munch Media LLC)
 # ADR-0001: Initial Architecture
 
 ## Status

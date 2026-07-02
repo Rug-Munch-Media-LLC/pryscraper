@@ -1,6 +1,12 @@
 """Pry — Data Quality SLA Dashboard.
 Per-extraction quality metrics, anomaly detection, freshness tracking."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import difflib
 import hashlib
 import json

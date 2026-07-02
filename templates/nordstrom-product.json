@@ -65,5 +65,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.nordstrom.com/*"
+  "url_pattern": "*://www.nordstrom.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

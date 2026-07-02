@@ -59,5 +59,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.petsmart.com/*"
+  "url_pattern": "*://www.petsmart.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

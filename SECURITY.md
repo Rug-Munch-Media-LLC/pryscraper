@@ -1,3 +1,5 @@
+[//]: # (SPDX-License-Identifier: MIT)
+[//]: # (Copyright (c) 2026 Rug Munch Media LLC)
 # SECURITY.md — PryScraper
 
 > Threat model, secrets, auth, rate limiting, vuln disclosure.

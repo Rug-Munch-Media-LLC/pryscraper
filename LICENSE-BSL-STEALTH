@@ -1,0 +1,68 @@
+Business Source License 1.1
+
+Licensor:             Rug Munch Media LLC
+Licensed Work:        Pry — Stealth / Anti-Detection Module
+                       (the specific files listed in the DUAL LICENSING NOTICE
+                        in LICENSE and individually marked with
+                        SPDX-License-Identifier: BSL-1.1)
+Change Date:          2029-01-01
+Change License:       MIT License (see LICENSE)
+
+Additional Use Grant:
+  You may use the Licensed Work, without a commercial license from Rug Munch
+  Media LLC, for any of the following purposes:
+
+    1. Personal use (e.g., a developer running Pry on their own machine to
+       scrape sites for personal projects).
+    2. Non-production testing and development (e.g., a company running Pry
+       in CI to test their own scrapers against anti-bot targets).
+    3. Academic research and education.
+    4. Development of non-commercial open source software (any project whose
+       source code is publicly available under an OSI-approved license and
+       which is not sold, licensed, or distributed for a fee).
+    5. Internal evaluation by a potential customer considering a
+       commercial license (capped at 90 days).
+
+  All other use — including any production deployment, any use by a
+  for-profit entity in the course of its business operations, any SaaS /
+  PaaS offering, any consulting engagement, and any redistribution as
+  part of a commercial product or service — requires a separate written
+  commercial license from Rug Munch Media LLC.
+
+  For commercial licensing, contact: enterprise@rugmunch.io
+
+For full canonical text of the Business Source License 1.1, see:
+  https://mariadb.com/bsl11/
+
+The text reproduced below is the official license template; on the Change
+Date (2029-01-01) the Licensed Work converts to the MIT License (see
+LICENSE). Until that date the following terms govern.
+
+------------------------------------------------------------------------------
+Business Source License 1.1
+
+Licensor:             Rug Munch Media LLC
+Licensed Work:        Pry — Stealth / Anti-Detection Module
+Change Date:          2029-01-01
+Change License:       MIT License
+
+Additional Use Grant:
+  Free for non-production personal use, non-production testing, academic
+  research, and development of non-commercial open source software. See
+  LICENSE for the full Additional Use Grant and the list of covered files.
+
+  Production use and any use by a for-profit entity in the course of its
+  business requires a separate commercial license from Rug Munch Media LLC.
+  Contact enterprise@rugmunch.io.
+
+The Licensor hereby grants you the right to copy, modify, create derivative
+works, redistribute, and make non-production use of the Licensed Work. The
+Licensor may make an Additional Use Grant, above, permitting limited
+production use. Any other use, including production use, is prohibited.
+
+All other rights are reserved by the Licensor.
+
+THE LICENSED WORK IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED. THE LICENSOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS
+LICENSED WORK, INCLUDING ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.

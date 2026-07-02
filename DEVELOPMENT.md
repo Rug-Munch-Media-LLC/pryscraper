@@ -1,3 +1,5 @@
+[//]: # (SPDX-License-Identifier: MIT)
+[//]: # (Copyright (c) 2026 Rug Munch Media LLC)
 # DEVELOPMENT.md — PryScraper
 
 > Dev workflow. Install, code, test, commit, PR.

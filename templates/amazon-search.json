@@ -3,19 +3,54 @@
   "description": "Extract product listings from Amazon search results pages",
   "site": "amazon.com",
   "category": "ecommerce",
-  "icon": "🔍",
+  "icon": "\ud83d\udd0d",
   "url_pattern": "*://www.amazon.com/s?*",
   "schema": {
     "name": "amazon_search",
     "base_selector": "[data-component-type='s-search-result']",
     "fields": [
-      {"name": "title", "selector": "h2 a span", "type": "text"},
-      {"name": "price", "selector": ".a-price .a-offscreen", "type": "text", "transform": "float"},
-      {"name": "rating", "selector": ".a-icon-alt", "type": "text", "transform": "float"},
-      {"name": "review_count", "selector": ".a-size-base.s-underline-text", "type": "text", "transform": "int"},
-      {"name": "url", "selector": "h2 a", "type": "attribute", "attribute": "href"},
-      {"name": "image_url", "selector": ".s-image", "type": "attribute", "attribute": "src"},
-      {"name": "is_prime", "selector": ".s-prime", "type": "exists"}
+      {
+        "name": "title",
+        "selector": "h2 a span",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": ".a-price .a-offscreen",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "rating",
+        "selector": ".a-icon-alt",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "review_count",
+        "selector": ".a-size-base.s-underline-text",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "url",
+        "selector": "h2 a",
+        "type": "attribute",
+        "attribute": "href"
+      },
+      {
+        "name": "image_url",
+        "selector": ".s-image",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "is_prime",
+        "selector": ".s-prime",
+        "type": "exists"
+      }
     ]
-  }
+  },
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

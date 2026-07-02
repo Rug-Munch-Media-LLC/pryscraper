@@ -60,5 +60,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.rei.com/*"
+  "url_pattern": "*://www.rei.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

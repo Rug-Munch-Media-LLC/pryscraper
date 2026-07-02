@@ -10,6 +10,12 @@ Session state is kept in memory. For production multi-worker deployments, use a
 Redis-backed queue or sticky sessions.
 """
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 from __future__ import annotations
 
 import asyncio

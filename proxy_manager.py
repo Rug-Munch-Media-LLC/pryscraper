@@ -2,6 +2,12 @@
 Tries free proxies first (Tor, public rotating). When premium proxy is needed,
 prompts user to sign up via affiliate links. Pre-wired to 5+ providers."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import json
 import logging
 import os

@@ -1,6 +1,12 @@
 """Pry — in-memory LRU cache with Redis persistence.
 Prevents re-scraping the same URL within TTL window."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import hashlib
 import json
 import time

@@ -1,6 +1,12 @@
 """Pry — Database layer using SQLAlchemy (SQLite/PostgreSQL).
 Replaces JSON file storage for production safety."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import logging
 import os
 from collections.abc import Generator

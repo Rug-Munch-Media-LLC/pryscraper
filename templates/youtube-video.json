@@ -3,18 +3,45 @@
   "description": "Extract video details from YouTube watch pages",
   "site": "youtube.com",
   "category": "media",
-  "icon": "▶️",
+  "icon": "\u25b6\ufe0f",
   "url_pattern": "*://www.youtube.com/watch*",
   "schema": {
     "name": "youtube_video",
     "base_selector": "#above-the-fold",
     "fields": [
-      {"name": "title", "selector": "h1", "type": "text"},
-      {"name": "channel", "selector": "#owner #channel-name", "type": "text"},
-      {"name": "views", "selector": ".view-count", "type": "text", "transform": "int"},
-      {"name": "likes", "selector": "#top-level-buttons-computed ytd-toggle-button-renderer:first-child", "type": "text"},
-      {"name": "publish_date", "selector": "#info-strings yt-formatted-string", "type": "text"},
-      {"name": "description", "selector": "#description-inner", "type": "text"}
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "channel",
+        "selector": "#owner #channel-name",
+        "type": "text"
+      },
+      {
+        "name": "views",
+        "selector": ".view-count",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "likes",
+        "selector": "#top-level-buttons-computed ytd-toggle-button-renderer:first-child",
+        "type": "text"
+      },
+      {
+        "name": "publish_date",
+        "selector": "#info-strings yt-formatted-string",
+        "type": "text"
+      },
+      {
+        "name": "description",
+        "selector": "#description-inner",
+        "type": "text"
+      }
     ]
-  }
+  },
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

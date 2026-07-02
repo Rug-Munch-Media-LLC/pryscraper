@@ -1,6 +1,12 @@
 """Validate all scraper templates — verify JSON schema, required fields, and selector structure.
 This ensures every template is structurally correct before we claim it works."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import json
 import sys
 from pathlib import Path

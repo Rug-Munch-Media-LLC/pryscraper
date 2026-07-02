@@ -1,6 +1,12 @@
 """Pry — shared httpx client pool with connection reuse.
 All modules import `http_client` instead of creating new clients per request."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import logging
 
 import httpx

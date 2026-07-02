@@ -53,5 +53,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.hm.com/*"
+  "url_pattern": "*://www.hm.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

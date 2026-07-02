@@ -2,6 +2,12 @@
 Supports pluggable providers: OpenAI, Anthropic, Google, Cohere, Mistral, Ollama, OpenRouter.
 Includes referral/affiliate link tracking for revenue sharing."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field

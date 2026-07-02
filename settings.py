@@ -1,6 +1,12 @@
 """Pry — centralized settings via Pydantic BaseSettings.
 Every env var lives here. Import `settings` singleton everywhere else."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

@@ -3,19 +3,53 @@
   "description": "Extract product details from Etsy listing pages",
   "site": "etsy.com",
   "category": "ecommerce",
-  "icon": "🧶",
+  "icon": "\ud83e\uddf6",
   "url_pattern": "*://www.etsy.com/listing/*",
   "schema": {
     "name": "etsy_product",
     "base_selector": "[data-listing-id]",
     "fields": [
-      {"name": "title", "selector": "h1", "type": "text"},
-      {"name": "price", "selector": ".wt-text-title-01", "type": "text", "transform": "float"},
-      {"name": "rating", "selector": ".wt-display-inline-flex .wt-text-body-01", "type": "text", "transform": "float"},
-      {"name": "review_count", "selector": ".wt-display-inline-flex a", "type": "text", "transform": "int"},
-      {"name": "shop_name", "selector": ".wt-text-body-01 a[href*='/shop/']", "type": "text"},
-      {"name": "image_url", "selector": ".carousel-image img", "type": "attribute", "attribute": "src"},
-      {"name": "description", "selector": "[data-section-id='description']", "type": "text"}
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": ".wt-text-title-01",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "rating",
+        "selector": ".wt-display-inline-flex .wt-text-body-01",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "review_count",
+        "selector": ".wt-display-inline-flex a",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "shop_name",
+        "selector": ".wt-text-body-01 a[href*='/shop/']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": ".carousel-image img",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "description",
+        "selector": "[data-section-id='description']",
+        "type": "text"
+      }
     ]
-  }
+  },
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

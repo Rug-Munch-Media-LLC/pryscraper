@@ -1,3 +1,5 @@
+[//]: # (SPDX-License-Identifier: MIT)
+[//]: # (Copyright (c) 2026 Rug Munch Media LLC)
 # AGENTS.md — PryScraper
 
 > AI agent contract. Read this before touching anything in this repo.
@@ -6,7 +8,7 @@
 canonical · owner=crmuncher · last_updated=2026-07-02
 
 ## What This Repo Is
-Multi-source crypto intelligence crawler (munchcrawl). Scraper, extractor, parser, automator, job queue. CLI + MCP server + SDK.
+Multi-source crypto intelligence crawler (munchcrawl). Scraper, extractor, parser, automator, job queue. CLI + MCP server + SDK. License: Dual -- MIT (core) + BSL 1.1 (stealth/anti-detection subset). See LICENSE and LICENSE-BSL-STEALTH.
 
 ## Type
 `backend` · language=Python 3.12 + FastAPI
@@ -40,6 +42,7 @@ Multi-source crypto intelligence crawler (munchcrawl). Scraper, extractor, parse
 5. **No duplicate scaffolds.** If a `backend/` or `frontend/` subdir exists at root, it's either THE app or bloat.
 6. **Update STATUS.md before committing.** Builders must know where we are.
 7. **Read DECISIONS.md before architectural changes.** Don't repeat rejected designs.
+8. **Respect dual licensing.** When contributing, the core/ files are MIT (any PR welcome). The stealth/ files (listed in LICENSE-BSL-STEALTH) are BSL 1.1 -- only Rug Munch Media LLC can modify them. PRs touching BSL files will be rejected.
 
 ## Commands
 ```bash

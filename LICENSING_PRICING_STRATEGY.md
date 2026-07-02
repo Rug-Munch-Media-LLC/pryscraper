@@ -1,3 +1,5 @@
+[//]: # (SPDX-License-Identifier: MIT)
+[//]: # (Copyright (c) 2026 Rug Munch Media LLC)
 # RUG MUNCH MEDIA LLC — LICENSING & PRICING STRATEGY
 
 > **Complete decisions for every system.**
@@ -124,19 +126,20 @@ WalletPress is **THREE products** that need different strategies:
 
 ---
 
-## 3. PRYSCRAPER — DETAILED PROFIT MODEL
+## 3. PRYSCRAPER - DETAILED PROFIT MODEL
 
-### 3.1 License: PROPRIETARY (CONFIRMED)
+### 3.1 License: DUAL: MIT (core) + BSL 1.1 (stealth)
 
 **Why:**
-- Competitive moat is our stealth browser, anti-detection, and bypass techniques
-- If competitors see our code, they can replicate in days
-- Crypto scrapers are a race — whoever has the best stealth wins
+- MIT for the core scraping engine builds community, adoption, trust, stars, contributions
+- BSL 1.1 protects the anti-detection/stealth moat from commercial cloning
+- 15 stealth files are BSL 1.1: ultimate_scraper.py, stealth_engine.py, stealth_scripts/*.js, camoufox_integration.py, tls_fingerprint.py, cookie_warmer.py, behavioral_biometrics.py, adaptive.py, browser_pool.py, network.py, captcha_solver.py, shadow_dom.py, lazy_load.py, signup_automator.py, auth_connector.py
+- The rest (100+ files) are MIT
 
-### 3.2 Pricing — Three Models
+### 3.2 Pricing - Three Models
 
 **Model A: SaaS (Primary)**
-- Hosted API at `pry.dev`
+- Hosted API at pry.dev
 - Pay-per-request with x402 micropayments
 - Free tier: 1,000 requests/month
 - Pro: $49/mo for 100K requests
@@ -156,11 +159,11 @@ WalletPress is **THREE products** that need different strategies:
 
 | Endpoint | Price |
 |----------|-------|
-| `/scrape` | $0.005/call |
-| `/crawl` | $0.02/call |
-| `/extract` | $0.01/call |
-| `/screenshot` | $0.003/call |
-| `/stealth_browser` | $0.05/minute |
+| /scrape | $0.005/call |
+| /crawl | $0.02/call |
+| /extract | $0.01/call |
+| /screenshot | $0.003/call |
+| /stealth_browser | $0.05/minute |
 
 **Model C: White-label Enterprise**
 - Deploy PryScraper on your infrastructure
@@ -182,8 +185,42 @@ WalletPress is **THREE products** that need different strategies:
 | White-label Enterprise | $200K | $600K | $1.2M |
 | **TOTAL** | **$310K** | **$1.02M** | **$2.2M** |
 
----
+*Plus community template contributions which increase the moat over time (unquantified but real).*
 
+### 3.4 Stealth BSL Specifics
+
+**Which 15 files are BSL-covered:**
+- ultimate_scraper.py
+- stealth_engine.py
+- stealth_scripts/*.js
+- camoufox_integration.py
+- tls_fingerprint.py
+- cookie_warmer.py
+- behavioral_biometrics.py
+- adaptive.py
+- browser_pool.py
+- network.py
+- captcha_solver.py
+- shadow_dom.py
+- lazy_load.py
+- signup_automator.py
+- auth_connector.py
+
+**What counts as production use:**
+- Live application serving real users
+- Business internal operations
+- Deploying as a service for third parties
+
+**What does NOT count:**
+- Personal use
+- Non-production testing
+- Academic research
+- Non-commercial OSS development
+- 90-day evaluation
+
+**Change Date:** 2029-01-01, converts to MIT
+
+**Commercial license:** enterprise@rugmunch.io
 ## 4. RMI (RUG MUNCH INTELLIGENCE) — DETAILED PROFIT MODEL
 
 ### 4.1 License: OPEN CORE (CONFIRMED)

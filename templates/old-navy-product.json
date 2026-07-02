@@ -60,5 +60,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.oldnavy.gap.com/*"
+  "url_pattern": "*://www.oldnavy.gap.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

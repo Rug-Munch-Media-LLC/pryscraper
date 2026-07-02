@@ -3,6 +3,12 @@ Modern SPAs (Twitter, Discord, stock tickers) and real-time apps use WebSockets
 and SSE for data delivery. This scraper connects to these endpoints and
 captures the data stream."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import asyncio
 import json
 import logging

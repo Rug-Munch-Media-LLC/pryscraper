@@ -3,19 +3,54 @@
   "description": "Extract product details from Walmart product pages",
   "site": "walmart.com",
   "category": "ecommerce",
-  "icon": "🛒",
+  "icon": "\ud83d\uded2",
   "url_pattern": "*://www.walmart.com/ip/*",
   "schema": {
     "name": "walmart_product",
     "base_selector": ".prod-ProductHero",
     "fields": [
-      {"name": "title", "selector": "h1", "type": "text"},
-      {"name": "price", "selector": "[itemprop='price']", "type": "text", "transform": "float"},
-      {"name": "rating", "selector": ".rating-stars-group", "type": "attribute", "attribute": "aria-label", "transform": "float"},
-      {"name": "review_count", "selector": ".rating-reviews", "type": "text", "transform": "int"},
-      {"name": "description", "selector": ".about-desc", "type": "text"},
-      {"name": "image_url", "selector": ".prod-hero-hero-image img", "type": "attribute", "attribute": "src"},
-      {"name": "availability", "selector": ".fulfillment-shippingMethod", "type": "text"}
+      {
+        "name": "title",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": "[itemprop='price']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "rating",
+        "selector": ".rating-stars-group",
+        "type": "attribute",
+        "attribute": "aria-label",
+        "transform": "float"
+      },
+      {
+        "name": "review_count",
+        "selector": ".rating-reviews",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "description",
+        "selector": ".about-desc",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": ".prod-hero-hero-image img",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "availability",
+        "selector": ".fulfillment-shippingMethod",
+        "type": "text"
+      }
     ]
-  }
+  },
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

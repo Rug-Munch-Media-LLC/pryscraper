@@ -3,6 +3,12 @@ Detects GraphQL endpoints, runs introspection queries, generates optimized queri
 Many modern sites (Shopify, GitHub, Twitter/X, etc.) have GraphQL APIs that are
 10-100x more efficient than scraping HTML."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import json
 import logging
 import re

@@ -1,14 +1,18 @@
 {
   "$schema": "https://pulsemcp.com/schema.json",
   "name": "pry",
-  "display_name": "Pry — Web Scraping & Browser Automation",
+  "display_name": "Pry \u2014 Web Scraping & Browser Automation",
   "description": "Scrape, crawl, extract, and automate any website. Self-hosted, x402 pay-per-call, MCP-compatible.",
   "version": "3.0.0",
   "license": "MIT",
   "author": "Rug Munch Media LLC",
   "homepage": "https://pry.dev",
   "repository": "https://github.com/cryptorugmuncher/pry",
-  "categories": ["Web Scraping", "Browser Automation", "Data Extraction"],
+  "categories": [
+    "Web Scraping",
+    "Browser Automation",
+    "Data Extraction"
+  ],
   "install": {
     "type": "pip",
     "package": "pry",
@@ -32,5 +36,13 @@
     "pry_x402_pricing",
     "pry_referrals"
   ],
-  "tags": ["scraping", "automation", "extraction", "x402", "self-hosted"]
+  "tags": [
+    "scraping",
+    "automation",
+    "extraction",
+    "x402",
+    "self-hosted"
+  ],
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

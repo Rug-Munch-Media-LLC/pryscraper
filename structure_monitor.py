@@ -1,6 +1,12 @@
 """Pry — Page Structure Monitor.
 Track CSS selector validity over time. Alert before scrapers break."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import hashlib
 import json
 import logging

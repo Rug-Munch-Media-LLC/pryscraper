@@ -3,19 +3,53 @@
   "description": "Extract product details from Target product pages",
   "site": "target.com",
   "category": "ecommerce",
-  "icon": "🎯",
+  "icon": "\ud83c\udfaf",
   "url_pattern": "*://www.target.com/p/*",
   "schema": {
     "name": "target_product",
     "base_selector": "[data-test='product-details']",
     "fields": [
-      {"name": "title", "selector": "[data-test='product-title']", "type": "text"},
-      {"name": "price", "selector": "[data-test='product-price']", "type": "text", "transform": "float"},
-      {"name": "rating", "selector": "[data-test='rating']", "type": "text", "transform": "float"},
-      {"name": "review_count", "selector": "[data-test='reviews-count']", "type": "text", "transform": "int"},
-      {"name": "description", "selector": "[data-test='product-description']", "type": "text"},
-      {"name": "image_url", "selector": "[data-test='hero-image'] img", "type": "attribute", "attribute": "src"},
-      {"name": "fulfillment", "selector": "[data-test='fulfillment']", "type": "text"}
+      {
+        "name": "title",
+        "selector": "[data-test='product-title']",
+        "type": "text"
+      },
+      {
+        "name": "price",
+        "selector": "[data-test='product-price']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "rating",
+        "selector": "[data-test='rating']",
+        "type": "text",
+        "transform": "float"
+      },
+      {
+        "name": "review_count",
+        "selector": "[data-test='reviews-count']",
+        "type": "text",
+        "transform": "int"
+      },
+      {
+        "name": "description",
+        "selector": "[data-test='product-description']",
+        "type": "text"
+      },
+      {
+        "name": "image_url",
+        "selector": "[data-test='hero-image'] img",
+        "type": "attribute",
+        "attribute": "src"
+      },
+      {
+        "name": "fulfillment",
+        "selector": "[data-test='fulfillment']",
+        "type": "text"
+      }
     ]
-  }
+  },
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

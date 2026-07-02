@@ -36,5 +36,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.cnn.com/*"
+  "url_pattern": "*://www.cnn.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
 """Tests for advanced scraping features (TLS fingerprinting, GraphQL, Schema.org, WebSocket)."""
 
 from graphql_discovery import GraphQLDiscovery

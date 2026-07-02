@@ -42,5 +42,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.trustpilot.com/*"
+  "url_pattern": "*://www.trustpilot.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

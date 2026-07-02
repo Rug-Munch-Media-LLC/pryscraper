@@ -4,6 +4,12 @@ the engine executes them sequentially with branching and error handling.
 
 A UI can render these steps as drag-and-drop blocks."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import json
 import logging
 import os

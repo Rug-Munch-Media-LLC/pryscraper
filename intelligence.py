@@ -1,6 +1,12 @@
 """Pry — Competitive Intelligence Engine.
 Historical snapshots, anomaly detection, natural-language alerts, weekly reports."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import json
 import logging
 import os

@@ -1,6 +1,12 @@
 """Pry — typed error hierarchy.
 Every API error flows through here for consistent JSON responses."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 from typing import Any
 
 

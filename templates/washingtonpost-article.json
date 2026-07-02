@@ -37,5 +37,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.washingtonpost.com/*"
+  "url_pattern": "*://www.washingtonpost.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

@@ -3,19 +3,50 @@
   "description": "Extract profile information from LinkedIn public profiles",
   "site": "linkedin.com",
   "category": "professional",
-  "icon": "💼",
+  "icon": "\ud83d\udcbc",
   "url_pattern": "*://www.linkedin.com/in/*",
   "schema": {
     "name": "linkedin_profile",
     "base_selector": ".profile-detail",
     "fields": [
-      {"name": "name", "selector": "h1", "type": "text"},
-      {"name": "headline", "selector": ".text-body-medium", "type": "text"},
-      {"name": "location", "selector": ".text-body-small.inline", "type": "text"},
-      {"name": "about", "selector": "#about ~ div", "type": "text"},
-      {"name": "experience", "selector": "#experience ~ .display-flex li", "type": "text"},
-      {"name": "education", "selector": "#education ~ .display-flex li", "type": "text"},
-      {"name": "profile_image", "selector": ".profile-photo-edit img", "type": "attribute", "attribute": "src"}
+      {
+        "name": "name",
+        "selector": "h1",
+        "type": "text"
+      },
+      {
+        "name": "headline",
+        "selector": ".text-body-medium",
+        "type": "text"
+      },
+      {
+        "name": "location",
+        "selector": ".text-body-small.inline",
+        "type": "text"
+      },
+      {
+        "name": "about",
+        "selector": "#about ~ div",
+        "type": "text"
+      },
+      {
+        "name": "experience",
+        "selector": "#experience ~ .display-flex li",
+        "type": "text"
+      },
+      {
+        "name": "education",
+        "selector": "#education ~ .display-flex li",
+        "type": "text"
+      },
+      {
+        "name": "profile_image",
+        "selector": ".profile-photo-edit img",
+        "type": "attribute",
+        "attribute": "src"
+      }
     ]
-  }
+  },
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

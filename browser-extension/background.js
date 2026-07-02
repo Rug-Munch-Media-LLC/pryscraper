@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Rug Munch Media LLC
+// Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+// Licensed under MIT. See LICENSE.
 // Pry Browser Extension — Background Service Worker
 chrome.runtime.onInstalled.addListener(function() {
   chrome.storage.sync.get(['pryServerUrl'], function(result) {

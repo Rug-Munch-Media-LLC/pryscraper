@@ -1,3 +1,5 @@
+[//]: # (SPDX-License-Identifier: MIT)
+[//]: # (Copyright (c) 2026 Rug Munch Media LLC)
 # DECISIONS.md — PryScraper
 
 > Architecture Decision Records (ADRs). Read before architectural changes.
@@ -21,6 +23,7 @@ A short document capturing an important architectural decision:
 | Number | Title | Status | Date |
 |--------|-------|--------|------|
 | [0001](docs/adr/0001-initial-architecture.md) | Initial architecture | Accepted | 2026-07-02 |
+| [0002](docs/adr/0002-dual-licensing.md) | Dual licensing: MIT (core) + BSL 1.1 (stealth) | Accepted | 2026-07-03 |
 
 ## Fleet-wide ADRs (in standards repo)
 - [ADR-0001: Tailscale mesh as the only perimeter](https://git.rugmunch.io/RugMunchMedia/standards/raw/branch/main/MCP-ARCHITECTURE.md)

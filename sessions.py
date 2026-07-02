@@ -1,6 +1,12 @@
 """Pry — persistent browser session management.
 Saves and restores Playwright browser contexts to disk."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import json
 import logging
 import os

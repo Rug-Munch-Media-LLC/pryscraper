@@ -64,5 +64,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.samsclub.com/*"
+  "url_pattern": "*://www.samsclub.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

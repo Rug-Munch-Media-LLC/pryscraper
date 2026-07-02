@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
 [build-system]
 requires = ["setuptools>=69.0"]
 build-backend = "setuptools.build_meta"
@@ -8,8 +12,23 @@ version = "3.0.0"
 description = "Free web scraping + browser automation API — self-hosted, no API keys needed"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Proprietary" }
+license = { text = "MIT AND BSL-1.1" }
 authors = [{ name = "Rug Munch Media LLC" }]
+keywords = ["scraping", "crawler", "browser-automation", "mcp", "x402", "ai-agents"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "License :: Other/Proprietary License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+[project.license-files]
+paths = ["LICENSE", "LICENSE-BSL-STEALTH"]
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",

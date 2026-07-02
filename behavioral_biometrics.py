@@ -3,6 +3,13 @@ Real human behavior simulation: hesitation, scroll-back, mouse drift, reading ti
 Modern anti-bot systems detect 'too perfect' behavior. This module makes
 behavior more realistic by adding human imperfections."""
 
+# SPDX-License-Identifier: BSL-1.1
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — Stealth / Anti-Detection Module
+# Licensed under Business Source License 1.1 — see LICENSE-BSL-STEALTH.
+# Change Date: 2029-01-01 (converts to MIT).
+
 import logging
 import math
 import random

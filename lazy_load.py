@@ -1,3 +1,9 @@
+# SPDX-License-Identifier: BSL-1.1
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — Stealth / Anti-Detection Module
+# Licensed under Business Source License 1.1 — see LICENSE-BSL-STEALTH.
+# Change Date: 2029-01-01 (converts to MIT).
 """Pry — lazy load and infinite scroll handling."""
 
 import logging

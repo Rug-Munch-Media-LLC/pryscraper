@@ -1,7 +1,7 @@
 {
   "$schema": "https://glama.ai/mcp/schema.json",
   "name": "pry",
-  "title": "Pry — Web Scraping & Browser Automation MCP",
+  "title": "Pry \u2014 Web Scraping & Browser Automation MCP",
   "description": "Self-hosted web intelligence platform: scrape, crawl, extract, automate, and parse any website. Exposed as a Model Context Protocol server.",
   "version": "3.0.0",
   "license": "MIT",
@@ -27,14 +27,38 @@
     }
   ],
   "tools": [
-    { "name": "pry_scrape", "description": "Scrape a URL to clean markdown" },
-    { "name": "pry_crawl", "description": "Crawl a website from a starting URL" },
-    { "name": "pry_extract", "description": "Extract structured data with CSS selectors" },
-    { "name": "pry_template", "description": "Execute a pre-built scraper template" },
-    { "name": "pry_search_templates", "description": "Search scraper templates" },
-    { "name": "pry_enrich", "description": "Enrich a URL with company and tech intelligence" },
-    { "name": "pry_x402_pricing", "description": "Get x402 pay-per-call pricing" },
-    { "name": "pry_referrals", "description": "Get the referral catalog" }
+    {
+      "name": "pry_scrape",
+      "description": "Scrape a URL to clean markdown"
+    },
+    {
+      "name": "pry_crawl",
+      "description": "Crawl a website from a starting URL"
+    },
+    {
+      "name": "pry_extract",
+      "description": "Extract structured data with CSS selectors"
+    },
+    {
+      "name": "pry_template",
+      "description": "Execute a pre-built scraper template"
+    },
+    {
+      "name": "pry_search_templates",
+      "description": "Search scraper templates"
+    },
+    {
+      "name": "pry_enrich",
+      "description": "Enrich a URL with company and tech intelligence"
+    },
+    {
+      "name": "pry_x402_pricing",
+      "description": "Get x402 pay-per-call pricing"
+    },
+    {
+      "name": "pry_referrals",
+      "description": "Get the referral catalog"
+    }
   ],
   "tags": [
     "web-scraping",
@@ -43,5 +67,7 @@
     "x402",
     "self-hosted",
     "mcp"
-  ]
+  ],
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
 """Tests for AI agent plugin."""
 
 from ai_plugin import get_gpt_action_manifest, get_mcp_server_config, get_openapi_spec

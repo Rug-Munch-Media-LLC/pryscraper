@@ -36,5 +36,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.substack.com/*"
+  "url_pattern": "*://www.substack.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

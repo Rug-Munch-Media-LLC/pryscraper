@@ -2,6 +2,12 @@
 Pre-built scrapers that can be subscribed to and run on schedule.
 Users can publish their own actors. We earn from usage."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import json
 import logging
 import os

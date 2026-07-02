@@ -1,3 +1,5 @@
+[//]: # (SPDX-License-Identifier: MIT)
+[//]: # (Copyright (c) 2026 Rug Munch Media LLC)
 ---
 title: Pry MCP + x402 Audit & 20-Win Improvement Plan
 status: canonical

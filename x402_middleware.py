@@ -13,6 +13,12 @@ Implements the spec-compliant flow:
 Usage: app.add_middleware(X402Middleware, free_paths=["/health", "/v1/templates"])
 """
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import base64
 import json
 import logging

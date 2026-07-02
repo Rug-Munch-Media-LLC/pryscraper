@@ -3,18 +3,44 @@
   "description": "Extract job details from Indeed",
   "site": "indeed.com",
   "category": "professional",
-  "icon": "💼",
+  "icon": "\ud83d\udcbc",
   "url_pattern": "*://www.indeed.com/viewjob*",
   "schema": {
     "name": "indeed_job",
     "base_selector": ".jobsearch-ViewJobLayout",
     "fields": [
-      {"name": "title", "selector": ".jobsearch-JobInfoHeader-title", "type": "text"},
-      {"name": "company", "selector": ".jobsearch-InlineCompanyRating .css-6z8f9v", "type": "text"},
-      {"name": "location", "selector": ".jobsearch-JobInfoHeader-subtitle .css-6z8f9v", "type": "text"},
-      {"name": "salary", "selector": "#salaryInfoAndJobType", "type": "text"},
-      {"name": "description", "selector": "#jobDescriptionText", "type": "text"},
-      {"name": "post_date", "selector": ".css-1cwevpf", "type": "text"}
+      {
+        "name": "title",
+        "selector": ".jobsearch-JobInfoHeader-title",
+        "type": "text"
+      },
+      {
+        "name": "company",
+        "selector": ".jobsearch-InlineCompanyRating .css-6z8f9v",
+        "type": "text"
+      },
+      {
+        "name": "location",
+        "selector": ".jobsearch-JobInfoHeader-subtitle .css-6z8f9v",
+        "type": "text"
+      },
+      {
+        "name": "salary",
+        "selector": "#salaryInfoAndJobType",
+        "type": "text"
+      },
+      {
+        "name": "description",
+        "selector": "#jobDescriptionText",
+        "type": "text"
+      },
+      {
+        "name": "post_date",
+        "selector": ".css-1cwevpf",
+        "type": "text"
+      }
     ]
-  }
+  },
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

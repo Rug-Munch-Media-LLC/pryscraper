@@ -1,6 +1,12 @@
 """Pry — Commerce Platform Sync Engine.
 Unified interface for WooCommerce, Shopify, and generic API sync."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import logging
 import os
 from pathlib import Path

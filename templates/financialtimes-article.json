@@ -42,5 +42,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.ft.com/*"
+  "url_pattern": "*://www.ft.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

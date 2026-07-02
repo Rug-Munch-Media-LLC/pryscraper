@@ -45,5 +45,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.patents.google.com/*"
+  "url_pattern": "*://www.patents.google.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

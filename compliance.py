@@ -1,6 +1,12 @@
 """Pry — Legal Compliance Engine.
 Per-source compliance scorecard: robots.txt, ToS, GDPR/CCPA, jurisdiction."""
 
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 import logging
 import re
 from datetime import UTC, datetime

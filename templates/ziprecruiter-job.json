@@ -40,5 +40,7 @@
       }
     ]
   },
-  "url_pattern": "*://www.ziprecruiter.com/*"
+  "url_pattern": "*://www.ziprecruiter.com/*",
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }
