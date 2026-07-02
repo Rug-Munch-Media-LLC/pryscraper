@@ -1,5 +1,6 @@
 """Pry — Webhook Delivery Service.
 Reliable webhook delivery with retries, signing (HMAC), and dead letter queue."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -20,7 +21,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-WEBHOOK_DIR = Path(os.path.expanduser("~/.pry/webhooks"))
+WEBHOOK_DIR = PRY_DATA_DIR / "webhooks"
 WEBHOOK_DIR.mkdir(parents=True, exist_ok=True)
 
 

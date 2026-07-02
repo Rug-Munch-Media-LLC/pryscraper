@@ -16,9 +16,10 @@ from typing import Any
 
 from llm_providers.base import LLMProvider, LLMResponse, ReferralConfig
 
+from paths import PRY_DATA_DIR
 logger = logging.getLogger(__name__)
 
-USAGE_DIR = Path(os.path.expanduser("~/.pry/llm_usage"))
+USAGE_DIR = PRY_DATA_DIR / "llm_usage"
 USAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 

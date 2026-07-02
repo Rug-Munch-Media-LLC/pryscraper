@@ -13,9 +13,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from paths import PRY_DATA_DIR
 logger = logging.getLogger(__name__)
 
-ACCOUNTS_DIR = Path(os.path.expanduser("~/.pry/accounts"))
+ACCOUNTS_DIR = PRY_DATA_DIR / "accounts"
 ACCOUNTS_DIR.mkdir(parents=True, exist_ok=True)
 
 

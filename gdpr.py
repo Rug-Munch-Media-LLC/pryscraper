@@ -1,5 +1,6 @@
 """Pry — GDPR Compliance Portal.
 Data deletion API, consent management, retention policies, audit log."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -19,7 +20,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-GDPR_DIR = Path(os.path.expanduser("~/.pry/gdpr"))
+GDPR_DIR = PRY_DATA_DIR / "gdpr"
 GDPR_DIR.mkdir(parents=True, exist_ok=True)
 
 CONSENT_DIR = GDPR_DIR / "consent"

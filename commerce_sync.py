@@ -1,5 +1,6 @@
 """Pry — Commerce Platform Sync Engine.
 Unified interface for WooCommerce, Shopify, and generic API sync."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # ── Record sync operation ──
 
-COMMERCE_DIR = Path(os.path.expanduser("~/.pry/commerce"))
+COMMERCE_DIR = PRY_DATA_DIR / "commerce"
 COMMERCE_DIR.mkdir(parents=True, exist_ok=True)
 
 

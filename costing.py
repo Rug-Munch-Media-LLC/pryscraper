@@ -1,5 +1,6 @@
 """Pry — Cost Analytics Engine.
 Tracks usage costs, cache hit rates, projected burn, and smart scheduling."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -17,7 +18,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-COSTING_DIR = Path(os.path.expanduser("~/.pry/costing"))
+COSTING_DIR = PRY_DATA_DIR / "costing"
 COSTING_DIR.mkdir(parents=True, exist_ok=True)
 
 # Cost per operation (in USD, configurable)

@@ -1,5 +1,6 @@
 """Pry — Page Structure Monitor.
 Track CSS selector validity over time. Alert before scrapers break."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -22,7 +23,7 @@ from client import get_client
 
 logger = logging.getLogger(__name__)
 
-STRUCTURE_DIR = Path(os.path.expanduser("~/.pry/structure"))
+STRUCTURE_DIR = PRY_DATA_DIR / "structure"
 STRUCTURE_DIR.mkdir(parents=True, exist_ok=True)
 
 

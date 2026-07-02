@@ -3,6 +3,7 @@ JSON-defined workflow engine. Users define pipelines as structured steps,
 the engine executes them sequentially with branching and error handling.
 
 A UI can render these steps as drag-and-drop blocks."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -20,7 +21,7 @@ from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
-PIPELINE_DIR = Path(os.path.expanduser("~/.pry/pipelines"))
+PIPELINE_DIR = PRY_DATA_DIR / "pipelines"
 PIPELINE_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Step Types Registry ──

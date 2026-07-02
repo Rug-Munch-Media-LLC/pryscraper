@@ -1,5 +1,6 @@
 """Pry — Adaptive Freshness Scheduling.
 Conditional scraping, content fingerprinting, staleness dashboard, adaptive frequency."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -18,7 +19,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-FRESHNESS_DIR = Path(os.path.expanduser("~/.pry/freshness"))
+FRESHNESS_DIR = PRY_DATA_DIR / "freshness"
 FRESHNESS_DIR.mkdir(parents=True, exist_ok=True)
 
 

@@ -1,5 +1,6 @@
 """Pry — Competitive Intelligence Engine.
 Historical snapshots, anomaly detection, natural-language alerts, weekly reports."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -18,7 +19,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-INTEL_DIR = Path(os.path.expanduser("~/.pry/intel"))
+INTEL_DIR = PRY_DATA_DIR / "intel"
 INTEL_DIR.mkdir(parents=True, exist_ok=True)
 
 

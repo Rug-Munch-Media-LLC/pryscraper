@@ -1,5 +1,6 @@
 """Pry — AI Training Data Pipeline.
 Per-record provenance, license classifier, clean room export, compliance reports."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -21,7 +22,7 @@ from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 
-TRAINING_DIR = Path(os.path.expanduser("~/.pry/training"))
+TRAINING_DIR = PRY_DATA_DIR / "training"
 TRAINING_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── License Classification ──

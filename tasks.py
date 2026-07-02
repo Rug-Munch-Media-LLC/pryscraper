@@ -1,5 +1,6 @@
 """Pry — Background job system using asyncio (built-in) or Celery if available.
 Long-running jobs like crawls, monitors, and bulk imports should not block request threads."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -27,7 +28,7 @@ try:
 except ImportError:
     _has_celery = False
 
-JOBS_DIR = Path(os.path.expanduser("~/.pry/jobs"))
+JOBS_DIR = PRY_DATA_DIR / "jobs"
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
 
 

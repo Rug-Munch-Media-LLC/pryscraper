@@ -12,7 +12,6 @@ Standards compliance:
 - Multiple facilitators: coinbase, payai, cloudflare, eip-7702
 - Smart facilitator router with auto-fallback
 """
-
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
@@ -20,6 +19,7 @@ Standards compliance:
 # Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
+from paths import PRY_DATA_DIR
 
 import base64
 import json
@@ -37,7 +37,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-X402_DIR = Path(os.path.expanduser("~/.pry/x402"))
+X402_DIR = PRY_DATA_DIR / "x402"
 X402_DIR.mkdir(parents=True, exist_ok=True)
 
 # x402 pricing per operation (USDC atomic units, 6 decimals)

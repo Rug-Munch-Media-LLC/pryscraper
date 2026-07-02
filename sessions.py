@@ -1,5 +1,6 @@
 """Pry — persistent browser session management.
 Saves and restores Playwright browser contexts to disk."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -17,7 +18,7 @@ from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
-SESSIONS_DIR = Path(os.path.expanduser("~/.pry/sessions"))
+SESSIONS_DIR = PRY_DATA_DIR / "sessions"
 SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
 

@@ -1,5 +1,6 @@
 """Pry — White-Label Agency Dashboard.
 Multi-tenant reseller platform: custom branding, client management, sub-accounts."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -17,7 +18,7 @@ from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
-AGENCY_DIR = Path(os.path.expanduser("~/.pry/agency"))
+AGENCY_DIR = PRY_DATA_DIR / "agency"
 AGENCY_DIR.mkdir(parents=True, exist_ok=True)
 
 

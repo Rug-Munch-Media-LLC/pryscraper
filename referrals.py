@@ -1,6 +1,7 @@
 """Pry — Referral / Affiliate revenue system.
 Tracks clicks, conversions, and revenue across 60+ providers.
 Supports x402 (HTTP 402) pay-per-scrape protocol for monetization."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -18,7 +19,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-REFERRAL_DIR = Path(os.path.expanduser("~/.pry/referrals"))
+REFERRAL_DIR = PRY_DATA_DIR / "referrals"
 REFERRAL_DIR.mkdir(parents=True, exist_ok=True)
 
 # Provider catalog with referral program details

@@ -1,5 +1,6 @@
 """Pry — scheduled monitors with AI change detection.
 Cron-based monitors that diff content and judge meaningful changes."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -20,7 +21,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-MONITORS_DIR = Path(os.path.expanduser("~/.pry/monitors"))
+MONITORS_DIR = PRY_DATA_DIR / "monitors"
 MONITORS_DIR.mkdir(parents=True, exist_ok=True)
 
 

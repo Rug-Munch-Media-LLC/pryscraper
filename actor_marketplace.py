@@ -1,6 +1,7 @@
 """Pry — Actor Marketplace (Apify-style).
 Pre-built scrapers that can be subscribed to and run on schedule.
 Users can publish their own actors. We earn from usage."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -19,7 +20,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-ACTOR_DIR = Path(os.path.expanduser("~/.pry/actors"))
+ACTOR_DIR = PRY_DATA_DIR / "actors"
 ACTOR_DIR.mkdir(parents=True, exist_ok=True)
 
 

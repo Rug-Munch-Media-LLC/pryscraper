@@ -1,5 +1,6 @@
 """Pry — Automated White-Label Report Generator.
 Generate branded PDF/HTML reports from scraped data for client delivery."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -16,7 +17,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-REPORTS_DIR = Path(os.path.expanduser("~/.pry/reports"))
+REPORTS_DIR = PRY_DATA_DIR / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 

@@ -1,6 +1,7 @@
 """Pry — Proxy Manager with affiliate-signup flow.
 Tries free proxies first (Tor, public rotating). When premium proxy is needed,
 prompts user to sign up via affiliate links. Pre-wired to 5+ providers."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -24,7 +25,7 @@ try:
 except ImportError:  # proxy_referrals module not always present in slim installs
     _PROXY_REFERRALS = {}
 
-PROXY_DIR = Path(os.path.expanduser("~/.pry/proxies"))
+PROXY_DIR = PRY_DATA_DIR / "proxies"
 PROXY_DIR.mkdir(parents=True, exist_ok=True)
 
 # Free proxy sources (no signup required)

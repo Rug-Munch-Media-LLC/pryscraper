@@ -12,9 +12,10 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
+from paths import PRY_DATA_DIR
 logger = logging.getLogger(__name__)
 
-REPORTS_DIR = Path(os.path.expanduser("~/.pry/reports_real"))
+REPORTS_DIR = PRY_DATA_DIR / "reports_real"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 try:

@@ -1,5 +1,6 @@
 """Pry — SEO Content Change Monitor.
 Track competitor meta tags, titles, descriptions, headings, content changes."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -19,7 +20,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-SEO_DIR = Path(os.path.expanduser("~/.pry/seo"))
+SEO_DIR = PRY_DATA_DIR / "seo"
 SEO_DIR.mkdir(parents=True, exist_ok=True)
 
 

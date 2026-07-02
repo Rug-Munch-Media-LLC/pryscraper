@@ -1,5 +1,6 @@
 """Pry — Data Quality SLA Dashboard.
 Per-extraction quality metrics, anomaly detection, freshness tracking."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -20,7 +21,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-QUALITY_DIR = Path(os.path.expanduser("~/.pry/quality"))
+QUALITY_DIR = PRY_DATA_DIR / "quality"
 QUALITY_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Quality Metrics ──

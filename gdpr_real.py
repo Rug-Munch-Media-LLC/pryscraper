@@ -15,9 +15,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from paths import PRY_DATA_DIR
 logger = logging.getLogger(__name__)
 
-GDPR_DIR = Path(os.path.expanduser("~/.pry/gdpr_real"))
+GDPR_DIR = PRY_DATA_DIR / "gdpr_real"
 GDPR_DIR.mkdir(parents=True, exist_ok=True)
 
 DATA_RESIDENCES = [
@@ -61,7 +62,7 @@ class GDPRService:
             "records": {},
             "total_records": 0,
         }
-        pry_dir = Path(os.path.expanduser("~/.pry"))
+        pry_dir = PRY_DATA_DIR
         subject_lower = subject_id.lower()
         for subdir in DATA_RESIDENCES:
             subdir_path = pry_dir / subdir

@@ -1,5 +1,6 @@
 """Pry — Enterprise SSO / Auth Connector System.
 Credential vault, session persistence, SSO flow automation, CAPTCHA integration."""
+from paths import PRY_DATA_DIR
 
 # SPDX-License-Identifier: BSL-1.1
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -20,7 +21,7 @@ from typing import Any, Literal, cast
 
 logger = logging.getLogger(__name__)
 
-VAULT_DIR = Path(os.path.expanduser("~/.pry/vault"))
+VAULT_DIR = PRY_DATA_DIR / "vault"
 VAULT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Credential Vault (encrypted at rest) ──
