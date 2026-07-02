@@ -34,6 +34,10 @@ COPY --from=builder /root/.cache/ms-playwright /root/.cache/ms-playwright
 
 WORKDIR /app
 COPY *.py ./
+COPY routers/ ./routers/
+COPY llm_providers/ ./llm_providers/
+COPY stealth_scripts/ ./stealth_scripts/
+COPY templates/ ./templates/
 RUN mkdir -p /app/sessions
 
 EXPOSE 8002
