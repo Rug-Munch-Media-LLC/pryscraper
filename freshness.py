@@ -1,3 +1,4 @@
+import httpx
 """Pry — Adaptive Freshness Scheduling.
 Conditional scraping, content fingerprinting, staleness dashboard, adaptive frequency."""
 from paths import PRY_DATA_DIR

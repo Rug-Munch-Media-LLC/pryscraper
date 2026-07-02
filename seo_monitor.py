@@ -1,3 +1,4 @@
+import httpx
 """Pry — SEO Content Change Monitor.
 Track competitor meta tags, titles, descriptions, headings, content changes."""
 from paths import PRY_DATA_DIR

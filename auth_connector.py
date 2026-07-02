@@ -1,3 +1,4 @@
+import httpx
 """Pry — Enterprise SSO / Auth Connector System.
 Credential vault, session persistence, SSO flow automation, CAPTCHA integration."""
 from paths import PRY_DATA_DIR

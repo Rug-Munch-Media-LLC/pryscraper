@@ -1,3 +1,4 @@
+import httpx
 """Pry — Image OCR using Tesseract.
 Extract text from images on web pages. Uses pytesseract + Pillow."""
 

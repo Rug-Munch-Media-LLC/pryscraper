@@ -1,3 +1,4 @@
+import httpx
 """Pry — Email Inbox Scraping.
 Connect Gmail/Outlook, extract structured data from emails."""
 

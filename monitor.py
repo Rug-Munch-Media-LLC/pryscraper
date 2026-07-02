@@ -1,3 +1,4 @@
+import httpx
 """Pry — scheduled monitors with AI change detection.
 Cron-based monitors that diff content and judge meaningful changes."""
 from paths import PRY_DATA_DIR

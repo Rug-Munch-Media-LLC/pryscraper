@@ -1,3 +1,4 @@
+import httpx
 """Pry — Page Structure Monitor.
 Track CSS selector validity over time. Alert before scrapers break."""
 from paths import PRY_DATA_DIR

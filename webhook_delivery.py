@@ -1,3 +1,4 @@
+import httpx
 """Pry — Webhook Delivery Service.
 Reliable webhook delivery with retries, signing (HMAC), and dead letter queue."""
 from paths import PRY_DATA_DIR

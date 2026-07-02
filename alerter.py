@@ -1,3 +1,4 @@
+import httpx
 """Pry — Multi-Channel Alerting System.
 SMS, Email, Microsoft Teams, Discord, Telegram alerts."""
 
