@@ -11,7 +11,7 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  lint:
     runs-on: docker-x64
     container:
       image: python:3.11-slim
@@ -45,9 +45,69 @@ jobs:
       - name: Format check (ruff)
         run: source .venv/bin/activate && ruff format --check .
 
+  typecheck:
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv + setup
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11
+          uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Type check (mypy)
-        run: source .venv/bin/activate && mypy app/ --ignore-missing-imports || true
-        continue-on-error: true
+        run: source .venv/bin/activate && mypy . --ignore-missing-imports
 
+  test:
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv + setup
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11
+          uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Test (pytest)
         run: source .venv/bin/activate && pytest tests/ -x -q --tb=short -m "not integration"
+
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*
+          wget -qO- https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks
+          gitleaks detect --source . --redact --no-banner
+
+  security:
+    name: Security audit (bandit)
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv + setup
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          uv python install 3.11
+          uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python bandit
+      - name: Bandit (high+medium severity)
+        run: source .venv/bin/activate && bandit -r . -x tests/,.venv,__pycache__ -ll
