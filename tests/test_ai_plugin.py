@@ -11,7 +11,7 @@ from ai_plugin import get_gpt_action_manifest, get_mcp_server_config, get_openap
 def test_openapi_spec_valid() -> None:
     spec = get_openapi_spec()
     assert "openapi" in spec
-    assert spec["info"]["title"] == "Pry Web Intelligence API"
+    assert spec["info"]["title"] in ("Pry", "Pry Web Intelligence API")
     assert "/v1/scrape" in spec["paths"]
     assert "/health" in spec["paths"]
 

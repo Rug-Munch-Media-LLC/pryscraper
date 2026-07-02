@@ -219,7 +219,7 @@ async def create_monitor(
     }
     path = _monitor_path(monitor_id)
     path.write_text(json.dumps(monitor, indent=2))
-    logger.info("monitor_created", extra={"monitor_id": monitor_id, "name": name})
+    logger.info("monitor_created", extra={"monitor_id": monitor_id, "monitor_name": name})
     return monitor
 
 

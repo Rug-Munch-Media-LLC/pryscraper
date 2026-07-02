@@ -459,7 +459,7 @@ def save_pipeline(pipeline: dict[str, Any]) -> dict[str, Any]:
     try:
         path.write_text(json.dumps(pipeline, indent=2))
         logger.info(
-            "pipeline_saved", extra={"pipeline_id": pipeline_id, "name": pipeline.get("name")}
+            "pipeline_saved", extra={"pipeline_id": pipeline_id, "pipeline_name": pipeline.get("name")}
         )
         return {"success": True, "pipeline_id": pipeline_id}
     except OSError as e:

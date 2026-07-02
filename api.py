@@ -60,13 +60,25 @@ from x402_middleware import X402Middleware
 config = PryConfig()
 logger = logging.getLogger(__name__)
 
+# Configure structured (JSON) logging for the whole process. Per
+# CONVENTIONS.md Part 5, all Pry logs must be JSON with timestamp, level,
+# service, and event. setup_logging() bridges stdlib logging through
+# structlog so that any logger.info("event", k=v) becomes a JSON record.
+try:
+    from logging_config import setup_logging, get_logger as _get_logger
+    setup_logging()
+    logger = _get_logger(__name__)
+except ImportError:
+    # logging_config not available (e.g., minimal install); use stdlib
+    pass
+
 # ── Init ──
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Startup: validate deps. Shutdown: cleanup clients."""
-    logger.info("pry_startup", extra={"version": "3.0.0"})
+    logger.info("pry_startup", version="3.0.0")
     get_pipeline()  # Initialize pipeline
     yield
     logger.info("pry_shutdown")

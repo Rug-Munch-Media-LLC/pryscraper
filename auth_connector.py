@@ -65,7 +65,7 @@ def store_credential(
         path.write_text(json.dumps(entry, indent=2))
         logger.info(
             "credential_stored",
-            extra={"credential_id": credential_id, "name": name, "type": credential_type},
+            extra={"credential_id": credential_id, "credential_name": name, "type": credential_type},
         )
         return {"success": True, "credential_id": credential_id, "credential": entry}
     except OSError as e:

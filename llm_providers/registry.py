@@ -41,7 +41,7 @@ class LLMRegistry:
         self.providers[provider.name] = provider
         if provider.name not in self.fallback_chain:
             self.fallback_chain.append(provider.name)
-        logger.info("provider_registered", extra={"name": provider.name})
+        logger.info("provider_registered", extra={"provider_name": provider.name})
 
     def set_fallback_chain(self, chain: list[str]) -> None:
         self.fallback_chain = chain

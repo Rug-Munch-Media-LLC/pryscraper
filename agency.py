@@ -56,7 +56,7 @@ def create_agency(
     path = AGENCY_DIR / f"agency_{agency_id}.json"
     try:
         path.write_text(json.dumps(agency, indent=2))
-        logger.info("agency_created", extra={"agency_id": agency_id, "name": name})
+        logger.info("agency_created", extra={"agency_id": agency_id, "agency_name": name})
         return {"success": True, "agency": agency}
     except OSError as e:
         return {"success": False, "error": str(e)}

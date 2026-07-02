@@ -50,7 +50,9 @@ dependencies = [
     "pandas>=2.0.0",
     "anyio>=4.0.0",
     "croniter>=2.0.0",
+    "structlog>=24.0.0",
 ]
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
