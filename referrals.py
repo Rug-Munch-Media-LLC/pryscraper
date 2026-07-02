@@ -7,18 +7,17 @@ Supports x402 (HTTP 402) pay-per-scrape protocol for monetization."""
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-import json
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from paths import PRY_DATA_DIR
+from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
+
+from db import ReferralClick, ReferralConversion, ReferralInAppUsage, session_scope
 
 logger = logging.getLogger(__name__)
-
-REFERRAL_DIR = PRY_DATA_DIR / "referrals"
-REFERRAL_DIR.mkdir(parents=True, exist_ok=True)
 
 # Provider catalog with referral program details
 # Format: { category: [ {name, url, commission, cookie_days, ...} ] }
@@ -134,7 +133,7 @@ PROVIDER_CATALOG: dict[str, list[dict[str, Any]]] = {
         {
             "name": "Hetzner",
             "url": "https://hetzner.com/?ref=pry",
-            "commission": "€25/signup + 10% recurring",
+            "commission": "\u20ac25/signup + 10% recurring",
             "cookie_days": 90,
             "tag": "hetzner",
         },
@@ -176,7 +175,7 @@ PROVIDER_CATALOG: dict[str, list[dict[str, Any]]] = {
         {
             "name": "Netcup",
             "url": "https://netcup.com/?ref=pry",
-            "commission": "€5/signup",
+            "commission": "\u20ac5/signup",
             "cookie_days": 90,
             "tag": "netcup",
         },
@@ -588,71 +587,68 @@ PROVIDER_CATALOG: dict[str, list[dict[str, Any]]] = {
 class ReferralTracker:
     """Track referral clicks, conversions, and revenue."""
 
-    def __init__(self):
-        self.clicks_file = REFERRAL_DIR / "clicks.jsonl"
-        self.conversions_file = REFERRAL_DIR / "conversions.jsonl"
-        self._load_state()
-
-    def _load_state(self) -> None:
-        self.clicks: list[dict[str, Any]] = []
-        self.conversions: list[dict[str, Any]] = []
-        for path in (self.clicks_file, self.conversions_file):
-            if path.exists():
-                try:
-                    for line in path.read_text().splitlines():
-                        if line.strip():
-                            record = json.loads(line)
-                            (self.clicks if path == self.clicks_file else self.conversions).append(
-                                record
-                            )
-                except (json.JSONDecodeError, OSError):
-                    pass
+    def __init__(self) -> None:
+        pass
 
     def record_click(
         self, provider_tag: str, url: str, source: str = "pry", user_id: str = ""
     ) -> str:
         """Record a referral link click. Returns the tracking ID."""
         click_id = uuid.uuid4().hex[:12]
-        record = {
-            "id": click_id,
-            "provider": provider_tag,
-            "url": url,
-            "source": source,
-            "user_id": user_id,
-            "timestamp": datetime.now(UTC).isoformat(),
-            "converted": False,
-        }
         try:
-            with open(self.clicks_file, "a") as f:
-                f.write(json.dumps(record) + "\n")
-            self.clicks.append(record)
-        except OSError:
-            pass
+            with session_scope() as s:
+                s.add(
+                    ReferralClick(
+                        click_id=click_id,
+                        provider=provider_tag,
+                        url=url,
+                        source=source,
+                        user_id=user_id,
+                        converted=False,
+                        conversion_value_usd=0.0,
+                    )
+                )
+        except SQLAlchemyError as e:
+            logger.error(
+                "referral_click_failed",
+                extra={"click_id": click_id, "provider": provider_tag, "error": str(e)[:200]},
+            )
+            raise
         logger.info("referral_click", extra={"provider": provider_tag, "source": source})
         return click_id
 
     def record_conversion(self, click_id: str, revenue_usd: float = 0.0, notes: str = "") -> bool:
-        """Record a conversion for a click."""
-        for click in self.clicks:
-            if click["id"] == click_id:
-                click["converted"] = True
-                click["revenue_usd"] = revenue_usd
-                click["conversion_notes"] = notes
-                conversion = {
-                    "click_id": click_id,
-                    "provider": click["provider"],
-                    "revenue_usd": revenue_usd,
-                    "notes": notes,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                }
-                try:
-                    with open(self.conversions_file, "a") as f:
-                        f.write(json.dumps(conversion) + "\n")
-                    self.conversions.append(conversion)
-                except OSError:
-                    pass
-                return True
-        return False
+        """Record a conversion for a click. Returns True if successful."""
+        try:
+            with session_scope() as s:
+                click = s.query(ReferralClick).filter_by(click_id=click_id).first()
+                if click is None:
+                    logger.warning(
+                        "referral_conversion_click_not_found",
+                        extra={"click_id": click_id},
+                    )
+                    return False
+                click.converted = True
+                click.conversion_value_usd = revenue_usd
+                s.add(
+                    ReferralConversion(
+                        click_id=click_id,
+                        provider=click.provider,
+                        revenue_usd=revenue_usd,
+                        notes=notes,
+                    )
+                )
+        except SQLAlchemyError as e:
+            logger.error(
+                "referral_conversion_failed",
+                extra={"click_id": click_id, "error": str(e)[:200]},
+            )
+            raise
+        logger.info(
+            "referral_conversion",
+            extra={"click_id": click_id, "revenue_usd": revenue_usd},
+        )
+        return True
 
     def get_catalog(self, category: str = "") -> list[dict[str, Any]]:
         """Get the provider catalog, optionally filtered by category."""
@@ -665,53 +661,77 @@ class ReferralTracker:
     def get_stats(self, days_back: int = 30) -> dict[str, Any]:
         """Get referral statistics for the last N days."""
         cutoff = datetime.now(UTC) - timedelta(days=days_back)
-        recent_clicks = []
-        for c in self.clicks:
-            try:
-                ts = datetime.fromisoformat(c["timestamp"])
-                if ts >= cutoff:
-                    recent_clicks.append(c)
-            except (ValueError, TypeError):
-                pass
-        recent_conversions = []
-        for c in self.conversions:
-            try:
-                ts = datetime.fromisoformat(c.get("timestamp", ""))
-                if ts >= cutoff:
-                    recent_conversions.append(c)
-            except (ValueError, TypeError):
-                pass
-        clicks_by_provider: dict[str, int] = {}
-        for c in recent_clicks:
-            clicks_by_provider[c["provider"]] = clicks_by_provider.get(c["provider"], 0) + 1
-        conversions_by_provider: dict[str, int] = {}
-        revenue_by_provider: dict[str, float] = {}
-        for c in recent_conversions:
-            p = c["provider"]
-            conversions_by_provider[p] = conversions_by_provider.get(p, 0) + 1
-            revenue_by_provider[p] = revenue_by_provider.get(p, 0.0) + c.get("revenue_usd", 0.0)
-        return {
-            "period_days": days_back,
-            "total_clicks": len(recent_clicks),
-            "total_conversions": len(recent_conversions),
-            "clicks_by_provider": clicks_by_provider,
-            "conversions_by_provider": conversions_by_provider,
-            "revenue_by_provider_usd": revenue_by_provider,
-            "total_revenue_usd": sum(revenue_by_provider.values()),
-            "conversion_rate": len(recent_conversions) / max(len(recent_clicks), 1),
-            "catalog_size": sum(len(v) for v in PROVIDER_CATALOG.values()),
-        }
+        try:
+            with session_scope() as s:
+                total_clicks = (
+                    s.query(func.count(ReferralClick.id))
+                    .filter(ReferralClick.ts >= cutoff)
+                    .scalar()
+                    or 0
+                )
+
+                click_rows = (
+                    s.query(
+                        ReferralClick.provider,
+                        func.count(ReferralClick.id).label("cnt"),
+                    )
+                    .filter(ReferralClick.ts >= cutoff)
+                    .group_by(ReferralClick.provider)
+                    .all()
+                )
+                clicks_by_provider = {r.provider: r.cnt for r in click_rows}
+
+                conv_rows = (
+                    s.query(
+                        ReferralConversion.provider,
+                        func.count(ReferralConversion.id).label("cnt"),
+                        func.sum(ReferralConversion.revenue_usd).label("rev"),
+                    )
+                    .filter(ReferralConversion.ts >= cutoff)
+                    .group_by(ReferralConversion.provider)
+                    .all()
+                )
+                conversions_by_provider = {r.provider: r.cnt for r in conv_rows}
+                revenue_by_provider = {r.provider: float(r.rev or 0.0) for r in conv_rows}
+
+                total_conversions = sum(conversions_by_provider.values())
+                total_revenue = sum(revenue_by_provider.values())
+
+                return {
+                    "period_days": days_back,
+                    "total_clicks": total_clicks,
+                    "total_conversions": total_conversions,
+                    "clicks_by_provider": clicks_by_provider,
+                    "conversions_by_provider": conversions_by_provider,
+                    "revenue_by_provider_usd": revenue_by_provider,
+                    "total_revenue_usd": total_revenue,
+                    "conversion_rate": total_conversions / max(total_clicks, 1),
+                    "catalog_size": sum(len(v) for v in PROVIDER_CATALOG.values()),
+                }
+        except SQLAlchemyError as e:
+            logger.error(
+                "referral_stats_failed",
+                extra={"error": str(e)[:200]},
+            )
+            raise
 
     def track_in_app_usage(self, provider_tag: str, revenue_usd: float) -> None:
         """Track revenue from in-app LLM provider usage (per-call)."""
-        record = {
-            "type": "in_app_usage",
-            "provider": provider_tag,
-            "revenue_usd": revenue_usd,
-            "timestamp": datetime.now(UTC).isoformat(),
-        }
         try:
-            with open(REFERRAL_DIR / "in_app_usage.jsonl", "a") as f:
-                f.write(json.dumps(record) + "\n")
-        except OSError:
-            pass
+            with session_scope() as s:
+                s.add(
+                    ReferralInAppUsage(
+                        provider=provider_tag,
+                        revenue_usd=revenue_usd,
+                    )
+                )
+        except SQLAlchemyError as e:
+            logger.error(
+                "referral_in_app_usage_failed",
+                extra={"provider": provider_tag, "error": str(e)[:200]},
+            )
+            raise
+        logger.info(
+            "referral_in_app_usage",
+            extra={"provider": provider_tag, "revenue_usd": revenue_usd},
+        )

@@ -7,9 +7,7 @@ Track CSS selector validity over time. Alert before scrapers break."""
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 import hashlib
-import json
 import logging
-from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 
@@ -17,12 +15,9 @@ import httpx
 from lxml import html as lxml_html
 
 from client import get_client
-from paths import PRY_DATA_DIR
+from db import StructureSnapshot, session_scope
 
 logger = logging.getLogger(__name__)
-
-STRUCTURE_DIR = PRY_DATA_DIR / "structure"
-STRUCTURE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 async def check_selectors(
@@ -46,7 +41,6 @@ async def check_selectors(
         "failed_count": 0,
     }
 
-    # Fetch the page
     try:
         client = await get_client()
         resp = await client.get(
@@ -65,10 +59,9 @@ async def check_selectors(
 
     try:
         tree = lxml_html.fromstring(html_content)
-    except (httpx.HTTPError, httpx.RequestError):
+    except Exception:  # noqa: BLE001
         return {"url": url, "error": "Failed to parse HTML", "all_matched": False}
 
-    # Check each selector
     for sel in selectors:
         selector_str = sel.get("selector", "")
         name = sel.get("name", selector_str[:30])
@@ -94,7 +87,6 @@ async def check_selectors(
                 "status": "ok" if is_matched else "broken",
             }
 
-            # If matched, sample content for change detection
             if is_matched and elements:
                 sample_text = " ".join(e.text_content().strip()[:100] for e in elements[:3])
                 selector_result["sample"] = sample_text[:200]
@@ -105,7 +97,7 @@ async def check_selectors(
             else:
                 result["failed_count"] += 1
 
-        except (httpx.HTTPError, httpx.RequestError) as e:
+        except Exception as e:  # noqa: BLE001
             result["selectors"].append(
                 {
                     "name": name,
@@ -133,80 +125,112 @@ async def monitor_page_structure(
     Returns the current check result plus any detected changes since last check.
     """
     url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
-    # Use template_id if provided for the filename, else url_hash
-    file_key = template_id or url_hash
-    history_path = STRUCTURE_DIR / f"structure_{file_key}.json"
 
-    # Run current check
     current = await check_selectors(url, selectors)
     if "error" in current:
         return current
 
-    # Load previous state
-    previous: dict[str, Any] | None = None
-    if history_path.exists():
-        with suppress(json.JSONDecodeError, OSError):
-            previous = json.loads(history_path.read_text())
-
-    # Detect changes
     changes = []
-    if previous and "selectors" in previous:
-        prev_map = {s["name"]: s for s in previous["selectors"]}
-        curr_map = {s["name"]: s for s in current["selectors"]}
 
-        for name, curr_sel in curr_map.items():
-            prev_sel = prev_map.get(name)
-            if prev_sel:
-                # Check status change
-                if prev_sel.get("matched") and not curr_sel.get("matched"):
-                    changes.append(
-                        {
-                            "type": "selector_broken",
-                            "severity": "critical",
-                            "name": name,
-                            "selector": curr_sel.get("selector", ""),
-                            "message": f"CSS selector '{name}' stopped matching (was matching before)",
-                        }
-                    )
-                elif not prev_sel.get("matched") and curr_sel.get("matched"):
-                    changes.append(
-                        {
-                            "type": "selector_fixed",
-                            "severity": "info",
-                            "name": name,
-                            "message": f"CSS selector '{name}' started matching again",
-                        }
-                    )
-                # Check count change
-                elif curr_sel.get("match_count") != prev_sel.get("match_count"):
-                    changes.append(
-                        {
-                            "type": "count_changed",
-                            "severity": "medium",
-                            "name": name,
-                            "message": f"Selector '{name}' matched {prev_sel.get('match_count')} elements before, now {curr_sel.get('match_count')}",
-                            "previous_count": prev_sel.get("match_count"),
-                            "current_count": curr_sel.get("match_count"),
-                        }
-                    )
+    try:
+        with session_scope() as s:
+            if template_id:
+                previous_snap = (
+                    s.query(StructureSnapshot)
+                    .filter(StructureSnapshot.template_id == template_id)
+                    .order_by(StructureSnapshot.checked_at.desc())
+                    .first()
+                )
+            else:
+                previous_snap = (
+                    s.query(StructureSnapshot)
+                    .filter(StructureSnapshot.url_hash == url_hash)
+                    .order_by(StructureSnapshot.checked_at.desc())
+                    .first()
+                )
 
-    # Detect new failures
-    if previous and previous.get("all_matched") and not current.get("all_matched"):
-        changes.append(
-            {
-                "type": "structure_broken",
-                "severity": "critical",
-                "name": "page_structure",
-                "message": f"Page structure changed — {current.get('failed_count')} selectors now fail",
-                "failed_selectors": [
-                    s["name"] for s in current.get("selectors", []) if not s.get("matched")
-                ],
-            }
-        )
+            if previous_snap:
+                previous_selectors = previous_snap.selectors or []
+                previous_all_matched = previous_snap.all_matched
+            else:
+                previous_selectors = []
+                previous_all_matched = True
 
-    # Save current state
-    with suppress(OSError):
-        history_path.write_text(json.dumps(current, indent=2))
+            prev_map = {s["name"]: s for s in previous_selectors if isinstance(s, dict)}
+            curr_map = {s["name"]: s for s in current.get("selectors", []) if isinstance(s, dict)}
+
+            for name, curr_sel in curr_map.items():
+                prev_sel = prev_map.get(name)
+                if prev_sel:
+                    if prev_sel.get("matched") and not curr_sel.get("matched"):
+                        changes.append(
+                            {
+                                "type": "selector_broken",
+                                "severity": "critical",
+                                "name": name,
+                                "selector": curr_sel.get("selector", ""),
+                                "message": f"CSS selector '{name}' stopped matching (was matching before)",
+                            }
+                        )
+                    elif not prev_sel.get("matched") and curr_sel.get("matched"):
+                        changes.append(
+                            {
+                                "type": "selector_fixed",
+                                "severity": "info",
+                                "name": name,
+                                "message": f"CSS selector '{name}' started matching again",
+                            }
+                        )
+                    elif curr_sel.get("match_count") != prev_sel.get("match_count"):
+                        changes.append(
+                            {
+                                "type": "count_changed",
+                                "severity": "medium",
+                                "name": name,
+                                "message": f"Selector '{name}' matched {prev_sel.get('match_count')} elements before, now {curr_sel.get('match_count')}",
+                                "previous_count": prev_sel.get("match_count"),
+                                "current_count": curr_sel.get("match_count"),
+                            }
+                        )
+
+            if previous_selectors and previous_all_matched and not current.get("all_matched"):
+                changes.append(
+                    {
+                        "type": "structure_broken",
+                        "severity": "critical",
+                        "name": "page_structure",
+                        "message": f"Page structure changed — {current.get('failed_count')} selectors now fail",
+                        "failed_selectors": [
+                            s["name"] for s in current.get("selectors", []) if not s.get("matched")
+                        ],
+                    }
+                )
+
+            now = datetime.now(UTC)
+            snapshot = StructureSnapshot(
+                url=url,
+                url_hash=url_hash,
+                template_id=template_id,
+                selectors=current.get("selectors", []),
+                all_matched=current.get("all_matched", False),
+                matched_count=current.get("matched_count", 0),
+                failed_count=current.get("failed_count", 0),
+                changes=changes,
+                change_count=len(changes),
+                has_changes=len(changes) > 0,
+                dom_summary={},
+                checked_at=now,
+            )
+            s.add(snapshot)
+
+    except Exception:
+        logger.exception("structure_monitor_save_failed", extra={"url": url})
+        current["changes"] = changes
+        current["change_count"] = len(changes)
+        current["has_changes"] = len(changes) > 0
+        current["template_id"] = template_id
+        current["url_hash"] = url_hash
+        return current
 
     current["changes"] = changes
     current["change_count"] = len(changes)
@@ -217,23 +241,36 @@ async def monitor_page_structure(
     return current
 
 
-def get_structure_history(url: str, template_id: str = "") -> dict[str, Any]:
+async def get_structure_history(url: str, template_id: str = "") -> dict[str, Any]:
     """Get structure check history for a URL."""
-    url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
-    file_key = template_id or url_hash
-    history_path = STRUCTURE_DIR / f"structure_{file_key}.json"
-
-    if not history_path.exists():
-        return {"url": url, "has_history": False}
-
     try:
-        data = json.loads(history_path.read_text())
-        return {
-            "url": url,
-            "has_history": True,
-            "last_checked": data.get("checked_at", ""),
-            "last_all_matched": data.get("all_matched", True),
-            "last_selectors": data.get("selectors", []),
-        }
-    except (json.JSONDecodeError, OSError):
+        with session_scope() as s:
+            if template_id:
+                snap = (
+                    s.query(StructureSnapshot)
+                    .filter(StructureSnapshot.template_id == template_id)
+                    .order_by(StructureSnapshot.checked_at.desc())
+                    .first()
+                )
+            else:
+                url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
+                snap = (
+                    s.query(StructureSnapshot)
+                    .filter(StructureSnapshot.url_hash == url_hash)
+                    .order_by(StructureSnapshot.checked_at.desc())
+                    .first()
+                )
+
+            if not snap:
+                return {"url": url, "has_history": False}
+
+            return {
+                "url": url,
+                "has_history": True,
+                "last_checked": snap.checked_at.isoformat() if snap.checked_at else "",
+                "last_all_matched": snap.all_matched,
+                "last_selectors": snap.selectors or [],
+            }
+    except Exception:
+        logger.exception("structure_history_fetch_failed", extra={"url": url})
         return {"url": url, "has_history": False}

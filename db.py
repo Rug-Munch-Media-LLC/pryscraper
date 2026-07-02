@@ -257,7 +257,16 @@ if _HAS_SA:
         __tablename__ = "structure_snapshots"
         id = Column(Integer, primary_key=True)
         url = Column(Text, index=True, nullable=False)
+        url_hash = Column(String(64), default="", index=True)
+        template_id = Column(String(128), default="", index=True)
         structure_hash = Column(String(64), default="")
+        selectors = Column(JSON, default=list)
+        all_matched = Column(Boolean, default=False)
+        matched_count = Column(Integer, default=0)
+        failed_count = Column(Integer, default=0)
+        changes = Column(JSON, default=list)
+        change_count = Column(Integer, default=0)
+        has_changes = Column(Boolean, default=False)
         dom_summary = Column(JSON, default=dict)
         checked_at = Column(DateTime, default=_now, index=True)
 
@@ -283,9 +292,16 @@ if _HAS_SA:
         monitor_name = Column(String(256), default="")  # was 'name' in JSON
         schedule_cron = Column(String(64), default="")
         check_type = Column(String(32), default="content")
+        goal = Column(Text, default="")
+        use_llm_judge = Column(Boolean, default=False)
         active = Column(Boolean, default=True, index=True)
         webhook_url = Column(Text, default="")
         last_check_at = Column(DateTime, nullable=True)
+        last_run_at = Column(DateTime, nullable=True)
+        current_version = Column(Integer, default=0)
+        last_content = Column(Text, default="")
+        total_checks = Column(Integer, default=0)
+        total_changes = Column(Integer, default=0)
         created_at = Column(DateTime, default=_now)
 
     class MonitorRun(Base):
@@ -418,6 +434,24 @@ if _HAS_SA:
         ts = Column(DateTime, default=_now, index=True)
         converted = Column(Boolean, default=False)
         conversion_value_usd = Column(Float, default=0.0)
+
+    class ReferralConversion(Base):
+        __tablename__ = "referral_conversions"
+        id = Column(Integer, primary_key=True)
+        click_id = Column(
+            String(64), ForeignKey("referral_clicks.click_id"), index=True, nullable=False
+        )
+        provider = Column(String(64), index=True, nullable=False)
+        revenue_usd = Column(Float, default=0.0)
+        notes = Column(Text, default="")
+        ts = Column(DateTime, default=_now, index=True)
+
+    class ReferralInAppUsage(Base):
+        __tablename__ = "referral_in_app_usage"
+        id = Column(Integer, primary_key=True)
+        provider = Column(String(64), index=True, nullable=False)
+        revenue_usd = Column(Float, default=0.0)
+        ts = Column(DateTime, default=_now, index=True)
 
     # ── Actors (Apify-style marketplace) ──
     class Actor(Base):
@@ -677,6 +711,71 @@ def import_json_stores(data_dir: Path | None = None) -> dict[str, int]:
             )
             n += 1
         counts["agency"] = n
+
+        # Structure snapshots (JSON files)
+        n = 0
+        for rec in _iter_json_files(data_dir / "structure"):
+            s.add(
+                StructureSnapshot(
+                    url=rec.get("url", ""),
+                    url_hash=rec.get("url_hash", ""),
+                    template_id=rec.get("template_id", ""),
+                    structure_hash=rec.get("structure_hash", ""),
+                    selectors=rec.get("selectors", []),
+                    all_matched=rec.get("all_matched", False),
+                    matched_count=rec.get("matched_count", 0),
+                    failed_count=rec.get("failed_count", 0),
+                    changes=rec.get("changes", []),
+                    change_count=rec.get("change_count", 0),
+                    has_changes=rec.get("has_changes", False),
+                    dom_summary=rec.get("dom_summary", {}),
+                )
+            )
+            n += 1
+        counts["structure"] = n
+
+        # Referral clicks (JSONL)
+        n = 0
+        for rec in _iter_jsonl(data_dir / "referrals" / "clicks.jsonl"):
+            s.add(
+                ReferralClick(
+                    click_id=rec.get("id", "")[:64],
+                    provider=rec.get("provider", "")[:64],
+                    url=rec.get("url", ""),
+                    source=rec.get("source", ""),
+                    user_id=rec.get("user_id", ""),
+                    converted=rec.get("converted", False),
+                    conversion_value_usd=rec.get("conversion_value_usd", 0.0),
+                )
+            )
+            n += 1
+        counts["referral_clicks"] = n
+
+        # Referral conversions (JSONL)
+        n = 0
+        for rec in _iter_jsonl(data_dir / "referrals" / "conversions.jsonl"):
+            s.add(
+                ReferralConversion(
+                    click_id=rec.get("click_id", "")[:64],
+                    provider=rec.get("provider", "")[:64],
+                    revenue_usd=rec.get("revenue_usd", 0.0),
+                    notes=rec.get("notes", ""),
+                )
+            )
+            n += 1
+        counts["referral_conversions"] = n
+
+        # Referral in-app usage (JSONL)
+        n = 0
+        for rec in _iter_jsonl(data_dir / "referrals" / "in_app_usage.jsonl"):
+            s.add(
+                ReferralInAppUsage(
+                    provider=rec.get("provider", "")[:64],
+                    revenue_usd=rec.get("revenue_usd", 0.0),
+                )
+            )
+            n += 1
+        counts["referral_in_app_usage"] = n
 
     return counts
 

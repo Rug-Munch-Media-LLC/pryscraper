@@ -9,32 +9,16 @@ Cron-based monitors that diff content and judge meaningful changes."""
 import difflib
 import json
 import logging
-import os
 import re
-import shutil
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 import httpx
 
-from paths import PRY_DATA_DIR
+from db import Monitor, MonitorRun, session_scope
 
 logger = logging.getLogger(__name__)
-
-MONITORS_DIR = PRY_DATA_DIR / "monitors"
-MONITORS_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def _monitor_path(monitor_id: str) -> Path:
-    return MONITORS_DIR / f"{monitor_id}.json"
-
-
-def _snapshot_path(monitor_id: str, version: int) -> Path:
-    snap_dir = MONITORS_DIR / monitor_id
-    snap_dir.mkdir(parents=True, exist_ok=True)
-    return snap_dir / f"snapshot_{version}.json"
 
 
 def _compute_diff(previous: str, current: str) -> str:
@@ -43,6 +27,25 @@ def _compute_diff(previous: str, current: str) -> str:
     added = sum(1 for line in diff if line.startswith("+ "))
     removed = sum(1 for line in diff if line.startswith("- "))
     return f"{added} lines added, {removed} lines removed"
+
+
+def _monitor_to_dict(m: Monitor) -> dict[str, Any]:
+    return {
+        "id": m.monitor_id,
+        "name": m.monitor_name,
+        "target_url": m.url,
+        "schedule_cron": m.schedule_cron,
+        "goal": m.goal or "",
+        "webhook_url": m.webhook_url or "",
+        "use_llm_judge": m.use_llm_judge or False,
+        "status": "active" if m.active else "inactive",
+        "created_at": m.created_at.isoformat() if m.created_at else "",
+        "last_run_at": m.last_run_at.isoformat() if m.last_run_at else None,
+        "current_version": m.current_version or 0,
+        "last_content": m.last_content or "",
+        "total_checks": m.total_checks or 0,
+        "total_changes": m.total_changes or 0,
+    }
 
 
 class ChangeJudger:
@@ -89,7 +92,6 @@ class ChangeJudger:
 
         goal_in_current = any(gk in curr_text_lower for gk in goal_keywords)
 
-        # Check if goal keywords appear in newly-added tokens
         def _keyword_match(tokens: set[str]) -> list[str]:
             matched: list[str] = []
             for gk in goal_keywords:
@@ -114,7 +116,6 @@ class ChangeJudger:
                 ],
             }
 
-        # Content changed and goal keywords still present -> meaningful update
         if goal_in_current and len(previous) > 0:
             change_ratio = abs(len(current) - len(previous)) / len(previous)
             if change_ratio > 0.01:
@@ -130,7 +131,6 @@ class ChangeJudger:
                     ],
                 }
 
-        # Large generic change (no goal or goal keywords absent)
         if len(previous) > 0:
             change_ratio = abs(len(current) - len(previous)) / len(previous)
             if change_ratio > 0.1:
@@ -187,7 +187,7 @@ Is this change meaningful given the goal? Respond with JSON:
             response_text = resp.json().get("response", "")
             json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
             if json_match:
-                return json.loads(json_match.group(0))  # type: ignore[no-any-return]
+                return json.loads(json_match.group(0))
         except (json.JSONDecodeError, ValueError):
             logger.warning("llm_judge_failed, falling back to heuristic")
 
@@ -203,78 +203,109 @@ async def create_monitor(
     use_llm_judge: bool = False,
 ) -> dict[str, Any]:
     monitor_id = uuid.uuid4().hex[:12]
-    monitor = {
-        "id": monitor_id,
-        "name": name,
-        "target_url": target_url,
-        "schedule_cron": schedule_cron,
-        "goal": goal,
-        "webhook_url": webhook_url,
-        "use_llm_judge": use_llm_judge,
-        "status": "active",
-        "created_at": datetime.now(UTC).isoformat(),
-        "last_run_at": None,
-        "current_version": 0,
-        "last_content": "",
-        "total_checks": 0,
-        "total_changes": 0,
-    }
-    path = _monitor_path(monitor_id)
-    path.write_text(json.dumps(monitor, indent=2))
-    logger.info("monitor_created", extra={"monitor_id": monitor_id, "monitor_name": name})
-    return monitor
+    now = datetime.now(UTC)
+    monitor = Monitor(
+        monitor_id=monitor_id,
+        url=target_url,
+        monitor_name=name,
+        schedule_cron=schedule_cron,
+        goal=goal,
+        use_llm_judge=use_llm_judge,
+        active=True,
+        webhook_url=webhook_url,
+        created_at=now,
+        current_version=0,
+        last_content="",
+        total_checks=0,
+        total_changes=0,
+    )
+    try:
+        with session_scope() as s:
+            s.add(monitor)
+        logger.info("monitor_created", extra={"monitor_id": monitor_id, "monitor_name": name})
+        return _monitor_to_dict(monitor)
+    except Exception:
+        logger.exception("monitor_creation_failed", extra={"monitor_name": name})
+        raise
 
 
 async def run_monitor(monitor_id: str) -> dict[str, Any]:
-    path = _monitor_path(monitor_id)
-    if not path.exists():
-        return {"error": f"Monitor not found: {monitor_id}"}
-
-    monitor = json.loads(path.read_text())
-    previous_content = monitor.get("last_content", "")
-
     try:
-        from scraper import PryScraper
+        with session_scope() as s:
+            monitor = s.query(Monitor).filter(Monitor.monitor_id == monitor_id).first()
+            if not monitor:
+                return {"error": f"Monitor not found: {monitor_id}"}
 
-        scraper = PryScraper()
-        result = await scraper.scrape(monitor["target_url"])
-        current_content = result.get("content", "")
-    except (json.JSONDecodeError, ValueError) as e:
-        logger.exception("monitor_scrape_failed", extra={"monitor_id": monitor_id})
-        return {"error": f"Scrape failed: {e!s}"}
+            previous_content = monitor.last_content or ""
 
-    judger = ChangeJudger(use_llm=monitor.get("use_llm_judge", False))
-    judgment = await judger.judge(previous_content, current_content, monitor.get("goal", ""))
+            try:
+                from scraper import PryScraper
 
-    monitor["last_run_at"] = datetime.now(UTC).isoformat()
-    monitor["total_checks"] += 1
-    if previous_content and current_content != previous_content:
-        monitor["total_changes"] += 1
-        monitor["current_version"] += 1
-        snap = {
-            "version": monitor["current_version"],
-            "content": current_content,
-            "detected_at": monitor["last_run_at"],
-        }
-        _snapshot_path(monitor_id, monitor["current_version"]).write_text(json.dumps(snap))
-    monitor["last_content"] = current_content
-    path.write_text(json.dumps(monitor, indent=2))
+                scraper = PryScraper()
+                result = await scraper.scrape(monitor.url)
+                current_content = result.get("content", "")
+            except Exception as e:
+                logger.exception("monitor_scrape_failed", extra={"monitor_id": monitor_id})
+                run = MonitorRun(
+                    monitor_id=monitor_id,
+                    ts=datetime.now(UTC),
+                    status="error",
+                    error=str(e),
+                )
+                s.add(run)
+                return {"error": f"Scrape failed: {e!s}"}
 
-    result = {
-        "monitor_id": monitor_id,
-        "name": monitor["name"],
-        "changed": bool(previous_content) and current_content != previous_content,
-        "previous_content_length": len(previous_content),
-        "current_content_length": len(current_content),
-        "judgment": judgment,
-        "total_checks": monitor["total_checks"],
-        "total_changes": monitor["total_changes"],
-    }
+            judger = ChangeJudger(use_llm=monitor.use_llm_judge)
+            judgment = await judger.judge(previous_content, current_content, monitor.goal or "")
 
-    if judgment["meaningful"] and monitor.get("webhook_url"):
-        await _fire_webhook(monitor["webhook_url"], result)
+            changed = bool(previous_content) and current_content != previous_content
+            now = datetime.now(UTC)
+            monitor.last_run_at = now
+            monitor.total_checks = (monitor.total_checks or 0) + 1
 
-    return result
+            run_status = "success"
+            diff_data = {}
+            if changed:
+                monitor.total_changes = (monitor.total_changes or 0) + 1
+                monitor.current_version = (monitor.current_version or 0) + 1
+                run_status = "changed"
+                diff_data = {
+                    "previous_length": len(previous_content),
+                    "current_length": len(current_content),
+                    "diff": _compute_diff(previous_content, current_content),
+                }
+
+            monitor.last_content = current_content
+
+            run = MonitorRun(
+                monitor_id=monitor_id,
+                ts=now,
+                status=run_status,
+                diff=diff_data,
+            )
+            s.add(run)
+
+            result = {
+                "monitor_id": monitor_id,
+                "name": monitor.monitor_name,
+                "changed": changed,
+                "previous_content_length": len(previous_content),
+                "current_content_length": len(current_content),
+                "judgment": judgment,
+                "total_checks": monitor.total_checks,
+                "total_changes": monitor.total_changes,
+            }
+
+            webhook_url = monitor.webhook_url
+            meaningful = judgment["meaningful"]
+
+        if meaningful and webhook_url:
+            await _fire_webhook(webhook_url, result)
+
+        return result
+    except Exception:
+        logger.exception("monitor_run_failed", extra={"monitor_id": monitor_id})
+        return {"error": f"Monitor run failed: {monitor_id}"}
 
 
 async def _fire_webhook(webhook_url: str, payload: dict[str, Any]) -> None:
@@ -289,22 +320,29 @@ async def _fire_webhook(webhook_url: str, payload: dict[str, Any]) -> None:
 
 
 async def list_monitors() -> list[dict[str, Any]]:
-    monitors = []
-    for path in sorted(MONITORS_DIR.glob("*.json"), key=os.path.getmtime, reverse=True):
-        try:
-            data = json.loads(path.read_text())
-            monitors.append(data)
-        except (json.JSONDecodeError, OSError):
-            continue
-    return monitors
+    try:
+        with session_scope() as s:
+            monitors = (
+                s.query(Monitor)
+                .filter(Monitor.active.is_(True))
+                .order_by(Monitor.created_at.desc())
+                .all()
+            )
+            return [_monitor_to_dict(m) for m in monitors]
+    except Exception:
+        logger.exception("monitor_list_failed")
+        return []
 
 
 async def delete_monitor(monitor_id: str) -> bool:
-    path = _monitor_path(monitor_id)
-    snap_dir = MONITORS_DIR / monitor_id
-    if snap_dir.exists():
-        shutil.rmtree(snap_dir)
-    if path.exists():
-        path.unlink()
+    try:
+        with session_scope() as s:
+            monitor = s.query(Monitor).filter(Monitor.monitor_id == monitor_id).first()
+            if not monitor:
+                return False
+            s.delete(monitor)
+        logger.info("monitor_deleted", extra={"monitor_id": monitor_id})
         return True
-    return False
+    except Exception:
+        logger.exception("monitor_delete_failed", extra={"monitor_id": monitor_id})
+        return False

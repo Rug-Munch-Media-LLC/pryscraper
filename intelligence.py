@@ -6,27 +6,18 @@ Historical snapshots, anomaly detection, natural-language alerts, weekly reports
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-import json
 import logging
 import statistics
 import time
-from datetime import UTC, datetime
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from paths import PRY_DATA_DIR
+from sqlalchemy import desc
+from sqlalchemy.exc import SQLAlchemyError
+
+from db import IntelSnapshot, session_scope
 
 logger = logging.getLogger(__name__)
-
-INTEL_DIR = PRY_DATA_DIR / "intel"
-INTEL_DIR.mkdir(parents=True, exist_ok=True)
-
-
-# ── Historical Snapshots ──
-
-
-def _snapshot_path(competitor_id: str) -> Path:
-    return INTEL_DIR / f"{competitor_id}_snapshots.jsonl"
 
 
 def record_snapshot(
@@ -35,25 +26,32 @@ def record_snapshot(
     url: str,
     fields: dict[str, Any],
 ) -> dict[str, Any]:
-    """Record a data snapshot for a competitor.
-
-    Each snapshot is appended to a JSONL file for the competitor.
-    """
-    snapshot = {
-        "ts": datetime.now(UTC).isoformat(),
-        "unix_ts": time.time(),
-        "competitor_id": competitor_id,
-        "competitor_name": competitor_name,
-        "url": url,
-        "fields": fields,
-    }
-    path = _snapshot_path(competitor_id)
+    """Record a data snapshot for a competitor."""
     try:
-        with open(path, "a") as f:
-            f.write(json.dumps(snapshot) + "\n")
+        with session_scope() as session:
+            snap = IntelSnapshot(
+                competitor_id=competitor_id,
+                competitor_name=competitor_name,
+                url=url,
+                fields=fields,
+            )
+            session.add(snap)
+            session.flush()
+            ts = snap.ts
+            result = {
+                "ts": ts.isoformat(),
+                "unix_ts": ts.timestamp(),
+                "competitor_id": competitor_id,
+                "competitor_name": competitor_name,
+                "url": url,
+                "fields": fields,
+            }
         logger.info("snapshot_recorded", extra={"competitor": competitor_name})
-        return snapshot
-    except OSError as e:
+        return result
+    except SQLAlchemyError as e:
+        logger.error(
+            "snapshot_record_failed", extra={"competitor": competitor_name, "error": str(e)}
+        )
         return {"error": str(e)}
 
 
@@ -63,30 +61,30 @@ def get_snapshots(
     since_hours: int | None = None,
 ) -> list[dict[str, Any]]:
     """Get snapshots for a competitor, most recent first."""
-    path = _snapshot_path(competitor_id)
-    if not path.exists():
-        return []
-
-    snapshots = []
     try:
-        for line in path.read_text().splitlines():
-            if not line.strip():
-                continue
-            snapshots.append(json.loads(line))
-    except (json.JSONDecodeError, OSError):
+        with session_scope() as session:
+            query = session.query(IntelSnapshot).filter(
+                IntelSnapshot.competitor_id == competitor_id,
+            )
+            if since_hours is not None:
+                cutoff = datetime.now(UTC) - timedelta(hours=since_hours)
+                query = query.filter(IntelSnapshot.ts >= cutoff)
+            query = query.order_by(desc(IntelSnapshot.ts)).limit(limit)
+            rows = query.all()
+            return [
+                {
+                    "ts": row.ts.isoformat() if row.ts else "",
+                    "unix_ts": row.ts.timestamp() if row.ts else 0,
+                    "competitor_id": row.competitor_id,
+                    "competitor_name": row.competitor_name,
+                    "url": row.url,
+                    "fields": row.fields or {},
+                }
+                for row in rows
+            ]
+    except SQLAlchemyError as e:
+        logger.error("snapshot_query_failed", extra={"competitor": competitor_id, "error": str(e)})
         return []
-
-    # Filter by time
-    if since_hours:
-        cutoff = time.time() - (since_hours * 3600)
-        snapshots = [s for s in snapshots if s.get("unix_ts", 0) >= cutoff]
-
-    # Sort by time (newest first) and limit
-    snapshots.sort(key=lambda x: x.get("unix_ts", 0), reverse=True)
-    return snapshots[:limit]
-
-
-# ── Anomaly Detection ──
 
 
 def compute_field_statistics(
@@ -154,9 +152,6 @@ def detect_anomalies_numeric(
     }
 
 
-# ── Natural Language Alerts ──
-
-
 def generate_alert(
     competitor_name: str,
     field: str,
@@ -195,9 +190,6 @@ def generate_alert(
     return alert
 
 
-# ── Weekly Reports ──
-
-
 def generate_weekly_report(
     competitors: list[dict[str, Any]],
     days_back: int = 7,
@@ -215,7 +207,6 @@ def generate_weekly_report(
         if not weekly:
             continue
 
-        # Get fields that changed this week
         if len(weekly) >= 2:
             latest = weekly[0].get("fields", {})
             oldest = weekly[-1].get("fields", {})
@@ -245,7 +236,6 @@ def generate_weekly_report(
                     }
                 )
 
-    # Summary
     total_changes = sum(s["changes_count"] for s in report_sections)
     most_active = (
         max(report_sections, key=lambda x: x["changes_count"]) if report_sections else None

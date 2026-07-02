@@ -5,8 +5,26 @@
 # Licensed under MIT. See LICENSE.
 """Tests for referral/affiliate system."""
 
+from collections.abc import Iterator
+
+import pytest
+
 from referrals import PROVIDER_CATALOG, ReferralTracker
 from x402 import X402_PRICING, X402Handler
+
+
+@pytest.fixture(autouse=True)
+def _referral_db(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Use in-memory SQLite for all referral tests."""
+    monkeypatch.setenv("PRY_DATABASE_URL", "sqlite://")
+    import db as _db
+
+    _db._engine = None
+    _db._SessionLocal = None
+    _db.get_engine()
+    yield
+    _db._engine = None
+    _db._SessionLocal = None
 
 
 def test_catalog_completeness() -> None:
@@ -41,28 +59,102 @@ def test_provider_format() -> None:
 
 
 def test_referral_click() -> None:
+    """Record a click and verify it exists in the database."""
+    from db import ReferralClick, session_scope
+
     rt = ReferralTracker()
     click_id = rt.record_click(
         "openai", "https://platform.openai.com/signup?via=pry", source="test"
     )
     assert click_id is not None
-    assert any(c["id"] == click_id for c in rt.clicks)
+    with session_scope() as s:
+        click = s.query(ReferralClick).filter_by(click_id=click_id).first()
+        assert click is not None
+        assert click.provider == "openai"
+        assert click.source == "test"
+        assert click.converted is False
 
 
 def test_referral_conversion() -> None:
+    """Record a click, convert it, and verify both tables."""
+    from db import ReferralClick, ReferralConversion, session_scope
+
     rt = ReferralTracker()
     click_id = rt.record_click("anthropic", "https://console.anthropic.com/?ref=pry")
     success = rt.record_conversion(click_id, revenue_usd=50.0, notes="Annual plan")
     assert success is True
+    with session_scope() as s:
+        click = s.query(ReferralClick).filter_by(click_id=click_id).first()
+        assert click.converted is True
+        assert click.conversion_value_usd == 50.0
+        conv = s.query(ReferralConversion).filter_by(click_id=click_id).first()
+        assert conv is not None
+        assert conv.revenue_usd == 50.0
+        assert conv.notes == "Annual plan"
+
+
+def test_referral_missing_click_conversion() -> None:
+    """Converting a non-existent click returns False."""
+    rt = ReferralTracker()
+    success = rt.record_conversion("nonexistent_click_id")
+    assert success is False
 
 
 def test_referral_stats() -> None:
+    """Record a click + conversion and verify stats."""
     rt = ReferralTracker()
     click_id = rt.record_click("openai", "https://platform.openai.com/signup?via=pry")
     rt.record_conversion(click_id, revenue_usd=100.0)
     stats = rt.get_stats(days_back=1)
     assert stats["total_clicks"] >= 1
+    assert stats["total_conversions"] >= 1
     assert stats["total_revenue_usd"] >= 100.0
+    assert stats["clicks_by_provider"].get("openai", 0) >= 1
+    assert stats["conversions_by_provider"].get("openai", 0) >= 1
+    assert stats["revenue_by_provider_usd"].get("openai", 0.0) >= 100.0
+    assert 0 < stats["conversion_rate"] <= 1.0
+    assert stats["period_days"] == 1
+    assert stats["catalog_size"] >= 50
+
+
+def test_referral_stats_empty() -> None:
+    """Stats with no data returns zeroes."""
+    rt = ReferralTracker()
+    stats = rt.get_stats(days_back=1)
+    assert stats["total_clicks"] == 0
+    assert stats["total_conversions"] == 0
+    assert stats["total_revenue_usd"] == 0.0
+    assert stats["conversion_rate"] == 0.0
+
+
+def test_referral_in_app_usage() -> None:
+    """Track in-app usage revenue and verify in database."""
+    from db import ReferralInAppUsage, session_scope
+
+    rt = ReferralTracker()
+    rt.track_in_app_usage("openai", 15.0)
+    with session_scope() as s:
+        usage = s.query(ReferralInAppUsage).filter_by(provider="openai").first()
+        assert usage is not None
+        assert usage.revenue_usd == 15.0
+
+
+def test_referral_catalog() -> None:
+    """Verify get_catalog returns correct data."""
+    rt = ReferralTracker()
+    full = rt.get_catalog()
+    assert len(full) > 0
+    for entry in full:
+        assert "category" in entry
+        assert "providers" in entry
+    llm = rt.get_catalog("llm")
+    assert len(llm) > 0
+    assert llm[0]["name"] == "OpenAI"
+    empty = rt.get_catalog("nonexistent")
+    assert empty == []
+
+
+# ── x402 tests (unchanged) ────────────────────────────────────────
 
 
 def test_x402_payment_request() -> None:
@@ -71,7 +163,7 @@ def test_x402_payment_request() -> None:
     assert body["x402Version"] == 1
     assert "accepts" in body
     base_accept = next(a for a in body["accepts"] if a["network"] == "base")
-    assert base_accept["maxAmountRequired"] == "1000"  # $0.001 = 1000 USDC units
+    assert base_accept["maxAmountRequired"] == "1000"
     assert base_accept["asset"] == "USDC"
     assert "PAYMENT-REQUIRED" in headers
 
