@@ -25,7 +25,16 @@ except ImportError:
     _has_jwt = False
 
 # Configuration
-JWT_SECRET = os.getenv("PRY_JWT_SECRET", "change-me-in-production-" + secrets.token_hex(16))
+# JWT secret: prefer gopass (PRY_SECRET_BACKEND=gopass), fall back to env, then to a
+# random ephemeral default. The default is intentionally NOT a fixed string so that
+# an unset JWT_SECRET cannot accidentally sign tokens in a way that survives restart.
+try:
+    from secrets_backend import get_secret
+    JWT_SECRET = get_secret("jwt_secret") or os.getenv("PRY_JWT_SECRET") or (
+        "ephemeral-" + secrets.token_hex(32)
+    )
+except ImportError:
+    JWT_SECRET = os.getenv("PRY_JWT_SECRET") or ("ephemeral-" + secrets.token_hex(32))
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24
 API_KEY_LENGTH = 32

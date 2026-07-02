@@ -97,10 +97,19 @@ class X402Asset(StrEnum):
     DOGE = "DOGE"
 
 
-X402_WALLET = os.getenv("PRY_X402_WALLET", "pry-default-wallet")
+# Prefer gopass for the x402 wallet and facilitator URL. Env vars override only
+# if the backend returns an empty string. This lets you:
+#   gopass insert -m pry/x402_wallet               # persistent across restarts
+#   PRY_X402_WALLET=0x...                          # one-off override (CI, dev)
+try:
+    from secrets_backend import get_secret as _gs
+    X402_WALLET = _gs("x402_wallet") or os.getenv("PRY_X402_WALLET", "pry-default-wallet")
+    X402_FACILITATOR_URL = _gs("x402_facilitator") or os.getenv("PRY_X402_FACILITATOR", "https://x402.org/facilitator")
+except ImportError:
+    X402_WALLET = os.getenv("PRY_X402_WALLET", "pry-default-wallet")
+    X402_FACILITATOR_URL = os.getenv("PRY_X402_FACILITATOR", "https://x402.org/facilitator")
 X402_DEFAULT_NETWORK = os.getenv("PRY_X402_NETWORK", X402Network.BASE.value)
 X402_DEFAULT_ASSET = os.getenv("PRY_X402_ASSET", X402Asset.USDC.value)
-X402_FACILITATOR_URL = os.getenv("PRY_X402_FACILITATOR", "https://x402.org/facilitator")
 X402_OFFLINE_MODE = os.getenv("PRY_X402_OFFLINE", "false").lower() in ("1", "true", "yes")
 X402_TIMEOUT_SECONDS = float(os.getenv("PRY_X402_TIMEOUT", "15"))
 
