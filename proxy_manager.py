@@ -19,6 +19,11 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+try:
+    from proxy_referrals import PROVIDER_REFERRALS as _PROXY_REFERRALS
+except ImportError:  # proxy_referrals module not always present in slim installs
+    _PROXY_REFERRALS = {}
+
 PROXY_DIR = Path(os.path.expanduser("~/.pry/proxies"))
 PROXY_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -458,6 +463,45 @@ class ProxyManager:
         except Exception as e:
             logger.debug("recent_clicks_failed", extra={"error": str(e)[:80]})
             return []
+
+
+    # ── Proxy referral catalog (from proxy_referrals.py) ────────────────
+    def get_proxy_referral(self, provider_tag: str) -> dict[str, Any]:
+        """Get the curated referral info for a proxy provider.
+
+        Returns the proxy_referrals.PROVIDER_REFERRALS entry for the given tag
+        (e.g., 'brightdata', 'iproyal'). Empty dict if not found.
+
+        This is the affiliate-friendly subset: it gives the marketing-y details
+        (commission, promo code, tier) that are useful when prompting a user to
+        sign up for a premium proxy. The full proxy connection config
+        (host, port, auth) lives in PREMIUM_PROXY_PROVIDERS.
+        """
+        return _PROXY_REFERRALS.get(provider_tag, {})
+
+    def get_proxy_referral_url(self, provider_tag: str) -> str:
+        """Get just the referral URL for a proxy provider."""
+        entry = _PROXY_REFERRALS.get(provider_tag, {})
+        return entry.get("referral_url", "")
+
+    def list_proxy_referrals(self) -> list[dict[str, Any]]:
+        """List all proxy provider referrals (curated, marketing-friendly view)."""
+        return [
+            {"tag": tag, **info} for tag, info in _PROXY_REFERRALS.items()
+        ]
+
+    def get_proxy_referral_summary(self) -> dict[str, Any]:
+        """Return a per-tier summary of proxy referrals (count, providers, total commission ceiling)."""
+        tiers: dict[str, list[str]] = {"premium": [], "standard": [], "budget": []}
+        for tag, info in _PROXY_REFERRALS.items():
+            tier = info.get("tier", "standard")
+            tiers.setdefault(tier, []).append(tag)
+        return {
+            "tiers": tiers,
+            "total_providers": len(_PROXY_REFERRALS),
+            "by_tag": _PROXY_REFERRALS,
+        }
+
 
 
 def _parse_ts(ts: str) -> float:

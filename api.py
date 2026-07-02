@@ -4132,6 +4132,40 @@ async def proxy_signup(provider: str = Body(...)) -> dict[str, Any]:
     url = pm.get_signup_link(provider)
     return {"success": True, "data": {"signup_url": url, "provider": provider}}
 
+@app.get("/v1/proxy/referrals", tags=["Proxy"], summary="List proxy provider affiliate referrals")
+async def list_proxy_referrals() -> dict[str, Any]:
+    """Return the curated proxy provider affiliate catalog (proxy_referrals.py).
+
+    This is the marketing-friendly subset: commission, promo codes, tier
+    (premium/standard/budget), and referral URLs. Useful for a "Sign up via Pry
+    and we get a cut" UI, or for showing users premium options when their free
+    proxy fails.
+
+    The full connection metadata (host, port, auth) lives in /v1/proxy/providers.
+    """
+    from proxy_manager import ProxyManager
+
+    pm = ProxyManager()
+    return {
+        "success": True,
+        "data": {
+            "providers": pm.list_proxy_referrals(),
+            "summary": pm.get_proxy_referral_summary(),
+        },
+    }
+
+
+@app.get("/v1/proxy/referrals/{tag}", tags=["Proxy"], summary="Get a single proxy provider referral")
+async def get_proxy_referral(tag: str) -> dict[str, Any]:
+    """Return the affiliate info for a single proxy provider by tag."""
+    from proxy_manager import ProxyManager
+
+    pm = ProxyManager()
+    info = pm.get_proxy_referral(tag)
+    if not info:
+        return {"success": False, "error": f"No proxy referral found for tag: {tag}"}
+    return {"success": True, "data": {"tag": tag, **info}}
+
 
 @app.post("/v1/proxy/configure", tags=["Proxy"], summary="Configure proxy credentials")
 async def proxy_configure(
