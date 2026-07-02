@@ -7,6 +7,7 @@ Long-running jobs like crawls, monitors, and bulk imports should not block reque
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 import asyncio
+import importlib.util
 import json
 import logging
 import uuid
@@ -20,12 +21,7 @@ from paths import PRY_DATA_DIR
 logger = logging.getLogger(__name__)
 
 # Try Celery
-try:
-    from celery import Celery
-
-    _has_celery = True
-except ImportError:
-    _has_celery = False
+_has_celery = importlib.util.find_spec("celery") is not None
 
 JOBS_DIR = PRY_DATA_DIR / "jobs"
 JOBS_DIR.mkdir(parents=True, exist_ok=True)

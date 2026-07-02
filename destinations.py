@@ -144,7 +144,7 @@ async def _write_to_sheets_api(
 
     except json.JSONDecodeError:
         return {"success": False, "error": "Invalid credentials JSON"}
-    except (json.JSONDecodeError, ValueError) as e:
+    except ValueError as e:
         return {"success": False, "error": str(e)[:200]}
 
 

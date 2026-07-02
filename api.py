@@ -26,6 +26,8 @@ from typing import Any, cast
 from urllib.parse import urljoin, urlparse
 
 import httpx
+import pydantic
+import redis
 import uvicorn
 from fastapi import Body, FastAPI, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -53,6 +55,7 @@ from parser import DocumentParser
 from pipeline import HOOK_POINTS, get_pipeline, run_pipeline
 from pryextras import BatchProcessor, TransformEngine, recorder, streams
 from ratelimit import RateLimiter
+from routers.auth import router as auth_router
 from scraper import BlockDetector, PryScraper
 from settings import settings
 from x402_middleware import X402Middleware
@@ -3135,7 +3138,6 @@ async def list_schemas() -> dict[str, Any]:
 
 # ── Auth ──
 # (split into routers/auth.py on the api-router-split refactor)
-from routers.auth import router as auth_router
 
 app.include_router(auth_router)
 

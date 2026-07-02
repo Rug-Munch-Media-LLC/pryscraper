@@ -27,8 +27,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
 ]
-[project.license-files]
-paths = ["LICENSE", "LICENSE-BSL-STEALTH"]
+license-files = ["LICENSE", "LICENSE-BSL-STEALTH"]
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",

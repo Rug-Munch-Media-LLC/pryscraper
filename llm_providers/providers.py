@@ -5,10 +5,13 @@
 # Licensed under MIT. See LICENSE.
 """Concrete LLM provider implementations."""
 
+from __future__ import annotations
+
 import logging
 import os
 
 from llm_providers.base import LLMProvider, LLMResponse
+from llm_providers.registry import LLMRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -348,7 +351,7 @@ class OpenRouterProvider(LLMProvider):
         raise NotImplementedError("OpenRouter focuses on chat; use dedicated embedding providers")
 
 
-def register_default_providers(registry: "LLMRegistry") -> None:
+def register_default_providers(registry: LLMRegistry) -> None:
     """Register all providers whose API keys are set in environment."""
     api_key_map = {
         "openai": os.getenv("OPENAI_API_KEY"),

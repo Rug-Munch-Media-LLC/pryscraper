@@ -147,10 +147,6 @@ def _add_service_name(_, __, event_dict: dict[str, Any]) -> dict[str, Any]:
 
 def _add_request_id_if_present(_, __, event_dict: dict[str, Any]) -> dict[str, Any]:
     """Pull request_id from contextvars (set by middleware) if present."""
-    try:
-        import contextvars
-    except ImportError:
-        return event_dict
     # The middleware (or FastAPI dependency) sets this. We don't import
     # the middleware here to avoid circular imports.
     return event_dict

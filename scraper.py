@@ -12,7 +12,7 @@ Beats every anti-bot system: Cloudflare, DataDome, Akamai, PerimeterX."""
 import asyncio
 import random
 import re
-from typing import Any
+from typing import Any, ClassVar
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -55,7 +55,7 @@ CLOUDFLARE_INDICATORS = [
 class BlockDetector:
     """Detect anti-bot blocks by analyzing HTML, status codes, and headers."""
 
-    VENDOR_PATTERNS = {
+    VENDOR_PATTERNS: ClassVar[dict[str, list[str]]] = {
         "cloudflare": [
             "cloudflare",
             "cf-",
@@ -70,7 +70,7 @@ class BlockDetector:
         "imperva": ["imperva", "incapsula"],
     }
 
-    GENERIC_PATTERNS = [
+    GENERIC_PATTERNS: ClassVar[list[str]] = [
         "captcha",
         "access denied",
         "blocked",
@@ -533,7 +533,7 @@ class PryScraper:
                     links = await self._extract_links(
                         current_url, {"limit": max_pages - len(visited)}
                     )
-                    to_visit.extend((l, depth + 1) for l in links if l not in visited)
+                    to_visit.extend((link, depth + 1) for link in links if link not in visited)
             except Exception:  # noqa: BLE001
                 continue
         return results

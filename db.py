@@ -84,6 +84,7 @@ try:
         event,
     )
     from sqlalchemy.engine import Engine
+    from sqlalchemy.exc import OperationalError, ProgrammingError, SQLAlchemyError
     from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
     _HAS_SA = True
@@ -691,7 +692,7 @@ def db_health() -> dict[str, Any]:
             try:
                 result = conn.exec_driver_sql("SELECT sqlite_version()").fetchone()
                 sqlite_version = result[0] if result else None
-            except Exception:
+            except (OperationalError, ProgrammingError):
                 sqlite_version = None
         return {
             "available": True,
@@ -700,5 +701,5 @@ def db_health() -> dict[str, Any]:
             else _resolve_database_url(),
             "sqlite_version": sqlite_version,
         }
-    except Exception as e:
+    except SQLAlchemyError as e:
         return {"available": False, "error": str(e)[:200]}

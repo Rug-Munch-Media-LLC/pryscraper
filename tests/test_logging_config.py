@@ -42,7 +42,7 @@ def test_json_output_has_required_fields(capsys):
     log.info("test_event", key="value", count=42)
     captured = capsys.readouterr()
     # Find the JSON line
-    lines = [l for l in captured.out.splitlines() if l.strip().startswith("{")]
+    lines = [line for line in captured.out.splitlines() if line.strip().startswith("{")]
     assert lines, f"no JSON output: {captured.out!r}"
     record = json.loads(lines[0])
     # Per CONVENTIONS.md Part 5, required fields: timestamp, level, service, event

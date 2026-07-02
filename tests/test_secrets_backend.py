@@ -31,9 +31,7 @@ def test_normalize_name_adds_pry_prefix():
 def test_get_secret_default_when_missing():
     # Use a name that definitely doesn't exist anywhere
     with patch.dict(os.environ, {"PRY_SECRET_BACKEND": "env"}, clear=False):
-        # Clear any env vars that might match
-        with patch.dict(os.environ, {}, clear=False):
-            value = get_secret("definitely_not_a_real_secret_name_xyz_12345", default="missing")
+        value = get_secret("definitely_not_a_real_secret_name_xyz_12345", default="missing")
     assert value == "missing"
 
 

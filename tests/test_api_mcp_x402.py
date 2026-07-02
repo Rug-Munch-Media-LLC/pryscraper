@@ -12,11 +12,14 @@ import json
 import socket
 import subprocess
 import time
+from pathlib import Path
 
 import httpx
 from fastapi.testclient import TestClient
 
 from api import app
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _find_free_port() -> int:
@@ -31,9 +34,9 @@ def _wait_for_server(url: str, timeout: float = 30.0) -> None:
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            httpx.get(url, timeout=1.0)
+            httpx.get(url, timeout=5.0)
             return
-        except Exception:
+        except httpx.RequestError:
             time.sleep(0.5)
     raise TimeoutError(f"Server at {url} did not start within {timeout}s")
 
@@ -194,7 +197,7 @@ class TestMCPSSE:
                 "--log-level",
                 "warning",
             ],
-            cwd="/home/dev/pry",
+            cwd=str(REPO_ROOT),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

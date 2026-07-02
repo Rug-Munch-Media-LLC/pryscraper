@@ -39,7 +39,7 @@ class JobQueue:
             try:
                 self._redis = await aioredis.from_url(self.redis_url, socket_timeout=3)
                 await self._redis.ping()
-            except:
+            except (aioredis.RedisError, OSError, TimeoutError):
                 self._redis = None  # Fallback to local storage
         return self._redis
 
@@ -121,5 +121,5 @@ class JobQueue:
                         "Content-Type": "application/json",
                     },
                 )
-        except:
+        except (httpx.RequestError, OSError):
             pass  # Webhook fire is best-effort

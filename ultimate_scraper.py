@@ -9,6 +9,7 @@ Beats Cloudflare, DataDome, Akamai, Imperva, PerimeterX, and generic blocks."""
 # Licensed under Business Source License 1.1 — see LICENSE-BSL-STEALTH.
 # Change Date: 2029-01-01 (converts to MIT).
 
+import importlib.util
 import logging
 import os
 import random
@@ -19,37 +20,13 @@ from urllib.parse import urlparse
 logger = logging.getLogger(__name__)
 
 # Try importing optional bypass libraries
-_has_cloudscraper = False
-_has_undetected = False
-_has_playwright = False
+_has_cloudscraper = importlib.util.find_spec("cloudscraper") is not None
+_has_undetected = importlib.util.find_spec("undetected_chromedriver") is not None
+_has_playwright = importlib.util.find_spec("playwright") is not None
+_has_tor = importlib.util.find_spec("aiohttp_socks") is not None
 
-try:
-    import cloudscraper
-
-    _has_cloudscraper = True
-except ImportError:
-    pass
-
-try:
-    import undetected_chromedriver as uc
-
-    _has_undetected = True
-except ImportError:
-    pass
-
-try:
+if _has_playwright:
     from playwright.async_api import async_playwright
-
-    _has_playwright = True
-except ImportError:
-    pass
-
-try:
-    from aiohttp_socks import ProxyConnector
-
-    _has_tor = True
-except ImportError:
-    _has_tor = False
 
 
 class UltimateScraper:
@@ -293,6 +270,8 @@ class UltimateScraper:
         if not _has_cloudscraper:
             return None
         try:
+            import cloudscraper
+
             scraper = cloudscraper.create_scraper(
                 browser={"browser": "chrome", "platform": "windows", "mobile": False}
             )
@@ -446,14 +425,16 @@ class UltimateScraper:
             from aiohttp_socks import ProxyConnector
 
             connector = ProxyConnector.from_url("socks5://127.0.0.1:9050")
-            async with aiohttp.ClientSession(connector=connector) as session:
-                async with session.get(
+            async with (
+                aiohttp.ClientSession(connector=connector) as session,
+                session.get(
                     url,
                     headers=self._build_headers(url),
                     timeout=aiohttp.ClientTimeout(total=60),
-                ) as resp:
-                    if resp.status == 200:
-                        return await resp.text()
+                ) as resp,
+            ):
+                if resp.status == 200:
+                    return await resp.text()
         except aiohttp.ClientError as e:
             logger.debug("tor_failed", extra={"error": str(e)[:50]})
         return None

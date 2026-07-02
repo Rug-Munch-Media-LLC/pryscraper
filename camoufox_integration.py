@@ -10,17 +10,17 @@ for Playwright that focuses on stealth."""
 # Licensed under Business Source License 1.1 — see LICENSE-BSL-STEALTH.
 # Change Date: 2029-01-01 (converts to MIT).
 
+import contextlib
 import logging
 import random
 import time
-from typing import Any
+from typing import Any, ClassVar
 
 logger = logging.getLogger(__name__)
 
 # Check for camoufox
 try:
     from camoufox import AsyncCamoufox
-    from camoufox.utils import DefaultAddons
 
     _has_camoufox = True
 except ImportError:
@@ -30,7 +30,7 @@ except ImportError:
 class CamoufoxBrowser:
     """Anti-detection Firefox browser using Camoufox."""
 
-    DEFAULT_CONFIGS = {
+    DEFAULT_CONFIGS: ClassVar[dict[str, dict[str, Any]]] = {
         "chrome_windows": {
             "headless": True,
             "os": "windows",
@@ -108,10 +108,8 @@ class CamoufoxBrowser:
                         await page.context.add_cookies([cookie])
                 await page.goto(url, wait_until="domcontentloaded")
                 if wait_selector:
-                    try:
+                    with contextlib.suppress(Exception):
                         await page.wait_for_selector(wait_selector, timeout=wait_time)
-                    except Exception:  # noqa: BLE001
-                        pass
                 else:
                     await page.wait_for_timeout(wait_time)
                 content = await page.content()

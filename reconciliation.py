@@ -388,7 +388,7 @@ async def llm_enhance_reconciliation(
             groups.setdefault(gid, []).append(e)
         verified = 0
         refuted = 0
-        for gid, group in groups.items():
+        for _gid, group in groups.items():
             result = await llm_entity_reconcile(group, vertical="product")
             if result.get("is_same_entity"):
                 verified += 1

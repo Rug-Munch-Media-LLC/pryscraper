@@ -73,10 +73,8 @@ class PryAutomator:
         """Periodically clean up stale sessions to prevent memory leaks."""
         while True:
             await asyncio.sleep(SESSION_CLEANUP_INTERVAL)
-            try:
+            with contextlib.suppress(Exception):
                 await self._cleanup_stale_sessions()
-            except Exception:  # noqa: BLE001
-                pass
 
     async def _get_or_create_session(
         self, session_id: str | None = None, headless: bool = True, viewport: dict | None = None
@@ -281,10 +279,8 @@ class PryAutomator:
     ) -> str:
         session = await self._get_or_create_session()
         if cookies:
-            try:
+            with contextlib.suppress(Exception):
                 await session.context.add_cookies(cookies)
-            except Exception:  # noqa: BLE001
-                pass
         await session.page.goto(url, wait_until="networkidle")
         return session.id
 
