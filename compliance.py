@@ -347,6 +347,32 @@ async def run_compliance_check(url: str) -> dict[str, Any]:
         }
     )
 
+    # LLM fallback for ToS classification when the regex pass is low-confidence
+    # or no ToS page was found. The LLM gets the ToS text (or page HTML if no
+    # ToS) and returns a richer risk classification. Best-effort: if the
+    # LLM call fails or no provider is configured, we keep the regex result.
+    if tos_result.get("confidence") == "low" or not tos_text:
+        try:
+            from llm_features import llm_compliance_analyze
+            llm_input = tos_text if tos_text else html[:8000]
+            llm_result = await llm_compliance_analyze(llm_input, url=url)
+            if llm_result and llm_result.get("risk_level"):
+                tos_result = {
+                    **tos_result,
+                    "classification": llm_result.get("risk_level", tos_result["classification"]),
+                    "confidence": llm_result.get("confidence", "medium"),
+                    "matches": tos_result.get("matches", {}),
+                    "note": (tos_result.get("note", "") + " | LLM-enhanced").strip(" |"),
+                    "llm_enhanced": True,
+                    "llm_risk_summary": llm_result.get("risk_summary", ""),
+                    "llm_recommendation": llm_result.get("recommendation", ""),
+                    "llm_key_restrictions": llm_result.get("key_restrictions", []),
+                    "llm_provider": llm_result.get("llm_provider", ""),
+                    "llm_cost_usd": llm_result.get("llm_cost_usd", 0.0),
+                }
+        except Exception as e:
+            logger.debug("llm_compliance_fallback_failed", extra={"url": url, "error": str(e)[:80]})
+
     # Compute overall risk score
     risk_factors = 0
     risk_notes = []
@@ -402,6 +428,12 @@ async def run_compliance_check(url: str) -> dict[str, Any]:
             "classification": tos_result["classification"],
             "confidence": tos_result["confidence"],
             "note": tos_result["note"],
+            "llm_enhanced": tos_result.get("llm_enhanced", False),
+            "llm_provider": tos_result.get("llm_provider", ""),
+            "llm_cost_usd": tos_result.get("llm_cost_usd", 0.0),
+            "llm_risk_summary": tos_result.get("llm_risk_summary", ""),
+            "llm_recommendation": tos_result.get("llm_recommendation", ""),
+            "llm_key_restrictions": tos_result.get("llm_key_restrictions", []),
         },
         "jurisdiction": {
             "tld": jurisdiction["tld"],

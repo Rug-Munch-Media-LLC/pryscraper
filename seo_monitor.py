@@ -68,6 +68,29 @@ async def analyze_seo(url: str) -> dict[str, Any]:
             "content_type": resp.headers.get("content-type", ""),
             "last_modified": resp.headers.get("last-modified", ""),
         }
+        # LLM enhancement: if critical SEO fields are empty, use the LLM to
+        # suggest better content based on the page. Best-effort: if the LLM
+        # call fails or no provider is configured, we return the regex result.
+        missing_critical = [f for f in ("title", "meta_description", "h1") if not result.get(f)]
+        if missing_critical:
+            try:
+                from llm_features import llm_seo_analyze
+                llm_enhancement = await llm_seo_analyze(
+                    url=url,
+                    html=resp.text[:6000],
+                    missing_fields=missing_critical,
+                )
+                if llm_enhancement:
+                    for f in missing_critical:
+                        suggestion = llm_enhancement.get(f)
+                        if suggestion and not result.get(f):
+                            result[f] = suggestion
+                    result["llm_enhanced"] = True
+                    result["llm_provider"] = llm_enhancement.get("llm_provider", "")
+                    result["llm_cost_usd"] = llm_enhancement.get("llm_cost_usd", 0.0)
+            except Exception as e:
+                logger.debug("llm_seo_enhance_failed", extra={"url": url, "error": str(e)[:80]})
+
         return result
     except Exception as e:
         return {"url": url, "error": str(e)[:200]}
