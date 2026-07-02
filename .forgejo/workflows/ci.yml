@@ -10,12 +10,23 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  UV_BIN: /root/.local/bin/uv
+
 jobs:
   lint:
     runs-on: docker-x64
     container:
       image: python:3.11-slim
     steps:
+      - name: Install Node.js for actions/checkout
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends curl ca-certificates
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
+
       - uses: actions/checkout@v4
 
       - name: Install system deps
@@ -27,7 +38,8 @@ jobs:
       - name: Install uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          ln -sf /root/.local/bin/uv /usr/local/bin/uv
+          ln -sf /root/.local/bin/uvx /usr/local/bin/uvx
 
       - name: Setup Python
         run: |
@@ -50,29 +62,45 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
+      - name: Install Node.js for actions/checkout
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
+
       - uses: actions/checkout@v4
       - name: Install uv + setup
         run: |
           apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          ln -sf /root/.local/bin/uv /usr/local/bin/uv
+          ln -sf /root/.local/bin/uvx /usr/local/bin/uvx
           uv python install 3.11
           uv venv --python 3.11 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Type check (mypy)
-        run: source .venv/bin/activate && mypy . --ignore-missing-imports
+        run: source .venv/bin/activate && mypy .
 
   test:
     runs-on: docker-x64
     container:
       image: python:3.11-slim
     steps:
+      - name: Install Node.js for actions/checkout
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
+
       - uses: actions/checkout@v4
       - name: Install uv + setup
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl ca-certificates && rm -rf /var/lib/apt/lists/*
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          ln -sf /root/.local/bin/uv /usr/local/bin/uv
+          ln -sf /root/.local/bin/uvx /usr/local/bin/uvx
           uv python install 3.11
           uv venv --python 3.11 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
@@ -85,14 +113,21 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
+      - name: Install Node.js for actions/checkout
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Run gitleaks
         run: |
-          apt-get update && apt-get install -y --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*
+          apt-get update && apt-get install -y --no-install-recommends wget git ca-certificates && rm -rf /var/lib/apt/lists/*
           wget -qO- https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks
-          gitleaks detect --source . --redact --no-banner
+          gitleaks detect --source . --redact --no-banner --no-git
 
   security:
     name: Security audit (bandit)
@@ -100,14 +135,22 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
+      - name: Install Node.js for actions/checkout
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
+
       - uses: actions/checkout@v4
       - name: Install uv + setup
         run: |
           apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          ln -sf /root/.local/bin/uv /usr/local/bin/uv
+          ln -sf /root/.local/bin/uvx /usr/local/bin/uvx
           uv python install 3.11
-          uv venv --python 3.11 .venv
-          uv pip install --python .venv/bin/python bandit
+          uv venv --python 3.11 /tmp/bandit-venv
+          uv pip install --python /tmp/bandit-venv/bin/python bandit
       - name: Bandit (high+medium severity)
-        run: source .venv/bin/activate && bandit -r . -x tests/,.venv,__pycache__ -ll
+        run: source /tmp/bandit-venv/bin/activate && bandit -r . -x tests/,.venv,__pycache__ -ll

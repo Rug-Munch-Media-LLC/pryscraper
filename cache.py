@@ -31,7 +31,7 @@ class ResponseCache:
         """Generate cache key from URL + options."""
         opt_str = json.dumps(options or {}, sort_keys=True)
         raw = f"{url}:{opt_str}"
-        return hashlib.md5(raw.encode()).hexdigest()
+        return hashlib.md5(raw.encode(), usedforsecurity=False).hexdigest()
 
     def get(self, url: str, options: dict | None = None) -> dict | None:
         """Get cached response if fresh."""

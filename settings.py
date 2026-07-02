@@ -21,7 +21,7 @@ class PrySettings(BaseSettings):
 
     # Core
     url: str = "http://localhost:8002"
-    host: str = "0.0.0.0"
+    host: str = "0.0.0.0"  # nosec B104
     port: int = 8002
 
     # Ollama LLM endpoint

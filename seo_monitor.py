@@ -1,6 +1,6 @@
-
 """Pry — SEO Content Change Monitor.
 Track competitor meta tags, titles, descriptions, headings, content changes."""
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #

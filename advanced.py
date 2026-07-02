@@ -56,7 +56,7 @@ class PryAdvanced:
     async def track_diff(self, url: str, new_content: str) -> dict:
         """Compare current content against previous scrape. Returns unified diff.
         First scrape returns 'initial', subsequent returns changes."""
-        content_hash = hashlib.md5(new_content.encode()).hexdigest()
+        content_hash = hashlib.md5(new_content.encode(), usedforsecurity=False).hexdigest()
 
         if url not in self._diffs:
             self._diffs[url] = [

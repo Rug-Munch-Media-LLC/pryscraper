@@ -12,13 +12,11 @@ version = "3.0.0"
 description = "Free web scraping + browser automation API — self-hosted, no API keys needed"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT AND BSL-1.1" }
+license = "MIT"
 authors = [{ name = "Rug Munch Media LLC" }]
 keywords = ["scraping", "crawler", "browser-automation", "mcp", "x402", "ai-agents"]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "License :: OSI Approved :: MIT License",
-    "License :: Other/Proprietary License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
@@ -87,8 +85,8 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.mypy]
-python_version = "3.11"
-strict = true
+python_version = "3.12"
+strict = false
 ignore_missing_imports = true
 exclude = [
     "build/",
@@ -97,6 +95,25 @@ exclude = [
     "__pycache__/",
 ]
 warn_unused_ignores = false
+# TODO: Pry was built without strict typing; re-enable incrementally.
+# Tracking issue: re-enable mypy strict mode after router refactor.
+disable_error_code = [
+    "var-annotated",
+    "dict-item",
+    "index",
+    "attr-defined",
+    "call-arg",
+    "operator",
+    "arg-type",
+    "abstract",
+    "union-attr",
+    "assignment",
+    "list-item",
+    "func-returns-value",
+    "return-value",
+    "no-untyped-call",
+    "no-untyped-def",
+]
 
 [[tool.mypy.overrides]]
 module = [

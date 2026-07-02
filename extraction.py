@@ -1,4 +1,3 @@
-
 """Pry — structured extraction strategies.
 CSS/XPath-based extraction (no LLM needed) + chunking strategies for LLM extraction."""
 

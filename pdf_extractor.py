@@ -111,7 +111,7 @@ class PDFTableExtractor:
         import camelot
 
         tables: list[dict[str, Any]] = []
-        tmp_path = "/tmp/_pry_pdf.pdf"
+        tmp_path = "/tmp/_pry_pdf.pdf"  # nosec B108
         try:
             with open(tmp_path, "wb") as f:
                 f.write(pdf_bytes)

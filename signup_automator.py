@@ -1,4 +1,3 @@
-
 # SPDX-License-Identifier: BSL-1.1
 # Copyright (c) 2026 Rug Munch Media LLC
 #

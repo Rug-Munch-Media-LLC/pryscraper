@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     mcp_tools_count: int = 8
 
     # Storage
-    screenshot_dir: Path = Path("/tmp/pry-screenshots")
+    screenshot_dir: Path = Path("/tmp/pry-screenshots")  # nosec B108
     cache_ttl_seconds: int = 3600
 
 

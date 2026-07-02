@@ -1,6 +1,6 @@
-
 """Pry — scheduled monitors with AI change detection.
 Cron-based monitors that diff content and judge meaningful changes."""
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #

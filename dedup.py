@@ -27,7 +27,7 @@ class SimHash:
             return 0
         vector = [0] * n_features
         for token in tokens:
-            token_hash = int(hashlib.md5(token.encode()).hexdigest(), 16)
+            token_hash = int(hashlib.md5(token.encode(), usedforsecurity=False).hexdigest(), 16)
             for i in range(n_features):
                 if token_hash & (1 << i):
                     vector[i] += 1

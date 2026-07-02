@@ -214,7 +214,7 @@ def cmd_run(pryfile_path="pry.yml"):
             print(f"  {RED}✖{NC} {name} — {j.get('error', 'failed')}{NC}")
 
 
-def cmd_serve(host="0.0.0.0", port=8005):
+def cmd_serve(host="0.0.0.0", port=8005):  # nosec B104
     """Start the Pry API server."""
     print(f"{CYAN}🔧 Starting Pry v{VERSION} on {host}:{port}{NC}")
     print(f"  Dashboard: http://localhost:{port}/dashboard")

@@ -143,7 +143,7 @@ class TransformEngine:
                 values.append(str(v))
         cols = ", ".join(columns)
         vals = ", ".join(values)
-        return f"INSERT INTO {table} ({cols}) VALUES ({vals});"
+        return f"INSERT INTO {table} ({cols}) VALUES ({vals});"  # nosec B608
 
     @staticmethod
     def to_csv(data: list[dict]) -> str:

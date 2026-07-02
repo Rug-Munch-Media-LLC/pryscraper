@@ -1,6 +1,6 @@
-
 """Pry — Commerce Platform Sync Engine.
 Unified interface for WooCommerce, Shopify, and generic API sync."""
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #

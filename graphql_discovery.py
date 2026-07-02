@@ -1,4 +1,3 @@
-
 """Pry — GraphQL Auto-Discovery.
 Detects GraphQL endpoints, runs introspection queries, generates optimized queries.
 Many modern sites (Shopify, GitHub, Twitter/X, etc.) have GraphQL APIs that are
