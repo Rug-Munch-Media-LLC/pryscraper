@@ -103,7 +103,7 @@ async def _send_discord(
         if resp.is_success:
             return {"success": True, "channel": "discord"}
         return {"success": False, "error": f"Discord returned {resp.status_code}"}
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         return {"success": False, "error": str(e)[:200]}
 
 
@@ -131,7 +131,7 @@ async def _send_teams(
         if resp.is_success:
             return {"success": True, "channel": "teams"}
         return {"success": False, "error": f"Teams returned {resp.status_code}"}
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         return {"success": False, "error": str(e)[:200]}
 
 
@@ -156,7 +156,7 @@ async def _send_telegram(
         if resp.is_success:
             return {"success": True, "channel": "telegram"}
         return {"success": False, "error": f"Telegram returned {resp.status_code}"}
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         return {"success": False, "error": str(e)[:200]}
 
 
@@ -189,7 +189,7 @@ async def _send_sms(
             if resp.is_success:
                 return {"success": True, "channel": "sms", "provider": "twilio"}
             return {"success": False, "error": f"Twilio error: {resp.text[:200]}"}
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return {"success": False, "error": str(e)[:200]}
 
     return {"success": False, "error": f"SMS provider '{provider}' not supported"}

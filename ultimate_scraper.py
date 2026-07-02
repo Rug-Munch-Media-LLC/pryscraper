@@ -188,7 +188,7 @@ class UltimateScraper:
 
             pm = ProxyManager()
             return pm.get_proxy_url()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("proxy_resolve_failed", extra={"error": str(e)[:80]})
         env_url = os.getenv("PRY_PROXY_URL") or os.getenv("PROXY_URL")
         return env_url or None
@@ -199,7 +199,7 @@ class UltimateScraper:
             from proxy_manager import ProxyManager
 
             return ProxyManager().get_recommendation(last_error)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("proxy_recommend_failed", extra={"error": str(e)[:80]})
             return None
 
@@ -242,7 +242,7 @@ class UltimateScraper:
             )
             if content and len(content) > 100:
                 return content
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
         try:
             from readability import Document
@@ -253,7 +253,7 @@ class UltimateScraper:
                 from markdownify import markdownify
 
                 return markdownify(content, heading_arrows=False, strip=["script", "style"])
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
         # Last resort: strip HTML tags
         text = re.sub(r"<[^>]+>", " ", html)
@@ -272,7 +272,7 @@ class UltimateScraper:
                 r = await c.get(url, headers=self._build_headers(url))
                 if r.is_success:
                     return r.text
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             logger.debug("direct_failed", extra={"error": str(e)[:50]})
         return None
 
@@ -289,7 +289,7 @@ class UltimateScraper:
                 r = await c.get(url, headers=self._build_headers(url))
                 if r.is_success:
                     return r.text
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             logger.debug("premium_proxy_failed", extra={"error": str(e)[:50]})
         return None
 
@@ -303,7 +303,7 @@ class UltimateScraper:
             resp = scraper.get(url, timeout=30, headers={"User-Agent": self._rotate_ua()})
             if resp.status_code == 200:
                 return resp.text
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("cloudscraper_failed", extra={"error": str(e)[:50]})
         return None
 
@@ -323,7 +323,7 @@ class UltimateScraper:
                     solution = data.get("solution", {})
                     if solution.get("status") == 200:
                         return solution["response"]
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             logger.debug("flaresolverr_failed", extra={"error": str(e)[:50]})
         return None
 
@@ -345,7 +345,7 @@ class UltimateScraper:
                 return html
 
             return await asyncio.to_thread(_do_fetch)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("undetected_failed", extra={"error": str(e)[:50]})
         return None
 
@@ -386,7 +386,7 @@ class UltimateScraper:
                 html = await page.content()
                 await browser.close()
                 return html
-        except Exception as e:
+        except OSError as e:
             logger.debug("playwright_failed", extra={"error": str(e)[:50]})
         return None
 
@@ -406,7 +406,7 @@ class UltimateScraper:
                 r = await c.get(url, headers=headers)
                 if r.is_success:
                     return r.text
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             logger.debug("googlebot_failed", extra={"error": str(e)[:50]})
         return None
 
@@ -426,7 +426,7 @@ class UltimateScraper:
                         ar = await c.get(archive_url, timeout=30, follow_redirects=True)
                         if ar.is_success:
                             return ar.text
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             logger.debug("archive_failed", extra={"error": str(e)[:50]})
         return None
 
@@ -439,7 +439,7 @@ class UltimateScraper:
                 r = await c.get(cache_url, headers={"User-Agent": "Mozilla/5.0"})
                 if r.is_success:
                     return r.text
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             logger.debug("google_cache_failed", extra={"error": str(e)[:50]})
         return None
 
@@ -460,6 +460,6 @@ class UltimateScraper:
                 ) as resp:
                     if resp.status == 200:
                         return await resp.text()
-        except Exception as e:
+        except aiohttp.ClientError as e:
             logger.debug("tor_failed", extra={"error": str(e)[:50]})
         return None

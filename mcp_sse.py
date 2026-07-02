@@ -83,7 +83,7 @@ def _cleanup_session(
     if observer is not None:
         try:
             unregister_mcp_notification_observer(observer)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning("mcp_sse_unregister_observer_failed", extra={"error": str(e)})
 
 
@@ -96,7 +96,7 @@ async def _keepalive_loop(session_id: str) -> None:
             queue.put_nowait(": ping\n\n")
     except asyncio.CancelledError:
         pass
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("mcp_sse_keepalive_error", extra={"session_id": session_id, "error": str(e)})
 
 

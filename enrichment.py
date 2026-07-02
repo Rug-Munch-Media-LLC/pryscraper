@@ -196,7 +196,7 @@ async def enrich_url(
             if resp.is_success:
                 html = resp.text
                 headers = dict(resp.headers)
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             logger.warning("enrichment_fetch_failed", extra={"url": url, "error": str(e)})
 
     result: dict[str, Any] = {

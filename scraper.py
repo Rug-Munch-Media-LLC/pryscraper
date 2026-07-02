@@ -223,9 +223,9 @@ class PryScraper:
                         )
                         if "chromium" in r.stdout:
                             self.playwright_available = True
-                    except Exception:
+                    except (subprocess.SubprocessError, OSError):
                         pass
-        except Exception:
+        except (subprocess.SubprocessError, OSError):
             self.playwright_available = False
 
     def _rotate_ua(self) -> str:
@@ -325,7 +325,7 @@ class PryScraper:
                         result["method"] = "direct"
                         return result
                     errors.append(f"direct: thin content ({len(result.get('content', ''))} chars)")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(f"direct: {str(e)[:80]}")
 
         # Tier 2: FlareSolverr (bypass Cloudflare/WAF)
@@ -344,7 +344,7 @@ class PryScraper:
                     errors.append(
                         f"flaresolverr: thin content ({len(result.get('content', ''))} chars)"
                     )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(f"flaresolverr: {str(e)[:80]}")
 
         # Tier 3: Playwright stealth (full browser with fingerprint)
@@ -358,7 +358,7 @@ class PryScraper:
                     result["method"] = "playwright"
                     return result
                 errors.append("playwright: thin content")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 errors.append(f"playwright: {str(e)[:80]}")
 
         # Tier 4: Raw retry with different UA + longer timeout
@@ -373,7 +373,7 @@ class PryScraper:
                 result["method"] = "googlebot"
                 return result
             errors.append("googlebot: thin content")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             errors.append(f"googlebot: {str(e)[:80]}")
 
         return {"status": "error", "url": url, "error": "; ".join(errors), "content": ""}
@@ -532,14 +532,14 @@ class PryScraper:
                         current_url, {"limit": max_pages - len(visited)}
                     )
                     to_visit.extend((l, depth + 1) for l in links if l not in visited)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 continue
         return results
 
     async def map_urls(self, url: str, options: dict | None = None) -> list[str]:
         try:
             return await self._extract_links(url, options or {})
-        except Exception:
+        except Exception:  # noqa: BLE001
             return []
 
     async def _extract_links(self, url: str, options: dict | None = None) -> list[str]:
@@ -548,10 +548,10 @@ class PryScraper:
         html = None
         try:
             html = await self._fetch_direct(url, self._build_headers(url), 15)
-        except Exception:
+        except Exception:  # noqa: BLE001
             try:
                 html = await self._fetch_via_flaresolverr(url, 30)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 return []
         links = set()
         for m in re.finditer(r'href=["\'](https?://[^"\']+)["\']', html):

@@ -122,11 +122,11 @@ class AuthManager:
                 payload = json.loads(base64_decode(token[8:]))
                 if payload.get("exp", 0) < time.time(): return None
                 return payload
-            except Exception:
+            except (json.JSONDecodeError, ValueError):
                 return None
         try:
             return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        except Exception:
+        except (json.JSONDecodeError, ValueError):
             return None
 
 

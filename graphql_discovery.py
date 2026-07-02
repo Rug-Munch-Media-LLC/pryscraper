@@ -75,7 +75,7 @@ class GraphQLDiscovery:
                     if "data" in data or "errors" in data:
                         found.append({"url": url, "method": "path_probe"})
                         self.discovered[url] = data
-            except Exception as e:
+            except (httpx.HTTPError, httpx.RequestError) as e:
                 logger.debug("graphql_probe_failed", extra={"url": url, "err": str(e)[:100]})
         return found
 
@@ -90,7 +90,7 @@ class GraphQLDiscovery:
             )
             if resp.is_success:
                 return resp.json()
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             return {"error": str(e)[:300]}
         return {}
 
@@ -109,7 +109,7 @@ class GraphQLDiscovery:
             )
             if resp.is_success:
                 return resp.json()
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             return {"error": str(e)[:300]}
         return {}
 

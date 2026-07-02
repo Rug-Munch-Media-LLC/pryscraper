@@ -92,7 +92,7 @@ class JsonCssExtractionStrategy:
                 else:
                     text = self._get_text(element, selector)
                     row[name] = self._apply_transform(text, transform)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("field_extract_failed", extra={"field": name, "error": str(e)})
                 row[name] = None
 
@@ -256,7 +256,7 @@ def compute_embedding(text: str, model: str = "all-MiniLM-L6-v2") -> list[float]
             return list(body.get("embedding", []))
 
         return anyio.run(_fetch)
-    except Exception:
+    except (httpx.HTTPError, httpx.RequestError):
         ngrams: dict[str, float] = {}
         for i in range(len(text) - 2):
             ng = text[i : i + 3].lower()
@@ -276,7 +276,7 @@ def filter_chunks_by_query(chunks: list[str], query: str, top_k: int = 5) -> lis
             scored.append((sim, c))
         scored.sort(key=lambda x: x[0], reverse=True)
         return [c for _, c in scored[:top_k]]
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.warning("embedding_filter_failed, returning top chunks by length")
         return sorted(chunks, key=len, reverse=True)[:top_k]
 

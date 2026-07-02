@@ -72,7 +72,7 @@ class PryConfig:
                 with open(CONFIG_FILE) as f:
                     user_config = json.load(f)
                 self._deep_merge(self.config, user_config)
-            except Exception:
+            except OSError:
                 pass
 
     def _deep_merge(self, base: dict, override: dict):
@@ -128,7 +128,7 @@ class PryConfig:
         try:
             with open(CONFIG_FILE, "w") as f:
                 json.dump(self.to_dict(), f, indent=2)
-        except Exception:
+        except OSError:
             pass
         return {"status": "ok", "config": self.to_dict()}
 

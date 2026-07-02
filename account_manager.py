@@ -60,7 +60,7 @@ class AccountPool:
                 if len(acct["errors"]) > 5:
                     acct["status"] = "suspended"
                 path.write_text(json.dumps(acct, indent=2))
-            except Exception:
+            except (json.JSONDecodeError, ValueError):
                 pass
 
     def record_use(self, account_id: str) -> None:
@@ -70,7 +70,7 @@ class AccountPool:
                 acct["last_used"] = datetime.now(UTC).isoformat()
                 acct["use_count"] = acct.get("use_count", 0) + 1
                 path.write_text(json.dumps(acct, indent=2))
-            except Exception:
+            except (json.JSONDecodeError, ValueError):
                 pass
 
     def list_accounts(self, site: str = "") -> list[dict[str, Any]]:
@@ -81,7 +81,7 @@ class AccountPool:
                 data = json.loads(path.read_text())
                 data.pop("credentials", None)  # Don't expose passwords
                 accounts.append(data)
-            except Exception:
+            except (json.JSONDecodeError, ValueError):
                 continue
         return accounts
 
@@ -98,7 +98,7 @@ class ProxyScorer:
             elapsed = time.time() - start
             return {"proxy": proxy_url, "working": resp.is_success, "latency": round(elapsed, 2),
                     "status": resp.status_code, "ip": resp.text[:50] if resp.is_success else ""}
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             return {"proxy": proxy_url, "working": False, "error": str(e)[:80]}
 
     def score(self, test_result: dict[str, Any]) -> int:

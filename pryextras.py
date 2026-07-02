@@ -32,7 +32,7 @@ class StreamManager:
         for ws in self._connections.get(job_id, set()).copy():
             try:
                 await ws.send_json(data)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 self._connections.get(job_id, set()).discard(ws)
 
 
@@ -67,7 +67,7 @@ class BatchProcessor:
                     results.append({"url": url, "status": "ok", "data": extracted})
                 else:
                     results.append({"url": url, "status": "error", "error": result.get("error")})
-            except Exception as e:
+            except OSError as e:
                 results.append({"url": url, "status": "error", "error": str(e)})
 
             # Progress update every 50 URLs

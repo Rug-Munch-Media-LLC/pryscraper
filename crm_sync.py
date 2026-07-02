@@ -1,3 +1,4 @@
+import httpx
 """Pry — Reverse ETL to CRM.
 Sync scraped data to Salesforce, HubSpot, Pipedrive, and Close.com."""
 
@@ -62,7 +63,7 @@ async def sync_to_salesforce(
                         "error": f"Salesforce error {resp.status_code}: {resp.text[:200]}",
                     }
                 )
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             results.append(
                 {
                     "success": False,
@@ -175,7 +176,7 @@ async def sync_to_hubspot(
                         "error": f"HubSpot error {resp.status_code}: {resp.text[:200]}",
                     }
                 )
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             results.append(
                 {
                     "success": False,
@@ -266,7 +267,7 @@ async def sync_to_pipedrive(
                         "error": f"Pipedrive error {resp.status_code}",
                     }
                 )
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             results.append(
                 {
                     "success": False,
@@ -349,7 +350,7 @@ async def sync_to_close(
                         "error": f"Close error {resp.status_code}: {resp.text[:200]}",
                     }
                 )
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             results.append(
                 {"success": False, "name": obj.get("name", "Unknown"), "error": str(e)[:200]}
             )

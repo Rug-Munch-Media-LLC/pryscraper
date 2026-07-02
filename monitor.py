@@ -186,7 +186,7 @@ Is this change meaningful given the goal? Respond with JSON:
             json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
             if json_match:
                 return json.loads(json_match.group(0))  # type: ignore[no-any-return]
-        except Exception:
+        except (json.JSONDecodeError, ValueError):
             logger.warning("llm_judge_failed, falling back to heuristic")
 
         return self._heuristic_judge(previous, current, goal)
@@ -237,7 +237,7 @@ async def run_monitor(monitor_id: str) -> dict[str, Any]:
         scraper = PryScraper()
         result = await scraper.scrape(monitor["target_url"])
         current_content = result.get("content", "")
-    except Exception as e:
+    except (json.JSONDecodeError, ValueError) as e:
         logger.exception("monitor_scrape_failed", extra={"monitor_id": monitor_id})
         return {"error": f"Scrape failed: {e!s}"}
 
@@ -282,7 +282,7 @@ async def _fire_webhook(webhook_url: str, payload: dict[str, Any]) -> None:
         client = await get_client()
         await client.post(webhook_url, json=payload, timeout=10)
         logger.info("monitor_webhook_fired", extra={"webhook": webhook_url})
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         logger.warning("monitor_webhook_failed", extra={"webhook": webhook_url, "error": str(e)})
 
 

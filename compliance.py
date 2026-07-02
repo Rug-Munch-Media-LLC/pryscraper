@@ -171,7 +171,7 @@ async def check_robots_txt(url: str) -> dict[str, Any]:
                     result["matched_disallow"] = disallowed
                     break
 
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         result["error"] = str(e)
         result["crawl_allowed"] = True  # Fail open: assume allowed if can't check
         result["note"] = f"Could not fetch robots.txt: {str(e)[:100]}"
@@ -302,7 +302,7 @@ async def run_compliance_check(url: str) -> dict[str, Any]:
             )
             if resp.is_success:
                 html = resp.text
-    except Exception:
+    except (httpx.HTTPError, httpx.RequestError):
         pass
 
     # Try to find and fetch ToS page
@@ -317,7 +317,7 @@ async def run_compliance_check(url: str) -> dict[str, Any]:
                     tos_text = resp.text
                     tos_url = f"{base}{path}"
                     break
-        except Exception:
+        except (httpx.HTTPError, httpx.RequestError):
             continue
 
     # Run all checks
@@ -370,7 +370,7 @@ async def run_compliance_check(url: str) -> dict[str, Any]:
                     "llm_provider": llm_result.get("llm_provider", ""),
                     "llm_cost_usd": llm_result.get("llm_cost_usd", 0.0),
                 }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - LLM fallback must catch all errors
             logger.debug("llm_compliance_fallback_failed", extra={"url": url, "error": str(e)[:80]})
 
     # Compute overall risk score

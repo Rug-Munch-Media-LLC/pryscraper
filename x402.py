@@ -550,7 +550,7 @@ class FacilitatorRouter:
                     "settlement": receipt,
                     "facilitator": "eip-7702",
                 }
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             return {"verified": False, "reason": f"EIP-7702 verify failed: {e}", "settlement": None}
 
     def _eip7702_settlement(

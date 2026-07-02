@@ -1,3 +1,4 @@
+import httpx
 """Pry — Commerce Platform Sync Engine.
 Unified interface for WooCommerce, Shopify, and generic API sync."""
 from paths import PRY_DATA_DIR
@@ -91,7 +92,7 @@ async def sync_to_woocommerce(
                         "error": f"WooCommerce error {resp.status_code}: {resp.text[:200]}",
                     }
                 )
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             results.append(
                 {
                     "success": False,
@@ -179,7 +180,7 @@ async def sync_to_shopify(
                         "error": f"Shopify error {resp.status_code}: {resp.text[:200]}",
                     }
                 )
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             results.append(
                 {
                     "success": False,

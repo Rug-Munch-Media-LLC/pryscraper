@@ -116,7 +116,7 @@ class TLSScraper:
                     "elapsed": round(elapsed, 2),
                     "impersonate": impersonate,
                 }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return {
                 "success": False,
                 "error": str(e)[:300],

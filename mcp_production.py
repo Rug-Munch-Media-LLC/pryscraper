@@ -64,7 +64,7 @@ def _send_mcp_notification(notification: dict[str, Any]) -> None:
     for observer in list(_mcp_notification_observers):
         try:
             observer(notification)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning("mcp_notification_observer_failed", extra={"error": str(e)})
 
 
@@ -655,7 +655,7 @@ def make_fallback_server(
                 try:
                     result = await self.tool_executor(name, arguments)
                     return self._tool_result_to_content(result, name)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     logger.warning("mcp_tool_executor_failed", extra={"tool": name, "error": str(e)})
                     return {
                         "content": [{"type": "text", "text": f"Tool {name} failed: {e}"}],
@@ -693,7 +693,7 @@ def make_fallback_server(
                     response.raise_for_status()
                     data = response.json()
                     return self._tool_result_to_content(data, name)
-            except Exception as e:
+            except (httpx.HTTPError, httpx.RequestError) as e:
                 logger.warning("mcp_tool_api_call_failed", extra={"tool": name, "error": str(e)})
                 return {
                     "content": [
@@ -754,7 +754,7 @@ def make_fallback_server(
                         "categories": categories,
                         "note": "Use pry_search_templates to query dynamically.",
                     }, indent=2)
-                except Exception as e:
+                except (json.JSONDecodeError, ValueError) as e:
                     return json.dumps({"error": f"Could not load template catalog: {e}"})
             if uri == "pry://stats":
                 return json.dumps({
@@ -769,13 +769,13 @@ def make_fallback_server(
                 try:
                     from x402 import X402Handler
                     return json.dumps(X402Handler().get_stats(), indent=2)
-                except Exception as e:
+                except (json.JSONDecodeError, ValueError) as e:
                     return json.dumps({"error": f"Could not load x402 pricing: {e}"})
             if uri == "pry://referrals":
                 try:
                     from referrals import ReferralTracker
                     return json.dumps(ReferralTracker().get_catalog(), indent=2)  # type: ignore[no-untyped-call]
-                except Exception as e:
+                except (json.JSONDecodeError, ValueError) as e:
                     return json.dumps({"error": f"Could not load referrals: {e}"})
             return f"Resource {uri} (placeholder)"
 
@@ -918,7 +918,7 @@ def make_fallback_server(
                         for t in templates
                         if arg_value.lower() in t.get("template_id", "").lower()
                     ][:10]
-                except Exception:
+                except Exception:  # noqa: BLE001
                     values = []
             elif ref_type == "ref/tool" and arg_name == "url":
                 values = []
@@ -1030,7 +1030,7 @@ def make_fallback_server(
                     "id": req_id,
                     "error": {"code": -32601, "message": f"Method not found: {method}"},
                 }
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 return {
                     "jsonrpc": "2.0",
                     "id": req_id,

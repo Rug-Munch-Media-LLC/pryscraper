@@ -274,7 +274,7 @@ async def run_pipeline(
             if isinstance(output, dict):
                 for key, value in output.items():
                     ctx[f"{step_id}.{key}"] = value
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             step_result["status"] = "failed"
             step_result["error"] = str(e)[:500]
             logger.error(

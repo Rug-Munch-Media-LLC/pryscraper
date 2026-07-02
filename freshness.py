@@ -97,7 +97,7 @@ async def quick_health_check(url: str) -> dict[str, Any]:
             "last_modified": resp.headers.get("last-modified", ""),
             "etag": resp.headers.get("etag", ""),
         }
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         return {"url": url, "accessible": False, "error": str(e)[:100]}
 
 

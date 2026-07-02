@@ -62,7 +62,7 @@ Respond ONLY with valid JSON, no markdown formatting."""
         result["llm_provider"] = resp.provider
         result["llm_cost_usd"] = round(resp.cost_usd, 6)
         return result
-    except Exception as e:
+    except (json.JSONDecodeError, ValueError) as e:
         logger.warning("llm_compliance_failed", extra={"error": str(e)[:80]})
         return {"risk_level": "unknown", "error": str(e)[:200]}
 
@@ -93,7 +93,7 @@ Respond ONLY with valid JSON."""
         reg = get_registry()
         resp = await reg.complete(prompt, max_tokens=1000, temperature=0.3)
         return json.loads(_strip_fence(resp.text))
-    except Exception as e:
+    except (json.JSONDecodeError, ValueError) as e:
         logger.warning("llm_seo_failed", extra={"error": str(e)[:80]})
         return {"score": 0, "error": str(e)[:200]}
 
@@ -118,7 +118,7 @@ Respond ONLY with valid JSON."""
         reg = get_registry()
         resp = await reg.complete(prompt, max_tokens=2000, temperature=0.2)
         return json.loads(_strip_fence(resp.text))
-    except Exception as e:
+    except (json.JSONDecodeError, ValueError) as e:
         logger.warning("llm_reconcile_failed", extra={"error": str(e)[:80]})
         return {"entities": records, "matches": [], "error": str(e)[:200]}
 
@@ -141,7 +141,7 @@ Respond ONLY with valid JSON. Use character indices relative to the original tex
         reg = get_registry()
         resp = await reg.complete(prompt, max_tokens=2000, temperature=0.1)
         return json.loads(_strip_fence(resp.text))
-    except Exception as e:
+    except (json.JSONDecodeError, ValueError) as e:
         logger.warning("llm_pii_failed", extra={"error": str(e)[:80]})
         return {"pii_items": [], "redacted_text": text, "error": str(e)[:200]}
 
@@ -178,6 +178,6 @@ Respond ONLY with valid JSON."""
         reg = get_registry()
         resp = await reg.complete(prompt, max_tokens=500, temperature=0.3)
         return json.loads(_strip_fence(resp.text))
-    except Exception as e:
+    except (json.JSONDecodeError, ValueError) as e:
         logger.warning("llm_anomaly_failed", extra={"error": str(e)[:80]})
         return {"is_anomaly": False, "reason": str(e)[:200]}

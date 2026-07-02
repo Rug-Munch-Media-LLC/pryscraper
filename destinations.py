@@ -144,7 +144,7 @@ async def _write_to_sheets_api(
 
     except json.JSONDecodeError:
         return {"success": False, "error": "Invalid credentials JSON"}
-    except Exception as e:
+    except (json.JSONDecodeError, ValueError) as e:
         return {"success": False, "error": str(e)[:200]}
 
 
@@ -198,7 +198,7 @@ async def write_to_airtable(
                         "error": f"Airtable error {resp.status_code}: {resp.text[:200]}",
                     }
                 )
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             all_results.append({"batch": i // batch_size, "success": False, "error": str(e)[:200]})
 
     total_created = sum(r.get("created", 0) for r in all_results if r.get("success"))
@@ -270,7 +270,7 @@ async def _send_smtp(
             server.send_message(msg)
 
         return {"success": True, "destination": "email"}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         return {"success": False, "error": f"SMTP error: {str(e)[:200]}"}
 
 

@@ -42,7 +42,7 @@ class CaptchaSolver:
                 elapsed = time.time() - start
                 self._record(prov, True, elapsed)
                 return {"success": True, "provider": prov, "token": result, "elapsed": round(elapsed, 2)}
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 self._record(prov, False, 0, str(e))
                 logger.warning("captcha_provider_failed", extra={"provider": prov, "error": str(e)[:80]})
         return {"success": False, "error": "All CAPTCHA providers failed"}
@@ -57,7 +57,7 @@ class CaptchaSolver:
                 result = await self._solve_with(prov, "ReCaptchaV3Task", site_key, page_url, key,
                                                 extra={"action": action, "minScore": min_score})
                 return {"success": True, "provider": prov, "token": result}
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("recaptcha_v3_failed", extra={"provider": prov, "error": str(e)[:80]})
         return {"success": False, "error": "All reCAPTCHA v3 providers failed"}
 
@@ -70,7 +70,7 @@ class CaptchaSolver:
             try:
                 result = await self._solve_with(prov, "TurnstileTask", site_key, page_url, key)
                 return {"success": True, "provider": prov, "token": result}
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("turnstile_failed", extra={"provider": prov, "error": str(e)[:80]})
         return {"success": False, "error": "All Turnstile providers failed"}
 
@@ -83,7 +83,7 @@ class CaptchaSolver:
             try:
                 result = await self._solve_with(prov, "HCaptchaTask", site_key, page_url, key)
                 return {"success": True, "provider": prov, "token": result}
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("hcaptcha_failed", extra={"provider": prov, "error": str(e)[:80]})
         return {"success": False, "error": "All hCaptcha providers failed"}
 
@@ -96,7 +96,7 @@ class CaptchaSolver:
             try:
                 result = await self._solve_image_with(prov, image_base64, key, case_sensitive)
                 return {"success": True, "provider": prov, "text": result}
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("image_captcha_failed", extra={"provider": prov, "error": str(e)[:80]})
         return {"success": False, "error": "All image CAPTCHA providers failed"}
 

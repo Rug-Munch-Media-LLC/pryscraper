@@ -74,8 +74,12 @@ target-version = "py311"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "B", "A", "C4", "SIM", "UP", "RUF"]
+select = ["E", "F", "I", "N", "W", "B", "A", "C4", "SIM", "UP", "RUF", "BLE"]
 ignore = ["E501", "N815", "B008", "A002", "RUF006"]
+
+# BLE001 (blind except Exception) is enforced. Pre-existing sites are
+# marked with `# noqa: BLE001`; new code must use specific exception
+# types (e.g. httpx.HTTPError, json.JSONDecodeError, OSError).
 
 [tool.ruff.format]
 quote-style = "double"

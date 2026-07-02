@@ -276,7 +276,7 @@ async def _solve_capsolver(
                 return {"success": False, "error": "CAPTCHA solving failed"}
 
         return {"success": False, "error": "CAPTCHA solving timed out"}
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         return {"success": False, "error": str(e)[:200]}
 
 

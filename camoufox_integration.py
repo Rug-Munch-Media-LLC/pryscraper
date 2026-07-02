@@ -89,7 +89,7 @@ class CamoufoxBrowser:
                 if wait_selector:
                     try:
                         await page.wait_for_selector(wait_selector, timeout=wait_time)
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         pass
                 else:
                     await page.wait_for_timeout(wait_time)
@@ -103,7 +103,7 @@ class CamoufoxBrowser:
                     "status_code": 200, "elapsed": round(elapsed, 2),
                     "profile": profile_name, "cookies": cookies_received,
                 }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return {"success": False, "error": str(e)[:300], "url": url}
 
     async def fetch_with_stealth(
@@ -135,7 +135,7 @@ class CamoufoxBrowser:
                     content = await page.content()
                     result["content"] = content
                     result["raw_html"] = content
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
         return result
 

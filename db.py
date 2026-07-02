@@ -152,7 +152,7 @@ class Database:
         try:
             yield s
             s.commit()
-        except Exception:
+        except Exception:  # noqa: BLE001
             s.rollback()
             raise
         finally:

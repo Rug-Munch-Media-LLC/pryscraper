@@ -102,7 +102,7 @@ class CookieWarmer:
                         await page.wait_for_timeout(random.randint(500, 1500))
                         delay = random.uniform(min_delay, max_delay)
                         await asyncio.sleep(delay)
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         logger.warning("warm_page_failed url=%s err=%s", warming_url, str(e)[:50])
 
                 # Collect cookies
@@ -142,7 +142,7 @@ class CookieWarmer:
                 "pages_visited": pages,
                 "expires_at": cookie_data["expires_at"],
             }
-        except Exception as e:
+        except (json.JSONDecodeError, ValueError) as e:
             return {"success": False, "error": str(e)[:300]}
 
     def get_warmed_cookies(self, session_id: str) -> dict[str, Any] | None:
@@ -157,7 +157,7 @@ class CookieWarmer:
             if expires < datetime.now(UTC):
                 return None
             return data
-        except Exception:
+        except (json.JSONDecodeError, ValueError):
             return None
 
     def list_sessions(self) -> list[dict[str, Any]]:
@@ -174,6 +174,6 @@ class CookieWarmer:
                         "cookie_count": len(data.get("cookies", [])),
                     }
                 )
-            except Exception:
+            except (json.JSONDecodeError, ValueError):
                 pass
         return sessions

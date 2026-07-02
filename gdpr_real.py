@@ -133,7 +133,7 @@ class GDPRService:
                     s.query(ApiKey).filter(
                         ApiKey.name.like(f"%{subject_id}%")
                     ).delete()
-            except Exception:
+            except OSError:
                 pass
 
         deletion_record = {

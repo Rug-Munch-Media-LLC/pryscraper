@@ -48,7 +48,7 @@ class SchemaExtractor:
                 # Merge: LLM values override pattern, but pattern fills gaps
                 merged = {**pattern_result, **llm_result}
                 return {k: v for k, v in merged.items() if v is not None and v != ""}
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
         return pattern_result
@@ -138,5 +138,5 @@ class SchemaExtractor:
                 if isinstance(obj, dict):
                     return obj
             return {"_raw": response[:500]}
-        except Exception as e:
+        except (json.JSONDecodeError, ValueError) as e:
             return {"_error": str(e)}

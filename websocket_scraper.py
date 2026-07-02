@@ -75,7 +75,7 @@ class WebSocketScraper:
                     messages.append(
                         {"data": parsed, "raw": msg, "received_at": time.time()}
                     )
-        except Exception as e:
+        except (json.JSONDecodeError, ValueError) as e:
             return {"success": False, "error": str(e)[:300]}
 
         return {
@@ -141,5 +141,5 @@ class WebSocketScraper:
                 "events": events,
                 "count": len(events),
             }
-        except Exception as e:
+        except (json.JSONDecodeError, ValueError) as e:
             return {"success": False, "error": str(e)[:300]}

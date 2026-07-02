@@ -56,7 +56,7 @@ class ImageOCR:
                 "word_count": len(text.split()),
                 "language": self.language,
             }
-        except Exception as e:
+        except OSError as e:
             return {"success": False, "error": str(e)[:200]}
 
     def extract_from_file(self, image_path: str) -> dict[str, Any]:
@@ -75,7 +75,7 @@ class ImageOCR:
             resp = await client.get(url, timeout=30)
             if resp.is_success:
                 return self.extract_from_bytes(resp.content)
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             return {"success": False, "error": str(e)[:200]}
         return {"success": False, "error": "Failed to download image"}
 

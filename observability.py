@@ -53,7 +53,7 @@ def setup_tracing(service_name: str = "pry") -> None:
         provider.add_span_processor(processor)
         trace.set_tracer_provider(provider)
         logger.info("tracing_initialized", extra={"service": service_name})
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("tracing_init_failed", extra={"error": str(e)[:80]})
 
 
@@ -64,7 +64,7 @@ def track_request(endpoint: str, method: str = "GET"):
     status = "success"
     try:
         yield
-    except Exception:
+    except Exception:  # noqa: BLE001
         status = "error"
         raise
     finally:
@@ -81,7 +81,7 @@ def track_scrape(method: str = "direct"):
     status = "success"
     try:
         yield
-    except Exception:
+    except Exception:  # noqa: BLE001
         status = "error"
         raise
     finally:

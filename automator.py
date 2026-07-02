@@ -74,7 +74,7 @@ class PryAutomator:
             await asyncio.sleep(SESSION_CLEANUP_INTERVAL)
             try:
                 await self._cleanup_stale_sessions()
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
 
     async def _get_or_create_session(
@@ -114,7 +114,7 @@ class PryAutomator:
                     with open(cookies_file) as f:
                         cookies = json.load(f)
                     await context.add_cookies(cookies)
-                except Exception:
+                except OSError:
                     pass
 
             self.sessions[sid] = session
@@ -257,7 +257,7 @@ class PryAutomator:
                 cookies = await session.context.cookies()
                 with open(session.cookies_file, "w") as f:
                     json.dump(cookies, f)
-            except Exception:
+            except OSError:
                 pass
 
             return {
@@ -267,7 +267,7 @@ class PryAutomator:
                 "final_title": await page.title(),
             }
 
-        except Exception as e:
+        except OSError as e:
             return {
                 "session_id": session.id,
                 "steps": results,
@@ -282,7 +282,7 @@ class PryAutomator:
         if cookies:
             try:
                 await session.context.add_cookies(cookies)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
         await session.page.goto(url, wait_until="networkidle")
         return session.id
@@ -293,12 +293,12 @@ class PryAutomator:
                 session = self.sessions.pop(session_id)
                 try:
                     await session.browser.close()
-                except Exception:
+                except OSError:
                     pass
                 if os.path.exists(session.cookies_file):
                     try:
                         os.remove(session.cookies_file)
-                    except Exception:
+                    except OSError:
                         pass
 
     def list_sessions(self) -> list[dict]:
@@ -319,7 +319,7 @@ class PryAutomator:
                 session = self.sessions.pop(sid)
                 try:
                     await session.browser.close()
-                except Exception:
+                except OSError:
                     pass
 
 

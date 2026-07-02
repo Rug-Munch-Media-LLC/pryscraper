@@ -88,11 +88,11 @@ async def analyze_seo(url: str) -> dict[str, Any]:
                     result["llm_enhanced"] = True
                     result["llm_provider"] = llm_enhancement.get("llm_provider", "")
                     result["llm_cost_usd"] = llm_enhancement.get("llm_cost_usd", 0.0)
-            except Exception as e:
+            except (httpx.HTTPError, httpx.RequestError) as e:
                 logger.debug("llm_seo_enhance_failed", extra={"url": url, "error": str(e)[:80]})
 
         return result
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         return {"url": url, "error": str(e)[:200]}
 
 
@@ -275,7 +275,7 @@ async def get_seo_keyword_insights(url: str, keywords: list[str]) -> dict[str, A
             "keywords_analyzed": len(keywords),
             "results": results,
         }
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         return {"url": url, "error": str(e)[:200]}
 
 

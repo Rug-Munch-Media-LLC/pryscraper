@@ -415,7 +415,7 @@ async def health_check() -> JSONResponse:
             c = await get_client()
             r = await c.get(f"{settings.ollama_url}/api/tags", timeout=3)
             return r.is_success
-        except Exception:
+        except Exception:  # noqa: BLE001
             return False
 
     async def check_flare() -> bool:
@@ -428,7 +428,7 @@ async def health_check() -> JSONResponse:
                 timeout=3,
             )
             return r.is_success
-        except Exception:
+        except Exception:  # noqa: BLE001
             return False
 
     async def check_redis() -> bool:
@@ -439,7 +439,7 @@ async def health_check() -> JSONResponse:
             await r.ping()
             await r.aclose()
             return True
-        except Exception:
+        except redis.RedisError:
             return False
 
     results = await asyncio.gather(
@@ -474,7 +474,7 @@ async def ready() -> JSONResponse | dict[str, str]:
         r = await c.get(f"{settings.ollama_url}/api/tags", timeout=3)
         if r.is_success:
             return {"status": "ready"}
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
     return JSONResponse(status_code=503, content={"status": "not_ready"})
 
@@ -649,7 +649,7 @@ async def scrape(request: ScrapeRequest) -> dict[str, Any]:
         return response
     except PryError:
         raise
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise ExternalServiceError(str(e)) from e
 
 
@@ -680,7 +680,7 @@ async def detect_block(url: str = Body(...)) -> dict[str, Any]:
         )
         detection = detector.detect(resp.text, resp.status_code, dict(resp.headers))
         results.append({"method": "direct", "status": resp.status_code, **detection})
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         results.append({"method": "direct", "error": str(e)})
 
     # Test FlareSolverr
@@ -698,7 +698,7 @@ async def detect_block(url: str = Body(...)) -> dict[str, Any]:
                 results.append({"method": "flaresolverr", "status": fs_status, **detection})
             else:
                 results.append({"method": "flaresolverr", "error": f"HTTP {fs_resp.status_code}"})
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         results.append({"method": "flaresolverr", "error": str(e)})
 
     return {"success": True, "data": {"url": url, "results": results}}
@@ -767,7 +767,7 @@ async def capture_network(
                 url, timeout=30, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}
             )
             html = resp.text
-        except Exception:
+        except (httpx.HTTPError, httpx.RequestError):
             raise ScrapeError("Could not fetch raw HTML") from None
 
     return {
@@ -811,7 +811,7 @@ async def detect_lazy_content(
                 url, timeout=30, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}
             )
             html = resp.text
-        except Exception:
+        except (httpx.HTTPError, httpx.RequestError):
             raise ScrapeError("Could not fetch raw HTML") from None
 
     detection = detect_lazy_loading(html)
@@ -893,7 +893,7 @@ async def adaptive_crawl(
         try:
             result = await scraper.scrape(current_url, {"bypass_cloudflare": True})
             content = result.get("content", "") or ""
-        except Exception as e:
+        except pydantic.ValidationError as e:
             logger.warning(
                 "adaptive_crawl_page_failed", extra={"url": current_url, "error": str(e)}
             )
@@ -934,7 +934,7 @@ async def _run_crawl_job(job_id: str, request: CrawlRequest) -> None:
             },
         )
         await queue.complete_job(job_id, {"pages": pages})
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.exception("crawl_job_failed", extra={"job_id": job_id, "url": request.url})
         await queue.fail_job(job_id, str(e))
 
@@ -955,7 +955,7 @@ async def _fire_watch_webhook(webhook: str, url: str, diff_result: dict[str, Any
             json={"event": "watch_update", "url": url, "data": diff_result},
             timeout=10,
         )
-    except Exception:
+    except (httpx.HTTPError, httpx.RequestError):
         logger.exception("watch_webhook_failed", extra={"url": url, "webhook": webhook})
 
 
@@ -976,7 +976,7 @@ async def parse_document(request: ParseRequest) -> dict[str, Any]:
         return {"success": True, "data": result}
     except PryError:
         raise
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise ExternalServiceError(str(e)) from e
 
 
@@ -1042,7 +1042,7 @@ async def automate(request: AutomateRequest) -> dict[str, Any]:
         return {"success": True, "data": result}
     except PryError:
         raise
-    except Exception as e:
+    except pydantic.ValidationError as e:
         raise ExternalServiceError(str(e)) from e
 
 
@@ -1063,7 +1063,7 @@ async def screenshot(
         return {"success": True, "data": {"screenshot": screenshot_data or ""}}
     except PryError:
         raise
-    except Exception as e:
+    except pydantic.ValidationError as e:
         raise ExternalServiceError(str(e)) from e
 
 
@@ -1222,7 +1222,7 @@ async def vision(
                         "body": e.response.text[:200],
                     }
                 )
-            except Exception as e:
+            except OSError as e:
                 attempts.append({"model": m, "error": str(e)})
 
         raise ExternalServiceError(
@@ -1231,7 +1231,7 @@ async def vision(
         )
     except PryError:
         raise
-    except Exception as e:
+    except OSError as e:
         raise ExternalServiceError(str(e)) from e
 
 
@@ -1259,7 +1259,7 @@ async def vision_models() -> dict[str, Any]:
         try:
             pp = float(pricing.get("prompt", "1") or 1)
             cp = float(pricing.get("completion", "1") or 1)
-        except Exception:
+        except (httpx.HTTPError, httpx.RequestError):
             continue
         if pp == 0 and cp == 0:
             free.append(
@@ -1531,7 +1531,7 @@ async def extract_shadow_dom(
         try:
             resp = await client.get(url, timeout=30, follow_redirects=True)
             html = resp.text
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             raise ScrapeError("Could not fetch raw HTML") from e
 
     shadow_present = has_shadow_dom(html)
@@ -1690,7 +1690,7 @@ async def find_emails(url: str = Body(...)) -> dict[str, Any]:
         client = await get_client()
         resp = await client.get(url, headers={"User-Agent": "Pry/3.0"}, timeout=15)
         html_text = resp.text
-    except Exception:
+    except (httpx.HTTPError, httpx.RequestError):
         html_text = ""
 
     result = await scraper.scrape(url)
@@ -2801,7 +2801,7 @@ async def run_due_monitors() -> dict[str, Any]:
             if next_run <= now:
                 result = await run_monitor(m["id"])
                 results.append(result)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(
                 "monitor_schedule_check_failed", extra={"monitor_id": m["id"], "error": str(e)}
             )
@@ -4495,7 +4495,7 @@ async def extract_pdf(
         e = PDFTableExtractor()
         result = e.extract(resp.content, method=method)
         return {"success": "error" not in result, "data": result}
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         return {"success": False, "error": str(e)[:300]}
 
 

@@ -72,7 +72,7 @@ class BrowserPool:
         for b in self._browsers:
             try:
                 await b.close()
-            except Exception:
+            except OSError:
                 logger.exception("browser_close_failed")
         self._browsers.clear()
         if self._playwright:

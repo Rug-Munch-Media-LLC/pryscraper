@@ -82,7 +82,7 @@ class WebhookDelivery:
                 if resp.status_code < 500:
                     self._dead_letter(payload, url, f"HTTP {resp.status_code}")
                     return {"success": False, "status": resp.status_code, "error": "Client error"}
-            except Exception as e:
+            except (httpx.HTTPError, httpx.RequestError) as e:
                 record = {"url": url, "attempt": attempt, "error": str(e)[:200], "timestamp": datetime.now(UTC).isoformat()}
                 self._log(record)
             if attempt < max_retries:

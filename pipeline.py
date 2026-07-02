@@ -76,7 +76,7 @@ class Pipeline:
                     result = cast(SyncHookFn, fn)(**context)
                 if isinstance(result, dict):
                     context.update(result)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.exception(
                     "hook_failed",
                     extra={"point": hook_point, "fn": getattr(fn, "__name__", str(fn))},
@@ -143,7 +143,7 @@ async def extract_all_links(**kwargs: Any) -> dict[str, Any]:
         tree = lxml_html.fromstring(html_content)
         links = tree.xpath("//a/@href")
         return {"extracted_links": links}
-    except Exception:
+    except Exception:  # noqa: BLE001
         return {}
 
 

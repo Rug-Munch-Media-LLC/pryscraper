@@ -303,7 +303,7 @@ class ProxyManager:
                     "ip": r.text[:100] if r.is_success else "",
                     "status": r.status_code,
                 }
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             return {"working": False, "error": str(e)[:100]}
 
     def needs_premium_proxy(self, last_error: str) -> bool:
@@ -337,7 +337,7 @@ class ProxyManager:
                 source="proxy_manager",
                 user_id=os.getenv("USER", ""),
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("referral_track_failed", extra={"error": str(e)[:80]})
         return provider["signup_url"]
 
@@ -444,7 +444,7 @@ class ProxyManager:
                 source="proxy_signup",
                 user_id=user_id,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("referral_record_failed", extra={"error": str(e)[:80]})
         return ""
 
@@ -461,7 +461,7 @@ class ProxyManager:
                 if c.get("source", "").startswith("proxy")
                 and _parse_ts(c.get("timestamp", "")) >= cutoff
             ]
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("recent_clicks_failed", extra={"error": str(e)[:80]})
             return []
 

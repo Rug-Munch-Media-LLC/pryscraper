@@ -49,7 +49,7 @@ class PryAdvanced:
                     },
                 )
                 return {"summary": resp.json().get("response", ""), "model": "qwen2.5-coder:3b"}
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             return {"summary": content[:500], "error": str(e)}
 
     # ── 2. Diff Tracking — Compare page versions ──
@@ -181,7 +181,7 @@ class PryAdvanced:
                 raw = resp.json().get("response", "")
                 arr_match = re.search(r"\[.*?\]", raw, re.S)
                 return json.loads(arr_match.group(0)) if arr_match else ["uncategorized"]
-        except Exception:
+        except (json.JSONDecodeError, ValueError):
             return ["uncategorized"]
 
     # ── 7. Keyword density analysis ──

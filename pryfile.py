@@ -61,7 +61,7 @@ class Pryfile:
             try:
                 result = await self._run_job(job, s)
                 results.append(result)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 results.append({"name": job.get("name", "unknown"), "error": str(e)})
         return results
 

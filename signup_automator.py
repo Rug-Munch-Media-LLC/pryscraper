@@ -116,7 +116,7 @@ class EmailVerifier:
                     json={"address": f"{name}{domain}", "password": pw}, timeout=10)
                 token = token_r.json().get("token", "")
                 return {"email": f"{name}{domain}", "password": pw, "token": token, "provider": "mail.tm"}
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             logger.warning("temp_mail_failed", extra={"error": str(e)[:80]})
         return {"email": "", "error": "Temp mail unavailable"}
 
@@ -139,7 +139,7 @@ class EmailVerifier:
                             for link in links:
                                 if "verify" in link.lower() or "confirm" in link.lower() or "activate" in link.lower():
                                     return link
-            except Exception:
+            except (httpx.HTTPError, httpx.RequestError):
                 pass
             await asyncio.sleep(check_interval)
         return None

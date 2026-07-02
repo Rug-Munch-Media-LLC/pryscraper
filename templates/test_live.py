@@ -142,7 +142,7 @@ async def test_all():
                     print(f"FAIL: {r.text[:80]}")
                     failures.append(tid)
                 await asyncio.sleep(0.5)
-            except Exception as e:
+            except (httpx.HTTPError, httpx.RequestError) as e:
                 print(f"ERR: {e}")
                 failures.append(tid)
 

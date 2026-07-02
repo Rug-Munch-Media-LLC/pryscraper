@@ -67,7 +67,7 @@ class LLMRegistry:
                 response.referral_id = self.referral.program_id
                 self._track(response)
                 return response
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 last_error = str(e)
                 logger.warning("llm_provider_failed",
                                extra={"provider": name, "error": str(e)[:100]})
@@ -83,7 +83,7 @@ class LLMRegistry:
                 continue
             try:
                 return await provider.embed(text, model)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.warning("embed_provider_failed", extra={"provider": name, "error": str(e)[:80]})
         raise Exception("All embedding providers failed")
 

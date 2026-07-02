@@ -109,7 +109,7 @@ class JobQueue:
             else:
                 job.result = await asyncio.to_thread(job.func, *job.args, **job.kwargs)
             job.status = JobStatus.COMPLETED
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             job.error = str(e)[:500]
             job.status = JobStatus.FAILED
             logger.exception("job_failed", extra={"job_id": job.id, "error": str(e)})

@@ -399,7 +399,7 @@ async def llm_enhance_reconciliation(entities: list[dict[str, Any]], low_confide
             "refuted": refuted,
             "low_confidence_groups": len(groups),
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.debug("llm_reconciliation_failed", extra={"error": str(e)[:80]})
         return {"llm_enhanced": False, "error": str(e)[:200]}
 

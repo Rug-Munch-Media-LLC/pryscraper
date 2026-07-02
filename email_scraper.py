@@ -240,7 +240,7 @@ async def fetch_gmail_emails(
                 email = _parse_gmail_message(msg_data)
                 if email:
                     emails.append(email)
-            except Exception as e:
+            except (httpx.HTTPError, httpx.RequestError) as e:
                 logger.warning(
                     "gmail_fetch_failed", extra={"msg_id": msg_id, "error": str(e)[:100]}
                 )
@@ -248,7 +248,7 @@ async def fetch_gmail_emails(
 
         return {"success": True, "total": len(emails), "emails": emails}
 
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         return {"success": False, "error": str(e)[:300]}
 
 
@@ -285,7 +285,7 @@ def _get_gmail_body(payload: dict[str, Any]) -> str:
         data = payload["body"]["data"]
         try:
             return base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
-        except Exception:
+        except Exception:  # noqa: BLE001
             return ""
 
     # Check parts
@@ -295,7 +295,7 @@ def _get_gmail_body(payload: dict[str, Any]) -> str:
             data = part["body"]["data"]
             try:
                 return base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
-            except Exception:
+            except Exception:  # noqa: BLE001
                 continue
         # Recursive check
         if part.get("parts"):
@@ -366,5 +366,5 @@ async def fetch_outlook_emails(
 
         return {"success": True, "total": len(emails), "emails": emails}
 
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         return {"success": False, "error": str(e)[:300]}

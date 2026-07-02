@@ -62,12 +62,12 @@ async def check_selectors(
         if not resp.is_success:
             return {"url": url, "error": f"HTTP {resp.status_code}", "all_matched": False}
         html_content = resp.text
-    except Exception as e:
+    except (httpx.HTTPError, httpx.RequestError) as e:
         return {"url": url, "error": str(e)[:200], "all_matched": False}
 
     try:
         tree = lxml_html.fromstring(html_content)
-    except Exception:
+    except (httpx.HTTPError, httpx.RequestError):
         return {"url": url, "error": "Failed to parse HTML", "all_matched": False}
 
     # Check each selector
@@ -107,7 +107,7 @@ async def check_selectors(
             else:
                 result["failed_count"] += 1
 
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError) as e:
             result["selectors"].append(
                 {
                     "name": name,

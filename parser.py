@@ -117,11 +117,11 @@ class DocumentParser:
                 timeout=30,
             )
             return {"text": result.stdout, "format": "image", "pages": 1}
-        except Exception as e:
+        except OSError as e:
             return {"text": f"[Image OCR failed: {e}]", "format": "image", "pages": 0}
         finally:
             if fname and os.path.exists(fname):
                 try:
                     os.unlink(fname)
-                except Exception:
+                except OSError:
                     pass
