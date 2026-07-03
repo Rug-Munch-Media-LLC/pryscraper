@@ -25,7 +25,7 @@ class PrySettings(BaseSettings):
     port: int = 8002
 
     # Ollama LLM endpoint
-    ollama_url: str = "http://100.100.18.18:11434"
+    ollama_url: str = "http://100.104.130.92:11434"
 
     # FlareSolverr Cloudflare bypass endpoint
     flaresolverr_url: str = "http://flaresolverr:8191/v1"

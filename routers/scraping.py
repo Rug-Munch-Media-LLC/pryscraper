@@ -32,6 +32,7 @@ from pydantic import BaseModel
 from client import get_client
 from deps import cache, extractor, queue, scraper
 from errors import ExternalServiceError, InvalidRequestError, PryError, ScrapeError
+from observability import track_scrape
 from scraper import BlockDetector
 from settings import settings
 
@@ -107,15 +108,16 @@ async def scrape(request: ScrapeRequest) -> dict[str, Any]:
         return cached
 
     try:
-        result = await scraper.scrape(
-            request.url,
-            {
-                "timeout": request.timeout,
-                "bypass_cloudflare": request.bypassCloudflare,
-                "js_render": request.jsRender,
-                "formats": request.formats,
-            },
-        )
+        with track_scrape(method="direct"):
+            result = await scraper.scrape(
+                request.url,
+                {
+                    "timeout": request.timeout,
+                    "bypass_cloudflare": request.bypassCloudflare,
+                    "js_render": request.jsRender,
+                    "formats": request.formats,
+                },
+            )
         if result.get("status") != "ok":
             raise ScrapeError(result.get("error", "Scrape failed"))
 
@@ -212,7 +214,8 @@ async def detect_lazy_content(
         generate_scroll_script,
     )
 
-    result = await scraper.scrape(url, {"bypass_cloudflare": True})
+    with track_scrape(method="lazy"):
+        result = await scraper.scrape(url, {"bypass_cloudflare": True})
     if result.get("status") != "ok":
         raise ScrapeError(result.get("error") or "Scrape failed")
 
@@ -255,14 +258,15 @@ async def crawl(request: CrawlRequest) -> dict[str, Any]:
         task.add_done_callback(_log_crawl_job_failure)
         return {"success": True, "data": {"id": job_id, "status": "pending"}}
 
-    pages = await scraper.crawl(
-        request.url,
-        {
-            "max_pages": request.maxPages,
-            "max_depth": request.maxDepth,
-            "timeout": request.scrapeOptions.get("timeout", 60) if request.scrapeOptions else 60,
-        },
-    )
+    with track_scrape(method="crawl"):
+        pages = await scraper.crawl(
+            request.url,
+            {
+                "max_pages": request.maxPages,
+                "max_depth": request.maxDepth,
+                "timeout": request.scrapeOptions.get("timeout", 60) if request.scrapeOptions else 60,
+            },
+        )
     return {"success": True, "data": {"id": "sync", "url": request.url, "pages": pages}}
 
 
@@ -272,7 +276,8 @@ async def crawl(request: CrawlRequest) -> dict[str, Any]:
 @router.post("/v1/map", summary="Discover URLs on a site")
 async def map_pages(request: MapRequest) -> dict[str, Any]:
     """Discover URLs on a site."""
-    urls = await scraper.map_urls(request.url, {"limit": request.limit})
+    with track_scrape(method="map"):
+        urls = await scraper.map_urls(request.url, {"limit": request.limit})
     return {"success": True, "data": {"links": urls}}
 
 
@@ -284,8 +289,9 @@ async def batch_scrape(urls: list[str] = Body(...), timeout: int = 30) -> dict[s
     """Scrape multiple URLs in parallel. Firecrawl charges extra for batch."""
     if len(urls) > 50:
         raise InvalidRequestError("Max 50 URLs per batch")
-    tasks = [scraper.scrape(u, {"timeout": timeout, "bypass_cloudflare": True}) for u in urls]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    with track_scrape(method="batch"):
+        tasks = [scraper.scrape(u, {"timeout": timeout, "bypass_cloudflare": True}) for u in urls]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
     pages = []
     for i, r in enumerate(results):
         if isinstance(r, BaseException):

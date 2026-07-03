@@ -94,6 +94,35 @@ class LLMRegistry:
                     break
         raise Exception(f"All LLM providers failed. Last: {last_error}")
 
+    async def complete_or_empty(
+        self,
+        prompt: str,
+        system: str = "",
+        provider_name: str = "",
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+        model: str = "",
+        fallback: bool = True,
+    ) -> LLMResponse:
+        """Complete via LLM, returning an empty response on total failure.
+
+        Use this at API boundaries where a 500 is worse than degraded output.
+        """
+        try:
+            return await self.complete(
+                prompt, system, provider_name, max_tokens, temperature, model, fallback
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("llm_complete_failed_all_providers", extra={"error": str(e)[:120]})
+            return LLMResponse(
+                text="",
+                provider="none",
+                model="",
+                input_tokens=0,
+                output_tokens=0,
+                cost_usd=0.0,
+            )
+
     async def embed(self, text: str, provider_name: str = "", model: str = "") -> list[float]:
         names = [provider_name] if provider_name else list(self.fallback_chain)
         for name in names:

@@ -83,6 +83,7 @@ def _spinner(label: str):
             if stop:
                 break
             print(f"  {CYAN}{c}{NC} {label}...  ", end="\r", flush=True)
+            # CLI spinner runs in a daemon thread; sync sleep is acceptable here.
             time.sleep(0.1)
 
     t = threading.Thread(target=_spin, daemon=True)

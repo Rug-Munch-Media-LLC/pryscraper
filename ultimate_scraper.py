@@ -314,6 +314,11 @@ class UltimateScraper:
 
                 driver = uc.Chrome(headless=True, use_subprocess=True)
                 driver.get(url)
+                # Note: time.sleep is used inside a sync thread-pool task because
+                # undetected_chromedriver's blocking API runs in asyncio.to_thread.
+                # Replacing with asyncio.sleep would require restructuring the tier
+                # to be fully async; this sync sleep is bounded and does not block
+                # the event loop directly.
                 time.sleep(random.uniform(2, 4))
                 html = driver.page_source
                 driver.quit()
