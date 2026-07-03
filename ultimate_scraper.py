@@ -28,21 +28,44 @@ _has_tor = importlib.util.find_spec("aiohttp_socks") is not None
 if _has_playwright:
     from playwright.async_api import async_playwright
 
+try:
+    from tls_fingerprint import TLSScraper
+
+    _has_tls = True
+except ImportError:
+    _has_tls = False
+
+try:
+    from camoufox_integration import CamoufoxBrowser
+
+    _has_camoufox = True
+except ImportError:
+    _has_camoufox = False
+
+try:
+    from stealth_engine import StealthEngine
+
+    _stealth_engine = StealthEngine()
+except ImportError:
+    _stealth_engine = None
+
 
 class UltimateScraper:
-    """10-tier anti-detection scraper with automatic fallback.
+    """12-tier anti-detection scraper with automatic fallback.
 
     Tiers:
     1. Direct HTTP (smart headers, rotating UAs)
-    2. cloudscraper (Python-native Cloudflare bypass)
-    3. FlareSolverr (Cloudflare/WAF bypass service)
-    4. undetected-chromedriver (modified Chrome, no detection)
-    5. Playwright stealth (full browser with human behavior)
-    6. Googlebot UA (search engine crawl mimic)
-    7. Tor proxy (anonymous routing via SOCKS5)
-    8. Archive.org / Wayback Machine (cached version)
-    9. Google Cache (cached version)
-    10. Textise dot iitty (text-only version)
+    2. TLS fingerprint impersonation (curl_cffi JA3/JA4 bypass)
+    3. cloudscraper (Python-native Cloudflare bypass)
+    4. FlareSolverr (Cloudflare/WAF bypass service)
+    5. undetected-chromedriver (modified Chrome, no detection)
+    6. Camoufox stealth Firefox (source-level anti-fingerprinting)
+    7. Playwright stealth (full browser with human behavior)
+    8. Googlebot UA (search engine crawl mimic)
+    9. Premium proxy retry (after cheap tiers fail)
+    10. Archive.org / Wayback Machine (cached version)
+    11. Google Cache (cached version)
+    12. Tor proxy (anonymous routing via SOCKS5)
     """
 
     USER_AGENTS: ClassVar[list[str]] = [
@@ -54,6 +77,8 @@ class UltimateScraper:
 
     def __init__(self) -> None:
         self._ua_index = 0
+        self._tls_scraper = TLSScraper() if _has_tls else None
+        self._camoufox = CamoufoxBrowser() if _has_camoufox else None
 
     def _rotate_ua(self) -> str:
         ua = self.USER_AGENTS[self._ua_index % len(self.USER_AGENTS)]
@@ -98,49 +123,59 @@ class UltimateScraper:
         if html and self._is_valid(html):
             return self._result(url, html, "direct")
 
-        # Tier 2: cloudscraper (Python Cloudflare bypass)
+        # Tier 2: TLS fingerprint impersonation
+        html = await self._tier_tls_fingerprint(url, opts, proxy_url=proxy_url)
+        if html and self._is_valid(html):
+            return self._result(url, html, "tls_fingerprint")
+
+        # Tier 3: cloudscraper (Python Cloudflare bypass)
         html = await self._tier_cloudscraper(url, opts)
         if html and self._is_valid(html):
             return self._result(url, html, "cloudscraper")
 
-        # Tier 3: FlareSolverr
+        # Tier 4: FlareSolverr
         html = await self._tier_flaresolverr(url, opts)
         if html and self._is_valid(html):
             return self._result(url, html, "flaresolverr")
 
-        # Tier 4: undetected-chromedriver
+        # Tier 5: undetected-chromedriver
         html = await self._tier_undetected(url, opts)
         if html and self._is_valid(html):
             return self._result(url, html, "undetected")
 
-        # Tier 5: Playwright stealth
+        # Tier 6: Camoufox stealth Firefox
+        html = await self._tier_camoufox(url, opts, proxy_url=proxy_url)
+        if html and self._is_valid(html):
+            return self._result(url, html, "camoufox")
+
+        # Tier 7: Playwright stealth
         html = await self._tier_playwright(url, opts)
         if html and self._is_valid(html):
             return self._result(url, html, "playwright")
 
-        # Tier 6: Googlebot UA
+        # Tier 8: Googlebot UA
         html = await self._tier_googlebot(url, opts, proxy_url=proxy_url)
         if html and self._is_valid(html):
             return self._result(url, html, "googlebot")
 
-        # Tier 7: Premium proxy retry (after cheap tiers fail)
+        # Tier 9: Premium proxy retry (after cheap tiers fail)
         if proxy_url and not opts.get("use_premium_proxy_first", True):
             html = await self._tier_premium_proxy(url, proxy_url, opts)
             if html and self._is_valid(html):
                 return self._result(url, html, "premium_proxy")
             errors.append("premium_proxy_failed")
 
-        # Tier 8: Archive.org / Wayback Machine
+        # Tier 10: Archive.org / Wayback Machine
         html = await self._tier_archive(url, opts)
         if html and self._is_valid(html):
             return self._result(url, html, "archive")
 
-        # Tier 9: Google Cache
+        # Tier 11: Google Cache
         html = await self._tier_google_cache(url, opts)
         if html and self._is_valid(html):
             return self._result(url, html, "google_cache")
 
-        # Tier 10: Tor (anonymous routing)
+        # Tier 12: Tor (anonymous routing)
         html = await self._tier_tor(url, opts)
         if html and self._is_valid(html):
             return self._result(url, html, "tor")
@@ -352,10 +387,9 @@ class UltimateScraper:
                     locale="en-US",
                     timezone_id="America/New_York",
                 )
-                await context.add_init_script("""
-                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                    navigator.permissions.query = (p) => p.name === 'notifications' ? Promise.resolve({state: 'denied'}) : navigator.permissions.query(p);
-                """)
+                stealth_script = _stealth_engine.generate_all() if _stealth_engine else ""
+                if stealth_script:
+                    await context.add_init_script(stealth_script)
                 page = await context.new_page()
                 await page.goto(url, wait_until="domcontentloaded", timeout=60000)
                 await page.wait_for_timeout(random.randint(1000, 3000))
@@ -368,6 +402,44 @@ class UltimateScraper:
                 return html
         except OSError as e:
             logger.debug("playwright_failed", extra={"error": str(e)[:50]})
+        return None
+
+
+    async def _tier_tls_fingerprint(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
+        """Fetch using curl_cffi TLS fingerprint impersonation."""
+        if not self._tls_scraper or not self._tls_scraper.is_available():
+            return None
+        try:
+            result = await self._tls_scraper.fetch(
+                url,
+                headers=self._build_headers(url),
+                proxy=proxy_url or "",
+                timeout=opts.get("timeout", 30),
+            )
+            if result.get("success") and result.get("status_code", 0) < 400:
+                return result.get("text", "")
+        except Exception as e:  # noqa: BLE001
+            logger.debug("tls_fingerprint_failed", extra={"error": str(e)[:50]})
+        return None
+
+    async def _tier_camoufox(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
+        """Fetch using Camoufox anti-detection Firefox."""
+        if not self._camoufox or not self._camoufox.is_available():
+            return None
+        try:
+            result = await self._camoufox.fetch(
+                url,
+                wait_time=opts.get("wait_time", 3000),
+                proxy=proxy_url or "",
+            )
+            if result.get("success"):
+                return result.get("content", "")
+        except Exception as e:  # noqa: BLE001
+            logger.debug("camoufox_failed", extra={"error": str(e)[:50]})
         return None
 
     async def _tier_googlebot(

@@ -20,6 +20,7 @@ import trafilatura
 from trafilatura.settings import use_config
 
 from settings import settings
+from stealth_engine import StealthEngine
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -467,17 +468,8 @@ class PryScraper:
                 geolocation={"latitude": 40.7128, "longitude": -74.0060},
             )
             # Stealth: override automation indicators
-            await context.add_init_script("""
-                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-                Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-                window.chrome = { runtime: {} };
-                // Override permissions query to avoid automation detection
-                const originalQuery = window.navigator.permissions.query;
-                window.navigator.permissions.query = (p) => (
-                    p.name === 'notifications' ? Promise.resolve({state: 'denied'}) : originalQuery(p)
-                );
-            """)
+            stealth_script = StealthEngine().generate_all()
+            await context.add_init_script(stealth_script)
             page = await context.new_page()
             # Human-like navigation: random wait before page load
             await asyncio.sleep(random.uniform(0.5, 2.0))
