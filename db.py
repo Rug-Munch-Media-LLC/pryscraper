@@ -144,6 +144,7 @@ def get_engine() -> Engine:
 
         _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
         # Auto-create tables on first import (idempotent)
+        # Deprecated: use `alembic upgrade head` instead (see run_migrations())
         Base.metadata.create_all(_engine)
         logger.info(
             "db_engine_initialized", extra={"url": url.split("@")[-1] if "@" in url else url}
@@ -778,6 +779,30 @@ def import_json_stores(data_dir: Path | None = None) -> dict[str, int]:
         counts["referral_in_app_usage"] = n
 
     return counts
+
+
+def run_migrations() -> None:
+    """Run pending Alembic migrations (``alembic upgrade head``).
+
+    Optional helper for programmatic migration execution.  Falls back to
+    the config file at *alembic.ini* (must be on the sys.path or in CWD).
+    Requires the ``alembic`` package (included in ``pry[dev]``).
+    """
+    try:
+        from alembic.config import Config
+
+        from alembic import command
+    except ImportError:
+        logger.warning("alembic_not_installed", extra={"hint": "pip install alembic"})
+        return
+    try:
+        cfg = Config("alembic.ini")
+        cfg.set_main_option("sqlalchemy.url", _resolve_database_url())
+        command.upgrade(cfg, "head")
+        logger.info("migrations_completed")
+    except Exception:
+        logger.exception("migrations_failed")
+        raise
 
 
 def db_health() -> dict[str, Any]:

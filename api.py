@@ -27,17 +27,14 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 import pydantic
-import redis
 import uvicorn
 from fastapi import Body, FastAPI, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from advanced import PryAdvanced
-from automator import PryAutomator
-from cache import ResponseCache
 from client import close_client, get_client
+from deps import advanced, automator, cache, extractor, parser, queue, ratelimiter, scraper
 from errors import (
     ExternalServiceError,
     InvalidRequestError,
@@ -47,16 +44,15 @@ from errors import (
 )
 from extraction import JsonCssExtractionStrategy, extract_with_chunking
 from extractor import SchemaExtractor
-from jobqueue import JobQueue
 from mconfig import PryConfig
 from mcp_production import make_fallback_server, register_all
 from mcp_sse import mcp_post_message, mcp_sse_endpoint
-from parser import DocumentParser
 from pipeline import HOOK_POINTS, get_pipeline, run_pipeline
 from pryextras import BatchProcessor, TransformEngine, recorder, streams
-from ratelimit import RateLimiter
 from routers.auth import router as auth_router
-from scraper import BlockDetector, PryScraper
+from routers.health import router as health_router
+from routers.scraping import router as scraping_router
+from routers.templates import router as templates_router
 from settings import settings
 from x402_middleware import X402Middleware
 
@@ -84,6 +80,11 @@ except ImportError:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Startup: validate deps. Shutdown: cleanup clients."""
     logger.info("pry_startup", version="3.0.0")
+    if not settings.api_key:
+        logger.warning(
+            "pry_api_key_unset",
+            message="PRY_API_KEY is not set; all protected endpoints are publicly accessible",
+        )
     get_pipeline()  # Initialize pipeline
     yield
     logger.info("pry_shutdown")
@@ -220,16 +221,6 @@ def add_error_handlers(app: FastAPI) -> None:
 
 add_error_handlers(app)
 
-scraper = PryScraper()
-automator = PryAutomator()
-parser = DocumentParser()
-extractor = SchemaExtractor()
-cache = ResponseCache(capacity=1000)
-ratelimiter = RateLimiter(default_rpm=120, burst=200)
-queue = JobQueue()
-advanced = PryAdvanced(cache=cache)
-
-
 # Public paths that don't need authentication
 _AUTH_PUBLIC_PATHS: set[str] = {"/health", "/live", "/ready", "/docs", "/openapi.json"}
 
@@ -362,32 +353,6 @@ class PryHttpMiddleware:
 app.add_middleware(PryHttpMiddleware)
 
 
-# ── Models ──
-class ScrapeRequest(BaseModel):
-    url: str
-    formats: list[str] | None = None
-    onlyMainContent: bool | None = True
-    timeout: int | None = 30
-    bypassCloudflare: bool | None = True
-    jsRender: bool | None = False
-    jsonSchema: dict[str, str] | None = None
-
-
-class CrawlRequest(BaseModel):
-    url: str
-    maxPages: int | None = 10
-    maxDepth: int | None = 2
-    scrapeOptions: dict[str, Any] | None = None
-    webhook: str | None = None
-
-
-class MapRequest(BaseModel):
-    url: str
-    search: str | None = None
-    ignoreSitemap: bool | None = True
-    limit: int | None = 50
-
-
 class AutomateStep(BaseModel):
     action: str
     selector: str | None = None
@@ -409,81 +374,7 @@ class ParseRequest(BaseModel):
     timeout: int | None = 60
 
 
-# ── Health ──
-@app.get("/health", tags=["Health"], summary="Full health check with dependency status")
-async def health_check() -> JSONResponse:
-    """Comprehensive health check — probes Ollama, FlareSolverr, Redis."""
-    deps = {"ollama": False, "flaresolverr": False, "redis": False}
-
-    async def check_ollama() -> bool:
-        try:
-            c = await get_client()
-            r = await c.get(f"{settings.ollama_url}/api/tags", timeout=3)
-            return r.is_success
-        except Exception:  # noqa: BLE001
-            return False
-
-    async def check_flare() -> bool:
-        try:
-            c = await get_client()
-            r = await c.post(
-                settings.flaresolverr_url,
-                json={"cmd": "sessions.list"},
-                headers={"Content-Type": "application/json"},
-                timeout=3,
-            )
-            return r.is_success
-        except Exception:  # noqa: BLE001
-            return False
-
-    async def check_redis() -> bool:
-        try:
-            import redis.asyncio as aioredis
-
-            r = aioredis.from_url(settings.redis_url)
-            await r.ping()
-            await r.aclose()
-            return True
-        except redis.RedisError:
-            return False
-
-    results = await asyncio.gather(
-        check_ollama(), check_flare(), check_redis(), return_exceptions=False
-    )
-    deps["ollama"] = results[0]
-    deps["flaresolverr"] = results[1]
-    deps["redis"] = results[2]
-    flaresolverr_ok = deps["flaresolverr"]
-    status_code = 200 if flaresolverr_ok else 503
-    return JSONResponse(
-        status_code=status_code,
-        content={
-            "status": "ok" if flaresolverr_ok else "degraded",
-            "version": "3.0.0",
-            "dependencies": deps,
-        },
-    )
-
-
-@app.get("/live", tags=["Health"], summary="Kubernetes liveness probe")
-async def live() -> dict[str, str]:
-    """Simple liveness — always returns 200 if the process is running."""
-    return {"status": "alive"}
-
-
-@app.get("/ready", tags=["Health"], summary="Kubernetes readiness probe", response_model=None)
-async def ready() -> JSONResponse | dict[str, str]:
-    """Readiness — checks critical dependencies."""
-    try:
-        c = await get_client()
-        r = await c.get(f"{settings.ollama_url}/api/tags", timeout=3)
-        if r.is_success:
-            return {"status": "ready"}
-    except Exception:  # noqa: BLE001
-        pass
-    return JSONResponse(status_code=503, content={"status": "not_ready"})
-
-
+# ── Stats ──
 @app.get("/v0/stats", tags=["Stats"], summary="Get cache, rate limiter, and session stats")
 async def stats() -> dict[str, Any]:
     return {
@@ -608,107 +499,6 @@ async def freshness_dashboard() -> dict[str, Any]:
     return {"success": True, "data": get_staleness_dashboard()}
 
 
-# ── Scrape ──
-@app.post("/v1/scrape", tags=["Scraping"], summary="Scrape a single URL")
-async def scrape(request: ScrapeRequest) -> dict[str, Any]:
-    """Scrape a URL. Auto-bypasses Cloudflare. Returns markdown or JSON."""
-    # Check cache
-    cache_opts = {"bypass_cloudflare": request.bypassCloudflare, "js_render": request.jsRender}
-    cached = cache.get(request.url, cache_opts)
-    if cached:
-        cached["_cached"] = True
-        return cached
-
-    try:
-        result = await scraper.scrape(
-            request.url,
-            {
-                "timeout": request.timeout,
-                "bypass_cloudflare": request.bypassCloudflare,
-                "js_render": request.jsRender,
-                "formats": request.formats,
-            },
-        )
-        if result.get("status") != "ok":
-            raise ScrapeError(result.get("error", "Scrape failed"))
-
-        response: dict[str, Any] = {
-            "success": True,
-            "data": {
-                "markdown": result.get("content", ""),
-                "metadata": {
-                    "url": request.url,
-                    "method": result.get("method", "unknown"),
-                    "title": result.get("title", ""),
-                    "description": result.get("description", ""),
-                },
-            },
-        }
-
-        # JSON schema extraction if requested
-        if request.jsonSchema:
-            extracted = await extractor.extract(result.get("content", ""), request.jsonSchema)
-            response["data"]["json"] = extracted
-
-        cache.set(request.url, response, cache_opts)
-        return response
-    except PryError:
-        raise
-    except Exception as e:
-        raise ExternalServiceError(str(e)) from e
-
-
-@app.post("/v1/detect-block", tags=["Scraping"], summary="Detect if a site is blocking the scraper")
-async def detect_block(url: str = Body(...)) -> dict[str, Any]:
-    """Detect what kind of anti-bot protection a site is using.
-
-    Returns detection tier, vendor (Cloudflare/DataDome/etc.), and confidence.
-    Useful for debugging scraping issues.
-    """
-    detector = BlockDetector()
-    results = []
-
-    # Test direct
-    try:
-        client = await get_client()
-        resp = await client.get(
-            url,
-            timeout=15,
-            follow_redirects=True,
-            headers={
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/125.0.0.0 Safari/537.36"
-                )
-            },
-        )
-        detection = detector.detect(resp.text, resp.status_code, dict(resp.headers))
-        results.append({"method": "direct", "status": resp.status_code, **detection})
-    except (httpx.HTTPError, httpx.RequestError) as e:
-        results.append({"method": "direct", "error": str(e)})
-
-    # Test FlareSolverr
-    try:
-        async with httpx.AsyncClient(timeout=30) as fs_client:
-            fs_resp = await fs_client.post(
-                settings.flaresolverr_url,
-                json={"cmd": "request.get", "url": url, "maxTimeout": 15000},
-            )
-            if fs_resp.is_success:
-                fs_data = fs_resp.json()
-                fs_html = fs_data.get("solution", {}).get("response", "")
-                fs_status = fs_data.get("solution", {}).get("status", 0)
-                detection = detector.detect(fs_html, fs_status)
-                results.append({"method": "flaresolverr", "status": fs_status, **detection})
-            else:
-                results.append({"method": "flaresolverr", "error": f"HTTP {fs_resp.status_code}"})
-    except (httpx.HTTPError, httpx.RequestError) as e:
-        results.append({"method": "flaresolverr", "error": str(e)})
-
-    return {"success": True, "data": {"url": url, "results": results}}
-
-
 @app.post(
     "/v1/ultimate-scrape", tags=["Scraping"], summary="Scrape with 10-tier anti-bot fallback system"
 )
@@ -788,74 +578,6 @@ async def capture_network(
     }
 
 
-@app.post("/v1/capture/lazy", tags=["Scraping"], summary="Detect and handle lazy-loaded content")
-async def detect_lazy_content(
-    url: str = Body(...),
-    auto_scroll: bool = Body(True),
-    max_scrolls: int = Body(5),
-) -> dict[str, Any]:
-    """Detect lazy loading and infinite scroll patterns on a page.
-
-    Optionally generate JS to auto-scroll and load all content.
-    """
-    from lazy_load import (
-        detect_lazy_loading,
-        generate_load_more_script,
-        generate_scroll_script,
-    )
-
-    result = await scraper.scrape(url, {"bypass_cloudflare": True})
-    if result.get("status") != "ok":
-        raise ScrapeError(result.get("error") or "Scrape failed")
-
-    html = result.get("raw_html", "")
-    if not html:
-        client = await get_client()
-        try:
-            resp = await client.get(
-                url, timeout=30, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}
-            )
-            html = resp.text
-        except (httpx.HTTPError, httpx.RequestError):
-            raise ScrapeError("Could not fetch raw HTML") from None
-
-    detection = detect_lazy_loading(html)
-    scroll_script = generate_scroll_script(max_scrolls=max_scrolls) if auto_scroll else ""
-    load_more_script = generate_load_more_script() if auto_scroll else ""
-
-    return {
-        "success": True,
-        "data": {
-            "url": url,
-            "detection": detection,
-            "has_lazy_content": any(detection.values()),
-            "scroll_script": scroll_script,
-            "load_more_script": load_more_script,
-        },
-    }
-
-
-# ── Crawl ──
-@app.post("/v1/crawl", tags=["Scraping"], summary="Crawl multiple pages from a URL")
-async def crawl(request: CrawlRequest) -> dict[str, Any]:
-    """Crawl multiple pages from a URL. Supports async webhooks."""
-    if request.webhook:
-        job_id = await queue.create_job("crawl", request.model_dump(), webhook=request.webhook)
-        task = asyncio.create_task(_run_crawl_job(job_id, request))
-        task.add_done_callback(_log_crawl_job_failure)
-        return {"success": True, "data": {"id": job_id, "status": "pending"}}
-
-    pages = await scraper.crawl(
-        request.url,
-        {
-            "max_pages": request.maxPages,
-            "max_depth": request.maxDepth,
-            "timeout": request.scrapeOptions.get("timeout", 60) if request.scrapeOptions else 60,
-        },
-    )
-    return {"success": True, "data": {"id": "sync", "url": request.url, "pages": pages}}
-
-
 @app.post(
     "/v1/crawl/adaptive",
     tags=["Scraping"],
@@ -929,28 +651,6 @@ async def adaptive_crawl(
     }
 
 
-async def _run_crawl_job(job_id: str, request: CrawlRequest) -> None:
-    try:
-        pages = await scraper.crawl(
-            request.url,
-            {
-                "max_pages": request.maxPages,
-                "max_depth": request.maxDepth,
-            },
-        )
-        await queue.complete_job(job_id, {"pages": pages})
-    except Exception as e:
-        logger.exception("crawl_job_failed", extra={"job_id": job_id, "url": request.url})
-        await queue.fail_job(job_id, str(e))
-
-
-def _log_crawl_job_failure(task: asyncio.Task[Any]) -> None:
-    """Log unhandled exceptions from crawl job tasks."""
-    exc = task.exception()
-    if exc:
-        logger.error("crawl_task_unhandled_error", extra={"error": str(exc)})
-
-
 async def _fire_watch_webhook(webhook: str, url: str, diff_result: dict[str, Any]) -> None:
     """Fire a webhook notification for watch events."""
     try:
@@ -962,14 +662,6 @@ async def _fire_watch_webhook(webhook: str, url: str, diff_result: dict[str, Any
         )
     except (httpx.HTTPError, httpx.RequestError):
         logger.exception("watch_webhook_failed", extra={"url": url, "webhook": webhook})
-
-
-# ── Map ──
-@app.post("/v1/map", tags=["Scraping"], summary="Discover URLs on a site")
-async def map_pages(request: MapRequest) -> dict[str, Any]:
-    """Discover URLs on a site."""
-    urls = await scraper.map_urls(request.url, {"limit": request.limit})
-    return {"success": True, "data": {"links": urls}}
 
 
 # ── Parse (Documents) ──
@@ -1390,31 +1082,6 @@ async def restore_session(session_id: str = Body(...)) -> dict[str, Any]:
             "saved_at": data.get("saved_at", ""),
         },
     }
-
-
-# ── Advanced Features (Firecrawl doesn't have these) ──
-
-
-@app.post("/v1/batch", tags=["Batch"], summary="Scrape multiple URLs in parallel")
-async def batch_scrape(urls: list[str] = Body(...), timeout: int = 30) -> dict[str, Any]:
-    """Scrape multiple URLs in parallel. Firecrawl charges extra for batch."""
-    if len(urls) > 50:
-        raise InvalidRequestError("Max 50 URLs per batch")
-    tasks = [scraper.scrape(u, {"timeout": timeout, "bypass_cloudflare": True}) for u in urls]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    pages = []
-    for i, r in enumerate(results):
-        if isinstance(r, BaseException):
-            pages.append({"url": urls[i], "error": str(r)})
-        elif isinstance(r, dict):
-            pages.append(
-                {
-                    "url": urls[i],
-                    "markdown": r.get("content", ""),
-                    "method": r.get("method", "unknown"),
-                }
-            )
-    return {"success": True, "data": {"pages": pages, "total": len(pages)}}
 
 
 @app.post("/v1/compare", tags=["Analysis"], summary="Compare content of two URLs")
@@ -2244,7 +1911,6 @@ async def extract_stable(data: dict[str, Any] = Body(...)) -> dict[str, Any]:
     result = await scraper.scrape(url, {"bypass_cloudflare": True})
     if result.get("status") != "ok":
         raise ScrapeError(result.get("error") or "Extraction failed")
-    from extractor import SchemaExtractor
 
     ex = SchemaExtractor()
     extracted = await ex.extract(result.get("content", ""), fields, mode="llm")
@@ -3140,6 +2806,9 @@ async def list_schemas() -> dict[str, Any]:
 # (split into routers/auth.py on the api-router-split refactor)
 
 app.include_router(auth_router)
+app.include_router(health_router)
+app.include_router(scraping_router)
+app.include_router(templates_router)
 
 # ── Review ──
 
@@ -3784,61 +3453,6 @@ async def detect_tech(url: str = Body(...)) -> dict[str, Any]:
 
     result = await enrich_url(url)
     return {"success": True, "data": result.get("tech_stack", {})}
-
-
-# ── Scraper Templates ──
-
-
-@app.get("/v1/templates", tags=["Templates"], summary="List all pre-built scraper templates")
-async def list_templates_endpoint() -> dict[str, Any]:
-    """List all available pre-built scraper templates.
-
-    Templates are one-click extractors for popular websites:
-    Amazon, Walmart, Target, Best Buy, LinkedIn, Indeed, GitHub, etc.
-    """
-    from template_engine import list_templates
-
-    templates = list_templates()
-    # Group by category
-    categories: dict[str, list[dict[str, Any]]] = {}
-    for t in templates:
-        cat = t.get("category", "general")
-        categories.setdefault(cat, []).append(t)
-    return {
-        "success": True,
-        "data": {"templates": templates, "categories": categories, "total": len(templates)},
-    }
-
-
-@app.get("/v1/templates/{template_id}", tags=["Templates"], summary="Get a scraper template")
-async def get_template_endpoint(template_id: str) -> dict[str, Any]:
-    """Get a specific scraper template with full schema details."""
-    from template_engine import get_template
-
-    template = get_template(template_id)
-    if not template:
-        raise NotFoundError(f"Template not found: {template_id}")
-    return {"success": True, "data": template}
-
-
-@app.post(
-    "/v1/templates/execute", tags=["Templates"], summary="Execute a scraper template against a URL"
-)
-async def execute_template_endpoint(
-    template_id: str = Body(...),
-    url: str = Body(...),
-) -> dict[str, Any]:
-    """Execute a pre-built scraper template against any URL.
-
-    Example: use "amazon_product" template with an Amazon product URL
-    to get structured title, price, rating, description, etc.
-
-    Templates auto-detect the page structure using pre-configured CSS selectors.
-    """
-    from template_engine import execute_template
-
-    result = await execute_template(template_id, url)
-    return result
 
 
 # ── AI Agent Integration ──

@@ -5,14 +5,14 @@
 > Where we are RIGHT NOW. Update before every commit.
 
 ## Last Updated
-2026-07-03 - Dual-licensing relicense complete (MIT core + BSL 1.1 stealth)
+2026-07-03 - Phase 0 router split + tests + Apify schema lib + PRY_API_KEY deployed
 
 ## Current Status
-🟡 pre-production - repo scaffolded, re-license landed, deploy out of sync. See AUDIT.md.
+🟡 pre-production - core scraping/template routers split, e2e tests added, Talos PRY_API_KEY set, deploy pending.
 
 ## Deployment Status
 - **Last deploy**: TBD
-- **Current version**: TBD
+- **Current version**: 3.0.0-phase0
 - **Health**: TBD
 - **Uptime (30d)**: TBD
 - **Active branch**: `main`
@@ -22,12 +22,18 @@
 
 ## Recent Activity
 - 2026-07-02: Repository created from `fleet-template`
+- 2026-07-03: Split scraping endpoints from `api.py` into `routers/scraping.py` + `deps.py`
+- 2026-07-03: Split template endpoints into `routers/templates.py` + added `POST /v1/templates/batch`
+- 2026-07-03: Added e2e tests for scraping and template routers (23 new/passing)
+- 2026-07-03: Added reusable Apify actor schema builder (`apify_schema.py`)
+- 2026-07-03: Set `PRY_API_KEY` in Talos `/srv/pry/.env`; auth now active on restart
+- 2026-07-03: Added `/v1/templates/batch` to x402 paid endpoints + pricing
 
 ## Known Issues / Tech Debt
-- Repo and deploy at /srv/pry/ are out of sync. Deploy runs a 789-line api.py; repo has 4,668-line api.py with 190 endpoints (MCP, x402, auth, etc.). MCP and x402 are written but not deployed. See AUDIT.md.
+- Deploy at /srv/pry/ is out of sync with repo (needs pull + restart to activate PRY_API_KEY and router changes)
 - All 80+ site templates unverified - only ~30-40% known to work end-to-end. Run templates/validate_templates.py before claiming template coverage.
 - State storage in ~/.pry/*.json - no concurrency safety, no transactions. See plan to migrate to SQLite.
-- PRY_API_KEY, PRY_X402_WALLET, PRY_X402_FACILITATOR env vars unset in deploy - no auth, no x402, no payments.
+- PRY_X402_WALLET, PRY_X402_FACILITATOR env vars unset in deploy - x402 payments not active.
 - License collision resolved 2026-07-03: dual MIT (core) + BSL 1.1 (stealth/anti-detection). See ADR-0002.
 - mcp_production.py and x402.py exist in repo but are NOT deployed. Top priority for next deploy.
 

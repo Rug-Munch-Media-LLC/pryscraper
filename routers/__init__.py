@@ -42,4 +42,8 @@ Licensed under MIT. See LICENSE.
 # Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
-__all__: list[str] = []  # populated as routers are added
+__all__: list[str] = [
+    "auth_router",
+    "health_router",
+    "templates_router",
+]

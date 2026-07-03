@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
 
 import pytest
 
@@ -199,6 +200,84 @@ def test_db_health_returns_dict(temp_data_dir):
     assert "available" in health
     assert health["available"] is True
     assert "url" in health
+
+
+def test_alembic_migration_current_works(temp_data_dir, monkeypatch):
+    """Verify alembic.current can run against a temp SQLite DB without error."""
+    import importlib
+    import subprocess
+    import sys
+
+    import db
+
+    monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{temp_data_dir}/migration-test.db")
+    importlib.reload(db)
+    db._engine = None
+    db._SessionLocal = None
+
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "--config", "alembic.ini", "current"],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PRY_DATABASE_URL": f"sqlite:///{temp_data_dir}/migration-test.db"},
+    )
+    assert result.returncode == 0, f"alembic current failed (stderr): {result.stderr}"
+
+
+def test_alembic_migration_upgrade_head_creates_tables(temp_data_dir, monkeypatch):
+    """Verify alembic upgrade head creates all expected tables."""
+    import importlib
+    import subprocess
+    import sys
+
+    from sqlalchemy import inspect
+
+    import db
+
+    monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{temp_data_dir}/migration-test.db")
+    importlib.reload(db)
+    db._engine = None
+    db._SessionLocal = None
+
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "--config", "alembic.ini", "upgrade", "head"],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PRY_DATABASE_URL": f"sqlite:///{temp_data_dir}/migration-test.db"},
+    )
+    assert result.returncode == 0, f"alembic upgrade failed: {result.stderr}"
+
+    eng = db.get_engine()
+    inspector = inspect(eng)
+    tables = inspector.get_table_names()
+    expected_tables = {
+        "quality_checks",
+        "review_items",
+        "intel_snapshots",
+        "costing_entries",
+        "freshness_snapshots",
+        "structure_snapshots",
+        "seo_snapshots",
+        "monitors",
+        "monitor_runs",
+        "accounts",
+        "browser_sessions",
+        "reports",
+        "training_datasets",
+        "pipelines",
+        "pipeline_runs",
+        "gdpr_requests",
+        "agencies",
+        "agency_clients",
+        "referral_clicks",
+        "actors",
+        "actor_runs",
+        "llm_usage",
+        "webhooks",
+        "x402_receipts",
+    }
+    missing = expected_tables - set(tables)
+    assert not missing, f"Tables missing after migration: {missing}"
 
 
 def test_models_have_unique_constraints(temp_data_dir):

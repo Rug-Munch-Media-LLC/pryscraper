@@ -193,6 +193,14 @@ def cmd_screenshot(url, output=None, timeout=30):
         print(f"{GREEN}✓{NC} Screenshot: {len(b64)} bytes (base64)")
 
 
+def cmd_migrate():
+    """Run pending database migrations (alembic upgrade head)."""
+    from db import run_migrations
+
+    run_migrations()
+    print(f"{GREEN}✓{NC} Migrations up to date")
+
+
 def cmd_run(pryfile_path="pry.yml"):
     """Execute jobs defined in pry.yml."""
     if not os.path.exists(pryfile_path):
@@ -261,6 +269,7 @@ def main():
         print(f"    {CYAN}pry parse <url>{NC}             Parse a document")
         print(f"    {CYAN}pry ss <url>{NC}                Take a screenshot")
         print(f"    {CYAN}pry run [pry.yml]{NC}           Execute job file")
+        print(f"    {CYAN}pry migrate{NC}                 Run database migrations")
         print(f"    {CYAN}pry serve{NC}                   Start the server")
         print(f"    {CYAN}pry completions{NC}             Install autocomplete")
         print(f"    {CYAN}pry proxy ...{NC}               Manage proxy providers and signup")
@@ -328,6 +337,9 @@ def main():
         elif cmd == "serve":
             port = int(sys.argv[sys.argv.index("--port") + 1]) if "--port" in sys.argv else 8005
             cmd_serve(port=port)
+
+        elif cmd in ("migrate", "db"):
+            cmd_migrate()
 
         elif cmd in ("completions", "autocomplete"):
             shell = args[0] if args else "bash"

@@ -48,6 +48,7 @@ X402_PRICING: dict[str, dict[str, Any]] = {
     "monitor": {"price_usd": 0.02, "description": "Create scheduled monitor"},
     "llm_call": {"price_usd": 0.01, "description": "LLM extraction call"},
     "template_execute": {"price_usd": 0.002, "description": "Execute scraper template"},
+    "template_batch_execute": {"price_usd": 0.01, "description": "Execute up to 20 template items"},
     "browser_automation": {"price_usd": 0.05, "description": "Browser automation"},
     "bulk_crawl": {"price_usd": 0.10, "description": "Crawl up to 1000 pages"},
     "pdf_extract": {"price_usd": 0.01, "description": "PDF table extraction"},

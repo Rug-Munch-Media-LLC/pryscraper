@@ -35,6 +35,7 @@ PAID_ENDPOINTS = {
     "/v1/extract/css": "extract",
     "/v1/extract/llm": "llm_call",
     "/v1/templates/execute": "template_execute",
+    "/v1/templates/batch": "template_batch_execute",
     "/v1/automate": "browser_automation",
     "/v1/monitor": "monitor",
     "/v1/pdf/extract": "pdf_extract",

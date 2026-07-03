@@ -34,6 +34,9 @@ COPY --from=builder /root/.cache/ms-playwright /root/.cache/ms-playwright
 
 WORKDIR /app
 COPY *.py ./
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY alembic.ini ./alembic.ini
+COPY alembic/ ./alembic/
 COPY routers/ ./routers/
 COPY llm_providers/ ./llm_providers/
 COPY stealth_scripts/ ./stealth_scripts/
@@ -44,5 +47,6 @@ EXPOSE 8002
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -sf http://localhost:8002/health || exit 1
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8002", \
      "--workers", "2", "--timeout-keep-alive", "120", "--limit-concurrency", "20"]
