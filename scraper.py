@@ -19,10 +19,7 @@ import httpx
 import trafilatura
 from trafilatura.settings import use_config
 
-from mconfig import PryConfig
-
-FLARESOLVERR_URL = "http://flaresolverr:8191/v1"
-config = PryConfig()
+from settings import settings
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -415,7 +412,7 @@ class PryScraper:
         return result
 
     async def _fetch_direct(self, url: str, headers: dict, timeout: int) -> str:
-        proxy_url = config.get_proxy_url()
+        proxy_url = settings.resolved_proxy_url
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(timeout),
             follow_redirects=True,
@@ -424,7 +421,7 @@ class PryScraper:
             cookies=httpx.Cookies(),
             proxy=proxy_url,
         ) as client:
-            delay = random.uniform(*config.get("rotation.delay_range", [0.5, 3.0]))
+            delay = random.uniform(*settings.rotation_delay_range)
             await asyncio.sleep(delay)
             resp = await client.get(url)
             resp.raise_for_status()
@@ -433,7 +430,7 @@ class PryScraper:
     async def _fetch_via_flaresolverr(self, url: str, timeout: int) -> str:
         payload = {"cmd": "request.get", "url": url, "maxTimeout": timeout * 1000}
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout + 10)) as client:
-            resp = await client.post(FLARESOLVERR_URL, json=payload)
+            resp = await client.post(settings.flaresolverr_url, json=payload)
             resp.raise_for_status()
             data = resp.json()
             solution = data.get("solution", {})

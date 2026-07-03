@@ -6,8 +6,6 @@ direct access to shared state.
 
 Usage:
     from deps import scraper, cache, automator, ...
-
-Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 """
 
 # SPDX-License-Identifier: MIT
@@ -19,18 +17,16 @@ from automator import PryAutomator
 from cache import ResponseCache
 from extractor import SchemaExtractor
 from jobqueue import JobQueue
-from mconfig import PryConfig
 from parser import DocumentParser
 from ratelimit import RateLimiter
 from scraper import PryScraper
-
-config = PryConfig()
+from settings import settings
 
 scraper = PryScraper()
 automator = PryAutomator()
 parser = DocumentParser()
 extractor = SchemaExtractor()
 cache = ResponseCache(capacity=1000)
-ratelimiter = RateLimiter(default_rpm=120, burst=200)
+ratelimiter = RateLimiter(default_rpm=settings.rate_limit_rpm, burst=200)
 queue = JobQueue()
 advanced = PryAdvanced(cache=cache)

@@ -1,6 +1,7 @@
-"""Pry — Config router (remaining api.py routes).
+"""Pry — Config router (runtime configuration management).
 
-Auto-extracted from api.py during the router-split refactor.
+Provides endpoints to read and update the unified Pry settings object.
+Runtime changes are persisted to the configured JSON file.
 """
 
 # SPDX-License-Identifier: MIT
@@ -13,37 +14,33 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from mconfig import PryConfig
+from settings import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Config"])
 
+
 @router.get("/v1/config", tags=["Config"], summary="Get current Pry configuration")
 async def get_config() -> dict[str, Any]:
     """Get current Pry configuration."""
-    return {"success": True, "data": config.to_dict()}
+    return {"success": True, "data": settings.to_api_dict()}
 
 
 @router.post("/v1/config", tags=["Config"], summary="Update Pry configuration at runtime")
 async def update_config(updates: dict[str, Any] = Body(...)) -> dict[str, Any]:
     """Update Pry configuration at runtime."""
-    result = config.update(updates)
+    result = settings.update(updates)
     return {"success": True, "data": result}
 
 
 @router.post("/v1/config/profile/tor", tags=["Config"], summary="Enable Tor routing for all requests")
 async def enable_tor() -> dict[str, Any]:
     """Enable Tor routing for all requests."""
-    result = config.update(
-        {"tor": {"enabled": True}, "proxy": {"enabled": True, "url": "socks5://tor:9050"}}
-    )
+    result = settings.enable_tor()
     resp_data = {
         "success": True,
         "data": result,
         "note": "Run 'docker compose --profile tor up -d' to start Tor container",
     }
     return resp_data
-
-
-config = PryConfig()
