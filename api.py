@@ -25,10 +25,10 @@ from deps import advanced, automator, extractor, queue, ratelimiter, scraper
 from errors import (
     PryError,
 )
-from mcp_production import make_fallback_server, register_all
 from mcp_sse import mcp_post_message, mcp_sse_endpoint
 from observability import REQUEST_COUNT, REQUEST_LATENCY, setup_tracing
 from pipeline import get_pipeline
+from pry_mcp import make_fallback_server, register_all
 from routers.advanced import router as advanced_router
 from routers.agency import router as agency_router
 from routers.ai import router as ai_router

@@ -29,7 +29,7 @@ from typing import Any
 from fastapi import HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 
-from mcp_production import (
+from pry_mcp import (
     register_mcp_notification_observer,
     unregister_mcp_notification_observer,
 )

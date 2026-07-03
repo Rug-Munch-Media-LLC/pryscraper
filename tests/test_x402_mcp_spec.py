@@ -10,7 +10,7 @@ import base64
 import json
 from typing import Any
 
-from mcp_production import (
+from pry_mcp import (
     MCP_PROTOCOL_VERSION,
     PRY_PROMPTS,
     PRY_RESOURCES,

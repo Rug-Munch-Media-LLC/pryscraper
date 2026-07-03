@@ -393,7 +393,7 @@ if click is not None:
         sys.path.insert(0, ".")
         import asyncio
 
-        from mcp_production import main
+        from pry_mcp import main
 
         asyncio.run(main())
 
