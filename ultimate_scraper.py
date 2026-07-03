@@ -18,7 +18,9 @@ import time
 from typing import Any, ClassVar
 from urllib.parse import urlparse
 
+from errors import InvalidRequestError
 from resilience import registry
+from url_guard import validate_url
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +113,11 @@ class UltimateScraper:
         Will try up to 10 strategies until one succeeds."""
         opts = options or {}
         errors: list[str] = []
+        try:
+            validate_url(url)
+        except InvalidRequestError as e:
+            return {"status": "error", "url": url, "error": str(e)}
+
 
         proxy_url = self._resolve_proxy_url(opts)
 

@@ -19,8 +19,10 @@ import httpx
 import trafilatura
 from trafilatura.settings import use_config
 
+from errors import InvalidRequestError
 from settings import settings
 from stealth_engine import StealthEngine
+from url_guard import validate_url
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -281,6 +283,10 @@ class PryScraper:
     async def scrape(self, url: str, options: dict | None = None) -> dict[str, Any]:
         if not url or not url.startswith(("http://", "https://")):
             return {"status": "error", "url": url, "error": "Invalid URL", "content": ""}
+        try:
+            validate_url(url)
+        except InvalidRequestError as e:
+            return {"status": "error", "url": url, "error": str(e), "content": ""}
 
         opts = options or {}
 
