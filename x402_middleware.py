@@ -132,7 +132,7 @@ class X402Middleware:
                         await self.app(scope, receive, wrapped_send)
                         return
             except (ValueError, KeyError, TypeError) as e:
-                logger.warning("x402_payment_decode_failed err=%s", e)
+                logger.warning("x402_payment_decode_failed", extra={"error": str(e)})
 
         operation = next((op for ep, op in PAID_ENDPOINTS.items() if path.startswith(ep)), None)
         if not operation or operation not in X402_PRICING:

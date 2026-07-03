@@ -14,6 +14,8 @@ import json
 import re
 from typing import Any
 
+from resilience import registry
+
 
 class SchemaExtractor:
     """Extract structured JSON data from scraped markdown content.
@@ -49,6 +51,7 @@ class SchemaExtractor:
                 merged = {**pattern_result, **llm_result}
                 return {k: v for k, v in merged.items() if v is not None and v != ""}
         except Exception:  # noqa: BLE001
+            registry.record_service_result("ollama", False)
             pass
 
         return pattern_result
@@ -106,6 +109,8 @@ class SchemaExtractor:
 
     async def _llm_extract(self, content: str, schema: dict[str, Any]) -> dict[str, Any]:
         """LLM-guided extraction. Returns dict on success, {"_error": msg} on failure."""
+        if not registry.is_service_allowed("ollama"):
+            return {"_error": "ollama circuit breaker open"}
         import httpx
 
         schema_str = json.dumps(schema, indent=2)
@@ -136,7 +141,10 @@ class SchemaExtractor:
             if json_match:
                 obj = json.loads(json_match.group(0))
                 if isinstance(obj, dict):
+                    registry.record_service_result("ollama", True)
                     return obj
+            registry.record_service_result("ollama", True)
             return {"_raw": response[:500]}
         except (json.JSONDecodeError, ValueError) as e:
+            registry.record_service_result("ollama", False)
             return {"_error": str(e)}

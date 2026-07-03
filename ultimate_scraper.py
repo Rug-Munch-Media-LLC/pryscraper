@@ -19,6 +19,7 @@ from typing import Any, ClassVar
 from urllib.parse import urlparse
 
 from errors import InvalidRequestError
+from observability import SCRAPE_LATENCY
 from resilience import registry
 from url_guard import validate_url
 
@@ -188,6 +189,8 @@ class UltimateScraper:
             registry.record_domain_tier_result(domain, tier_name, success, latency)
             if breaker_name:
                 registry.record_service_result(breaker_name, success)
+            if SCRAPE_LATENCY:
+                SCRAPE_LATENCY.labels(method=tier_name).observe(latency)
 
             if success:
                 method = "premium_proxy" if tier_name == "premium_proxy" else tier_name
