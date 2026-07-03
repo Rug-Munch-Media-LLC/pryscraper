@@ -10,7 +10,9 @@ services:
     ports:
       - "127.0.0.1:8005:8002"
     volumes:
+      - pry-data:/root/.pry
       - pry-sessions:/app/sessions
+    env_file: .env
     environment:
       - PYTHONUNBUFFERED=1
       - PRY_TIMEOUT=60
@@ -44,7 +46,7 @@ services:
     container_name: pry-flaresolverr
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8191:8191"
+      - "127.0.0.1:8192:8191"
     environment:
       - LOG_LEVEL=info
       - CAPTCHA_SOLVER=none
@@ -76,4 +78,5 @@ services:
       - tor
 
 volumes:
+  pry-data:
   pry-sessions:

@@ -41,7 +41,7 @@ COPY routers/ ./routers/
 COPY llm_providers/ ./llm_providers/
 COPY stealth_scripts/ ./stealth_scripts/
 COPY templates/ ./templates/
-RUN mkdir -p /app/sessions
+RUN mkdir -p /app/sessions /root/.pry
 
 EXPOSE 8002
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \

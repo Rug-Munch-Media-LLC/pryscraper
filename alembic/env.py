@@ -4,16 +4,15 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from db import Base
+from db import Base, _resolve_database_url
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-db_url = os.getenv("PRY_DATABASE_URL")
-if db_url is not None:
-    config.set_main_option("sqlalchemy.url", db_url)
+# Always use the same URL resolution logic as the application.
+config.set_main_option("sqlalchemy.url", os.getenv("PRY_DATABASE_URL") or _resolve_database_url())
 
 target_metadata = Base.metadata
 exclude_tables = {"spatial_ref_sys"}
