@@ -149,6 +149,7 @@ async def monitor_page_structure(
                     .first()
                 )
 
+            previous_selectors: list[str]
             if previous_snap:
                 previous_selectors = previous_snap.selectors or []
                 previous_all_matched = previous_snap.all_matched

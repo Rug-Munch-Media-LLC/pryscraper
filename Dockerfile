@@ -49,4 +49,4 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8002", \
-     "--workers", "2", "--timeout-keep-alive", "120", "--limit-concurrency", "20"]
+     "--workers", "1", "--timeout-keep-alive", "120", "--limit-concurrency", "20"]

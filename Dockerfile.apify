@@ -1,0 +1,25 @@
+# Pry — Apify Actor Dockerfile
+# Lightweight image for Apify platform deployment.
+# Unlike the main Dockerfile, this skips Playwright/Chromium
+# (the Apify platform provides browser rendering via Puppeteer).
+# Only the HTTP/TLS/cloudscraper tiers are available here.
+FROM apify/actor-python:3.12
+
+# Copy everything
+COPY --chmod=755 . /usr/src/app
+
+WORKDIR /usr/src/app
+
+# Install runtime dependencies (no dev deps)
+RUN pip install --no-cache-dir -r requirements.txt \
+    && rm -rf /root/.cache
+
+# Install Apify SDK (not in requirements.txt — only needed for the actor)
+RUN pip install --no-cache-dir "apify~=1.7.0" \
+    && rm -rf /root/.cache
+
+# The actor entry point
+ENV PRY_ACTOR=true
+ENV PYTHONUNBUFFERED=1
+
+ENTRYPOINT ["python3", "-m", "apify_actor"]

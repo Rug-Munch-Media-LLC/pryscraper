@@ -5,11 +5,34 @@
 # Licensed under MIT. See LICENSE.
 """Tests for ultimate scraper fallback chain."""
 
+from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import resilience
+
+
+def _clear_registry() -> None:
+    """Reset global resilience registry to avoid cross-test contamination."""
+    resilience.registry.domain_memory.data.clear()
+    for name in list(resilience.registry.breakers.keys()):
+        cb = resilience.registry.breakers[name]
+        cb.state = "closed"
+        cb.failures = 0
+        cb.successes = 0
+        cb.last_failure_at = 0.0
+        cb.half_open_attempts = 0
 
 import pytest
 
 from ultimate_scraper import UltimateScraper
+
+
+_TIER_ALL = [
+    "_tier_direct", "_tier_tls_fingerprint", "_tier_cloudscraper",
+    "_tier_flaresolverr", "_tier_undetected", "_tier_camoufox",
+    "_tier_playwright", "_tier_googlebot", "_tier_premium_proxy",
+    "_tier_archive", "_tier_google_cache", "_tier_tor",
+]
 
 
 def test_ultimate_init() -> None:
@@ -106,6 +129,7 @@ async def test_tier_camoufox_failure() -> None:
 
 @pytest.mark.anyio
 async def test_scrape_falls_through_all_tiers() -> None:
+    _clear_registry()
     s = UltimateScraper()
     with patch.object(s, "_tier_direct", new=AsyncMock(return_value=None)), \
          patch.object(s, "_tier_tls_fingerprint", new=AsyncMock(return_value=None)), \
@@ -124,11 +148,14 @@ async def test_scrape_falls_through_all_tiers() -> None:
 
 @pytest.mark.anyio
 async def test_scrape_tls_tier_succeeds() -> None:
+    _clear_registry()
     s = UltimateScraper()
     html = "<html><body>" + "x" * 1000 + "</body></html>"
-    with patch.object(s, "_tier_direct", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_tls_fingerprint", new=AsyncMock(return_value=html)), \
-         patch.object(s, "_tier_cloudscraper", new=AsyncMock(return_value=None)):
+    ctx_mocks = {name: AsyncMock(return_value=None) for name in _TIER_ALL}
+    ctx_mocks["_tier_tls_fingerprint"].return_value = html
+    with ExitStack() as stack:
+        for name in _TIER_ALL:
+            stack.enter_context(patch.object(s, name, new=ctx_mocks[name]))
         result = await s.scrape("http://example.com")
         assert result["status"] == "ok"
         assert result["method"] == "tls_fingerprint"
@@ -136,14 +163,14 @@ async def test_scrape_tls_tier_succeeds() -> None:
 
 @pytest.mark.anyio
 async def test_scrape_camoufox_tier_succeeds() -> None:
+    _clear_registry()
     s = UltimateScraper()
     html = "<html><body>" + "x" * 1000 + "</body></html>"
-    with patch.object(s, "_tier_direct", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_tls_fingerprint", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_cloudscraper", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_flaresolverr", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_undetected", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_camoufox", new=AsyncMock(return_value=html)):
+    ctx_mocks = {name: AsyncMock(return_value=None) for name in _TIER_ALL}
+    ctx_mocks["_tier_camoufox"].return_value = html
+    with ExitStack() as stack:
+        for name in _TIER_ALL:
+            stack.enter_context(patch.object(s, name, new=ctx_mocks[name]))
         result = await s.scrape("http://example.com")
         assert result["status"] == "ok"
         assert result["method"] == "camoufox"

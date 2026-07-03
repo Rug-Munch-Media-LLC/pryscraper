@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 from errors import InvalidRequestError
 from observability import SCRAPE_LATENCY
 from resilience import registry
+from retry import RetryConfig, async_retry
 from url_guard import validate_url
 
 logger = logging.getLogger(__name__)
@@ -86,6 +87,25 @@ class UltimateScraper:
         self._tls_scraper = TLSScraper() if _has_tls else None
         self._camoufox = CamoufoxBrowser() if _has_camoufox else None
 
+    # Per-tier retry configurations for transient failure resilience.
+    # Browser-based tiers (undetected, camoufox, playwright) use 0 retries
+    # because launching a browser is expensive; network-only tiers retry 1-2x.
+    _RETRY_CONFIGS: ClassVar[dict[str, RetryConfig]] = {
+        "direct": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
+        "tls_fingerprint": RetryConfig(max_retries=1, base_delay=1.0, max_delay=5.0),
+        "cloudscraper": RetryConfig(max_retries=1, base_delay=1.0, max_delay=5.0),
+        "flaresolverr": RetryConfig(max_retries=2, base_delay=2.0, max_delay=10.0),
+        "undetected": RetryConfig(max_retries=0),
+        "camoufox": RetryConfig(max_retries=0),
+        "playwright": RetryConfig(max_retries=0),
+        "googlebot": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
+        "premium_proxy": RetryConfig(max_retries=2, base_delay=1.0, max_delay=8.0),
+        "archive": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
+        "google_cache": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
+        "tor": RetryConfig(max_retries=1, base_delay=2.0, max_delay=10.0),
+    }
+    _DEFAULT_RETRY: ClassVar[RetryConfig] = RetryConfig(max_retries=1, base_delay=1.0)
+
     def _rotate_ua(self) -> str:
         ua = self.USER_AGENTS[self._ua_index % len(self.USER_AGENTS)]
         self._ua_index += 1
@@ -119,7 +139,6 @@ class UltimateScraper:
         except InvalidRequestError as e:
             return {"status": "error", "url": url, "error": str(e)}
 
-
         proxy_url = self._resolve_proxy_url(opts)
 
         # Tier 0: Premium proxy (if configured and forced or first attempt)
@@ -145,11 +164,13 @@ class UltimateScraper:
         if proxy_url and not opts.get("use_premium_proxy_first", True):
             tier_order.append(("premium_proxy", self._tier_premium_proxy))
 
-        tier_order.extend([
-            ("archive", self._tier_archive),
-            ("google_cache", self._tier_google_cache),
-            ("tor", self._tier_tor),
-        ])
+        tier_order.extend(
+            [
+                ("archive", self._tier_archive),
+                ("google_cache", self._tier_google_cache),
+                ("tor", self._tier_tor),
+            ]
+        )
 
         # If domain memory knows a good tier, try it first.
         parsed = urlparse(url)
@@ -170,16 +191,21 @@ class UltimateScraper:
             # Skip external tiers whose circuit breaker is open.
             breaker_name = breaker_for_tier.get(tier_name)
             if breaker_name and not registry.is_service_allowed(breaker_name):
-                logger.debug("tier_skipped_circuit_open", extra={"tier": tier_name, "domain": domain})
+                logger.debug(
+                    "tier_skipped_circuit_open", extra={"tier": tier_name, "domain": domain}
+                )
                 errors.append(f"{tier_name}: circuit_open")
                 continue
 
             start = time.time()
             try:
+                retry_cfg = self._RETRY_CONFIGS.get(tier_name, self._DEFAULT_RETRY)
                 if tier_name == "premium_proxy":
-                    html = await tier_fn(url, proxy_url, opts)
+                    html = await async_retry(tier_fn, url, proxy_url, opts, config=retry_cfg)
                 else:
-                    html = await tier_fn(url, opts, proxy_url=proxy_url)
+                    html = await async_retry(
+                        tier_fn, url, opts, proxy_url=proxy_url, config=retry_cfg
+                    )
             except Exception as e:  # noqa: BLE001
                 logger.debug("tier_exception", extra={"tier": tier_name, "error": str(e)[:50]})
                 html = None
@@ -318,7 +344,9 @@ class UltimateScraper:
             logger.debug("premium_proxy_failed", extra={"error": str(e)[:50]})
         return None
 
-    async def _tier_cloudscraper(self, url: str, opts: dict[str, Any], proxy_url: str | None = None) -> str | None:
+    async def _tier_cloudscraper(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
         if not _has_cloudscraper:
             return None
         try:
@@ -334,7 +362,9 @@ class UltimateScraper:
             logger.debug("cloudscraper_failed", extra={"error": str(e)[:50]})
         return None
 
-    async def _tier_flaresolverr(self, url: str, opts: dict[str, Any], proxy_url: str | None = None) -> str | None:
+    async def _tier_flaresolverr(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
         from settings import settings
 
         if not settings.flaresolverr_url:
@@ -354,7 +384,9 @@ class UltimateScraper:
             logger.debug("flaresolverr_failed", extra={"error": str(e)[:50]})
         return None
 
-    async def _tier_undetected(self, url: str, opts: dict[str, Any], proxy_url: str | None = None) -> str | None:
+    async def _tier_undetected(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
         if not _has_undetected:
             return None
         try:
@@ -381,7 +413,9 @@ class UltimateScraper:
             logger.debug("undetected_failed", extra={"error": str(e)[:50]})
         return None
 
-    async def _tier_playwright(self, url: str, opts: dict[str, Any], proxy_url: str | None = None) -> str | None:
+    async def _tier_playwright(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
         if not _has_playwright:
             return None
         try:
@@ -420,7 +454,6 @@ class UltimateScraper:
         except OSError as e:
             logger.debug("playwright_failed", extra={"error": str(e)[:50]})
         return None
-
 
     async def _tier_tls_fingerprint(
         self, url: str, opts: dict[str, Any], proxy_url: str | None = None
@@ -477,7 +510,9 @@ class UltimateScraper:
             logger.debug("googlebot_failed", extra={"error": str(e)[:50]})
         return None
 
-    async def _tier_archive(self, url: str, opts: dict[str, Any], proxy_url: str | None = None) -> str | None:
+    async def _tier_archive(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
         """Fetch from Wayback Machine CDX API for latest snapshot."""
         try:
             import httpx
@@ -497,7 +532,9 @@ class UltimateScraper:
             logger.debug("archive_failed", extra={"error": str(e)[:50]})
         return None
 
-    async def _tier_google_cache(self, url: str, opts: dict[str, Any], proxy_url: str | None = None) -> str | None:
+    async def _tier_google_cache(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
         try:
             import httpx
 
@@ -510,7 +547,9 @@ class UltimateScraper:
             logger.debug("google_cache_failed", extra={"error": str(e)[:50]})
         return None
 
-    async def _tier_tor(self, url: str, opts: dict[str, Any], proxy_url: str | None = None) -> str | None:
+    async def _tier_tor(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
         """Fetch via Tor SOCKS5 proxy."""
         if not _has_tor:
             return None

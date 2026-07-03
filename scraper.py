@@ -506,7 +506,9 @@ class PryScraper:
         opts = options or {}
         max_pages = opts.get("max_pages", 10)
         max_depth = opts.get("max_depth", 2)
-        visited, to_visit, results = set(), [(url, 0)], []
+        visited: set[str] = set()
+        to_visit: list[tuple[str, int]] = [(url, 0)]
+        results: list[Any] = []
 
         while to_visit and len(visited) < max_pages:
             current_url, depth = to_visit.pop(0)
