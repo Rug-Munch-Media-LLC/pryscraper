@@ -5,8 +5,8 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 import pytest
-import resilience
 
+import resilience
 from retry import (
     BackoffStrategy,
     Jitter,

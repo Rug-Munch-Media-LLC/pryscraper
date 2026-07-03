@@ -1,14 +1,20 @@
+"""Tests for ultimate scraper fallback chain."""
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-"""Tests for ultimate scraper fallback chain."""
+
+from __future__ import annotations
 
 from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 import resilience
+from ultimate_scraper import UltimateScraper
 
 
 def _clear_registry() -> None:
@@ -22,10 +28,6 @@ def _clear_registry() -> None:
         cb.last_failure_at = 0.0
         cb.half_open_attempts = 0
 
-import pytest
-
-from ultimate_scraper import UltimateScraper
-
 
 _TIER_ALL = [
     "_tier_direct", "_tier_tls_fingerprint", "_tier_cloudscraper",
@@ -33,7 +35,6 @@ _TIER_ALL = [
     "_tier_playwright", "_tier_googlebot", "_tier_premium_proxy",
     "_tier_archive", "_tier_google_cache", "_tier_tor",
 ]
-
 
 def test_ultimate_init() -> None:
     s = UltimateScraper()

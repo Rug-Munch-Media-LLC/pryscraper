@@ -90,7 +90,7 @@ class TestRetryWithScraper:
     @pytest.mark.anyio
     async def test_retry_exhausts_and_raises(self, scraper_with_mocks):
         """Retry exhausts attempts and re-raises."""
-        s, mocks = scraper_with_mocks
+        s, _mocks = scraper_with_mocks
 
         async def scrape_or_raise(url: str) -> dict:
             result = await s.scrape(url)
@@ -98,7 +98,7 @@ class TestRetryWithScraper:
                 raise RuntimeError(result.get("error", "scrape failed"))
             return result
 
-        with pytest.raises(RuntimeError, match="scrape failed|_failed|circuit_open"):
+        with pytest.raises(RuntimeError, match=r"scrape failed|_failed|circuit_open"):
             await async_retry(scrape_or_raise, "https://example.com/page", config=BASE_CFG)
 
 
@@ -201,16 +201,16 @@ class TestDomainTierMemoryWithRetry:
     @pytest.mark.anyio
     async def test_domain_memory_used_on_retry(self, fresh_registry, scraper_with_mocks):
         """After domain learns best tier, prefers it."""
-        s, mocks = scraper_with_mocks
+        s, _mocks = scraper_with_mocks
         fresh_registry.record_domain_tier_result("example.com", "archive", success=True, latency=0.1)
         html = _valid_html("archive content")
-        mocks["_tier_archive"].return_value = html
-        mocks["_tier_direct"].return_value = _valid_html("direct")
+        _mocks["_tier_archive"].return_value = html
+        _mocks["_tier_direct"].return_value = _valid_html("direct")
 
         result = await s.scrape("https://example.com/page")
         assert result["status"] == "ok"
-        mocks["_tier_archive"].assert_awaited()
-        mocks["_tier_direct"].assert_not_awaited()
+        _mocks["_tier_archive"].assert_awaited()
+        _mocks["_tier_direct"].assert_not_awaited()
 
 
 class TestGracefulDegradation:

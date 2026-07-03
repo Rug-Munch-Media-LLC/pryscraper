@@ -12,8 +12,6 @@ mcp_production.py and x402.py into sub-packages.
 
 from __future__ import annotations
 
-import pytest
-
 
 class TestMCPPublicSurface:
     """The mcp_production shim must expose the same public API as before."""
