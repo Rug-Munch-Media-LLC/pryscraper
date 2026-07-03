@@ -19,10 +19,10 @@ import httpx
 import trafilatura
 from trafilatura.settings import use_config
 
-from mconfig import PryConfig
-
-FLARESOLVERR_URL = "http://flaresolverr:8191/v1"
-config = PryConfig()
+from errors import InvalidRequestError
+from settings import settings
+from stealth_engine import StealthEngine
+from url_guard import validate_url
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -283,6 +283,10 @@ class PryScraper:
     async def scrape(self, url: str, options: dict | None = None) -> dict[str, Any]:
         if not url or not url.startswith(("http://", "https://")):
             return {"status": "error", "url": url, "error": "Invalid URL", "content": ""}
+        try:
+            validate_url(url)
+        except InvalidRequestError as e:
+            return {"status": "error", "url": url, "error": str(e), "content": ""}
 
         opts = options or {}
 
@@ -415,7 +419,7 @@ class PryScraper:
         return result
 
     async def _fetch_direct(self, url: str, headers: dict, timeout: int) -> str:
-        proxy_url = config.get_proxy_url()
+        proxy_url = settings.resolved_proxy_url
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(timeout),
             follow_redirects=True,
@@ -424,7 +428,7 @@ class PryScraper:
             cookies=httpx.Cookies(),
             proxy=proxy_url,
         ) as client:
-            delay = random.uniform(*config.get("rotation.delay_range", [0.5, 3.0]))
+            delay = random.uniform(*settings.rotation_delay_range)
             await asyncio.sleep(delay)
             resp = await client.get(url)
             resp.raise_for_status()
@@ -433,7 +437,7 @@ class PryScraper:
     async def _fetch_via_flaresolverr(self, url: str, timeout: int) -> str:
         payload = {"cmd": "request.get", "url": url, "maxTimeout": timeout * 1000}
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout + 10)) as client:
-            resp = await client.post(FLARESOLVERR_URL, json=payload)
+            resp = await client.post(settings.flaresolverr_url, json=payload)
             resp.raise_for_status()
             data = resp.json()
             solution = data.get("solution", {})
@@ -470,17 +474,8 @@ class PryScraper:
                 geolocation={"latitude": 40.7128, "longitude": -74.0060},
             )
             # Stealth: override automation indicators
-            await context.add_init_script("""
-                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-                Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-                window.chrome = { runtime: {} };
-                // Override permissions query to avoid automation detection
-                const originalQuery = window.navigator.permissions.query;
-                window.navigator.permissions.query = (p) => (
-                    p.name === 'notifications' ? Promise.resolve({state: 'denied'}) : originalQuery(p)
-                );
-            """)
+            stealth_script = StealthEngine().generate_all()
+            await context.add_init_script(stealth_script)
             page = await context.new_page()
             # Human-like navigation: random wait before page load
             await asyncio.sleep(random.uniform(0.5, 2.0))
@@ -511,7 +506,9 @@ class PryScraper:
         opts = options or {}
         max_pages = opts.get("max_pages", 10)
         max_depth = opts.get("max_depth", 2)
-        visited, to_visit, results = set(), [(url, 0)], []
+        visited: set[str] = set()
+        to_visit: list[tuple[str, int]] = [(url, 0)]
+        results: list[Any] = []
 
         while to_visit and len(visited) < max_pages:
             current_url, depth = to_visit.pop(0)

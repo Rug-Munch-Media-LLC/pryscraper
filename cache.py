@@ -12,6 +12,8 @@ import json
 import time
 from collections import OrderedDict
 
+from observability import CACHE_HITS
+
 
 class ResponseCache:
     """Two-tier cache: local LRU + optional Redis persistence.
@@ -44,6 +46,8 @@ class ResponseCache:
             if entry["expires"] > now:
                 self._hits += 1
                 self._cache.move_to_end(key)
+                if CACHE_HITS:
+                    CACHE_HITS.labels(cache_type="local").inc()
                 return entry["data"]
             else:
                 del self._cache[key]

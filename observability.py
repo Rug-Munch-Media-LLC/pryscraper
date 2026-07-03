@@ -6,6 +6,7 @@
 """Pry — Observability: Prometheus metrics, OpenTelemetry tracing, structured logging."""
 
 import logging
+import os
 import time
 from contextlib import contextmanager
 
@@ -25,9 +26,19 @@ try:
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
 
+    # OTLP exporter is optional (install opentelemetry-exporter-otlp-proto-http)
+    try:
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+        _has_otlp = True
+    except ImportError:
+        _has_otlp = False
+
     _has_otel = True
 except ImportError:
     _has_otel = False
+    _has_otlp = False
 
 
 # Metrics
@@ -49,15 +60,26 @@ else:
 
 
 def setup_tracing(service_name: str = "pry") -> None:
-    """Initialize OpenTelemetry tracing."""
+    """Initialize OpenTelemetry tracing.
+
+    Uses OTLP HTTP exporter if ``OTEL_EXPORTER_OTLP_ENDPOINT`` is set
+    and the OTLP package is installed. Falls back to console export.
+    """
     if not _has_otel:
         return
     try:
         provider = TracerProvider()
-        processor = SimpleSpanProcessor(ConsoleSpanExporter())
+        otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+        if otlp_endpoint and _has_otlp:
+            exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
+            processor = BatchSpanProcessor(exporter)
+            logger.info("tracing_otlp", extra={"endpoint": otlp_endpoint})
+        else:
+            exporter = ConsoleSpanExporter()
+            processor = SimpleSpanProcessor(exporter)
+            logger.info("tracing_console", extra={"service": service_name})
         provider.add_span_processor(processor)
         trace.set_tracer_provider(provider)
-        logger.info("tracing_initialized", extra={"service": service_name})
     except Exception as e:  # noqa: BLE001
         logger.warning("tracing_init_failed", extra={"error": str(e)[:80]})
 

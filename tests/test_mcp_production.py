@@ -7,7 +7,7 @@
 
 import asyncio
 
-from mcp_production import MCP_PROTOCOL_VERSION, PRY_TOOLS, make_fallback_server, register_all
+from pry_mcp import MCP_PROTOCOL_VERSION, PRY_TOOLS, make_fallback_server, register_all
 
 
 def test_mcp_protocol_version() -> None:

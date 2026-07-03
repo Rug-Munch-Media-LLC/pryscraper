@@ -102,7 +102,6 @@ warn_unused_ignores = false
 # TODO: Pry was built without strict typing; re-enable incrementally.
 # Tracking issue: re-enable mypy strict mode after router refactor.
 disable_error_code = [
-    "var-annotated",
     "dict-item",
     "index",
     "attr-defined",

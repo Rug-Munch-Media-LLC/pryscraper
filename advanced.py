@@ -208,7 +208,7 @@ class PryAdvanced:
             "from",
             "they",
         }
-        freq = {}
+        freq: dict[str, int] = {}
         for w in words:
             if w not in stop_words:
                 freq[w] = freq.get(w, 0) + 1

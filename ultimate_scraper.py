@@ -14,8 +14,15 @@ import logging
 import os
 import random
 import re
+import time
 from typing import Any, ClassVar
 from urllib.parse import urlparse
+
+from errors import InvalidRequestError
+from observability import SCRAPE_LATENCY
+from resilience import registry
+from retry import RetryConfig, async_retry
+from url_guard import validate_url
 
 logger = logging.getLogger(__name__)
 
@@ -28,21 +35,44 @@ _has_tor = importlib.util.find_spec("aiohttp_socks") is not None
 if _has_playwright:
     from playwright.async_api import async_playwright
 
+try:
+    from tls_fingerprint import TLSScraper
+
+    _has_tls = True
+except ImportError:
+    _has_tls = False
+
+try:
+    from camoufox_integration import CamoufoxBrowser
+
+    _has_camoufox = True
+except ImportError:
+    _has_camoufox = False
+
+try:
+    from stealth_engine import StealthEngine
+
+    _stealth_engine = StealthEngine()
+except ImportError:
+    _stealth_engine = None
+
 
 class UltimateScraper:
-    """10-tier anti-detection scraper with automatic fallback.
+    """12-tier anti-detection scraper with automatic fallback.
 
     Tiers:
     1. Direct HTTP (smart headers, rotating UAs)
-    2. cloudscraper (Python-native Cloudflare bypass)
-    3. FlareSolverr (Cloudflare/WAF bypass service)
-    4. undetected-chromedriver (modified Chrome, no detection)
-    5. Playwright stealth (full browser with human behavior)
-    6. Googlebot UA (search engine crawl mimic)
-    7. Tor proxy (anonymous routing via SOCKS5)
-    8. Archive.org / Wayback Machine (cached version)
-    9. Google Cache (cached version)
-    10. Textise dot iitty (text-only version)
+    2. TLS fingerprint impersonation (curl_cffi JA3/JA4 bypass)
+    3. cloudscraper (Python-native Cloudflare bypass)
+    4. FlareSolverr (Cloudflare/WAF bypass service)
+    5. undetected-chromedriver (modified Chrome, no detection)
+    6. Camoufox stealth Firefox (source-level anti-fingerprinting)
+    7. Playwright stealth (full browser with human behavior)
+    8. Googlebot UA (search engine crawl mimic)
+    9. Premium proxy retry (after cheap tiers fail)
+    10. Archive.org / Wayback Machine (cached version)
+    11. Google Cache (cached version)
+    12. Tor proxy (anonymous routing via SOCKS5)
     """
 
     USER_AGENTS: ClassVar[list[str]] = [
@@ -54,6 +84,27 @@ class UltimateScraper:
 
     def __init__(self) -> None:
         self._ua_index = 0
+        self._tls_scraper = TLSScraper() if _has_tls else None
+        self._camoufox = CamoufoxBrowser() if _has_camoufox else None
+
+    # Per-tier retry configurations for transient failure resilience.
+    # Browser-based tiers (undetected, camoufox, playwright) use 0 retries
+    # because launching a browser is expensive; network-only tiers retry 1-2x.
+    _RETRY_CONFIGS: ClassVar[dict[str, RetryConfig]] = {
+        "direct": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
+        "tls_fingerprint": RetryConfig(max_retries=1, base_delay=1.0, max_delay=5.0),
+        "cloudscraper": RetryConfig(max_retries=1, base_delay=1.0, max_delay=5.0),
+        "flaresolverr": RetryConfig(max_retries=2, base_delay=2.0, max_delay=10.0),
+        "undetected": RetryConfig(max_retries=0),
+        "camoufox": RetryConfig(max_retries=0),
+        "playwright": RetryConfig(max_retries=0),
+        "googlebot": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
+        "premium_proxy": RetryConfig(max_retries=2, base_delay=1.0, max_delay=8.0),
+        "archive": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
+        "google_cache": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
+        "tor": RetryConfig(max_retries=1, base_delay=2.0, max_delay=10.0),
+    }
+    _DEFAULT_RETRY: ClassVar[RetryConfig] = RetryConfig(max_retries=1, base_delay=1.0)
 
     def _rotate_ua(self) -> str:
         ua = self.USER_AGENTS[self._ua_index % len(self.USER_AGENTS)]
@@ -83,6 +134,10 @@ class UltimateScraper:
         Will try up to 10 strategies until one succeeds."""
         opts = options or {}
         errors: list[str] = []
+        try:
+            validate_url(url)
+        except InvalidRequestError as e:
+            return {"status": "error", "url": url, "error": str(e)}
 
         proxy_url = self._resolve_proxy_url(opts)
 
@@ -93,57 +148,80 @@ class UltimateScraper:
                 return self._result(url, html, "premium_proxy")
             errors.append("premium_proxy_failed")
 
-        # Tier 1: Direct HTTP
-        html = await self._tier_direct(url, opts, proxy_url=proxy_url)
-        if html and self._is_valid(html):
-            return self._result(url, html, "direct")
+        # Build tier list. Order starts cheap/direct and escalates.
+        tier_order = [
+            ("direct", self._tier_direct),
+            ("tls_fingerprint", self._tier_tls_fingerprint),
+            ("cloudscraper", self._tier_cloudscraper),
+            ("flaresolverr", self._tier_flaresolverr),
+            ("undetected", self._tier_undetected),
+            ("camoufox", self._tier_camoufox),
+            ("playwright", self._tier_playwright),
+            ("googlebot", self._tier_googlebot),
+        ]
 
-        # Tier 2: cloudscraper (Python Cloudflare bypass)
-        html = await self._tier_cloudscraper(url, opts)
-        if html and self._is_valid(html):
-            return self._result(url, html, "cloudscraper")
-
-        # Tier 3: FlareSolverr
-        html = await self._tier_flaresolverr(url, opts)
-        if html and self._is_valid(html):
-            return self._result(url, html, "flaresolverr")
-
-        # Tier 4: undetected-chromedriver
-        html = await self._tier_undetected(url, opts)
-        if html and self._is_valid(html):
-            return self._result(url, html, "undetected")
-
-        # Tier 5: Playwright stealth
-        html = await self._tier_playwright(url, opts)
-        if html and self._is_valid(html):
-            return self._result(url, html, "playwright")
-
-        # Tier 6: Googlebot UA
-        html = await self._tier_googlebot(url, opts, proxy_url=proxy_url)
-        if html and self._is_valid(html):
-            return self._result(url, html, "googlebot")
-
-        # Tier 7: Premium proxy retry (after cheap tiers fail)
+        # Premium proxy retry (after cheap tiers fail) if not tried first.
         if proxy_url and not opts.get("use_premium_proxy_first", True):
-            html = await self._tier_premium_proxy(url, proxy_url, opts)
-            if html and self._is_valid(html):
-                return self._result(url, html, "premium_proxy")
-            errors.append("premium_proxy_failed")
+            tier_order.append(("premium_proxy", self._tier_premium_proxy))
 
-        # Tier 8: Archive.org / Wayback Machine
-        html = await self._tier_archive(url, opts)
-        if html and self._is_valid(html):
-            return self._result(url, html, "archive")
+        tier_order.extend(
+            [
+                ("archive", self._tier_archive),
+                ("google_cache", self._tier_google_cache),
+                ("tor", self._tier_tor),
+            ]
+        )
 
-        # Tier 9: Google Cache
-        html = await self._tier_google_cache(url, opts)
-        if html and self._is_valid(html):
-            return self._result(url, html, "google_cache")
+        # If domain memory knows a good tier, try it first.
+        parsed = urlparse(url)
+        domain = parsed.netloc
+        best = registry.best_tier_for_domain(domain, [name for name, _ in tier_order])
+        if best:
+            tier_order.sort(key=lambda item: (item[0] != best, item[0]))
 
-        # Tier 10: Tor (anonymous routing)
-        html = await self._tier_tor(url, opts)
-        if html and self._is_valid(html):
-            return self._result(url, html, "tor")
+        # External service tiers protected by circuit breakers.
+        breaker_for_tier = {
+            "flaresolverr": "flaresolverr",
+            "playwright": "playwright",
+            "camoufox": "camoufox",
+            "tls_fingerprint": "tls_fingerprint",
+        }
+
+        for tier_name, tier_fn in tier_order:
+            # Skip external tiers whose circuit breaker is open.
+            breaker_name = breaker_for_tier.get(tier_name)
+            if breaker_name and not registry.is_service_allowed(breaker_name):
+                logger.debug(
+                    "tier_skipped_circuit_open", extra={"tier": tier_name, "domain": domain}
+                )
+                errors.append(f"{tier_name}: circuit_open")
+                continue
+
+            start = time.time()
+            try:
+                retry_cfg = self._RETRY_CONFIGS.get(tier_name, self._DEFAULT_RETRY)
+                if tier_name == "premium_proxy":
+                    html = await async_retry(tier_fn, url, proxy_url, opts, config=retry_cfg)
+                else:
+                    html = await async_retry(
+                        tier_fn, url, opts, proxy_url=proxy_url, config=retry_cfg
+                    )
+            except Exception as e:  # noqa: BLE001
+                logger.debug("tier_exception", extra={"tier": tier_name, "error": str(e)[:50]})
+                html = None
+
+            latency = time.time() - start
+            success = bool(html and self._is_valid(html))
+            registry.record_domain_tier_result(domain, tier_name, success, latency)
+            if breaker_name:
+                registry.record_service_result(breaker_name, success)
+            if SCRAPE_LATENCY:
+                SCRAPE_LATENCY.labels(method=tier_name).observe(latency)
+
+            if success:
+                method = "premium_proxy" if tier_name == "premium_proxy" else tier_name
+                return self._result(url, html, method)
+            errors.append(f"{tier_name}_failed")
 
         last_err = errors[-1] if errors else "all_tiers_failed"
         return {
@@ -266,7 +344,9 @@ class UltimateScraper:
             logger.debug("premium_proxy_failed", extra={"error": str(e)[:50]})
         return None
 
-    async def _tier_cloudscraper(self, url: str, opts: dict[str, Any]) -> str | None:
+    async def _tier_cloudscraper(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
         if not _has_cloudscraper:
             return None
         try:
@@ -282,7 +362,9 @@ class UltimateScraper:
             logger.debug("cloudscraper_failed", extra={"error": str(e)[:50]})
         return None
 
-    async def _tier_flaresolverr(self, url: str, opts: dict[str, Any]) -> str | None:
+    async def _tier_flaresolverr(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
         from settings import settings
 
         if not settings.flaresolverr_url:
@@ -302,7 +384,9 @@ class UltimateScraper:
             logger.debug("flaresolverr_failed", extra={"error": str(e)[:50]})
         return None
 
-    async def _tier_undetected(self, url: str, opts: dict[str, Any]) -> str | None:
+    async def _tier_undetected(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
         if not _has_undetected:
             return None
         try:
@@ -329,7 +413,9 @@ class UltimateScraper:
             logger.debug("undetected_failed", extra={"error": str(e)[:50]})
         return None
 
-    async def _tier_playwright(self, url: str, opts: dict[str, Any]) -> str | None:
+    async def _tier_playwright(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
         if not _has_playwright:
             return None
         try:
@@ -352,10 +438,9 @@ class UltimateScraper:
                     locale="en-US",
                     timezone_id="America/New_York",
                 )
-                await context.add_init_script("""
-                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                    navigator.permissions.query = (p) => p.name === 'notifications' ? Promise.resolve({state: 'denied'}) : navigator.permissions.query(p);
-                """)
+                stealth_script = _stealth_engine.generate_all() if _stealth_engine else ""
+                if stealth_script:
+                    await context.add_init_script(stealth_script)
                 page = await context.new_page()
                 await page.goto(url, wait_until="domcontentloaded", timeout=60000)
                 await page.wait_for_timeout(random.randint(1000, 3000))
@@ -368,6 +453,43 @@ class UltimateScraper:
                 return html
         except OSError as e:
             logger.debug("playwright_failed", extra={"error": str(e)[:50]})
+        return None
+
+    async def _tier_tls_fingerprint(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
+        """Fetch using curl_cffi TLS fingerprint impersonation."""
+        if not self._tls_scraper or not self._tls_scraper.is_available():
+            return None
+        try:
+            result = await self._tls_scraper.fetch(
+                url,
+                headers=self._build_headers(url),
+                proxy=proxy_url or "",
+                timeout=opts.get("timeout", 30),
+            )
+            if result.get("success") and result.get("status_code", 0) < 400:
+                return result.get("text", "")
+        except Exception as e:  # noqa: BLE001
+            logger.debug("tls_fingerprint_failed", extra={"error": str(e)[:50]})
+        return None
+
+    async def _tier_camoufox(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
+        """Fetch using Camoufox anti-detection Firefox."""
+        if not self._camoufox or not self._camoufox.is_available():
+            return None
+        try:
+            result = await self._camoufox.fetch(
+                url,
+                wait_time=opts.get("wait_time", 3000),
+                proxy=proxy_url or "",
+            )
+            if result.get("success"):
+                return result.get("content", "")
+        except Exception as e:  # noqa: BLE001
+            logger.debug("camoufox_failed", extra={"error": str(e)[:50]})
         return None
 
     async def _tier_googlebot(
@@ -388,7 +510,9 @@ class UltimateScraper:
             logger.debug("googlebot_failed", extra={"error": str(e)[:50]})
         return None
 
-    async def _tier_archive(self, url: str, opts: dict[str, Any]) -> str | None:
+    async def _tier_archive(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
         """Fetch from Wayback Machine CDX API for latest snapshot."""
         try:
             import httpx
@@ -408,7 +532,9 @@ class UltimateScraper:
             logger.debug("archive_failed", extra={"error": str(e)[:50]})
         return None
 
-    async def _tier_google_cache(self, url: str, opts: dict[str, Any]) -> str | None:
+    async def _tier_google_cache(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
         try:
             import httpx
 
@@ -421,7 +547,9 @@ class UltimateScraper:
             logger.debug("google_cache_failed", extra={"error": str(e)[:50]})
         return None
 
-    async def _tier_tor(self, url: str, opts: dict[str, Any]) -> str | None:
+    async def _tier_tor(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
         """Fetch via Tor SOCKS5 proxy."""
         if not _has_tor:
             return None

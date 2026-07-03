@@ -35,7 +35,7 @@ class AccountPool:
         import uuid
 
         account_id = uuid.uuid4().hex[:12]
-        account = {
+        account: dict[str, Any] = {
             "id": account_id,
             "site": site,
             "credentials": credentials,

@@ -62,8 +62,8 @@ import json
 import logging
 import os
 import sqlite3
-from collections.abc import Iterator
-from contextlib import contextmanager
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -85,6 +85,7 @@ try:
     )
     from sqlalchemy.engine import Engine
     from sqlalchemy.exc import OperationalError, ProgrammingError, SQLAlchemyError
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
     from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
     _HAS_SA = True
@@ -118,8 +119,33 @@ def _resolve_database_url() -> str:
     return DEFAULT_SQLITE_URL
 
 
+def _resolve_async_database_url() -> str:
+    """Resolve the async database URL.
+
+    Converts ``postgresql://...`` to ``postgresql+asyncpg://...`` so the
+    same ``PRY_DATABASE_URL`` env var works for both sync and async uses.
+    SQLite stays as ``sqlite+aiosqlite://...``.
+    """
+    url = os.getenv(DATABASE_URL_ENV)
+    if not url:
+        # SQLite async: use aiosqlite driver
+        return f"sqlite+aiosqlite:///{DEFAULT_DB_PATH}"
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif url.startswith("postgresql+psycopg2://"):
+        url = url.replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
+    elif url.startswith("sqlite://"):
+        url = url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+    return url
+
+
 _engine: Engine | None = None
 _SessionLocal: sessionmaker[Session] | None = None
+
+# Async engine/session for use in async FastAPI endpoints.
+# These are lazily initialized alongside the sync engine.
+_async_engine: Any = None  # AsyncEngine (type is Any to avoid import-order issues)
+_async_session_local: Any = None  # async_sessionmaker[AsyncSession]
 
 
 def get_engine() -> Engine:
@@ -182,6 +208,61 @@ def session_scope() -> Iterator[Session]:
         raise
     finally:
         s.close()
+
+
+# ── Async engine / session (for async FastAPI endpoints) ──────────
+
+
+def get_async_engine() -> Any:
+    """Get the async SQLAlchemy engine. Lazily creates one on first call."""
+    global _async_engine, _async_session_local
+    if not _HAS_SA:
+        raise RuntimeError("sqlalchemy is not installed; pip install 'sqlalchemy>=2.0'")
+    if _async_engine is None:
+        url = _resolve_async_database_url()
+        connect_args: dict[str, Any] = {}
+        if url.startswith("sqlite"):
+            connect_args["check_same_thread"] = False
+        _async_engine = create_async_engine(url, connect_args=connect_args, echo=False)
+        _async_session_local = async_sessionmaker(
+            bind=_async_engine, autoflush=False, expire_on_commit=False
+        )
+        logger.info(
+            "db_async_engine_initialized",
+            extra={"url": url.split("@")[-1] if "@" in url else url},
+        )
+    return _async_engine
+
+
+async def get_async_session() -> AsyncSession:
+    """Get a new async Session. Caller must close it.
+
+    Prefer ``async with async_session_scope() as s:`` for automatic cleanup.
+    """
+    if _async_session_local is None:
+        get_async_engine()
+    assert _async_session_local is not None
+    return _async_session_local()
+
+
+@asynccontextmanager
+async def async_session_scope() -> AsyncIterator[AsyncSession]:
+    """Async context manager: yields an AsyncSession, commits on success,
+    rolls back on error.
+
+    Usage:
+        async with async_session_scope() as s:
+            result = await s.execute(select(Monitor).where(...))
+    """
+    s = await get_async_session()
+    try:
+        yield s
+        await s.commit()
+    except Exception:
+        await s.rollback()
+        raise
+    finally:
+        await s.close()
 
 
 # ── Model base ────────────────────────────────────────────────────
@@ -827,3 +908,24 @@ def db_health() -> dict[str, Any]:
         }
     except SQLAlchemyError as e:
         return {"available": False, "error": str(e)[:200]}
+
+
+async def db_health_async() -> dict[str, Any]:
+    """Async health check for the database (for async endpoints)."""
+    if not _HAS_SA:
+        return {"available": False, "reason": "sqlalchemy not installed"}
+    try:
+        engine = get_async_engine()
+        async with engine.connect() as conn:
+            await conn.execute(conn.default_schema_name or "SELECT 1")
+        return {
+            "available": True,
+            "url": _resolve_async_database_url().split("@")[-1]
+            if "@" in _resolve_async_database_url()
+            else _resolve_async_database_url(),
+        }
+    except SQLAlchemyError as e:
+        return {"available": False, "error": str(e)[:200]}
+
+
+# ── end of db.py ──

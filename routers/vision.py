@@ -19,6 +19,7 @@ from fastapi import APIRouter, Body
 from client import get_client
 from deps import automator
 from errors import ExternalServiceError, InvalidRequestError, PryError, ScrapeError
+from resilience import registry
 from settings import settings
 
 logger = logging.getLogger(__name__)
@@ -171,6 +172,8 @@ async def _call_vision_api(
     key = _get_or_key()
     if not key:
         return None, None, "OPENROUTER_API_KEY not set"
+    if not registry.is_service_allowed("openrouter"):
+        return None, None, "OpenRouter circuit breaker open"
 
     # Accept either data URI or raw base64
     data_uri = image_b64 if image_b64.startswith("data:") else f"data:image/png;base64,{image_b64}"
@@ -203,6 +206,7 @@ async def _call_vision_api(
     )
     resp.raise_for_status()
     body = resp.json()
+    registry.record_service_result("openrouter", True)
     return body["choices"][0]["message"]["content"], model, None
 
 

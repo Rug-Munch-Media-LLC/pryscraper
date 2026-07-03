@@ -25,6 +25,7 @@ jobs:
 
 import json
 import os
+from typing import Any
 
 import yaml
 
@@ -34,7 +35,7 @@ class Pryfile:
 
     def __init__(self, path: str = "pry.yml"):
         self.path = path
-        self.jobs = []
+        self.jobs: list[Any] = []
         self._load()
 
     def _load(self):
