@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 PYTHON := python3
 
-.PHONY: help install dev lint format typecheck test security check clean commit precommit ci
+.PHONY: help install dev lint format typecheck test security check clean precommit ci
 
 help:
 	@echo "Pry Makefile"

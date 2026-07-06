@@ -7,8 +7,10 @@ Self-hosted web scraping + browser automation API. Cloudflare bypass, document p
 ## Quickstart
 
 ```bash
-# Install
-pip install pry
+# Install (PyPI 'pry' is taken — install from this repo)
+pip install -e .
+# or:
+# pip install "pry-scraper @ git+https://git.rugmunch.io/RugMunchMedia/pryscraper.git"
 
 # Start the server
 pry serve
@@ -27,7 +29,7 @@ pry crawl https://docs.com --max-pages 20 -o data.json
 
 ```bash
 docker compose up -d
-# Pry on :8002, FlareSolverr on :8191
+# Pry on :8005 (host) → :8002 (container), FlareSolverr on :8192 (host) → :8191 (container)
 ```
 
 ## CLI Reference
@@ -96,7 +98,7 @@ Service health + cache stats + active sessions.
 ```python
     from pry_sdk import PryCrawl
 
-mc = PryCrawl("http://localhost:8002")
+mc = PryCrawl("http://localhost:8005")
 result = await mc.scrape("https://example.com")
 print(result["data"]["markdown"])
 ```
@@ -104,7 +106,7 @@ print(result["data"]["markdown"])
 ```python
     from pry_sdk import PryCrawlSync
 
-mc = PryCrawlSync("http://localhost:8002")
+mc = PryCrawlSync("http://localhost:8005")
 result = mc.scrape("https://example.com")
 ```
 
@@ -141,7 +143,7 @@ Compatible with Claude, Hermes, Cursor, and any MCP client.
 - **Batch processing**: Parallel scrape with templates
 - **SEO analysis**: Title, meta, headings, keywords, readability
 - **Schema extraction**: JSON-LD, Open Graph, microdata
-- **Export formats**: JSON, CSV, RSS, TXT, SQL
+- **Export formats**: JSON, CSV (RSS/TXT/SQL not yet implemented — see FEATURES.md)
 - **Rate limiting**: Per-IP token bucket (default 120 RPM)
 - **Caching**: LRU + Redis with TTL-based invalidation
 - **WebSocket streaming**: Real-time job progress
@@ -177,9 +179,9 @@ docker compose up -d
 ### Bare metal
 
 ```bash
-pip install pry
+pip install -e .
 playwright install chromium
-# Optional: docker run -d -p 8191:8191 ghcr.io/flaresolverr/flaresolverr
+# Optional: docker run -d -p 8192:8191 ghcr.io/flaresolverr/flaresolverr
 pry serve
 ```
 

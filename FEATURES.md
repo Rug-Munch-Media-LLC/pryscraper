@@ -30,7 +30,7 @@ last_updated: 2026-06-30
 | Browser pool + pre-warming | `browser_pool.py` | Internal | ✅ |
 | Stealth engine (6 JS scripts) | `stealth_engine.py` | Internal | ✅ |
 | Stealth scripts | `stealth_scripts/` | Injected | ✅ |
-| Tor proxy routing | `network.py` | `POST /v1/config/profile/tor` | ✅ |
+| Tor proxy routing (tier documented but disabled) | `network.py` | `POST /v1/config/profile/tor` | ⚠️ `aiohttp-socks` missing |
 | SOCKS5 proxy support | `network.py` | Config | ✅ |
 | User-agent rotation | `scraper.py` | Internal | ✅ |
 
@@ -66,8 +66,10 @@ last_updated: 2026-06-30
 | AI categorization | `advanced.py` | `POST /v1/categorize` | ✅ |
 | GPT Action manifest | `ai_plugin.py` | `GET /v1/ai/gpt-manifest` | ✅ |
 | MCP server config | `ai_plugin.py` | `GET /v1/ai/mcp-config` | ✅ |
-| MCP tool discovery | `mcp_server.py` | `GET /mcp/tools` | ✅ |
-| MCP tool execution | `mcp_server.py` | `POST /mcp/call` | ✅ |
+| ~~MCP tool discovery~~ | ~~`mcp_server.py`~~ | ~~`GET /mcp/tools`~~ | ⚠️ not in `api.py` |
+| ~~MCP tool execution~~ | ~~`mcp_server.py`~~ | ~~`POST /mcp/call`~~ | ⚠️ not in `api.py` |
+
+> `GET /mcp/tools` and `POST /mcp/call` exist only in `mcp_production.py`, which is **not deployed**. Use `pry mcp serve` (stdio transport) for MCP access — see AUDIT-2026-Q3.md.
 
 ## Browser Automation
 
@@ -133,7 +135,7 @@ last_updated: 2026-06-30
 
 | Feature | Module | Endpoint | Status |
 |---------|--------|----------|--------|
-| Multi-format export (JSON, CSV, RSS, TXT, SQL) | `destinations.py` | `POST /v1/export` | ✅ |
+| ~~Multi-format export (JSON, CSV, RSS, TXT, SQL)~~ | `destinations.py` | `POST /v1/export` | ⚠️ `pryfile.py` only does `json`/`csv`; RSS/TXT/SQL not implemented |
 | Webhook delivery | `destinations.py` | Config | ✅ |
 | S3 upload | `destinations.py` | Config | ✅ |
 | GCS upload | `destinations.py` | Config | ✅ |
@@ -149,7 +151,7 @@ last_updated: 2026-06-30
 | Shopify app backend | `shopify-app/` | External | ✅ |
 | Salesforce CRM sync | `crm_sync.py` | `POST /v1/crm/sync` | ✅ |
 | HubSpot CRM sync | `crm_sync.py` | `POST /v1/crm/sync` | ✅ |
-| Zoho CRM sync | `crm_sync.py` | `POST /v1/crm/sync` | ✅ |
+| ~~Zoho CRM sync~~ | ~~`crm_sync.py`~~ | ~~`POST /v1/crm/sync`~~ | ❌ not implemented (grep: 0 matches in code) |
 
 ## Pipelines
 
@@ -216,8 +218,8 @@ last_updated: 2026-06-30
 |---------|--------|----------|--------|
 | Template listing | `template_engine.py` | `GET /v1/templates` | ✅ |
 | Template detail | `template_engine.py` | `GET /v1/templates/{id}` | ✅ |
-| Template generation | `template_engine.py` | `POST /v1/templates/generate` | ✅ |
-| Pre-built templates | 110 JSON files | `templates/` | ✅ |
+| ~~Template generation~~ | ~~`template_engine.py`~~ | ~~`POST /v1/templates/generate`~~ | ❌ endpoint not registered in `api.py` |
+| Pre-built templates | 110 JSON files | `templates/` | ⚠️ ~21/110 pass structural validation; ~30–40% work end-to-end (see AUDIT-2026-Q3.md) |
 
 ## SEO
 

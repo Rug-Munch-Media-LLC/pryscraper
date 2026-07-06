@@ -12,8 +12,10 @@ last_updated: 2026-06-30
 ## Quickstart
 
 ```bash
-# Install
-pip install pry
+# Install (PyPI 'pry' is taken — install from this repo)
+pip install -e .
+# or:
+# pip install "pry-scraper @ git+https://git.rugmunch.io/RugMunchMedia/pryscraper.git"
 
 # Start the server
 pry serve
@@ -32,8 +34,10 @@ pry crawl https://docs.com --max-pages 20 -o data.json
 
 ```bash
 docker compose up -d
-# Pry on :8002, FlareSolverr on :8191
+# Pry on :8005 (host) → :8002 (container), FlareSolverr on :8192 (host) → :8191 (container)
 ```
+
+> **Port clarification:** The API listens on container port `8002` and is published to host port `8005` (see `docker-compose.yml`). From outside the container (host machine, SDK, CLI), use `http://localhost:8005`. Use `8002` only if you `docker exec` into the running container.
 
 ## CLI Reference
 
@@ -47,7 +51,7 @@ docker compose up -d
 | `pry ss <url>` | Take screenshot |
 | `pry run [pry.yml]` | Execute job file |
 | `pry serve` | Start API server |
-| `pry completions` | Install shell autocomplete |
+| `pry completions [bash\|zsh\|fish]` | Print shell-autocomplete install instructions |
 
 ### CLI Options
 
@@ -226,7 +230,7 @@ Export scraped content in multiple formats.
 }
 ```
 
-Supported formats: `json`, `csv`, `rss`, `txt`, `sql`
+Supported formats: `json`, `csv` (`rss`, `txt`, `sql` listed in FEATURES.md but not yet implemented)
 
 ### Alert Endpoints
 
@@ -292,7 +296,7 @@ Execute a pipeline definition.
 ```python
 from pry_sdk import PryCrawl
 
-mc = PryCrawl("http://localhost:8002")
+mc = PryCrawl("http://localhost:8005")
 result = await mc.scrape("https://example.com")
 print(result["data"]["markdown"])
 ```
@@ -302,7 +306,7 @@ print(result["data"]["markdown"])
 ```python
 from pry_sdk import PryCrawlSync
 
-mc = PryCrawlSync("http://localhost:8002")
+mc = PryCrawlSync("http://localhost:8005")
 result = mc.scrape("https://example.com")
 ```
 
@@ -383,7 +387,7 @@ POST /v1/commerce/sync
 }
 ```
 
-### Salesforce / HubSpot / Zoho
+### Salesforce / HubSpot / ~~Zoho~~
 
 ```json
 POST /v1/crm/sync

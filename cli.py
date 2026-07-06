@@ -11,7 +11,6 @@ Usage:
   pry transform <data>     Convert data format
   pry run [pry.yml]        Execute jobs from pry.yml
   pry serve                Start the API server
-  pry completions          Install shell autocomplete
   pry proxy ...            Manage proxy providers and signup
 """
 
@@ -231,28 +230,68 @@ def cmd_serve(host="0.0.0.0", port=8005):  # nosec B104
     os.execvp("uvicorn", ["uvicorn", "api:app", "--host", host, "--port", str(port)])
 
 
+def _print_usage() -> None:
+    """Print the standard Pry usage block (no exit)."""
+    print(f"{BOLD}Pry v{VERSION}{NC} — Pry open any website. {CYAN}pry.dev{NC}")
+    print()
+    print(f"  {BOLD}Usage:{NC}")
+    print(f"    {CYAN}pry open <url>{NC}              Scrape a URL")
+    print(f"    {CYAN}pry watch <url>{NC}             Monitor for changes")
+    print(f"    {CYAN}pry crawl <url>{NC}             Crawl a site")
+    print(f"    {CYAN}pry batch <file>{NC}            Batch scrape from a file")
+    print(f"    {CYAN}pry parse <url>{NC}             Parse a document")
+    print(f"    {CYAN}pry ss <url>{NC}                Take a screenshot")
+    print(f"    {CYAN}pry run [pry.yml]{NC}           Execute job file")
+    print(f"    {CYAN}pry migrate{NC}                 Run database migrations")
+    print(f"    {CYAN}pry serve{NC}                   Start the server")
+    print(f"    {CYAN}pry completions{NC}             Install autocomplete")
+    print(f"    {CYAN}pry proxy ...{NC}               Manage proxy providers and signup")
+    print()
+    print(f"  {BOLD}Examples:{NC}")
+    print("    pry open https://example.com")
+    print("    pry open https://store.com --json --schema product.json")
+    print("    pry watch https://site.com --webhook slack://...")
+    print("    pry crawl https://docs.com --max-pages 20 -o data.json")
+    print('    pry batch urls.txt --template \'{"price":".price"}\'')
+    print("    pry run")
+    print("    pry serve")
+    print("    pry proxy list")
+    print("    pry proxy signup brightdata")
+    print()
+    print(f"  {BOLD}Settings:{NC}")
+    print("    PRY_URL=http://localhost:8005    (default)")
+
+
 def cmd_completions(shell="bash"):
-    """Install shell autocomplete."""
-    script = {
-        "bash": 'eval "$(_PRY_COMPLETE=bash_source pry)"',
-        "zsh": 'eval "$(_PRY_COMPLETE=zsh_source pry)"',
-        "fish": 'eval "$(_PRY_COMPLETE=fish_source pry)"',
-    }.get(shell, "")
-    if shell == "bash":
-        rc = os.path.expanduser("~/.bashrc")
-    elif shell == "zsh":
-        rc = os.path.expanduser("~/.zshrc")
-    elif shell == "fish":
-        rc = os.path.expanduser("~/.config/fish/config.fish")
-    else:
+    """Print shell-autocomplete installation instructions.
+
+    Pry does not currently ship a `_PRY_COMPLETE` env-var handler, so we do
+    not silently write a broken eval line into the user's shell rc file.
+    Print copy/paste instructions instead.
+    """
+    if shell not in ("bash", "zsh", "fish"):
         print(f"{YELLOW}Unknown shell: {shell}. Supported: bash, zsh, fish{NC}")
         return
-    dirname = os.path.dirname(rc)
-    os.makedirs(dirname, exist_ok=True)
-    with open(rc, "a") as f:
-        f.write(f"\n# Pry autocomplete\n{script}\n")
-    print(f"{GREEN}✓{NC} Autocomplete installed for {shell}")
-    print(f"  Restart your shell or run: source {rc}")
+    print(f"{BOLD}Pry shell autocomplete ({shell}){NC}")
+    print()
+    if shell == "bash":
+        print("  Add the following line to your ~/.bashrc:")
+        print(f"    {CYAN}eval \"$(register-python-argcomplete pry)\"{NC}")
+        print()
+        print("  install dependency: pip install argcomplete")
+    elif shell == "zsh":
+        print("  Add the following line to your ~/.zshrc:")
+        print(f"    {CYAN}eval \"$(register-python-argcomplete --shell zsh pry)\"{NC}")
+        print()
+        print("  install dependency: pip install argcomplete")
+    else:
+        print("  Add the following line to ~/.config/fish/config.fish:")
+        print(f"    {CYAN}register-python-argcomplete --shell fish pry | source{NC}")
+        print()
+        print("  install dependency: pip install argcomplete")
+    print()
+    print(f"{YELLOW}Note:{NC} Pry does not yet wire `_PRY_COMPLETE` itself; once it")
+    print("  does, this command will switch to a one-shot installer.")
 
 
 def main():
@@ -260,34 +299,7 @@ def main():
         cli.main(standalone_mode=False)
         return
     if len(sys.argv) < 2:
-        print(f"{BOLD}Pry v{VERSION}{NC} — Pry open any website. {CYAN}pry.dev{NC}")
-        print()
-        print(f"  {BOLD}Usage:{NC}")
-        print(f"    {CYAN}pry open <url>{NC}              Scrape a URL")
-        print(f"    {CYAN}pry watch <url>{NC}             Monitor for changes")
-        print(f"    {CYAN}pry crawl <url>{NC}             Crawl a site")
-        print(f"    {CYAN}pry batch <file>{NC}            Batch scrape from a file")
-        print(f"    {CYAN}pry parse <url>{NC}             Parse a document")
-        print(f"    {CYAN}pry ss <url>{NC}                Take a screenshot")
-        print(f"    {CYAN}pry run [pry.yml]{NC}           Execute job file")
-        print(f"    {CYAN}pry migrate{NC}                 Run database migrations")
-        print(f"    {CYAN}pry serve{NC}                   Start the server")
-        print(f"    {CYAN}pry completions{NC}             Install autocomplete")
-        print(f"    {CYAN}pry proxy ...{NC}               Manage proxy providers and signup")
-        print()
-        print(f"  {BOLD}Examples:{NC}")
-        print("    pry open https://example.com")
-        print("    pry open https://store.com --json --schema product.json")
-        print("    pry watch https://site.com --webhook slack://...")
-        print("    pry crawl https://docs.com --max-pages 20 -o data.json")
-        print('    pry batch urls.txt --template \'{"price":".price"}\'')
-        print("    pry run")
-        print("    pry serve")
-        print("    pry proxy list")
-        print("    pry proxy signup brightdata")
-        print()
-        print(f"  {BOLD}Settings:{NC}")
-        print("    PRY_URL=http://localhost:8005    (default)")
+        _print_usage()
         return
 
     cmd = sys.argv[1]
@@ -350,7 +362,7 @@ def main():
             print(f"Pry v{VERSION}")
 
         elif cmd in ("-h", "--help", "help"):
-            main()
+            _print_usage()
 
         elif cmd == "proxy":
             if click is None:
