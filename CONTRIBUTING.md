@@ -158,21 +158,25 @@ git clone -b main /tmp/pry-backup-XXX.bundle /tmp/pry-restored
 ## Working with Archived Work
 
 Phase-0 work (the 5 commits originally on `feat/metrics-endpoint` local-only)
-was preserved during the 2026-Q3 reorg. To recover it:
+was preserved during the 2026-Q3 reorg and **cherry-picked onto `main` on
+2026-07-06**:
 
-```bash
-git log phase0-fixes-archive           # 5 commits: JWT, tiers, cli, deps, tests
-git format-patch 47875ae^..1698a47 -o /tmp/patches/
-# Apply individually with `git am` on a fresh branch
-```
+| Original commit | Patch | Status on `main` |
+|-----------------|-------|------------------|
+| `47875ae` JWT fail-closed + gdpr_real SQL imports + Ollama URL | `0001-…patch` | **Subsumed** — canonical `auth.py` already fail-closes via `secrets_backend.get_secret()` |
+| `6cf0122` 10-tier → 5-tier + delete `browser_pool.py` + `stealth_engine.py` | `0002-…patch` | **Skipped (conflicts)** — canonical `feat/wire-orphan-modules` wired both modules into the fallback chain; deletion would break `scraper.py`/`cookie_warmer.py` imports |
+| `68a51c2` kill cli recursion + delete `parser.tmp` + fix completions + correct hallucinated docs | `0003-…patch` | **Cherry-picked** (2026-07-06) |
+| `7c3d5b7` add missing deps (cloudscraper, aiohttp-socks, pyjwt, apify, playwright-stealth) + docker fixes | `0004-…patch` | **Cherry-picked** (2026-07-06) |
+| `1698a47` respx + coverage gate + commitizen make target + `.github/workflows/ci.yml` updates | `0005-…patch` | **Skipped (wrong target)** — canonical CI lives in `.forgejo/workflows/ci.yml`, not `.github/`. The Makefile already runs `pytest … --cov=.`; respx test stub landed separately via `chore(mcp,x402): add API-surface snapshot tests before file split` |
 
-Most of this work has since been superseded by the canonical Forgejo main
-(`refs/heads/main` at git.rugmunch.io), but the patches remain useful as a
-reference for the original intent and as a starting point for re-applied
-fixes on the new module layout (post `refactor/dedup-root-modules`).
+Patches remain in `/tmp/pry-phase0-patches/` for reference and can be
+re-applied with `git am` on a fresh branch if any of the skipped commits need
+to be revisited (e.g. if `feat/wire-orphan-modules` is later reverted).
 
-Pre-Phase-0 WIP (the 4589-insertion initial WIP) is preserved on the
-`pre-phase0-wip-archive` branch from the same commit base.
+The `phase0-fixes-archive` branch tip (`47875ae`) and `pre-phase0-wip-archive`
+branch are kept for archaeology — do not delete without backing up first.
+
+For the full Phase 0+ plan see [`AUDIT-2026-Q3.md`](AUDIT-2026-Q3.md).
 
 ## License
 

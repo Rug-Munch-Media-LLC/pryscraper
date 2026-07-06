@@ -5,7 +5,7 @@
 > AI agent contract. Read this before touching anything in this repo.
 
 ## Status
-canonical · owner=crmuncher · last_updated=2026-07-02
+canonical · owner=crmuncher · last_updated=2026-07-06 · phase_0_hardening_complete
 
 ## What This Repo Is
 Multi-source crypto intelligence crawler (munchcrawl). Scraper, extractor, parser, automator, job queue. CLI + MCP server + SDK. License: Dual -- MIT (core) + BSL 1.1 (stealth/anti-detection subset). See LICENSE and LICENSE-BSL-STEALTH.
@@ -26,12 +26,21 @@ Multi-source crypto intelligence crawler (munchcrawl). Scraper, extractor, parse
 ## Components
 - `/srv/pry/*.py`: 83 Python modules (api.py, extractor.py, parser.py, etc.)
 - `browser-extension/`: Chrome/Firefox extension
+- `routers/`: FastAPI routers split from `api.py` (scraping, templates, health, auth, captcha, …)
+- `pry_mcp/`: MCP sub-package (split from `mcp_production.py` 2026-07-06)
+- `pry_x402/`: x402 constants + enums (split from `x402.py` 2026-07-06)
+- `pry_<name>.py`: 19 root modules renamed to remove `routers/` collision (2026-07-06)
 
 ## Dependencies
 - postgresql (job storage)
 - redis (cache)
 - flaresolverr (Cloudflare bypass, on Hydra)
 - playwright (browser automation)
+- cloudscraper (Cloudflare bypass tier)
+- aiohttp-socks + aiohttp (SOCKS5 proxy support, async HTTP)
+- pyjwt (JWT auth signing)
+- apify (Apify actor SDK)
+- playwright-stealth (anti-detection)
 
 ## 🚨 CRITICAL RULES
 

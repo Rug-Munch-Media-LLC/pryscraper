@@ -5,17 +5,17 @@
 > Where we are RIGHT NOW. Update before every commit.
 
 ## Last Updated
-2026-07-03 - Phase 0 infra hardening: metrics, redis/postgres, pinned deps, scrape metrics
+2026-07-06 - Phase 0 hardening complete; cherry-picked cli recursion + missing deps; ready for production deploy
 
 ## Current Status
-🟡 pre-production - router split deployed; infra hardening branch ready for review/deploy.
+🟢 production-ready - Phase 0 hardening complete (JWT fail-closed, secrets backend, metrics endpoint, router split, dep pinning, missing-cloudscraper/aiohttp-socks/pyjwt/apify wired, cli recursion killed, parser.tmp deleted). Canonical main aligned with upstream.
 
 ## Deployment Status
-- **Last deploy**: TBD
-- **Current version**: 3.0.0-phase0
+- **Last deploy**: TBD (next deploy picks up Phase 0 hardening)
+- **Current version**: 3.0.0
 - **Health**: TBD
 - **Uptime (30d)**: TBD
-- **Active branch**: `feat/phase0-rebased` (reconciled on top of latest `main`)
+- **Active branch**: `main` (aligned with `upstream/main`)
 
 ## Open Issues
 - _None — track in forgejo issues_
@@ -33,16 +33,16 @@
 - 2026-07-03: Fixed Ollama URL to Talos (`100.104.130.92:11434`)
 - 2026-07-03: Added `LLMRegistry.complete_or_empty()` graceful fallback
 - 2026-07-03: Regenerated `requirements.txt`; added pinned `requirements.lock`
+- 2026-07-06: Phase 0 hardening cherry-picked onto main: JWT fail-closed (already subsumed by canonical), secrets_backend integration, captcha_solver wire-in, validate_live.py, mcp_production split into pry_mcp sub-package, router split, dedup root modules (refactor), x402 constants extraction
+- 2026-07-06: Cherry-picked `fix(pry): kill cli recursion, delete parser.tmp, fix broken completions, correct hallucinated docs` (68a51c2)
+- 2026-07-06: Cherry-picked `fix(pry): add missing deps (cloudscraper, aiohttp-socks, pyjwt, apify, playwright-stealth), fix docker env var + healthcheck + non-root` (7c3d5b7)
+- 2026-07-06: Skipped orphan-module deletion (6cf0122) — canonical `feat/wire-orphan-modules` already wired browser_pool + stealth_engine into the fallback chain
+- 2026-07-06: Skipped respx+coverage-gate patch (1698a47) — canonical CI lives in `.forgejo/workflows/ci.yml`, not `.github/`
 
 ## Known Issues / Tech Debt
-- Deploy at `/srv/pry/` is out of sync with repo (needs pull + restart to activate PRY_API_KEY, router changes, and metrics)
+- Deploy at `/srv/pry/` is out of sync with repo (needs pull + restart to activate Phase 0 hardening)
 - `feat/phase0-rebased` branch reconciles infra-hardening commits on top of latest `main`
 - pry-flaresolverr host port moved from 8191 to 8192 to avoid conflict with `rmi-flaresolverr`
-- All 80+ site templates unverified - only ~30-40% known to work end-to-end. Run templates/validate_templates.py before claiming template coverage.
-- State storage in ~/.pry/*.json - no concurrency safety, no transactions. See plan to migrate to SQLite/Postgres.
-- PRY_X402_WALLET, PRY_X402_FACILITATOR env vars unset in deploy - x402 payments not active.
-- License collision resolved 2026-07-03: dual MIT (core) + BSL 1.1 (stealth/anti-detection). See ADR-0002.
-- mcp_production.py and x402.py exist in repo but are NOT deployed. Top priority for next deploy.
 - All 80+ site templates unverified - only ~30-40% known to work end-to-end. Run templates/validate_templates.py before claiming template coverage.
 - State storage in ~/.pry/*.json - no concurrency safety, no transactions. See plan to migrate to SQLite/Postgres.
 - PRY_X402_WALLET, PRY_X402_FACILITATOR env vars unset in deploy - x402 payments not active.
