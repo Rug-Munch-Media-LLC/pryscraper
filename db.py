@@ -169,9 +169,11 @@ def get_engine() -> Engine:
                 cur.close()
 
         _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
-        # Auto-create tables on first import (idempotent)
-        # Deprecated: use `alembic upgrade head` instead (see run_migrations())
-        Base.metadata.create_all(_engine)
+        # Auto-create tables on first import (idempotent).
+        # Disabled when PRY_ALEMBIC_AUTO=0 — production deploys run
+        # `alembic upgrade head` instead and should not auto-create.
+        if os.environ.get("PRY_ALEMBIC_AUTO", "1") == "1":
+            Base.metadata.create_all(_engine)
         logger.info(
             "db_engine_initialized", extra={"url": url.split("@")[-1] if "@" in url else url}
         )
