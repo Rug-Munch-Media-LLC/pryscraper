@@ -22,4 +22,4 @@ RUN pip install --no-cache-dir "apify~=1.7.0" \
 ENV PRY_ACTOR=true
 ENV PYTHONUNBUFFERED=1
 
-ENTRYPOINT ["python3", "-m", "apify_actor"]
+ENTRYPOINT ["python3", "/usr/src/app/.actor/src/main.py"]
