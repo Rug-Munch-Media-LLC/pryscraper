@@ -16,6 +16,42 @@ from structure_monitor import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _fresh_db(monkeypatch):
+    """Force a brand-new in-memory SQLite engine for every test.
+
+    `structure_monitor` reads from the module-level `db._engine`. Without
+    this fixture a previous test that committed StructureSnapshot rows
+    (e.g. via `temp_db` pointing at a tmp_path sqlite file) leaks state
+    into the next test that doesn't use the `temp_db` fixture
+    (`test_check_selectors_empty`). Yielding a private :memory: engine
+    per-test guarantees isolation regardless of import order.
+
+    Also resets the shared `client.http_client` so an httpx.AsyncClient
+    bound to a closed event loop (from a prior test) doesn't surface as
+    RuntimeError on the next test that hits the network.
+    """
+    import db as db_module
+    import client as client_module
+    from sqlalchemy import create_engine
+
+    monkeypatch.setenv("PRY_DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.setenv("PRY_DATA_DIR", "/tmp")
+    db_module._engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, future=True
+    )
+    db_module._SessionLocal = None
+    # Recreate tables on the new engine.
+    from db import Base
+
+    Base.metadata.create_all(db_module._engine)
+    client_module.http_client = None
+    yield
+    db_module._engine = None
+    db_module._SessionLocal = None
+    client_module.http_client = None
+
+
 @pytest.fixture
 def temp_db(monkeypatch, tmp_path):
     import db as db_module
