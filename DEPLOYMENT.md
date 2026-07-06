@@ -33,6 +33,31 @@ docker rm pryscraper
 docker run -d --name pryscraper --restart unless-stopped --network host -p 8005:8005 pryscraper:latest
 ```
 
+### Schema Migrations (Alembic)
+
+The container entrypoint (`docker-entrypoint.sh`) runs Alembic before starting uvicorn:
+
+1. `alembic stamp head` — idempotent. Marks the DB as up-to-date without running migrations (preserves existing data when schema already matches).
+2. On stamp failure: `alembic upgrade head` — applies pending migrations from scratch.
+3. `exec "$@"` — chains to the CMD (uvicorn).
+
+`PRY_SKIP_MIGRATIONS=1` skips the migration step entirely (for read-only debug runs).
+
+Manual migration commands:
+```bash
+docker exec pry alembic current
+docker exec pry alembic history
+docker exec pry alembic upgrade head   # apply pending
+docker exec pry alembic stamp head     # mark up-to-date without applying
+```
+
+Create a new migration:
+```bash
+docker exec pry alembic revision --autogenerate -m "describe the change"
+# then COPY the file out, review, commit to pryscraper repo
+docker cp pry:/app/alembic/versions/<new>.py ./alembic/versions/
+```
+
 ## Health Check
 ```bash
 curl -fsS http://localhost:8005/health
