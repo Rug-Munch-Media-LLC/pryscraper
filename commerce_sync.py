@@ -113,16 +113,63 @@ async def sync_to_woocommerce(
 async def sync_to_shopify(
     products: list[dict[str, Any]],
     shop_url: str,
-    access_token: str,
+    access_token: str = "",
+    *,
+    code: str = "",
+    shop_domain: str = "",
+    api_key: str = "",
+    api_secret: str = "",
 ) -> dict[str, Any]:
     """Sync products to Shopify via REST API.
+
+    Two auth modes are supported:
+
+    1. Static access token (server-to-server, classic custom apps):
+         await sync_to_shopify(products, shop_url, access_token="shpat_...")
+    2. OAuth code exchange (public apps, embedded installs):
+         await sync_to_shopify(
+             products,
+             shop_url,
+             code="<oauth callback code>",
+             shop_domain="mystore.myshopify.com",
+             api_key="...",
+             api_secret="...",
+         )
+       The code is exchanged for a permanent access token via
+       ``shopify_oauth.exchange_code`` and then the sync proceeds normally.
 
     Args:
         products: List of product dicts with name, price, description, image_url
         shop_url: Shopify store URL (e.g., https://mystore.myshopify.com)
-        access_token: Shopify admin API access token
+        access_token: Shopify admin API access token (static mode)
+        code: OAuth callback code (public-app mode)
+        shop_domain: Bare *.myshopify.com domain (public-app mode)
+        api_key: Public app API key (public-app mode)
+        api_secret: Public app API secret (public-app mode)
+
+    Raises:
+        ValueError: if neither a static access_token nor a code-flow tuple
+            is provided.
     """
     from client import get_client
+    from shopify_oauth import exchange_code
+
+    if not access_token:
+        if not (code and shop_domain and api_key and api_secret):
+            logger.error(
+                "shopify_sync_missing_credentials",
+                extra={"shop_url": shop_url, "has_code": bool(code)},
+            )
+            return {
+                "success": False,
+                "total": len(products),
+                "synced": 0,
+                "failed": len(products),
+                "results": [],
+                "error": "missing credentials: provide access_token OR (code, shop_domain, api_key, api_secret)",
+            }
+        token_resp = exchange_code(shop_domain, code, api_key, api_secret)
+        access_token = token_resp["access_token"]
 
     client = await get_client()
     base_url = shop_url.rstrip("/")
