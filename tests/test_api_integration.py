@@ -18,6 +18,22 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+
+def _has_postgres(host: str = "127.0.0.1", port: int = 5432) -> bool:
+    """Return True if Postgres is reachable on the given host:port.
+
+    Used to skip integration tests that require a live database when running
+    the suite locally without docker-compose up.
+    """
+    import socket
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.25)
+            return s.connect_ex((host, port)) == 0
+    except OSError:
+        return False
+
 # ── Fixtures ─────────────────────────────────────────────────────
 
 
@@ -125,6 +141,10 @@ class TestHealthEndpoints:
         assert resp.status_code == 200
         assert resp.json() == {"status": "alive"}
 
+    @pytest.mark.integration
+    @pytest.mark.skipif(
+        not _has_postgres(), reason="requires running Postgres + Redis"
+    )
     def test_ready_returns_200(self, client: TestClient) -> None:
         resp = client.get("/ready")
         assert resp.status_code == 200
