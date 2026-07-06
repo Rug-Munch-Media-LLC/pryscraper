@@ -9,6 +9,7 @@
 !.env.template
 *.pem
 *.key
+*.crt
 *.p12
 *.pfx
 id_rsa
@@ -41,6 +42,7 @@ htmlcov/
 
 # ── Pry-specific cache ──────────────────────────────────────
 .warmed_cookies/
+warmed_cookies/
 .proxy_cache/
 .browser_profiles/
 .screenshots/
