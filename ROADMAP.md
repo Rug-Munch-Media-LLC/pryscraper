@@ -87,7 +87,7 @@ Pry is a mature, feature-complete self-hosted web scraping platform. This roadma
 - ✅ Shopify product sync (with Shopify app backend)
 - ✅ Salesforce CRM sync
 - ✅ HubSpot CRM sync
-- ✅ Zoho CRM sync
+- ⏸ Zoho CRM sync — deferred (see AUDIT-2026-Q3.md §Hallucinated features)
 
 ### Compliance
 - ✅ GDPR consent management

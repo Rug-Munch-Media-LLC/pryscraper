@@ -387,7 +387,7 @@ POST /v1/commerce/sync
 }
 ```
 
-### Salesforce / HubSpot / ~~Zoho~~
+### Salesforce / HubSpot
 
 ```json
 POST /v1/crm/sync

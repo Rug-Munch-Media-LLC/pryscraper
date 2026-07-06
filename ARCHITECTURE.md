@@ -121,7 +121,7 @@ All data stored under `~/.pry/`:
 | `costing.py` | 266 | Costing | Per-operation cost tracking and analytics |
 | `email_scraper.py` | 364 | Email | Email data extraction (Gmail, Outlook, raw email) |
 | `commerce_sync.py` | 191 | Commerce | WooCommerce/Shopify product sync |
-| `crm_sync.py` | 359 | CRM | Salesforce/HubSpot/Zoho CRM sync |
+| `crm_sync.py` | 359 | CRM | Salesforce / HubSpot / Pipedrive / Close.com sync |
 | `destinations.py` | 361 | Export | Data export — webhooks, Slack, S3, GCS, SFTP |
 | `intelligence.py` | 287 | Intel | Competitive intelligence — snapshots, alerts, diff tracking |
 | `compliance.py` | 443 | Compliance | GDPR/CCPA compliance — sensitive data detection, consent |

@@ -151,7 +151,6 @@ last_updated: 2026-06-30
 | Shopify app backend | `shopify-app/` | External | ✅ |
 | Salesforce CRM sync | `crm_sync.py` | `POST /v1/crm/sync` | ✅ |
 | HubSpot CRM sync | `crm_sync.py` | `POST /v1/crm/sync` | ✅ |
-| ~~Zoho CRM sync~~ | ~~`crm_sync.py`~~ | ~~`POST /v1/crm/sync`~~ | ❌ not implemented (grep: 0 matches in code) |
 
 ## Pipelines
 
