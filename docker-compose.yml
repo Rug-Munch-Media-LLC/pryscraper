@@ -16,7 +16,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - PRY_TIMEOUT=60
-      - FLARESOLVERR_URL=http://flaresolverr:8191/v1
+      - PRY_FLARESOLVERR_URL=http://flaresolverr:8191/v1
       - TOR_ENABLED=0
       - TOR_SOCKS5_HOST=tor
       - TOR_SOCKS5_PORT=9050
@@ -27,7 +27,7 @@ services:
       - MIN_QUALITY=20
       - RATE_LIMIT_RPM=120
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8002/health"]
+      test: ["CMD", "python3", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8002/health', timeout=2).status == 200 else 1)"]
       interval: 15s
       timeout: 5s
       retries: 3
