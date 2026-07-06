@@ -5,7 +5,7 @@
 > Where we are RIGHT NOW. Update before every commit.
 
 ## Last Updated
-2026-07-06 - Phase 0 hardening complete; cherry-picked cli recursion + missing deps; ready for production deploy
+2026-07-06 - Test fixes landed; Alembic opt-out + Shopify OAuth + Zoho stub + Apify .actor/src/main.py + make actor-build pushed; Phase 0 hardening still complete
 
 ## Current Status
 🟢 production-ready - Phase 0 hardening complete (JWT fail-closed, secrets backend, metrics endpoint, router split, dep pinning, missing-cloudscraper/aiohttp-socks/pyjwt/apify wired, cli recursion killed, parser.tmp deleted). Canonical main aligned with upstream.
@@ -48,6 +48,8 @@
 - PRY_X402_WALLET, PRY_X402_FACILITATOR env vars unset in deploy - x402 payments not active.
 - License collision resolved 2026-07-03: dual MIT (core) + BSL 1.1 (stealth/anti-detection). See ADR-0002.
 - mcp_production.py and x402.py exist in repo but are NOT deployed. Top priority for next deploy.
+- `test_ready_returns_200` is now `@pytest.mark.integration` and deselected by default; run with `pytest -m integration` against a live Postgres+Redis stack.
+- `test_structure_monitor.py` autouse fixture now resets both `db._engine` and `client.http_client` per test; defeats the DB-pollution + closed-event-loop patterns that surfaced when the suite grew past 600 tests.
 
 ## Quick Links
 - [Live URL](https://[INTERNAL])
