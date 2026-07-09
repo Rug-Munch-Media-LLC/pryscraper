@@ -1,0 +1,17 @@
+---
+title: AGENTS.md — pryscraper
+repo: backend
+stack: Python 3.12 + FastAPI + Docker
+domain: [INTERNAL]
+deploy: Docker on Talos (/srv/pry/)
+status: active
+---
+
+## Rules
+1. No bare except — use specific exceptions or except Exception
+2. No sync I/O in async routes — use httpx.AsyncClient
+3. All public API routes must have type hints and docstrings
+4. Dual licensed: MIT (core) + BSL 1.1 (stealth)
+5. MCP tools must be typed and documented
+6. No hardcoded credentials — use gopass or env vars
+
