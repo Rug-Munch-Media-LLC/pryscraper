@@ -19,9 +19,6 @@ Multi-source crypto intelligence crawler (pryscraper). Scraper, extractor, parse
 - Port: 8005
 
 ## Built With
-- Standards: [git.rugmunch.io/RugMunchMedia/standards](https://git.rugmunch.io/RugMunchMedia/standards)
-- Toolchain: [TOOLCHAIN.md](https://git.rugmunch.io/RugMunchMedia/standards/raw/branch/main/TOOLCHAIN.md)
-- Conventions: [CONVENTIONS.md](https://git.rugmunch.io/RugMunchMedia/standards/raw/branch/main/CONVENTIONS.md)
 
 ## Components
 - `/srv/pry/*.py`: 83 Python modules (api.py, extractor.py, parser.py, etc.)
@@ -80,4 +77,3 @@ See [ARCHITECTURE.md](ARCHITECTURE.md). Update it when components change.
 - Backup: TBD
 
 ## Related Repos
-See [standards/PRODUCTS.md](https://git.rugmunch.io/RugMunchMedia/standards/raw/branch/main/PRODUCTS.md).
