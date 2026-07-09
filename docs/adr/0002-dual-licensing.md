@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-The Pry (munchcrawl) project was initially released under a full proprietary license. This licensing model resulted in zero community engagement, zero external contributors, and zero GitHub stars. In the competitive web scraping and data extraction market, open source projects such as Firecrawl and Crawl4AI have achieved dominant positions by leveraging MIT licensing to build strong community moats, attract contributors, and establish trust with users.
+The Pry project was initially released under a full proprietary license. This licensing model resulted in zero community engagement, zero external contributors, and zero GitHub stars. In the competitive web scraping and data extraction market, open source projects such as Firecrawl and Crawl4AI have achieved dominant positions by leveraging MIT licensing to build strong community moats, attract contributors, and establish trust with users.
 
 The existing LICENSING_PRICING_STRATEGY.md document previously listed Pry as PROPRIETARY. This approach proved incompatible with the project's goal of achieving widespread adoption, particularly for the Model Context Protocol (MCP) server and template marketplace components that benefit from community contributions and third-party integrations.
 

@@ -8,7 +8,7 @@
 canonical · owner=crmuncher · last_updated=2026-07-06 · phase_0_hardening_complete
 
 ## What This Repo Is
-Multi-source crypto intelligence crawler (munchcrawl). Scraper, extractor, parser, automator, job queue. CLI + MCP server + SDK. License: Dual -- MIT (core) + BSL 1.1 (stealth/anti-detection subset). See LICENSE and LICENSE-BSL-STEALTH.
+Multi-source crypto intelligence crawler (pryscraper). Scraper, extractor, parser, automator, job queue. CLI + MCP server + SDK. License: Dual -- MIT (core) + BSL 1.1 (stealth/anti-detection subset). See LICENSE and LICENSE-BSL-STEALTH.
 
 ## Type
 `backend` · language=Python 3.12 + FastAPI

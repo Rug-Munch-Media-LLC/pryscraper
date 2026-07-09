@@ -1,0 +1,25 @@
+rules:
+  - id: no-print-in-production
+    pattern: print(...)
+    message: "Remove print() before committing to production code. Use structured logging instead."
+    severity: WARNING
+    languages: [python]
+    paths:
+      exclude:
+        - tests/
+        - "**/test_*.py"
+
+  - id: no-os-system
+    pattern: os.system(...)
+    message: "os.system() is dangerous. Use subprocess.run() with shell=False instead."
+    severity: ERROR
+    languages: [python]
+
+  - id: no-eval-exec
+    patterns:
+      - pattern-either:
+        - pattern: eval(...)
+        - pattern: exec(...)
+    message: "eval()/exec() are dangerous and should not be used in production code."
+    severity: ERROR
+    languages: [python]

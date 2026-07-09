@@ -40,13 +40,13 @@ goal: ship Pry as production-grade + Apify-publishable within Q3 2026
 | **Shopify app** | Shopify app | 60-line scaffold. `@shopify/shopify-api` declared but **never imported**. No OAuth callback, no token exchange, no HMAC verify. | 🔴 not publishable |
 | **Tests** | "500 tests passing" | 500 collected, 498 pass, 2 fail (one is a flaky network test that makes a real `httpx` call to `example.com`). 60% coverage, no `--cov-fail-under`. **Most tests assert trivial things ("string in dict")** — `test_advanced_scraping.py` is 17 attribute-presence tests. | 🟡 theater |
 | **Test coverage** | ">80% enforced" | **60% actual**, no threshold check in CI. `TESTING.md` describes `tests/unit/`, `tests/integration/`, `make test-unit`, `make test-cov` — **none exist.** | 🔴 docs lie |
-| **Docs** | README, USAGE, ARCHITECTURE, AUDIT | Three sets of docs. Some honest (AUDIT.md, STATUS.md). Some lying (TESTING.md describes directories that don't exist; FEATURES.md claims Zoho, `.munchcrawl_sdk`, export formats that aren't there). | 🟡 mixed |
+| **Docs** | README, USAGE, ARCHITECTURE, AUDIT | Three sets of docs. Some honest (AUDIT.md, STATUS.md). Some lying (TESTING.md describes directories that don't exist; FEATURES.md claims Zoho, `.pry_sdk`, export formats that aren't there). | 🟡 mixed |
 | **CI** | GitHub Actions CI | 1 workflow, 4 jobs (lint/typecheck/test/security). **Doesn't install playwright/tesseract**, so any real integration test fails on CI. **Doesn't pin ruff/mypy** versions. No deploy step. | 🟡 minimal |
 | **Dependencies** | `requirements.txt` + `pyproject.toml` | 23 deps, all `>=` with no upper bound. **`aiohttp_socks` and `aiohttp` missing** despite Tor tier importing them. **`pyjwt` missing** despite `auth.py` importing it. | 🟡 destructive pin |
 | **Dockerfile** | multi-stage | Real, but **no USER directive (runs as root)**, **healthcheck uses `curl` which isn't in runtime stage** — container restart-loops. | 🟡 broken healthcheck |
 | **docker-compose** | pry + flaresolverr + tor | **Sets `FLARESOLVERR_URL` (wrong var name; should be `PRY_FLARESOLVERR_URL`)** — Cloudflare bypass silently fails. Same `curl`-in-healthcheck bug. | 🔴 dead FlareSolverr path |
 | **CLI** | `pry` command | `pry --help` **crashes with infinite recursion** (cli.py:339-340). `pry mcp serve` is dead code (only `proxy` routes to click). `pry completions` writes a broken eval string. | 🔴 broken |
-| **SDK** | `pry_sdk.py` (async+sync) | Real `PryCrawl`/`PryCrawlSync`, hardcoded endpoint paths, raw-dict returns. Doesn't use shared `client.http_client`. `munchcrawl_sdk.py` referenced in old docs — **doesn't exist**. | 🟢 real |
+| **SDK** | `pry_sdk.py` (async+sync) | Real `PryCrawl`/`PryCrawlSync`, hardcoded endpoint paths, raw-dict returns. Doesn't use shared `client.http_client`. `pry_sdk.py` referenced in old docs — **doesn't exist**. | 🟢 real |
 | **Proxies** | 10-tier with residential pool | Catalogs 3 free + 10 premium providers, calls Brightdata via signup link. **No actual credential rotation**, no gopass lookup, no proxy health scoring. Tor tier imports `aiohttp_socks` which is missing. | 🟡 stub |
 | **Referral revenue** | Jupiter 50bps, Hyperliquid 50bps, etc. (per AGENTS.md) | **Pry has nothing to do with that catalog.** RMI-side. Pry's `referrals.py` covers 14 categories (exchange, LLM, hosting, proxy, etc.) with JWT-shaped attribution that doesn't actually verify the code was used. Cookie-only attribution. | 🟡 toy |
 | **GDPR** | "consent, deletion, retention, audit" | JSON files + two modules (`gdpr.py`, `gdpr_real.py`). Deletion DOES walk files and unlink. **`gdpr_real.py:138` imports `ApiKey`/`QualityCheckRecord`/`UsageRecord` from db.py — those models don't exist, raises `ImportError` at runtime.** | 🟡 half-real |
@@ -115,10 +115,10 @@ goal: ship Pry as production-grade + Apify-publishable within Q3 2026
 - `cli.py:225-246` `pry completions` writes broken eval string — no `_PRY_COMPLETE` handler exists.
 - `cli.py:91-94` `_spinner` thread never `join()`ed.
 - `pry_sdk.py` is real (`PryCrawl`, `PryCrawlSync`), but creates its own `httpx.AsyncClient` per call instead of sharing `client.http_client`.
-- `munchcrawl_sdk.py` is referenced in old docs but **doesn't exist.**
+- `pry_sdk.py` is referenced in old docs but **doesn't exist.**
 - `README.md:11` says `pip install pry` — PyPI `pry` is owned by an unrelated project.
 - `USAGE.md` and `README.md` disagree on port (8002 vs 8005) without clarifying the Docker mapping.
-- `FEATURES.md` claims things that don't exist: `Zoho CRM`, `munchcrawl_sdk`, `export RSS/TXT/SQL`, `/v1/templates/generate`.
+- `FEATURES.md` claims things that don't exist: `Zoho CRM`, `pry_sdk.py`, `export RSS/TXT/SQL`, `/v1/templates/generate`.
 
 ### F. Apify / Integrations / Browser / WP / Shopify
 - `apify_schema.py` builds a dict that looks like Apify input schema. **Never writes to disk, never instantiates `Actor`.** No `.actor/`, no `src/main.py`, no `apify` package.
@@ -194,7 +194,7 @@ goal: ship Pry as production-grade + Apify-publishable within Q3 2026
 | "Tor proxy routing" | README, FEATURES.md | Imports lib that's missing — runtime crash. |
 | "Multi-tenant billing" | AUDIT.md | Zero billing code. |
 | "Zoho CRM sync" | FEATURES.md | Grep returns 0 matches in code. |
-| `munchcrawl_sdk.py` | (old) | Doesn't exist. |
+| `pry_sdk.py` | (old) | Doesn't exist. |
 | Shell autocompletion | cli.py:225 | Writes broken eval string; no `_PRY_COMPLETE` handler. |
 | `/v1/templates/generate` | FEATURES.md | Not in api.py or routers. |
 | `pry mcp serve` / `pry mcp info` | cli.py:375-403 | Help says it exists; main() never routes to it. |
@@ -326,7 +326,7 @@ Goal: ship-ready. 80% test coverage that's real, not theater. Observability that
    - The 5 dead tiers in `ultimate_scraper.py`
    - The flaky `tests/test_api.py:46-69`
    - The 159 broad `except Exception`
-   - The `.munchcrawl_sdk` reference
+   - The `.pry_sdk` reference
    - `data.db` orphan
 8. **Decorate** — add `READY` / `LIVE` to README badges from `/health` and `/live` responses.
 
