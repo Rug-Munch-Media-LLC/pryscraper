@@ -1,86 +1,98 @@
-# ═══════════════════════════════════════════════════════════
-# PryScraper — .gitignore (RMI universal + Pry-specific)
-# ═══════════════════════════════════════════════════════════
+# === RUGMUNCH STANDARD GITIGNORE — 2026-07-22 ===
 
-# ── SECRETS (zero tolerance) ────────────────────────────────
-.env
-.env.*
-!.env.example
-!.env.template
-*.pem
+# Secrets & Credentials — NEVER commit
+*.env
 *.key
-*.crt
+*.pem
 *.p12
 *.pfx
-id_rsa
-id_ed25519
-*.session
-credentials.json
-service-account.json
-wallet.json
-vault.json
-.secrets/
-.rmi/wallets/
+credentials*
+secrets*
+.env.*
+!.env.example
+!.env.sample
 
-# ── Python ──────────────────────────────────────────────────
+# Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*.egg-info/
 .venv/
 venv/
-*.egg-info/
-dist/
-build/
+*.egg
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
-htmlcov/
-.coverage
-.coverage.*
-htmlcov/
-.coverage
 
-# ── Pry-specific cache ──────────────────────────────────────
-.warmed_cookies/
-warmed_cookies/
-.proxy_cache/
-.browser_profiles/
-.screenshots/
-scraped_data/
-
-# ── Node (extension) ────────────────────────────────────────
+# Node
 node_modules/
 .npm/
-.pnpm-store/
+.yarn/
 
-# ── Docker ──────────────────────────────────────────────────
-docker-compose.override.yml
+# Build
+dist/
+build/
+*.pyc
 
-# ── Data (too large for git, use HF S3) ─────────────────────
-data/
-*.dump
-*.rdb
-*.dfs
-*.tar.gz
-!requirements/*.tar.gz
+# OS
+.DS_Store
+Thumbs.db
 
-# ── IDE ─────────────────────────────────────────────────────
-.vscode/
+# IDE
 .idea/
+.vscode/
 *.swp
 *.swo
-*~
-.DS_Store
 
-# ── OS ──────────────────────────────────────────────────────
-Thumbs.db
-desktop.ini
-
-# ── Logs ────────────────────────────────────────────────────
+# Logs
 *.log
-logs/
 
-# ── Cache ───────────────────────────────────────────────────
-.cache/
-tmp/
+# Security reports — stored in R2, not git
+security-reports/
+*.gitleaks.json
+trivy*.json
+
+# Internal docs — company confidential
+*INTERNAL*
+PRIVATE*
+ADMIN-ACCESS*
+EDGE*
+secret-rotation*
+
+# === REPO-SPECIFIC ENTRIES (preserved) ===
+
+!.env.template
+!requirements/*.tar.gz
+*.crt
+*.dfs
+*.dump
+*.pyo
+*.rdb
+*.session
+*.tar.gz
 *.tmp
+*~
+.browser_profiles/
+.cache/
+.coverage
+.coverage.*
+.env
+.pnpm-store/
+.proxy_cache/
+.rmi/wallets/
+.screenshots/
+.secrets/
+.warmed_cookies/
+credentials.json
+data/
+desktop.ini
+docker-compose.override.yml
+htmlcov/
+id_ed25519
+id_rsa
+logs/
+scraped_data/
+service-account.json
+tmp/
+vault.json
+wallet.json
+warmed_cookies/
