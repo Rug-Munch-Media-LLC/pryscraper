@@ -77,3 +77,12 @@ See [ARCHITECTURE.md](ARCHITECTURE.md). Update it when components change.
 - Backup: TBD
 
 ## Related Repos
+
+## Git Policy
+
+See the master Git Policy at /root/AGENTS.md. This repo:
+- Classification: OPEN SOURCE — web scraping framework
+- Remotes: forgejo + codeberg + gitlab + radicle
+- Push: git push forgejo main && git push codeberg main && git push gitlab main && rad sync
+- Commits: type(scope): description
+- Never commit: .env, secrets, internal IPs, security reports
