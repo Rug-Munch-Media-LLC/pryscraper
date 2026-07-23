@@ -222,7 +222,7 @@ def cmd_run(pryfile_path="pry.yml"):
             print(f"  {RED}✖{NC} {name} — {j.get('error', 'failed')}{NC}")
 
 
-def cmd_serve(host="0.0.0.0", port=8005):  # nosec B104
+def cmd_serve(host="127.0.0.1", port=8005):
     """Start the Pry API server."""
     print(f"{CYAN}🔧 Starting Pry v{VERSION} on {host}:{port}{NC}")
     print(f"  Dashboard: http://localhost:{port}/dashboard")
@@ -276,12 +276,12 @@ def cmd_completions(shell="bash"):
     print()
     if shell == "bash":
         print("  Add the following line to your ~/.bashrc:")
-        print(f"    {CYAN}eval \"$(register-python-argcomplete pry)\"{NC}")
+        print(f'    {CYAN}eval "$(register-python-argcomplete pry)"{NC}')
         print()
         print("  install dependency: pip install argcomplete")
     elif shell == "zsh":
         print("  Add the following line to your ~/.zshrc:")
-        print(f"    {CYAN}eval \"$(register-python-argcomplete --shell zsh pry)\"{NC}")
+        print(f'    {CYAN}eval "$(register-python-argcomplete --shell zsh pry)"{NC}')
         print()
         print("  install dependency: pip install argcomplete")
     else:

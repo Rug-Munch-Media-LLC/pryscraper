@@ -138,7 +138,15 @@ mcp_app = FastAPI(
     description="Model Context Protocol endpoints for Pry.",
 )
 mcp_app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+    CORSMiddleware,
+    allow_origins=[
+        "https://rugmunch.io",
+        "https://[INTERNAL]",
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 _mcp_server_instance: Any | None = None
@@ -190,7 +198,17 @@ async def mcp_messages(session_id: str, request: Request) -> Response:
 
 app.mount("/mcp", mcp_app)
 
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://rugmunch.io",
+        "https://[INTERNAL]",
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Gate paid endpoints behind x402 payments. Free endpoints are always public.
 app.add_middleware(
@@ -388,49 +406,19 @@ class PryHttpMiddleware:
 app.add_middleware(PryHttpMiddleware)
 
 
-
-
-
-
-
-
 # ── Stats ──
 
 
 # ── Costing ──
 
 
-
-
-
-
-
-
 # ── Freshness ──
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # ── Parse (Documents) ──
 
 
-
-
 # ── Automate (Browser) ──
-
-
 
 
 # ── Vision — analyze an image via free OpenRouter vision models ───────────────
@@ -445,72 +433,16 @@ app.add_middleware(PryHttpMiddleware)
 # Auto-fallback: if primary model 429s, tries other free models in order.
 
 
-
-
-
-
-
-
-
-
 # ── Sessions ──────────────────────────────────────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # ── Email Inbox Scraping ──
 
 
-
-
-
-
-
-
-
-
 # ── Integrations ──
 
 
-
-
-
-
-
-
 # ── Alerts ──
-
-
-
-
 
 
 # ── Jobs ──
@@ -519,37 +451,19 @@ app.add_middleware(PryHttpMiddleware)
 # ── Config ──
 
 
-
-
-
-
-
-
 # ── Win 3: WebSocket streaming ──
 
 
 # ── Win 5: Batch from file + template ──
 
 
-
-
 # ── Win 6: Browser recorder ──
-
-
-
-
-
-
 
 
 # ── Win 8: Multi-format transform ──
 
 
 # ── Win 1: Pryfile execution ──
-
-
-
-
 
 
 # ── Win 10: Health dashboard HTML ──
@@ -561,24 +475,10 @@ app.add_middleware(PryHttpMiddleware)
 # ── Win 2: Circuit Breaker ──
 
 
-
-
-
-
 # ── Win 3: Stable Extraction ──
 
 
-
-
-
-
 # ── Pipeline hooks ──
-
-
-
-
-
-
 
 
 # ── Win 4: Data Pipeline ──
@@ -587,92 +487,28 @@ app.add_middleware(PryHttpMiddleware)
 # ── Win 5: Shareable Results ──
 
 
-
-
-
-
 # ── Compliance ──
-
-
-
-
 
 
 # ── GDPR Compliance Portal ──
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # ── AI Training Data Pipeline ──
-
-
-
-
-
-
-
-
 
 
 # ── Monitoring (cron-based content change detection with AI judging) ──
 
 
-
-
-
-
-
-
-
-
-
-
 # ── Structure Monitor ──
-
-
-
-
-
-
 
 
 # ── Intelligence (Competitive Intelligence Engine) ──
 
 
-
-
-
-
-
-
-
-
 # ── Quality ──
 
 
-
-
-
-
 # ── Reconciliation ──
-
-
-
-
 
 
 # ── Auth ──
@@ -733,200 +569,49 @@ app.include_router(webhooks_router)
 app.include_router(x402_router)
 
 
-
 # ── Review ──
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # ── Commerce Sync ──
 
 
-
-
-
-
 # ── CRM Sync ──
-
-
-
-
 
 
 # ── Pipeline Builder Endpoints ──
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # ── Agency ──
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # ── SEO Content Change Monitor ──
 
 
-
-
-
-
-
-
 # ── Reports ──
-
-
-
-
-
-
 
 
 # ── Enrichment ──
 
 
-
-
-
-
 # ── AI Agent Integration ──
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # ── Proxy Provider & Affiliate Signup Flow ──
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # ── Advanced Scraping (TLS, GraphQL, Schema.org, WebSocket) ──
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # ── Advanced: Cookie Warming, PDF, OCR, Dedup, Behavior ──
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 # ── x402 payment processing ──
-
-
 
 
 # ── Actor marketplace ──
 
 
-
-
-
-
-
-
 # ── Webhook delivery ──
-
-
-
-
 
 
 if __name__ == "__main__":

@@ -71,7 +71,7 @@ class PrySettings(BaseSettings):
     app_version: str = "3.0.0"
     environment: Literal["dev", "staging", "prod"] = "dev"
     log_level: str = "INFO"
-    host: str = "0.0.0.0"  # nosec B104
+    host: str = "127.0.0.1"
     port: int = 8002
     url: str = "http://localhost:8002"
     api_key: str = ""
@@ -236,7 +236,9 @@ class PrySettings(BaseSettings):
             proxies.append(f"socks5://{self.tor_socks5_host}:{self.tor_socks5_port}")
         if self.proxy_enabled and self.proxy_url:
             if self.proxy_username:
-                netloc = self.proxy_url.split("://")[1] if "://" in self.proxy_url else self.proxy_url
+                netloc = (
+                    self.proxy_url.split("://")[1] if "://" in self.proxy_url else self.proxy_url
+                )
                 proxies.append(
                     f"{self.proxy_type}://{self.proxy_username}:{self.proxy_password}@{netloc}"
                 )
