@@ -40,7 +40,8 @@ COPY routers/ ./routers/
 COPY llm_providers/ ./llm_providers/
 COPY stealth_scripts/ ./stealth_scripts/
 COPY templates/ ./templates/
-RUN mkdir -p /app/sessions /root/.pry
+COPY pry_mcp/ ./pry_mcp/
+RUN mkdir -p /app/sessions /app/pry-data
 
 RUN useradd --create-home --shell /bin/bash --uid 1000 pry && chown -R pry:pry /app
 USER pry

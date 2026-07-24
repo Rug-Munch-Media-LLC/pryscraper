@@ -10,13 +10,14 @@ services:
     ports:
       - "127.0.0.1:8005:8002"
     volumes:
-      - pry-data:/root/.pry
+      - pry-data:/app/pry-data
       - pry-sessions:/app/sessions
     env_file: .env
     environment:
       - PYTHONUNBUFFERED=1
       - PRY_TIMEOUT=60
       - PRY_API_KEY=${PRY_API_KEY:-}
+      - PRY_DATA_DIR=/app/pry-data
       - PRY_FLARESOLVERR_URL=http://flaresolverr:8191/v1
       - TOR_ENABLED=0
       - TOR_SOCKS5_HOST=tor
