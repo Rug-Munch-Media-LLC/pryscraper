@@ -65,7 +65,7 @@ async def destroy_session(
     return {"success": True, "data": {"session_id": session_id, "destroyed": success}}
 
 
-@router.get("/v1/sessions", tags=["Sessions"], summary="List all persistent sessions")
+@router.get("/v1/sessions", tags=["Sessions"], summary="List all persistent sessions", description="List all warmed cookie sessions that are currently persisted to disk.")
 async def list_sessions() -> dict[str, Any]:
     """List all persistent sessions (active + saved)."""
     from sessions import list_sessions as list_saved_sessions

@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Transform"])
 
-@router.post("/v1/transform", tags=["Transform"], summary="Transform data to multiple formats")
+@router.post("/v1/transform", tags=["Transform"], summary="Transform data to multiple formats", description="Transform scraped data between multiple output formats including JSON, CSV, XML, and Markdown.")
 async def transform_data(
     data: list[dict[str, Any]] = Body(...), format: str = "csv"
 ) -> dict[str, Any]:

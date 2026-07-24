@@ -30,7 +30,7 @@ async def get_job(job_id: str) -> dict[str, Any]:
     return {"success": True, "data": job}
 
 
-@router.get("/v1/jobs", tags=["Jobs"], summary="List jobs in a Pryfile")
+@router.get("/v1/jobs", tags=["Jobs"], summary="List jobs in a Pryfile", description="List all jobs defined in a Pryfile with their current status and configuration.")
 async def list_jobs(path: str = "pry.yml") -> dict[str, Any]:
     from pryfile import Pryfile
 

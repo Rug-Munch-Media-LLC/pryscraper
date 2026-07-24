@@ -146,6 +146,7 @@ mcp_app.add_middleware(
         "http://localhost:3000",
         "http://localhost:5173",
     ],
+    allow_origin_regex=r"https://.*\.rugmunch\.io",
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -207,6 +208,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:5173",
     ],
+    allow_origin_regex=r"https://.*\.rugmunch\.io",
     allow_methods=["*"],
     allow_headers=["*"],
 )
