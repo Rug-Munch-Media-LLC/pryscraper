@@ -98,3 +98,13 @@ async def ready() -> JSONResponse | dict[str, str]:
     except Exception:  # noqa: BLE001
         pass
     return JSONResponse(status_code=503, content={"status": "not_ready"})
+
+
+@router.get("/version", summary="Service version")
+async def version() -> dict[str, str]:
+    """Return service version information."""
+    return {
+        "version": settings.app_version,
+        "service": settings.app_name,
+        "status": "operational",
+    }

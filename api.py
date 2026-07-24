@@ -246,23 +246,28 @@ def add_error_handlers(app: FastAPI) -> None:
         req_id = getattr(request.state, "request_id", uuid.uuid4().hex[:12])
         return JSONResponse(
             status_code=exc.status_code,
-            content={
-                "success": False,
-                "error": exc.to_dict(),
-                "request_id": req_id,
-            },
+            content=exc.to_dict(
+                request_id=req_id,
+                instance=str(request.url),
+            ),
         )
 
     @app.exception_handler(Exception)
     async def generic_error_handler(request: Request, exc: Exception) -> JSONResponse:
         req_id = getattr(request.state, "request_id", uuid.uuid4().hex[:12])
         logger.exception("unhandled_exception", extra={"request_id": req_id})
+        from datetime import UTC, datetime
         return JSONResponse(
             status_code=500,
             content={
-                "success": False,
-                "error": {"code": "internal_error", "message": "An unexpected error occurred"},
+                "type": "about:blank",
+                "title": "Internal Server Error",
+                "status": 500,
+                "detail": "An unexpected error occurred",
                 "request_id": req_id,
+                "instance": str(request.url),
+                "timestamp": datetime.now(UTC).isoformat(),
+                "code": "internal_error",
             },
         )
 
@@ -316,10 +321,16 @@ class PryHttpMiddleware:
                 if is_jwt(token) and validate_rmi_jwt(token):
                     pass  # JWT from rmi-backend — allowed
                 else:
+                    from datetime import UTC, datetime
                     body = json.dumps(
                         {
-                            "success": False,
-                            "error": {"code": "unauthorized", "message": "Invalid or missing API key"},
+                            "type": "/errors/unauthorized",
+                            "title": "Unauthorized",
+                            "status": 401,
+                            "detail": "Invalid or missing API key",
+                            "request_id": request_id,
+                            "timestamp": datetime.now(UTC).isoformat(),
+                            "code": "unauthorized",
                         }
                     ).encode()
                     await send(
@@ -348,10 +359,17 @@ class PryHttpMiddleware:
                     "retry_after": stats.get("retry_after", 1),
                 },
             )
+            from datetime import UTC, datetime
             body = json.dumps(
                 {
-                    "success": False,
-                    "error": {"code": "rate_limit_exceeded", "message": "Rate limit exceeded"},
+                    "type": "/errors/rate_limit_exceeded",
+                    "title": "Too Many Requests",
+                    "status": 429,
+                    "detail": "Rate limit exceeded",
+                    "request_id": request_id,
+                    "instance": path,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "code": "rate_limit_exceeded",
                     "retry_after": stats.get("retry_after", 1),
                 }
             ).encode()
