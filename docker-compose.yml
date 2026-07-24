@@ -29,7 +29,7 @@ services:
       - MIN_QUALITY=20
       - RATE_LIMIT_RPM=120
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8002/health', timeout=2).status == 200 else 1)"]
+      test: ["CMD", "python3", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8002/health', timeout=10).status == 200 else 1)"]
       interval: 15s
       timeout: 5s
       retries: 3
