@@ -4,7 +4,7 @@ pre-commit:
     gitleaks:
       run: gitleaks protect --staged --no-banner --verbose
     envsitter:
-      run: envsitter validate
+      run: envsitter validate --file .env
     ruff:
       run: ruff check {staged_files}
 

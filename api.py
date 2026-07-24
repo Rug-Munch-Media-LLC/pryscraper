@@ -84,6 +84,7 @@ from routers.webhooks import router as webhooks_router
 from routers.x402 import router as x402_router
 from settings import settings
 from x402_middleware import X402Middleware
+from jwt_auth import validate_rmi_jwt, is_jwt
 
 # Configure structured (JSON) logging for the whole process. Per
 # CONVENTIONS.md Part 5, all Pry logs must be JSON with timestamp, level,
@@ -302,30 +303,36 @@ class PryHttpMiddleware:
         ip = client[0] if client else "unknown"
         response_status = 200
 
-        # Authentication check
+        # Authentication check — supports PRY_API_KEY (legacy) and JWT from rmi-backend
         api_key = settings.api_key
         if api_key and path not in _AUTH_PUBLIC_PATHS:
             auth = self._get_header(scope, b"authorization")
-            if not (auth.startswith("Bearer ") and auth[7:] == api_key):
-                body = json.dumps(
-                    {
-                        "success": False,
-                        "error": {"code": "unauthorized", "message": "Invalid or missing API key"},
-                    }
-                ).encode()
-                await send(
-                    {
-                        "type": "http.response.start",
-                        "status": 401,
-                        "headers": [
-                            (b"content-type", b"application/json"),
-                            (b"content-length", str(len(body)).encode()),
-                            (b"x-request-id", request_id.encode()),
-                        ],
-                    }
-                )
-                await send({"type": "http.response.body", "body": body})
-                return
+            if auth.startswith("Bearer ") and auth[7:] == api_key:
+                pass  # Legacy API key — allowed
+            elif auth.startswith("Bearer "):
+                token = auth[7:]
+                if is_jwt(token) and validate_rmi_jwt(token):
+                    pass  # JWT from rmi-backend — allowed
+                else:
+                    body = json.dumps(
+                        {
+                            "success": False,
+                            "error": {"code": "unauthorized", "message": "Invalid or missing API key"},
+                        }
+                    ).encode()
+                    await send(
+                        {
+                            "type": "http.response.start",
+                            "status": 401,
+                            "headers": [
+                                (b"content-type", b"application/json"),
+                                (b"content-length", str(len(body)).encode()),
+                                (b"x-request-id", request_id.encode()),
+                            ],
+                        }
+                    )
+                    await send({"type": "http.response.body", "body": body})
+                    return
 
         allowed, stats = ratelimiter.check(ip)
         if not allowed:
