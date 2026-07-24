@@ -314,38 +314,39 @@ class PryHttpMiddleware:
         api_key = settings.api_key
         if api_key and path not in _AUTH_PUBLIC_PATHS:
             auth = self._get_header(scope, b"authorization")
-            if auth.startswith("Bearer ") and auth[7:] == api_key:
-                pass  # Legacy API key — allowed
-            elif auth.startswith("Bearer "):
+            authenticated = False
+            if auth.startswith("Bearer "):
                 token = auth[7:]
-                if is_jwt(token) and validate_rmi_jwt(token):
-                    pass  # JWT from rmi-backend — allowed
-                else:
-                    from datetime import UTC, datetime
-                    body = json.dumps(
-                        {
-                            "type": "/errors/unauthorized",
-                            "title": "Unauthorized",
-                            "status": 401,
-                            "detail": "Invalid or missing API key",
-                            "request_id": request_id,
-                            "timestamp": datetime.now(UTC).isoformat(),
-                            "code": "unauthorized",
-                        }
-                    ).encode()
-                    await send(
-                        {
-                            "type": "http.response.start",
-                            "status": 401,
-                            "headers": [
-                                (b"content-type", b"application/json"),
-                                (b"content-length", str(len(body)).encode()),
-                                (b"x-request-id", request_id.encode()),
-                            ],
-                        }
-                    )
-                    await send({"type": "http.response.body", "body": body})
-                    return
+                if token == api_key:
+                    authenticated = True  # Legacy API key — allowed
+                elif is_jwt(token) and validate_rmi_jwt(token):
+                    authenticated = True  # JWT from rmi-backend — allowed
+            if not authenticated:
+                from datetime import UTC, datetime
+                body = json.dumps(
+                    {
+                        "type": "/errors/unauthorized",
+                        "title": "Unauthorized",
+                        "status": 401,
+                        "detail": "Invalid or missing API key",
+                        "request_id": request_id,
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "code": "unauthorized",
+                    }
+                ).encode()
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 401,
+                        "headers": [
+                            (b"content-type", b"application/json"),
+                            (b"content-length", str(len(body)).encode()),
+                            (b"x-request-id", request_id.encode()),
+                        ],
+                    }
+                )
+                await send({"type": "http.response.body", "body": body})
+                return
 
         allowed, stats = ratelimiter.check(ip)
         if not allowed:
