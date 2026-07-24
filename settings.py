@@ -260,7 +260,7 @@ class PrySettings(BaseSettings):
                 "type": self.proxy_type,
                 "url": self.proxy_url,
                 "username": self.proxy_username,
-                "password": self.proxy_password,
+                "password": "***REDACTED***",
             },
             "tor": {
                 "enabled": self.tor_enabled,

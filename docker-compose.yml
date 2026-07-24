@@ -16,6 +16,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - PRY_TIMEOUT=60
+      - PRY_API_KEY=${PRY_API_KEY:-}
       - PRY_FLARESOLVERR_URL=http://flaresolverr:8191/v1
       - TOR_ENABLED=0
       - TOR_SOCKS5_HOST=tor
