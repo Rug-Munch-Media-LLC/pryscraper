@@ -452,3 +452,21 @@ jobs:
             /tmp/ocr-result.json
             /tmp/ocr-stderr.log
         continue-on-error: true
+
+  archfit:
+    runs-on: docker-x64
+    container:
+      image: golang:1.22-bookworm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install archfit
+        run: go install github.com/alexei-led/archfit/cmd/archfit@latest || echo "archfit install skipped"
+        continue-on-error: true
+      - name: Run architecture fitness check
+        run: |
+          if command -v archfit &>/dev/null; then
+            archfit analyze || echo "Architecture fitness: review needed"
+          else
+            echo "archfit not installed — skipping (non-blocking)"
+          fi
+        continue-on-error: true
