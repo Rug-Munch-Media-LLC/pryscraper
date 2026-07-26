@@ -14,6 +14,65 @@ env:
   UV_BIN: /root/.local/bin/uv
 
 jobs:
+  pre-commit-mirror:
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system deps + pre-commit
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl
+          rm -rf /var/lib/apt/lists/*
+          pip install pre-commit
+      - name: Run ALL pre-commit hooks on all files
+        run: pre-commit run --all-files --show-diff-on-failure
+
+  commitlint:
+    runs-on: docker-x64
+    container:
+      image: node:22-bookworm-slim
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to check all commits in PR
+      - name: Install commitlint
+        run: |
+          npm install -g @commitlint/cli @commitlint/config-conventional
+      - name: Validate all commits in PR
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Check all commits in the PR
+            git log --format="%H %s" origin/main..HEAD | while read hash msg; do
+              echo "$hash $msg" | commitlint --from="$hash^" --to="$hash" || exit 1
+            done
+          else
+            # On push to main, just check the latest commit
+            npx commitlint --from=HEAD~1 --to=HEAD
+          fi
+
+  semgrep:
+    runs-on: docker-x64
+    container:
+      image: python:3.12-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install semgrep
+        run: pip install semgrep
+      - name: Semgrep SAST scan
+        run: |
+          semgrep --config=auto \
+            --error \
+            --severity=ERROR \
+            --exclude='tests/' \
+            --exclude='.venv/' \
+            --sarif=semgrep.sarif \
+            .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: semgrep.sarif
+
   lint:
     runs-on: docker-x64
     container:
@@ -104,8 +163,16 @@ jobs:
           uv python install 3.11
           uv venv --python 3.11 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
-      - name: Test (pytest)
-        run: source .venv/bin/activate && pytest tests/ -x -q --tb=short -m "not integration"
+      - name: Test with coverage
+        run: source .venv/bin/activate && pytest tests/ -x -q --tb=short --cov=pryscraper --cov-report=xml:coverage.xml -m "not integration"
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          flags: unittests
+          name: pryscraper
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   secrets:
     name: Secret scan (gitleaks)
@@ -169,3 +236,128 @@ jobs:
       - uses: actions/checkout@v4
       - name: Trivy filesystem scan
         run: trivy fs --severity CRITICAL,HIGH --no-progress .
+
+  deps-freshness:
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check dependency freshness
+        run: |
+          pip install libyear 2>/dev/null || true
+          if [ -f requirements.txt ]; then
+            pip install pip-tools && libyear --file requirements.txt || echo "Dep freshness check noted"
+          fi
+        continue-on-error: true
+
+  k6-smoke:
+    runs-on: docker-x64
+    container:
+      image: grafana/k6:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run k6 smoke test
+        run: |
+          k6 run tests/k6/smoke.js \
+            -e BASE_URL=http://pryscraper:8005 \
+            --summary-export=tests/k6/results/smoke-summary.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: k6-smoke-report
+          path: tests/k6/results/
+
+  fuzz:
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    needs: test
+    steps:
+      - name: Install Node.js + deps
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates gcc libpq-dev git
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
+      - uses: actions/checkout@v4
+      - name: Setup uv + deps
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          ln -sf /root/.local/bin/uv /usr/local/bin/uv
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -e ".[dev]" hypothesis
+      - name: Run fuzz tests
+        run: |
+          source .venv/bin/activate
+          HYPOTHESIS_PROFILE=ci python -m pytest tests/fuzz/ -v --tb=short || echo "Fuzz tests noted (non-blocking)"
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fuzz-results
+          path: .hypothesis/
+
+  contract-test:
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    needs: test
+    steps:
+      - name: Install deps
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates gcc git
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
+      - uses: actions/checkout@v4
+      - name: Setup uv + deps
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          ln -sf /root/.local/bin/uv /usr/local/bin/uv
+          uv python install 3.11 && uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -e ".[dev]" pact-python
+      - name: Run consumer contract tests
+        run: source .venv/bin/activate && python -m pytest tests/contract/ -v --tb=short || echo "Contract tests noted (needs running provider)"
+        continue-on-error: true
+
+  sbom:
+    runs-on: docker-x64
+    needs: [test, typecheck]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          output: sbom.spdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.spdx.json
+
+  sign-image:
+    runs-on: docker-x64
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.4.3'
+      - name: Build Docker image
+        run: docker build -t [INTERNAL]/pryscraper:${{ github.sha }} .
+      - name: Push to registry
+        run: docker push [INTERNAL]/pryscraper:${{ github.sha }}
+      - name: Sign image with keyless (OIDC)
+        run: |
+          cosign sign --yes [INTERNAL]/pryscraper:${{ github.sha }}
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+      - name: Verify signature
+        run: |
+          cosign verify \
+            --certificate-identity "https://git.rugmunch.io/RugMunchMedia/pryscraper/.forgejo/workflows/ci.yml@refs/heads/main" \
+            --certificate-oidc-issuer "https://git.rugmunch.io" \
+            [INTERNAL]/pryscraper:${{ github.sha }}
+        env:
+          COSIGN_EXPERIMENTAL: "1"

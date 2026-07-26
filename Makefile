@@ -46,6 +46,19 @@ clean:
 
 precommit: lint format typecheck security
 
+test-contract: ## Run Pact contract tests (consumer)
+	python -m pytest tests/contract/ -v --tb=short
+
+pact-publish: ## Publish contracts to Pact Broker
+	pact-broker publish tests/contract/pacts/ \
+		--consumer-app-version $$(git rev-parse --short HEAD) \
+		--branch $$(git rev-parse --abbrev-ref HEAD) \
+		--broker-base-url $$PACT_BROKER_URL
+
+deps-freshness:
+	pip install pip-tools libyear 2>/dev/null || true
+	libyear --file requirements.txt || true
+
 ci: precommit test
 
 # Regenerate .actor/input_schema.json from the ApifySchemaBuilder fluent API.

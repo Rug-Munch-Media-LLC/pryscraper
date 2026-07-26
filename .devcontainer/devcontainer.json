@@ -1,0 +1,44 @@
+{
+  "name": "pryscraper",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "tamasfe.even-better-toml",
+        "redhat.vscode-yaml",
+        "eamodio.gitlens",
+        "github.vscode-github-actions",
+        "bierner.markdown-mermaid",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll.ruff": "explicit",
+          "source.organizeImports.ruff": "explicit"
+        },
+        "python.defaultInterpreterPath": "/usr/local/bin/python3",
+        "python.languageServer": "Pylance",
+        "ruff.enable": true,
+        "ruff.format.args": ["--line-length=120"],
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        }
+      }
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {},
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "pip install --upgrade pip && pip install pre-commit && pre-commit install --install-hooks && echo '✅ Dev container ready'",
+  "remoteUser": "vscode",
+  "containerUser": "vscode"
+}

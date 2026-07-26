@@ -1,0 +1,25 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 50%
+        threshold: 5%
+    patch:
+      default:
+        target: 40%
+        threshold: 5%
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: true
+
+ignore:
+  - "tests/"
+  - ".venv/"
+
+flags:
+  unittests:
+    paths:
+      - pryscraper/
+    carryforward: true

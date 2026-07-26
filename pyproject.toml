@@ -73,6 +73,8 @@ dev = [
     "alembic>=1.14.0",
     "respx>=0.21.0",
     "commitizen>=3.12.0",
+    "hypothesis>=6.0.0",
+    "pact-python>=2.0.0",
 ]
 
 [project.scripts]
@@ -160,6 +162,7 @@ testpaths = ["tests"]
 addopts = "-m 'not integration'"
 markers = [
     "integration: tests that require live infrastructure (Postgres, Redis, external HTTP). Skipped by default; run with `pytest -m integration`.",
+    "fuzz: marks tests as fuzz/property-based tests (can be slow)",
 ]
 
 [tool.coverage.run]
