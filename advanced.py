@@ -16,8 +16,9 @@ import re
 from datetime import datetime
 
 import httpx
+import os
 
-OLLAMA_BASE = "http://100.100.18.18:11434"
+OLLAMA_BASE = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
 
 class PryAdvanced:

@@ -71,7 +71,7 @@ goal: ship Pry as production-grade + Apify-publishable within Q3 2026
 - `camoufox_integration.py` (173 LOC) — launches Camoufox **twice per fetch** (line 133-166). Only callable as `/v1/camoufox/fetch` endpoint.
 - `tls_fingerprint.py` (190 LOC) — `BROWSER_FINGERPRINTS` includes `"tor"` (line 64) which `curl_cffi` does not ship.
 - `adaptive.py:42` — `Counter` mutation makes `_compute_information_gain` always return 0 after the first page.
-- `extractor.py:23` — `self.ollama_base = "http://100.100.18.18:11434"` — **dead URL**, doesn't exist in fleet.
+- `extractor.py:23` — `self.ollama_base = "[OLLAMA_ENDPOINT]"` — **dead URL**, doesn't exist in fleet.
 - `extraction.py:240` `compute_embedding` — trigram-frequency fallback is incompatible with 384-dim `all-MiniLM-L6-v2`. Cosine sim always 0.
 
 ### B. API surface (api.py — 4,668 LOC)

@@ -13,6 +13,7 @@ No hallucination: JSON output is always parsed and validated.
 import json
 import re
 from typing import Any
+import os
 
 from resilience import registry
 
@@ -22,7 +23,7 @@ class SchemaExtractor:
     Pattern mode is always tried first; LLM mode is fallback for complex schemas."""
 
     def __init__(self):
-        self.ollama_base = "http://100.100.18.18:11434"
+        self.ollama_base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
     async def extract(
         self, content: str, schema: dict[str, Any], mode: str = "auto"
