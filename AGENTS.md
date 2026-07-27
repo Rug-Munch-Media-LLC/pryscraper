@@ -85,7 +85,7 @@ setup. The RugMunch managed platform at rugmunch.io includes proprietary
 enhancements (internal scraping infrastructure, admin dashboard, enterprise
 features).
 
-See [METHODOLOGY-PROTECTION.md](https://github.com/RugMunchMedia/standards/blob/main/METHODOLOGY-PROTECTION.md)
+See [CONTRIBUTING.md](CONTRIBUTING.md) for our methodology approach.
 for details on what information belongs in public vs private repos.
 
 ## Git Policy

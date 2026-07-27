@@ -25,7 +25,7 @@ On merge to `main`:
 ### Manual
 ```bash
 # On the deploy host
-cd /srv/pryscraper
+cd /path/to/pryscraper
 git pull origin main
 docker build -t pryscraper:latest .
 docker stop pryscraper && docker rm pryscraper
@@ -65,7 +65,7 @@ curl -fsS http://localhost:8005/health
 ## Rollback
 ```bash
 # On the deploy host
-cd /srv/pryscraper
+cd /path/to/pryscraper
 git log --oneline -5   # find last good commit
 git checkout <commit-hash>
 docker build -t pryscraper:latest .
