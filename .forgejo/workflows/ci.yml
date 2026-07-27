@@ -259,14 +259,25 @@ jobs:
           path: bandit-report.json
         if: always()
 
-  trivy:
+  trivy-scan:
     runs-on: docker-x64
-    container:
-      image: aquasec/trivy:latest
+    needs: test
     steps:
       - uses: actions/checkout@v4
-      - name: Trivy filesystem scan
-        run: trivy fs --severity CRITICAL,HIGH --no-progress .
+      - name: Build image for scanning
+        run: docker build -t app:${{ github.sha }} .
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: 'app:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: trivy-results.sarif
 
   deps-freshness:
     runs-on: docker-x64
