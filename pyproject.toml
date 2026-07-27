@@ -84,20 +84,15 @@ pry = "cli:main"
 include = ["pry*"]
 
 [tool.ruff]
-target-version = "py311"
-line-length = 100
+extend = "../standards/templates/ruff-base.toml"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "B", "A", "C4", "SIM", "UP", "RUF", "BLE"]
-ignore = ["E501", "N815", "B008", "A002", "RUF006"]
+extend-select = ["A", "BLE"]
+extend-ignore = ["N815", "A002", "RUF006"]
 
 # BLE001 (blind except Exception) is enforced. Pre-existing sites are
 # marked with `# noqa: BLE001`; new code must use specific exception
 # types (e.g. httpx.HTTPError, json.JSONDecodeError, OSError).
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
 
 [tool.mypy]
 python_version = "3.12"
@@ -115,18 +110,8 @@ warn_unused_ignores = false
 disable_error_code = [
     "dict-item",
     "index",
-    "attr-defined",
-    "call-arg",
-    "operator",
-    "arg-type",
     "abstract",
-    "union-attr",
-    "assignment",
-    "list-item",
     "func-returns-value",
-    "return-value",
-    "no-untyped-call",
-    "no-untyped-def",
 ]
 
 [[tool.mypy.overrides]]
