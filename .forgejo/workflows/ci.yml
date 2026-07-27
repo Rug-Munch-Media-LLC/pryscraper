@@ -263,6 +263,16 @@ jobs:
           path: bandit-report.json
         if: always()
 
+  shellcheck:
+    runs-on: docker-x64
+    container:
+      image: koalaman/shellcheck-alpine:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck all shell scripts
+        run: |
+          find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.venv/*" -not -path "*/sdks/*" -exec shellcheck -x {} +
+
   trivy-scan:
     runs-on: docker-x64
     needs: test
