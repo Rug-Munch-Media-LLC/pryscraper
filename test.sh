@@ -3,11 +3,11 @@
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 #!/bin/bash
-# Build and deploy Pry on contabo
+# Build and deploy Pry (quick test)
 set -e
 
 echo "=== Installing deps ==="
-cd /home/dev/pry
+cd /path/to/pry
 pip install -q fastapi uvicorn trafilatura httpx markdownify pydantic 2>&1 | tail -3
 
 echo "=== Testing import ==="

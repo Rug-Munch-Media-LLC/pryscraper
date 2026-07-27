@@ -14,9 +14,8 @@ Multi-source crypto intelligence crawler (pryscraper). Scraper, extractor, parse
 `backend` · language=Python 3.12 + FastAPI
 
 ## Where It Lives
-- Source: `https://git.rugmunch.io/RugMunchMedia/pryscraper`
+- Source: `https://codeberg.org/cryptorugmunch/pryscraper`
 - Deployed: Docker container
-- Port: 8005
 
 ## Built With
 
@@ -78,11 +77,21 @@ See [ARCHITECTURE.md](ARCHITECTURE.md). Update it when components change.
 
 ## Related Repos
 
+## Open-Core Protection
+
+This repo is open source (dual-licensed MIT + BSL). The code here demonstrates
+HOW to build a web scraping API — it is NOT the complete RugMunch production
+setup. The RugMunch managed platform at rugmunch.io includes proprietary
+enhancements (internal scraping infrastructure, admin dashboard, enterprise
+features).
+
+See [METHODOLOGY-PROTECTION.md](https://github.com/RugMunchMedia/standards/blob/main/METHODOLOGY-PROTECTION.md)
+for details on what information belongs in public vs private repos.
+
 ## Git Policy
 
 This repo:
 - Classification: OPEN SOURCE — web scraping framework
-- Remotes: forgejo + codeberg + gitlab + radicle + local backup
-- Push: git push forgejo main && git push codeberg main && git push gitlab main && rad sync
+- Remotes: codeberg + github + gitlab + radicle (primary)
 - Commits: type(scope): description
 - Never commit: .env, secrets, internal IPs, security reports
