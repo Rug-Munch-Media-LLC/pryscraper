@@ -1,8 +1,27 @@
 [allowlist]
-description = "Pryscraper allowlist — test fixtures, docs, known public addresses"
-regexTarget = "match"
+description = "Build artifacts + specific known false positives (no blanket directory excludes)"
 paths = [
-    "tests/",
-    "docs/",
-    ".*\\.md$",
+  '''node_modules/''',
+  '''\.git/''',
+  '''__pycache__/''',
+  '''\.venv/''',
+  '''dist/''',
+  '''\.next/''',
+  '''\.nuxt/''',
+  '''\.pytest_cache/''',
+  '''\.ruff_cache/''',
+  '''\.mypy_cache/''',
+  '''vendor/''',
+  # URL guard: RFC1918/RFC6598 CIDR ranges defined intentionally in security code
+  '''url_guard\.py''',
+  # URL guard tests: test fixtures with example IPs
+  '''tests/test_url_guard\.py''',
+]
+
+regexTarget = "line"
+regexes = [
+  # Gopass documentation references (instructions, not actual secrets)
+  '''gopass\s+(?:show|insert|generate)\s+(?:rmi/|pry/)''',
+  # Internal IP in example config
+  '''100\.100\.18\.18''',
 ]
