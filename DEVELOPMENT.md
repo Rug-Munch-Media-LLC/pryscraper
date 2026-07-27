@@ -8,13 +8,13 @@
 
 ### Prerequisites
 - Python 3.12+ / Node 20+
-- `gopass` for secrets
+- A secrets manager (e.g. gopass, 1Password) for credentials
 - `mise` for tool version mgmt (or manual)
 - `pre-commit` for hooks
 
 ### Install
 ```bash
-git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git
+git clone &lt;your-repo-url&gt;
 cd pryscraper
 make install
 pre-commit install
@@ -22,7 +22,7 @@ pre-commit install
 
 ### Environment
 ```bash
-# Required env vars (loaded from gopass on deploy, .env locally)
+# Required env vars (loaded from secrets manager on deploy, .env locally)
 # See .env.example
 cp .env.example .env
 $EDITOR .env  # fill in test values
@@ -61,14 +61,14 @@ Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, ops, secu
 ### 5. Push + PR
 ```bash
 git push -u origin feat/my-feature
-# Open PR on forgejo: https://git.rugmunch.io/RugMunchMedia/pryscraper/pulls/new
+# Open a PR on your Forgejo/GitHub instance
 ```
 
 ### 6. Wait for CI
 - All checks must pass
 - Review by CODEOWNERS
 - Squash-merge to main
-- Auto-deploys to Talos (via forgejo webhook)
+- Auto-deploys via CI/CD webhook
 
 ## Daily End-of-Day
 ```bash
@@ -82,7 +82,7 @@ fleet-commit   # commit helper with checklist
 - Shell: shellcheck
 - Markdown: vale
 
-See [standards/CONVENTIONS.md](https://git.rugmunch.io/RugMunchMedia/standards/raw/branch/main/CONVENTIONS.md).
+Refer to your project's conventions document.
 
 
 ## Logging

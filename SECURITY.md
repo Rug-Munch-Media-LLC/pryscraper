@@ -8,8 +8,8 @@
 
 ### Assets
 - User wallets (private keys never touch our servers — verified by signature)
-- API keys (gopass)
-- DB credentials (gopass)
+- API keys (secrets manager)
+- DB credentials (secrets manager)
 - Reputation (RMM LLC brand)
 
 ### Threats
@@ -22,7 +22,7 @@
 
 ## Secrets
 
-**Storage**: gopass 
+**Storage**: secrets manager
 
 **Loading**:
 - Local dev: `.env` file (gitignored)
@@ -51,10 +51,8 @@
 - Reject any input containing mainnet addresses/keys (pre-commit hook)
 
 ## Rate Limiting
-- Default: 60 req/min per IP
-- Burst: 100 req
-- Authenticated: 600 req/min
-- Returns 429 with `Retry-After` header
+- Configurable per-IP and per-token sliding window
+- Returns 429 with `Retry-After` header when exceeded
 
 ## Dependencies
 - `pip-audit` weekly (CI)
@@ -62,7 +60,7 @@
 - Renovate bot for auto-PR updates
 
 ## Vulnerability Disclosure
-Email: security@rugmunch.io (PGP key in gopass)
+Email: security@rugmunch.io (PGP key available on request)
 Response within 24 hours.
 Patch within 7 days for critical, 30 days for medium.
 

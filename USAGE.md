@@ -15,7 +15,7 @@ last_updated: 2026-06-30
 # Install (PyPI 'pry' is taken — install from this repo)
 pip install -e .
 # or:
-# pip install "pry-scraper @ git+https://git.rugmunch.io/RugMunchMedia/pryscraper.git"
+# pip install "pry-scraper @ git+https://codeberg.org/cryptorugmunch/pryscraper.git"
 
 # Start the server
 pry serve

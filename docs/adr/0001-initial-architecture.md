@@ -11,10 +11,10 @@ First commit of PryScraper. Need to document the foundational choices.
 ## Decision
 - **Language**: Python 3.12 + FastAPI
 - **Port**: 8005
-- **Deployment**: Docker on Talos behind nginx
+- **Deployment**: Docker container behind nginx
 - **Source of truth**: forgejo
 - **CI**: forgejo Actions
-- **Secrets**: gopass
+- **Secrets**: secrets manager
 
 ## Consequences
 - All future decisions build on this foundation

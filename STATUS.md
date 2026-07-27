@@ -26,7 +26,7 @@
 - 2026-07-03: Split template endpoints into `routers/templates.py` + added `POST /v1/templates/batch`
 - 2026-07-03: Added e2e tests for scraping and template routers (23 new/passing)
 - 2026-07-03: Added reusable Apify actor schema builder (`apify_schema.py`)
-- 2026-07-03: Set `PRY_API_KEY` in Talos `/srv/pry/.env`; auth now active on restart
+- 2026-07-03: Set `PRY_API_KEY` in deployment environment; auth now active on restart
 - 2026-07-03: Added `/v1/templates/batch` to x402 paid endpoints + pricing
 - 2026-07-03: Added `/metrics` endpoint + Prometheus counters/histograms for requests and scrapes
 - 2026-07-03: Added Redis + Postgres services to `docker-compose.yml`
@@ -40,22 +40,21 @@
 - 2026-07-06: Skipped respx+coverage-gate patch (1698a47) — canonical CI lives in `.forgejo/workflows/ci.yml`, not `.github/`
 
 ## Known Issues / Tech Debt
-- Deploy at `/srv/pry/` is out of sync with repo (needs pull + restart to activate Phase 0 hardening)
+- Deployed instance is out of sync with repo (needs pull + restart to activate Phase 0 hardening)
 - `feat/phase0-rebased` branch reconciles infra-hardening commits on top of latest `main`
-- pry-flaresolverr host port moved from 8191 to 8192 to avoid conflict with `rmi-flaresolverr`
 - All 80+ site templates unverified - only ~30-40% known to work end-to-end. Run templates/validate_templates.py before claiming template coverage.
 - State storage in ~/.pry/*.json - no concurrency safety, no transactions. See plan to migrate to SQLite/Postgres.
-- PRY_X402_WALLET, PRY_X402_FACILITATOR env vars unset in deploy - x402 payments not active.
+- PRY_X402_WALLET, PRY_X402_FACILITATOR env vars unset in deployment - x402 payments not active.
 - License collision resolved 2026-07-03: dual MIT (core) + BSL 1.1 (stealth/anti-detection). See ADR-0002.
 - mcp_production.py and x402.py exist in repo but are NOT deployed. Top priority for next deploy.
 - `test_ready_returns_200` is now `@pytest.mark.integration` and deselected by default; run with `pytest -m integration` against a live Postgres+Redis stack.
 - `test_structure_monitor.py` autouse fixture now resets both `db._engine` and `client.http_client` per test; defeats the DB-pollution + closed-event-loop patterns that surfaced when the suite grew past 600 tests.
 
 ## Quick Links
-- [Live URL](https://[INTERNAL])
-- [API docs](https://[INTERNAL]/docs)
-- [Health](https://[INTERNAL]/health)
-- [Repo](https://git.rugmunch.io/RugMunchMedia/pryscraper)
+- [Live URL](https://your-deployment.example.com)
+- [API docs](https://your-deployment.example.com/docs)
+- [Health](https://your-deployment.example.com/health)
+- [Repo](https://git.example.com/org/pryscraper)
 
 ## Status Indicators
 Use these in commit messages + status updates:

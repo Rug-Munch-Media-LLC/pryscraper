@@ -1,15 +1,4 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-blank_issues_enabled: false
-contact_links:
-  - name: Q&A
-    url: https://git.rugmunch.io/RugMunchMedia/pryscraper/discussions/new?category=q-a
-    about: Use this for questions and troubleshooting
-  - name: Feature Requests
-    url: https://git.rugmunch.io/RugMunchMedia/pryscraper/discussions/new?category=feature-requests
-    about: Suggest a new feature or improvement (preview / brainstorm)
-  - name: Announcements
-    url: https://git.rugmunch.io/RugMunchMedia/pryscraper/discussions/new?category=announcements
-    about: Stay up to date on releases and changes
+blank_issues_enabled: true

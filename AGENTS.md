@@ -15,13 +15,13 @@ Multi-source crypto intelligence crawler (pryscraper). Scraper, extractor, parse
 
 ## Where It Lives
 - Source: `https://git.rugmunch.io/RugMunchMedia/pryscraper`
-- Deployed: Docker on Talos (/srv/pry/)
+- Deployed: Docker container
 - Port: 8005
 
 ## Built With
 
 ## Components
-- `/srv/pry/*.py`: 83 Python modules (api.py, extractor.py, parser.py, etc.)
+- Root modules: 83 Python files (api.py, extractor.py, parser.py, etc.)
 - `browser-extension/`: Chrome/Firefox extension
 - `routers/`: FastAPI routers split from `api.py` (scraping, templates, health, auth, captcha, …)
 - `pry_mcp/`: MCP sub-package (split from `mcp_production.py` 2026-07-06)
@@ -31,7 +31,7 @@ Multi-source crypto intelligence crawler (pryscraper). Scraper, extractor, parse
 ## Dependencies
 - postgresql (job storage)
 - redis (cache)
-- flaresolverr (Cloudflare bypass, on Hydra)
+- flaresolverr (Cloudflare bypass sidecar)
 - playwright (browser automation)
 - cloudscraper (Cloudflare bypass tier)
 - aiohttp-socks + aiohttp (SOCKS5 proxy support, async HTTP)
@@ -42,7 +42,7 @@ Multi-source crypto intelligence crawler (pryscraper). Scraper, extractor, parse
 ## 🚨 CRITICAL RULES
 
 1. **No nested repos.** Don't commit other complete project trees inside this one.
-2. **No secrets.** Never commit `.secrets/`, `.env`, `*.pem`, `*.key`, `*.crt`. Use gopass.
+2. **No secrets.** Never commit `.secrets/`, `.env`, `*.pem`, `*.key`, `*.crt`. Use a secrets manager.
 3. **No data blobs.** Don't commit `*.zip`, `*.parquet`, model weights, sqlite files.
 4. **No broken files.** Shell heredoc accidents must be caught before commit.
 5. **No duplicate scaffolds.** If a `backend/` or `frontend/` subdir exists at root, it's either THE app or bloat.
@@ -80,9 +80,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md). Update it when components change.
 
 ## Git Policy
 
-See the master Git Policy at /root/AGENTS.md. This repo:
+This repo:
 - Classification: OPEN SOURCE — web scraping framework
-- Remotes: forgejo + codeberg + gitlab + radicle + `bare` (local backup at `/srv/git/pry.git`, not synced)
+- Remotes: forgejo + codeberg + gitlab + radicle + local backup
 - Push: git push forgejo main && git push codeberg main && git push gitlab main && rad sync
 - Commits: type(scope): description
 - Never commit: .env, secrets, internal IPs, security reports

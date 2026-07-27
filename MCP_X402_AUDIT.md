@@ -9,7 +9,7 @@ last_updated: 2026-07-01
 
 # Pry MCP + x402 Audit & 20-Win Improvement Plan
 
-> Researched current standards (modelcontextprotocol.io, coinbase/x402 GitHub), audited RMI's x402 system, and identified 20 critical improvements.
+> Researched current standards (modelcontextprotocol.io, coinbase/x402 GitHub) and identified 20 critical improvements.
 
 ## Implementation Status
 
@@ -105,8 +105,8 @@ last_updated: 2026-07-01
 
 | # | Win | Why | Effort |
 |---|-----|-----|--------|
-| 7 | **Smithery + Glama + PulseMCP directory listings** — Like RMI has ([INTERNAL], [INTERNAL]) | Discovery = users. These are THE MCP directories. | 2h |
-| 8 | **Cloudflare Worker deployment** — Run the MCP server on Cloudflare Workers like RMI does ([INTERNAL] pattern) | Users can't self-host easily. Hosted = revenue. | 1d |
+| 7 | **Smithery + Glama + PulseMCP directory listings** — List Pry in MCP directories | Discovery = users. These are THE MCP directories. | 2h |
+| 8 | **Cloudflare Worker deployment** — Run the MCP server on Cloudflare Workers for easy hosting | Users can't self-host easily. Hosted = revenue. | 1d |
 | 9 | **Resource subscriptions** — Push updates to clients when monitors fire | Real-time value. AI agents can react to changes. | 1d |
 | 10 | **`completion/complete` endpoint** — Autocomplete parameter values (e.g., suggest URLs, template IDs) | Better UX in AI clients. Standard requires this. | 4h |
 | 11 | **HTTP+SSE transport for MCP** — Not just stdio | Claude web, n8n, Zapier integrations need HTTP transport | 1d |
@@ -116,10 +116,10 @@ last_updated: 2026-07-01
 
 | # | Win | Why | Effort |
 |---|-----|-----|--------|
-| 13 | **Multi-facilitator smart router** — Auto-pick best facilitator (lowest fee, fastest confirmation) per chain | RMI has this. Without it, our x402 is fragile. | 2d |
+| 13 | **Multi-facilitator smart router** — Auto-pick best facilitator (lowest fee, fastest confirmation) per chain | Without this, x402 is fragile. | 2d |
 | 14 | **x402 batch payments** — Pay for 100 scrapes with one transaction | Bulk users want this. Standard supports it via `PaymentPayload` with multiple `PaymentRequirements`. | 1d |
 | 15 | **`prompts/get` with embedded resources** — "Compare products" prompt that auto-injects the catalog resource | Showcases full MCP capability. Differentiator. | 1d |
-| 16 | **x402 EIP-7702 self-verify mode** — No facilitator needed, direct on-chain verification | Zero dependencies. RMI supports this. | 1d |
+| 16 | **x402 EIP-7702 self-verify mode** — No facilitator needed, direct on-chain verification | Zero dependencies. Leading implementations support this. | 1d |
 | 17 | **MCP `logging` capability** — Server sends structured log messages to client | Critical for debugging. Standard. | 4h |
 
 ### Tier 4: Polish

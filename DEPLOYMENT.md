@@ -16,7 +16,7 @@
 ### Automatic (CI/CD)
 On merge to `main`:
 1. forgejo webhook fires
-2. Talos deploy script pulls latest commit
+2. Deploy script pulls latest commit
 3. Rebuilds Docker image
 4. Stops old container, starts new
 5. Runs health check
@@ -83,7 +83,7 @@ docker logs pryscraper --tail 100 -f
 - Loki: log aggregation
 
 ## Secrets
-All secrets in gopass (see AGENTS.md for full list).
+All secrets in a secrets manager (e.g. gopass, 1Password, vault).
 
 Loaded via docker `--env-file` or systemd `EnvironmentFile`.
 
@@ -94,4 +94,4 @@ Loaded via docker `--env-file` or systemd `EnvironmentFile`.
 ## Backup
 - Code: forgejo (source of truth)
 - Data: DB snapshot daily
-- Config: gopass
+- Config: secrets manager

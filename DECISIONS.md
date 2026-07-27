@@ -25,6 +25,5 @@ A short document capturing an important architectural decision:
 | [0001](docs/adr/0001-initial-architecture.md) | Initial architecture | Accepted | 2026-07-02 |
 | [0002](docs/adr/0002-dual-licensing.md) | Dual licensing: MIT (core) + BSL 1.1 (stealth) | Accepted | 2026-07-03 |
 
-## Fleet-wide ADRs (in standards repo)
-- [ADR-0001: Tailscale mesh as the only perimeter](https://git.rugmunch.io/RugMunchMedia/standards/raw/branch/main/MCP-ARCHITECTURE.md)
-- [ADR-0012: 21-day sprint, not 10-week](https://git.rugmunch.io/RugMunchMedia/standards/raw/branch/main/FLEET-PLAN.md)
+## Fleet-wide ADRs
+Refer to your organization's standards and conventions documentation for fleet-level ADRs.

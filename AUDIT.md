@@ -32,7 +32,7 @@ audited_by: Claude (Sonnet 4.5)
 
 ## What's Actually Real (Verified by Testing)
 
-### ✅ Works — Tested on Talos with live HTTP requests
+### ✅ Works — Tested with live HTTP requests
 
 | Feature | Test Result |
 |---------|-------------|
