@@ -1,7 +1,8 @@
-allowlist:
-  description: "Pryscraper allowlist — test fixtures, docs, known public addresses"
-  regexTarget: match
-  paths:
-    - tests/
-    - docs/
-    - "*.md"
+[allowlist]
+description = "Pryscraper allowlist — test fixtures, docs, known public addresses"
+regexTarget = "match"
+paths = [
+    "tests/",
+    "docs/",
+    ".*\\.md$",
+]
