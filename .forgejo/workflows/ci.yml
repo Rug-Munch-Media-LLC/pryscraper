@@ -390,6 +390,14 @@ jobs:
         with:
           format: cyclonedx-json
           output: sbom.spdx.json
+      - name: Verify SBOM (blocking — bad SBOM = broken build)
+        run: |
+          if [ -f sbom.spdx.json ]; then
+            bash scripts/sbom-verify.sh sbom.spdx.json
+          else
+            echo "❌ SBOM file not generated"
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: sbom
