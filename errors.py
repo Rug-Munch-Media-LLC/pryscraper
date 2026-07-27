@@ -25,7 +25,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-
 _STATUS_TITLES: dict[int, str] = {
     400: "Bad Request",
     401: "Unauthorized",

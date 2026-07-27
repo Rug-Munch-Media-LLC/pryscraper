@@ -26,8 +26,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import httpx
-
 ZOHO_API_BASE = "https://www.zohoapis.com/crm/v2"
 
 
@@ -50,4 +48,4 @@ async def sync_to_zoho(
     )
 
 
-__all__ = ["sync_to_zoho", "ZOHO_API_BASE"]
+__all__ = ["ZOHO_API_BASE", "sync_to_zoho"]

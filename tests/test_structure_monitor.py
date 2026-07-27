@@ -31,9 +31,10 @@ def _fresh_db(monkeypatch):
     bound to a closed event loop (from a prior test) doesn't surface as
     RuntimeError on the next test that hits the network.
     """
-    import db as db_module
-    import client as client_module
     from sqlalchemy import create_engine
+
+    import client as client_module
+    import db as db_module
 
     monkeypatch.setenv("PRY_DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("PRY_DATA_DIR", "/tmp")

@@ -12,11 +12,11 @@ All powered by local Ollama — no API keys needed."""
 import difflib
 import hashlib
 import json
+import os
 import re
 from datetime import datetime
 
 import httpx
-import os
 
 OLLAMA_BASE = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 

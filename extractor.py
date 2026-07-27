@@ -11,9 +11,9 @@ No hallucination: JSON output is always parsed and validated.
 # Licensed under MIT. See LICENSE.
 
 import json
+import os
 import re
 from typing import Any
-import os
 
 from resilience import registry
 

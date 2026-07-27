@@ -9,10 +9,12 @@ Self-hosted, free, better than Firecrawl."""
 # Licensed under MIT. See LICENSE.
 
 import json
+import re
 import time
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
+from datetime import UTC, datetime
 from typing import Any, cast
 
 import uvicorn
@@ -20,16 +22,15 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from datetime import UTC, datetime
-from starlette.routing import Mount as StarletteMount, Route as StarletteRoute
-import re
-
+from starlette.routing import Mount as StarletteMount
+from starlette.routing import Route as StarletteRoute
 
 from client import close_client
 from deps import advanced, automator, extractor, queue, ratelimiter, scraper
 from errors import (
     PryError,
 )
+from jwt_auth import is_jwt, validate_rmi_jwt
 from mcp_sse import mcp_post_message, mcp_sse_endpoint
 from observability import REQUEST_COUNT, REQUEST_LATENCY, setup_tracing
 from pipeline import get_pipeline
@@ -89,7 +90,6 @@ from routers.webhooks import router as webhooks_router
 from routers.x402 import router as x402_router
 from settings import settings
 from x402_middleware import X402Middleware
-from jwt_auth import validate_rmi_jwt, is_jwt
 
 # Configure structured (JSON) logging for the whole process. Per
 # CONVENTIONS.md Part 5, all Pry logs must be JSON with timestamp, level,
@@ -257,21 +257,30 @@ def add_error_handlers(app: FastAPI) -> None:
             ),
         )
 
-
     @app.exception_handler(HTTPException)
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
         """RFC 7807 Problem Details for HTTP errors (404, 401, 403, etc)."""
         req_id = getattr(request.state, "request_id", uuid.uuid4().hex[:12])
         status = exc.status_code
-        titles = {"Bad Request": 400, "Unauthorized": 401, "Forbidden": 403,
-                   "Not Found": 404, "Conflict": 409, "Too Many Requests": 429,
-                   "Internal Server Error": 500, "Bad Gateway": 502, "Service Unavailable": 503}
+        titles = {
+            "Bad Request": 400,
+            "Unauthorized": 401,
+            "Forbidden": 403,
+            "Not Found": 404,
+            "Conflict": 409,
+            "Too Many Requests": 429,
+            "Internal Server Error": 500,
+            "Bad Gateway": 502,
+            "Service Unavailable": 503,
+        }
         title = {v: k for k, v in titles.items()}.get(status, "Error")
         return JSONResponse(
             status_code=status,
             content={
-                "type": "/errors/" + title.lower().replace(" ", "-") if status != 500 else "about:blank",
+                "type": "/errors/" + title.lower().replace(" ", "-")
+                if status != 500
+                else "about:blank",
                 "title": title,
                 "status": status,
                 "detail": exc.detail if isinstance(exc.detail, str) else str(exc.detail),
@@ -286,7 +295,7 @@ def add_error_handlers(app: FastAPI) -> None:
     async def generic_error_handler(request: Request, exc: Exception) -> JSONResponse:
         req_id = getattr(request.state, "request_id", uuid.uuid4().hex[:12])
         logger.exception("unhandled_exception", extra={"request_id": req_id})
-        
+
         return JSONResponse(
             status_code=500,
             content={
@@ -307,13 +316,9 @@ add_error_handlers(app)
 # Public paths that don't need authentication
 
 
-
 def _path_exists(path: str, app) -> bool:
     """Check if a path matches any registered route."""
-    try:
-        routes = getattr(app, "routes", [])
-    except Exception:
-        return True  # If we can't check, assume it exists
+    routes = getattr(app, "routes", [])
 
     for route in routes:
         if isinstance(route, StarletteMount):
@@ -324,7 +329,7 @@ def _path_exists(path: str, app) -> bool:
                 continue
             if path == route.path or path.startswith(route.path.rstrip("/") + "/"):
                 if route.routes:
-                    sub_path = path[len(route.path):] if route.path != "/" else path
+                    sub_path = path[len(route.path) :] if route.path != "/" else path
                     if _path_exists(sub_path, route):
                         return True
                 # Mounts without sub-routes catch-all under prefix
@@ -337,6 +342,7 @@ def _path_exists(path: str, app) -> bool:
                 if re.match(pattern, path):
                     return True
     return False
+
 
 _AUTH_PUBLIC_PATHS: set[str] = {"/health", "/live", "/ready", "/metrics", "/docs", "/openapi.json"}
 
@@ -393,7 +399,6 @@ class PryHttpMiddleware:
                 elif is_jwt(token) and validate_rmi_jwt(token):
                     authenticated = True  # JWT from rmi-backend — allowed
             if not authenticated:
-                
                 body = json.dumps(
                     {
                         "type": "/errors/unauthorized",
@@ -431,7 +436,7 @@ class PryHttpMiddleware:
                     "retry_after": stats.get("retry_after", 1),
                 },
             )
-            
+
             body = json.dumps(
                 {
                     "type": "/errors/rate_limit_exceeded",
