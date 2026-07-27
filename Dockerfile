@@ -1,14 +1,32 @@
 # Pry — Multi-stage Docker build
 # Stage 1: Build deps + Playwright + Tesseract
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS builder
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget curl gnupg ca-certificates \
-    libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
-    libcups2 libdrm2 libdbus-1-3 libxcb1 libxkbcommon0 \
-    libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
-    libpango-1.0-0 libcairo2 libasound2 \
-    tesseract-ocr tesseract-ocr-eng \
+    wget=1.25.0-2 \
+    curl=8.14.1-2+deb13u4 \
+    gnupg=2.4.7-21+deb13u1 \
+    ca-certificates=20250419 \
+    libnss3=2:3.110-1+deb13u3 \
+    libnspr4=2:4.36-1 \
+    libatk1.0-0t64=2.56.2-1+deb13u1 \
+    libatk-bridge2.0-0t64=2.56.2-1+deb13u1 \
+    libcups2t64=2.4.10-3+deb13u2 \
+    libdrm2=2.4.124-2 \
+    libdbus-1-3=1.16.2-2 \
+    libxcb1=1.17.0-2+b1 \
+    libxkbcommon0=1.7.0-2 \
+    libxcomposite1=1:0.4.6-1 \
+    libxdamage1=1:1.1.6-1+b2 \
+    libxrandr2=2:1.5.4-1+b3 \
+    libgbm1=25.0.7-2+deb13u1 \
+    libpango-1.0-0=1.56.3-1 \
+    libcairo2=1.18.4-1+b1 \
+    libasound2t64=1.2.14-1 \
+    tesseract-ocr=5.5.0-1+b1 \
+    tesseract-ocr-eng=1:4.1.0-2 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -17,14 +35,29 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN python3 -m playwright install chromium 2>&1 | tail -1
 
 # Stage 2: Runtime
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
-    libcups2 libdrm2 libdbus-1-3 libxcb1 libxkbcommon0 \
-    libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
-    libpango-1.0-0 libcairo2 libasound2 \
-    tesseract-ocr tesseract-ocr-eng \
+    libnss3=2:3.110-1+deb13u3 \
+    libnspr4=2:4.36-1 \
+    libatk1.0-0t64=2.56.2-1+deb13u1 \
+    libatk-bridge2.0-0t64=2.56.2-1+deb13u1 \
+    libcups2t64=2.4.10-3+deb13u2 \
+    libdrm2=2.4.124-2 \
+    libdbus-1-3=1.16.2-2 \
+    libxcb1=1.17.0-2+b1 \
+    libxkbcommon0=1.7.0-2 \
+    libxcomposite1=1:0.4.6-1 \
+    libxdamage1=1:1.1.6-1+b2 \
+    libxrandr2=2:1.5.4-1+b3 \
+    libgbm1=25.0.7-2+deb13u1 \
+    libpango-1.0-0=1.56.3-1 \
+    libcairo2=1.18.4-1+b1 \
+    libasound2t64=1.2.14-1 \
+    tesseract-ocr=5.5.0-1+b1 \
+    tesseract-ocr-eng=1:4.1.0-2 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
