@@ -314,6 +314,9 @@ class PryScraper:
 
         return extracted
 
+    # Kept for reference/testing only. Will be removed in v4.0.
+    # The scrape() method delegates to UltimateScraper instead.
+    # DEPRECATED: This method is no longer called by scrape().
     async def _scrape_attempt(self, url: str, opts: dict, attempt: int) -> dict:
         """Single scrape attempt with adaptive tier selection."""
         errors = []

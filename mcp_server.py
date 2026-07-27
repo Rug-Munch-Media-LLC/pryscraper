@@ -10,6 +10,10 @@ Enables any MCP-compatible AI agent (Claude, Hermes, Cursor) to use Pry."""
 import httpx
 
 
+# DEPRECATED: This file is superseded by pry_mcp/ sub-package and mcp_sse.py.
+# The canonical MCP server is built from pry_mcp/ with SSE transport via mcp_sse.py.
+# This file exists for backward compatibility. Will be removed in v4.0.
+
 class PryMCPServer:
     """MCP server exposing Pry as tools for AI agents.
 
