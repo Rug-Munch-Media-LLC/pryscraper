@@ -34,6 +34,7 @@ def _has_postgres(host: str = "127.0.0.1", port: int = 5432) -> bool:
     except OSError:
         return False
 
+
 # ── Fixtures ─────────────────────────────────────────────────────
 
 
@@ -142,9 +143,7 @@ class TestHealthEndpoints:
         assert resp.json() == {"status": "alive"}
 
     @pytest.mark.integration
-    @pytest.mark.skipif(
-        not _has_postgres(), reason="requires running Postgres + Redis"
-    )
+    @pytest.mark.skipif(not _has_postgres(), reason="requires running Postgres + Redis")
     def test_ready_returns_200(self, client: TestClient) -> None:
         resp = client.get("/ready")
         assert resp.status_code == 200
@@ -227,7 +226,7 @@ class TestDetectBlockEndpoint:
         # We just verify it doesn't 500.
         resp = client.post(
             "/v1/detect-block",
-            data="https://example.com",
+            content=b"https://example.com",
             headers={"Content-Type": "application/json"},
         )
         assert resp.status_code in (200, 422, 503)
@@ -340,7 +339,7 @@ class TestErrorHandling:
 
     def test_422_on_invalid_json(self, client: TestClient) -> None:
         resp = client.post(
-            "/v1/scrape", data="not-json", headers={"Content-Type": "application/json"}
+            "/v1/scrape", content=b"not-json", headers={"Content-Type": "application/json"}
         )
         assert resp.status_code == 422
 

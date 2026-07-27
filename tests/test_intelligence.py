@@ -153,29 +153,29 @@ class TestComputeFieldStatistics:
 
 class TestDetectAnomaliesNumeric:
     def test_detects_anomaly(self) -> None:
-        history = [100, 102, 101, 103, 99, 101, 102]
-        result = detect_anomalies_numeric(150, history)
+        history = [100.0, 102.0, 101.0, 103.0, 99.0, 101.0, 102.0]
+        result = detect_anomalies_numeric(150.0, history)
         assert result["anomaly"] is True
         assert result["z_score"] >= 2.0
 
     def test_insufficient_history(self) -> None:
-        result = detect_anomalies_numeric(100, [])
+        result = detect_anomalies_numeric(100.0, [])
         assert result["anomaly"] is False
         assert "Insufficient history" in result["reason"]
 
     def test_no_anomaly(self) -> None:
-        history = [100, 101, 100, 101, 100]
-        result = detect_anomalies_numeric(100, history)
+        history = [100.0, 101.0, 100.0, 101.0, 100.0]
+        result = detect_anomalies_numeric(100.0, history)
         assert result["anomaly"] is False
 
     def test_constant_history_same_value(self) -> None:
-        history = [100, 100, 100]
-        result = detect_anomalies_numeric(100, history)
+        history = [100.0, 100.0, 100.0]
+        result = detect_anomalies_numeric(100.0, history)
         assert result["anomaly"] is False
 
     def test_constant_history_diff_value(self) -> None:
-        history = [100, 100, 100]
-        result = detect_anomalies_numeric(200, history)
+        history = [100.0, 100.0, 100.0]
+        result = detect_anomalies_numeric(200.0, history)
         assert result["anomaly"] is True
         assert "constant history" in result["reason"]
 

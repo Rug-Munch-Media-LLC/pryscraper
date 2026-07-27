@@ -45,7 +45,9 @@ class AnomalyDetector:
         context = context or {}
 
         for field in fields:
-            values = [h.get(field) for h in historical if h.get(field) is not None]
+            values: list[float] = [
+                float(h[field]) for h in historical if isinstance(h.get(field), (int, float))
+            ]
             current_val = current.get(field)
 
             if current_val is None or len(values) < 3:

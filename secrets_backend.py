@@ -213,6 +213,9 @@ def set_secret(name: str, value: str) -> bool:
         )
         return False
     bin_path = shutil.which("gopass")
+    if bin_path is None:
+        logger.warning("gopass_not_found", extra={"secret_name": name})
+        return False
     path = _normalize_name(name)
     try:
         result = subprocess.run(

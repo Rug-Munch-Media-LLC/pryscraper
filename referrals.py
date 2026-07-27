@@ -628,8 +628,8 @@ class ReferralTracker:
                         extra={"click_id": click_id},
                     )
                     return False
-                click.converted = True
-                click.conversion_value_usd = revenue_usd
+                click.converted = True  # type: ignore[assignment]  # SQLAlchemy Column[bool] → bool
+                click.conversion_value_usd = revenue_usd  # type: ignore[assignment]  # SQLAlchemy Column[float] → float
                 s.add(
                     ReferralConversion(
                         click_id=click_id,

@@ -85,6 +85,7 @@ def test_referral_conversion() -> None:
     assert success is True
     with session_scope() as s:
         click = s.query(ReferralClick).filter_by(click_id=click_id).first()
+        assert click is not None  # ensure click exists
         assert click.converted is True
         assert click.conversion_value_usd == 50.0
         conv = s.query(ReferralConversion).filter_by(click_id=click_id).first()

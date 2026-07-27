@@ -57,7 +57,7 @@ FREE_PROXY_SOURCES = [
 ]
 
 # Premium proxy providers with full affiliate details
-PREMIUM_PROXY_PROVIDERS = [
+PREMIUM_PROXY_PROVIDERS: list[dict[str, Any]] = [
     {
         "name": "Bright Data",
         "tag": "brightdata",
@@ -457,7 +457,7 @@ class ProxyManager:
             cutoff = datetime.now(UTC).timestamp() - (days_back * 86400)
             return [
                 c
-                for c in tracker.clicks
+                for c in tracker.clicks  # type: ignore[attr-defined]  # ReferralTracker.clicks is loaded dynamically from DB
                 if c.get("source", "").startswith("proxy")
                 and _parse_ts(c.get("timestamp", "")) >= cutoff
             ]

@@ -47,7 +47,7 @@ def test_tool_schemas() -> None:
         assert "description" in tool
         assert "inputSchema" in tool
         schema = tool["inputSchema"]
-        assert schema.get("type") == "object"
+        assert schema.get("type") == "object"  # type: ignore[attr-defined]  # tool["inputSchema"] is Any
         assert "properties" in schema
         assert "required" in schema
 

@@ -137,17 +137,11 @@ class GDPRService:
 
         if self._db is not None:
             try:
-                from db import ApiKey, QualityCheckRecord, UsageRecord
+                from db import QualityCheck
 
                 with self._db.session() as s:
-                    s.query(UsageRecord).filter(
-                        UsageRecord.metadata_json.like(f"%{subject_id}%")
-                    ).delete()
-                    s.query(QualityCheckRecord).filter(
-                        QualityCheckRecord.url.like(f"%{subject_id}%")
-                    ).delete()
-                    s.query(ApiKey).filter(ApiKey.name.like(f"%{subject_id}%")).delete()
-            except OSError:
+                    s.query(QualityCheck).filter(QualityCheck.url.like(f"%{subject_id}%")).delete()
+            except (OSError, ImportError):
                 pass
 
         deletion_record = {

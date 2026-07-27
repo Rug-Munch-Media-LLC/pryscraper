@@ -117,9 +117,9 @@ async def batch_execute(body: list[BatchItem]) -> dict[str, Any]:
             flat.append({"error": {"code": "execution_failed", "message": str(r)}})
             failed += 1
         else:
-            if "error" in r:
+            if "error" in r:  # type: ignore[operator]  # r is dict[str, Any] | BaseException after isinstance narrowing
                 failed += 1
-            flat.append(r)
+            flat.append(r)  # type: ignore[arg-type]  # r is narrowed to dict[str, Any] by isinstance check above
 
     return {
         "success": True,

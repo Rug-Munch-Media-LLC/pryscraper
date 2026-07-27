@@ -14,7 +14,7 @@ import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Optional
 
 from paths import PRY_DATA_DIR
 
@@ -41,17 +41,17 @@ class Job:
     def __init__(
         self, job_id: str, name: str, func: Callable, args: tuple = (), kwargs: dict | None = None
     ):
-        self.id = job_id
-        self.name = name
-        self.func = func
-        self.args = args
-        self.kwargs = kwargs or {}
-        self.status = JobStatus.PENDING
-        self.created_at = datetime.now(UTC).isoformat()
-        self.started_at = None
-        self.completed_at = None
-        self.result = None
-        self.error = None
+        self.id: str = job_id
+        self.name: str = name
+        self.func: Callable = func
+        self.args: tuple = args
+        self.kwargs: dict[str, Any] = kwargs or {}
+        self.status: JobStatus = JobStatus.PENDING
+        self.created_at: str = datetime.now(UTC).isoformat()
+        self.started_at: str | None = None
+        self.completed_at: str | None = None
+        self.result: Any = None
+        self.error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -74,8 +74,8 @@ class JobQueue:
         self.max_workers = max_workers
         self.use_celery = use_celery and _has_celery
         self.jobs: dict[str, Job] = {}
-        self._queue: asyncio.Queue = asyncio.Queue() if not self.use_celery else None
-        self._workers: list[asyncio.Task] = []
+        self._queue: asyncio.Queue[Job] | None = asyncio.Queue() if not self.use_celery else None
+        self._workers: list[asyncio.Task[Any]] = []
         self._running = False
 
     async def submit(
@@ -101,6 +101,8 @@ class JobQueue:
     async def _worker(self, name: str) -> None:
         while self._running:
             try:
+                if self._queue is None:
+                    return
                 job = await asyncio.wait_for(self._queue.get(), timeout=1.0)
             except TimeoutError:
                 continue

@@ -53,7 +53,7 @@ class WebSocketScraper:
             async with websockets.connect(
                 url,
                 extra_headers=headers or {},
-                subprotocols=protocols,
+                subprotocols=protocols,  # type: ignore[arg-type]  # websockets expects Sequence[Subprotocol]; runtime OK
             ) as ws:
                 start = time.time()
                 while len(messages) < self.max_messages and (time.time() - start) < self.timeout:

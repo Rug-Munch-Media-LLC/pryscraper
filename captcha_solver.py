@@ -322,7 +322,7 @@ class CaptchaSolver:
             },
         }
         if extra:
-            body["task"].update(extra)
+            body["task"].update(extra)  # type: ignore[attr-defined]  # extra is dict[str, str], body["task"] is dict
         resp = await client.post("https://api.nextcaptcha.com/createTask", json=body, timeout=30)
         data = resp.json()
         if data.get("errorId") != 0:

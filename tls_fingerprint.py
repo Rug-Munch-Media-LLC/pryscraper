@@ -13,7 +13,7 @@ curl_cffi can impersonate real browser TLS handshakes, bypassing these checks.""
 import asyncio
 import logging
 import time
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -125,12 +125,12 @@ class TLSScraper:
         try:
             start = time.time()
             async with AsyncSession(
-                impersonate=impersonate,
+                impersonate=impersonate,  # type: ignore[arg-type]  # curl_cffi uses Literal union; runtime validated
                 headers=default_headers,
                 cookies=cookies or {},
                 proxy=proxy or None,
                 timeout=timeout,
-                follow_redirects=follow_redirects,
+                allow_redirects=follow_redirects,
             ) as session:
                 resp = await session.get(url)
                 elapsed = time.time() - start

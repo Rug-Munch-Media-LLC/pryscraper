@@ -97,7 +97,7 @@ class HumanBehaviorSimulator:
         Humans don't scroll linearly — they scroll, pause, scroll back, etc.
         """
         patterns: list[dict[str, Any]] = []
-        current_y = 0
+        current_y: float = 0
         # Initial scroll: fast down to see the page
         current_y = min(page_height, viewport_height * 0.5)
         patterns.append(

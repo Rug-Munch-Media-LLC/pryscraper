@@ -173,6 +173,12 @@ class PrySettings(BaseSettings):
         validation_alias=AliasChoices("PRY_CONFIG_FILE", "CONFIG_FILE"),
     )
 
+    # DataBus bridge (publish scraped data to rmi-backend)
+    databus_enabled: bool = True
+    databus_url: str = "http://rmi-backend:8000/api/v1/databus/ingest"
+    databus_timeout: int = 10
+    databus_max_retries: int = 3
+
     # x402 / MCP
     x402_enabled: bool = False
     x402_pay_to: str = ""

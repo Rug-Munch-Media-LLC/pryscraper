@@ -58,7 +58,7 @@ async def health_check() -> JSONResponse:
 
             r = aioredis.from_url(settings.redis_url)
             await r.ping()
-            await r.aclose()
+            await r.close()  # type: ignore[attr-defined]  # redis.asyncio.Redis has close() in older stubs
             return True
         except redis.RedisError:
             return False

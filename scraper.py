@@ -271,7 +271,7 @@ class PryScraper:
         """Score content quality 0-100. Low score triggers retry with better tier."""
         if not content or len(content) < 100:
             return 0
-        score = 0
+        score: float = 0
         score += min(len(content) / 500, 40)  # Length: up to 40 pts
         score += min(content.count(" ") / 50, 20)  # Word count: up to 20 pts
         score += min(len(re.findall(r"[.!?]", content)), 15)  # Sentences: up to 15 pts
@@ -416,7 +416,7 @@ class PryScraper:
         # Fallback: markdownify
         from markdownify import markdownify
 
-        content = markdownify(raw_html, heading_arrows=False, strip=["script", "style"])
+        content = markdownify(raw_html, heading_arrows=False, strip=["script", "style"])  # type: ignore[call-arg]  # markdownify supports heading_arrows at runtime
         content = re.sub(r"\n{3,}", "\n\n", content)[:100000]
         result["content"] = content
         return result

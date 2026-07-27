@@ -236,13 +236,14 @@ async def run_monitor(monitor_id: str) -> dict[str, Any]:
             if not monitor:
                 return {"error": f"Monitor not found: {monitor_id}"}
 
-            previous_content = monitor.last_content or ""
+            previous_content: str = str(monitor.last_content or "")
 
             try:
                 from scraper import PryScraper
 
                 scraper = PryScraper()
-                result = await scraper.scrape(monitor.url)
+                monitor_url: str = str(monitor.url)  # type: ignore[arg-type]  # SQLAlchemy Column → str
+                result = await scraper.scrape(monitor_url)
                 current_content = result.get("content", "")
             except Exception as e:
                 logger.exception("monitor_scrape_failed", extra={"monitor_id": monitor_id})
@@ -255,19 +256,21 @@ async def run_monitor(monitor_id: str) -> dict[str, Any]:
                 s.add(run)
                 return {"error": f"Scrape failed: {e!s}"}
 
-            judger = ChangeJudger(use_llm=monitor.use_llm_judge)
-            judgment = await judger.judge(previous_content, current_content, monitor.goal or "")
+            monitor_use_llm: bool = bool(monitor.use_llm_judge)  # type: ignore[arg-type]
+            judger = ChangeJudger(use_llm=monitor_use_llm)
+            monitor_goal: str = str(monitor.goal or "")
+            judgment = await judger.judge(previous_content, current_content, monitor_goal)
 
             changed = bool(previous_content) and current_content != previous_content
             now = datetime.now(UTC)
-            monitor.last_run_at = now
-            monitor.total_checks = (monitor.total_checks or 0) + 1
+            monitor.last_run_at = now  # type: ignore[assignment]  # SQLAlchemy Column[datetime] → datetime
+            monitor.total_checks = (monitor.total_checks or 0) + 1  # type: ignore[assignment]
 
             run_status = "success"
             diff_data = {}
             if changed:
-                monitor.total_changes = (monitor.total_changes or 0) + 1
-                monitor.current_version = (monitor.current_version or 0) + 1
+                monitor.total_changes = (monitor.total_changes or 0) + 1  # type: ignore[assignment]
+                monitor.current_version = (monitor.current_version or 0) + 1  # type: ignore[assignment]
                 run_status = "changed"
                 diff_data = {
                     "previous_length": len(previous_content),
@@ -275,7 +278,7 @@ async def run_monitor(monitor_id: str) -> dict[str, Any]:
                     "diff": _compute_diff(previous_content, current_content),
                 }
 
-            monitor.last_content = current_content
+            monitor.last_content = current_content  # type: ignore[assignment]
 
             run = MonitorRun(
                 monitor_id=monitor_id,
@@ -296,7 +299,7 @@ async def run_monitor(monitor_id: str) -> dict[str, Any]:
                 "total_changes": monitor.total_changes,
             }
 
-            webhook_url = monitor.webhook_url
+            webhook_url: str = str(monitor.webhook_url)  # type: ignore[arg-type]
             meaningful = judgment["meaningful"]
 
         if meaningful and webhook_url:

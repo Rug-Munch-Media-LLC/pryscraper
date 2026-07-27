@@ -84,13 +84,14 @@ class DocumentParser:
             text = page.extract_text()
             if text:
                 pages.append(text)
+        pdf_metadata = reader.metadata
         return {
             "text": "\n\n".join(pages),
             "format": "pdf",
             "pages": len(pages),
             "metadata": {
-                "title": reader.metadata.get("/Title", "") or "",
-                "author": reader.metadata.get("/Author", "") or "",
+                "title": (pdf_metadata.get("/Title", "") if pdf_metadata else "") or "",
+                "author": (pdf_metadata.get("/Author", "") if pdf_metadata else "") or "",
             },
         }
 

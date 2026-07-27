@@ -49,6 +49,7 @@ try:
 except ImportError:
     _has_camoufox = False
 
+_stealth_engine: StealthEngine | None
 try:
     from stealth_engine import StealthEngine
 
@@ -149,7 +150,9 @@ class UltimateScraper:
             errors.append("premium_proxy_failed")
 
         # Build tier list. Order starts cheap/direct and escalates.
-        tier_order = [
+        # Note: _tier_premium_proxy has signature (url, proxy_url, opts) while
+        # other tiers use (url, opts, proxy_url). This is handled at call site.
+        tier_order: list[tuple[str, Any]] = [
             ("direct", self._tier_direct),
             ("tls_fingerprint", self._tier_tls_fingerprint),
             ("cloudscraper", self._tier_cloudscraper),
@@ -220,6 +223,7 @@ class UltimateScraper:
 
             if success:
                 method = "premium_proxy" if tier_name == "premium_proxy" else tier_name
+                assert isinstance(html, str)
                 return self._result(url, html, method)
             errors.append(f"{tier_name}_failed")
 
@@ -307,7 +311,7 @@ class UltimateScraper:
             if content and len(content) > 100:
                 from markdownify import markdownify
 
-                return markdownify(content, heading_arrows=False, strip=["script", "style"])
+                return markdownify(content, heading_arrows=False, strip=["script", "style"])  # type: ignore[call-arg]  # markdownify supports heading_arrows at runtime
         except Exception:  # noqa: BLE001
             pass
         # Last resort: strip HTML tags

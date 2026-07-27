@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["CRM"])
 
+
 @router.post("/v1/crm/sync", tags=["CRM"], summary="Sync scraped data to CRM")
 async def sync_crm(
     platform: str = Body(...),
@@ -42,7 +43,7 @@ async def sync_crm(
     """
     from crm_sync import sync_to_close, sync_to_hubspot, sync_to_pipedrive, sync_to_salesforce
 
-    platform_map = {
+    platform_map: dict[str, tuple[Any, tuple[str, ...]]] = {
         "salesforce": (sync_to_salesforce, ("instance_url", "access_token")),
         "hubspot": (sync_to_hubspot, ("api_key",)),
         "pipedrive": (sync_to_pipedrive, ("api_token",)),
@@ -54,6 +55,8 @@ async def sync_crm(
             f"Unsupported platform: {platform}. Supported: {list(platform_map.keys())}"
         )
 
+    handler: Any
+    required_fields: tuple[str, ...]
     handler, required_fields = platform_map[platform]
     for field in required_fields:
         if not credentials.get(field):

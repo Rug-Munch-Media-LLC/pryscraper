@@ -322,8 +322,8 @@ async def run_compliance_check(url: str) -> dict[str, Any]:
 
     # Run all checks
     jurisdiction = detect_jurisdiction(url, html)
-    tos_result = (
-        classify_tos(tos_text)
+    tos_result: dict[str, Any] = (
+        classify_tos(tos_text)  # type: ignore[arg-type]  # classify_tos returns dict[str, Any]
         if tos_text
         else {
             "classification": "unknown",

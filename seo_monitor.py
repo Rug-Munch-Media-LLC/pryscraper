@@ -78,8 +78,7 @@ async def analyze_seo(url: str) -> dict[str, Any]:
 
                 llm_enhancement = await llm_seo_analyze(
                     url=url,
-                    html=resp.text[:6000],
-                    missing_fields=missing_critical,
+                    content=resp.text[:6000],
                 )
                 if llm_enhancement:
                     for f in missing_critical:

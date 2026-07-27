@@ -5,10 +5,13 @@
 # Licensed under MIT. See LICENSE.
 """Pry — Observability: Prometheus metrics, OpenTelemetry tracing, structured logging."""
 
+from __future__ import annotations
+
 import logging
 import os
 import time
 from contextlib import contextmanager
+from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +23,19 @@ try:
 except ImportError:
     _has_prometheus = False
 
+if TYPE_CHECKING:
+    from prometheus_client import Counter, Gauge, Histogram
+
 # Try to import OpenTelemetry
 try:
     from opentelemetry import trace
     from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export import (
+        ConsoleSpanExporter,
+        SimpleSpanProcessor,
+        SpanExporter,
+        SpanProcessor,
+    )
 
     # OTLP exporter is optional (install opentelemetry-exporter-otlp-proto-http)
     try:
@@ -42,6 +53,18 @@ except ImportError:
 
 
 # Metrics
+# Declare metrics as Counter | None so mypy allows None assignment when prometheus is unavailable.
+# At runtime, these are either Counter/Histogram/Gauge objects or None.
+REQUEST_COUNT: Counter | None
+REQUEST_LATENCY: Histogram | None
+SCRAPE_COUNT: Counter | None
+SCRAPE_LATENCY: Histogram | None
+LLM_CALLS: Counter | None
+LLM_COST: Counter | None
+TEMPLATE_USAGE: Counter | None
+CACHE_HITS: Counter | None
+ACTIVE_CONNECTIONS: Gauge | None
+
 if _has_prometheus:
     REQUEST_COUNT = Counter(
         "pry_requests_total", "Total requests", ["method", "endpoint", "status"]
@@ -55,8 +78,15 @@ if _has_prometheus:
     CACHE_HITS = Counter("pry_cache_hits_total", "Cache hits", ["cache_type"])
     ACTIVE_CONNECTIONS = Gauge("pry_active_connections", "Active connections", ["type"])
 else:
-    REQUEST_COUNT = REQUEST_LATENCY = SCRAPE_COUNT = SCRAPE_LATENCY = None
-    LLM_CALLS = LLM_COST = TEMPLATE_USAGE = CACHE_HITS = ACTIVE_CONNECTIONS = None
+    REQUEST_COUNT = None
+    REQUEST_LATENCY = None
+    SCRAPE_COUNT = None
+    SCRAPE_LATENCY = None
+    LLM_CALLS = None
+    LLM_COST = None
+    TEMPLATE_USAGE = None
+    CACHE_HITS = None
+    ACTIVE_CONNECTIONS = None
 
 
 def setup_tracing(service_name: str = "pry") -> None:
@@ -70,6 +100,8 @@ def setup_tracing(service_name: str = "pry") -> None:
     try:
         provider = TracerProvider()
         otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+        exporter: SpanExporter
+        processor: SpanProcessor
         if otlp_endpoint and _has_otlp:
             exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
             processor = BatchSpanProcessor(exporter)

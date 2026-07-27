@@ -119,6 +119,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             message="PRY_API_KEY is not set; all protected endpoints are publicly accessible",
         )
     get_pipeline()  # Initialize pipeline
+    # Register DataBus bridge (publish scraped results to rmi-backend)
+    import databus_bridge  # noqa: F401 — auto-registers hook on import
+
     yield
     logger.info("pry_shutdown")
     await close_client()

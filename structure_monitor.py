@@ -149,10 +149,15 @@ async def monitor_page_structure(
                     .first()
                 )
 
-            previous_selectors: list[str]
+            previous_selectors: list[Any]
             if previous_snap:
-                previous_selectors = previous_snap.selectors or []
-                previous_all_matched = previous_snap.all_matched
+                raw_selectors = previous_snap.selectors
+                previous_selectors = raw_selectors if isinstance(raw_selectors, list) else []
+                previous_all_matched = (
+                    bool(previous_snap.all_matched)
+                    if isinstance(previous_snap.all_matched, bool)
+                    else True
+                )
             else:
                 previous_selectors = []
                 previous_all_matched = True
