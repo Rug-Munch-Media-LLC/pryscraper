@@ -370,8 +370,15 @@ jobs:
           uv python install 3.11 && uv venv --python 3.11 .venv
           uv pip install --python .venv/bin/python -e ".[dev]" pact-python
       - name: Run consumer contract tests
-        run: source .venv/bin/activate && python -m pytest tests/contract/ -v --tb=short || echo "Contract tests noted (needs running provider)"
-        continue-on-error: true
+        run: |
+          source .venv/bin/activate
+          python -m pytest tests/contract/ -v --tb=short
+      - name: Upload pact files
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pacts
+          path: tests/contract/pacts/
 
   sbom:
     runs-on: docker-x64
@@ -489,8 +496,7 @@ jobs:
       - name: Run architecture fitness check
         run: |
           if command -v archfit &>/dev/null; then
-            archfit analyze || echo "Architecture fitness: review needed"
+            archfit analyze
           else
             echo "archfit not installed — skipping (non-blocking)"
           fi
-        continue-on-error: true
