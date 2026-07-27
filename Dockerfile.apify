@@ -22,4 +22,10 @@ RUN pip install --no-cache-dir "apify~=1.7.0" \
 ENV PRY_ACTOR=true
 ENV PYTHONUNBUFFERED=1
 
+# Switch to non-root user (myuser already exists in apify base image)
+# Ensure app directory is owned by myuser
+RUN chown -R myuser:myuser /usr/src/app
+
+USER myuser
+
 ENTRYPOINT ["python3", "/usr/src/app/.actor/src/main.py"]
