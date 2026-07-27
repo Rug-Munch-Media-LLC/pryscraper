@@ -9,6 +9,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # k6 smoke tests run against live deployment every 6 hours
+    - cron: '0 */6 * * *'
 
 env:
   UV_BIN: /root/.local/bin/uv
