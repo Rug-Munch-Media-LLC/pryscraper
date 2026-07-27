@@ -22,7 +22,7 @@
 
 ## Secrets
 
-**Storage**: gopass (`rmi/pryscraper/*`)
+**Storage**: gopass 
 
 **Loading**:
 - Local dev: `.env` file (gitignored)

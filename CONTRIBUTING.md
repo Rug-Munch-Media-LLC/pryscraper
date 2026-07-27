@@ -90,17 +90,13 @@ git branch -d feat/my-change         # delete local (use -D if not merged upstre
 
 ## Remotes
 
-| Remote          | URL                                               | Role                               |
-|-----------------|---------------------------------------------------|------------------------------------|
-| `upstream`      | `root@talos:/srv/work/repos/pryscraper/.git`      | **Canonical** — Forgejo clone.     |
-| `legacy-mirror` | `root@talos:/srv/git/pry.git`                     | Legacy bare repo. Sync only.       |
+| Remote          | URL                                         | Role                               |
+|-----------------|----------------------------------------------|------------------------------------|
+| `upstream`      | `git@git.rugmunch.io:RugMunchMedia/pryscraper.git` | **Canonical** — Forgejo.     |
+| `origin`        | _(see forgejo)_                              | Fork/development use.              |
 
-`origin` is **not configured** — there is no single-host Forgejo SSH endpoint
-reachable from Cinnabox. Always push to `upstream`.
-
-To add an external mirror (GitHub/GitLab/HuggingFace), request credentials via
-gopass and add the remote under a descriptive name (`github`, `gitlab`, `hf`).
-See `/srv/work/repos/fleet-infra/` for the established pattern.
+To add an external mirror (GitHub/GitLab/HuggingFace), add the remote under a
+descriptive name (`github`, `gitlab`, `hf`).
 
 ## Pre-Push Checklist
 

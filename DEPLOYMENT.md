@@ -6,10 +6,10 @@
 
 ## Architecture
 - Container: Docker
-- Image registry: local (Talos)
-- Orchestration: docker-compose on Talos
-- Reverse proxy: nginx on Talos
-- Auto-deploy: forgejo webhook → Talos deploy script
+- Image registry: local/private
+- Orchestration: docker-compose
+- Reverse proxy: nginx
+- Auto-deploy: forgejo webhook → deploy script
 
 ## Deploy
 
@@ -24,12 +24,11 @@ On merge to `main`:
 
 ### Manual
 ```bash
-ssh netcup
+# On the deploy host
 cd /srv/pryscraper
 git pull origin main
 docker build -t pryscraper:latest .
-docker stop pryscraper
-docker rm pryscraper
+docker stop pryscraper && docker rm pryscraper
 docker run -d --name pryscraper --restart unless-stopped --network host -p 8005:8005 pryscraper:latest
 ```
 
@@ -65,7 +64,7 @@ curl -fsS http://localhost:8005/health
 
 ## Rollback
 ```bash
-ssh netcup
+# On the deploy host
 cd /srv/pryscraper
 git log --oneline -5   # find last good commit
 git checkout <commit-hash>
@@ -80,23 +79,19 @@ docker logs pryscraper --tail 100 -f
 
 ## Monitoring
 - Prometheus: `/metrics` endpoint
-- Grafana: dashboards in fleet-infra
+- Grafana: dashboards
 - Loki: log aggregation
 
 ## Secrets
-All secrets in gopass:
-- `rmi/pryscraper/admin_key`
-- `rmi/pryscraper/db_password`
-- _see AGENTS.md for full list_
+All secrets in gopass (see AGENTS.md for full list).
 
 Loaded via docker `--env-file` or systemd `EnvironmentFile`.
 
 ## Firewall
-- Public: 80, 443 (nginx)
-- Internal: 8005 (localhost only, behind nginx)
-- Tailscale: 8005 for admin access
+- Public ports: nginx
+- Internal: localhost only, behind nginx
 
 ## Backup
-- Code: forgejo (source of truth) + Hydra bare mirror (daily 04:00)
-- Data: DB snapshot to R2 (daily)
+- Code: forgejo (source of truth)
+- Data: DB snapshot daily
 - Config: gopass
