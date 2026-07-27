@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Sessions"])
 
+
 @router.post("/v1/session/create", tags=["Sessions"], summary="Create a persistent browser session")
 async def create_session(url: str = Body(...), persist: bool = True) -> dict[str, Any]:
     """Create a persistent browser session."""
@@ -49,7 +50,7 @@ async def destroy_session(
     from sessions import delete_session, save_session
 
     if save_state:
-        state = await automator.get_session_state(session_id)
+        state = await automator.get_session_state(session_id)  # type: ignore[attr-defined]  # dynamic method on PryAutomator
         if state:
             await save_session(
                 session_id=session_id,
@@ -65,7 +66,12 @@ async def destroy_session(
     return {"success": True, "data": {"session_id": session_id, "destroyed": success}}
 
 
-@router.get("/v1/sessions", tags=["Sessions"], summary="List all persistent sessions", description="List all warmed cookie sessions that are currently persisted to disk.")
+@router.get(
+    "/v1/sessions",
+    tags=["Sessions"],
+    summary="List all persistent sessions",
+    description="List all warmed cookie sessions that are currently persisted to disk.",
+)
 async def list_sessions() -> dict[str, Any]:
     """List all persistent sessions (active + saved)."""
     from sessions import list_sessions as list_saved_sessions
@@ -91,7 +97,7 @@ async def save_session_state(
     """Save a session's current state (cookies, storage) to disk."""
     from sessions import save_session as save_session_to_disk
 
-    state = await automator.get_session_state(session_id)
+    state = await automator.get_session_state(session_id)  # type: ignore[attr-defined]  # dynamic method on PryAutomator
     if not state:
         raise NotFoundError(f"Session not found: {session_id}")
 
@@ -118,7 +124,7 @@ async def restore_session(session_id: str = Body(...)) -> dict[str, Any]:
     if not data:
         raise NotFoundError(f"Saved session not found: {session_id}")
 
-    success = await automator.restore_session_state(
+    success = await automator.restore_session_state(  # type: ignore[attr-defined]  # dynamic method on PryAutomator
         session_id=session_id,
         cookies=data.get("cookies", []),
     )

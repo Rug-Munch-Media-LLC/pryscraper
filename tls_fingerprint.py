@@ -13,7 +13,7 @@ curl_cffi can impersonate real browser TLS handshakes, bypassing these checks.""
 import asyncio
 import logging
 import time
-from typing import Any, cast
+from typing import Any
 
 logger = logging.getLogger(__name__)
 

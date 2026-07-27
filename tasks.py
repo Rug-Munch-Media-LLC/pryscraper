@@ -14,7 +14,7 @@ import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any, Optional
+from typing import Any
 
 from paths import PRY_DATA_DIR
 

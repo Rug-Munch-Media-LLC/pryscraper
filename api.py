@@ -22,8 +22,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.routing import Mount as StarletteMount
-from starlette.routing import Route as StarletteRoute
+from starlette.routing import Mount as StarletteMount, Route as StarletteRoute
 
 from client import close_client
 from deps import advanced, automator, extractor, queue, ratelimiter, scraper
@@ -96,8 +95,7 @@ from x402_middleware import X402Middleware
 # service, and event. setup_logging() bridges stdlib logging through
 # structlog so that any logger.info("event", k=v) becomes a JSON record.
 try:
-    from logging_config import get_logger as _get_logger
-    from logging_config import setup_logging
+    from logging_config import get_logger as _get_logger, setup_logging
 
     setup_logging()
     logger = _get_logger(__name__)
@@ -176,7 +174,7 @@ async def mcp_json_rpc(request: Request) -> dict[str, Any]:
     """MCP JSON-RPC endpoint conforming to the 2024-11-05 spec."""
     body = await request.json()
     server = _get_mcp_server()
-    return cast(dict[str, Any], await server.handle_request(body))
+    return cast("dict[str, Any]", await server.handle_request(body))
 
 
 @mcp_app.get("/health", tags=["MCP"], summary="MCP server health")
@@ -366,7 +364,7 @@ class PryHttpMiddleware:
     def _get_header(scope: dict[str, Any], name: bytes) -> str:
         for key, value in scope.get("headers", []):
             if key.lower() == name.lower():
-                return cast(bytes, value).decode("latin-1")
+                return cast("bytes", value).decode("latin-1")
         return ""
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
