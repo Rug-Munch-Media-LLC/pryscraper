@@ -281,17 +281,27 @@ jobs:
         continue-on-error: true
 
   k6-smoke:
+    # k6 needs a RUNNING pryscraper service to test against. In PR CI the
+    # Docker Compose stack (pryscraper + FlareSolverr) would need to be built
+    # and started, and secrets (PRY_API_KEY, etc.) are not available in PR
+    # context. Runs on schedule against the live deployment instead.
+    # To enable: set K6_TARGET_URL as a repo variable (vars) or secret
+    # pointing to the deployed service (e.g., https://[INTERNAL]).
+    if: github.event_name == 'schedule'
     runs-on: docker-x64
     container:
       image: grafana/k6:latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run k6 smoke test
+      - name: Create results directory
+        run: mkdir -p tests/k6/results
+      - name: Run k6 smoke test against live deployment
         run: |
           k6 run tests/k6/smoke.js \
-            -e BASE_URL=http://pryscraper:8005 \
+            -e BASE_URL=${{ vars.K6_TARGET_URL || 'https://[INTERNAL]' }} \
             --summary-export=tests/k6/results/smoke-summary.json
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: k6-smoke-report
           path: tests/k6/results/
