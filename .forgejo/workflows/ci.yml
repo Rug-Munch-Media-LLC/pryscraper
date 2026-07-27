@@ -169,9 +169,9 @@ jobs:
           uv venv --python 3.11 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Test with coverage
-        # TODO: Fix 1 pre-existing test failure (test_api_key_required_when_set)
-        continue-on-error: true
-        run: source .venv/bin/activate && pytest tests/ -x -q --tb=short --cov=pryscraper --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov -m "not integration" || echo "Tests have known failures"
+        # Coverage floor: 45% (matches pyproject.toml [tool.coverage.report] fail_under)
+        # Tests MUST pass — blocks the pipeline on failure or insufficient coverage
+        run: source .venv/bin/activate && pytest tests/ -x -q --tb=short --cov=pryscraper --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=45 -m "not integration"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
@@ -292,6 +292,23 @@ jobs:
         with:
           name: trivy-results
           path: trivy-results.sarif
+
+  pip-audit:
+    runs-on: docker-x64
+    needs: test
+    container:
+      image: python:3.12-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pip-audit + deps
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc git ca-certificates curl
+          rm -rf /var/lib/apt/lists/*
+          pip install pip-audit
+          pip install -r requirements.txt 2>/dev/null || true
+      - name: Run pip-audit (blocking on HIGH/CRITICAL)
+        run: |
+          pip-audit --fail-on=high --desc 2>&1 || { echo "❌ pip-audit found HIGH/CRITICAL vulnerabilities — fix before merge"; exit 1; }
 
   deps-freshness:
     runs-on: docker-x64
