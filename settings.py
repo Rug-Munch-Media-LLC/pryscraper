@@ -81,7 +81,7 @@ class PrySettings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # LLM providers
-    ollama_url: str = "http://100.104.130.92:11434"
+    ollama_url: str = "http://localhost:11434"
     openrouter_api_key: str = ""
     openai_api_key: str = ""
     anthropic_api_key: str = ""

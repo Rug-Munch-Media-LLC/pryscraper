@@ -30,7 +30,7 @@
 - 2026-07-03: Added `/v1/templates/batch` to x402 paid endpoints + pricing
 - 2026-07-03: Added `/metrics` endpoint + Prometheus counters/histograms for requests and scrapes
 - 2026-07-03: Added Redis + Postgres services to `docker-compose.yml`
-- 2026-07-03: Fixed Ollama URL to Talos (`100.104.130.92:11434`)
+- 2026-07-03: Fixed Ollama URL to [INTERNAL_HOST]
 - 2026-07-03: Added `LLMRegistry.complete_or_empty()` graceful fallback
 - 2026-07-03: Regenerated `requirements.txt`; added pinned `requirements.lock`
 - 2026-07-06: Phase 0 hardening cherry-picked onto main: JWT fail-closed (already subsumed by canonical), secrets_backend integration, captcha_solver wire-in, validate_live.py, mcp_production split into pry_mcp sub-package, router split, dedup root modules (refactor), x402 constants extraction

@@ -259,7 +259,7 @@ Goal: the 10-tier chain becomes a 5-tier chain, every tier verified, fallback wo
    - `cookie_warmer.py` → keep as opt-in endpoint; the "warming" logic is theatrical.
    - `adaptive.py` → fix the `_compute_information_gain` bug, then keep as opt-in `/v1/crawl/adaptive`.
 3. **Fix `parser.py.tmp`** deletion (already in Phase 0).
-4. **Fix `extractor.py:23`** — read `OLLAMA_BASE` from env (default to `http://100.104.130.92:11434` per AGENTS.md).
+4. **Fix `extractor.py:23`** — read `OLLAMA_BASE` from env (default to `http://localhost:11434`).
 5. **Fix `extraction.py:240 compute_embedding`** — use `sentence-transformers/all-MiniLM-L6-v2` (384-dim) or remove the fallback dimension mismatch.
 6. **Fix `ultimate_scraper.py:33-46`** — new docstring matches the 5-tier reality.
 7. **Add `playwright-stealth`** to `pyproject.toml`. Remove `stealth_engine.py`.
@@ -316,7 +316,7 @@ Goal: ship-ready. 80% test coverage that's real, not theater. Observability that
    - `security.yml` (bandit + pip-audit + gitleaks)
    - `docker.yml` (build + smoke)
    - `deploy.yml` (push to Talos, run healthcheck)
-   - **Self-hosted runner** on Talos (`100.104.130.92`) — no GitHub Actions minutes.
+   - **Self-hosted runner** on [INTERNAL_HOST] — no GitHub Actions minutes.
 4. **Observability** — wire OpenTelemetry OTLP exporter to a real backend (Grafana Cloud free tier, or local Tempo on Talos). Real distributed tracing across `httpx`, `playwright`, `db`.
 5. **Structured logging** — JSON logs with `request_id`, `tenant_id`, `user_id`, `route`, `latency_ms`. Forward to Loki (free tier) or write to journald on Talos.
 6. **OpenAPI SDK generation** — drop `pry_sdk.py` (130 LOC hand-maintained), generate `pry-sdk-python` from `openapi.json`. Generate `pry-sdk-js`. Publish to PyPI as `pry-scraper-sdk` and to npm as `@pry/sdk`.
