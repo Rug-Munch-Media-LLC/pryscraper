@@ -75,6 +75,11 @@ dev = [
     "commitizen>=3.12.0",
     "hypothesis>=6.0.0",
     "pact-python>=2.0.0",
+    "vulture>=2.16",
+    "radon>=6.0",
+    "interrogate>=1.7",
+    "deptry>=0.25",
+    "pip-audit>=2.10",
 ]
 
 [project.scripts]
@@ -176,3 +181,12 @@ exclude_lines = [
     "raise NotImplementedError",
     "pass",
 ]
+
+[tool.deptry]
+ignore = ["DEP002", "DEP003"]
+
+[tool.interrogate]
+fail-under = 40
+ignore-init-method = true
+ignore-init-module = true
+exclude = ["tests/*", "setup.py", "browser-extension/*", "shopify-app/*"]
