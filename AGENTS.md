@@ -38,16 +38,26 @@ Multi-source crypto intelligence crawler (pryscraper). Scraper, extractor, parse
 - apify (Apify actor SDK)
 - playwright-stealth (anti-detection)
 
-## 🚨 CRITICAL RULES
+## 🚨 GIT POLICY — NON-NEGOTIABLE
+
+1. **NEVER commit .env files, credentials, API keys, or tokens**
+2. **NEVER use HTTPS remotes with embedded passwords — SSH only**
+3. **NEVER commit before gitleaks passes** (`gitleaks detect --no-git`)
+4. **NEVER push to main without lefthook pre-commit passing**
+5. **All secrets come from gopass — NEVER hardcoded**
+6. **All repos must have: .gitignore, .gitleaks.toml, .lefthook.yml**
+7. **Internal IPs/hostnames use [INTERNAL] placeholder in public repos**
+8. **Any agent caught leaking secrets will have their work rejected**
+
+## 🚨 REPO-SPECIFIC RULES
 
 1. **No nested repos.** Don't commit other complete project trees inside this one.
-2. **No secrets.** Never commit `.secrets/`, `.env`, `*.pem`, `*.key`, `*.crt`. Use a secrets manager.
-3. **No data blobs.** Don't commit `*.zip`, `*.parquet`, model weights, sqlite files.
-4. **No broken files.** Shell heredoc accidents must be caught before commit.
-5. **No duplicate scaffolds.** If a `backend/` or `frontend/` subdir exists at root, it's either THE app or bloat.
-6. **Update STATUS.md before committing.** Builders must know where we are.
-7. **Read DECISIONS.md before architectural changes.** Don't repeat rejected designs.
-8. **Respect dual licensing.** When contributing, the core/ files are MIT (any PR welcome). The stealth/ files (listed in LICENSE-BSL-STEALTH) are BSL 1.1 -- only Rug Munch Media LLC can modify them. PRs touching BSL files will be rejected.
+2. **No data blobs.** Don't commit `*.zip`, `*.parquet`, model weights, sqlite files.
+3. **No broken files.** Shell heredoc accidents must be caught before commit.
+4. **No duplicate scaffolds.** If a `backend/` or `frontend/` subdir exists at root, it's either THE app or bloat.
+5. **Update STATUS.md before committing.** Builders must know where we are.
+6. **Read DECISIONS.md before architectural changes.** Don't repeat rejected designs.
+7. **Respect dual licensing.** When contributing, the core/ files are MIT (any PR welcome). The stealth/ files (listed in LICENSE-BSL-STEALTH) are BSL 1.1 -- only Rug Munch Media LLC can modify them. PRs touching BSL files will be rejected.
 
 ## Commands
 ```bash
