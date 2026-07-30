@@ -14,7 +14,7 @@ on:
     - cron: '0 */6 * * *'
 
 env:
-  UV_BIN: /root/.local/bin/uv
+  UV_BIN: $HOME/.local/bin/uv
 
 jobs:
   pre-commit-mirror:
@@ -100,8 +100,8 @@ jobs:
       - name: Install uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          ln -sf /root/.local/bin/uv /usr/local/bin/uv
-          ln -sf /root/.local/bin/uvx /usr/local/bin/uvx
+          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
+          ln -sf $HOME/.local/bin/uvx /usr/local/bin/uvx
 
       - name: Setup Python
         run: |
@@ -138,8 +138,8 @@ jobs:
         run: |
           apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          ln -sf /root/.local/bin/uv /usr/local/bin/uv
-          ln -sf /root/.local/bin/uvx /usr/local/bin/uvx
+          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
+          ln -sf $HOME/.local/bin/uvx /usr/local/bin/uvx
           uv python install 3.11
           uv venv --python 3.11 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
@@ -163,8 +163,8 @@ jobs:
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl ca-certificates && rm -rf /var/lib/apt/lists/*
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          ln -sf /root/.local/bin/uv /usr/local/bin/uv
-          ln -sf /root/.local/bin/uvx /usr/local/bin/uvx
+          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
+          ln -sf $HOME/.local/bin/uvx /usr/local/bin/uvx
           uv python install 3.11
           uv venv --python 3.11 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
@@ -195,7 +195,7 @@ jobs:
           apt-get install -y --no-install-recommends nodejs
           rm -rf /var/lib/apt/lists/*
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          ln -sf /root/.local/bin/uv /usr/local/bin/uv
+          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
           uv python install 3.11 && uv venv --python 3.11 .venv
           uv pip install --python .venv/bin/python -e ".[dev]" mutmut
           pip install crucible-harden 2>/dev/null || echo "Crucible not on PyPI yet"
@@ -249,8 +249,8 @@ jobs:
         run: |
           apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          ln -sf /root/.local/bin/uv /usr/local/bin/uv
-          ln -sf /root/.local/bin/uvx /usr/local/bin/uvx
+          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
+          ln -sf $HOME/.local/bin/uvx /usr/local/bin/uvx
           uv python install 3.11
           uv venv --python 3.11 /tmp/bandit-venv
           uv pip install --python /tmp/bandit-venv/bin/python bandit
@@ -367,7 +367,7 @@ jobs:
       - name: Setup uv + deps
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          ln -sf /root/.local/bin/uv /usr/local/bin/uv
+          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
           uv python install 3.11 && uv venv --python 3.11 .venv
           uv pip install --python .venv/bin/python -e ".[dev]" hypothesis
       - name: Run fuzz tests
@@ -397,7 +397,7 @@ jobs:
       - name: Setup uv + deps
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          ln -sf /root/.local/bin/uv /usr/local/bin/uv
+          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
           uv python install 3.11 && uv venv --python 3.11 .venv
           uv pip install --python .venv/bin/python -e ".[dev]" pact-python
       - name: Run consumer contract tests
