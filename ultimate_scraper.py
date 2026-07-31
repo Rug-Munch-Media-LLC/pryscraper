@@ -9,6 +9,8 @@ Beats Cloudflare, DataDome, Akamai, Imperva, PerimeterX, and generic blocks."""
 # Licensed under Business Source License 1.1 — see LICENSE-BSL-STEALTH.
 # Change Date: 2029-01-01 (converts to MIT).
 
+from __future__ import annotations
+
 import importlib.util
 import logging
 import os
