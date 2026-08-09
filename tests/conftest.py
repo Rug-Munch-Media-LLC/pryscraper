@@ -4,8 +4,10 @@
 # Licensed under MIT. See LICENSE.
 import logging
 import os
+from collections.abc import Generator
 
 import pytest
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture
@@ -112,3 +114,41 @@ def _make_lenient_logrecord() -> None:
 
 # Install the lenient LogRecord at conftest import time
 _make_lenient_logrecord()
+
+
+# ── Test isolation: disable gopass + clear auth in settings ─────
+# PrySettings now pulls api_key from secrets_backend (gopass on Talos has
+# a real pry/api_key secret). Tests must not depend on that real secret.
+# Solution: set PRY_SECRET_BACKEND=env at session scope (inherited by
+# subprocess-based tests like the SSE server test) and zero the
+# settings singleton at test scope.
+@pytest.fixture(autouse=True, scope="session")
+def _pry_disable_secrets_gopass() -> None:
+    import os
+
+    os.environ["PRY_SECRET_BACKEND"] = "env"  # noqa: S105
+    os.environ.setdefault("PRY_API_KEY", "")
+    os.environ.setdefault("PRY_OPENROUTER_API_KEY", "")
+    os.environ.setdefault("PRY_OPENAI_API_KEY", "")
+    os.environ.setdefault("PRY_ANTHROPIC_API_KEY", "")
+    os.environ.setdefault("PRY_COHERE_API_KEY", "")
+
+
+@pytest.fixture(autouse=True)
+def pry_test_auth(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+    import settings as _settings_mod
+
+    original = _settings_mod.settings.api_key
+    _settings_mod.settings.api_key = ""
+    yield
+    _settings_mod.settings.api_key = original
+
+
+@pytest.fixture
+def client() -> Generator[TestClient, None, None]:
+    from fastapi.testclient import TestClient
+
+    from api import app
+
+    with TestClient(app) as c:
+        yield c

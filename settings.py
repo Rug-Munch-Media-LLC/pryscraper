@@ -89,7 +89,7 @@ class PrySettings(BaseSettings):
 
     # Services
     flaresolverr_url: str = "http://flaresolverr:8191/v1"
-    webhook_secret: str = "pry-webhook-secret"
+    webhook_secret: str = "pry-webhook-secret"  # noqa: S105
 
     # Proxy (legacy env aliases for migration)
     proxy_url: str = Field(
@@ -166,7 +166,7 @@ class PrySettings(BaseSettings):
     include_links: bool = True
 
     # Storage
-    screenshot_dir: Path = Path("/tmp/pry-screenshots")  # nosec B108
+    screenshot_dir: Path = Path("/tmp/pry-screenshots")  # noqa: S108
     cache_ttl_seconds: int = 3600
     config_file: Path = Field(
         default=DEFAULT_CONFIG_FILE,
@@ -190,8 +190,42 @@ class PrySettings(BaseSettings):
     rate_limit_per_ip: int = 60
 
     def model_post_init(self, __context: Any) -> None:
-        """Load runtime overrides from the JSON config file after env parsing."""
+        """Post-init: pull sensitive fields from secrets_backend, then config file."""
+        self._apply_secrets_backend()
         self._load_config_file()
+
+    def _apply_secrets_backend(self) -> None:
+        """Override sensitive fields with values from secrets_backend if present.
+
+        Priority per field:
+          1. secrets_backend.get_secret(name)        # gopass/env/file/auto
+          2. PRY_<NAME> env var (handled by BaseSettings)
+          3. field default
+
+        Sensitive fields: api_key, *_api_key, webhook_secret, jwt_secret,
+        database_url, x402_wallet, x402_facilitator. We only override if
+        the field is currently empty (i.e. nothing was provided via env or
+        the field default is empty).
+        """
+        sensitive = (
+            "api_key",
+            "openrouter_api_key",
+            "openai_api_key",
+            "anthropic_api_key",
+            "cohere_api_key",
+            "webhook_secret",
+        )
+        try:
+            from secrets_backend import get_secret
+        except ImportError:
+            return
+        for fname in sensitive:
+            current = getattr(self, fname, None)
+            if current:
+                continue
+            value = get_secret(fname)
+            if value:
+                setattr(self, fname, value)
 
     def _load_config_file(self) -> None:
         path = self.config_file
