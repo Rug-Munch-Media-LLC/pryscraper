@@ -271,6 +271,14 @@ class ProxyManager:
     def get_proxy_url(self) -> str | None:
         """Get the active proxy URL. Returns None if no proxy configured."""
         c = self.active_config
+        if c.provider == "webshare":
+            # Webshare residential pool: rotate through the cached list.
+            pool_url = self.next_webshare_proxy()
+            if pool_url:
+                return pool_url
+            if c.proxy_url and c.proxy_url != "rotating":
+                return c.proxy_url
+            return None
         if c.provider == "free":
             if c.proxy_url and c.proxy_url != "rotating":
                 return c.proxy_url
@@ -348,7 +356,33 @@ class ProxyManager:
             result["free"] = FREE_PROXY_SOURCES
         if premium:
             result["premium"] = PREMIUM_PROXY_PROVIDERS
+        result["webshare"] = self.webshare_pool_info()
         return result
+
+    # ── Webshare residential pool (webshare_proxy.py) ─────────────────
+    def webshare_pool(self) -> list[str]:
+        """Return the cached Webshare residential proxy pool (env or gopass)."""
+        from webshare_proxy import load_webshare_proxies
+
+        return load_webshare_proxies()
+
+    def next_webshare_proxy(self) -> str | None:
+        """Return the next Webshare proxy (round-robin), or None if the pool is empty."""
+        from webshare_proxy import next_webshare_proxy
+
+        return next_webshare_proxy()
+
+    def webshare_pool_info(self) -> dict[str, Any]:
+        """Metadata about the Webshare pool, with credentials masked."""
+        from webshare_proxy import mask_proxy_url, webshare_source
+
+        pool = self.webshare_pool()
+        return {
+            "provider": "webshare",
+            "source": webshare_source(),
+            "count": len(pool),
+            "proxies": [mask_proxy_url(p) for p in pool],
+        }
 
     def select_provider(self, provider_tag: str, credentials: dict | None = None) -> dict[str, Any]:
         """Select a premium provider. If credentials provided, save them."""
@@ -389,6 +423,22 @@ class ProxyManager:
 
     def auto_configure_from_env(self) -> bool:
         """Check environment variables for proxy credentials and auto-configure."""
+        # Webshare residential pool: WEBSHARE_PROXY_LIST env takes priority.
+        # gopass-only availability stays lazy (on-demand via webshare_pool())
+        # so a provisioned secret never surprises the active config.
+        if os.getenv("WEBSHARE_PROXY_LIST") and self.webshare_pool():
+            self.credentials["webshare"] = ProxyConfig(
+                provider="webshare",
+                proxy_url="",
+                proxy_type="http",
+                rotation="pool",
+                auto_rotate=True,
+            )
+            if not self.active_config.provider or self.active_config.provider == "free":
+                self.active_config = self.credentials["webshare"]
+            self._save_credentials()
+            self._save_config()
+            return True
         for provider in PREMIUM_PROXY_PROVIDERS:
             tag = provider["tag"]
             env_prefix = f"PRY_PROXY_{tag.upper()}_"

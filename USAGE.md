@@ -353,6 +353,7 @@ POST /mcp/call
 | `PRY_URL` | `http://localhost:8005` | API endpoint for CLI |
 | `TOR_ENABLED` | `false` | Enable Tor routing |
 | `PROXY_URL` | — | HTTP/SOCKS proxy URL |
+| `WEBSHARE_PROXY_LIST` | — | Space-separated Webshare residential proxies (`http://user:pass@host:port`). Falls back to gopass `rmi/infra/webshare_proxy_list` when unset (see `webshare_proxy.py`). |
 | `RATE_LIMIT_RPM` | `120` | Requests per minute |
 | `OPENROUTER_API_KEY` | — | For vision endpoint |
 

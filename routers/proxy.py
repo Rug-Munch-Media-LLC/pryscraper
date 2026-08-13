@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Proxy"])
 
+
 @router.get("/v1/proxy/providers", tags=["Proxy"], summary="List all available proxy providers")
 async def list_proxy_providers() -> dict[str, Any]:
     """List free + premium proxy providers with affiliate details."""
@@ -25,7 +26,9 @@ async def list_proxy_providers() -> dict[str, Any]:
     return {"success": True, "data": ProxyManager().list_providers()}
 
 
-@router.post("/v1/proxy/signup", tags=["Proxy"], summary="Open affiliate signup link for a provider")
+@router.post(
+    "/v1/proxy/signup", tags=["Proxy"], summary="Open affiliate signup link for a provider"
+)
 async def proxy_signup(provider: str = Body(...)) -> dict[str, Any]:
     """Get the affiliate signup URL for a proxy provider.
 
@@ -39,7 +42,9 @@ async def proxy_signup(provider: str = Body(...)) -> dict[str, Any]:
     return {"success": True, "data": {"signup_url": url, "provider": provider}}
 
 
-@router.get("/v1/proxy/referrals", tags=["Proxy"], summary="List proxy provider affiliate referrals")
+@router.get(
+    "/v1/proxy/referrals", tags=["Proxy"], summary="List proxy provider affiliate referrals"
+)
 async def list_proxy_referrals() -> dict[str, Any]:
     """Return the curated proxy provider affiliate catalog (proxy_referrals.py).
 
@@ -110,6 +115,19 @@ async def proxy_test() -> dict[str, Any]:
     return {"success": True, "data": {"active": True, **result}}
 
 
+@router.get("/v1/proxy/pool", tags=["Proxy"], summary="List the Webshare residential proxy pool")
+async def proxy_pool() -> dict[str, Any]:
+    """Return the Webshare residential proxy pool (credentials masked).
+
+    Loaded from the WEBSHARE_PROXY_LIST env var or, best-effort, from
+    gopass (rmi/infra/webshare_proxy_list). Cached per process.
+    """
+    from proxy_manager import ProxyManager
+
+    pm = ProxyManager()
+    return {"success": True, "data": pm.webshare_pool_info()}
+
+
 @router.get("/v1/proxy/status", tags=["Proxy"], summary="Get current proxy status")
 async def proxy_status() -> dict[str, Any]:
     """Get current proxy configuration and available providers."""
@@ -126,7 +144,9 @@ async def proxy_status() -> dict[str, Any]:
     }
 
 
-@router.post("/v1/proxy/recommend", tags=["Proxy"], summary="Get proxy recommendation after a block")
+@router.post(
+    "/v1/proxy/recommend", tags=["Proxy"], summary="Get proxy recommendation after a block"
+)
 async def proxy_recommend(last_error: str = Body("")) -> dict[str, Any]:
     """After a scrape fails with anti-bot detection, get a recommendation
     for which premium proxy provider to sign up with."""
