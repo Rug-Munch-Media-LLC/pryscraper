@@ -53,7 +53,6 @@ class SchemaExtractor:
                 return {k: v for k, v in merged.items() if v is not None and v != ""}
         except Exception:  # noqa: BLE001
             registry.record_service_result("ollama", False)
-            pass
 
         return pattern_result
 

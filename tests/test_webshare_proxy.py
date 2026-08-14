@@ -5,6 +5,8 @@
 # Licensed under MIT. See LICENSE.
 """Tests for the Webshare residential proxy pool loader."""
 
+from collections.abc import Iterator
+
 import pytest
 
 import webshare_proxy
@@ -25,7 +27,7 @@ _SAMPLE = (
 
 
 @pytest.fixture(autouse=True)
-def _clean_webshare_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+def _clean_webshare_cache(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Isolate the module-level cache + rotation state per test."""
     monkeypatch.delenv(WEBSHARE_PROXY_LIST_ENV, raising=False)
     clear_cache()

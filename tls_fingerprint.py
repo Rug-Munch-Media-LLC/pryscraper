@@ -85,7 +85,7 @@ class TLSScraper:
         impersonate: str = "",
         headers: dict[str, str] | None = None,
         proxy: str = "",
-        timeout: int = 30,
+        timeout_s: int = 30,
         cookies: dict[str, str] | None = None,
         follow_redirects: bool = True,
     ) -> dict[str, Any]:
@@ -96,7 +96,7 @@ class TLSScraper:
             impersonate: Browser fingerprint to impersonate (e.g., "chrome131", "firefox132", "safari17_0")
             headers: Additional HTTP headers
             proxy: Proxy URL (e.g., "http://user:pass@proxy.example.com:8080")
-            timeout: Request timeout in seconds
+            timeout_s: Request timeout in seconds
             cookies: Cookies to send with the request
             follow_redirects: Whether to follow HTTP redirects
 
@@ -129,7 +129,7 @@ class TLSScraper:
                 headers=default_headers,
                 cookies=cookies or {},
                 proxy=proxy or None,
-                timeout=timeout,
+                timeout=timeout_s,
                 allow_redirects=follow_redirects,
             ) as session:
                 resp = await session.get(url)
@@ -158,13 +158,13 @@ class TLSScraper:
         fingerprints: list[str] | None = None,
         headers: dict[str, str] | None = None,
         proxy: str = "",
-        timeout: int = 30,
+        timeout_s: int = 30,
     ) -> dict[str, Any]:
         """Try multiple browser fingerprints until one succeeds (anti-fingerprint rotation)."""
         fingerprints = fingerprints or BROWSER_FINGERPRINTS[:10]
         for fp in fingerprints:
             result = await self.fetch(
-                url, impersonate=fp, headers=headers, proxy=proxy, timeout=timeout
+                url, impersonate=fp, headers=headers, proxy=proxy, timeout_s=timeout_s
             )
             if result.get("success") and result.get("status_code", 0) < 400:
                 result["matched_fingerprint"] = fp

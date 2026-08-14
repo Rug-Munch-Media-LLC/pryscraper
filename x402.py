@@ -164,7 +164,7 @@ def _encode_payment_required_body(body: dict[str, Any]) -> str:
 def _decode_payment_signature(header: str) -> dict[str, Any] | None:
     """Decode the PAYMENT-SIGNATURE header per x402 spec."""
     try:
-        return cast(dict[str, Any], json.loads(base64.b64decode(header).decode()))
+        return cast("dict[str, Any]", json.loads(base64.b64decode(header).decode()))
     except (ValueError, OSError):
         return None
 

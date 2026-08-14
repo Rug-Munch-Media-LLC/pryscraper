@@ -13,6 +13,9 @@ import logging
 import random
 from pathlib import Path
 
+# SystemRandom: crypto-grade entropy so fingerprint noise is not predictable.
+_RNG = random.SystemRandom()
+
 logger = logging.getLogger(__name__)
 
 SCRIPTS_DIR = Path(__file__).parent / "stealth_scripts"
@@ -34,7 +37,7 @@ class StealthEngine:
 
     def webgl_noise(self) -> str:
         """Add random noise to WebGL rendering to prevent GPU fingerprinting."""
-        noise = random.uniform(0.0001, 0.001)
+        noise = _RNG.uniform(0.0001, 0.001)
         return f"""
         (() => {{
             const noise = {noise};
@@ -56,7 +59,7 @@ class StealthEngine:
 
     def canvas_noise(self) -> str:
         """Add random pixel noise to Canvas fingerprinting."""
-        noise = random.uniform(0.00005, 0.0005)
+        noise = _RNG.uniform(0.00005, 0.0005)
         return f"""
         (() => {{
             const noise = {noise};

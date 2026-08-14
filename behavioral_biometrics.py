@@ -15,6 +15,9 @@ import math
 import random
 from typing import Any
 
+# SystemRandom: crypto-grade entropy so behavior simulation is not predictable.
+_RNG = random.SystemRandom()
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,12 +44,12 @@ class HumanBehaviorSimulator:
 
         # Random control points for bezier curve
         ctrl1 = (
-            start[0] + (end[0] - start[0]) * random.uniform(0.2, 0.4) + random.uniform(-50, 50),
-            start[1] + (end[1] - start[1]) * random.uniform(0.2, 0.4) + random.uniform(-50, 50),
+            start[0] + (end[0] - start[0]) * _RNG.uniform(0.2, 0.4) + _RNG.uniform(-50, 50),
+            start[1] + (end[1] - start[1]) * _RNG.uniform(0.2, 0.4) + _RNG.uniform(-50, 50),
         )
         ctrl2 = (
-            start[0] + (end[0] - start[0]) * random.uniform(0.6, 0.8) + random.uniform(-30, 30),
-            start[1] + (end[1] - start[1]) * random.uniform(0.6, 0.8) + random.uniform(-30, 30),
+            start[0] + (end[0] - start[0]) * _RNG.uniform(0.6, 0.8) + _RNG.uniform(-30, 30),
+            start[1] + (end[1] - start[1]) * _RNG.uniform(0.6, 0.8) + _RNG.uniform(-30, 30),
         )
 
         path: list[dict[str, float]] = []
@@ -68,8 +71,8 @@ class HumanBehaviorSimulator:
             # Speed: slow at start/end, fast in middle
             speed_mod = math.sin(t * math.pi) * 0.5 + 0.5  # 0 at endpoints, 1 in middle
             # Add tiny jitter
-            x += random.uniform(-2, 2)
-            y += random.uniform(-2, 2)
+            x += _RNG.uniform(-2, 2)
+            y += _RNG.uniform(-2, 2)
             path.append(
                 {
                     "x": round(x, 1),
@@ -86,9 +89,9 @@ class HumanBehaviorSimulator:
         words = content_length / 5  # Rough estimate
         seconds = (words / 250) * 60
         # Add variance: 60-130% of average (some skim, some read carefully)
-        variance = random.uniform(0.6, 1.3)
+        variance = _RNG.uniform(0.6, 1.3)
         # Add micro-pauses every ~20 words
-        micro_pauses = max(0, words // 20) * random.uniform(0.5, 2.0)
+        micro_pauses = max(0, words // 20) * _RNG.uniform(0.5, 2.0)
         return round(seconds * variance + micro_pauses, 2)
 
     def scroll_pattern(self, page_height: int, viewport_height: int = 800) -> list[dict[str, Any]]:
@@ -104,30 +107,30 @@ class HumanBehaviorSimulator:
             {
                 "y": current_y,
                 "speed": "fast",
-                "pause_after": random.uniform(0.5, 1.5),
+                "pause_after": _RNG.uniform(0.5, 1.5),
             }
         )
 
         while current_y < page_height - viewport_height:
             # Decide: continue down, or scroll back up
-            if random.random() < 0.15 and current_y > viewport_height:
+            if _RNG.random() < 0.15 and current_y > viewport_height:
                 # Scroll back up a bit
-                current_y = max(0, current_y - random.randint(100, 400))
+                current_y = max(0, current_y - _RNG.randint(100, 400))
                 patterns.append(
                     {
                         "y": current_y,
                         "speed": "slow",
-                        "pause_after": random.uniform(1.0, 3.0),
+                        "pause_after": _RNG.uniform(1.0, 3.0),
                         "action": "scroll_back",
                     }
                 )
             else:
                 # Scroll down a bit
-                scroll_amount = random.randint(200, 600)
+                scroll_amount = _RNG.randint(200, 600)
                 current_y = min(page_height, current_y + scroll_amount)
                 # Pause longer on certain content (images, headings)
                 pause = (
-                    random.uniform(1.0, 4.0) if random.random() < 0.2 else random.uniform(0.2, 1.0)
+                    _RNG.uniform(1.0, 4.0) if _RNG.random() < 0.2 else _RNG.uniform(0.2, 1.0)
                 )
                 patterns.append(
                     {
@@ -168,15 +171,15 @@ class HumanBehaviorSimulator:
         words = text.split(" ")
         for i, word in enumerate(words):
             if word.lower().strip(".,!?") in common_words:
-                delay = random.uniform(0.05, 0.15)  # Fast for common words
+                delay = _RNG.uniform(0.05, 0.15)  # Fast for common words
             else:
-                delay = random.uniform(0.1, 0.3)  # Slower for less common
+                delay = _RNG.uniform(0.1, 0.3)  # Slower for less common
             # Occasional "thinking" pause
-            if random.random() < 0.05:
-                delay += random.uniform(0.5, 2.0)
+            if _RNG.random() < 0.05:
+                delay += _RNG.uniform(0.5, 2.0)
             # Space between words: faster
             if i < len(words) - 1:
-                delay += random.uniform(0.05, 0.12)
+                delay += _RNG.uniform(0.05, 0.12)
             timings.append({"char": word, "delay_ms": round(delay * 1000)})
         return timings
 
@@ -184,12 +187,12 @@ class HumanBehaviorSimulator:
         """How long a human takes to decide to click something they see.
         Range: 200ms (impulsive) to 2000ms (cautious)."""
         # Most clicks are fast (200-500ms)
-        r = random.random()
+        r = _RNG.random()
         if r < 0.4:
-            return random.uniform(0.2, 0.5)  # Impulsive
+            return _RNG.uniform(0.2, 0.5)  # Impulsive
         if r < 0.9:
-            return random.uniform(0.5, 1.2)  # Normal
-        return random.uniform(1.2, 2.5)  # Cautious (rare)
+            return _RNG.uniform(0.5, 1.2)  # Normal
+        return _RNG.uniform(1.2, 2.5)  # Cautious (rare)
 
     def form_filling_sequence(self, field_count: int) -> list[dict[str, Any]]:
         """Generate realistic form filling sequence with field-switch delays."""
@@ -200,14 +203,14 @@ class HumanBehaviorSimulator:
                 {
                     "action": "type",
                     "field_index": i,
-                    "duration_ms": random.randint(500, 3000),
+                    "duration_ms": _RNG.randint(500, 3000),
                 }
             )
             # Tab to next field (or submit on last)
             if i < field_count - 1:
-                sequence.append({"action": "tab", "pause_ms": random.randint(200, 800)})
-        sequence.append({"action": "review", "pause_ms": random.randint(500, 2000)})
-        sequence.append({"action": "submit", "duration_ms": random.randint(300, 1000)})
+                sequence.append({"action": "tab", "pause_ms": _RNG.randint(200, 800)})
+        sequence.append({"action": "review", "pause_ms": _RNG.randint(500, 2000)})
+        sequence.append({"action": "submit", "duration_ms": _RNG.randint(300, 1000)})
         return sequence
 
 

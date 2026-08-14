@@ -13,6 +13,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -165,7 +166,7 @@ def main() -> int:
     if args.max_templates:
         templates = templates[: args.max_templates]
 
-    results = {
+    results: dict[str, Any] = {
         "total": len(templates),
         "no_test_url": 0,
         "blocked": 0,

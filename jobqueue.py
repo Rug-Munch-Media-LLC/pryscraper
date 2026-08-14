@@ -44,7 +44,11 @@ class JobQueue:
         return self._redis
 
     async def create_job(
-        self, job_type: str, payload: dict, webhook: str | None = None, timeout: int = 300
+        self,
+        job_type: str,
+        payload: dict,
+        webhook: str | None = None,
+        timeout_s: int = 300,
     ) -> str:
         """Create a new job and return its ID."""
         job_id = f"job_{uuid.uuid4().hex[:16]}"
@@ -56,13 +60,13 @@ class JobQueue:
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat(),
             "webhook": webhook,
-            "timeout": timeout,
+            "timeout": timeout_s,
             "result": None,
             "error": None,
         }
         redis = await self._get_redis()
         if redis:
-            await redis.set(f"pry:job:{job_id}", json.dumps(job), ex=timeout + 60)
+            await redis.set(f"pry:job:{job_id}", json.dumps(job), ex=timeout_s + 60)
             await redis.rpush("pry:queue", job_id)
         else:
             self._local_jobs[job_id] = job

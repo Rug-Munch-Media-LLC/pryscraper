@@ -1,6 +1,4 @@
 <?php
-
-<?php
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Rug Munch Media LLC
 // Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
@@ -12,7 +10,7 @@
  * Description: Competitor price & content monitoring directly in your WordPress dashboard. Track competitors, get alerts, and sync data to WooCommerce.
  * Version: 1.0.0
  * Author: Rug Munch Media LLC
- * License: GPL v2 or later
+ * License: MIT
  * Text Domain: pry-monitor
  *
  * WC requires at least: 8.0
@@ -142,11 +140,16 @@ function pry_monitor_competitors_page() {
     }
     if (isset($_GET['delete'])) {
         $index = intval($_GET['delete']);
-        $competitors = get_option('pry_competitors', []);
-        if (isset($competitors[$index])) {
-            unset($competitors[$index]);
-            update_option('pry_competitors', array_values($competitors));
-            echo '<div class="notice notice-success"><p>Competitor removed.</p></div>';
+        $nonce = isset($_GET['_wpnonce']) ? sanitize_text_field(wp_unslash($_GET['_wpnonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'pry_delete_competitor_' . $index)) {
+            echo '<div class="notice notice-error"><p>Security check failed. Competitor was not removed.</p></div>';
+        } else {
+            $competitors = get_option('pry_competitors', []);
+            if (isset($competitors[$index])) {
+                unset($competitors[$index]);
+                update_option('pry_competitors', array_values($competitors));
+                echo '<div class="notice notice-success"><p>Competitor removed.</p></div>';
+            }
         }
     }
 
@@ -181,7 +184,7 @@ function pry_monitor_competitors_page() {
                             <td><a href="<?php echo esc_url($comp['url']); ?>" target="_blank"><?php echo esc_html($comp['url']); ?></a></td>
                             <td><?php echo esc_html($comp['added']); ?></td>
                             <td>
-                                <a href="<?php echo admin_url('admin.php?page=pry-monitor-competitors&delete=' . $i); ?>" class="button button-small" onclick="return confirm('Remove this competitor?')">Remove</a>
+                                <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=pry-monitor-competitors&delete=' . $i), 'pry_delete_competitor_' . $i)); ?>" class="button button-small" onclick="return confirm('Remove this competitor?')">Remove</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -341,7 +344,8 @@ function pry_monitor_woo_page() {
     <div class="wrap">
         <h1>WooCommerce Product Sync</h1>
         <p>Import competitor products directly into your WooCommerce store. Map fields from competitor data to WooCommerce product fields.</p>
-        <form method="post" style="background:#fff;padding:20px;border:1px solid #ccd0d4;max-width:600px;">
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="background:#fff;padding:20px;border:1px solid #ccd0d4;max-width:600px;">
+            <input type="hidden" name="action" value="pry_woo_import">
             <?php wp_nonce_field('pry_woo_import'); ?>
             <div class="pry-form-field">
                 <label for="import_url">Competitor Product URL</label>
@@ -417,6 +421,9 @@ function pry_monitor_proxy_page() {
 // ── Bulk Scan Handler ──
 add_action('admin_post_pry_bulk_scan_competitors', 'pry_bulk_scan_handler');
 function pry_bulk_scan_handler() {
+    if (!current_user_can('manage_options')) {
+        wp_die('You do not have permission to perform this action.');
+    }
     if (!wp_verify_nonce($_POST['_wpnonce'], 'pry_bulk_scan')) {
         wp_die('Security check failed');
     }
@@ -434,6 +441,9 @@ function pry_bulk_scan_handler() {
 // ── WooCommerce Import Handler ──
 add_action('admin_post_pry_woo_import', 'pry_woo_import_handler');
 function pry_woo_import_handler() {
+    if (!current_user_can('manage_options')) {
+        wp_die('You do not have permission to perform this action.');
+    }
     if (!wp_verify_nonce($_POST['_wpnonce'], 'pry_woo_import') || !class_exists('WooCommerce')) {
         wp_die('Security check failed or WooCommerce not active');
     }

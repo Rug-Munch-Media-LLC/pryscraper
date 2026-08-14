@@ -17,12 +17,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Webhooks"])
 
+
 @router.post(
     "/v1/webhooks/test",
     tags=["Webhooks"],
     summary="Test webhook delivery",
 )
-async def test_webhook(
+async def webhook_test_route(
     url: str = Body(...),
     payload: dict[str, Any] | None = Body(None),
 ) -> dict[str, Any]:

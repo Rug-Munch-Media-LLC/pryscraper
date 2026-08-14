@@ -48,7 +48,7 @@ def get_template(template_id: str) -> dict[str, Any] | None:
     if not path.exists():
         return None
     try:
-        return cast(dict[str, Any], json.loads(path.read_text()))
+        return cast("dict[str, Any]", json.loads(path.read_text()))
     except (json.JSONDecodeError, OSError):
         return None
 

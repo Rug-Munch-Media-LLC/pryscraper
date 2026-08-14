@@ -32,6 +32,8 @@ def test_camoufox_config_completeness() -> None:
         assert "window" in config
         # Screen should be realistic
         sx, sy = config["screen"]
-        assert sx >= 1024 and sy >= 768
+        assert sx >= 1024
+        assert sy >= 768
         wx, wy = config["window"]
-        assert wx <= sx and wy <= sy
+        assert wx <= sx
+        assert wy <= sy

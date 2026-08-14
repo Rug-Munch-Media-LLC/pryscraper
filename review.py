@@ -93,7 +93,7 @@ async def approve_review(
         return {"error": f"Review not found: {review_id}"}
 
     try:
-        item = cast(dict[str, Any], json.loads(path.read_text()))
+        item = cast("dict[str, Any]", json.loads(path.read_text()))
         item["status"] = "approved"
         item["reviewed_by"] = reviewer
         item["reviewed_at"] = datetime.now(UTC).isoformat()
@@ -117,7 +117,7 @@ async def reject_review(
         return {"error": f"Review not found: {review_id}"}
 
     try:
-        item = cast(dict[str, Any], json.loads(path.read_text()))
+        item = cast("dict[str, Any]", json.loads(path.read_text()))
         item["status"] = "rejected"
         item["reviewed_by"] = reviewer
         item["reviewed_at"] = datetime.now(UTC).isoformat()
@@ -164,7 +164,7 @@ def get_review_detail(review_id: str) -> dict[str, Any] | None:
     if not path.exists():
         return None
     try:
-        return cast(dict[str, Any], json.loads(path.read_text()))
+        return cast("dict[str, Any]", json.loads(path.read_text()))
     except (json.JSONDecodeError, OSError):
         return None
 

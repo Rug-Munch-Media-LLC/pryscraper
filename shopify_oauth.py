@@ -27,7 +27,7 @@ from urllib.parse import urlencode
 import httpx
 
 SHOPIFY_OAUTH_AUTHORIZE_URL = "https://{shop}/admin/oauth/authorize"
-SHOPIFY_OAUTH_TOKEN_URL = "https://{shop}/admin/oauth/access_token"
+SHOPIFY_OAUTH_TOKEN_URL = "https://{shop}/admin/oauth/access_token"  # noqa: S105 - URL constant, not a credential
 SHOPIFY_API_VERSION = "2024-01"
 
 DEFAULT_SCOPES = [
@@ -144,8 +144,6 @@ def verify_webhook_hmac(
         return False
     import base64
 
-    digest = hmac.new(
-        api_secret.encode("utf-8"), data_bytes, hashlib.sha256
-    ).digest()
+    digest = hmac.new(api_secret.encode("utf-8"), data_bytes, hashlib.sha256).digest()
     expected = base64.b64encode(digest).decode("utf-8")
     return hmac.compare_digest(expected, hmac_header.strip())

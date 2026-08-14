@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import TYPE_CHECKING
 
 from llm_providers.base import LLMProvider, LLMResponse
-from llm_providers.registry import LLMRegistry
+
+if TYPE_CHECKING:
+    from llm_providers.registry import LLMRegistry
 
 logger = logging.getLogger(__name__)
 

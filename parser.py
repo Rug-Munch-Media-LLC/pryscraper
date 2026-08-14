@@ -22,11 +22,11 @@ class DocumentParser:
     """Parse PDFs, DOCX, images, and other document formats to clean text.
     CPU-bound operations (OCR, PDF parsing) run in executor threads."""
 
-    async def parse(self, url: str, timeout: int = 60) -> dict[str, Any]:
+    async def parse(self, url: str, timeout_s: int = 60) -> dict[str, Any]:
         import httpx
 
         async with httpx.AsyncClient(
-            timeout=httpx.Timeout(timeout), follow_redirects=True
+            timeout=httpx.Timeout(timeout_s), follow_redirects=True
         ) as client:
             resp = await client.get(url)
             resp.raise_for_status()

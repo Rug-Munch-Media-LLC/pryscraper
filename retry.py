@@ -22,6 +22,9 @@ from typing import Any, TypeVar
 
 import resilience
 
+# SystemRandom: crypto-grade entropy for backoff jitter.
+_RNG = random.SystemRandom()
+
 logger = logging.getLogger(__name__)
 
 # ── Types ─────────────────────────────────────────────────────────
@@ -106,14 +109,14 @@ def _apply_jitter(delay: float, mode: Jitter, previous_delay: float = 0.0) -> fl
     if mode == Jitter.NONE:
         return delay
     if mode == Jitter.FULL:
-        return random.uniform(0, delay)
+        return _RNG.uniform(0, delay)
     if mode == Jitter.EQUAL:
         half = delay / 2.0
-        return half + random.uniform(0, half)
+        return half + _RNG.uniform(0, half)
     if mode == Jitter.DECORRELATED:
         if previous_delay <= 0:
             return delay
-        return min(previous_delay * random.uniform(1, 3), 60.0)
+        return min(previous_delay * _RNG.uniform(1, 3), 60.0)
     return delay
 
 

@@ -108,9 +108,9 @@ class PryAutomator:
             )
 
             # Load persisted cookies
-            if os.path.exists(cookies_file):
+            if os.path.exists(cookies_file):  # noqa: ASYNC240 - tiny cookie file, session lifecycle
                 try:
-                    with open(cookies_file) as f:
+                    with open(cookies_file) as f:  # noqa: ASYNC230 - tiny cookie JSON (<KB), low-frequency
                         cookies = json.load(f)
                     await context.add_cookies(cookies)
                 except OSError:
@@ -254,7 +254,7 @@ class PryAutomator:
             # Persist cookies
             try:
                 cookies = await session.context.cookies()
-                with open(session.cookies_file, "w") as f:
+                with open(session.cookies_file, "w") as f:  # noqa: ASYNC230 - tiny cookie JSON (<KB), low-frequency
                     json.dump(cookies, f)
             except OSError:
                 pass
@@ -290,7 +290,7 @@ class PryAutomator:
                 session = self.sessions.pop(session_id)
                 with contextlib.suppress(OSError):
                     await session.browser.close()
-                if os.path.exists(session.cookies_file):
+                if os.path.exists(session.cookies_file):  # noqa: ASYNC240 - tiny cookie file, session lifecycle
                     with contextlib.suppress(OSError):
                         os.remove(session.cookies_file)
 

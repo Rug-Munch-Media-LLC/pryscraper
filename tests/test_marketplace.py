@@ -27,7 +27,7 @@ def test_x402_paid_endpoints() -> None:
 
 
 def test_x402_middleware_signing() -> None:
-    w = WebhookDelivery(signing_secret="test-secret")
+    w = WebhookDelivery(signing_secret="test-secret")  # noqa: S106 - test fixture secret
     sig = w.sign_payload({"event": "test", "data": {"x": 1}})
     assert isinstance(sig, str)
     assert len(sig) == 64  # SHA-256 hex
@@ -81,15 +81,15 @@ def test_actor_to_dict() -> None:
 
 
 def test_webhook_signature_consistency() -> None:
-    w1 = WebhookDelivery(signing_secret="same-secret")
-    w2 = WebhookDelivery(signing_secret="same-secret")
+    w1 = WebhookDelivery(signing_secret="same-secret")  # noqa: S106 - test fixture secret
+    w2 = WebhookDelivery(signing_secret="same-secret")  # noqa: S106 - test fixture secret
     payload = {"event": "test", "x": 1}
     assert w1.sign_payload(payload) == w2.sign_payload(payload)
 
 
 def test_webhook_different_secrets() -> None:
-    w1 = WebhookDelivery(signing_secret="secret1")
-    w2 = WebhookDelivery(signing_secret="secret2")
+    w1 = WebhookDelivery(signing_secret="secret1")  # noqa: S106 - test fixture secret
+    w2 = WebhookDelivery(signing_secret="secret2")  # noqa: S106 - test fixture secret
     payload = {"event": "test"}
     assert w1.sign_payload(payload) != w2.sign_payload(payload)
 

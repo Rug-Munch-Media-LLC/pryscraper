@@ -29,7 +29,8 @@ WEBHOOK_DIR.mkdir(parents=True, exist_ok=True)
 class WebhookDelivery:
     """Deliver webhooks reliably with retries and HMAC signing."""
 
-    DEFAULT_SIGNING_SECRET = "change-me-in-production"
+    # Default placeholder, overridden by PRY_WEBHOOK_SECRET env; never used in production.
+    DEFAULT_SIGNING_SECRET = "change-me-in-production"  # noqa: S105 - explicit non-secret placeholder default
 
     def __init__(self, signing_secret: str = ""):
         self.signing_secret = signing_secret or os.getenv(

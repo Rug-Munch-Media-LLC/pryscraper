@@ -34,9 +34,7 @@ logger = logging.getLogger(__name__)
 # ── Configuration ─────────────────────────────────────────────────────────────
 _JWT_ALGORITHM: str = os.getenv("PRY_JWT_ALGORITHM", "RS256")
 _JWT_PUBLIC_KEY: str = os.getenv("PRY_JWT_PUBLIC_KEY", "")
-_JWKS_URL: str = os.getenv(
-    "PRY_JWKS_URL", "https://rugmunch.io/.well-known/jwks.json"
-)
+_JWKS_URL: str = os.getenv("PRY_JWKS_URL", "https://rugmunch.io/.well-known/jwks.json")
 _JWKS_CACHE_TTL: int = int(os.getenv("PRY_JWKS_CACHE_TTL", "3600"))
 
 # Cache
@@ -63,15 +61,19 @@ def _fetch_public_key() -> str | None:
         return key
 
     try:
-        req = urllib.request.Request(_JWKS_URL, method="GET")
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        # Only allow http/https for the JWKS endpoint (blocks file:/custom schemes — S310).
+        if not _JWKS_URL.startswith(("http://", "https://")):
+            logger.warning("JWKS URL uses unsupported scheme; refusing to fetch")
+            return None
+        req = urllib.request.Request(_JWKS_URL, method="GET")  # noqa: S310 - scheme guard above restricts to http/https
+        with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310 - scheme guard above restricts to http/https
             data = json.loads(resp.read().decode())
         if "pem" in data:
             _jwks_cache["key"] = data["pem"]
             _jwks_cache["fetched_at"] = now
             return data["pem"]
         logger.warning("JWKS endpoint returned no PEM field")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - JWKS fetch failure is logged; caller falls back to API key auth
         logger.warning("Failed to fetch JWKS: %s", exc)
 
     return None
@@ -97,7 +99,7 @@ def validate_rmi_jwt(token: str) -> dict[str, Any] | None:
     algorithm = "RS256" if _JWT_ALGORITHM == "RS256" else "HS256"
     try:
         payload = pyjwt.decode(token, key, algorithms=[algorithm])
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - any decode failure means invalid token; logged at debug
         logger.debug("JWT validation failed: %s", exc)
         return None
 

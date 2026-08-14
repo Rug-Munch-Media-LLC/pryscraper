@@ -24,6 +24,9 @@ from settings import settings
 from stealth_engine import StealthEngine
 from url_guard import validate_url
 
+# SystemRandom: crypto-grade entropy so stealth jitter is not predictable.
+_RNG = random.SystemRandom()
+
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
@@ -219,10 +222,11 @@ class PryScraper:
                         import subprocess
 
                         r = subprocess.run(
-                            ["python3", "-m", "playwright", "install", "--dry-run", "chromium"],
+                            ["python3", "-m", "playwright", "install", "--dry-run", "chromium"],  # noqa: S607 - static argv; "python3" resolved from PATH intentionally
                             capture_output=True,
                             text=True,
                             timeout=10,
+                            shell=False,
                         )
                         if "chromium" in r.stdout:
                             self.playwright_available = True
@@ -241,7 +245,7 @@ class PryScraper:
         return {
             "User-Agent": self._rotate_ua(),
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": random.choice(
+            "Accept-Language": _RNG.choice(
                 ["en-US,en;q=0.9", "en-GB,en;q=0.8", "en-US,en;q=0.7,fr;q=0.3"]
             ),
             "Referer": f"https://{parsed.netloc}/",
@@ -421,25 +425,25 @@ class PryScraper:
         result["content"] = content
         return result
 
-    async def _fetch_direct(self, url: str, headers: dict, timeout: int) -> str:
+    async def _fetch_direct(self, url: str, headers: dict, timeout_s: int) -> str:
         proxy_url = settings.resolved_proxy_url
         async with httpx.AsyncClient(
-            timeout=httpx.Timeout(timeout),
+            timeout=httpx.Timeout(timeout_s),
             follow_redirects=True,
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=20),
             headers=headers,
             cookies=httpx.Cookies(),
             proxy=proxy_url,
         ) as client:
-            delay = random.uniform(*settings.rotation_delay_range)
+            delay = _RNG.uniform(*settings.rotation_delay_range)
             await asyncio.sleep(delay)
             resp = await client.get(url)
             resp.raise_for_status()
             return resp.text
 
-    async def _fetch_via_flaresolverr(self, url: str, timeout: int) -> str:
-        payload = {"cmd": "request.get", "url": url, "maxTimeout": timeout * 1000}
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout + 10)) as client:
+    async def _fetch_via_flaresolverr(self, url: str, timeout_s: int) -> str:
+        payload = {"cmd": "request.get", "url": url, "maxTimeout": timeout_s * 1000}
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s + 10)) as client:
             resp = await client.post(settings.flaresolverr_url, json=payload)
             resp.raise_for_status()
             data = resp.json()
@@ -450,7 +454,7 @@ class PryScraper:
                 f"FlareSolverr status {solution.get('status')}: {solution.get('status', '')[:200]}"
             )
 
-    async def _fetch_via_playwright(self, url: str, timeout: int) -> str:
+    async def _fetch_via_playwright(self, url: str, timeout_s: int) -> str:
         """Full browser rendering with human-like behavior and stealth fingerprint."""
         from playwright.async_api import async_playwright
 
@@ -467,12 +471,12 @@ class PryScraper:
             )
             context = await browser.new_context(
                 viewport={
-                    "width": random.choice([1920, 1366, 1440]),
-                    "height": random.choice([1080, 768, 900]),
+                    "width": _RNG.choice([1920, 1366, 1440]),
+                    "height": _RNG.choice([1080, 768, 900]),
                 },
                 user_agent=self._rotate_ua(),
-                locale=random.choice(["en-US", "en-GB", "en-CA"]),
-                timezone_id=random.choice(["America/New_York", "Europe/London", "America/Chicago"]),
+                locale=_RNG.choice(["en-US", "en-GB", "en-CA"]),
+                timezone_id=_RNG.choice(["America/New_York", "Europe/London", "America/Chicago"]),
                 permissions=["geolocation"],
                 geolocation={"latitude": 40.7128, "longitude": -74.0060},
             )
@@ -481,26 +485,26 @@ class PryScraper:
             await context.add_init_script(stealth_script)
             page = await context.new_page()
             # Human-like navigation: random wait before page load
-            await asyncio.sleep(random.uniform(0.5, 2.0))
-            await page.goto(url, wait_until="domcontentloaded", timeout=timeout * 1000)
+            await asyncio.sleep(_RNG.uniform(0.5, 2.0))
+            await page.goto(url, wait_until="domcontentloaded", timeout=timeout_s * 1000)
             # Wait for page to settle (random human delay)
-            await page.wait_for_timeout(random.randint(1000, 3000))
+            await page.wait_for_timeout(_RNG.randint(1000, 3000))
             # Human-like scrolling: step scroll with random pauses
             scroll_height = await page.evaluate("document.body.scrollHeight")
-            steps = random.randint(3, 7)
+            steps = _RNG.randint(3, 7)
             for step in range(steps):
                 target = (scroll_height * (step + 1)) / steps
                 await page.evaluate(f"window.scrollTo({{ top: {target}, behavior: 'smooth' }})")
-                await page.wait_for_timeout(random.randint(300, 1200))
+                await page.wait_for_timeout(_RNG.randint(300, 1200))
                 # Random mouse movement
                 await page.mouse.move(
-                    random.randint(100, 1800),
-                    random.randint(100, 900),
-                    steps=random.randint(3, 8),
+                    _RNG.randint(100, 1800),
+                    _RNG.randint(100, 900),
+                    steps=_RNG.randint(3, 8),
                 )
             # Scroll back up like a human reading
             await page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' })")
-            await page.wait_for_timeout(random.randint(500, 1500))
+            await page.wait_for_timeout(_RNG.randint(500, 1500))
             content = await page.content()
             await browser.close()
             return content
@@ -534,7 +538,7 @@ class PryScraper:
                         current_url, {"limit": max_pages - len(visited)}
                     )
                     to_visit.extend((link, depth + 1) for link in links if link not in visited)
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001, S112 - one page failing must not abort the crawl
                 continue
         return results
 

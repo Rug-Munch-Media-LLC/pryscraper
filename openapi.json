@@ -315,6 +315,32 @@
         }
       }
     },
+    "/version": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Service version",
+        "description": "Return service version information.",
+        "operationId": "version_version_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Version Version Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/scrape": {
       "post": {
         "tags": [
@@ -4481,6 +4507,7 @@
           "Jobs"
         ],
         "summary": "List jobs in a Pryfile",
+        "description": "List all jobs defined in a Pryfile with their current status and configuration.",
         "operationId": "list_jobs_v1_jobs_get",
         "parameters": [
           {
@@ -5614,6 +5641,31 @@
         }
       }
     },
+    "/v1/proxy/pool": {
+      "get": {
+        "tags": [
+          "Proxy",
+          "Proxy"
+        ],
+        "summary": "List the Webshare residential proxy pool",
+        "description": "Return the Webshare residential proxy pool (credentials masked).\n\nLoaded from the WEBSHARE_PROXY_LIST env var or, best-effort, from\ngopass (rmi/infra/webshare_proxy_list). Cached per process.",
+        "operationId": "proxy_pool_v1_proxy_pool_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Proxy Pool V1 Proxy Pool Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/proxy/status": {
       "get": {
         "tags": [
@@ -5879,6 +5931,7 @@
           "Recorder"
         ],
         "summary": "Start recording browser actions",
+        "description": "Start recording a sequence of browser actions for later replay or export.",
         "operationId": "start_recording_v1_record_start_post",
         "requestBody": {
           "content": {
@@ -5924,6 +5977,7 @@
           "Recorder"
         ],
         "summary": "Record a browser action step",
+        "description": "Record a single browser action step (click, type, navigate) as part of an active recording session.",
         "operationId": "record_step_v1_record_step_post",
         "parameters": [
           {
@@ -5990,6 +6044,7 @@
           "Recorder"
         ],
         "summary": "Export recording as script",
+        "description": "Export a browser recording session as a reusable Playwright script.",
         "operationId": "export_recording_v1_record_export_post",
         "parameters": [
           {
@@ -6047,6 +6102,7 @@
           "Recorder"
         ],
         "summary": "Clear recorded actions",
+        "description": "Clear all recorded browser actions from the current session.",
         "operationId": "clear_recording_v1_record_clear_post",
         "requestBody": {
           "content": {
@@ -7065,7 +7121,7 @@
           "Sessions"
         ],
         "summary": "List all persistent sessions",
-        "description": "List all persistent sessions (active + saved).",
+        "description": "List all warmed cookie sessions that are currently persisted to disk.",
         "operationId": "list_sessions_v1_sessions_get",
         "responses": {
           "200": {
@@ -7610,6 +7666,7 @@
           "Transform"
         ],
         "summary": "Transform data to multiple formats",
+        "description": "Transform scraped data between multiple output formats including JSON, CSV, XML, and Markdown.",
         "operationId": "transform_data_v1_transform_post",
         "parameters": [
           {

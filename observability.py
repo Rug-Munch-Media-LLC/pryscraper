@@ -11,7 +11,6 @@ import logging
 import os
 import time
 from contextlib import contextmanager
-from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +21,6 @@ try:
     _has_prometheus = True
 except ImportError:
     _has_prometheus = False
-
-if TYPE_CHECKING:
-    from prometheus_client import Counter, Gauge, Histogram
 
 # Try to import OpenTelemetry
 try:

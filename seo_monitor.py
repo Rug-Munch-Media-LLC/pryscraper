@@ -141,7 +141,7 @@ def _count_links(tree: Any, base_url: str, internal: bool) -> int:
     count = 0
     for a in tree.xpath("//a[@href]"):
         href = a.get("href", "")
-        if href.startswith("http") or href.startswith("//"):
+        if href.startswith(("http", "//")):
             domain = urlparse(href).netloc
             if (internal and domain == base_domain) or (not internal and domain != base_domain):
                 count += 1

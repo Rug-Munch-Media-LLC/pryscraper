@@ -19,32 +19,20 @@ Engine selection:
 Schema:
   See the Model classes below. Each one corresponds to a former JSON store:
     quality       -> QualityCheck
-    reviews       -> ReviewItem
     intel         -> IntelSnapshot (already JSONL; now a real table)
-    costing       -> CostingEntry
-    freshness     -> FreshnessSnapshot
     structure     -> StructureSnapshot
-    seo           -> SeoSnapshot
     monitors      -> Monitor
     monitor_runs  -> MonitorRun
     accounts      -> Account
     sessions      -> BrowserSession
     reports       -> Report
-    reports_real  -> RealReport
-    training      -> TrainingDataset
     pipelines     -> Pipeline
-    pipeline_runs -> PipelineRun
-    gdpr          -> GdprRequest
     agency        -> Agency
-    agency_clients -> AgencyClient
     referrals     -> ReferralClick
     actors        -> Actor
-    actor_runs    -> ActorRun
-    llm_usage     -> LlmUsage
     webhooks      -> Webhook
-    x402          -> X402Receipt
 
-This is a 24-model starter set. New models can be added incrementally as
+This is a 15-model set. New models can be added incrementally as
 the corresponding JSON store is migrated.
 
 Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
@@ -61,12 +49,9 @@ from __future__ import annotations
 import json
 import logging
 import os
-import sqlite3
-from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager, contextmanager
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 try:
     from sqlalchemy import (
@@ -83,7 +68,6 @@ try:
         create_engine,
         event,
     )
-    from sqlalchemy.engine import Engine
     from sqlalchemy.exc import OperationalError, ProgrammingError, SQLAlchemyError
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
     from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
@@ -91,6 +75,13 @@ try:
     _HAS_SA = True
 except ImportError:  # pragma: no cover
     _HAS_SA = False
+
+if TYPE_CHECKING:
+    import sqlite3
+    from collections.abc import AsyncIterator, Iterator
+    from pathlib import Path
+
+    from sqlalchemy.engine import Engine
 
 from paths import PRY_DATA_DIR
 
@@ -293,17 +284,7 @@ if _HAS_SA:
         data = Column(JSON, default=dict)
 
     # ── Reviews (human review queue) ──
-    class ReviewItem(Base):
-        __tablename__ = "review_items"
-        id = Column(Integer, primary_key=True)
-        review_id = Column(String(64), unique=True, index=True, nullable=False)
-        url = Column(Text, nullable=False)
-        fields = Column(JSON, default=dict)
-        status = Column(String(16), default="pending", index=True)  # pending|approved|rejected
-        reviewer = Column(String(128), default="")
-        notes = Column(Text, default="")
-        submitted_at = Column(DateTime, default=_now, index=True)
-        resolved_at = Column(DateTime, nullable=True)
+    # (ReviewItem removed 2026-08-14: zero live consumers, table dropped in 0002)
 
     # ── Intel (competitive intelligence snapshots) ──
     class IntelSnapshot(Base):
@@ -317,24 +298,10 @@ if _HAS_SA:
         Index("ix_intel_competitor_ts", competitor_id, ts.desc())
 
     # ── Costing ──
-    class CostingEntry(Base):
-        __tablename__ = "costing_entries"
-        id = Column(Integer, primary_key=True)
-        operation = Column(String(64), index=True, nullable=False)
-        cost_usd = Column(Float, default=0.0)
-        units = Column(Float, default=1.0)
-        provider = Column(String(64), default="")
-        metadata_json = Column("metadata", JSON, default=dict)  # 'metadata' is reserved
-        ts = Column(DateTime, default=_now, index=True)
+    # (CostingEntry removed 2026-08-14: zero live consumers, table dropped in 0002)
 
     # ── Freshness ──
-    class FreshnessSnapshot(Base):
-        __tablename__ = "freshness_snapshots"
-        id = Column(Integer, primary_key=True)
-        url = Column(Text, index=True, nullable=False)
-        content_hash = Column(String(64), default="")
-        fingerprint = Column(String(128), default="")
-        checked_at = Column(DateTime, default=_now, index=True)
+    # (FreshnessSnapshot removed 2026-08-14: zero live consumers, table dropped in 0002)
 
     # ── Structure (page structure monitor) ──
     class StructureSnapshot(Base):
@@ -355,17 +322,7 @@ if _HAS_SA:
         checked_at = Column(DateTime, default=_now, index=True)
 
     # ── SEO ──
-    class SeoSnapshot(Base):
-        __tablename__ = "seo_snapshots"
-        id = Column(Integer, primary_key=True)
-        url = Column(Text, index=True, nullable=False)
-        title = Column(Text, default="")
-        meta_description = Column(Text, default="")
-        h1 = Column(Text, default="")
-        keyword_count = Column(Integer, default=0)
-        readability_score = Column(Float, default=0.0)
-        full_data = Column(JSON, default=dict)
-        checked_at = Column(DateTime, default=_now, index=True)
+    # (SeoSnapshot removed 2026-08-14: zero live consumers, table dropped in 0002)
 
     # ── Monitors ──
     class Monitor(Base):
@@ -436,16 +393,7 @@ if _HAS_SA:
         generated_at = Column(DateTime, default=_now, index=True)
 
     # ── Training datasets ──
-    class TrainingDataset(Base):
-        __tablename__ = "training_datasets"
-        id = Column(Integer, primary_key=True)
-        dataset_id = Column(String(64), unique=True, index=True, nullable=False)
-        dataset_name = Column(String(256), default="")  # was 'name' in JSON
-        license_class = Column(String(64), default="unknown")
-        pii_redacted = Column(Boolean, default=False)
-        record_count = Column(Integer, default=0)
-        file_path = Column(Text, default="")
-        created_at = Column(DateTime, default=_now)
+    # (TrainingDataset removed 2026-08-14: zero live consumers, table dropped in 0002)
 
     # ── Pipelines ──
     class Pipeline(Base):
@@ -458,27 +406,10 @@ if _HAS_SA:
         active = Column(Boolean, default=True)
         created_at = Column(DateTime, default=_now)
 
-    class PipelineRun(Base):
-        __tablename__ = "pipeline_runs"
-        id = Column(Integer, primary_key=True)
-        pipeline_id = Column(
-            String(64), ForeignKey("pipelines.pipeline_id"), index=True, nullable=False
-        )
-        ts = Column(DateTime, default=_now, index=True)
-        status = Column(String(16), default="success")
-        result = Column(JSON, default=dict)
+    # (PipelineRun removed 2026-08-14: zero live consumers, table dropped in 0002)
 
     # ── GDPR ──
-    class GdprRequest(Base):
-        __tablename__ = "gdpr_requests"
-        id = Column(Integer, primary_key=True)
-        request_id = Column(String(64), unique=True, index=True, nullable=False)
-        request_type = Column(String(32), nullable=False)  # access|delete|portability
-        subject_id = Column(String(256), nullable=False, index=True)
-        status = Column(String(16), default="pending")
-        requested_at = Column(DateTime, default=_now, index=True)
-        completed_at = Column(DateTime, nullable=True)
-        details = Column(JSON, default=dict)
+    # (GdprRequest removed 2026-08-14: zero live consumers, table dropped in 0002)
 
     # ── Agency (white-label) ──
     class Agency(Base):
@@ -494,17 +425,7 @@ if _HAS_SA:
         active = Column(Boolean, default=True)
         created_at = Column(DateTime, default=_now)
 
-    class AgencyClient(Base):
-        __tablename__ = "agency_clients"
-        id = Column(Integer, primary_key=True)
-        client_id = Column(String(64), unique=True, index=True, nullable=False)
-        agency_id = Column(String(64), ForeignKey("agencies.agency_id"), index=True, nullable=False)
-        name = Column(String(256), nullable=False)
-        email = Column(String(256), default="")
-        quota_used = Column(Integer, default=0)
-        quota_limit = Column(Integer, default=1000)
-        active = Column(Boolean, default=True)
-        created_at = Column(DateTime, default=_now)
+    # (AgencyClient removed 2026-08-14: zero live consumers, table dropped in 0002)
 
     # ── Referrals (click/conversion tracking) ──
     class ReferralClick(Base):
@@ -555,26 +476,10 @@ if _HAS_SA:
         revenue_usd = Column(Float, default=0.0)
         created_at = Column(DateTime, default=_now)
 
-    class ActorRun(Base):
-        __tablename__ = "actor_runs"
-        id = Column(Integer, primary_key=True)
-        actor_id = Column(String(64), ForeignKey("actors.actor_id"), index=True, nullable=False)
-        ts = Column(DateTime, default=_now, index=True)
-        status = Column(String(16), default="success")
-        result = Column(JSON, default=dict)
-        cost_usd = Column(Float, default=0.0)
+    # (ActorRun removed 2026-08-14: zero live consumers, table dropped in 0002)
 
     # ── LLM usage tracking ──
-    class LlmUsage(Base):
-        __tablename__ = "llm_usage"
-        id = Column(Integer, primary_key=True)
-        provider = Column(String(64), index=True, nullable=False)
-        model = Column(String(128), default="")
-        input_tokens = Column(Integer, default=0)
-        output_tokens = Column(Integer, default=0)
-        cost_usd = Column(Float, default=0.0)
-        operation = Column(String(64), default="")
-        ts = Column(DateTime, default=_now, index=True)
+    # (LlmUsage removed 2026-08-14: zero live consumers, table dropped in 0002)
 
     # ── Webhooks ──
     class Webhook(Base):
@@ -588,19 +493,7 @@ if _HAS_SA:
         created_at = Column(DateTime, default=_now)
 
     # ── x402 receipts ──
-    class X402Receipt(Base):
-        __tablename__ = "x402_receipts"
-        id = Column(Integer, primary_key=True)
-        receipt_id = Column(String(64), unique=True, index=True, nullable=False)
-        tx_hash = Column(String(128), index=True, default="")
-        network = Column(String(32), default="base")
-        asset = Column(String(16), default="USDC")
-        amount_usd = Column(Float, default=0.0)
-        payer = Column(String(128), default="")
-        payee = Column(String(128), default="")
-        operation = Column(String(64), default="")
-        ts = Column(DateTime, default=_now, index=True)
-        facilitator = Column(String(64), default="x402.org")
+    # (X402Receipt removed 2026-08-14: zero live consumers, table dropped in 0002)
 
 else:  # pragma: no cover
     Base = None  # type: ignore

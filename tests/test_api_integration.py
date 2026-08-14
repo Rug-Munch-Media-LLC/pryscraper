@@ -12,11 +12,14 @@ mocked dependencies so no real scraping occurs.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
-from collections.abc import Iterator
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 def _has_postgres(host: str = "127.0.0.1", port: int = 5432) -> bool:

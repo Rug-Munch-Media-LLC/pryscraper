@@ -23,8 +23,7 @@ import json
 import logging
 import secrets
 import time
-from collections.abc import AsyncIterator, Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
@@ -33,6 +32,9 @@ from pry_mcp import (
     register_mcp_notification_observer,
     unregister_mcp_notification_observer,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Callable
 
 logger = logging.getLogger(__name__)
 

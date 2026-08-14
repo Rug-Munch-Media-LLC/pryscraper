@@ -18,8 +18,7 @@ import asyncio
 import json
 import logging
 import sys
-from collections.abc import Callable, Coroutine
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -29,7 +28,11 @@ from pry_mcp.notifications import (
     set_active_mcp_server,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
+
 logger = logging.getLogger(__name__)
+
 
 def make_fallback_server(
     base_url: str = DEFAULT_BASE_URL,

@@ -192,7 +192,7 @@ def detect_jurisdiction(url: str, html: str = "") -> dict[str, Any]:
             break
     if domain.endswith(".com"):
         tld_found = "us"
-    if domain.endswith(".org") or domain.endswith(".net"):
+    if domain.endswith((".org", ".net")):
         tld_found = "unknown"
 
     # Check HTML for GDPR/CCPA signals

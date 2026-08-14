@@ -3,8 +3,7 @@
 import json
 
 import pytest
-from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
+from hypothesis import HealthCheck, given, settings, strategies as st
 
 
 @given(html=st.text())
@@ -25,7 +24,7 @@ def test_schema_extraction_never_crashes(html: str) -> None:
         pytest.skip("schema_extraction module not available")
     except (ValueError, TypeError, json.JSONDecodeError):
         pass
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - fuzz: any unexpected crash must fail the test
         pytest.fail(f"SchemaExtractor crashed on input: {e}")
 
 
@@ -53,7 +52,7 @@ def test_network_extractors_never_crash(html: str) -> None:
         pytest.skip("network module not available")
     except (ValueError, TypeError, IndexError, KeyError):
         pass
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - fuzz: any unexpected crash must fail the test
         pytest.fail(f"Network extractor crashed on input: {e}")
 
 
@@ -74,7 +73,7 @@ def test_jsoncss_extraction_never_crashes(html: str) -> None:
         pytest.skip("extraction module not available")
     except (ValueError, TypeError):
         pass
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - fuzz: any unexpected crash must fail the test
         pytest.fail(f"JsonCssExtractionStrategy crashed on input: {e}")
 
 
@@ -86,5 +85,5 @@ def test_url_parser_never_crashes(url: str) -> None:
 
     try:
         urlparse(url)
-    except Exception:
+    except Exception:  # noqa: BLE001 - fuzz: urlparse must never raise on any input
         pytest.fail(f"urlparse crashed on: {url!r}")

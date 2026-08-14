@@ -8,6 +8,7 @@ Auto-extracted from api.py during the router-split refactor.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
 import os
@@ -25,6 +26,7 @@ from settings import settings
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Vision"])
+
 
 @router.post("/v1/vision", tags=["Vision"], summary="Analyze an image with a free vision model")
 async def vision(
@@ -47,29 +49,34 @@ async def vision(
     """
     try:
         # 1. Resolve the image bytes
+        image_b64: str | None = None
         if url:
             # Auto-screenshot via playwright
             r = await automator.run_steps(
                 steps=[{"action": "navigate", "url": url}, {"action": "screenshot"}],
                 session_id=session_id,
             )
-            image_b64 = None
             for step in r.get("steps", []):
                 if step.get("action") == "screenshot":
                     image_b64 = step.get("screenshot")
             if not image_b64:
                 raise ScrapeError("screenshot returned empty")
         elif file_path:
-            p = os.path.expanduser(file_path)
-            if not os.path.isfile(p):
-                raise InvalidRequestError(f"file not found: {file_path}")
-            with open(p, "rb") as f:
-                image_b64 = base64.b64encode(f.read()).decode("ascii")
+            # Image files can be large; resolve path + read + base64 off the event loop.
+            def _read_image_file(path: str) -> str:
+                resolved = os.path.expanduser(path)
+                if not os.path.isfile(resolved):
+                    raise InvalidRequestError(f"file not found: {path}")
+                with open(resolved, "rb") as f:
+                    return base64.b64encode(f.read()).decode("ascii")
+
+            image_b64 = await asyncio.to_thread(_read_image_file, file_path)
         elif image:
             # Strip data URI prefix if present
             image_b64 = image.split(",", 1)[1] if image.startswith("data:") else image
         else:
             raise InvalidRequestError("must provide one of: image, url, file_path")
+        assert image_b64 is not None  # every non-raising branch above sets it
 
         # 2. Build the fallback chain
         if model:

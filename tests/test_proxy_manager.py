@@ -100,7 +100,7 @@ def test_proxy_config_dataclass() -> None:
         provider="brightdata",
         proxy_url="gate.brightdata.com:8000",
         username="user",
-        password="pass",
+        password="pass",  # noqa: S106 - test fixture credential
         proxy_type="http",
     )
     assert c.provider == "brightdata"

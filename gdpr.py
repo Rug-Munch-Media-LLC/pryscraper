@@ -6,6 +6,7 @@ Data deletion API, consent management, retention policies, audit log."""
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
+import asyncio
 import hashlib
 import json
 import logging
@@ -246,6 +247,12 @@ def get_retention_policy() -> dict[str, Any]:
 
 async def apply_retention_policy() -> dict[str, Any]:
     """Apply the retention policy by removing expired data."""
+    # Retention cleanup is blocking file I/O (glob/stat/unlink) — run off-loop.
+    return await asyncio.to_thread(_apply_retention_policy_sync)
+
+
+def _apply_retention_policy_sync() -> dict[str, Any]:
+    """Apply the retention policy by removing expired data (sync worker)."""
     now = time.time()
     removed_total = 0
 
@@ -299,7 +306,7 @@ async def log_audit_event(
     }
     daily = AUDIT_DIR / f"audit_{datetime.now(UTC).strftime('%Y-%m-%d')}.jsonl"
     try:
-        with open(daily, "a") as f:
+        with open(daily, "a") as f:  # noqa: ASYNC230 - single-line JSONL append, tiny & infrequent
             f.write(json.dumps(event) + "\n")
         return {"success": True, "event_id": event_id}
     except OSError as e:

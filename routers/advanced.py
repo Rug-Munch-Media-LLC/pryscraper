@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Advanced"])
 
+
 @router.post(
     "/v1/tls/impersonate",
     tags=["Advanced"],
@@ -167,7 +168,7 @@ async def schema_extract_html(html: str = Body(...)) -> dict[str, Any]:
 async def ws_scrape(
     url: str = Body(...),
     max_messages: int = Body(100),
-    timeout: int = Body(30),
+    timeout: int = Body(30),  # noqa: ASYNC109 - FastAPI endpoint param, API contract
     message_filter: str = Body(""),
 ) -> dict[str, Any]:
     """Connect to a WebSocket and capture the data stream.
@@ -187,7 +188,7 @@ async def ws_scrape(
 async def sse_scrape(
     url: str = Body(...),
     max_events: int = Body(50),
-    timeout: int = Body(30),
+    timeout: int = Body(30),  # noqa: ASYNC109 - FastAPI endpoint param, API contract
     event_filter: str = Body(""),
 ) -> dict[str, Any]:
     """Connect to a Server-Sent Events endpoint and capture events."""

@@ -56,32 +56,23 @@ def test_all_tables_created(temp_data_dir):
     db.get_engine()
     inspector = inspect(db.get_engine())
     tables = inspector.get_table_names()
-    # Should have all 24 model tables
+    # Should have the 15 live model tables (11 dead models dropped in 0002)
     expected_tables = {
         "quality_checks",
-        "review_items",
         "intel_snapshots",
-        "costing_entries",
-        "freshness_snapshots",
         "structure_snapshots",
-        "seo_snapshots",
         "monitors",
         "monitor_runs",
         "accounts",
         "browser_sessions",
         "reports",
-        "training_datasets",
         "pipelines",
-        "pipeline_runs",
-        "gdpr_requests",
         "agencies",
-        "agency_clients",
         "referral_clicks",
+        "referral_conversions",
+        "referral_in_app_usage",
         "actors",
-        "actor_runs",
-        "llm_usage",
         "webhooks",
-        "x402_receipts",
     }
     assert expected_tables.issubset(set(tables)), f"missing: {expected_tables - set(tables)}"
 
@@ -250,31 +241,23 @@ def test_alembic_migration_upgrade_head_creates_tables(temp_data_dir, monkeypatc
     eng = db.get_engine()
     inspector = inspect(eng)
     tables = inspector.get_table_names()
+    # 15 live tables after 0002 drops the 11 dead ones
     expected_tables = {
         "quality_checks",
-        "review_items",
         "intel_snapshots",
-        "costing_entries",
-        "freshness_snapshots",
         "structure_snapshots",
-        "seo_snapshots",
         "monitors",
         "monitor_runs",
         "accounts",
         "browser_sessions",
         "reports",
-        "training_datasets",
         "pipelines",
-        "pipeline_runs",
-        "gdpr_requests",
         "agencies",
-        "agency_clients",
         "referral_clicks",
+        "referral_conversions",
+        "referral_in_app_usage",
         "actors",
-        "actor_runs",
-        "llm_usage",
         "webhooks",
-        "x402_receipts",
     }
     missing = expected_tables - set(tables)
     assert not missing, f"Tables missing after migration: {missing}"

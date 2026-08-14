@@ -189,7 +189,7 @@ class TestAsyncRetry:
             base_delay=0.1,
             jitter=Jitter.NONE,
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="fail"):
             await async_retry(fn, config=cfg)
         assert fn.call_count < 6
 
@@ -255,7 +255,7 @@ class TestAsyncRetry:
     async def test_passes_args_and_kwargs(self) -> None:
         fn = AsyncMock(return_value="ok")
 
-        async def target(url: str, *, timeout: int = 30) -> str:
+        async def target(url: str, *, timeout: int = 30) -> str:  # noqa: ASYNC109 - kwarg name must match async_retry's **kwargs forwarding
             fn(url, timeout=timeout)
             return "ok"
 

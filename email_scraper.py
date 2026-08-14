@@ -297,7 +297,7 @@ def _get_gmail_body(payload: dict[str, Any]) -> str:
             data = part["body"]["data"]
             try:
                 return base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001, S112 - one bad part must not fail the whole message
                 continue
         # Recursive check
         if part.get("parts"):

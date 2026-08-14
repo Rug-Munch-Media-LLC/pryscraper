@@ -144,8 +144,15 @@ async def main() -> None:
         }
         if actor_input.get("proxy_config", {}).get("use_apify_proxies"):
             # Apify provides HTTP proxies via http://user:pass@proxy.apify.com:8000
-            proxy_url = Actor.config.get("proxy_url")
-            if proxy_url:
+            # Actor.config was removed in apify SDK 3.x — build the URL from
+            # Actor.configuration instead (proxy_hostname/proxy_port/proxy_password).
+            configuration = Actor.configuration
+            proxy_password = configuration.proxy_password
+            if proxy_password:
+                proxy_url = (
+                    f"http://auto:{proxy_password}"
+                    f"@{configuration.proxy_hostname}:{configuration.proxy_port}"
+                )
                 base_options["proxy_url"] = proxy_url
 
         scraper = UltimateScraper()

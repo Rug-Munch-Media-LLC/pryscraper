@@ -19,6 +19,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+# SystemRandom: crypto-grade entropy so browsing simulation is not predictable.
+_RNG = random.SystemRandom()
+
 logger = logging.getLogger(__name__)
 
 WARMER_DIR = Path(__file__).parent / "warmed_cookies"
@@ -110,10 +113,10 @@ class CookieWarmer:
                         await page.goto(warming_url, wait_until="domcontentloaded", timeout=30000)
                         # Human-like behavior: scroll, hover
                         await page.evaluate("window.scrollTo(0, document.body.scrollHeight * 0.3)")
-                        await page.wait_for_timeout(random.randint(500, 2000))
+                        await page.wait_for_timeout(_RNG.randint(500, 2000))
                         await page.evaluate("window.scrollTo(0, 0)")
-                        await page.wait_for_timeout(random.randint(500, 1500))
-                        delay = random.uniform(min_delay, max_delay)
+                        await page.wait_for_timeout(_RNG.randint(500, 1500))
+                        delay = _RNG.uniform(min_delay, max_delay)
                         await asyncio.sleep(delay)
                     except Exception as e:  # noqa: BLE001
                         logger.warning("warm_page_failed url=%s err=%s", warming_url, str(e)[:50])

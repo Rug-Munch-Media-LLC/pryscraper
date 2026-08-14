@@ -7,6 +7,7 @@ New capabilities that make Pry unbeatable."""
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
+import asyncio
 import csv
 import io
 import json
@@ -43,16 +44,18 @@ class BatchProcessor:
     """Process URLs from a file with a template selector."""
 
     async def from_file(
-        self, filepath: str, template: dict, timeout: int = 30, max_urls: int = 1000
+        self, filepath: str, template: dict, timeout_s: int = 30, max_urls: int = 1000
     ) -> list[dict]:
         from scraper import PryScraper
 
         s = PryScraper()
 
-        # Read URLs from file (one per line)
-        with open(filepath) as f:
-            urls = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+        # Read URLs from file (one per line) off the event loop — file may be large.
+        def _read_urls(path: str) -> list[str]:
+            with open(path) as f:
+                return [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
+        urls = await asyncio.to_thread(_read_urls, filepath)
         urls = urls[:max_urls]
         from extractor import SchemaExtractor
 
@@ -61,7 +64,7 @@ class BatchProcessor:
 
         for i, url in enumerate(urls):
             try:
-                result = await s.scrape(url, {"timeout": timeout})
+                result = await s.scrape(url, {"timeout": timeout_s})
                 if result.get("status") == "ok":
                     extracted = ex._pattern_extract(result.get("content", ""), template)
                     results.append({"url": url, "status": "ok", "data": extracted})
@@ -143,7 +146,7 @@ class TransformEngine:
                 values.append(str(v))
         cols = ", ".join(columns)
         vals = ", ".join(values)
-        return f"INSERT INTO {table} ({cols}) VALUES ({vals});"  # nosec B608
+        return f"INSERT INTO {table} ({cols}) VALUES ({vals});"  # noqa: S608 - table is caller-supplied const, values escaped above
 
     @staticmethod
     def to_csv(data: list[dict]) -> str:

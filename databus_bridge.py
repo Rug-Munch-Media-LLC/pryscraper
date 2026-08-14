@@ -370,5 +370,5 @@ def register_databus_bridge(pipeline: Pipeline | None = None) -> None:
 if DATABUS_ENABLED:
     try:
         register_databus_bridge()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - auto-register must never crash import
         logger.warning("databus_bridge_auto_register_failed", error=str(exc)[:100])

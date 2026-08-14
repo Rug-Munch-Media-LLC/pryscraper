@@ -95,7 +95,7 @@ async def ready() -> JSONResponse | dict[str, str]:
         r = await c.get(f"{settings.ollama_url}/api/tags", timeout=3)
         if r.is_success:
             return {"status": "ready"}
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001, S110 - readiness probe: any failure => not ready
         pass
     return JSONResponse(status_code=503, content={"status": "not_ready"})
 

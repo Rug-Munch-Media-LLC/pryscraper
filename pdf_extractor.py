@@ -111,7 +111,7 @@ class PDFTableExtractor:
         import camelot
 
         tables: list[dict[str, Any]] = []
-        tmp_path = "/tmp/_pry_pdf.pdf"  # nosec B108
+        tmp_path = "/tmp/_pry_pdf.pdf"  # noqa: S108 - camelot requires a real file path; /tmp is the scratch space
         try:
             with open(tmp_path, "wb") as f:
                 f.write(pdf_bytes)

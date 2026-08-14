@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import json
+import shutil
 import socket
 import subprocess
 import time
@@ -184,9 +185,10 @@ class TestMCPSSE:
 
     def test_mcp_sse_session_roundtrip(self) -> None:
         port = _find_free_port()
-        proc = subprocess.Popen(
+        python_bin = shutil.which("python3") or "python3"
+        proc = subprocess.Popen(  # noqa: S603 - argv is static; port comes from trusted _find_free_port()
             [
-                "python3",
+                python_bin,
                 "-m",
                 "uvicorn",
                 "api:app",
@@ -197,6 +199,7 @@ class TestMCPSSE:
                 "--log-level",
                 "warning",
             ],
+            shell=False,
             cwd=str(REPO_ROOT),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

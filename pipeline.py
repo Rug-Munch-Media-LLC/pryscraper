@@ -71,9 +71,9 @@ class Pipeline:
         for fn in self._hooks.get(hook_point, []):
             try:
                 if _is_async(fn):
-                    result = await cast(HookFn, fn)(**context)
+                    result = await cast("HookFn", fn)(**context)
                 else:
-                    result = cast(SyncHookFn, fn)(**context)
+                    result = cast("SyncHookFn", fn)(**context)
                 if isinstance(result, dict):
                     context.update(result)
             except Exception as e:

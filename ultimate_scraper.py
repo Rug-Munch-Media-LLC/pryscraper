@@ -26,6 +26,9 @@ from resilience import registry
 from retry import RetryConfig, async_retry
 from url_guard import validate_url
 
+# SystemRandom: crypto-grade entropy so stealth jitter is not predictable.
+_RNG = random.SystemRandom()
+
 logger = logging.getLogger(__name__)
 
 # Try importing optional bypass libraries
@@ -119,9 +122,7 @@ class UltimateScraper:
         return {
             "User-Agent": self._rotate_ua(),
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": random.choice(
-                ["en-US,en;q=0.9", "en-GB,en;q=0.8", "en-US,en;q=0.7"]
-            ),
+            "Accept-Language": _RNG.choice(["en-US,en;q=0.9", "en-GB,en;q=0.8", "en-US,en;q=0.7"]),
             "Referer": f"https://{parsed.netloc}/",
             "DNT": "1",
             "Connection": "keep-alive",
@@ -303,7 +304,7 @@ class UltimateScraper:
             )
             if content and len(content) > 100:
                 return content
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001, S110 - fallback: try the next extractor
             pass
         try:
             from readability import Document
@@ -314,7 +315,7 @@ class UltimateScraper:
                 from markdownify import markdownify
 
                 return markdownify(content, heading_arrows=False, strip=["script", "style"])  # type: ignore[call-arg]  # markdownify supports heading_arrows at runtime
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001, S110 - fallback: strip tags as last resort
             pass
         # Last resort: strip HTML tags
         text = re.sub(r"<[^>]+>", " ", html)
@@ -409,7 +410,7 @@ class UltimateScraper:
                 # Replacing with asyncio.sleep would require restructuring the tier
                 # to be fully async; this sync sleep is bounded and does not block
                 # the event loop directly.
-                time.sleep(random.uniform(2, 4))
+                time.sleep(_RNG.uniform(2, 4))
                 html = driver.page_source
                 driver.quit()
                 return html
@@ -437,8 +438,8 @@ class UltimateScraper:
                 )
                 context = await browser.new_context(
                     viewport={
-                        "width": random.choice([1920, 1366, 1440]),
-                        "height": random.choice([1080, 768, 900]),
+                        "width": _RNG.choice([1920, 1366, 1440]),
+                        "height": _RNG.choice([1080, 768, 900]),
                     },
                     user_agent=self._rotate_ua(),
                     locale="en-US",
@@ -449,11 +450,11 @@ class UltimateScraper:
                     await context.add_init_script(stealth_script)
                 page = await context.new_page()
                 await page.goto(url, wait_until="domcontentloaded", timeout=60000)
-                await page.wait_for_timeout(random.randint(1000, 3000))
-                for _ in range(random.randint(2, 5)):
-                    await page.evaluate(f"window.scrollBy(0, {random.randint(200, 500)})")
-                    await page.wait_for_timeout(random.randint(300, 1000))
-                    await page.mouse.move(random.randint(100, 1400), random.randint(100, 800))
+                await page.wait_for_timeout(_RNG.randint(1000, 3000))
+                for _ in range(_RNG.randint(2, 5)):
+                    await page.evaluate(f"window.scrollBy(0, {_RNG.randint(200, 500)})")
+                    await page.wait_for_timeout(_RNG.randint(300, 1000))
+                    await page.mouse.move(_RNG.randint(100, 1400), _RNG.randint(100, 800))
                 html = await page.content()
                 await browser.close()
                 return html
@@ -472,7 +473,7 @@ class UltimateScraper:
                 url,
                 headers=self._build_headers(url),
                 proxy=proxy_url or "",
-                timeout=opts.get("timeout", 30),
+                timeout_s=opts.get("timeout", 30),
             )
             if result.get("success") and result.get("status_code", 0) < 400:
                 return result.get("text", "")

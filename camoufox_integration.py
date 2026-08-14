@@ -16,6 +16,9 @@ import random
 import time
 from typing import Any, ClassVar
 
+# SystemRandom: crypto-grade entropy so human-behavior simulation is unpredictable.
+_RNG = random.SystemRandom()
+
 logger = logging.getLogger(__name__)
 
 # Check for camoufox
@@ -155,13 +158,13 @@ class CamoufoxBrowser:
                     if human_behavior.get("scroll"):
                         for scroll_y in human_behavior["scroll"]:
                             await page.evaluate(f"window.scrollTo(0, {scroll_y})")
-                            await page.wait_for_timeout(random.randint(200, 800))
+                            await page.wait_for_timeout(_RNG.randint(200, 800))
                     if human_behavior.get("wait_time"):
                         await page.wait_for_timeout(human_behavior["wait_time"])
                     content = await page.content()
                     result["content"] = content
                     result["raw_html"] = content
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001, S110 - fallback: return whatever partial result exists
                 pass
         return result
 

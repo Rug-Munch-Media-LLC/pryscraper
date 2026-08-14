@@ -264,7 +264,9 @@ async def crawl(request: CrawlRequest) -> dict[str, Any]:
             {
                 "max_pages": request.maxPages,
                 "max_depth": request.maxDepth,
-                "timeout": request.scrapeOptions.get("timeout", 60) if request.scrapeOptions else 60,
+                "timeout": request.scrapeOptions.get("timeout", 60)
+                if request.scrapeOptions
+                else 60,
             },
         )
     return {"success": True, "data": {"id": "sync", "url": request.url, "pages": pages}}
@@ -285,7 +287,10 @@ async def map_pages(request: MapRequest) -> dict[str, Any]:
 
 
 @router.post("/v1/batch", summary="Scrape multiple URLs in parallel")
-async def batch_scrape(urls: list[str] = Body(...), timeout: int = 30) -> dict[str, Any]:
+async def batch_scrape(
+    urls: list[str] = Body(...),
+    timeout: int = 30,  # noqa: ASYNC109 - FastAPI endpoint param, API contract
+) -> dict[str, Any]:
     """Scrape multiple URLs in parallel. Firecrawl charges extra for batch."""
     if len(urls) > 50:
         raise InvalidRequestError("Max 50 URLs per batch")

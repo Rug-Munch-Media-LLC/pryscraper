@@ -31,12 +31,11 @@ def bypass_x402_middleware() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
-def clear_response_cache() -> Iterator[None]:
+def clear_response_cache() -> None:
     """Clear the shared response cache so tests don't see each other's data."""
     from deps import cache as response_cache
 
     response_cache.clear()
-    yield
 
 
 @pytest.fixture

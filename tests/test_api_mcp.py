@@ -10,11 +10,14 @@ Tests the JSON-RPC endpoint, health, SSE transport, and message posting.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
-from collections.abc import Iterator
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @pytest.fixture

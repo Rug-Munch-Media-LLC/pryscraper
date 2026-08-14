@@ -227,7 +227,7 @@ def cmd_serve(host="127.0.0.1", port=8005):
     print(f"{CYAN}🔧 Starting Pry v{VERSION} on {host}:{port}{NC}")
     print(f"  Dashboard: http://localhost:{port}/dashboard")
     print(f"  Health:    http://localhost:{port}/health")
-    os.execvp("uvicorn", ["uvicorn", "api:app", "--host", host, "--port", str(port)])
+    os.execvp("uvicorn", ["uvicorn", "api:app", "--host", host, "--port", str(port)])  # noqa: S606 S607 - execvp replaces the process; "uvicorn" resolved from PATH intentionally
 
 
 def _print_usage() -> None:

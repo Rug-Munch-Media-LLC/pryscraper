@@ -48,7 +48,7 @@ def test_rmi_backend_health_check():
     with pact:
         import requests
 
-        result = requests.get("http://localhost:1234/health")
+        result = requests.get("http://localhost:1234/health", timeout=10)
         assert result.status_code == 200
         assert result.json()["status"] == "healthy"
 
@@ -73,7 +73,9 @@ def test_rmi_backend_token_scan():
         import requests
 
         result = requests.get(
-            "http://localhost:1234/api/v1/token/0x1234567890abcdef", params={"chain": "eth"}
+            "http://localhost:1234/api/v1/token/0x1234567890abcdef",
+            params={"chain": "eth"},
+            timeout=10,
         )
         assert result.status_code == 200
         data = result.json()
@@ -97,5 +99,5 @@ def test_rmi_backend_error_handling():
     with pact:
         import requests
 
-        result = requests.get("http://localhost:1234/api/v1/token/0xdeadbeef")
+        result = requests.get("http://localhost:1234/api/v1/token/0xdeadbeef", timeout=10)
         assert result.status_code == 404

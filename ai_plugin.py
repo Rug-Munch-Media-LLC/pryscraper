@@ -7,25 +7,30 @@ OpenAPI spec server, MCP server wrapper, and GPT Action helper."""
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
-import json
 import logging
-from pathlib import Path
 from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
-OPENAPI_SPEC_PATH = Path(__file__).parent / "openapi.json"
-
 
 def get_openapi_spec() -> dict[str, Any]:
-    """Get the OpenAPI spec for AI agent integration."""
-    if OPENAPI_SPEC_PATH.exists():
-        try:
-            spec = cast(dict[str, Any], json.loads(OPENAPI_SPEC_PATH.read_text()))
-            return spec
-        except json.JSONDecodeError as e:
-            logger.error("openapi_spec_parse_failed", extra={"error": str(e)})
-    return {"error": "OpenAPI spec not found"}
+    """Get the OpenAPI spec for AI agent integration.
+
+    Serves the LIVE spec generated from the running FastAPI app so the
+    AI-consumer surface (GPT Actions, MCP configs) can never drift from
+    the actual registered routes. The checked-in openapi.json is NOT read
+    here — it exists only as a static snapshot for tooling/CI.
+    """
+    try:
+        # Lazy import: `api` is heavy and importing it at module load would
+        # couple this lightweight plugin to the full app (and risk a circular
+        # import since routers/ai.py and routers/system.py import this module).
+        from api import app
+
+        return cast("dict[str, Any]", app.openapi())
+    except Exception as e:  # noqa: BLE001
+        logger.error("openapi_spec_generation_failed", extra={"error": str(e)})
+        return {"error": "OpenAPI spec not found"}
 
 
 def get_gpt_action_manifest() -> dict[str, Any]:
