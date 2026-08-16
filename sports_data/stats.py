@@ -318,7 +318,10 @@ async def _get_player_stats(player: str, sport: str) -> dict[str, Any]:
         # Treat a purely numeric player as an ESPN athlete id. With "all" we
         # only probe the first default sport — an id belongs to one league.
         for slug in slugs[:1] if len(slugs) > 1 else slugs:
-            espn_sport, espn_league = _SPORTS[slug][1]
+            espn = _SPORTS[slug][1]
+            if espn is None:
+                continue
+            espn_sport, espn_league = espn
             stats, team, season, position = await _stats_for_athlete(name, espn_sport, espn_league)
             if stats:
                 return {
@@ -332,7 +335,10 @@ async def _get_player_stats(player: str, sport: str) -> dict[str, Any]:
                 }
         return {}
     for slug in slugs:
-        espn_sport, espn_league = _SPORTS[slug][1]
+        espn = _SPORTS[slug][1]
+        if espn is None:
+            continue
+        espn_sport, espn_league = espn
         found = await _search_athlete(name, espn_sport, espn_league)
         if found is None:
             continue

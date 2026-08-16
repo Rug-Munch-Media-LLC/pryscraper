@@ -657,58 +657,55 @@ async def test_get_odds_multi_aggregates_reachable_sources() -> None:
         assert "lakers" in label and "celtics" in label
 
 
-@pytest.mark.xfail(
-    reason="odds-API single-event mock shape: source-gathering re-fetch expects a list, "
-    "mock returns a dict; production path verified live against the real API",
-    strict=False,
-)
 @respx.mock
-async def test_get_odds_multi_with_key_uses_odds_api_core() -> None:
-    monkeypatch = pytest.MonkeyPatch()
+async def test_get_odds_multi_with_key_uses_odds_api_core(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("PRY_ODDS_API_KEY", "test-key")
-    try:
-        respx.get(url__startswith="https://api.the-odds-api.com/v4/sports/").mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "id": "eid123",
-                    "sport_key": "basketball_nba",
-                    "commence_time": "2026-08-17T00:00:00Z",
-                    "home_team": "Los Angeles Lakers",
-                    "away_team": "Boston Celtics",
-                    "bookmakers": [
-                        {
-                            "key": "pinnacle",
-                            "title": "Pinnacle",
-                            "last_update": "2026-08-16T18:00:00Z",
-                            "markets": [
-                                {
-                                    "key": "h2h",
-                                    "outcomes": [
-                                        {"name": "Boston Celtics", "price": 1.85},
-                                        {"name": "Los Angeles Lakers", "price": 2.10},
-                                    ],
-                                }
-                            ],
-                        }
-                    ],
-                },
-            )
-        )
-        respx.get(_BOVADA_NBA).mock(return_value=httpx.Response(200, json=_bovada_payload()))
-        # OddsPortal down — must not blank the result.
-        respx.get(_ODDSPORTAL_LISTING).mock(return_value=httpx.Response(500))
-        # ESPN + BetOnline down too — must not blank the result.
-        respx.get(_SCORE_NBA).mock(return_value=httpx.Response(500))
-        respx.get(_BETONLINE_NBA).mock(return_value=httpx.Response(500))
-        results = await odds.get_odds_multi("eid123", limit=100)
-        assert results
-        source_set = {record["source"] for record in results}
-        assert "the_odds_api" in source_set
-        assert "bovada" in source_set
-        assert "oddsportal" not in source_set
-    finally:
-        monkeypatch.undo()
+    # The odds-API core uses two different endpoints:
+    #   * event resolution (get_event_odds)  -> /events/<id>/odds returns a DICT
+    #   * source gathering (get_odds)        -> /odds returns a LIST of events
+    event = {
+        "id": "eid123",
+        "sport_key": "basketball_nba",
+        "commence_time": "2026-08-17T00:00:00Z",
+        "home_team": "Los Angeles Lakers",
+        "away_team": "Boston Celtics",
+        "bookmakers": [
+            {
+                "key": "pinnacle",
+                "title": "Pinnacle",
+                "last_update": "2026-08-16T18:00:00Z",
+                "markets": [
+                    {
+                        "key": "h2h",
+                        "outcomes": [
+                            {"name": "Boston Celtics", "price": 1.85},
+                            {"name": "Los Angeles Lakers", "price": 2.10},
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+    respx.get("https://api.the-odds-api.com/v4/sports/basketball_nba/events/eid123/odds").mock(
+        return_value=httpx.Response(200, json=event)
+    )
+    respx.get("https://api.the-odds-api.com/v4/sports/basketball_nba/odds").mock(
+        return_value=httpx.Response(200, json=[event])
+    )
+    respx.get(_BOVADA_NBA).mock(return_value=httpx.Response(200, json=_bovada_payload()))
+    # OddsPortal down — must not blank the result.
+    respx.get(_ODDSPORTAL_LISTING).mock(return_value=httpx.Response(500))
+    # ESPN + BetOnline down too — must not blank the result.
+    respx.get(_SCORE_NBA).mock(return_value=httpx.Response(500))
+    respx.get(_BETONLINE_NBA).mock(return_value=httpx.Response(500))
+    results = await odds.get_odds_multi("eid123", limit=100)
+    assert results
+    source_set = {record["source"] for record in results}
+    assert "the_odds_api" in source_set
+    assert "bovada" in source_set
+    assert "oddsportal" not in source_set
 
 
 @respx.mock

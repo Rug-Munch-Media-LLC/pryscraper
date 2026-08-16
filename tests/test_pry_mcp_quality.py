@@ -263,6 +263,17 @@ _DOMAIN_TOOLS: dict[str, tuple[str, tuple[str, ...], dict[str, Any]]] = {
         ("get_company_firmographics", "company_firmographics", "get_firmographics"),
         {"company": "Rug Munch Media"},
     ),
+    "pry_books": (
+        "sports_data.books",
+        ("get_all_books_odds",),
+        {"sport": "basketball_nba", "market": "h2h", "limit": 5},
+    ),
+    "pry_book_coverage": ("sports_data.books", ("books_coverage",), {}),
+    "pry_all_sources": (
+        "sports_data.odds",
+        ("get_odds_multi",),
+        {"event_id": "eid123", "market": "h2h", "limit": 5, "sources": "all"},
+    ),
 }
 
 # REST-proxy tools: name -> sample arguments. The fallback server calls the
@@ -289,6 +300,7 @@ _REST_PROXY_TOOLS: dict[str, dict[str, Any]] = {
     "pry_screenshot": {"url": "https://example.com/checkout"},
     "pry_x402_pricing": {},
     "pry_referrals": {"category": "proxies"},
+    "pry_scrape_methods": {},
 }
 
 # Guard: the tables must cover every registered tool, or the audit is broken.
@@ -378,9 +390,9 @@ class TestToolMetadata:
     """Every PRY_TOOLS entry must meet the 2026 MCP quality bar."""
 
     def test_tool_count_is_58(self) -> None:
-        assert len(PRY_TOOLS) == 58
-        assert len(PRY_TOOL_NAMES) == 58
-        assert len({t["name"] for t in PRY_TOOLS}) == 58
+        assert len(PRY_TOOLS) == 62
+        assert len(PRY_TOOL_NAMES) == 62
+        assert len({t["name"] for t in PRY_TOOLS}) == 62
 
     @pytest.mark.parametrize("tool_name", sorted(PRY_TOOL_NAMES))
     def test_tools_list_metadata(self, tool_name: str) -> None:
@@ -555,7 +567,7 @@ class TestTransportCompliance:
         body = resp.json()
         assert body["jsonrpc"] == "2.0"
         assert body["id"] == 1
-        assert len(body["result"]["tools"]) == 58
+        assert len(body["result"]["tools"]) == 62
 
     def test_post_sse_accept_returns_event_stream(self, mcp_client: TestClient) -> None:
         resp = mcp_client.post(
@@ -734,4 +746,4 @@ class TestRegistryConsistency:
 
     def test_smithery_comment_matches_count(self) -> None:
         text = (REPO_ROOT / "smithery.yaml").read_text(encoding="utf-8")
-        assert "Tool count: 58" in text, "smithery.yaml tool-count comment drifted"
+        assert "Tool count: 62" in text, "smithery.yaml tool-count comment drifted"

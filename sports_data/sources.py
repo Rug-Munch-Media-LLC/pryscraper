@@ -55,7 +55,7 @@ import random
 import re
 import sys
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse
 
@@ -181,7 +181,7 @@ def _mark(
     )
     health["reachable"] = ok and not blocked
     health["blocked"] = bool(blocked)
-    health["last_checked"] = datetime.utcnow().isoformat() + "Z"
+    health["last_checked"] = datetime.now(UTC).isoformat() + "Z"
     if latency_ms is not None:
         health["latency_ms"] = int(latency_ms)
     if error is not None:
@@ -711,11 +711,11 @@ def _parse_oddsportal_match(html: str) -> list[dict[str, Any]]:
     if not header_cells and len(table.findall(".//tr")) > 1:
         first_row = table.findall(".//tr")[0]
         first_cells = [_as_text(td.text_content()) or "" for td in first_row.iter("td")]
-        for cell in first_cells:
-            header_cells.append(cell.lower())
-            if cell.lower() in {"x", "draw", "tie"}:
+        for first_cell in first_cells:
+            header_cells.append(first_cell.lower())
+            if first_cell.lower() in {"x", "draw", "tie"}:
                 three_way = True
-            if cell.lower() in {"payout", "avg", "average"}:
+            if first_cell.lower() in {"payout", "avg", "average"}:
                 payout_index = len(header_cells) - 1
     rows: list[dict[str, Any]] = []
     for tr in table.iter("tr"):

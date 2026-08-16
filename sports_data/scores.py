@@ -206,7 +206,10 @@ async def _get_scores(sport: str, date: str) -> list[dict[str, Any]]:
     day = _normalize_date(date)
     records: list[dict[str, Any]] = []
     for slug in slugs:
-        espn_sport, espn_league = _SPORTS[slug][1]
+        espn = _SPORTS[slug][1]
+        if espn is None:
+            continue
+        espn_sport, espn_league = espn
         url = _ESPN_SCOREBOARD.format(sport=espn_sport, league=espn_league)
         payload = await _fetch_json(url, {"dates": day})
         if payload is not None:
