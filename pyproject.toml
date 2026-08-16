@@ -278,6 +278,9 @@ include = [
     "travel*",
     "attention*",
     "local_data*",
+    "gov_data*",
+    "ip_data*",
+    "site_catalog*",
 ]
 
 [tool.ruff]

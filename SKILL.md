@@ -7,7 +7,7 @@ description: Use Pry MCP to scrape, crawl, extract, monitor, parse documents, ta
 
 ## What Pry Is
 
-Pry is a **self-hosted MCP server** for web scraping and browser automation. It fetches any web page as clean markdown — bypassing Cloudflare, DataDome, Akamai and other anti-bot systems via a 9-tier fallback chain (direct → cloudscraper → FlareSolverr → Playwright → Googlebot → Archive.org → Google Cache → Tor → undetected-chromedriver) — and exposes 19 tools for crawling, structured extraction, templated scraping, monitoring, document parsing, screenshots, compliance checks, enrichment, marketplace intelligence (Amazon, Walmart, TikTok Shop), x402 pay-per-call pricing, referrals, and crypto token intelligence.
+Pry is a **self-hosted MCP server** for web scraping and browser automation. It fetches any web page as clean markdown — bypassing Cloudflare, DataDome, Akamai and other anti-bot systems via a 9-tier fallback chain (direct → cloudscraper → FlareSolverr → Playwright → Googlebot → Archive.org → Google Cache → Tor → undetected-chromedriver) — and exposes 35 tools for crawling, structured extraction, templated scraping, monitoring, document parsing, screenshots, compliance checks, enrichment, marketplace intelligence (Amazon, Walmart, TikTok Shop), x402 pay-per-call pricing, referrals, and crypto token intelligence.
 
 - **No API keys needed** — self-hosted; the server is a FastAPI app mounted at `/mcp` plus a stdio entry point (`pry-mcp`).
 - **Registry identity**: `io.rugmunch/pry` (see `server.json`); install `uvx pryscraper-mcp` or `pipx install pryscraper`.
