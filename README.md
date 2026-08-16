@@ -125,12 +125,66 @@ result = mc.scrape("https://example.com")
 
 ## MCP (AI Agent Integration)
 
-```json
-POST /mcp/call
-{"name": "pry_scrape", "arguments": {"url": "https://..."}}
+<!-- mcp-name: io.rugmunch/pry -->
+
+Pry ships a Model Context Protocol server — 15 tools for scraping, crawling, extraction, monitoring, document parsing, screenshots, compliance, enrichment, x402 pricing, and crypto token intelligence. Compatible with Claude, Hermes, Cursor, and any MCP client.
+
+### One-command install
+
+```bash
+uvx pryscraper-mcp
+# or: pipx install pryscraper && pry-mcp
+# or, from this repo: python -m mcp_production
 ```
 
-Compatible with Claude, Hermes, Cursor, and any MCP client.
+### Claude Code / Cursor config (stdio)
+
+Add to your MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "pry": {
+      "command": "pry-mcp"
+    }
+  }
+}
+```
+
+For `uvx`, use:
+
+```json
+{
+  "mcpServers": {
+    "pry": {
+      "command": "uvx",
+      "args": ["pryscraper-mcp"]
+    }
+  }
+}
+```
+
+### HTTP (streamable) transport
+
+```json
+{
+  "mcpServers": {
+    "pry": {
+      "type": "http",
+      "url": "https://pryscraper.com/mcp"
+    }
+  }
+}
+```
+
+### First call
+
+```json
+POST /mcp/call
+{"name": "pry_scrape", "arguments": {"url": "https://example.com"}}
+```
+
+Returns clean markdown of the page. See [SKILL.md](./SKILL.md) for the full tool list with "use when" guidance, [llms.txt](./llms.txt) for the machine-readable index, and [server.json](./server.json) for the MCP registry metadata (`io.rugmunch/pry`).
 
 ## Features
 

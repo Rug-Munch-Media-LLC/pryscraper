@@ -1,0 +1,44 @@
+# Pry MCP — Web Scraping & Browser Automation
+
+> Pry is a self-hosted MCP server for web scraping and browser automation: scrape, crawl, extract, template, monitor, comply, enrich, parse documents, screenshot, and x402 pay-per-call pricing. It bypasses Cloudflare and other anti-bot systems via a 9-tier fallback chain and needs no API keys. Install with `uvx pryscraper-mcp` or `pipx install pryscraper`.
+
+Pry exposes 15 MCP tools. All are self-hosted — the server is a FastAPI app mounted at `/mcp` plus a stdio entry point (`pry-mcp`). Deploy once, then any MCP client (Claude, Cursor, Hermes, any MCP-compatible agent) can call the tools.
+
+## Tools
+
+- [pry_scrape](https://codeberg.org/cryptorugmunch/pryscraper): Scrape any URL to clean markdown with Cloudflare bypass
+- [pry_crawl](https://codeberg.org/cryptorugmunch/pryscraper): Crawl a website from a seed URL up to max_pages
+- [pry_extract](https://codeberg.org/cryptorugmunch/pryscraper): Extract structured JSON from a URL via CSS selectors
+- [pry_template](https://codeberg.org/cryptorugmunch/pryscraper): Execute one of 110+ pre-built scraper templates
+- [pry_search_templates](https://codeberg.org/cryptorugmunch/pryscraper): Search the template catalog by keyword or site
+- [pry_monitor](https://codeberg.org/cryptorugmunch/pryscraper): Watch a page for changes; webhook/Slack/Discord alerts
+- [pry_compliance](https://codeberg.org/cryptorugmunch/pryscraper): Score scraping legal risk (robots.txt, ToS, GDPR/CCPA)
+- [pry_enrich](https://codeberg.org/cryptorugmunch/pryscraper): Enrich a URL with company, tech-stack, social intel
+- [pry_parse_document](https://codeberg.org/cryptorugmunch/pryscraper): Parse PDF/DOCX/image into text and tables
+- [pry_screenshot](https://codeberg.org/cryptorugmunch/pryscraper): Full-page screenshot as base64 PNG
+- [pry_x402_pricing](https://codeberg.org/cryptorugmunch/pryscraper): x402 pay-per-call pricing in USDC atomic units
+- [pry_referrals](https://codeberg.org/cryptorugmunch/pryscraper): Referral catalog — 60+ providers with affiliate IDs
+- [pry_token_launches](https://codeberg.org/cryptorugmunch/pryscraper): Token launch and deployer activity intelligence (crypto)
+- [pry_cex_listings](https://codeberg.org/cryptorugmunch/pryscraper): CEX listing/delisting announcements (crypto)
+- [pry_token_security](https://codeberg.org/cryptorugmunch/pryscraper): Token security checks — honeypot, mint, LP lock (crypto)
+
+## Capabilities
+
+- [Anti-bot bypass](https://codeberg.org/cryptorugmunch/pryscraper): 9-tier fallback: direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver
+- [Document parsing](https://codeberg.org/cryptorugmunch/pryscraper): PDF, DOCX, images (OCR), CSV, JSON
+- [x402 pay-per-call](https://codeberg.org/cryptorugmunch/pryscraper): USDC micro-payments, 13 chains, multi-facilitator router
+- [Browser automation](https://codeberg.org/cryptorugmunch/pryscraper): Login flows, form filling, sessions
+- [Vision AI](https://codeberg.org/cryptorugmunch/pryscraper): Free OpenRouter vision models with auto-fallback
+- [Rate limiting](https://codeberg.org/cryptorugmunch/pryscraper): Per-IP token bucket (default 120 RPM)
+
+## Install
+
+- [Quickstart — README](https://codeberg.org/cryptorugmunch/pryscraper): One-command install + Claude Code / Cursor config
+- [Install command](https://codeberg.org/cryptorugmunch/pryscraper): `uvx pryscraper-mcp` or `pipx install pryscraper` then `pry-mcp`
+- [MCP registry metadata](https://codeberg.org/cryptorugmunch/pryscraper): `server.json` — name `io.rugmunch/pry`, stdio + streamable-http
+
+## Optional
+
+- [Feature list](https://codeberg.org/cryptorugmunch/pryscraper): Full Pry feature matrix
+- [Usage guide](https://codeberg.org/cryptorugmunch/pryscraper): CLI, SDK, and MCP usage examples
+- [Architecture](https://codeberg.org/cryptorugmunch/pryscraper): Pry architecture overview

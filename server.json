@@ -1,0 +1,90 @@
+{
+	"$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+	"name": "io.rugmunch/pry",
+	"title": "Pry — Web Scraping & Browser Automation MCP",
+	"description": "Self-hosted web scraping MCP: scrape, crawl, extract, monitor, parse, screenshot, x402 pricing.",
+	"version": "3.0.0",
+	"websiteUrl": "https://pryscraper.com",
+	"repository": {
+		"source": "codeberg",
+		"url": "https://codeberg.org/cryptorugmunch/pryscraper"
+	},
+	"packages": [
+		{
+			"registryType": "pypi",
+			"identifier": "pryscraper-mcp",
+			"version": "3.0.0",
+			"transport": {
+				"type": "stdio"
+			}
+		}
+	],
+	"remotes": [
+		{
+			"type": "streamable-http",
+			"url": "https://pryscraper.com/mcp"
+		}
+	],
+	"tools": [
+		{
+			"name": "pry_scrape",
+			"description": "Scrape any URL to clean markdown with a 9-tier anti-bot fallback chain (Cloudflare bypass)."
+		},
+		{
+			"name": "pry_crawl",
+			"description": "Crawl a website from a seed URL, discovering and scraping linked pages up to max_pages."
+		},
+		{
+			"name": "pry_extract",
+			"description": "Extract structured JSON from a URL using CSS selectors — cheaper than LLM extraction."
+		},
+		{
+			"name": "pry_template",
+			"description": "Execute one of 110+ pre-built scraper templates (amazon, walmart, linkedin, etc.)."
+		},
+		{
+			"name": "pry_search_templates",
+			"description": "Search the scraper template catalog by keyword, category, or site name."
+		},
+		{
+			"name": "pry_monitor",
+			"description": "Create a content-change monitor that notifies via webhook, Slack, or Discord."
+		},
+		{
+			"name": "pry_compliance",
+			"description": "Score scraping legal risk from robots.txt, ToS, GDPR/CCPA, and PII exposure."
+		},
+		{
+			"name": "pry_enrich",
+			"description": "Enrich a URL with company info, tech stack detection, and social profiles."
+		},
+		{
+			"name": "pry_parse_document",
+			"description": "Parse a document (PDF, DOCX, image) and extract its text and tables."
+		},
+		{
+			"name": "pry_screenshot",
+			"description": "Take a full-page screenshot of a URL and return it as a base64-encoded PNG."
+		},
+		{
+			"name": "pry_x402_pricing",
+			"description": "Get current x402 pay-per-call pricing in USDC atomic units per tool."
+		},
+		{
+			"name": "pry_referrals",
+			"description": "Get Pry's referral catalog — 60+ providers with revenue-attribution links."
+		},
+		{
+			"name": "pry_token_launches",
+			"description": "Track recent token launches, deployer activity, and new mint intelligence (crypto)."
+		},
+		{
+			"name": "pry_cex_listings",
+			"description": "Monitor CEX listing announcements and delisting events for crypto tokens (crypto)."
+		},
+		{
+			"name": "pry_token_security",
+			"description": "Run token security checks — honeypot, mint authority, LP lock, holder distribution (crypto)."
+		}
+	]
+}
