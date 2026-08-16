@@ -26,6 +26,10 @@ Contract
 * :func:`get_game_props` — async, never raises, returns a ``list``. Flattens
   *all* player props for one event; requires an Odds API key (ESPN publishes
   no game-level props feed), ``[]`` without one.
+* :func:`get_prop_markets` — async, never raises, returns a ``list`` of the
+  player-prop markets available for one event (market key, label, distinct
+  player count, publishing books). Also requires an Odds API key, ``[]``
+  without one.
 
 Result shapes
 -------------
@@ -48,8 +52,13 @@ The ESPN fallback emits the same keys with ``over_odds``/``under_odds`` =
 Market names accepted by ``market``: ``points``, ``rebounds``, ``assists``,
 ``threes``, ``pass_yds``, ``rush_yds``, ``recv_yds``, ``anytime_td``,
 ``home_runs``, ``hits``, ``rbis``, ``total_bases``, ``shots_on_goal``,
-``shots_on_target``, ``tackles``, ``saves`` (or the raw Odds API key, e.g.
-``player_points``). ``"all"`` (default) uses the per-sport default set in
+``shots_on_target``, ``tackles``, ``saves``, ``sacks``, ``kills``, ``aces``,
+``double_double``, ``triple_double``, ``pra``, ``recv_tds``, ``rush_tds``,
+``interceptions``, ``solo_tackles``, ``goals`` (or any raw Odds API
+``player_*`` key, e.g. ``player_sacks`` — unknown ``player_*`` keys pass
+through so new upstream markets work without a code change). A comma or
+pipe separated list (e.g. ``"points,rebounds"``) requests multiple markets
+in one call. ``"all"`` (default) uses the per-sport default set in
 ``_PROP_MARKETS``.
 
 Sport names match :mod:`sports_data.odds`. Backoff: 1 retry, exponential
@@ -142,6 +151,65 @@ _MARKET_ALIASES: dict[str, str] = {
     "tackles": "player_tackles",
     "saves": "player_saves",
     "anytime_goal": "player_anytime_goal",
+    "sacks": "player_sacks",
+    "kills": "player_kills",
+    "aces": "player_aces",
+    "double_double": "player_double_double",
+    "dd": "player_double_double",
+    "triple_double": "player_triple_double",
+    "pra": "player_pra",
+    "points_rebounds_assists": "player_pra",
+    "recv_tds": "player_recv_tds",
+    "receiving_tds": "player_recv_tds",
+    "rush_tds": "player_rush_tds",
+    "rushing_tds": "player_rush_tds",
+    "interceptions": "player_interceptions",
+    "ints": "player_interceptions",
+    "solo_tackles": "player_solo_tackles",
+    "goals": "player_anytime_goal",
+    "goalscorer": "player_anytime_goal",
+    "clean_sheets": "player_clean_sheets",
+}
+
+# Human-readable label per prop market (used by get_prop_markets). Any
+# market key without an entry falls back to a title-cased key.
+_PROP_LABELS: dict[str, str] = {
+    "player_points": "Player Points",
+    "player_rebounds": "Player Rebounds",
+    "player_assists": "Player Assists",
+    "player_3pt_made": "Made Threes",
+    "player_blocks": "Player Blocks",
+    "player_steals": "Player Steals",
+    "player_turnovers": "Player Turnovers",
+    "player_pass_yds": "Passing Yards",
+    "player_pass_tds": "Passing Touchdowns",
+    "player_rush_yds": "Rushing Yards",
+    "player_rush_attempts": "Rushing Attempts",
+    "player_recv_yds": "Receiving Yards",
+    "player_receptions": "Receptions",
+    "player_anytime_td": "Anytime Touchdown",
+    "player_first_td": "First Touchdown",
+    "player_home_runs": "Home Runs",
+    "player_hits": "Hits",
+    "player_rbis": "RBIs",
+    "player_total_bases": "Total Bases",
+    "player_strikeouts": "Strikeouts",
+    "player_shots_on_goal": "Shots on Goal",
+    "player_shots_on_target": "Shots on Target",
+    "player_tackles": "Tackles",
+    "player_saves": "Saves",
+    "player_anytime_goal": "Anytime Goal",
+    "player_sacks": "Sacks",
+    "player_kills": "Kills",
+    "player_aces": "Aces",
+    "player_double_double": "Double-Double",
+    "player_triple_double": "Triple-Double",
+    "player_pra": "Points + Rebounds + Assists",
+    "player_recv_tds": "Receiving Touchdowns",
+    "player_rush_tds": "Rushing Touchdowns",
+    "player_interceptions": "Interceptions",
+    "player_solo_tackles": "Solo Tackles",
+    "player_clean_sheets": "Clean Sheets",
 }
 
 # Default market set queried when ``market="all"``. Kept small: each market
@@ -171,8 +239,13 @@ _ESTIMATE_RULES: dict[str, list[tuple[str, str]]] = {
         ("Passing Yards Per Game", "player_pass_yds"),
         ("Rushing Yards Per Game", "player_rush_yds"),
         ("Receiving Yards Per Game", "player_recv_yds"),
+        ("Sacks", "player_sacks"),
     ],
-    "mlb": [("Home Runs", "player_home_runs"), ("RBIs", "player_rbis")],
+    "mlb": [
+        ("Home Runs", "player_home_runs"),
+        ("RBIs", "player_rbis"),
+        ("Strikeouts", "player_strikeouts"),
+    ],
     "nhl": [
         ("Points Per Game", "player_points"),
         ("Assists Per Game", "player_assists"),
@@ -186,6 +259,7 @@ _ESTIMATE_RULES: dict[str, list[tuple[str, str]]] = {
         ("Passing Yards Per Game", "player_pass_yds"),
         ("Rushing Yards Per Game", "player_rush_yds"),
         ("Receiving Yards Per Game", "player_recv_yds"),
+        ("Sacks", "player_sacks"),
     ],
     "wnba": [
         ("Points Per Game", "player_points"),
@@ -263,14 +337,26 @@ async def _fetch_json(
 
 # ── Market resolution ───────────────────────────────────────────────────
 def _market_keys_for(sport: str, market: str) -> list[str]:
-    """Return the list of Odds API market keys for a ``market`` request."""
-    raw = str(market or "all").strip().lower()
+    """Return the list of Odds API market keys for a ``market`` request.
+
+    Accepts a single market name (``"points"``, a raw Odds API key such as
+    ``"player_sacks"``) or a comma/pipe separated list (``"points,rebounds"``).
+    ``"all"`` (default) uses the per-sport default set in ``_PROP_MARKETS``.
+    """
+    raw = str(market or "").strip().lower()
     if raw in {"", "all"}:
         return list(_PROP_MARKETS.get(_short_slug(sport), []))
-    key = _MARKET_ALIASES.get(raw, raw)
-    if not key.startswith("player_"):
-        return []
-    return [key]
+    keys: list[str] = []
+    for part in raw.replace("|", ",").split(","):
+        part = part.strip()
+        if not part or part in {"all", "*"}:
+            continue
+        key = _MARKET_ALIASES.get(part, part)
+        if not key.startswith("player_"):
+            continue
+        if key not in keys:
+            keys.append(key)
+    return keys
 
 
 # ── The Odds API mapping ───────────────────────────────────────────────
@@ -742,4 +828,143 @@ async def _get_game_props(event_id: str) -> list[dict[str, Any]]:
         payload = await _fetch_json(url, params)
         if isinstance(payload, dict) and payload.get("id"):
             return _map_game_props(payload, slug, market_keys)
+    return []
+
+
+# ── Prop-market discovery ───────────────────────────────────────────────
+def _prop_label(market_key: str) -> str:
+    """Human-readable label for a prop market key (fallback: title-cased)."""
+    label = _PROP_LABELS.get(market_key)
+    if label:
+        return label
+    return " ".join(
+        part.capitalize() for part in str(market_key or "").replace("player_", "", 1).split("_")
+    )
+
+
+def _map_prop_markets(raw: dict[str, Any], sport_slug: str) -> list[dict[str, Any]]:
+    """Map one Odds API event odds payload onto available-market records.
+
+    Aggregates the distinct player-prop markets published by any bookmaker
+    in the payload, counting distinct players per market.
+    """
+    event_id = _as_text(raw.get("id"))
+    home = _as_text(raw.get("home_team"))
+    away = _as_text(raw.get("away_team"))
+    event = f"{away} @ {home}" if home and away else None
+    bookmakers = raw.get("bookmakers")
+    if not isinstance(bookmakers, list):
+        return []
+    market_info: dict[str, dict[str, Any]] = {}
+    for bk in bookmakers:
+        if not isinstance(bk, dict):
+            continue
+        book = _as_text(bk.get("title")) or _as_text(bk.get("key"))
+        if not book:
+            continue
+        markets = bk.get("markets")
+        if not isinstance(markets, list):
+            continue
+        for mkt in markets:
+            if not isinstance(mkt, dict):
+                continue
+            market_key = _as_text(mkt.get("key")) or ""
+            if not market_key.startswith("player_"):
+                continue
+            info = market_info.setdefault(market_key, {"books": set(), "players": set()})
+            info["books"].add(book)
+            outcomes = mkt.get("outcomes")
+            if isinstance(outcomes, list):
+                for outcome in outcomes:
+                    if not isinstance(outcome, dict):
+                        continue
+                    player = _player_of_outcome(outcome)
+                    if player:
+                        info["players"].add(player)
+    results: list[dict[str, Any]] = []
+    for market_key in sorted(market_info):
+        info = market_info[market_key]
+        results.append(
+            {
+                "event_id": event_id,
+                "event": event,
+                "sport": sport_slug,
+                "market": market_key,
+                "label": _prop_label(market_key),
+                "player_count": len(info["players"]),
+                "book": sorted(info["books"])[0] if info["books"] else None,
+                "books": sorted(info["books"]),
+                "source": "the_odds_api",
+            }
+        )
+    return results
+
+
+async def get_prop_markets(event_id: str) -> list[dict[str, Any]]:
+    """Discover which player-prop markets are available for one event.
+
+    Args:
+        event_id: The event id. Accepts an optional ``sport:event_id`` prefix
+            (e.g. ``nba:eid123`` or ``basketball_nba:...``) to skip the
+            default-sport scan.
+
+    Returns:
+        A list of market records (see below), one per player-prop market
+        published by at least one bookmaker in the event, sorted by market
+        key. ``[]`` on failure or when no Odds API key is configured (ESPN
+        publishes no game-level props feed). Never raises.
+
+        Each record::
+
+            {
+                "event_id": "eid123",
+                "event": "Celtics @ Lakers",
+                "sport": "nba",
+                "market": "player_points",
+                "label": "Player Points",
+                "player_count": 8,
+                "book": "DraftKings",
+                "books": ["DraftKings", "FanDuel"],
+                "source": "the_odds_api",
+            }
+    """
+    try:
+        return await _get_prop_markets(event_id)
+    except Exception:
+        logger.exception("sports_prop_markets_crashed", extra={"event_id": event_id})
+        return []
+
+
+async def _get_prop_markets(event_id: str) -> list[dict[str, Any]]:
+    if not event_id or not str(event_id).strip():
+        return []
+    raw_id = str(event_id).strip()
+    prefix, _, rest = raw_id.partition(":")
+    if rest:
+        slugs = _resolve_sports(prefix)
+        if not slugs:
+            return []
+        candidates = slugs
+        target_id = rest
+    else:
+        candidates = list(_resolve_sports("all"))
+        target_id = raw_id
+    key = _api_key()
+    if not key:
+        return []
+    for slug in candidates:
+        odds_key, _espn = _SPORTS[slug]
+        market_keys = _PROP_MARKETS.get(_short_slug(slug), [])
+        if not market_keys:
+            continue
+        url = f"{_ODDS_BASE}/{quote(odds_key)}/events/{quote(target_id)}/odds"
+        params = {
+            "apiKey": key,
+            "regions": _ODDS_API_REGIONS,
+            "markets": ",".join(market_keys),
+            "oddsFormat": "decimal",
+        }
+        payload = await _fetch_json(url, params)
+        if isinstance(payload, dict) and payload.get("id"):
+            return _map_prop_markets(payload, slug)
     return []
