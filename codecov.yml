@@ -1,13 +1,28 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+# Codecov is INFORMATIONAL only. The hard coverage gate is pytest-cov's
+# `--cov-fail-under=45` in CI (see .forgejo/workflows/ci.yml). Codecov
+# uploads use `fail_ci_if_error: false` (action input) so an upload outage
+# never blocks the pipeline.
+codecov:
+  require_ci_to_pass: false
+  notify:
+    wait_for_ci: false
+
 coverage:
   status:
     project:
       default:
-        target: 50%
+        target: 45%
         threshold: 5%
+        informational: true  # do not fail CI on coverage drift — pytest-cov is the gate
     patch:
       default:
         target: 40%
         threshold: 5%
+        informational: true
 
 comment:
   layout: "reach, diff, flags, files"
@@ -17,9 +32,15 @@ comment:
 ignore:
   - "tests/"
   - ".venv/"
+  - "browser-extension/"
+  - "shopify-app/"
+  - "wordpress-plugin/"
 
 flags:
   unittests:
+    # Repo modules live at the root (api.py, scraper.py, ...) plus the
+    # routers/, pry_mcp/ packages — there is no `pryscraper/` directory.
+    # Path is the repo root so Codecov matches the actual file layout.
     paths:
-      - pryscraper/
+      - .
     carryforward: true

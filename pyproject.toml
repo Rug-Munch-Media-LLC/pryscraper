@@ -147,8 +147,12 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-# Skip `integration` tests by default — they require live Postgres + Redis.
-# Run them explicitly with: pytest -m integration
+# Skip `integration` tests by default — they require live Postgres + Redis
+# (and, for /ready, a reachable Ollama endpoint). Run them explicitly with:
+#   pytest -m integration
+# CI runs them nightly, non-blocking, in .forgejo/workflows/ci.yml
+# (`integration-nightly` job) which starts ephemeral postgres:16 + redis:7
+# containers and sets PRY_DATABASE_URL / PRY_REDIS_URL.
 addopts = "-m 'not integration'"
 markers = [
     "integration: tests that require live infrastructure (Postgres, Redis, external HTTP). Skipped by default; run with `pytest -m integration`.",
@@ -157,7 +161,36 @@ markers = [
 
 [tool.coverage.run]
 branch = true
-source = ["api", "cli", "extractor", "parser", "scraper", "monitor", "network", "cache", "auth", "errors", "paths", "settings", "db", "tasks", "quality", "reports", "extraction", "x402", "x402_middleware"]
+# Source scope for local `pytest --cov` / `coverage run` runs. CI uses
+# `--cov=.` (see .forgejo/workflows/ci.yml) which measures the whole repo
+# minus `omit`, so this list is the curated local-dev subset. Note:
+# `routers/` (54 modules) and `pry_mcp/` (7 modules) were added 2026-08-16;
+# `workers/` and `pry_x402/` contain no Python sources and are kept for
+# documentation (coverage.py ignores them).
+# Removed stale entries `auth`, `tasks` — no such top-level modules exist.
+source = [
+    "api",
+    "cli",
+    "extractor",
+    "parser",
+    "scraper",
+    "monitor",
+    "network",
+    "cache",
+    "errors",
+    "paths",
+    "settings",
+    "db",
+    "quality",
+    "reports",
+    "extraction",
+    "x402",
+    "x402_middleware",
+    "routers/",
+    "workers/",
+    "pry_mcp",
+    "pry_x402",
+]
 omit = [
     "tests/*",
     "browser-extension/*",
@@ -172,7 +205,7 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 45  # gradual path: current is ~47%; raise to 60, 70, 75, 80 in successive PRs
+fail_under = 45  # gradual path: current is ~50% (whole-repo `--cov=.`); raise to 60, 70, 75, 80 in successive PRs
 precision = 1
 show_missing = true
 exclude_lines = [

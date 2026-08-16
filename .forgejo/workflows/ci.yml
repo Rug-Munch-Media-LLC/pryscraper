@@ -12,6 +12,8 @@ on:
   schedule:
     # k6 smoke tests run against live deployment every 6 hours
     - cron: '0 */6 * * *'
+    # Nightly integration tests (Postgres + Redis) — non-blocking
+    - cron: '30 2 * * *'
 
 env:
   UV_BIN: $HOME/.local/bin/uv
@@ -170,8 +172,11 @@ jobs:
           uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Test with coverage
         # Coverage floor: 45% (matches pyproject.toml [tool.coverage.report] fail_under)
-        # Tests MUST pass — blocks the pipeline on failure or insufficient coverage
-        run: source .venv/bin/activate && pytest tests/ -x -q --tb=short --cov=pryscraper --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=45 -m "not integration"
+        # `--cov=.` measures the whole repo (no `pryscraper` module exists — the
+        # package is `pry` with top-level modules api/scraper/etc.). Omit list
+        # comes from pyproject [tool.coverage.run]. Tests MUST pass — blocks the
+        # pipeline on failure or insufficient coverage.
+        run: source .venv/bin/activate && pytest tests/ -x -q --tb=short --cov=. --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=45 -m "not integration"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
@@ -180,6 +185,65 @@ jobs:
           name: pryscraper
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  integration-nightly:
+    # Nightly (non-blocking): runs tests marked `integration` against a real
+    # Postgres + Redis stack. The repo docker-compose.yml declares pry-redis /
+    # pry-postgres volumes but no services, so this job spins up ephemeral
+    # postgres:16 + redis:7 containers via the `services:` block. Deliberately
+    # continue-on-error: infra flakiness must never block mainline CI.
+    # Run locally with:  pytest -m integration  (requires PG+Redis reachable)
+    if: github.event_name == 'schedule'
+    runs-on: docker-x64
+    container:
+      image: python:3.11-slim
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pry
+          POSTGRES_PASSWORD: pry
+          POSTGRES_DB: pry
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pry -d pry"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Install Node.js for actions/checkout
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
+
+      - uses: actions/checkout@v4
+      - name: Install uv + setup
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
+          ln -sf $HOME/.local/bin/uvx /usr/local/bin/uvx
+          uv python install 3.11
+          uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -e ".[dev]"
+      - name: Run integration tests (Postgres + Redis)
+        env:
+          PRY_DATABASE_URL: postgresql+asyncpg://pry:pry@postgres:5432/pry
+          PRY_REDIS_URL: redis://redis:6379/0
+        run: source .venv/bin/activate && pytest tests/ -m integration -q --tb=short || echo "integration tests failed (non-blocking)"
+        continue-on-error: true
 
   crucible-gate:
     runs-on: docker-x64
@@ -203,9 +267,9 @@ jobs:
         run: |
           source .venv/bin/activate
           if command -v crucible &>/dev/null; then
-            crucible score . --module pryscraper || echo "Crucible gate noted"
+            crucible score . --module pry || echo "Crucible gate noted"
           else
-            mutmut run --paths-to-mutate pryscraper/ 2>/dev/null && mutmut results || echo "Mutation gate noted"
+            mutmut run --paths-to-mutate . 2>/dev/null && mutmut results || echo "Mutation gate noted"
           fi
         continue-on-error: true
 
