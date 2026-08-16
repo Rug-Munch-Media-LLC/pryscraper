@@ -62,6 +62,27 @@ try:
 except ImportError:
     _stealth_engine = None
 
+# Optional block-detection + fallback-telemetry integration (guarded so the
+# scraper still works if either module is unavailable at runtime).
+_HAS_BLOCK_DETECTION = False
+_block_detect: Any = None
+try:
+    from block_detection import detect_block as _block_detect
+
+    _HAS_BLOCK_DETECTION = True
+except ImportError:  # pragma: no cover - optional dependency
+    pass
+
+_HAS_FALLBACK_TELEMETRY = False
+_record_fallback: Any = None
+try:
+    from fallback_telemetry import record_fallback
+
+    _record_fallback = record_fallback
+    _HAS_FALLBACK_TELEMETRY = True
+except ImportError:  # pragma: no cover - optional dependency
+    pass
+
 
 class UltimateScraper:
     """12-tier anti-detection scraper with automatic fallback.
@@ -117,6 +138,17 @@ class UltimateScraper:
     }
     _DEFAULT_RETRY: ClassVar[RetryConfig] = RetryConfig(max_retries=1, base_delay=1.0)
 
+    # Block kinds from block_detection.detect_block mapped to the tier names
+    # that should be preferred NEXT in the fallback chain. "rate_limited" is
+    # intentionally absent: backoff is already handled by the per-tier retry
+    # configs above.
+    _PREFER_ON_BLOCK: ClassVar[dict[str, tuple[str, ...]]] = {
+        "cloudflare": ("flaresolverr", "cloudscraper", "undetected", "camoufox", "playwright"),
+        "captcha": ("undetected", "camoufox", "playwright", "flaresolverr"),
+        "js_required": ("playwright", "camoufox", "undetected"),
+        "access_denied": ("tor", "premium_proxy"),
+    }
+
     def _rotate_ua(self) -> str:
         ua = self.USER_AGENTS[self._ua_index % len(self.USER_AGENTS)]
         self._ua_index += 1
@@ -149,15 +181,47 @@ class UltimateScraper:
             return {"status": "error", "url": url, "error": str(e)}
 
         proxy_url = self._resolve_proxy_url(opts)
+        parsed = urlparse(url)
+        domain = parsed.netloc
+        scrape_start = time.time()
+        attempts: list[dict[str, Any]] = []
+        latest_signal: dict[str, Any] | None = None
 
         # Tier 0: Premium proxy — only first if the caller explicitly asks.
         # Default is False: paid proxy is a LAST resort, tried after Tor.
         premium_first = opts.get("use_premium_proxy_first", False)
         if proxy_url and premium_first:
+            start = time.time()
             html = await self._tier_premium_proxy(url, proxy_url, opts)
-            if html and self._is_valid(html):
-                return self._result(url, html, "premium_proxy")
+            latency = time.time() - start
+            signal = self._detect_block_signal(html)
+            success = bool(html and self._is_valid(html))
+            if signal is not None and signal.kind != "none":
+                latest_signal = self._signal_to_dict(signal)
+                success = False
+            if success:
+                assert isinstance(html, str)
+                attempts.append(
+                    {
+                        "tier": "premium_proxy",
+                        "success": True,
+                        "error": None,
+                        "duration_ms": round(latency * 1000, 2),
+                    }
+                )
+                self._record_telemetry(
+                    domain, ["premium_proxy"], attempts, "premium_proxy", True, scrape_start, errors
+                )
+                return self._result(url, html, "premium_proxy", block_signal=latest_signal)
             errors.append("premium_proxy_failed")
+            attempts.append(
+                {
+                    "tier": "premium_proxy",
+                    "success": False,
+                    "error": "premium_proxy_failed",
+                    "duration_ms": round(latency * 1000, 2),
+                }
+            )
 
         # Build tier list. Trusted cheap tiers first, then Tor (anonymous,
         # free), then the paid premium proxy LAST, then cached-version
@@ -193,8 +257,6 @@ class UltimateScraper:
         # Adaptive ordering: promote the domain's proven-best tier to the
         # front and demote/skip tiers that have been failing recently. Each
         # domain gets an intelligent, self-improving fallback chain.
-        parsed = urlparse(url)
-        domain = parsed.netloc
         name_to_fn = dict(tier_order)
         ordered_names = registry.reorder_for_domain(domain, [name for name, _ in tier_order])
         tier_order = [(name, name_to_fn[name]) for name in ordered_names]
@@ -207,7 +269,9 @@ class UltimateScraper:
             "tls_fingerprint": "tls_fingerprint",
         }
 
-        for tier_name, tier_fn in tier_order:
+        i = 0
+        while i < len(tier_order):
+            tier_name, tier_fn = tier_order[i]
             # Skip external tiers whose circuit breaker is open.
             breaker_name = breaker_for_tier.get(tier_name)
             if breaker_name and not registry.is_service_allowed(breaker_name):
@@ -215,6 +279,7 @@ class UltimateScraper:
                     "tier_skipped_circuit_open", extra={"tier": tier_name, "domain": domain}
                 )
                 errors.append(f"{tier_name}: circuit_open")
+                i += 1
                 continue
 
             start = time.time()
@@ -236,7 +301,27 @@ class UltimateScraper:
                 html = None
 
             latency = time.time() - start
+
+            # Block detection: classify the tier response (or failure) so the
+            # next tier choice can escalate intelligently. Tiers expose only the
+            # body, so status/headers default to 200/{} — body markers drive the
+            # classification. A block page is not content: even if it passes
+            # _is_valid (e.g. a long WAF challenge), it does not count as success
+            # and the chain escalates to the preferred tier family.
+            signal = self._detect_block_signal(html)
             success = bool(html and self._is_valid(html))
+            if signal is not None and signal.kind != "none":
+                latest_signal = self._signal_to_dict(signal)
+                preferred = self._PREFER_ON_BLOCK.get(signal.kind, ())
+                if preferred and i + 1 < len(tier_order):
+                    remaining = tier_order[i + 1 :]
+                    preferred_tiers = [t for t in remaining if t[0] in preferred]
+                    if preferred_tiers:
+                        tier_order[i + 1 :] = preferred_tiers + [
+                            t for t in remaining if t[0] not in preferred
+                        ]
+                success = False
+
             registry.record_domain_tier_result(domain, tier_name, success, latency)
             if breaker_name:
                 registry.record_service_result(breaker_name, success)
@@ -246,17 +331,41 @@ class UltimateScraper:
             if success:
                 method = "premium_proxy" if tier_name == "premium_proxy" else tier_name
                 assert isinstance(html, str)
-                return self._result(url, html, method)
+                attempts.append(
+                    {
+                        "tier": tier_name,
+                        "success": True,
+                        "error": None,
+                        "duration_ms": round(latency * 1000, 2),
+                    }
+                )
+                self._record_telemetry(
+                    domain, ordered_names, attempts, method, True, scrape_start, errors
+                )
+                return self._result(url, html, method, block_signal=latest_signal)
             errors.append(f"{tier_name}_failed")
+            attempts.append(
+                {
+                    "tier": tier_name,
+                    "success": False,
+                    "error": f"{tier_name}_failed",
+                    "duration_ms": round(latency * 1000, 2),
+                }
+            )
+            i += 1
 
+        self._record_telemetry(domain, ordered_names, attempts, None, False, scrape_start, errors)
         last_err = errors[-1] if errors else "all_tiers_failed"
-        return {
+        result: dict[str, Any] = {
             "status": "error",
             "url": url,
             "error": "; ".join(errors[-5:]) if errors else last_err,
             "content": "",
             "proxy_recommendation": self._recommend_proxy(last_err),
         }
+        if latest_signal is not None:
+            result["block_signal"] = latest_signal
+        return result
 
     def _resolve_proxy_url(self, opts: dict[str, Any]) -> str | None:
         """Resolve the configured proxy URL from options, ProxyManager, or env."""
@@ -284,14 +393,76 @@ class UltimateScraper:
             logger.debug("proxy_recommend_failed", extra={"error": str(e)[:80]})
             return None
 
-    def _result(self, url: str, html: str, method: str) -> dict[str, Any]:
-        return {
+    def _result(
+        self,
+        url: str,
+        html: str,
+        method: str,
+        block_signal: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        result: dict[str, Any] = {
             "status": "ok",
             "url": url,
             "raw_html": html,
             "method": method,
             "content": self._extract_text(html),
         }
+        if block_signal is not None:
+            result["block_signal"] = block_signal
+        return result
+
+    @staticmethod
+    def _signal_to_dict(signal: Any) -> dict[str, Any]:
+        """Convert a BlockSignal dataclass into a JSON-safe dict."""
+        return {
+            "kind": signal.kind,
+            "confidence": signal.confidence,
+            "recommended_escalation": signal.recommended_escalation,
+            "evidence": list(signal.evidence),
+        }
+
+    def _detect_block_signal(self, html: str | None) -> Any:
+        """Run block detection on a tier response; ``None`` when unavailable.
+
+        Tiers expose only the body, so status/headers default to ``200``/``{}``
+        and body markers drive the classification. A failed tier (``html is
+        None``) yields an empty-body ``none`` signal — harmless, and it keeps
+        the detect-on-every-attempt contract explicit.
+        """
+        if not _HAS_BLOCK_DETECTION:
+            return None
+        if html is not None:
+            return _block_detect(html, 200, {})
+        return _block_detect("", 0, {})
+
+    def _record_telemetry(
+        self,
+        domain: str,
+        tier_order: list[str],
+        attempts: list[dict[str, Any]],
+        final_tier: str | None,
+        success: bool,
+        start: float,
+        errors: list[str],
+    ) -> None:
+        """Record the fallback journey via fallback_telemetry (best-effort).
+
+        Never raises: telemetry is observability, not a correctness path.
+        """
+        if not _HAS_FALLBACK_TELEMETRY:
+            return
+        try:
+            _record_fallback(
+                domain=domain,
+                tier_order=tier_order,
+                attempts=attempts,
+                final_tier=final_tier,
+                success=success,
+                duration_ms=round((time.time() - start) * 1000, 2),
+                error="; ".join(errors[-5:]) if (errors and not success) else None,
+            )
+        except Exception:  # noqa: BLE001 - telemetry must never break scraping
+            logger.debug("fallback_telemetry_record_failed", exc_info=True)
 
     def _is_valid(self, html: str | None) -> bool:
         if not html or len(html) < 500:

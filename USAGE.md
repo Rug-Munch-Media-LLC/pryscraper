@@ -333,6 +333,23 @@ Compatible with Claude, Hermes, Cursor, and any MCP client.
 GET /mcp/tools
 ```
 
+### Available Tools
+
+| Tool | What it does | Use when… |
+|------|--------------|-----------|
+| `pry_scrape` | Scrape any URL to clean markdown with 9-tier anti-bot fallback | You need page content that plain HTTP can't fetch (Cloudflare, JS-heavy) |
+| `pry_crawl` | Crawl a site up to `max_pages`, discovering and scraping linked pages | You want an entire docs site, blog, or directory |
+| `pry_extract` | Extract structured JSON from CSS selectors (10x cheaper than LLM) | You need specific fields like `{title, price, image}` from listings |
+| `pry_template` | Run one of 110+ pre-built site templates | The target site already has a template (amazon, walmart, linkedin, …) |
+| `pry_search_templates` | Search the template catalog by keyword/category/site | Finding the right template before `pry_template` |
+| `pry_monitor` | Watch a page for changes and notify via webhook/Slack/Discord | Tracking competitor pricing or content changes over time |
+| `pry_compliance` | Score scraping legal risk (robots.txt, ToS, GDPR/CCPA, PII) | Checking a site's compliance before scraping it |
+| `pry_enrich` | Enrich a URL with company/tech-stack/social intel | Building a lead profile from a prospect's website |
+| `pry_parse_document` | Parse PDF/DOCX/image into text and tables | Pulling content out of a PDF spec or scanned document |
+| `pry_screenshot` | Full-page screenshot as base64 PNG | Visual verification / design QA of a rendered page |
+| `pry_x402_pricing` | Show x402 pay-per-call pricing in USDC atomic units | Displaying cost before a paid call |
+| `pry_referrals` | Pry's 60+ provider referral catalog with affiliate IDs | Finding revenue-share partners or recommended providers |
+
 ### Tool Execution
 
 ```json
