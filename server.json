@@ -83,6 +83,22 @@
 			"description": "Monitor CEX listing announcements and delisting events for crypto tokens (crypto)."
 		},
 		{
+			"name": "pry_amazon_product",
+			"description": "Look up a single Amazon product by ASIN — live price, title, availability, rating (marketplace)."
+		},
+		{
+			"name": "pry_amazon_search",
+			"description": "Search Amazon by keyword and return matching listings with price, rating, ASIN (marketplace)."
+		},
+		{
+			"name": "pry_walmart_product",
+			"description": "Look up a single Walmart product by product ID — price, title, seller, rating (marketplace)."
+		},
+		{
+			"name": "pry_tiktok_trending",
+			"description": "Get currently trending TikTok Shop products by engagement and sales velocity (marketplace)."
+		},
+		{
 			"name": "pry_token_security",
 			"description": "Run token security checks — honeypot, mint authority, LP lock, holder distribution (crypto)."
 		}

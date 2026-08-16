@@ -43,7 +43,7 @@ def _crypto_module(module_name: str) -> Any:
     try:
         return importlib.import_module(f"crypto_market.{module_name}")
     except ImportError:
-        logger.warning("crypto_market_module_unavailable", extra={"module": module_name})
+        logger.warning("crypto_market_module_unavailable", extra={"module_name": module_name})
         return None
 
 

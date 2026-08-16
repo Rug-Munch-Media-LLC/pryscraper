@@ -7,28 +7,56 @@ requires = ["setuptools>=69.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pry"
+# PyPI distribution name. The PyPI project "pry" is already taken by an
+# unrelated package (see README), so the publishable distribution is
+# `pryscraper-mcp` while the importable package/modules keep their existing
+# layout (pry_mcp package + top-level modules such as api, cli, scraper) and
+# the local `pry` console-script name is preserved. This matches server.json
+# (registryType: pypi, identifier: pryscraper-mcp) and the `uvx pryscraper-mcp`
+# install flow used throughout README/SKILL.md/llms.txt.
+name = "pryscraper-mcp"
 version = "3.0.0"
 description = "Free web scraping + browser automation API — self-hosted, no API keys needed"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "Rug Munch Media LLC" }]
-keywords = ["scraping", "crawler", "browser-automation", "mcp", "x402", "ai-agents"]
+keywords = [
+    "scraping",
+    "crawler",
+    "browser-automation",
+    "mcp",
+    "x402",
+    "ai-agents",
+    "cloudflare-bypass",
+    "anti-bot",
+    "web-scraping",
+    "marketplace-intelligence",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Internet :: WWW/HTTP :: Browsers",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
     "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
     "Typing :: Typed",
 ]
 license-files = ["LICENSE", "LICENSE-BSL-STEALTH"]
+
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
+    # Official Model Context Protocol Python SDK — primary stdio transport for
+    # the `pry-mcp` / `pryscraper-mcp` entry points (sdk_server.py uses it when
+    # present and falls back to a pure-httpx stdio server otherwise).
+    "mcp>=1.0.0",
     "trafilatura>=2.0.0",
     "readability-lxml>=0.8.1",
     "lxml>=5.3.0",
@@ -60,7 +88,21 @@ dependencies = [
     "pyjwt>=2.8.0",
     "apify>=2.0.0",
     "playwright-stealth>=1.0.0",
+    # Self-hosted x402 facilitator: ecrecover + EIP-3009 signing (eth-keys),
+    # tx signing/RLP for settlement broadcast (eth-account), keccak backend
+    # (eth-hash[pycryptodome]). [REVIEW] new deps — lead reconciles lockfile.
+    "eth-keys>=0.7.0",
+    "eth-account>=0.13.0",
+    "eth-hash[pycryptodome]>=0.8.0",
 ]
+
+[project.urls]
+Homepage = "https://pryscraper.com"
+Repository = "https://git.rugmunch.io/RugMunchMedia/pryscraper"
+# Codeberg is the canonical public mirror; kept in sync by the fleet
+# push-all-repos pipeline.
+Source = "https://codeberg.org/cryptorugmunch/pryscraper"
+Changelog = "https://git.rugmunch.io/RugMunchMedia/pryscraper/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
@@ -88,6 +130,19 @@ dev = [
     "pip-audit>=2.10",
 ]
 
+# Optional scraping/parsing backends. These are deliberately NOT core
+# dependencies: every module that uses them guards the import and returns a
+# "pip install X" hint when missing. Install the whole group with
+# `pip install pryscraper-mcp[scrape]`.
+scrape = [
+    "curl_cffi>=0.7.0",
+    "camoufox>=0.4.0",
+    "pdfplumber>=0.11.0",
+    "pdfminer.six>=20221105",
+    "pytesseract>=0.3.10",
+    "easyocr>=1.7.0",
+]
+
 [project.scripts]
 pry = "cli:main"
 # MCP stdio entry points — runnable via `uvx pryscraper-mcp`, `pipx install pryscraper`,
@@ -99,8 +154,125 @@ pry-mcp = "cli:mcp_serve"
 # the same name as the package).
 pryscraper-mcp = "cli:mcp_serve"
 
+# The project uses a flat layout: top-level modules (api, cli, scraper, …) plus
+# sub-packages (pry_mcp, x402, routers, …). Both must ship in the wheel or the
+# console scripts (`pry`, `pry-mcp`, `pryscraper-mcp`) fail with
+# ModuleNotFoundError after install. py-modules lists every top-level module
+# explicitly (setuptools has no glob for py-modules); packages.find includes
+# every runtime package (tests/ is excluded by the `include` list).
+[tool.setuptools]
+py-modules = [
+    "actor_marketplace",
+    "adaptive",
+    "advanced",
+    "agency",
+    "ai_plugin",
+    "alerter",
+    "api",
+    "apify_actor",
+    "apify_schema",
+    "auth_connector",
+    "automator",
+    "behavioral_biometrics",
+    "block_detection",
+    "cache",
+    "camoufox_integration",
+    "capabilities",
+    "captcha_solver",
+    "cli",
+    "client",
+    "commerce_sync",
+    "compliance",
+    "config_validation",
+    "cookie_warmer",
+    "costing",
+    "crm_sync",
+    "databus_bridge",
+    "db",
+    "dedup",
+    "deps",
+    "destinations",
+    "email_scraper",
+    "enrichment",
+    "errors",
+    "extraction",
+    "extractor",
+    "fallback_telemetry",
+    "freshness",
+    "gdpr",
+    "graphql_discovery",
+    "intelligence",
+    "jobqueue",
+    "jwt_auth",
+    "lazy_load",
+    "llm_features",
+    "logging_config",
+    "markdown_gen",
+    "mcp_production",
+    "mcp_sse",
+    "middleware",
+    "monitor",
+    "network",
+    "observability",
+    "ocr_extractor",
+    "parser",
+    "paths",
+    "pdf_extractor",
+    "pipeline",
+    "pipelines",
+    "proxy_manager",
+    "proxy_referrals",
+    "pry_sdk",
+    "pryextras",
+    "pryfile",
+    "quality",
+    "ratelimit",
+    "reconciliation",
+    "referrals",
+    "reports",
+    "resilience",
+    "retry",
+    "review",
+    "schema_extraction",
+    "scraper",
+    "secrets_backend",
+    "seo_monitor",
+    "sessions",
+    "settings",
+    "shadow_dom",
+    "shopify_oauth",
+    "signup_automation",
+    "stealth_engine",
+    "structure_monitor",
+    "template_engine",
+    "tls_fingerprint",
+    "tor_fallback",
+    "training_data",
+    "ultimate_scraper",
+    "url_guard",
+    "webhook_delivery",
+    "webshare_proxy",
+    "websocket_scraper",
+    "x402",
+    "x402_middleware",
+]
+
 [tool.setuptools.packages.find]
-include = ["pry*"]
+include = [
+    "pry*",
+    "x402*",
+    "routers*",
+    "db*",
+    "crypto_market*",
+    "captcha*",
+    "compliance*",
+    "extraction*",
+    "llm_providers*",
+    "referrals*",
+    "signup*",
+    "marketplace*",
+    "billing*",
+]
 
 [tool.ruff]
 extend = "../standards/templates/ruff-base.toml"

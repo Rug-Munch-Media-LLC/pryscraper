@@ -7,7 +7,7 @@ description: Use Pry MCP to scrape, crawl, extract, monitor, parse documents, ta
 
 ## What Pry Is
 
-Pry is a **self-hosted MCP server** for web scraping and browser automation. It fetches any web page as clean markdown — bypassing Cloudflare, DataDome, Akamai and other anti-bot systems via a 9-tier fallback chain (direct → cloudscraper → FlareSolverr → Playwright → Googlebot → Archive.org → Google Cache → Tor → undetected-chromedriver) — and exposes 15 tools for crawling, structured extraction, templated scraping, monitoring, document parsing, screenshots, compliance checks, enrichment, x402 pay-per-call pricing, referrals, and crypto token intelligence.
+Pry is a **self-hosted MCP server** for web scraping and browser automation. It fetches any web page as clean markdown — bypassing Cloudflare, DataDome, Akamai and other anti-bot systems via a 9-tier fallback chain (direct → cloudscraper → FlareSolverr → Playwright → Googlebot → Archive.org → Google Cache → Tor → undetected-chromedriver) — and exposes 19 tools for crawling, structured extraction, templated scraping, monitoring, document parsing, screenshots, compliance checks, enrichment, marketplace intelligence (Amazon, Walmart, TikTok Shop), x402 pay-per-call pricing, referrals, and crypto token intelligence.
 
 - **No API keys needed** — self-hosted; the server is a FastAPI app mounted at `/mcp` plus a stdio entry point (`pry-mcp`).
 - **Registry identity**: `io.rugmunch/pry` (see `server.json`); install `uvx pryscraper-mcp` or `pipx install pryscraper`.
@@ -24,8 +24,9 @@ Pry is a **self-hosted MCP server** for web scraping and browser automation. It 
 7. **Visual check of a rendered page** → `pry_screenshot`
 8. **Legal risk before scraping** → `pry_compliance`
 9. **Company/tech intel from a URL** → `pry_enrich`
-10. **Crypto token intelligence** → `pry_token_launches`, `pry_cex_listings`, `pry_token_security`
-11. **Cost display before a paid call** → `pry_x402_pricing`; **partner/referral lookup** → `pry_referrals`
+10. **Marketplace product/trend intelligence** → `pry_amazon_product`, `pry_amazon_search`, `pry_walmart_product`, `pry_tiktok_trending`
+11. **Crypto token intelligence** → `pry_token_launches`, `pry_cex_listings`, `pry_token_security`
+12. **Cost display before a paid call** → `pry_x402_pricing`; **partner/referral lookup** → `pry_referrals`
 
 ## Tool Reference
 
@@ -75,6 +76,20 @@ Pry is a **self-hosted MCP server** for web scraping and browser automation. It 
 - **pry_referrals** — *Use when* looking for a revenue-share partner or recommended provider across LLM, hosting, email, monitoring, proxies, devtools.
   Example: `pry_referrals(category="hosting")` → 60+ providers with affiliate links.
 
+### Marketplace Intelligence (new)
+
+- **pry_amazon_product** — *Use when* you need a single Amazon listing's live price/stock by ASIN.
+  Example: `pry_amazon_product(asin="B08N5WRWNW")` → price, title, availability, rating.
+
+- **pry_amazon_search** — *Use when* comparing Amazon products by keyword.
+  Example: `pry_amazon_search(query="wireless mechanical keyboard", limit=20)` → matching listings with price, rating, ASIN.
+
+- **pry_walmart_product** — *Use when* you need a Walmart listing's live price/stock by product ID.
+  Example: `pry_walmart_product(product_id="4JH7P89H7X5P")` → price, title, seller, rating.
+
+- **pry_tiktok_trending** — *Use when* spotting viral commerce opportunities on TikTok Shop.
+  Example: `pry_tiktok_trending(limit=50)` → trending products with price, sales count, shop info.
+
 ### Crypto Intelligence (new)
 
 - **pry_token_launches** — *Use when* researching new token launches, deployer activity, or fresh mints.
@@ -103,5 +118,6 @@ uvx pryscraper-mcp            # or: pipx install pryscraper && pry-mcp
 
 - Prefer `pry_extract` over LLM extraction for structured fields — 10x cheaper.
 - Run `pry_compliance` before scraping a site you are unsure about.
+- For marketplace intel, `pry_amazon_search` first to find ASINs, then `pry_amazon_product` for a single listing; `pry_tiktok_trending` for viral-commerce research.
 - For crypto tokens, prefer `pry_token_security` before any engagement; pair `pry_token_launches` + `pry_cex_listings` for market-timing research.
 - All tools are self-hosted — data never leaves your deployment unless you call a remote HTTP endpoint.
