@@ -39,6 +39,7 @@ from x402.scheme import (
     X402Scheme,
     _encode_payment_required_body,
     build_payment_required,
+    network_verification_status,
     resolve_price_usd,
 )
 
@@ -276,6 +277,13 @@ class X402Handler:
             "caip2_networks": list(SUPPORTED_ASSETS.keys()),
             "asset_table": SUPPORTED_ASSETS,
             "verification_status": VERIFICATION_STATUS,
+            # Per-network verification label: "live" (EVM) vs
+            # "scaffolded:needs_facilitator" (Solana/TRON). No fake security —
+            # scaffolded chains are never reported as live.
+            "verification_status_by_network": {
+                network_id: network_verification_status(network_id)
+                for network_id in SUPPORTED_ASSETS
+            },
             "offline_mode": X402_OFFLINE_MODE,
             "self_hosted": X402_SELF_FACILITATE,
             "payment_validity_seconds": PAYMENT_VALIDITY_SECONDS,

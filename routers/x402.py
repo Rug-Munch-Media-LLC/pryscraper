@@ -21,6 +21,40 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["x402"])
 
 
+@router.get("/v1/x402/health", tags=["x402"], summary="x402 readiness/health probe")
+async def x402_health() -> dict[str, Any]:
+    """Live x402 readiness probe.
+
+    Returns facilitator mode/readiness (self-hosted vs external), whether the
+    price oracle is reachable and from which source, the supported network
+    surface with per-network verification status, and settlement counters
+    (nonces seen, pending). All fields are probed — the facilitator wallet/RPC
+    and the oracle are checked, never assumed.
+    """
+    from x402 import get_facilitator_router
+    from x402.scheme import (
+        SUPPORTED_ASSETS,
+        SUPPORTED_NETWORKS,
+        network_verification_status,
+        probe_oracle,
+    )
+
+    router = get_facilitator_router()
+    oracle_reachable, oracle_source = await probe_oracle()
+    verification_status = {
+        n["network"]: network_verification_status(n["network"]) for n in SUPPORTED_NETWORKS
+    }
+    return {
+        "status": "ok",
+        "facilitator": router.readiness(),
+        "oracle": {"reachable": oracle_reachable, "source": oracle_source},
+        "supported_networks": [n["network"] for n in SUPPORTED_NETWORKS],
+        "supported_assets_count": sum(len(assets) for assets in SUPPORTED_ASSETS.values()),
+        "verification_status": verification_status,
+        "settlement": router.settlement_stats(),
+    }
+
+
 @router.get("/v1/x402/pricing", tags=["x402"], summary="Get x402 pricing for all paid operations")
 async def x402_pricing() -> dict[str, Any]:
     """Get the price list for pay-per-scrape operations."""

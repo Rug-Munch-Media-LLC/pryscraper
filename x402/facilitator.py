@@ -35,10 +35,10 @@ from x402 import (
 )
 from x402.scheme import (
     _NATIVE_ASSETS,
-    VERIFICATION_STATUS,
     X402Scheme,
     asset_to_atomic,
     network_family,
+    network_verification_status,
     normalize_network_id,
     resolve_asset_entry,
 )
@@ -168,6 +168,47 @@ class FacilitatorRouter:
         self-verify and self-settle it without an external facilitator.
         """
         self._pending_auths[payment_id] = authorization
+
+    def readiness(self) -> dict[str, Any]:
+        """Facilitator readiness probe (no network I/O).
+
+        Returns ``{"mode", "ready", "wallet_configured"}``. ``mode`` is
+        ``"self_hosted"`` (EIP-3009 SelfFacilitator) or ``"external"``
+        (configured facilitator URLs). ``ready`` means the wallet is
+        configured AND the selected mode can actually broadcast/settle:
+        self-hosted requires an RPC URL, external requires at least one
+        enabled facilitator with a verify URL.
+        """
+        wallet = (X402_WALLET or "").strip()
+        wallet_configured = bool(wallet and wallet != "pry-default-wallet")
+        mode = "self_hosted" if self.self_hosted else "external"
+        if self.self_hosted:
+            fac = self._get_self_facilitator()
+            ready = wallet_configured and bool(fac.rpc_url)
+        else:
+            ready = wallet_configured and any(f.enabled and f.verify_url for f in self.facilitators)
+        return {
+            "mode": mode,
+            "ready": ready,
+            "wallet_configured": wallet_configured,
+        }
+
+    def settlement_stats(self) -> dict[str, Any]:
+        """Settlement health counters for the /v1/x402/health endpoint.
+
+        ``nonces_seen`` is the self-hosted replay-nonce store size;
+        ``pending`` is the count of settlement attempts currently in-flight
+        (self-hosted) or pending authorizations awaiting processing
+        (external mode).
+        """
+        if self.self_hosted or self._self_facilitator is not None:
+            fac = self._get_self_facilitator()
+            nonces = fac.nonces.count
+            pending = fac.pending_count
+        else:
+            nonces = 0
+            pending = len(self._pending_auths)
+        return {"nonces_seen": nonces, "pending": pending}
 
     def _impl_for(self, network: str) -> Any | None:
         """Return a registered custom facilitator for a network, if any."""
@@ -424,7 +465,6 @@ class FacilitatorRouter:
                 "scaffolded": True,
                 "network": network_id,
             }
-        status = VERIFICATION_STATUS.get(network_family(network_id), {})
         return {
             "verified": False,
             "reason": "needs_facilitator: on-chain settlement verification not "
@@ -434,7 +474,7 @@ class FacilitatorRouter:
             "network": network_id,
             "asset": asset,
             "supported": True,
-            "verification_status": status.get("scaffolded", True),
+            "verification_status": network_verification_status(network_id),
             "note": (
                 "Header structure, asset membership and price validated; "
                 "settlement NOT verified. See VERIFICATION_STATUS."

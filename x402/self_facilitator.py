@@ -10,7 +10,12 @@ Implements EVM ``exact``-scheme verify + settle entirely on Pry infra:
 - **settle**: sign + broadcast the authorization (or a plain
   ``transferFrom`` when the payer pre-approved) to the configured RPC via
   httpx, returning the tx hash (or ``None`` when not settlable / chain
-  unavailable / missing key).
+  unavailable / missing key). Settlement is hardened: idempotent
+  (an already-settled payment returns the existing tx hash, never
+  double-submits), tracked in bounded ``pending_settlements`` /
+  ``_settled_txs`` structures, and failures are classified into a
+  :class:`SettleErrorCode` taxonomy (insufficient gas, nonce conflict, RPC
+  timeout, wrong chain, …) via :meth:`SelfFacilitator.settle_with_details`.
 
 Crypto: ``eth-keys`` (ecrecover + digest signing) and ``eth-account``
 (transaction signing / RLP). Keccak backend is ``eth-hash[pycryptodome]``.
@@ -40,8 +45,9 @@ import json
 import logging
 import os
 import time
-from collections import deque
+from collections import OrderedDict, deque
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -136,6 +142,68 @@ class VerifyResult:
     asset: str = ""
     network: str = ""
     scheme: str = X402Scheme.EXACT.value
+
+
+class SettleErrorCode(StrEnum):
+    """Taxonomy of self-hosted settlement failures.
+
+    Classified so callers and operators can react precisely: retry on
+    ``rpc_timeout``, fund the facilitator key on ``insufficient_gas``, and
+    treat ``nonce_conflict`` as a re-submission hazard (never blindly
+    re-broadcast — idempotency already guards this).
+    """
+
+    NOT_SETTLABLE = "not_settlable"
+    WRONG_CHAIN = "wrong_chain"
+    INSUFFICIENT_GAS = "insufficient_gas"
+    NONCE_CONFLICT = "nonce_conflict"
+    RPC_TIMEOUT = "rpc_timeout"
+    RPC_ERROR = "rpc_error"
+
+
+@dataclass
+class SettleOutcome:
+    """Result of a self-hosted settlement attempt with error taxonomy.
+
+    ``success`` True + ``tx_hash`` set means the authorization was broadcast
+    (or had already been settled — ``idempotent`` True, never double-submitted).
+    On failure ``error_code`` is one of :class:`SettleErrorCode` and
+    ``error_detail`` carries the underlying message.
+    """
+
+    success: bool
+    tx_hash: str | None = None
+    error_code: str = ""
+    error_detail: str = ""
+    idempotent: bool = False
+
+
+# RPC error-message markers used to classify settlement failures.
+_RPC_INSUFFICIENT_GAS_MARKERS = (
+    "insufficient funds",
+    "insufficient balance",
+    "out of gas",
+    "gas required exceeds allowance",
+)
+_RPC_NONCE_MARKERS = (
+    "nonce too low",
+    "nonce too high",
+    "replacement transaction underpriced",
+    "same nonce",
+)
+
+
+def _classify_settle_error(exc: BaseException) -> tuple[str, str]:
+    """Map an RPC/httpx failure to a :class:`SettleErrorCode` + detail."""
+    detail = str(exc)
+    lowered = detail.lower()
+    if isinstance(exc, httpx.TimeoutException):
+        return SettleErrorCode.RPC_TIMEOUT.value, detail
+    if any(marker in lowered for marker in _RPC_INSUFFICIENT_GAS_MARKERS):
+        return SettleErrorCode.INSUFFICIENT_GAS.value, detail
+    if any(marker in lowered for marker in _RPC_NONCE_MARKERS):
+        return SettleErrorCode.NONCE_CONFLICT.value, detail
+    return SettleErrorCode.RPC_ERROR.value, detail
 
 
 # ── ABI encoding helpers (minimal EIP-712 subset) ────────────────────────────
@@ -425,6 +493,8 @@ class SelfFacilitator:
             ``X402_DIR/self_facilitator_nonces.json``).
         max_nonces: Bound of the in-memory replay set.
         transport: Optional httpx transport (tests).
+        max_settled: Bound of the idempotent settled-tx tracker.
+        max_pending: Bound of the in-flight pending-settlement tracker.
     """
 
     def __init__(
@@ -439,6 +509,8 @@ class SelfFacilitator:
         max_nonces: int = 10_000,
         timeout_seconds: float = X402_TIMEOUT_SECONDS,
         transport: httpx.AsyncBaseTransport | None = None,
+        max_settled: int = 10_000,
+        max_pending: int = 10_000,
     ) -> None:
         self.pay_to = self._normalize_address(pay_to or X402_WALLET)
         self.facilitator_key = facilitator_key or X402_SELF_FACILITATOR_KEY
@@ -456,6 +528,67 @@ class SelfFacilitator:
             PrivateKey(bytes.fromhex(key_hex)) if len(key_hex) == 64 else None
         )
         self._acct: Any = Account.from_key(bytes.fromhex(key_hex)) if self._signer else None
+        # Settlement hardening: bounded idempotency + in-flight trackers.
+        self._settled_txs: OrderedDict[str, Any] = OrderedDict()
+        self._max_settled = max(int(max_settled), 1)
+        self._pending_settlements: OrderedDict[str, Any] = OrderedDict()
+        self._max_pending = max(int(max_pending), 1)
+
+    # ── settlement trackers ──────────────────────────────────────────────────
+
+    @property
+    def pending_count(self) -> int:
+        """Number of settlement attempts currently in-flight (pending)."""
+        return sum(1 for s in self._pending_settlements.values() if s.get("status") == "pending")
+
+    def _settlement_id(self, payment: dict[str, Any]) -> str:
+        """Idempotency key for a payment: payment_id, else EIP-3009 nonce key."""
+        pid = str(payment.get("payment_id") or "").strip()
+        if pid:
+            return pid
+        auth = payment.get("authorization")
+        if not isinstance(auth, dict) or auth.get("nonce") is None:
+            return ""
+        network = normalize_network_id(str(payment.get("network") or ""))
+        asset = str(payment.get("asset") or X402_DEFAULT_ASSET).upper()
+        entry = resolve_asset_entry(network, asset)
+        chain_id = _chain_id_for(network) or 0
+        token = str(entry["contract"]).lower() if entry else ""
+        return f"nonce:{chain_id}:{token}:{_nonce_hex(auth.get('nonce'))}"
+
+    def _mark_pending(self, payment_id: str) -> None:
+        self._pending_settlements[payment_id] = {
+            "status": "pending",
+            "started_at": time.time(),
+        }
+        self._trim(self._pending_settlements, self._max_pending)
+
+    def _mark_settled(self, payment_id: str, tx_hash: str) -> None:
+        entry = self._pending_settlements.get(payment_id)
+        if entry is None:
+            entry = {}
+            self._pending_settlements[payment_id] = entry
+        entry["status"] = "settled"
+        entry["tx_hash"] = tx_hash
+        entry["settled_at"] = time.time()
+        self._settled_txs[payment_id] = tx_hash
+        self._settled_txs.move_to_end(payment_id)
+        self._trim(self._settled_txs, self._max_settled)
+
+    def _mark_pending_failed(self, payment_id: str, code: str, detail: str) -> None:
+        entry = self._pending_settlements.get(payment_id)
+        if entry is None:
+            entry = {}
+            self._pending_settlements[payment_id] = entry
+        entry["status"] = "failed"
+        entry["error_code"] = code
+        entry["error_detail"] = detail
+        entry["failed_at"] = time.time()
+
+    @staticmethod
+    def _trim(ordered: OrderedDict[str, Any], max_size: int) -> None:
+        while len(ordered) > max_size:
+            ordered.popitem(last=False)
 
     @staticmethod
     def _normalize_address(value: str) -> str:
@@ -690,6 +823,9 @@ class SelfFacilitator:
     async def settle(self, payment: dict[str, Any]) -> str | None:
         """Sign + broadcast settlement. Returns the tx hash, or None.
 
+        Legacy contract (returns ``str | None``). For the hardened result
+        with idempotency + error taxonomy use :meth:`settle_with_details`.
+
         Settlement order:
         1. ``transferWithAuthorization`` broadcast when the payment carries an
            authorization (anyone may broadcast; our key pays the gas);
@@ -697,24 +833,66 @@ class SelfFacilitator:
            (payer pre-approved our wallet) — our key is the caller;
         3. otherwise None (not settlable / chain unavailable / missing key).
 
+        Idempotent: settling an already-settled payment returns the existing
+        tx hash without re-broadcasting.
+
         RPC calls: eth_chainId, eth_getTransactionCount, eth_estimateGas,
         eth_gasPrice, eth_sendRawTransaction.
         """
+        outcome = await self.settle_with_details(payment)
+        return outcome.tx_hash if outcome.success else None
+
+    async def settle_with_details(self, payment: dict[str, Any]) -> SettleOutcome:
+        """Sign + broadcast settlement with idempotency + error taxonomy.
+
+        Never double-submits: an already-settled payment (by ``payment_id``,
+        or by EIP-3009 nonce when no id is present) returns the existing tx
+        hash with ``idempotent=True``. Failures are classified into
+        :class:`SettleErrorCode` (insufficient gas, nonce conflict, RPC
+        timeout, …) so callers can react precisely instead of guessing.
+        """
         if not self.rpc_url or self._acct is None:
-            return None
+            return SettleOutcome(
+                False,
+                error_code=SettleErrorCode.NOT_SETTLABLE.value,
+                error_detail="no RPC URL or facilitator key configured",
+            )
 
         network = normalize_network_id(str(payment.get("network") or ""))
         asset = str(payment.get("asset") or X402_DEFAULT_ASSET).upper()
         entry = resolve_asset_entry(network, asset)
         if entry is None:
-            return None
+            return SettleOutcome(
+                False,
+                error_code=SettleErrorCode.NOT_SETTLABLE.value,
+                error_detail=f"asset {asset!r} not supported on {network}",
+            )
         chain_id = _chain_id_for(network)
         if chain_id is None:
-            return None
+            return SettleOutcome(
+                False,
+                error_code=SettleErrorCode.NOT_SETTLABLE.value,
+                error_detail=f"no EVM chain id known for {network}",
+            )
+
+        # Idempotency: an already-settled payment returns the existing hash —
+        # never re-broadcast (double-spend of the same authorization).
+        settle_id = self._settlement_id(payment)
+        if settle_id and settle_id in self._settled_txs:
+            existing = str(self._settled_txs[settle_id])
+            logger.info("x402_self_settle_idempotent", extra={"settle_id": settle_id})
+            return SettleOutcome(True, tx_hash=existing, idempotent=True)
 
         auth = payment.get("authorization")
         if isinstance(auth, dict) and auth:
-            data = self._build_transfer_with_auth_calldata(auth)
+            try:
+                data = self._build_transfer_with_auth_calldata(auth)
+            except (ValueError, KeyError) as e:
+                return SettleOutcome(
+                    False,
+                    error_code=SettleErrorCode.NOT_SETTLABLE.value,
+                    error_detail=f"malformed authorization: {e}",
+                )
             to_address = self._normalize_address(str(entry["contract"]))
         elif payment.get("approved"):
             data = self._build_transfer_from_calldata(payment)
@@ -724,11 +902,21 @@ class SelfFacilitator:
                 "x402_self_settle_not_settlable",
                 extra={"network": network, "asset": asset},
             )
-            return None
+            return SettleOutcome(
+                False,
+                error_code=SettleErrorCode.NOT_SETTLABLE.value,
+                error_detail="no authorization and payment not pre-approved",
+            )
 
         if self.pay_to == _PLACEHOLDER_WALLET or not self.pay_to:
-            return None
+            return SettleOutcome(
+                False,
+                error_code=SettleErrorCode.NOT_SETTLABLE.value,
+                error_detail="server wallet (payTo) not configured",
+            )
 
+        pid = settle_id or str(payment.get("payment_id") or "pending")
+        self._mark_pending(pid)
         try:
             async with self._client() as client:
                 # Refuse to broadcast on the wrong chain.
@@ -736,19 +924,46 @@ class SelfFacilitator:
                 if onchain_chain is not None:
                     try:
                         if int(str(onchain_chain), 16) != chain_id:
+                            detail = f"RPC chain {onchain_chain} != expected {chain_id}"
                             logger.warning(
                                 "x402_self_settle_wrong_chain",
                                 extra={"rpc_chain": onchain_chain, "expected": chain_id},
                             )
-                            return None
+                            self._mark_pending_failed(
+                                pid, SettleErrorCode.WRONG_CHAIN.value, detail
+                            )
+                            return SettleOutcome(
+                                False,
+                                error_code=SettleErrorCode.WRONG_CHAIN.value,
+                                error_detail=detail,
+                            )
                     except ValueError:
-                        return None
-                return await self._send_tx(
+                        detail = "unparseable eth_chainId result"
+                        self._mark_pending_failed(pid, SettleErrorCode.RPC_ERROR.value, detail)
+                        return SettleOutcome(
+                            False,
+                            error_code=SettleErrorCode.RPC_ERROR.value,
+                            error_detail=detail,
+                        )
+                tx = await self._send_tx(
                     client, to=to_address, data=data, chain_id=chain_id, value=0
                 )
-        except (httpx.HTTPError, httpx.RequestError, ValueError) as e:
-            logger.warning("x402_self_settle_failed", extra={"error": str(e)})
-            return None
+        except (httpx.HTTPError, httpx.RequestError, ValueError, OSError) as e:
+            code, detail = _classify_settle_error(e)
+            logger.warning(
+                "x402_self_settle_failed",
+                extra={"error_code": code, "error": detail},
+            )
+            self._mark_pending_failed(pid, code, detail)
+            return SettleOutcome(False, error_code=code, error_detail=detail)
+        if not tx:
+            detail = "broadcast returned no tx hash"
+            self._mark_pending_failed(pid, SettleErrorCode.RPC_ERROR.value, detail)
+            return SettleOutcome(
+                False, error_code=SettleErrorCode.RPC_ERROR.value, error_detail=detail
+            )
+        self._mark_settled(pid, tx)
+        return SettleOutcome(True, tx_hash=tx)
 
     def _build_transfer_with_auth_calldata(self, auth: dict[str, Any]) -> str:
         """Calldata for ERC-20 ``transferWithAuthorization(...)``."""
