@@ -8,32 +8,35 @@ Self-hosted, free, better than Firecrawl."""
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
-import json
-import re
-import time
 import uuid
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.routing import Mount as StarletteMount, Route as StarletteRoute
 
 from client import close_client
-from deps import advanced, automator, extractor, queue, ratelimiter, scraper
+from deps import advanced, automator, extractor, queue, scraper
 from errors import (
     PryError,
 )
-from jwt_auth import is_jwt, validate_rmi_jwt
-from mcp_sse import mcp_post_message, mcp_sse_endpoint
-from observability import REQUEST_COUNT, REQUEST_LATENCY, setup_tracing
+from middleware import (
+    _AUTH_PUBLIC_PATHS,  # noqa: F401  (re-exported for compatibility)
+    _LOOPBACK_OR_TEST_HOSTS,  # noqa: F401
+    PryHttpMiddleware,
+    _path_exists,  # noqa: F401
+    is_loopback_client,  # noqa: F401
+    request_authorized,  # noqa: F401  (imported by routers/proxy.py, routers/config.py)
+)
+from observability import setup_tracing
 from pipeline import get_pipeline
 from pry_mcp import make_fallback_server, register_all
+from pry_mcp.app import create_mcp_app
 from routers.advanced import router as advanced_router
 from routers.agency import router as agency_router
 from routers.ai import router as ai_router
@@ -140,26 +143,9 @@ app = FastAPI(
 )
 
 # ── MCP sub-app ──
-# Mounted on /mcp so that streaming SSE endpoints bypass the main app's
-# BaseHTTPMiddleware (which buffers response bodies and breaks SSE).
-mcp_app = FastAPI(
-    title="Pry MCP",
-    version="3.0.0",
-    description="Model Context Protocol endpoints for Pry.",
-)
-mcp_app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://rugmunch.io",
-        "https://[INTERNAL]",
-        "http://localhost:3000",
-        "http://localhost:5173",
-    ],
-    allow_origin_regex=r"https://.*\.rugmunch\.io",
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+# Built by pry_mcp.app.create_mcp_app(); mounted on /mcp so that streaming SSE
+# endpoints bypass the main app's BaseHTTPMiddleware (which buffers response
+# bodies and breaks SSE).
 _mcp_server_instance: Any | None = None
 
 
@@ -172,40 +158,9 @@ def _get_mcp_server() -> Any:
     return _mcp_server_instance
 
 
-@mcp_app.post("/", tags=["MCP"], summary="MCP JSON-RPC endpoint")
-async def mcp_json_rpc(request: Request) -> dict[str, Any]:
-    """MCP JSON-RPC endpoint conforming to the 2024-11-05 spec."""
-    body = await request.json()
-    server = _get_mcp_server()
-    return cast("dict[str, Any]", await server.handle_request(body))
-
-
-@mcp_app.get("/health", tags=["MCP"], summary="MCP server health")
-async def mcp_health() -> dict[str, Any]:
-    """Health check for the MCP server."""
-    server = _get_mcp_server()
-    return {
-        "status": "ok",
-        "server": "pry-mcp",
-        "version": "3.0.0",
-        "protocol_version": "2024-11-05",
-        "tools_count": len(server.tools),
-        "resources_count": len(server.resources),
-        "prompts_count": len(server.prompts),
-    }
-
-
-@mcp_app.get("/sse", tags=["MCP"], summary="MCP HTTP+SSE transport")
-async def mcp_sse(request: Request) -> StreamingResponse:
-    """MCP HTTP+SSE transport endpoint."""
-    return await mcp_sse_endpoint(request, _get_mcp_server())
-
-
-@mcp_app.post("/messages/{session_id}", tags=["MCP"], summary="Post MCP JSON-RPC message")
-async def mcp_messages(session_id: str, request: Request) -> Response:
-    """Receive a JSON-RPC message for an active MCP SSE session."""
-    return await mcp_post_message(request, session_id, _get_mcp_server())
-
+# The lambda defers the _get_mcp_server lookup to request time, so tests that
+# patch api._get_mcp_server keep working.
+mcp_app = create_mcp_app(get_server=lambda: _get_mcp_server())
 
 app.mount("/mcp", mcp_app)
 
@@ -317,357 +272,11 @@ def add_error_handlers(app: FastAPI) -> None:
 
 add_error_handlers(app)
 
-# Public paths that don't need authentication
-
-
-def _path_exists(path: str, app) -> bool:
-    """Check if a path matches any registered route."""
-    routes = getattr(app, "routes", [])
-
-    for route in routes:
-        if isinstance(route, StarletteMount):
-            if route.path == "" or route.path == "/":
-                # Root mount — check all sub-routes
-                if route.routes and _path_exists(path, route):
-                    return True
-                continue
-            if path == route.path or path.startswith(route.path.rstrip("/") + "/"):
-                if route.routes:
-                    sub_path = path[len(route.path) :] if route.path != "/" else path
-                    if _path_exists(sub_path, route):
-                        return True
-                # Mounts without sub-routes catch-all under prefix
-                return True
-        elif isinstance(route, StarletteRoute):
-            route_path = getattr(route, "path", "")
-            if route_path:
-                # Convert path template to regex
-                pattern = "^" + re.sub(r"\{[^}]+\}", "[^/]+", route_path) + "$"
-                if re.match(pattern, path):
-                    return True
-    return False
-
-
-_AUTH_PUBLIC_PATHS: set[str] = {"/health", "/live", "/ready", "/metrics", "/docs", "/openapi.json"}
-
-
-# Middleware: auth + rate limit + timing + request logging
-class PryHttpMiddleware:
-    """Pure-ASGI middleware for auth, rate limiting, timing, and logging.
-
-    Implemented as ASGI (instead of @app.middleware('http')) so streaming
-    responses such as Server-Sent Events are not buffered/broken by
-    BaseHTTPMiddleware.
-    """
-
-    def __init__(self, app: Any) -> None:
-        self.app = app
-
-    @staticmethod
-    def _get_header(scope: Mapping[str, Any], name: bytes) -> str:
-        for key, value in scope.get("headers", []):
-            if key.lower() == name.lower():
-                return cast("bytes", value).decode("latin-1")
-        return ""
-
-    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        # CORS preflight: OPTIONS requests carry no credentials and must reach
-        # CORSMiddleware without auth/rate-limit gating so browsers can probe
-        # cross-origin access before sending the real request.
-        if scope.get("method") == "OPTIONS":
-            await self.app(scope, receive, send)
-            return
-
-        start = time.time()
-        request_id = self._get_header(scope, b"x-request-id") or uuid.uuid4().hex[:12]
-        path = scope.get("path", "")
-        method = scope.get("method", "GET")
-        client = scope.get("client")
-        ip = client[0] if client else "unknown"
-        response_status = 200
-
-        # Authentication check — fail closed.
-        # Runs BEFORE the unknown-path pass-through: a keyless instance must
-        # reject every non-loopback source (even for unknown paths) with 401,
-        # and a configured key must be presented from every source. The
-        # route-existence check below only decides whether an *authorized*
-        # request is passed to the router (which 404s unknown paths).
-        if path not in _AUTH_PUBLIC_PATHS and not request_authorized(scope):
-            body = json.dumps(
-                {
-                    "type": "/errors/unauthorized",
-                    "title": "Unauthorized",
-                    "status": 401,
-                    "detail": "Invalid or missing API key",
-                    "request_id": request_id,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "code": "unauthorized",
-                }
-            ).encode()
-            await send(
-                {
-                    "type": "http.response.start",
-                    "status": 401,
-                    "headers": [
-                        (b"content-type", b"application/json"),
-                        (b"content-length", str(len(body)).encode()),
-                        (b"x-request-id", request_id.encode()),
-                    ],
-                }
-            )
-            await send({"type": "http.response.body", "body": body})
-            return
-
-        # Check if route exists — pass through unknown paths to 404 handler
-        _app = getattr(self, "app", None)
-        if _app and not _path_exists(path, _app):
-            await _app(scope, receive, send)
-            return
-
-        allowed, stats = ratelimiter.check(ip)
-        if not allowed:
-            elapsed = time.time() - start
-            logger.warning(
-                "rate_limit_blocked",
-                extra={
-                    "request_id": request_id,
-                    "ip": ip,
-                    "path": path,
-                    "retry_after": stats.get("retry_after", 1),
-                },
-            )
-
-            body = json.dumps(
-                {
-                    "type": "/errors/rate_limit_exceeded",
-                    "title": "Too Many Requests",
-                    "status": 429,
-                    "detail": "Rate limit exceeded",
-                    "request_id": request_id,
-                    "instance": path,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "code": "rate_limit_exceeded",
-                    "retry_after": stats.get("retry_after", 1),
-                }
-            ).encode()
-            headers = [
-                (b"content-type", b"application/json"),
-                (b"content-length", str(len(body)).encode()),
-                (b"x-ratelimit-limit", str(ratelimiter.default_rpm).encode()),
-                (b"x-ratelimit-remaining", b"0"),
-                (b"x-ratelimit-reset", str(stats.get("retry_after", 1)).encode()),
-                (b"x-request-id", request_id.encode()),
-            ]
-            await send({"type": "http.response.start", "status": 429, "headers": headers})
-            await send({"type": "http.response.body", "body": body})
-            return
-
-        logger.info(
-            "request_start",
-            extra={
-                "request_id": request_id,
-                "method": scope.get("method", "GET"),
-                "path": path,
-                "ip": ip,
-            },
-        )
-
-        ratelimit_limit = str(ratelimiter.default_rpm).encode()
-        ratelimit_remaining = str(stats.get("remaining", 0)).encode()
-        ratelimit_reset = str(stats.get("reset_at", 0)).encode()
-        request_id_bytes = request_id.encode()
-
-        async def wrapped_send(message: dict[str, Any]) -> None:
-            nonlocal response_status
-            if message["type"] == "http.response.start":
-                response_status = message.get("status", 200)
-                headers = list(message.get("headers", []))
-                headers.append((b"x-ratelimit-limit", ratelimit_limit))
-                headers.append((b"x-ratelimit-remaining", ratelimit_remaining))
-                headers.append((b"x-ratelimit-reset", ratelimit_reset))
-                headers.append((b"x-request-id", request_id_bytes))
-                message["headers"] = headers
-            await send(message)
-
-        await self.app(scope, receive, wrapped_send)
-
-        elapsed = time.time() - start
-        if REQUEST_COUNT and REQUEST_LATENCY:
-            REQUEST_COUNT.labels(method=method, endpoint=path, status=str(response_status)).inc()
-            REQUEST_LATENCY.labels(endpoint=path).observe(elapsed)
-        logger.info(
-            "request_end",
-            extra={
-                "request_id": request_id,
-                "method": method,
-                "path": path,
-                "status": response_status,
-                "duration": f"{elapsed:.3f}s",
-            },
-        )
-
-
+# Auth + rate limiting + timing middleware (see middleware.py).
 app.add_middleware(PryHttpMiddleware)
 
 
-# ── Fail-closed auth policy ──
-# Shared by PryHttpMiddleware and the sensitive configuration routers
-# (routers/proxy.py, routers/config.py) so every egress-mutating endpoint
-# enforces the same rule as the middleware:
-#
-#   * PRY_API_KEY configured -> a valid Bearer credential (API key or rmi JWT)
-#     is required from EVERY source, loopback included.
-#   * PRY_API_KEY unset      -> only loopback clients are allowed; every other
-#     source is rejected with 401. This keeps a keyless instance from being
-#     exposed to the internet (e.g. when the Docker port mapping is public).
-#
-# "testclient" is the peer host Starlette's TestClient reports; tests run from
-# localhost without a key and must keep passing.
-_LOOPBACK_OR_TEST_HOSTS: frozenset[str] = frozenset(
-    {"127.0.0.1", "::1", "::ffff:127.0.0.1", "testclient"}
-)
-
-
-def is_loopback_client(ip: str) -> bool:
-    """Return True when the peer address is loopback (or the ASGI test client)."""
-    if not ip or ip == "unknown":
-        return False
-    return ip in _LOOPBACK_OR_TEST_HOSTS or ip.startswith(
-        ("127.", "::ffff:127.")  # 127.0.0.0/8 loopback range
-    )
-
-
-def request_authorized(scope: Mapping[str, Any]) -> bool:
-    """Apply the fail-closed auth policy to an ASGI request scope.
-
-    * key configured -> valid Bearer PRY_API_KEY or rmi JWT required
-    * no key         -> loopback client only
-    """
-    api_key = settings.api_key
-    if api_key:
-        auth = PryHttpMiddleware._get_header(scope, b"authorization")
-        if auth.startswith("Bearer "):
-            token = auth[7:]
-            if token == api_key:
-                return True  # Legacy API key — allowed
-            if is_jwt(token) and validate_rmi_jwt(token):
-                return True  # JWT from rmi-backend — allowed
-        return False
-    client = scope.get("client")
-    return is_loopback_client(client[0] if client else "")
-
-
-# ── Stats ──
-
-
-# ── Costing ──
-
-
-# ── Freshness ──
-
-
-# ── Parse (Documents) ──
-
-
-# ── Automate (Browser) ──
-
-
-# ── Vision — analyze an image via free OpenRouter vision models ───────────────
-# Free models default to google/gemma-4-31b-it:free. Accepts:
-#   - image (base64 data URI or raw base64)
-#   - url (auto-screenshots, then analyzes)
-#   - file_path (local PNG/JPG)
-#   - question (what to ask about the image)
-#   - model (override default)
-#   - max_tokens (default 800)
-#
-# Auto-fallback: if primary model 429s, tries other free models in order.
-
-
-# ── Sessions ──────────────────────────────────────────────────────────────────
-
-
-# ── Email Inbox Scraping ──
-
-
-# ── Integrations ──
-
-
-# ── Alerts ──
-
-
-# ── Jobs ──
-
-
-# ── Config ──
-
-
-# ── Win 3: WebSocket streaming ──
-
-
-# ── Win 5: Batch from file + template ──
-
-
-# ── Win 6: Browser recorder ──
-
-
-# ── Win 8: Multi-format transform ──
-
-
-# ── Win 1: Pryfile execution ──
-
-
-# ── Win 10: Health dashboard HTML ──
-
-
-# ── Win 1: AI Schema Suggestion ──
-
-
-# ── Win 2: Circuit Breaker ──
-
-
-# ── Win 3: Stable Extraction ──
-
-
-# ── Pipeline hooks ──
-
-
-# ── Win 4: Data Pipeline ──
-
-
-# ── Win 5: Shareable Results ──
-
-
-# ── Compliance ──
-
-
-# ── GDPR Compliance Portal ──
-
-
-# ── AI Training Data Pipeline ──
-
-
-# ── Monitoring (cron-based content change detection with AI judging) ──
-
-
-# ── Structure Monitor ──
-
-
-# ── Intelligence (Competitive Intelligence Engine) ──
-
-
-# ── Quality ──
-
-
-# ── Reconciliation ──
-
-
-# ── Auth ──
-# (split into routers/auth.py on the api-router-split refactor)
+# ── Routers ──
 
 app.include_router(auth_router)
 app.include_router(health_router)
@@ -722,51 +331,6 @@ app.include_router(untagged_router)
 app.include_router(vision_router)
 app.include_router(webhooks_router)
 app.include_router(x402_router)
-
-
-# ── Review ──
-
-
-# ── Commerce Sync ──
-
-
-# ── CRM Sync ──
-
-
-# ── Pipeline Builder Endpoints ──
-
-
-# ── Agency ──
-
-
-# ── SEO Content Change Monitor ──
-
-
-# ── Reports ──
-
-
-# ── Enrichment ──
-
-
-# ── AI Agent Integration ──
-
-
-# ── Proxy Provider & Affiliate Signup Flow ──
-
-
-# ── Advanced Scraping (TLS, GraphQL, Schema.org, WebSocket) ──
-
-
-# ── Advanced: Cookie Warming, PDF, OCR, Dedup, Behavior ──
-
-
-# ── x402 payment processing ──
-
-
-# ── Actor marketplace ──
-
-
-# ── Webhook delivery ──
 
 
 if __name__ == "__main__":

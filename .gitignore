@@ -95,3 +95,4 @@ RADICLE.md
 .nuxt/
 coverage/
 
+tests/contract/pacts/
