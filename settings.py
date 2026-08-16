@@ -91,6 +91,15 @@ class PrySettings(BaseSettings):
     flaresolverr_url: str = "http://flaresolverr:8191/v1"
     webhook_secret: str = "pry-webhook-secret"  # noqa: S105
 
+    # CAPTCHA solving (see captcha_solver.py + captcha/ package)
+    captcha_enabled: bool = True
+    # 2captcha-style API key (also used by anti-captcha.com / capmonster clones)
+    captcha_2captcha_api_key: str = ""
+    # Capsolver API key (https://www.capsolver.com)
+    captcha_capsolver_api_key: str = ""
+    # OCR backend for image captchas: "tesseract" (pytesseract) | "easyocr" | "auto"
+    captcha_ocr_backend: str = "tesseract"
+
     # Proxy (legacy env aliases for migration)
     proxy_url: str = Field(
         default="",
@@ -192,6 +201,8 @@ class PrySettings(BaseSettings):
             "anthropic_api_key",
             "cohere_api_key",
             "webhook_secret",
+            "captcha_2captcha_api_key",
+            "captcha_capsolver_api_key",
         )
         try:
             from secrets_backend import get_secret
