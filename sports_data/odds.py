@@ -19,10 +19,18 @@ Core free sources, aggregated here:
 * **Redundancy sources** (:mod:`sports_data.sources`) — OddsPortal
   (scrape), Bovada and BetOnline (offshore public feeds). ``get_odds``
   accepts a ``sources`` parameter to combine any of
-  ``the_odds_api,espn,oddsportal,bovada,betonline``; ``get_odds_multi``
+  ``the_odds_api,espn,oddsportal,bovada,betonline,books``; ``get_odds_multi``
   aggregates every reachable source for one event via ``asyncio.gather``
   and merges the deduped set. Every source degrades independently — one
   source down never blanks the result if another works.
+* **112-book direct scrapers** (:mod:`sports_data.books`) — the sportsbook
+  registry + generic scraper ("more sources than anyone, free"). Pass
+  ``sources="books"`` (or ``"all"``, which includes them) to ALSO pull
+  direct per-book odds from the 112-book registry and merge them in,
+  tagged ``source="books"``. The books module is imported lazily so it can
+  land from a parallel edit without breaking this module. Its results are
+  cached for 30s inside ``sports_data.books`` so back-to-back 112-book
+  polls don't re-scrape.
 
 Contract
 --------
@@ -1031,17 +1039,20 @@ async def _espn_find_event(
 # Canonical source names understood by the ``sources`` parameter. The
 # supplementary fetchers + merge logic live in sports_data.sources (owned
 # alongside this module); they are imported lazily to keep this module's
-# import order independent of the package __init__ cycle.
-_SOURCE_NAMES = ("the_odds_api", "espn", "oddsportal", "bovada", "betonline")
+# import order independent of the package __init__ cycle. ``books`` is the
+# 112-book direct scraper registry (sports_data.books) — it is also
+# imported lazily because that module can land from a parallel edit.
+_SOURCE_NAMES = ("the_odds_api", "espn", "oddsportal", "bovada", "betonline", "books")
 
 
 def _parse_sources_param(sources: str | None) -> set[str] | None:
     """Normalize a ``sources`` param into the set of source names to query.
 
     ``None`` / ``""`` -> ``None`` (legacy behavior: The Odds API when a key
-    is configured, else ESPN). ``"all"`` / ``"*"`` -> every source name.
-    Unknown names are ignored (never raises); if nothing valid remains the
-    result is ``None`` (legacy behavior).
+    is configured, else ESPN). ``"all"`` / ``"*"`` -> every source name
+    (including ``"books"``, the 112-book direct scrapers). Unknown names
+    are ignored (never raises); if nothing valid remains the result is
+    ``None`` (legacy behavior).
     """
     if sources is None:
         return None
@@ -1078,7 +1089,8 @@ async def get_odds(
             filtered client-side too (covers the ESPN fallback).
         sources: Optional comma-separated source list —
             ``"the_odds_api"``, ``"espn"``, ``"oddsportal"``, ``"bovada"``,
-            ``"betonline"`` (or ``"all"``). ``None`` (default) keeps the
+            ``"betonline"``, ``"books"`` (or ``"all"``, which includes the
+            112-book direct scrapers). ``None`` (default) keeps the
             legacy behavior (The Odds API when a key is configured, else
             ESPN). When set, only those sources are queried and the results
             are merged/deduped across them; unknown names are ignored.
@@ -1144,7 +1156,9 @@ async def _get_odds(
         elif wanted is None or "espn" in wanted:
             core_records.extend(await _espn_odds_for_league(espn, slug, markets))
         if wanted is not None:
-            supplemental.extend(await _supplementary_records(wanted, slug, markets, book_key))
+            supplemental.extend(
+                await _supplementary_records(wanted, slug, markets, book_key, limit=clamped)
+            )
     records = core_records + supplemental
     if wanted is not None and len({record.get("source") for record in records}) > 1:
         from sports_data import sources as _odds_sources
@@ -1161,18 +1175,29 @@ async def _get_odds(
             or query in str(record.get("away") or "").lower()
         ]
     if book_key:
-        records = [record for record in records if record.get("book") == book_key]
+        records = [
+            record
+            for record in records
+            if record.get("book") == book_key or str(record.get("book_id") or "") == book_key
+        ]
     records.sort(key=lambda record: str(record.get("last_update") or ""), reverse=True)
     return records[:clamped]
 
 
 async def _supplementary_records(
-    wanted: set[str], slug: str, markets: list[str], book_key: str | None
+    wanted: set[str],
+    slug: str,
+    markets: list[str],
+    book_key: str | None,
+    limit: int = 100,
 ) -> list[dict[str, Any]]:
     """Fetch records from the scrape/offshore sources for one sport.
 
     Each source is fetched independently (``asyncio.gather`` with
     ``return_exceptions=True``) so one failure never affects the others.
+    ``books`` (the 112-book direct scrapers) participates too when
+    requested; it is imported lazily because that module can land from a
+    parallel edit.
     """
     from sports_data import sources as _odds_sources
 
@@ -1183,6 +1208,8 @@ async def _supplementary_records(
         jobs.append(("bovada", _odds_sources.fetch_bovada(slug)))
     if "betonline" in wanted and _odds_sources.source_supports("betonline", slug):
         jobs.append(("betonline", _odds_sources.fetch_betonline(slug)))
+    if "books" in wanted:
+        jobs.append(("books", _books_odds_for_sport(slug, markets, book_key, limit=limit)))
     if not jobs:
         return []
     results = await asyncio.gather(*(job for _name, job in jobs), return_exceptions=True)
@@ -1202,6 +1229,46 @@ async def _supplementary_records(
                 continue
             records.append(record)
     return records
+
+
+async def _books_odds_for_sport(
+    slug: str,
+    markets: list[str],
+    book_key: str | None,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    """Pull normalized odds from the 112-book scraper registry for one sport.
+
+    The ``sports_data.books`` module may be edited in parallel, so the
+    import is guarded: if it is momentarily unavailable the books source
+    simply contributes nothing (never raises). Records are copied and
+    tagged ``source="books"`` (the pipeline-level source name); the
+    per-book identity stays in ``book`` / ``book_id``.
+    """
+    try:
+        from sports_data import books as _books
+    except Exception:  # noqa: BLE001 - guarded parallel import
+        logger.warning("sports_books_module_unavailable", extra={"sport": slug})
+        return []
+    try:
+        market_arg = markets[0] if len(markets) == 1 else "all"
+        records = await _books.get_all_books_odds(sport=slug, market=market_arg, limit=limit)
+    except Exception:  # noqa: BLE001 - never raise
+        logger.warning("sports_books_failed", extra={"sport": slug})
+        return []
+    tagged: list[dict[str, Any]] = []
+    for record in records or []:
+        if not isinstance(record, dict):
+            continue
+        if record.get("market") not in markets:
+            continue
+        if book_key is not None and record.get("book_id") != book_key:
+            continue
+        copy = dict(record)
+        copy["source"] = "books"
+        copy["sport"] = slug
+        tagged.append(copy)
+    return tagged
 
 
 async def get_event_odds(
@@ -1293,10 +1360,11 @@ async def get_odds_multi(
     Resolves the event (label + sport) through the core comparison path,
     then fetches from each reachable source in parallel via
     ``asyncio.gather`` (The Odds API / ESPN core plus OddsPortal, Bovada and
-    BetOnline where the sport is mapped) and returns the merged, deduped
-    record set (:func:`sports_data.sources.merge_odds` — Pinnacle wins
-    conflicts). Each source degrades independently: one source being down
-    or blocked never blanks the result if another works.
+    BetOnline where the sport is mapped, and the 112-book direct scrapers
+    when ``sources`` includes ``"books"`` or ``"all"``) and returns the
+    merged, deduped record set (:func:`sports_data.sources.merge_odds` —
+    Pinnacle wins conflicts). Each source degrades independently: one
+    source being down or blocked never blanks the result if another works.
 
     Args:
         event_id: The event id; accepts an optional ``sport:event_id``
@@ -1306,7 +1374,9 @@ async def get_odds_multi(
         book: Optional single-book filter (e.g. ``"draftkings"``).
         limit: Max records to return (1-100).
         sources: Optional comma-separated source list (see
-            :func:`get_odds`); ``None`` queries every reachable source.
+            :func:`get_odds`); ``None`` queries every reachable source
+            except the 112-book scrapers (those require an explicit
+            ``"books"`` / ``"all"``).
 
     Returns:
         A deduped list of canonical odds records for the event. ``[]`` when
@@ -1373,6 +1443,11 @@ async def _get_odds_multi(
             jobs.append((name, _odds_sources.fetch_bovada(slug)))
         else:
             jobs.append((name, _odds_sources.fetch_betonline(slug)))
+    # The 112-book direct scrapers are only pulled when explicitly
+    # requested ("books" / "all") — they are the heaviest source and the
+    # default ``sources=None`` behavior stays unchanged.
+    if wanted is not None and "books" in wanted:
+        jobs.append(("books", _books_odds_for_sport(slug, markets, book_key, limit=clamped)))
 
     if not jobs:
         return []

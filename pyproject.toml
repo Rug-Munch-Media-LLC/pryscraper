@@ -235,6 +235,7 @@ py-modules = [
     "review",
     "schema_extraction",
     "scraper",
+    "scraping_methods",
     "secrets_backend",
     "seo_monitor",
     "sessions",
