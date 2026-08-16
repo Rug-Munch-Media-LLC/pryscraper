@@ -272,6 +272,12 @@ include = [
     "signup*",
     "marketplace*",
     "billing*",
+    "legal_docs*",
+    "real_estate*",
+    "jobs*",
+    "travel*",
+    "attention*",
+    "local_data*",
 ]
 
 [tool.ruff]

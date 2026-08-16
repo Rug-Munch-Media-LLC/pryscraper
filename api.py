@@ -42,6 +42,7 @@ from routers.agency import router as agency_router
 from routers.ai import router as ai_router
 from routers.alerts import router as alerts_router
 from routers.analysis import router as analysis_router
+from routers.attention import router as attention_router
 from routers.auth import router as auth_router
 from routers.automation import router as automation_router
 from routers.batch import router as batch_router
@@ -66,6 +67,8 @@ from routers.health import router as health_router
 from routers.integrations import router as integrations_router
 from routers.intelligence import router as intelligence_router
 from routers.jobs import router as jobs_router
+from routers.legal_docs import router as legal_docs_router
+from routers.local_data import router as local_data_router
 from routers.marketplace import router as marketplace_router
 from routers.monitoring import router as monitoring_router
 from routers.parsing import router as parsing_router
@@ -73,6 +76,7 @@ from routers.pipeline import router as pipeline_router
 from routers.pipelines import router as pipelines_router
 from routers.proxy import router as proxy_router
 from routers.quality import router as quality_router
+from routers.real_estate import router as real_estate_router
 from routers.reconciliation import router as reconciliation_router
 from routers.recorder import router as recorder_router
 from routers.referrals import router as referrals_router
@@ -90,6 +94,7 @@ from routers.system import router as system_router
 from routers.templates import router as templates_router
 from routers.training import router as training_router
 from routers.transform import router as transform_router
+from routers.travel import router as travel_router
 from routers.untagged import router as untagged_router
 from routers.vision import router as vision_router
 from routers.webhooks import router as webhooks_router
@@ -314,14 +319,19 @@ app.include_router(execute_router)
 app.include_router(export_router)
 app.include_router(extraction_router)
 app.include_router(freshness_router)
+app.include_router(attention_router)
 app.include_router(gdpr_router)
 app.include_router(integrations_router)
 app.include_router(intelligence_router)
 app.include_router(jobs_router)
+app.include_router(legal_docs_router)
+app.include_router(local_data_router)
 app.include_router(marketplace_router)
 app.include_router(monitoring_router)
 app.include_router(parsing_router)
 app.include_router(pipeline_router)
+app.include_router(real_estate_router)
+app.include_router(travel_router)
 app.include_router(pipelines_router)
 app.include_router(proxy_router)
 app.include_router(quality_router)
