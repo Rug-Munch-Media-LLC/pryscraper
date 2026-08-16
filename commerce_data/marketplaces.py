@@ -18,6 +18,11 @@ Sources (all free):
   challenge to non-browser clients, so extraction (from the embedded
   ``window._dida_config_`` / ``window.runParams`` JSON) often finds
   nothing. Treat results as best-effort.
+* **Target / Best Buy** — routed through :mod:`marketplace.retail`,
+  which parses the JSON-LD ``Product`` and embedded ``__NEXT_DATA__``
+  state from the public product / search pages (no API keys). Best Buy
+  is Akamai-protected and Costco-style geo/JS gates can appear, so
+  results degrade to ``[]`` / ``{}`` when blocked (never raise).
 
 Contract
 --------
@@ -36,7 +41,7 @@ Canonical result shape::
         "seller": str | None,
         "rating": float | None,   # seller feedback score (eBay); None elsewhere
         "url": str,
-        "marketplace": "ebay" | "etsy" | "aliexpress" | "shopify",
+        "marketplace": "ebay" | "etsy" | "aliexpress" | "shopify" | "target" | "bestbuy",
     }
 
 Anti-bot honesty: scraping sources are parsed with signature-based
@@ -67,12 +72,17 @@ from urllib.parse import quote
 
 import httpx
 
+from marketplace import retail as _retail_sources
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
 logger = logging.getLogger(__name__)
 
-MARKETPLACES = ("ebay", "etsy", "aliexpress", "shopify")
+MARKETPLACES = ("ebay", "etsy", "aliexpress", "shopify", "target", "bestbuy")
+
+# Retailers routed through marketplace.retail (JSON-LD / embedded state).
+_RETAIL_MARKETPLACES = ("target", "bestbuy")
 
 _MAX_LIMIT = 250  # Shopify products.json caps at 250 per page
 
@@ -650,6 +660,50 @@ async def _aliexpress_get(product_id: str) -> dict[str, Any]:
     }
 
 
+# ── Target / Best Buy (via marketplace.retail) ────────────────────────
+
+
+def _retail_to_commerce(record: dict[str, Any], mp: str) -> dict[str, Any] | None:
+    """Map a ``marketplace.retail`` record onto the commerce canonical shape."""
+    if not record:
+        return None
+    product_id = str(record.get("product_id") or "").strip()
+    if not product_id:
+        return None
+    return {
+        "id": product_id,
+        "title": str(record.get("title") or ""),
+        "price": record.get("price"),
+        "currency": record.get("currency"),
+        "seller": record.get("seller"),
+        "rating": record.get("rating"),
+        "url": str(record.get("url") or ""),
+        "marketplace": mp,
+    }
+
+
+async def _retail_search(mp: str, query: str, limit: int) -> list[dict[str, Any]]:
+    """Search one retail marketplace via marketplace.retail (never raises)."""
+    if _retail_sources is None:
+        return []
+    records = await _retail_sources.search_retail(query, store=mp, limit=limit)
+    out: list[dict[str, Any]] = []
+    for record in records:
+        mapped = _retail_to_commerce(record, mp)
+        if mapped:
+            out.append(mapped)
+    return out
+
+
+async def _retail_get(mp: str, product_id: str) -> dict[str, Any]:
+    """Fetch one retail product via marketplace.retail (never raises)."""
+    if _retail_sources is None:
+        return {}
+    record = await _retail_sources.get_retail_product(mp, product_id)
+    mapped = _retail_to_commerce(record, mp)
+    return mapped or {}
+
+
 # ── public API ─────────────────────────────────────────────────────────
 
 
@@ -658,7 +712,8 @@ async def search_product(
 ) -> list[dict[str, Any]]:
     """Search products across a marketplace. Async, never raises.
 
-    ``marketplace`` is one of ``ebay``, ``etsy``, ``aliexpress``, ``shopify``.
+    ``marketplace`` is one of ``ebay``, ``etsy``, ``aliexpress``,
+    ``shopify``, ``target``, ``bestbuy``.
     For ``shopify``, ``query`` is the store subdomain (e.g. ``"allbirds"``).
 
     Returns ``[]`` on any failure (missing API key, HTTP error, parse
@@ -677,6 +732,8 @@ async def search_product(
         return await _etsy_search(text, bounded)
     if mp == "aliexpress":
         return await _aliexpress_search(text, bounded)
+    if mp in _RETAIL_MARKETPLACES:
+        return await _retail_search(mp, text, bounded)
     logger.warning("commerce_marketplace_unknown", extra={"marketplace": mp})
     return []
 
@@ -684,7 +741,8 @@ async def search_product(
 async def get_product(product_id: str, marketplace: str = "ebay") -> dict[str, Any]:
     """Fetch one product by id. Async, never raises.
 
-    ``marketplace`` is one of ``ebay``, ``etsy``, ``aliexpress``, ``shopify``.
+    ``marketplace`` is one of ``ebay``, ``etsy``, ``aliexpress``,
+    ``shopify``, ``target``, ``bestbuy``.
     For ``shopify``, ``product_id`` must be ``"store:id"`` or
     ``"store:handle"`` (e.g. ``"allbirds:123456789"``) because the public
     products.json endpoint needs the store to know where to look.
@@ -704,5 +762,7 @@ async def get_product(product_id: str, marketplace: str = "ebay") -> dict[str, A
         return await _etsy_get(text)
     if mp == "aliexpress":
         return await _aliexpress_get(text)
+    if mp in _RETAIL_MARKETPLACES:
+        return await _retail_get(mp, text)
     logger.warning("commerce_marketplace_unknown", extra={"marketplace": mp})
     return {}
