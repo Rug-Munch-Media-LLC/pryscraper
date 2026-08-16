@@ -405,7 +405,7 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 55  # gradual path: current is ~55% (whole-repo `--cov=.`); raise to 60, 70, 75, 80 in successive PRs
+fail_under = 58  # gradual path: current is ~58% (whole-repo `--cov=.`); raise to 60, 70, 75, 80 in successive PRs
 precision = 1
 show_missing = true
 exclude_lines = [

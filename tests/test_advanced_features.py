@@ -5,6 +5,9 @@
 # Licensed under MIT. See LICENSE.
 """Tests for advanced features (cookie warming, PDF, OCR, dedup, behavior)."""
 
+import random
+
+import behavioral_biometrics
 from behavioral_biometrics import HumanBehaviorSimulator
 from cookie_warmer import WARMING_PAGES, CookieWarmer
 from dedup import Deduplicator, SimHash
@@ -90,13 +93,20 @@ def test_behavior_scroll_pattern() -> None:
     assert pattern[-1]["y"] >= 1900  # Should scroll to near bottom
 
 
-def test_behavior_typing() -> None:
+def test_behavior_typing(monkeypatch) -> None:
+    # Deterministic: the simulator draws from a module-level SystemRandom
+    # (crypto-grade, unseedable). Under parallel load the 5% "thinking pause"
+    # branch can push a common word past the 500 ms budget, so this test
+    # swaps in a seeded Random to make the timing distribution reproducible.
+    monkeypatch.setattr(behavioral_biometrics, "_RNG", random.Random(0))  # noqa: S311 - test-only determinism; never used for secrets
     b = HumanBehaviorSimulator()
     timings = b.typing_pattern("the quick brown fox")
     assert len(timings) == 4  # 4 words
     # Common words should be faster than uncommon
     common_delay = sum(t["delay_ms"] for t in timings[:1])  # "the" is common
     assert common_delay < 500
+    # Every entry must be a sane positive delay (no zero/negative timing).
+    assert all(t["delay_ms"] > 0 for t in timings)
 
 
 def test_behavior_click_delay() -> None:

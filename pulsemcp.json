@@ -1,48 +1,94 @@
 {
-  "$schema": "https://pulsemcp.com/schema.json",
-  "name": "pry",
-  "display_name": "Pry \u2014 Web Scraping & Browser Automation",
-  "description": "Scrape, crawl, extract, and automate any website. Self-hosted, x402 pay-per-call, MCP-compatible.",
-  "version": "3.0.0",
-  "license": "MIT",
-  "author": "Rug Munch Media LLC",
-  "homepage": "https://pry.dev",
-  "repository": "https://github.com/cryptorugmuncher/pry",
-  "categories": [
-    "Web Scraping",
-    "Browser Automation",
-    "Data Extraction"
-  ],
-  "install": {
-    "type": "pip",
-    "package": "pry",
-    "command": "python3 -m mcp_production"
-  },
-  "transports": {
-    "stdio": {
-      "command": "python3 -m mcp_production"
-    },
-    "sse": {
-      "url": "https://mcp.pry.dev/sse"
-    }
-  },
-  "tools": [
-    "pry_scrape",
-    "pry_crawl",
-    "pry_extract",
-    "pry_template",
-    "pry_search_templates",
-    "pry_enrich",
-    "pry_x402_pricing",
-    "pry_referrals"
-  ],
-  "tags": [
-    "scraping",
-    "automation",
-    "extraction",
-    "x402",
-    "self-hosted"
-  ],
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"$schema": "https://pulsemcp.com/schema.json",
+	"name": "pry",
+	"display_name": "Pry \u2014 Web Scraping, Browser Automation & Data Intelligence",
+	"description": "Scrape, crawl, extract, and automate any website, plus ten data domains (crypto, marketplace, legal, real estate, jobs, travel, attention, local, gov, ip) monetized via x402 pay-per-call. Self-hosted, MCP-compatible.",
+	"version": "3.0.0",
+	"license": "MIT",
+	"author": "Rug Munch Media LLC",
+	"homepage": "https://pry.dev",
+	"repository": "https://github.com/cryptorugmuncher/pry",
+	"categories": [
+		"Web Scraping",
+		"Browser Automation",
+		"Data Extraction",
+		"Market Intelligence",
+		"Legal & Compliance",
+		"Real Estate",
+		"Jobs & Careers",
+		"Travel",
+		"SEO & Attention"
+	],
+	"install": {
+		"type": "pip",
+		"package": "pry",
+		"command": "python3 -m mcp_production"
+	},
+	"transports": {
+		"stdio": {
+			"command": "python3 -m mcp_production"
+		},
+		"sse": {
+			"url": "https://mcp.pry.dev/sse"
+		},
+		"streamable-http": {
+			"url": "https://pryscraper.com/mcp"
+		}
+	},
+	"tools": [
+		"pry_scrape",
+		"pry_crawl",
+		"pry_extract",
+		"pry_template",
+		"pry_search_templates",
+		"pry_monitor",
+		"pry_compliance",
+		"pry_enrich",
+		"pry_parse_document",
+		"pry_screenshot",
+		"pry_x402_pricing",
+		"pry_referrals",
+		"pry_token_launches",
+		"pry_cex_listings",
+		"pry_token_security",
+		"pry_amazon_product",
+		"pry_amazon_search",
+		"pry_walmart_product",
+		"pry_tiktok_trending",
+		"pry_legal_dockets",
+		"pry_legal_sec",
+		"pry_legal_sanctions",
+		"pry_realestate_search",
+		"pry_jobs_list",
+		"pry_jobs_salary",
+		"pry_flights_grid",
+		"pry_hotel_rates",
+		"pry_serp",
+		"pry_trends",
+		"pry_places_search",
+		"pry_reviews",
+		"pry_procurement",
+		"pry_recalls",
+		"pry_patents",
+		"pry_trademarks"
+	],
+	"tags": [
+		"scraping",
+		"automation",
+		"extraction",
+		"crypto",
+		"marketplace",
+		"legal",
+		"real-estate",
+		"jobs",
+		"travel",
+		"seo",
+		"local",
+		"gov",
+		"ip",
+		"x402",
+		"self-hosted"
+	],
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

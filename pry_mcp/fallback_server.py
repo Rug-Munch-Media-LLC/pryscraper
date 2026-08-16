@@ -102,16 +102,62 @@ async def marketplace_tool_executor(name: str, arguments: dict[str, Any]) -> dic
     return result
 
 
+async def _call_domain_tool(
+    dispatcher_name: str, name: str, arguments: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Call one guarded domain dispatcher from ``pry_mcp.tools``.
+
+    Each data-domain dispatcher (legal, real estate, jobs, travel, attention,
+    local, gov, ip) is imported lazily and returns ``None`` for tools it does
+    not own so the chain falls through to the next dispatcher.
+    """
+    try:
+        from pry_mcp import tools as _mcp_tools
+    except ImportError:
+        return None
+    dispatcher = getattr(_mcp_tools, dispatcher_name, None)
+    if dispatcher is None:
+        return None
+    try:
+        return await dispatcher(name, arguments)
+    except Exception as e:  # noqa: BLE001 — surface handler failures as MCP errors
+        logger.warning("mcp_domain_tool_failed", extra={"tool": name, "error": str(e)})
+        return {
+            "content": [{"type": "text", "text": f"Tool {name} failed: {e}"}],
+            "isError": True,
+        }
+
+
 async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    """Local MCP tool executor chaining the crypto-market then the
-    marketplace-intelligence handlers. Raises ``_ToolNotHandled`` when neither
-    set handles the tool so callers fall through to the REST proxy.
+    """Local MCP tool executor chaining every data-domain guarded dispatcher.
+
+    Order: crypto-market, marketplace-intelligence, then the eight data-domain
+    packages (legal, real estate, jobs, travel, attention, local, gov, ip).
+    Raises ``_ToolNotHandled`` when no dispatcher owns the tool so callers
+    fall through to the REST proxy.
     """
     try:
         return await crypto_tool_executor(name, arguments)
     except _ToolNotHandled:
         pass
-    return await marketplace_tool_executor(name, arguments)
+    try:
+        return await marketplace_tool_executor(name, arguments)
+    except _ToolNotHandled:
+        pass
+    for dispatcher_name in (
+        "call_legal_tool",
+        "call_realestate_tool",
+        "call_jobs_tool",
+        "call_travel_tool",
+        "call_attention_tool",
+        "call_local_tool",
+        "call_gov_tool",
+        "call_ip_tool",
+    ):
+        result = await _call_domain_tool(dispatcher_name, name, arguments)
+        if result is not None:
+            return result
+    raise _ToolNotHandled(name)
 
 
 def make_fallback_server(
@@ -239,6 +285,24 @@ def make_fallback_server(
                 "pry_screenshot": ("POST", "/v1/screenshot"),
                 "pry_x402_pricing": ("GET", "/v1/x402/pricing"),
                 "pry_referrals": ("GET", "/v1/referrals/catalog"),
+                # Data-domain REST fallbacks (used when a domain module has not
+                # landed yet and the guarded local dispatch was declined):
+                "pry_legal_dockets": ("GET", "/v1/legal/dockets/search"),
+                "pry_legal_sec": ("GET", "/v1/legal/sec/search"),
+                "pry_legal_sanctions": ("GET", "/v1/legal/sanctions/"),
+                "pry_realestate_search": ("GET", "/v1/realestate/search"),
+                "pry_jobs_list": ("GET", "/v1/jobs/"),
+                "pry_jobs_salary": ("GET", "/v1/jobs/salary/"),
+                "pry_flights_grid": ("GET", "/v1/travel/flights/grid"),
+                "pry_hotel_rates": ("GET", "/v1/travel/hotels/rates"),
+                "pry_serp": ("GET", "/v1/attention/serp"),
+                "pry_trends": ("GET", "/v1/attention/trends"),
+                "pry_places_search": ("GET", "/v1/local/places/search"),
+                "pry_reviews": ("GET", "/v1/local/reviews/"),
+                "pry_procurement": ("GET", "/v1/gov/procurement"),
+                "pry_recalls": ("GET", "/v1/gov/recalls"),
+                "pry_patents": ("GET", "/v1/ip/patents"),
+                "pry_trademarks": ("GET", "/v1/ip/trademarks"),
             }
             if name not in tool_map:
                 return {

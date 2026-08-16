@@ -93,6 +93,7 @@ paths = [
   '''camoufox_integration\.py''',
   '''tests/test_tls_fingerprint\.py''',
   '''tests/test_camoufox_integration\.py''',
+  '''tests/fuzz/test_url_guard_fuzz\.py''',
 ]
 
 # Stopwords (false-positive patterns to ignore)

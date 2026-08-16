@@ -1,73 +1,196 @@
 {
-  "$schema": "https://glama.ai/mcp/schema.json",
-  "name": "pry",
-  "title": "Pry \u2014 Web Scraping & Browser Automation MCP",
-  "description": "Self-hosted web intelligence platform: scrape, crawl, extract, automate, and parse any website. Exposed as a Model Context Protocol server.",
-  "version": "3.0.0",
-  "license": "MIT",
-  "author": {
-    "name": "Rug Munch Media LLC",
-    "url": "https://rugmunch.io"
-  },
-  "homepage": "https://github.com/cryptorugmuncher/pry",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/cryptorugmuncher/pry"
-  },
-  "transports": [
-    {
-      "type": "stdio",
-      "command": "python3 -m mcp_production",
-      "description": "Run the MCP server locally over stdio"
-    },
-    {
-      "type": "sse",
-      "url": "https://mcp.pry.dev/sse",
-      "description": "Hosted Cloudflare Worker SSE endpoint"
-    }
-  ],
-  "tools": [
-    {
-      "name": "pry_scrape",
-      "description": "Scrape a URL to clean markdown"
-    },
-    {
-      "name": "pry_crawl",
-      "description": "Crawl a website from a starting URL"
-    },
-    {
-      "name": "pry_extract",
-      "description": "Extract structured data with CSS selectors"
-    },
-    {
-      "name": "pry_template",
-      "description": "Execute a pre-built scraper template"
-    },
-    {
-      "name": "pry_search_templates",
-      "description": "Search scraper templates"
-    },
-    {
-      "name": "pry_enrich",
-      "description": "Enrich a URL with company and tech intelligence"
-    },
-    {
-      "name": "pry_x402_pricing",
-      "description": "Get x402 pay-per-call pricing"
-    },
-    {
-      "name": "pry_referrals",
-      "description": "Get the referral catalog"
-    }
-  ],
-  "tags": [
-    "web-scraping",
-    "browser-automation",
-    "data-extraction",
-    "x402",
-    "self-hosted",
-    "mcp"
-  ],
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"$schema": "https://glama.ai/mcp/schema.json",
+	"name": "pry",
+	"title": "Pry \u2014 Web Scraping, Browser Automation & Data Intelligence MCP",
+	"description": "Self-hosted web intelligence platform: scrape, crawl, extract, automate, and parse any website, plus ten data domains (crypto, marketplace, legal, real estate, jobs, travel, attention, local, gov, ip) monetized via x402 pay-per-call. Exposed as a Model Context Protocol server.",
+	"version": "3.0.0",
+	"license": "MIT",
+	"author": {
+		"name": "Rug Munch Media LLC",
+		"url": "https://rugmunch.io"
+	},
+	"homepage": "https://github.com/cryptorugmuncher/pry",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/cryptorugmuncher/pry"
+	},
+	"transports": [
+		{
+			"type": "stdio",
+			"command": "python3 -m mcp_production",
+			"description": "Run the MCP server locally over stdio"
+		},
+		{
+			"type": "sse",
+			"url": "https://mcp.pry.dev/sse",
+			"description": "Hosted Cloudflare Worker SSE endpoint"
+		},
+		{
+			"type": "streamable-http",
+			"url": "https://pryscraper.com/mcp",
+			"description": "Hosted Streamable HTTP endpoint (2025-03-26 spec)"
+		}
+	],
+	"tools": [
+		{
+			"name": "pry_scrape",
+			"description": "Scrape a URL to clean markdown with 9-tier anti-bot bypass"
+		},
+		{
+			"name": "pry_crawl",
+			"description": "Crawl a website from a starting URL up to max_pages"
+		},
+		{
+			"name": "pry_extract",
+			"description": "Extract structured data with CSS selectors"
+		},
+		{
+			"name": "pry_template",
+			"description": "Execute a pre-built scraper template"
+		},
+		{
+			"name": "pry_search_templates",
+			"description": "Search scraper templates"
+		},
+		{
+			"name": "pry_monitor",
+			"description": "Create a content-change monitor with webhook alerts"
+		},
+		{
+			"name": "pry_compliance",
+			"description": "Score scraping legal risk (robots.txt, ToS, GDPR/CCPA)"
+		},
+		{
+			"name": "pry_enrich",
+			"description": "Enrich a URL with company and tech intelligence"
+		},
+		{
+			"name": "pry_parse_document",
+			"description": "Parse a PDF/DOCX/image into text and tables"
+		},
+		{
+			"name": "pry_screenshot",
+			"description": "Take a full-page screenshot as base64 PNG"
+		},
+		{
+			"name": "pry_x402_pricing",
+			"description": "Get x402 pay-per-call pricing"
+		},
+		{
+			"name": "pry_referrals",
+			"description": "Get the referral catalog"
+		},
+		{
+			"name": "pry_token_launches",
+			"description": "Discover new crypto token launches and liquidity pairs (crypto)"
+		},
+		{
+			"name": "pry_cex_listings",
+			"description": "CEX listing and delisting signals for tokens (crypto)"
+		},
+		{
+			"name": "pry_token_security",
+			"description": "Token security scan: honeypot, mint authority, LP lock (crypto)"
+		},
+		{
+			"name": "pry_amazon_product",
+			"description": "Amazon product lookup by ASIN \u2014 price, stock, rating (marketplace)"
+		},
+		{
+			"name": "pry_amazon_search",
+			"description": "Amazon keyword search \u2014 listings with price and ASIN (marketplace)"
+		},
+		{
+			"name": "pry_walmart_product",
+			"description": "Walmart product lookup by ID \u2014 price, seller, rating (marketplace)"
+		},
+		{
+			"name": "pry_tiktok_trending",
+			"description": "Trending TikTok Shop products by engagement (marketplace)"
+		},
+		{
+			"name": "pry_legal_dockets",
+			"description": "Search U.S. court dockets via CourtListener (legal)"
+		},
+		{
+			"name": "pry_legal_sec",
+			"description": "Search SEC EDGAR filings by ticker and form type (legal)"
+		},
+		{
+			"name": "pry_legal_sanctions",
+			"description": "Screen a name against the OFAC SDN sanctions list (legal)"
+		},
+		{
+			"name": "pry_realestate_search",
+			"description": "Search real-estate listings by location and status (real estate)"
+		},
+		{
+			"name": "pry_jobs_list",
+			"description": "List ATS job postings for a company (jobs)"
+		},
+		{
+			"name": "pry_jobs_salary",
+			"description": "Salary bands for a company and role from Levels.fyi (jobs)"
+		},
+		{
+			"name": "pry_flights_grid",
+			"description": "Cheapest flight per day over a date range (travel)"
+		},
+		{
+			"name": "pry_hotel_rates",
+			"description": "Per-night hotel rates for a stay window (travel)"
+		},
+		{
+			"name": "pry_serp",
+			"description": "Google SERP scrape: organic, AI Overview, PAA (attention)"
+		},
+		{
+			"name": "pry_trends",
+			"description": "Google Trends interest timeline and related queries (attention)"
+		},
+		{
+			"name": "pry_places_search",
+			"description": "Google Maps local business search (local)"
+		},
+		{
+			"name": "pry_reviews",
+			"description": "Google Maps / Yelp review history for a place (local)"
+		},
+		{
+			"name": "pry_procurement",
+			"description": "U.S. federal procurement opportunities from SAM.gov (gov)"
+		},
+		{
+			"name": "pry_recalls",
+			"description": "Recent CPSC/FDA product recalls (gov)"
+		},
+		{
+			"name": "pry_patents",
+			"description": "U.S. patent search via USPTO/Google Patents (ip)"
+		},
+		{
+			"name": "pry_trademarks",
+			"description": "U.S. trademark search via USPTO (ip)"
+		}
+	],
+	"tags": [
+		"web-scraping",
+		"browser-automation",
+		"data-extraction",
+		"crypto",
+		"marketplace",
+		"legal",
+		"real-estate",
+		"jobs",
+		"travel",
+		"seo",
+		"local-business",
+		"government-data",
+		"ip",
+		"x402",
+		"self-hosted",
+		"mcp"
+	],
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

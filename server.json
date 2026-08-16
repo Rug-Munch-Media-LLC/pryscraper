@@ -1,8 +1,8 @@
 {
 	"$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
 	"name": "io.rugmunch/pry",
-	"title": "Pry — Web Scraping & Browser Automation MCP",
-	"description": "Self-hosted web scraping MCP: scrape, crawl, extract, monitor, parse, screenshot, x402 pricing.",
+	"title": "Pry — Web Scraping, Browser Automation & Data Intelligence MCP",
+	"description": "Self-hosted web intelligence MCP: scrape, crawl, extract, monitor, parse, screenshot, x402 pricing, plus ten data domains (crypto, marketplace, legal, real estate, jobs, travel, attention, local, gov, ip).",
 	"version": "3.0.0",
 	"websiteUrl": "https://pryscraper.com",
 	"repository": {
@@ -83,6 +83,10 @@
 			"description": "Monitor CEX listing announcements and delisting events for crypto tokens (crypto)."
 		},
 		{
+			"name": "pry_token_security",
+			"description": "Run token security checks — honeypot, mint authority, LP lock, holder distribution (crypto)."
+		},
+		{
 			"name": "pry_amazon_product",
 			"description": "Look up a single Amazon product by ASIN — live price, title, availability, rating (marketplace)."
 		},
@@ -99,8 +103,68 @@
 			"description": "Get currently trending TikTok Shop products by engagement and sales velocity (marketplace)."
 		},
 		{
-			"name": "pry_token_security",
-			"description": "Run token security checks — honeypot, mint authority, LP lock, holder distribution (crypto)."
+			"name": "pry_legal_dockets",
+			"description": "Search U.S. federal and state court dockets by full-text query via CourtListener (legal)."
+		},
+		{
+			"name": "pry_legal_sec",
+			"description": "Search SEC EDGAR filings by ticker and form type — filing dates, forms, accession numbers (legal)."
+		},
+		{
+			"name": "pry_legal_sanctions",
+			"description": "Screen a person or entity against the OFAC SDN sanctions list (legal)."
+		},
+		{
+			"name": "pry_realestate_search",
+			"description": "Search real-estate listings by location and status — price, beds/baths, sqft (real estate)."
+		},
+		{
+			"name": "pry_jobs_list",
+			"description": "List ATS job postings for a company — Greenhouse, Lever, Ashby, Workday (jobs)."
+		},
+		{
+			"name": "pry_jobs_salary",
+			"description": "Get per-level salary bands (total comp, base, stock, bonus) from Levels.fyi (jobs)."
+		},
+		{
+			"name": "pry_flights_grid",
+			"description": "Cheapest flight per day over a date range for an origin/destination pair (travel)."
+		},
+		{
+			"name": "pry_hotel_rates",
+			"description": "Per-night hotel rates for a stay window — Google Hotels with Booking.com fallback (travel)."
+		},
+		{
+			"name": "pry_serp",
+			"description": "Scrape a Google SERP — organic results, AI Overview, People Also Ask (attention)."
+		},
+		{
+			"name": "pry_trends",
+			"description": "Google Trends interest over time plus related queries (attention)."
+		},
+		{
+			"name": "pry_places_search",
+			"description": "Search Google Maps for local businesses — name, rating, address, place IDs (local)."
+		},
+		{
+			"name": "pry_reviews",
+			"description": "Full review history for a place from Google Maps or Yelp, beyond the 5-review cap (local)."
+		},
+		{
+			"name": "pry_procurement",
+			"description": "Search U.S. federal procurement opportunities from SAM.gov (gov)."
+		},
+		{
+			"name": "pry_recalls",
+			"description": "Search recent CPSC/FDA product recalls (gov)."
+		},
+		{
+			"name": "pry_patents",
+			"description": "Search U.S. patents by keyword via USPTO/Google Patents (ip)."
+		},
+		{
+			"name": "pry_trademarks",
+			"description": "Search U.S. trademarks by keyword or owner via USPTO (ip)."
 		}
 	]
 }

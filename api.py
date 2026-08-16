@@ -70,6 +70,21 @@ from routers.jobs import router as jobs_router
 from routers.legal_docs import router as legal_docs_router
 from routers.local_data import router as local_data_router
 from routers.marketplace import router as marketplace_router
+
+# gov_data / ip_data routers land from parallel agents; import them guarded so
+# api.py keeps working (and the x402 gates stay armed) before they arrive.
+try:
+    from routers.gov_data import router as gov_data_router
+
+    _GOV_DATA_ROUTER: Any | None = gov_data_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _GOV_DATA_ROUTER = None
+try:
+    from routers.ip_data import router as ip_data_router
+
+    _IP_DATA_ROUTER: Any | None = ip_data_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _IP_DATA_ROUTER = None
 from routers.monitoring import router as monitoring_router
 from routers.parsing import router as parsing_router
 from routers.pipeline import router as pipeline_router
@@ -327,6 +342,11 @@ app.include_router(jobs_router)
 app.include_router(legal_docs_router)
 app.include_router(local_data_router)
 app.include_router(marketplace_router)
+# gov_data / ip_data routers are included when their modules have landed.
+if _GOV_DATA_ROUTER is not None:
+    app.include_router(_GOV_DATA_ROUTER)
+if _IP_DATA_ROUTER is not None:
+    app.include_router(_IP_DATA_ROUTER)
 app.include_router(monitoring_router)
 app.include_router(parsing_router)
 app.include_router(pipeline_router)

@@ -54,6 +54,17 @@ PAID_ENDPOINTS = {
     "/v1/crypto/token-launches": "token_launches",
     "/v1/crypto/cex-listings": "cex_listings",
     "/v1/crypto/token-security": "token_security",
+    # Data-domain intelligence — paid per call (tool-equivalent REST paths for
+    # the eight data-domain packages: legal, real estate, jobs, travel,
+    # attention, local, gov, ip). Trailing-slash prefixes gate every sub-route.
+    "/v1/legal/": "legal_dockets",
+    "/v1/realestate/": "realestate_search",
+    "/v1/jobs/": "jobs_list",
+    "/v1/travel/": "flights_grid",
+    "/v1/attention/": "serp",
+    "/v1/local/": "places_search",
+    "/v1/gov/": "procurement",
+    "/v1/ip/": "patents",
 }
 
 # Price tiers for the crypto-market operations. The canonical pricing table
@@ -76,6 +87,79 @@ _CRYPTO_PRICE_TIERS: dict[str, dict[str, Any]] = {
     },
 }
 for _operation, _tier in _CRYPTO_PRICE_TIERS.items():
+    X402_PRICING.setdefault(_operation, _tier)
+
+# Price tiers for the data-domain operations (legal, real estate, jobs,
+# travel, attention, local, gov, ip). Same defensive setdefault merge as the
+# crypto tiers above — these keep the /v1/{domain}/* gates from being skipped
+# until the tiers are promoted into x402/scheme.py.
+_DATA_PRICE_TIERS: dict[str, dict[str, Any]] = {
+    "legal_dockets": {
+        "price_usd": 0.005,
+        "description": "U.S. court docket search (CourtListener)",
+    },
+    "legal_sec": {
+        "price_usd": 0.005,
+        "description": "SEC EDGAR filing search / insider trades",
+    },
+    "legal_sanctions": {
+        "price_usd": 0.002,
+        "description": "OFAC SDN sanctions name screening",
+    },
+    "realestate_search": {
+        "price_usd": 0.005,
+        "description": "Real-estate listing search (Zillow/Redfin)",
+    },
+    "jobs_list": {
+        "price_usd": 0.002,
+        "description": "ATS job listings (Greenhouse/Lever/Ashby/Workday)",
+    },
+    "jobs_salary": {
+        "price_usd": 0.002,
+        "description": "Salary bands (Levels.fyi)",
+    },
+    "flights_grid": {
+        "price_usd": 0.01,
+        "description": "Cheapest-flight-per-day grid (Google Flights)",
+    },
+    "hotel_rates": {
+        "price_usd": 0.01,
+        "description": "Per-night hotel rates (Google Hotels/Booking.com)",
+    },
+    "serp": {
+        "price_usd": 0.003,
+        "description": "Google SERP scrape (organic + AI Overview + PAA)",
+    },
+    "trends": {
+        "price_usd": 0.003,
+        "description": "Google Trends interest timeline",
+    },
+    "places_search": {
+        "price_usd": 0.003,
+        "description": "Google Maps local business search",
+    },
+    "reviews": {
+        "price_usd": 0.003,
+        "description": "Google Maps / Yelp review history",
+    },
+    "procurement": {
+        "price_usd": 0.005,
+        "description": "U.S. federal procurement opportunities (SAM.gov)",
+    },
+    "recalls": {
+        "price_usd": 0.005,
+        "description": "CPSC product recalls",
+    },
+    "patents": {
+        "price_usd": 0.005,
+        "description": "USPTO patent search",
+    },
+    "trademarks": {
+        "price_usd": 0.005,
+        "description": "USPTO trademark search",
+    },
+}
+for _operation, _tier in _DATA_PRICE_TIERS.items():
     X402_PRICING.setdefault(_operation, _tier)
 
 

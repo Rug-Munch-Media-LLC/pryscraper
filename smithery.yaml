@@ -35,6 +35,11 @@ buildCommand:
   script: |
     pip install -e ".[dev]"
 
+# The Pry MCP server exposes 35 tools across web scraping, browser
+# automation, and the ten data domains (crypto, marketplace, legal, real
+# estate, jobs, travel, attention, local, gov, ip). All data-domain tools are
+# x402 pay-per-call monetized; see /v1/x402/pricing for the price table.
+
 examples:
   - name: research_company
     description: Research a company website
@@ -56,3 +61,48 @@ examples:
     arguments:
       url: https://example.com
       max_pages: 20
+
+  - name: monitor_competitor
+    description: Monitor a competitor's pricing page for changes
+    arguments:
+      url: https://competitor.example.com/pricing
+      what_to_track: price changes
+      webhook_url: ${PRY_SLACK_WEBHOOK_URL}  # set to a real Slack incoming-webhook URL
+
+  - name: token_security
+    description: Scan a crypto token for rug-pull risk signals
+    arguments:
+      chain: solana
+      address: So11111111111111111111111111111111111111112
+
+  - name: legal_sanctions
+    description: Screen a counterparty name against the OFAC SDN list
+    arguments:
+      name: Vladimir Potanin
+
+  - name: realestate_search
+    description: Find real-estate listings in a city
+    arguments:
+      location: Austin, TX
+      status: for_sale
+      limit: 10
+
+  - name: jobs_salary
+    description: Benchmark software engineer salaries at a company
+    arguments:
+      company: google
+      role: software_engineer
+
+  - name: flights_grid
+    description: Find the cheapest day to fly between two cities
+    arguments:
+      origin: JFK
+      dest: CDG
+      start_date: "2026-09-01"
+      end_date: "2026-09-30"
+
+  - name: serp
+    description: Track Google SERP rankings for a keyword
+    arguments:
+      q: best wireless keyboard
+      num: 10

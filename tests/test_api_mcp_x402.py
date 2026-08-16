@@ -181,37 +181,86 @@ class TestMCPSSE:
 
     httpx's ASGITransport cannot consume an infinite streaming response, so
     these tests start a real uvicorn process and connect over HTTP.
+
+    Determinism notes (the test was flaky under parallel load):
+      * the port chosen by ``_find_free_port`` can be stolen by another
+        process between the probe and uvicorn's bind — the spawn helper
+        detects an early process exit and retries on a fresh port;
+      * a slow scheduler can push an SSE read past httpx's read timeout —
+        the per-read timeout is raised and a wall-clock deadline bounds the
+        whole roundtrip with a clear failure message;
+      * the subprocess is always reaped (terminate -> wait -> kill).
     """
 
-    def test_mcp_sse_session_roundtrip(self) -> None:
-        port = _find_free_port()
-        python_bin = shutil.which("python3") or "python3"
-        proc = subprocess.Popen(  # noqa: S603 - argv is static; port comes from trusted _find_free_port()
-            [
-                python_bin,
-                "-m",
-                "uvicorn",
-                "api:app",
-                "--host",
-                "127.0.0.1",
-                "--port",
-                str(port),
-                "--log-level",
-                "warning",
-            ],
-            shell=False,
-            cwd=str(REPO_ROOT),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        try:
-            base_url = f"http://127.0.0.1:{port}"
-            _wait_for_server(f"{base_url}/health")
+    @staticmethod
+    def _spawn_server(max_attempts: int = 3) -> tuple[subprocess.Popen, str, int]:
+        """Start uvicorn on a free port; retry when the port is stolen.
 
+        Returns ``(proc, base_url, port)``. The caller must terminate the
+        process in a ``finally`` block.
+        """
+        python_bin = shutil.which("python3") or "python3"
+        last_poll: int | None = None
+        for _ in range(max_attempts):
+            port = _find_free_port()
+            proc = subprocess.Popen(  # noqa: S603 - argv is static; port comes from trusted _find_free_port()
+                [
+                    python_bin,
+                    "-m",
+                    "uvicorn",
+                    "api:app",
+                    "--host",
+                    "127.0.0.1",
+                    "--port",
+                    str(port),
+                    "--log-level",
+                    "warning",
+                ],
+                shell=False,
+                cwd=str(REPO_ROOT),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            try:
+                base_url = f"http://127.0.0.1:{port}"
+                _wait_for_server(f"{base_url}/health", timeout=45.0)
+                return proc, base_url, port
+            except TimeoutError:
+                # The port was likely stolen before uvicorn bound it: the
+                # process exits immediately. Reap it and retry on a new port.
+                last_poll = proc.poll()
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait(timeout=5)
+                if last_poll is not None:
+                    continue
+                raise
+        raise TimeoutError(
+            f"Server did not start after {max_attempts} attempts "
+            f"(last process exit code: {last_poll})"
+        )
+
+    @staticmethod
+    def _terminate_server(proc: subprocess.Popen) -> None:
+        """Reap the uvicorn subprocess (terminate -> wait -> kill)."""
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=5)
+
+    def test_mcp_sse_session_roundtrip(self) -> None:
+        proc, base_url, _ = self._spawn_server()
+        try:
             # The private query param closes the SSE stream after 1 message event
             # so the server doesn't keep the connection open after the test.
+            deadline = time.monotonic() + 30.0
             with (
-                httpx.Client(timeout=10.0) as client,
+                httpx.Client(timeout=30.0) as client,
                 client.stream("GET", f"{base_url}/mcp/sse?_sse_test_close_after=1") as sse_response,
             ):
                 assert sse_response.status_code == 200
@@ -220,6 +269,10 @@ class TestMCPSSE:
                 buffer = ""
                 event_count = 0
                 for chunk in sse_response.iter_text():
+                    if time.monotonic() > deadline:
+                        raise AssertionError(
+                            f"SSE roundtrip exceeded 30s deadline; received {event_count} events"
+                        )
                     buffer += chunk
                     while "\n\n" in buffer:
                         event, buffer = buffer.split("\n\n", 1)
@@ -243,11 +296,7 @@ class TestMCPSSE:
                             return
                 raise AssertionError("SSE stream closed before response event")
         finally:
-            proc.terminate()
-            try:
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
+            self._terminate_server(proc)
 
 
 class TestX402Middleware:

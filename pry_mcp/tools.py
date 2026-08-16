@@ -228,6 +228,26 @@ PRY_TOOLS = [
             },
             "required": ["template_id", "url"],
         },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "template_id": {"type": "string"},
+                        "url": {"type": "string"},
+                        "status_code": {"type": "integer"},
+                        "result": {
+                            "type": "object",
+                            "description": "Template-specific parsed fields (e.g. title, price, availability)",
+                        },
+                    },
+                },
+                "error": {"type": "string"},
+            },
+            "required": ["success"],
+        },
     },
     {
         "name": "pry_search_templates",
@@ -249,6 +269,31 @@ PRY_TOOLS = [
                 },
             },
             "required": ["q"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "templates": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "template_id": {"type": "string"},
+                                    "category": {"type": "string"},
+                                    "description": {"type": "string"},
+                                },
+                            },
+                        },
+                        "total": {"type": "integer"},
+                        "query": {"type": "string"},
+                    },
+                },
+            },
+            "required": ["success"],
         },
     },
     {
@@ -291,6 +336,25 @@ PRY_TOOLS = [
             },
             "required": ["name", "url"],
         },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "monitor_id": {"type": "string"},
+                        "name": {"type": "string"},
+                        "url": {"type": "string"},
+                        "schedule_cron": {"type": "string"},
+                        "webhook_url": {"type": "string"},
+                        "status": {"type": "string"},
+                    },
+                },
+                "error": {"type": "string"},
+            },
+            "required": ["success"],
+        },
     },
     {
         "name": "pry_compliance",
@@ -312,6 +376,26 @@ PRY_TOOLS = [
             },
             "required": ["url"],
         },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string"},
+                        "risk_level": {
+                            "type": "string",
+                            "enum": ["green", "yellow", "red"],
+                        },
+                        "risk_score": {"type": "number"},
+                        "checks": {"type": "array", "items": {"type": "object"}},
+                        "recommendations": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
     },
     {
         "name": "pry_enrich",
@@ -332,6 +416,24 @@ PRY_TOOLS = [
             },
             "required": ["url"],
         },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string"},
+                        "company": {"type": "object"},
+                        "tech_stack": {"type": "array", "items": {"type": "string"}},
+                        "social_profiles": {"type": "object"},
+                        "emails": {"type": "array", "items": {"type": "string"}},
+                        "intelligence": {"type": "object"},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
     },
     {
         "name": "pry_parse_document",
@@ -351,6 +453,23 @@ PRY_TOOLS = [
                 }
             },
             "required": ["url"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string"},
+                        "content_type": {"type": "string"},
+                        "text": {"type": "string"},
+                        "tables": {"type": "array", "items": {"type": "object"}},
+                        "pages": {"type": "integer"},
+                    },
+                },
+            },
+            "required": ["success"],
         },
     },
     {
@@ -375,6 +494,23 @@ PRY_TOOLS = [
                 },
             },
             "required": ["url"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string"},
+                        "image_base64": {"type": "string"},
+                        "content_type": {"type": "string"},
+                        "width": {"type": "integer"},
+                        "height": {"type": "integer"},
+                    },
+                },
+            },
+            "required": ["success"],
         },
     },
     {
@@ -421,6 +557,31 @@ PRY_TOOLS = [
                 }
             },
             "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "categories": {"type": "array", "items": {"type": "string"}},
+                        "providers": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {"type": "string"},
+                                    "category": {"type": "string"},
+                                    "url": {"type": "string"},
+                                },
+                            },
+                        },
+                        "total": {"type": "integer"},
+                    },
+                },
+            },
+            "required": ["success"],
         },
     },
     {
@@ -795,7 +956,872 @@ PRY_TOOLS = [
             "required": ["success"],
         },
     },
+    {
+        "name": "pry_legal_dockets",
+        "description": (
+            "Search U.S. federal and state court dockets by full-text query using the free "
+            "CourtListener REST API v4, returning docket titles, courts, and case numbers. "
+            "Use to monitor litigation against a company, person, or trademark before it "
+            "hits the news, e.g. 'what lawsuits involve OpenAI?' or 'show dockets mentioning "
+            "this company name'. Results are best-effort: the free tier has no auth and "
+            "degrades to an empty list on network or rate-limit failure."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Full-text docket search query, e.g. 'OpenAI copyright infringement'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of dockets to return (default: 20)",
+                },
+            },
+            "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "integer"},
+                            "case_name": {"type": "string"},
+                            "court": {"type": "string"},
+                            "docket_number": {"type": "string"},
+                            "date_filed": {"type": "string"},
+                            "url": {"type": "string"},
+                        },
+                    },
+                },
+                "query": {"type": "string"},
+                "total": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_legal_sec",
+        "description": (
+            "Search SEC EDGAR filings for a public company by ticker and form type, returning "
+            "filing dates, form names, and EDGAR accession numbers. Use to track regulatory "
+            "filings that move markets, e.g. 'recent 8-K filings for AAPL' or 'all 10-Q "
+            "filings for TSLA this year'. Backed by the free EDGAR Full-Text Search and "
+            "submissions feed; never raises and returns an empty list on failure."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "Company ticker symbol, e.g. 'AAPL'",
+                },
+                "form_type": {
+                    "type": "string",
+                    "default": "8-K",
+                    "description": "SEC form type to search (e.g. '8-K', '10-Q', '10-K', '4')",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of filings to return (default: 20)",
+                },
+            },
+            "required": ["ticker"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "accession_no": {"type": "string"},
+                            "form_type": {"type": "string"},
+                            "filing_date": {"type": "string"},
+                            "ticker": {"type": "string"},
+                            "url": {"type": "string"},
+                        },
+                    },
+                },
+                "ticker": {"type": "string"},
+                "total": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_legal_sanctions",
+        "description": (
+            "Screen a person or entity name against the OFAC Specially Designated Nationals "
+            "(SDN) sanctions list, returning any matching records with their sanctions "
+            "program and remarks. Use for compliance due diligence before onboarding a "
+            "counterparty, partner, or wallet-linked entity, e.g. 'is Vladimir Potanin "
+            "sanctioned?'. Backed by the free OFAC SDN XML downloads, cached in-process; "
+            "returns an empty list when the name is clean or the feed is unreachable."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Person or entity name to screen, e.g. 'Vladimir Potanin'",
+                }
+            },
+            "required": ["name"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "program": {"type": "string"},
+                            "remarks": {"type": "string"},
+                            "uid": {"type": "string"},
+                        },
+                    },
+                },
+                "name": {"type": "string"},
+                "total": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_realestate_search",
+        "description": (
+            "Search real-estate listings by location and status (for_sale, for_rent, sold), "
+            "returning address, price, beds/baths, square footage, and listing URLs. "
+            "Use for market research, comps, or lead generation, e.g. 'what's for sale in "
+            "Austin, TX under $500k?'. Scrapes Zillow search pages with a Redfin GIS API "
+            "fallback (both free and keyless); never raises and returns an empty list when "
+            "the source is unreachable."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "location": {
+                    "type": "string",
+                    "description": "City or neighborhood, e.g. 'Austin, TX'",
+                },
+                "status": {
+                    "type": "string",
+                    "enum": ["for_sale", "for_rent", "sold"],
+                    "default": "for_sale",
+                    "description": "Listing status filter (default: for_sale)",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 50,
+                    "description": "Maximum number of listings to return (default: 20)",
+                },
+            },
+            "required": ["location"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "zpid": {"type": "string"},
+                            "address": {"type": "string"},
+                            "price": {"type": "number"},
+                            "beds": {"type": "integer"},
+                            "baths": {"type": "number"},
+                            "sqft": {"type": "integer"},
+                            "status": {"type": "string"},
+                            "url": {"type": "string"},
+                        },
+                    },
+                },
+                "location": {"type": "string"},
+                "total": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_jobs_list",
+        "description": (
+            "List current job postings for a company from its applicant-tracking system "
+            "(Greenhouse, Lever, Ashby, or Workday), returning normalized titles, locations, "
+            "remote flags, and application URLs. Use for talent-market intel or recruitment "
+            "pipelines, e.g. 'what engineering roles is Stripe hiring for?'. Reads the free, "
+            "public, keyless JSON boards; never raises and returns an empty list when the "
+            "board is unreachable or the company slug is unknown."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "company": {
+                    "type": "string",
+                    "description": "Company slug on the ATS board, e.g. 'stripe'",
+                },
+                "board": {
+                    "type": "string",
+                    "enum": ["greenhouse", "lever", "ashby", "workday"],
+                    "default": "greenhouse",
+                    "description": "ATS board to query (default: greenhouse)",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 50,
+                    "minimum": 1,
+                    "maximum": 500,
+                    "description": "Maximum number of listings to return (default: 50)",
+                },
+            },
+            "required": ["company"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string"},
+                            "title": {"type": "string"},
+                            "company": {"type": "string"},
+                            "location": {"type": "string"},
+                            "remote": {"type": "boolean"},
+                            "url": {"type": "string"},
+                            "posted_at": {"type": "string"},
+                        },
+                    },
+                },
+                "board": {"type": "string"},
+                "total": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_jobs_salary",
+        "description": (
+            "Get per-level salary bands (total compensation, base, stock, bonus) for a "
+            "company and role from Levels.fyi's public embedded data. Use to benchmark "
+            "compensation offers or market rates, e.g. 'what does Google pay software "
+            "engineers at L5?'. Scrapes the free Levels.fyi page with no auth; never "
+            "raises and returns an empty object when the company or role is not found."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "company": {
+                    "type": "string",
+                    "description": "Company slug, e.g. 'google'",
+                },
+                "role": {
+                    "type": "string",
+                    "default": "software_engineer",
+                    "description": "Role slug, e.g. 'software_engineer', 'product_manager'",
+                },
+            },
+            "required": ["company"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "company": {"type": "string"},
+                        "role": {"type": "string"},
+                        "levels": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "level": {"type": "string"},
+                                    "total_comp": {"type": "number"},
+                                    "base": {"type": "number"},
+                                    "stock": {"type": "number"},
+                                    "bonus": {"type": "number"},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_flights_grid",
+        "description": (
+            "Get the cheapest flight option per day between two dates for an origin and "
+            "destination pair, using Google Flights' public tfs deep-link page. Use to find "
+            "the cheapest day to fly on a trip, e.g. 'what's the cheapest day JFK→CDG next "
+            "month?'. Returns a per-day price grid; never raises and returns an empty grid "
+            "when Google Flights blocks the scrape (embedded JSON drifts over time)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "origin": {
+                    "type": "string",
+                    "description": "IATA origin code, e.g. 'JFK'",
+                },
+                "dest": {
+                    "type": "string",
+                    "description": "IATA destination code, e.g. 'CDG'",
+                },
+                "start_date": {
+                    "type": "string",
+                    "description": "First date (YYYY-MM-DD), e.g. '2026-09-01'",
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": "Last date (YYYY-MM-DD), e.g. '2026-09-30'",
+                },
+            },
+            "required": ["origin", "dest", "start_date", "end_date"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "origin": {"type": "string"},
+                        "dest": {"type": "string"},
+                        "days": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "date": {"type": "string"},
+                                    "price_usd": {"type": "number"},
+                                    "airline": {"type": "string"},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_hotel_rates",
+        "description": (
+            "Get per-night hotel rates for a stay window from Google Hotels with a "
+            "Booking.com fallback, both free and keyless page scrapes. Use to compare "
+            "prices across sources for a specific property, e.g. 'what does the Ritz Paris "
+            "cost for September 10-14?'. Returns per-night rate breakdowns; never raises "
+            "and returns an empty object when neither source is reachable."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "hotel_name": {
+                    "type": "string",
+                    "description": "Hotel name or location query, e.g. 'Ritz Paris'",
+                },
+                "checkin": {
+                    "type": "string",
+                    "description": "Check-in date (YYYY-MM-DD), e.g. '2026-09-10'",
+                },
+                "checkout": {
+                    "type": "string",
+                    "description": "Check-out date (YYYY-MM-DD), e.g. '2026-09-14'",
+                },
+            },
+            "required": ["hotel_name", "checkin", "checkout"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "hotel": {"type": "string"},
+                        "nights": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "date": {"type": "string"},
+                                    "price_usd": {"type": "number"},
+                                    "source": {"type": "string"},
+                                },
+                            },
+                        },
+                        "total_usd": {"type": "number"},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_serp",
+        "description": (
+            "Scrape a Google search results page for a query, returning organic results, "
+            "the AI Overview text when present, and People Also Ask questions. Use for SEO "
+            "rank tracking or competitor SERP analysis, e.g. 'who ranks for best wireless "
+            "keyboard?'. Built on the free public Google results page; never raises and "
+            "returns an error payload when Google serves a consent or CAPTCHA wall."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "q": {
+                    "type": "string",
+                    "description": "Search query, e.g. 'best wireless keyboard'",
+                },
+                "num": {
+                    "type": "integer",
+                    "default": 10,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum organic results to parse (default: 10)",
+                },
+            },
+            "required": ["q"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string"},
+                        "organic": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "rank": {"type": "integer"},
+                                    "title": {"type": "string"},
+                                    "url": {"type": "string"},
+                                    "snippet": {"type": "string"},
+                                },
+                            },
+                        },
+                        "ai_overview": {"type": "string"},
+                        "people_also_ask": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_trends",
+        "description": (
+            "Measure Google Trends interest over time for a keyword, returning the daily "
+            "interest timeline and related queries. Use to validate demand for a product, "
+            "content topic, or token narrative before committing resources, e.g. 'is AI "
+            "agents interest rising?'. Built on the free Trends public endpoint; never "
+            "raises and returns an error payload when the endpoint is unreachable."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "keyword": {
+                    "type": "string",
+                    "description": "Keyword to measure, e.g. 'AI agents'",
+                },
+                "timeframe": {
+                    "type": "string",
+                    "default": "today 12-m",
+                    "description": "Trends timeframe, e.g. 'today 12-m', 'today 3-m', 'now 7-d'",
+                },
+            },
+            "required": ["keyword"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "keyword": {"type": "string"},
+                        "timeline": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "date": {"type": "string"},
+                                    "interest": {"type": "number"},
+                                },
+                            },
+                        },
+                        "related_queries": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_places_search",
+        "description": (
+            "Search Google Maps for local businesses matching a query and location, "
+            "returning name, rating, review count, address, and place IDs for lead "
+            "generation. Use to build prospect lists for outbound sales, e.g. 'find coffee "
+            "shops in Austin TX'. Backed by the free Google Maps public search page; never "
+            "raises and returns an empty list when the page is unreachable or blocked."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Business type or keyword, e.g. 'taco'",
+                },
+                "location": {
+                    "type": "string",
+                    "description": "City or region, e.g. 'Austin TX'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of places to return (default: 20)",
+                },
+            },
+            "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "place_id": {"type": "string"},
+                            "name": {"type": "string"},
+                            "rating": {"type": "number"},
+                            "reviews_count": {"type": "integer"},
+                            "address": {"type": "string"},
+                            "phone": {"type": "string"},
+                            "website": {"type": "string"},
+                        },
+                    },
+                },
+                "query": {"type": "string"},
+                "total": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_reviews",
+        "description": (
+            "Get the full review history for a local business place from Google Maps or "
+            "Yelp, going beyond the 5-review API cap. Use to analyze customer sentiment, "
+            "common complaints, or reputation before outreach, e.g. 'what do customers say "
+            "about this restaurant?'. Accepts a Google place CID/slug or a Yelp biz slug; "
+            "never raises and returns an empty list when the source is unreachable."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "place_id": {
+                    "type": "string",
+                    "description": "Google Maps place CID/slug or Yelp biz slug",
+                },
+                "source": {
+                    "type": "string",
+                    "enum": ["google", "yelp"],
+                    "default": "google",
+                    "description": "Review source (default: google)",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of reviews to return (default: 20)",
+                },
+            },
+            "required": ["place_id"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "author": {"type": "string"},
+                            "rating": {"type": "number"},
+                            "date": {"type": "string"},
+                            "text": {"type": "string"},
+                            "source": {"type": "string"},
+                        },
+                    },
+                },
+                "place_id": {"type": "string"},
+                "total": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_procurement",
+        "description": (
+            "Search U.S. federal procurement opportunities and contract awards from the "
+            "public SAM.gov data feed, returning title, agency, notice type, and deadline. "
+            "Use to find government business opportunities for a capability, e.g. 'what "
+            "cybersecurity contracts are open?'. The gov_data module is built in parallel; "
+            "until it lands this tool returns a readable not-available message instead of "
+            "erroring."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Keyword search, e.g. 'cybersecurity'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum results to return (default: 20)",
+                },
+            },
+            "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "notice_id": {"type": "string"},
+                            "title": {"type": "string"},
+                            "agency": {"type": "string"},
+                            "notice_type": {"type": "string"},
+                            "deadline": {"type": "string"},
+                            "url": {"type": "string"},
+                        },
+                    },
+                },
+                "query": {"type": "string"},
+                "total": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_recalls",
+        "description": (
+            "Search recent product recalls from the U.S. CPSC public data feed, returning "
+            "product name, hazard, recall date, and remedy. Use for consumer-safety "
+            "monitoring or supply-chain due diligence, e.g. 'recent recalls for e-bike "
+            "batteries'. The gov_data module is built in parallel; until it lands this "
+            "tool returns a readable not-available message instead of erroring."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Keyword search, e.g. 'e-bike battery'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum results to return (default: 20)",
+                },
+            },
+            "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "recall_id": {"type": "string"},
+                            "product": {"type": "string"},
+                            "hazard": {"type": "string"},
+                            "recall_date": {"type": "string"},
+                            "remedy": {"type": "string"},
+                            "url": {"type": "string"},
+                        },
+                    },
+                },
+                "query": {"type": "string"},
+                "total": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_patents",
+        "description": (
+            "Search U.S. patents by keyword using the USPTO public data feeds, returning "
+            "patent number, title, assignee, and grant date. Use for IP landscaping or "
+            "freedom-to-operate checks, e.g. 'patents for blockchain identity'. The ip_data "
+            "module is built in parallel; until it lands this tool returns a readable "
+            "not-available message instead of erroring."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Keyword search, e.g. 'blockchain identity'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum results to return (default: 20)",
+                },
+            },
+            "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "patent_number": {"type": "string"},
+                            "title": {"type": "string"},
+                            "assignee": {"type": "string"},
+                            "grant_date": {"type": "string"},
+                            "url": {"type": "string"},
+                        },
+                    },
+                },
+                "query": {"type": "string"},
+                "total": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_trademarks",
+        "description": (
+            "Search U.S. trademarks by keyword or owner using the USPTO public data feeds, "
+            "returning serial number, mark text, owner, and status. Use for brand "
+            "clearance before launching a product or token name, e.g. 'is RugMunch "
+            "trademarked?'. The ip_data module is built in parallel; until it lands this "
+            "tool returns a readable not-available message instead of erroring."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Keyword or owner search, e.g. 'RugMunch'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum results to return (default: 20)",
+                },
+            },
+            "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "serial_number": {"type": "string"},
+                            "mark": {"type": "string"},
+                            "owner": {"type": "string"},
+                            "status": {"type": "string"},
+                            "url": {"type": "string"},
+                        },
+                    },
+                },
+                "query": {"type": "string"},
+                "total": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
 ]
+
+
+# ── MCP 2025-11-25 tool annotations ────────────────────────────────────
+# Every tool must declare ``readOnlyHint`` / ``destructiveHint`` /
+# ``idempotentHint`` so clients (Claude, Cursor, Hermes, agent SDKs) can
+# reason about side effects before calling. Defaults: read-only (no server
+# state mutation), non-destructive, idempotent (repeated calls are safe).
+# Tools that mutate server state opt out explicitly.
+_TOOL_ANNOTATIONS: dict[str, dict[str, bool]] = {
+    # pry_monitor persists a scheduled monitor on the server.
+    "pry_monitor": {
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+    },
+}
+
+
+def _annotations_for(name: str) -> dict[str, bool]:
+    """Return the MCP annotation triple for a tool name (default: read-only)."""
+    if name in _TOOL_ANNOTATIONS:
+        return _TOOL_ANNOTATIONS[name]
+    return {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True}
+
+
+for _tool in PRY_TOOLS:
+    _tool.setdefault("annotations", _annotations_for(str(_tool["name"])))
 
 
 def _crypto_module_unavailable(tool_name: str) -> dict[str, Any]:
@@ -972,3 +1998,412 @@ async def call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[st
         }
 
     return None
+
+
+def _data_module_unavailable(tool_name: str, package: str) -> dict[str, Any]:
+    """MCP content dict for a data-domain tool whose module has not landed yet."""
+    return {
+        "content": [
+            {
+                "type": "text",
+                "text": (
+                    f"Tool {tool_name} is not available yet: the {package} module has "
+                    "not finished landing (parallel build in progress). Try again shortly."
+                ),
+            }
+        ],
+        "isError": False,
+    }
+
+
+def _missing_arg(tool_name: str, arg: str) -> dict[str, Any]:
+    """MCP content dict for a missing required argument."""
+    return {
+        "content": [{"type": "text", "text": f"{tool_name} requires {arg}"}],
+        "isError": True,
+    }
+
+
+async def call_legal_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch legal/public-records MCP tools to their ``legal_docs`` handlers.
+
+    The ``legal_docs`` subpackage (``dockets``, ``sec_filings``, ``sanctions``)
+    is built in parallel by other agents; every import is guarded so this
+    dispatcher degrades gracefully (a readable message) if a module has not
+    landed yet. Returns ``None`` for non-legal tools so callers fall through.
+    """
+    if name == "pry_legal_dockets":
+        query = arguments.get("query", "")
+        if not query:
+            return _missing_arg(name, "query")
+        limit = int(arguments.get("limit", 20))
+        try:
+            from legal_docs.dockets import search_dockets
+        except ImportError:
+            return _data_module_unavailable(name, "legal_docs")
+        data = await search_dockets(query=query, limit=limit)
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({"success": True, "data": data, "query": query}, indent=2),
+                }
+            ],
+            "isError": False,
+        }
+
+    if name == "pry_legal_sec":
+        ticker = arguments.get("ticker", "")
+        if not ticker:
+            return _missing_arg(name, "ticker")
+        form_type = arguments.get("form_type", "8-K")
+        limit = int(arguments.get("limit", 20))
+        try:
+            from legal_docs.sec_filings import search_filings
+        except ImportError:
+            return _data_module_unavailable(name, "legal_docs")
+        data = await search_filings(ticker=ticker, form_type=form_type, limit=limit)
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {"success": True, "data": data, "ticker": ticker.upper()}, indent=2
+                    ),
+                }
+            ],
+            "isError": False,
+        }
+
+    if name == "pry_legal_sanctions":
+        screen = arguments.get("name", "")
+        if not screen:
+            return _missing_arg(name, "name")
+        try:
+            from legal_docs.sanctions import screen_name
+        except ImportError:
+            return _data_module_unavailable(name, "legal_docs")
+        data = await screen_name(name=screen)
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({"success": True, "data": data, "name": screen}, indent=2),
+                }
+            ],
+            "isError": False,
+        }
+
+    return None
+
+
+async def call_realestate_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch real-estate MCP tools to their ``real_estate`` handlers (guarded)."""
+    if name == "pry_realestate_search":
+        location = arguments.get("location", "")
+        if not location:
+            return _missing_arg(name, "location")
+        status = arguments.get("status", "for_sale")
+        limit = int(arguments.get("limit", 20))
+        try:
+            from real_estate.listings import search_listings
+        except ImportError:
+            return _data_module_unavailable(name, "real_estate")
+        data = await search_listings(location, status=status, limit=limit)
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {"success": True, "data": data, "location": location, "status": status},
+                        indent=2,
+                    ),
+                }
+            ],
+            "isError": False,
+        }
+
+    return None
+
+
+async def call_jobs_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch jobs/salary MCP tools to their ``jobs`` handlers (guarded)."""
+    if name == "pry_jobs_list":
+        company = arguments.get("company", "")
+        if not company:
+            return _missing_arg(name, "company")
+        board = arguments.get("board", "greenhouse")
+        limit = int(arguments.get("limit", 50))
+        try:
+            from jobs.ats import list_jobs
+        except ImportError:
+            return _data_module_unavailable(name, "jobs")
+        data = await list_jobs(company, board=board, limit=limit)
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {"success": True, "data": data, "board": board, "company": company},
+                        indent=2,
+                    ),
+                }
+            ],
+            "isError": False,
+        }
+
+    if name == "pry_jobs_salary":
+        company = arguments.get("company", "")
+        if not company:
+            return _missing_arg(name, "company")
+        role = arguments.get("role", "software_engineer")
+        try:
+            from jobs.salary import get_salary
+        except ImportError:
+            return _data_module_unavailable(name, "jobs")
+        salary_data = await get_salary(company, role=role)
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {"success": bool(salary_data), "data": salary_data, "company": company},
+                        indent=2,
+                    ),
+                }
+            ],
+            "isError": False,
+        }
+
+    return None
+
+
+async def call_travel_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch travel MCP tools to their ``travel`` handlers (guarded)."""
+    if name == "pry_flights_grid":
+        origin = arguments.get("origin", "")
+        dest = arguments.get("dest", "")
+        start_date = arguments.get("start_date", "")
+        end_date = arguments.get("end_date", "")
+        if not (origin and dest and start_date and end_date):
+            return _missing_arg(name, "origin/dest/start_date/end_date")
+        try:
+            from travel.flights import cheapest_date_grid
+        except ImportError:
+            return _data_module_unavailable(name, "travel")
+        data = await cheapest_date_grid(origin, dest, start_date, end_date)
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {
+                            "success": True,
+                            "data": data,
+                            "origin": origin.upper(),
+                            "dest": dest.upper(),
+                            "start_date": start_date,
+                            "end_date": end_date,
+                        },
+                        indent=2,
+                    ),
+                }
+            ],
+            "isError": False,
+        }
+
+    if name == "pry_hotel_rates":
+        hotel_name = arguments.get("hotel_name", "")
+        checkin = arguments.get("checkin", "")
+        checkout = arguments.get("checkout", "")
+        if not (hotel_name and checkin and checkout):
+            return _missing_arg(name, "hotel_name/checkin/checkout")
+        try:
+            from travel.hotels import get_hotel_rates
+        except ImportError:
+            return _data_module_unavailable(name, "travel")
+        hotel_data = await get_hotel_rates(hotel_name, checkin, checkout)
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({"success": True, "data": hotel_data}, indent=2),
+                }
+            ],
+            "isError": False,
+        }
+
+    return None
+
+
+async def call_attention_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch attention/SEO MCP tools to their ``attention`` handlers (guarded)."""
+    if name == "pry_serp":
+        q = arguments.get("q", "")
+        if not q:
+            return _missing_arg(name, "q")
+        num = int(arguments.get("num", 10))
+        try:
+            from attention.serp import serp
+        except ImportError:
+            return _data_module_unavailable(name, "attention")
+        data = await serp(q, num=num)
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {"success": "error" not in data, "data": data, "query": q}, indent=2
+                    ),
+                }
+            ],
+            "isError": False,
+        }
+
+    if name == "pry_trends":
+        keyword = arguments.get("keyword", "")
+        if not keyword:
+            return _missing_arg(name, "keyword")
+        timeframe = arguments.get("timeframe", "today 12-m")
+        try:
+            from attention.trends import trend_interest
+        except ImportError:
+            return _data_module_unavailable(name, "attention")
+        data = await trend_interest(keyword, timeframe=timeframe)
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {"success": "error" not in data, "data": data, "keyword": keyword},
+                        indent=2,
+                    ),
+                }
+            ],
+            "isError": False,
+        }
+
+    return None
+
+
+async def call_local_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch local-business MCP tools to their ``local_data`` handlers (guarded)."""
+    if name == "pry_places_search":
+        query = arguments.get("query", "")
+        if not query:
+            return _missing_arg(name, "query")
+        location = arguments.get("location", "")
+        limit = int(arguments.get("limit", 20))
+        try:
+            from local_data.places import search_places
+        except ImportError:
+            return _data_module_unavailable(name, "local_data")
+        data = await search_places(query, location=location, limit=limit)
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {"success": True, "data": data, "query": query, "location": location},
+                        indent=2,
+                    ),
+                }
+            ],
+            "isError": False,
+        }
+
+    if name == "pry_reviews":
+        place_id = arguments.get("place_id", "")
+        if not place_id:
+            return _missing_arg(name, "place_id")
+        source = arguments.get("source", "google")
+        limit = int(arguments.get("limit", 20))
+        try:
+            from local_data.reviews import get_reviews
+        except ImportError:
+            return _data_module_unavailable(name, "local_data")
+        data = await get_reviews(place_id, source=source, limit=limit)
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {"success": True, "data": data, "place_id": place_id, "source": source},
+                        indent=2,
+                    ),
+                }
+            ],
+            "isError": False,
+        }
+
+    return None
+
+
+# Candidate public function names for the gov_data / ip_data packages. These
+# packages land from parallel agents; the dispatcher resolves whichever name
+# the landed module actually exposes, and reports "not available" otherwise.
+_GOV_TOOL_FNS: dict[str, tuple[str, tuple[str, ...]]] = {
+    "pry_procurement": (
+        "gov_data",
+        ("search_opportunities", "search_procurement", "list_procurement"),
+    ),
+    "pry_recalls": ("gov_data", ("search_recalls", "get_recalls", "list_recalls")),
+}
+_IP_TOOL_FNS: dict[str, tuple[str, tuple[str, ...]]] = {
+    "pry_patents": ("ip_data", ("search_patents", "get_patents", "list_patents")),
+    "pry_trademarks": ("ip_data", ("search_trademarks", "get_trademarks", "list_trademarks")),
+}
+
+
+async def _call_candidate_domain_tool(
+    name: str,
+    arguments: dict[str, Any],
+    registry: dict[str, tuple[str, tuple[str, ...]]],
+) -> dict[str, Any] | None:
+    """Run a gov/ip tool via candidate function names with a guarded import."""
+    entry = registry.get(name)
+    if entry is None:
+        return None
+    package, candidates = entry
+    query = arguments.get("query", "")
+    if not query:
+        return _missing_arg(name, "query")
+    limit = int(arguments.get("limit", 20))
+    try:
+        mod = __import__(package, fromlist=[package])
+    except ImportError:
+        return _data_module_unavailable(name, package)
+    fn = next((getattr(mod, cand, None) for cand in candidates if hasattr(mod, cand)), None)
+    if fn is None:
+        return _data_module_unavailable(name, package)
+    data = await fn(query, limit=limit) if _candidate_takes_limit(fn) else await fn(query)
+    return {
+        "content": [
+            {
+                "type": "text",
+                "text": json.dumps({"success": True, "data": data, "query": query}, indent=2),
+            }
+        ],
+        "isError": False,
+    }
+
+
+def _candidate_takes_limit(fn: Any) -> bool:
+    """Best-effort: does the gov/ip candidate accept a limit keyword?"""
+    import inspect
+
+    try:
+        params = inspect.signature(fn).parameters
+        return "limit" in params
+    except (TypeError, ValueError):
+        return True
+
+
+async def call_gov_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch government-data MCP tools to their ``gov_data`` handlers (guarded)."""
+    return await _call_candidate_domain_tool(name, arguments, _GOV_TOOL_FNS)
+
+
+async def call_ip_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch IP-data MCP tools to their ``ip_data`` handlers (guarded)."""
+    return await _call_candidate_domain_tool(name, arguments, _IP_TOOL_FNS)
