@@ -166,7 +166,12 @@ def make_fallback_server(
     | None = None,
 ) -> Any:
     """Build a minimal stdio JSON-RPC server if official MCP SDK not available.
-    This implements the MCP 2024-11-05 protocol with all required methods."""
+    This implements the MCP 2024-11-05 protocol with all required methods.
+
+    Note: the constructor arguments are forwarded to the instance — a server
+    built with ``tool_executor=combined_tool_executor`` runs domain tools
+    locally; without one every tool falls through to the REST proxy.
+    """
 
     class FallbackMCPServer:
         def __init__(
@@ -585,10 +590,33 @@ def make_fallback_server(
             return {"values": values}
 
         async def handle_request(self, request: dict[str, Any]) -> dict[str, Any] | None:
-            """Handle a JSON-RPC 2.0 request. Implements MCP 2024-11-05."""
+            """Handle a JSON-RPC 2.0 request. Implements MCP 2024-11-05.
+
+            Notifications (requests without an ``id``) are processed for side
+            effects but never produce a response, per JSON-RPC 2.0 §2.1.
+            """
+            if not isinstance(request, dict):
+                return {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32600, "message": "Invalid Request"},
+                }
             method = request.get("method", "")
             req_id = request.get("id", 0)
             params = request.get("params", {})
+
+            if "id" not in request:
+                # JSON-RPC notification: never respond.
+                if method == "notifications/initialized":
+                    self._initialized = True
+                return None
+
+            if not isinstance(method, str) or not method:
+                return {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32600, "message": "Invalid Request"},
+                }
 
             try:
                 if method == "initialize":
@@ -610,8 +638,6 @@ def make_fallback_server(
                             },
                         },
                     }
-                if method == "notifications/initialized":
-                    return None
                 if method == "ping":
                     return {"jsonrpc": "2.0", "id": req_id, "result": {}}
                 if method == "tools/list":
@@ -713,8 +739,16 @@ def make_fallback_server(
                         sys.stdout.write(json.dumps(response) + "\n")
                         sys.stdout.flush()
                 except json.JSONDecodeError:
-                    continue
+                    # JSON-RPC 2.0 §2.4.2: a parse error gets a response with
+                    # id null (we cannot know the request id from bad JSON).
+                    response = {
+                        "jsonrpc": "2.0",
+                        "id": None,
+                        "error": {"code": -32700, "message": "Parse error"},
+                    }
+                    sys.stdout.write(json.dumps(response) + "\n")
+                    sys.stdout.flush()
                 except (EOFError, KeyboardInterrupt):
                     break
 
-    return FallbackMCPServer()
+    return FallbackMCPServer(base_url=base_url, tool_executor=tool_executor)

@@ -13,9 +13,11 @@ Split from mcp_production.py.
 
 from __future__ import annotations
 
+from typing import Any
+
 # ── Resource Definitions (per MCP spec) ──
 
-PRY_RESOURCES = [
+PRY_RESOURCES: list[dict[str, Any]] = [
     {
         "uri": "pry://catalog",
         "name": "Scraper Template Catalog",
@@ -28,8 +30,12 @@ PRY_RESOURCES = [
     },
     {
         "uri": "pry://stats",
-        "name": "Pry Usage Statistics",
-        "description": "Current Pry server statistics: uptime, requests served, templates used, costs.",
+        "name": "Pry Server Statistics",
+        "description": (
+            "Current Pry MCP server statistics: server name and version, protocol "
+            "version, and live tool/resource/prompt counts. Use to confirm which "
+            "server build and how many tools are registered."
+        ),
         "mimeType": "application/json",
         "annotations": {
             "audience": ["assistant"],
@@ -60,7 +66,7 @@ PRY_RESOURCES = [
 
 # ── Prompt Definitions (per MCP spec) ──
 
-PRY_PROMPTS = [
+PRY_PROMPTS: list[dict[str, Any]] = [
     {
         "name": "research_company",
         "title": "Research a Company",

@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-PRY_TOOLS = [
+PRY_TOOLS: list[dict[str, Any]] = [
     {
         "name": "pry_scrape",
         "description": (
@@ -79,8 +79,10 @@ PRY_TOOLS = [
         "description": (
             "Crawl a website from a seed URL, discovering and scraping linked pages with "
             "BFS/DFS traversal up to max_pages. "
-            "Use to collect an entire docs site, blog, or directory, e.g. every page under "
-            "/docs/ or all blog posts up to 50 pages deep."
+            "Use to collect an entire docs site, blog, or directory — e.g. call with "
+            "url='https://example.com' and include_paths=['/docs/'] to harvest every page "
+            "under /docs/, or crawl up to 50 blog posts with max_pages=50. "
+            "Constrain with include_paths/exclude_paths to stay inside the section you want."
         ),
         "inputSchema": {
             "type": "object",
@@ -129,6 +131,7 @@ PRY_TOOLS = [
                     },
                 },
             },
+            "required": ["success"],
         },
     },
     {
@@ -252,9 +255,12 @@ PRY_TOOLS = [
     {
         "name": "pry_search_templates",
         "description": (
-            "Search all 110+ scraper templates by keyword, category, or site name. "
-            "Use before pry_template to find the right template, e.g. 'amazon', 'jobs', "
-            "or 'real estate'."
+            "Search the 110+ pre-built scraper template catalog by keyword, category, "
+            "or site name, returning matching template_ids, their categories, and "
+            "descriptions. "
+            "Use before pry_template to discover which template fits a target site — "
+            "e.g. call with q='walmart' to find 'walmart-product', or q='jobs' with "
+            "category='careers' to list every job-board template."
         ),
         "inputSchema": {
             "type": "object",
@@ -475,9 +481,12 @@ PRY_TOOLS = [
     {
         "name": "pry_screenshot",
         "description": (
-            "Take a full-page screenshot of a URL and return it as a base64-encoded PNG. "
-            "Use for visual verification or design QA of a rendered page, e.g. capture a "
-            "checkout flow to confirm the layout before launch."
+            "Render a URL in a headless browser and return a screenshot as a "
+            "base64-encoded PNG with width, height, and content type. "
+            "Use for visual verification or design QA of a rendered page — e.g. "
+            "screenshot https://example.com/checkout with full_page=true to capture "
+            "the whole checkout flow before launch. JavaScript is executed before "
+            "capture so SPAs render correctly."
         ),
         "inputSchema": {
             "type": "object",
@@ -1803,6 +1812,17 @@ PRY_TOOLS = [
 # reason about side effects before calling. Defaults: read-only (no server
 # state mutation), non-destructive, idempotent (repeated calls are safe).
 # Tools that mutate server state opt out explicitly.
+#
+# Audit (2026-08-16, all 35 PRY_TOOLS):
+#   * pry_monitor  — persists a scheduled monitor on the server:
+#     readOnlyHint=False, idempotentHint=False. destructiveHint stays False:
+#     it never deletes data (removal is a separate /v1/monitor/{id} DELETE).
+#   * pry_referrals — audited: GET /v1/referrals/catalog reads the static
+#     PROVIDER_CATALOG; it does NOT record clicks/conversions
+#     (ReferralTracker.record_click is a different route), so it keeps the
+#     read-only, idempotent default.
+#   * The remaining 33 tools are reads/scrapes with no server-state changes —
+#     the default read-only, non-destructive, idempotent annotations apply.
 _TOOL_ANNOTATIONS: dict[str, dict[str, bool]] = {
     # pry_monitor persists a scheduled monitor on the server.
     "pry_monitor": {
@@ -1822,6 +1842,10 @@ def _annotations_for(name: str) -> dict[str, bool]:
 
 for _tool in PRY_TOOLS:
     _tool.setdefault("annotations", _annotations_for(str(_tool["name"])))
+
+# Frozen set of every registered tool name — used by the registry-sync tests
+# to assert server.json / glama.json / pulsemcp.json / llms.txt stay in sync.
+PRY_TOOL_NAMES: frozenset[str] = frozenset(str(t["name"]) for t in PRY_TOOLS)
 
 
 def _crypto_module_unavailable(tool_name: str) -> dict[str, Any]:

@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 # Try to import official MCP SDK
 try:
     import mcp.server.session  # noqa: F401
-    from mcp.server import Server
     from mcp.server.stdio import stdio_server
     from mcp.types import (  # noqa: F401
         Annotations,
@@ -60,12 +59,134 @@ except ImportError:
     _has_mcp_sdk = False
 
 
+def _create_sdk_server() -> Any:
+    """Build an official MCP SDK server exposing every Pry tool/resource/prompt.
+
+    The SDK handlers delegate execution to the same guarded dispatch + REST
+    proxy chain as the fallback server (``combined_tool_executor``), so the
+    stdio transport behaves identically to the HTTP transports.
+
+    Only called when the official ``mcp`` SDK is importable; the SDK imports
+    are deliberately local so this module still imports cleanly when the SDK
+    is not installed (the fallback server path).
+    """
+    from mcp.server import Server
+    from mcp.types import (
+        GetPromptResult,
+        Prompt,
+        PromptArgument,
+        PromptMessage,
+        ReadResourceResult,
+        Role,
+        TextContent,
+        TextResourceContents,
+        Tool,
+    )
+    from pydantic import AnyUrl
+
+    # The fallback server holds the execution logic (local executors,
+    # domain dispatch, REST proxy fallback); the SDK server wraps it.
+    delegate = make_fallback_server(tool_executor=combined_tool_executor)
+    register_all(delegate)
+
+    server = Server(SERVER_NAME, SERVER_VERSION)
+    # Marker so ``register_all`` (and callers) know the SDK server already
+    # carries its registrations via handlers.
+    server._pry_sdk_registered = True  # type: ignore[attr-defined]
+
+    @server.list_tools()
+    async def list_tools() -> list[Tool]:
+        return [
+            Tool(
+                name=tool["name"],
+                description=tool.get("description", ""),
+                inputSchema=tool.get("inputSchema", {"type": "object", "properties": {}}),
+                annotations=tool.get("annotations"),
+            )
+            for tool in PRY_TOOLS
+        ]
+
+    @server.call_tool()
+    async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+        result = await delegate.call_tool(name, arguments or {})
+        if "error" in result:
+            raise ValueError(str(result["error"].get("message", f"Unknown tool: {name}")))
+        blocks: list[TextContent] = []
+        for item in result.get("content", []):
+            if item.get("type") == "text":
+                blocks.append(TextContent(type="text", text=item.get("text", "")))
+        if not blocks:
+            blocks.append(TextContent(type="text", text=""))
+        return blocks
+
+    @server.list_resources()
+    async def list_resources() -> list[Resource]:
+        return [
+            Resource(
+                uri=AnyUrl(r["uri"]),
+                name=r["name"],
+                description=r.get("description", ""),
+                mimeType=r.get("mimeType", "text/plain"),
+            )
+            for r in PRY_RESOURCES
+        ]
+
+    @server.read_resource()
+    async def read_resource(uri: AnyUrl) -> ReadResourceResult:
+        uri_str = str(uri)
+        if uri_str not in delegate.resources:
+            raise ValueError(f"Resource not found: {uri_str}")
+        return ReadResourceResult(
+            contents=[
+                TextResourceContents(
+                    uri=AnyUrl(uri_str),
+                    mimeType=delegate.resources[uri_str].get("mimeType", "text/plain"),
+                    text=delegate._resource_text(uri_str),
+                )
+            ]
+        )
+
+    @server.list_prompts()
+    async def list_prompts() -> list[Prompt]:
+        return [
+            Prompt(
+                name=p["name"],
+                description=p.get("description", ""),
+                arguments=[
+                    PromptArgument(
+                        name=a["name"],
+                        description=a.get("description", ""),
+                        required=a.get("required", False),
+                    )
+                    for a in p.get("arguments", [])
+                ],
+            )
+            for p in PRY_PROMPTS
+        ]
+
+    @server.get_prompt()
+    async def get_prompt(name: str, arguments: dict[str, Any]) -> GetPromptResult:
+        if name not in delegate.prompts:
+            raise ValueError(f"Prompt not found: {name}")
+        messages = delegate._prompt_messages(name, arguments or {})
+        return GetPromptResult(
+            description=delegate.prompts[name].get("description", ""),
+            messages=[
+                PromptMessage(
+                    role=Role.USER if m.get("role") == "user" else Role.ASSISTANT,
+                    content=TextContent(type="text", text=m.get("content", {}).get("text", "")),
+                )
+                for m in messages
+            ],
+        )
+
+    return server
+
+
 def create_server() -> Any:
     """Create the MCP server (uses official SDK if available, fallback otherwise)."""
     if _has_mcp_sdk:
-        # TODO: register tools/resources/prompts using official SDK decorators
-        # and return the SDK server when tool registration is complete.
-        Server(SERVER_NAME, SERVER_VERSION)
+        return _create_sdk_server()
     # Crypto-market and marketplace-intelligence tools (pry_token_launches /
     # pry_cex_listings / pry_token_security / pry_amazon_product /
     # pry_amazon_search / pry_walmart_product / pry_tiktok_trending) execute
@@ -74,7 +195,13 @@ def create_server() -> Any:
 
 
 def register_all(server: Any) -> None:
-    """Register all Pry tools, resources, and prompts."""
+    """Register all Pry tools, resources, and prompts.
+
+    No-op for SDK servers (their handlers are registered at construction in
+    ``_create_sdk_server``); duck-typed registration for the fallback server.
+    """
+    if getattr(server, "_pry_sdk_registered", False):
+        return
     for tool in PRY_TOOLS:
         server.register_tool(tool["name"], tool)
     for resource in PRY_RESOURCES:
@@ -84,11 +211,20 @@ def register_all(server: Any) -> None:
 
 
 async def main() -> None:
-    """Run the MCP server."""
+    """Run the MCP server.
+
+    Uses the official SDK over stdio when available; otherwise the built-in
+    fallback stdio server. ``create_server()`` returns whichever matches, so
+    this only needs to detect which one it got.
+    """
     server = create_server()
     register_all(server)
-    if _has_mcp_sdk:
+    if _has_mcp_sdk and hasattr(server, "run") and hasattr(server, "create_initialization_options"):
         async with stdio_server() as (read_stream, write_stream):
-            await server.run(read_stream, write_stream, server.create_initialization_options())
+            await server.run(
+                read_stream,
+                write_stream,
+                server.create_initialization_options(),
+            )
     else:
         await server.run_stdio()

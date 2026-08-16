@@ -17,6 +17,7 @@ omitted, a standalone lazy fallback server is created on first use.
 
 import asyncio
 import json
+import uuid
 from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from typing import Any, cast
@@ -45,6 +46,13 @@ _MCP_CORS_ORIGINS: list[str] = [
 _MCP_CORS_ORIGIN_REGEX: str = r"https://.*\.rugmunch\.io"
 
 _MCP_SERVER_INSTANCE: Any | None = None
+
+# Active Streamable HTTP sessions (opaque ids issued on ``initialize``).
+# Sessions are advisory: the underlying MCP server instance is shared, so a
+# session id only gates stateful clients per the spec; stateless requests
+# without an ``Mcp-Session-Id`` header remain fully supported and are the
+# default for one-shot integrations.
+_MCP_SESSIONS: set[str] = set()
 
 
 def _default_get_server() -> Any:
@@ -98,10 +106,77 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
         ``Accept: text/event-stream`` the JSON-RPC response is wrapped in a
         single SSE ``message`` event; otherwise it is returned as plain JSON
         (the classic 2024-11-05 behavior, kept for backward compatibility).
+
+        Compliance details:
+        * malformed JSON → JSON-RPC ``-32700`` parse error;
+        * non-JSON-RPC payloads → JSON-RPC ``-32600`` invalid request;
+        * unknown ``Mcp-Session-Id`` → HTTP 404 (Streamable HTTP §6.2);
+        * ``initialize`` without a session id → a fresh ``Mcp-Session-Id``
+          response header is issued;
+        * notifications (no ``id``) are processed but answered with HTTP 202
+          and an empty body, never a JSON-RPC response;
+        * responses carry ``Cache-Control: no-store`` per the spec.
         """
-        body = await request.json()
+        # 1. Parse the body — JSON-RPC -32700 on malformed JSON.
+        try:
+            body = await request.json()
+        except (json.JSONDecodeError, ValueError):
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32700, "message": "Parse error"},
+                },
+                headers={"Cache-Control": "no-store"},
+            )
+
+        # 2. Validate it is a JSON-RPC request object — -32600 otherwise.
+        if (
+            not isinstance(body, dict)
+            or body.get("jsonrpc") != "2.0"
+            or not isinstance(body.get("method"), str)
+        ):
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "jsonrpc": "2.0",
+                    "id": body.get("id") if isinstance(body, dict) else None,
+                    "error": {"code": -32600, "message": "Invalid Request"},
+                },
+                headers={"Cache-Control": "no-store"},
+            )
+
         server = _get_server()
-        result = cast("dict[str, Any]", await server.handle_request(body))
+
+        # 3. Session management: reject unknown inbound sessions; issue a new
+        #    session id on initialize when the client is stateless.
+        session_id = request.headers.get("mcp-session-id", "")
+        if session_id and session_id not in _MCP_SESSIONS:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "jsonrpc": "2.0",
+                    "id": body.get("id"),
+                    "error": {"code": -32001, "message": f"Unknown session: {session_id}"},
+                },
+                headers={"Cache-Control": "no-store"},
+            )
+        response_headers: dict[str, str] = {"Cache-Control": "no-store"}
+        if body.get("method") == "initialize" and not session_id:
+            session_id = uuid.uuid4().hex
+            _MCP_SESSIONS.add(session_id)
+            response_headers["Mcp-Session-Id"] = session_id
+
+        # 4. Notifications (requests without id) never produce a response.
+        if "id" not in body:
+            await server.handle_request(body)
+            return Response(status_code=202)
+
+        result = cast("dict[str, Any] | None", await server.handle_request(body))
+        if result is None:
+            return Response(status_code=202)
+
         accept = request.headers.get("accept", "")
         if "text/event-stream" in accept:
             payload = json.dumps(result)
@@ -109,12 +184,32 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
                 iter([f"event: message\ndata: {payload}\n\n"]),
                 media_type="text/event-stream",
                 headers={
+                    **response_headers,
                     "Cache-Control": "no-cache, no-transform",
                     "Connection": "keep-alive",
                     "X-Accel-Buffering": "no",
                 },
             )
-        return result
+        return JSONResponse(content=result, headers=response_headers)
+
+    @app.delete("/", tags=["MCP"], summary="Terminate an MCP Streamable HTTP session")
+    async def mcp_delete_session(request: Request) -> Response:
+        """Terminate the session named by the ``Mcp-Session-Id`` header.
+
+        Streamable HTTP allows a client to delete a session it no longer
+        needs; the server forgets the id and any later request using it is
+        answered with 404.
+        """
+        session_id = request.headers.get("mcp-session-id", "")
+        if not session_id:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": "Mcp-Session-Id header required for DELETE"},
+            )
+        if session_id not in _MCP_SESSIONS:
+            return JSONResponse(status_code=404, content={"detail": "Unknown session"})
+        _MCP_SESSIONS.discard(session_id)
+        return Response(status_code=200)
 
     @app.get("/", tags=["MCP"], summary="MCP Streamable HTTP GET (SSE)")
     async def mcp_streamable_http_get(request: Request) -> Any:
@@ -131,6 +226,12 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
                 status_code=406,
                 content={"detail": "Accept: text/event-stream is required for GET"},
             )
+        session_id = request.headers.get("mcp-session-id", "")
+        if session_id and session_id not in _MCP_SESSIONS:
+            return JSONResponse(
+                status_code=404,
+                content={"detail": f"Unknown session: {session_id}"},
+            )
         # Force lazy server init so notifications have a server to observe.
         _get_server()
         queue: asyncio.Queue[str] = asyncio.Queue()
@@ -141,8 +242,19 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
 
         register_mcp_notification_observer(observer)
 
+        # Private test hook (same convention as mcp_sse.py): close the stream
+        # after a keepalive so ASGITransport-based tests can read the response
+        # without hanging on the infinite stream.
+        try:
+            _test_close_after = int(request.query_params.get("_sse_test_close_after", "0"))
+        except ValueError:
+            _test_close_after = 0
+
         async def event_stream() -> AsyncIterator[str]:
             try:
+                if _test_close_after > 0:
+                    yield ": ping\n\n"
+                    return
                 while True:
                     try:
                         yield await asyncio.wait_for(queue.get(), timeout=30.0)
