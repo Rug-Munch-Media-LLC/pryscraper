@@ -34,6 +34,42 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class _ToolNotHandled(Exception):
+    """Raised by a local tool executor to fall through to the REST proxy."""
+
+
+async def _call_crypto_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch crypto-market tools to their guarded handlers in pry_mcp.tools.
+
+    The ``crypto_market`` subpackage is built in parallel by other agents;
+    the dispatcher handles missing modules gracefully. Returns ``None`` for
+    non-crypto tools so callers fall through to their normal execution path.
+    """
+    try:
+        from pry_mcp.tools import call_crypto_tool
+    except ImportError:
+        return None
+    try:
+        return await call_crypto_tool(name, arguments)
+    except Exception as e:  # noqa: BLE001 — surface crypto handler failures as MCP errors
+        logger.warning("mcp_crypto_tool_failed", extra={"tool": name, "error": str(e)})
+        return {
+            "content": [{"type": "text", "text": f"Tool {name} failed: {e}"}],
+            "isError": True,
+        }
+
+
+async def crypto_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    """Local MCP tool executor: runs crypto-market tools directly (guarded
+    import) and signals non-crypto tools to fall through to the REST proxy.
+    Pass as ``tool_executor`` to ``make_fallback_server``.
+    """
+    result = await _call_crypto_tool(name, arguments)
+    if result is None:
+        raise _ToolNotHandled(name)
+    return result
+
+
 def make_fallback_server(
     base_url: str = DEFAULT_BASE_URL,
     tool_executor: Callable[[str, dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
@@ -119,6 +155,10 @@ def make_fallback_server(
                 try:
                     result = await self.tool_executor(name, arguments)
                     return self._tool_result_to_content(result, name)
+                except _ToolNotHandled:
+                    # Local executor declined (non-crypto tool) — fall through
+                    # to the built-in crypto dispatch / REST proxy below.
+                    pass
                 except Exception as e:  # noqa: BLE001
                     logger.warning(
                         "mcp_tool_executor_failed", extra={"tool": name, "error": str(e)}
@@ -127,6 +167,13 @@ def make_fallback_server(
                         "content": [{"type": "text", "text": f"Tool {name} failed: {e}"}],
                         "isError": True,
                     }
+
+            # Crypto-market tools execute locally via guarded imports
+            # (the crypto_market modules land in parallel; degrade to a
+            # readable message if a module is absent).
+            crypto_result = await _call_crypto_tool(name, arguments)
+            if crypto_result is not None:
+                return crypto_result
 
             tool_map = {
                 "pry_scrape": ("POST", "/v1/scrape"),

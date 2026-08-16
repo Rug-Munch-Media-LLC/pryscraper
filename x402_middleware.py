@@ -49,7 +49,34 @@ PAID_ENDPOINTS = {
     "/v1/map": "crawl",
     "/v1/capture": "browser_automation",
     "/v1/graphql": "graphql_query",
+    # Crypto market intelligence — paid per call (tool-equivalent REST paths
+    # for pry_token_launches / pry_cex_listings / pry_token_security):
+    "/v1/crypto/token-launches": "token_launches",
+    "/v1/crypto/cex-listings": "cex_listings",
+    "/v1/crypto/token-security": "token_security",
 }
+
+# Price tiers for the crypto-market operations. The canonical pricing table
+# lives in x402/scheme.py; these are merged defensively here (setdefault) so
+# the /v1/crypto/* gates above are never silently skipped (the middleware
+# skips gating when the operation is missing from X402_PRICING). Safe to keep
+# even after the tiers are promoted to scheme.py — setdefault never clobbers.
+_CRYPTO_PRICE_TIERS: dict[str, dict[str, Any]] = {
+    "token_launches": {
+        "price_usd": 0.002,
+        "description": "Crypto token launches / pairs / trending",
+    },
+    "cex_listings": {
+        "price_usd": 0.002,
+        "description": "CEX listing & delisting signals",
+    },
+    "token_security": {
+        "price_usd": 0.005,
+        "description": "Token security scan",
+    },
+}
+for _operation, _tier in _CRYPTO_PRICE_TIERS.items():
+    X402_PRICING.setdefault(_operation, _tier)
 
 
 def _caller_key_from_scope(scope: dict[str, Any]) -> str:

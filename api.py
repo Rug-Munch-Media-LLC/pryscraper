@@ -52,6 +52,7 @@ from routers.compliance import router as compliance_router
 from routers.config import router as config_router
 from routers.costing import router as costing_router
 from routers.crm import router as crm_router
+from routers.crypto_market import router as crypto_market_router
 from routers.dashboard import router as dashboard_router
 from routers.diagnostics import router as diagnostics_router
 from routers.email import router as email_router
@@ -298,6 +299,7 @@ app.include_router(analysis_router)
 app.include_router(automation_router)
 app.include_router(batch_router)
 app.include_router(crm_router)
+app.include_router(crypto_market_router)
 app.include_router(circuit_breaker_router)
 app.include_router(commerce_router)
 app.include_router(compliance_router)

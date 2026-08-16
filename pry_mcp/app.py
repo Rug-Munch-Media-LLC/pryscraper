@@ -24,6 +24,7 @@ from fastapi.responses import StreamingResponse
 
 from mcp_sse import mcp_post_message, mcp_sse_endpoint
 from pry_mcp import make_fallback_server, register_all
+from pry_mcp.fallback_server import crypto_tool_executor
 from settings import settings
 
 # Same CORS allow-list the main app uses; the MCP sub-app is mounted under the
@@ -43,7 +44,13 @@ def _default_get_server() -> Any:
     """Lazy-initialize a standalone spec-compliant MCP server (no api.py)."""
     global _MCP_SERVER_INSTANCE
     if _MCP_SERVER_INSTANCE is None:
-        _MCP_SERVER_INSTANCE = make_fallback_server(base_url=f"http://localhost:{settings.port}")
+        _MCP_SERVER_INSTANCE = make_fallback_server(
+            base_url=f"http://localhost:{settings.port}",
+            # Crypto-market tools (pry_token_launches / pry_cex_listings /
+            # pry_token_security) execute locally via guarded imports; other
+            # tools fall through to the REST proxy.
+            tool_executor=crypto_tool_executor,
+        )
         register_all(_MCP_SERVER_INSTANCE)
     return _MCP_SERVER_INSTANCE
 
