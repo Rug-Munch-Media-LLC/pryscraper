@@ -261,9 +261,21 @@ class TestX402Middleware:
         assert body["x402Version"] == 1
         assert "accepts" in body
         assert "PAYMENT-REQUIRED" in response.headers
+        # The challenge exposes the canonical CAIP-2 acceptance surface
+        # (multi-asset mode): every supported network appears in accepts.
         networks = {a["network"] for a in body["accepts"]}
-        assert "base" in networks
-        assert "solana" in networks
+        assert "eip155:8453" in networks  # Base
+        assert "solana:mainnet" in networks
+        assert "tron:mainnet" in networks
+        # Multi-asset acceptance: Solana USDT / TRON USDT / Arbitrum ARB are
+        # quotable options with USD-equivalent atomic amounts.
+        by_net_asset = {(a["network"], a["asset"]) for a in body["accepts"]}
+        assert ("solana:mainnet", "USDT") in by_net_asset
+        assert ("tron:mainnet", "USDT") in by_net_asset
+        assert ("eip155:42161", "ARB") in by_net_asset
+        # The challenge body also carries the supported surface tables.
+        assert "networks" in body
+        assert "supported_assets" in body
 
     def test_paid_endpoint_with_invalid_payment_still_402(self) -> None:
         client = TestClient(app)
@@ -285,6 +297,47 @@ class TestX402Middleware:
         assert data["success"] is True
         assert "supported_networks" in data["data"]
         assert "solana" in data["data"]["supported_networks"]
+        # Canonical CAIP-2 acceptance surface is exposed too.
+        assert "networks" in data["data"]
+        assert "caip2_networks" in data["data"]
+        assert "asset_table" in data["data"]
+        assert "verification_status" in data["data"]
+        assert "eip155:8453" in data["data"]["caip2_networks"]
+        assert "solana:mainnet" in data["data"]["caip2_networks"]
+        assert "tron:mainnet" in data["data"]["caip2_networks"]
+        assert data["data"]["asset_table"]["solana:mainnet"]["USDC"]["contract"] == (
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        )
+
+    def test_paid_endpoint_solana_tron_challenge_structure(self) -> None:
+        """The 402 challenge for Solana/TRON carries valid header structure.
+
+        The challenge (PAYMENT-REQUIRED header) must round-trip and the
+        Solana/TRON acceptance options must carry the required x402 fields so
+        an agent knows exactly how to pay. This only validates the challenge
+        — on-chain settlement for those chains is a scaffolded [REVIEW] path.
+        """
+        client = TestClient(app)
+        response = client.post("/v1/scrape", json={"url": "https://example.com"})
+        assert response.status_code == 402
+        header = response.headers["PAYMENT-REQUIRED"]
+        decoded = json.loads(base64.b64decode(header).decode())
+        assert decoded["x402Version"] == 1
+        accepts = {f"{a['network']}:{a['asset']}": a for a in decoded["accepts"]}
+        for key in ("solana:mainnet:USDC", "tron:mainnet:USDT"):
+            assert key in accepts
+            option = accepts[key]
+            for field in (
+                "scheme",
+                "network",
+                "maxAmountRequired",
+                "resource",
+                "payToAddress",
+                "asset",
+            ):
+                assert field in option
+            assert option["extra"]["caip2"] == option["network"]
+            assert option["extra"]["verification"] in ("spl", "trc20")
 
 
 class TestX402BatchPayments:

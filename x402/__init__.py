@@ -24,6 +24,11 @@ Standards compliance:
 - Multi-chain support: base, solana, ethereum, polygon, arbitrum, optimism, bnb,
   avalanche, base-sepolia, tron, bitcoin, litecoin, dogecoin
 - Multi-asset: USDC, USDT, native
+- Canonical multi-asset acceptance table (``SUPPORTED_ASSETS``) keyed by
+  CAIP-2 network id + asset: EVM ERC-20 (USDC/USDT/ETH/ARB/WETH), Solana SPL
+  (USDC/USDT/SOL), TRON TRC-20 (USDT/TRX). EVM settlement verification is
+  real (EIP-7702 self-verify + facilitators); Solana/TRON are [REVIEW]
+  scaffolds (structure/price/asset validation only — see VERIFICATION_STATUS).
 - Multiple facilitators: coinbase, payai, cloudflare, eip-7702
 - Smart facilitator router with auto-fallback
 """
@@ -75,6 +80,21 @@ except ImportError:
 # this config block so the constants stay reload-recomputable.
 X402_DEFAULT_NETWORK: str = os.getenv("PRY_X402_NETWORK", "base")
 X402_DEFAULT_ASSET: str = os.getenv("PRY_X402_ASSET", "USDC")
+
+# Per-network receiving wallets (CAIP-2 keyed). A Solana/TRON receiving
+# address is NOT the same as the EVM wallet, so operators MUST configure
+# these before accepting real payments on those chains. Falls back to
+# X402_WALLET when unset — acceptable for EVM, [REVIEW] invalid for
+# solana/tron until configured.
+X402_NETWORK_WALLETS: dict[str, str] = {
+    "eip155:8453": os.getenv("PRY_X402_WALLET_BASE", ""),
+    "eip155:1": os.getenv("PRY_X402_WALLET_ETHEREUM", ""),
+    "eip155:42161": os.getenv("PRY_X402_WALLET_ARBITRUM", ""),
+    "eip155:10": os.getenv("PRY_X402_WALLET_OPTIMISM", ""),
+    "eip155:137": os.getenv("PRY_X402_WALLET_POLYGON", ""),
+    "solana:mainnet": os.getenv("PRY_X402_WALLET_SOLANA", ""),
+    "tron:mainnet": os.getenv("PRY_X402_WALLET_TRON", ""),
+}
 
 # Offline mode is a DEV-ONLY bypass: it makes every verify/settle succeed
 # without touching a facilitator. It must NEVER be active in production, so
@@ -172,6 +192,11 @@ from .handler import X402Handler  # noqa: E402
 from .scheme import (  # noqa: E402
     _NATIVE_ASSETS,
     ASSET_DECIMALS,
+    CAIP2_NETWORK_IDS,
+    SUPPORTED_ASSETS,
+    SUPPORTED_NETWORKS,
+    VERIFICATION_STATUS,
+    X402_ASSET_USD_PER_UNIT,
     X402_PRICING,
     X402Asset,
     X402Network,
@@ -184,25 +209,39 @@ from .scheme import (  # noqa: E402
     _from_atomic,
     _legacy_payment_request,
     _to_atomic,
+    asset_to_atomic,
+    build_multi_asset_accepts,
     build_payment_required,
     create_payment_request,
+    flatten_supported_assets,
+    is_asset_supported,
+    network_family,
+    normalize_network_id,
     require_payment_legacy,
+    resolve_asset_entry,
     resolve_price_usd,
+    usd_per_unit_for,
     validate_client_amount,
 )
 
 __all__ = [
     "ASSET_DECIMALS",
+    "CAIP2_NETWORK_IDS",
     "DEFAULT_FACILITATORS",
     "EIP7702_RPC",
     "EIP7702_TOKEN_ADDRESSES",
     "ERC20_TRANSFER_SELECTOR",
     "PAYMENT_VALIDITY_SECONDS",
+    "SUPPORTED_ASSETS",
+    "SUPPORTED_NETWORKS",
+    "VERIFICATION_STATUS",
+    "X402_ASSET_USD_PER_UNIT",
     "X402_DEBUG_MODE",
     "X402_DEFAULT_ASSET",
     "X402_DEFAULT_NETWORK",
     "X402_DIR",
     "X402_FACILITATOR_URL",
+    "X402_NETWORK_WALLETS",
     "X402_OFFLINE_MODE",
     "X402_PRICING",
     "X402_TIMEOUT_SECONDS",
@@ -225,15 +264,23 @@ __all__ = [
     "_from_atomic",
     "_legacy_payment_request",
     "_to_atomic",
+    "asset_to_atomic",
+    "build_multi_asset_accepts",
     "build_payment_required",
     "create_batch_payment",
     "create_payment_request",
+    "flatten_supported_assets",
     "get_facilitator_router",
+    "is_asset_supported",
     "is_batch_paid",
     "logger",
+    "network_family",
+    "normalize_network_id",
     "require_payment_legacy",
+    "resolve_asset_entry",
     "resolve_price_usd",
     "set_facilitator_router",
+    "usd_per_unit_for",
     "validate_client_amount",
     "verify_batch_payment",
 ]

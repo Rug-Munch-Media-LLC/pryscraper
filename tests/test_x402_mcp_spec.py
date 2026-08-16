@@ -19,6 +19,10 @@ from pry_mcp import (
     register_all,
 )
 from x402 import (
+    CAIP2_NETWORK_IDS,
+    SUPPORTED_ASSETS,
+    SUPPORTED_NETWORKS,
+    X402_ASSET_USD_PER_UNIT,
     X402_PRICING,
     FacilitatorRouter,
     X402Asset,
@@ -27,8 +31,15 @@ from x402 import (
     X402Scheme,
     _decode_payment_signature,
     _encode_payment_required_body,
+    asset_to_atomic,
+    build_multi_asset_accepts,
     build_payment_required,
+    is_asset_supported,
+    normalize_network_id,
+    resolve_asset_entry,
+    resolve_price_usd,
     set_facilitator_router,
+    validate_client_amount,
 )
 
 
@@ -346,3 +357,161 @@ def test_x402_stats_includes_standards() -> None:
     assert "supported_schemes" in stats
     assert "base" in stats["supported_networks"]
     assert "solana" in stats["supported_networks"]
+
+
+# ── Multi-asset / multi-chain acceptance (CAIP-2) ──
+
+
+def test_supported_assets_covers_business_networks() -> None:
+    """The canonical table must cover the 7 CAIP-2 networks the business wants."""
+    assert set(SUPPORTED_ASSETS.keys()) == {
+        "eip155:8453",  # Base
+        "eip155:1",  # Ethereum
+        "eip155:42161",  # Arbitrum
+        "eip155:10",  # Optimism
+        "eip155:137",  # Polygon
+        "solana:mainnet",
+        "tron:mainnet",
+    }
+    assert len(SUPPORTED_NETWORKS) > 0  # non-empty metadata list
+    assert len(SUPPORTED_NETWORKS) == 7
+
+
+def test_supported_assets_known_addresses() -> None:
+    """The known token addresses from the acceptance criteria are canonical."""
+    assert (
+        SUPPORTED_ASSETS["eip155:8453"]["USDC"]["contract"]
+        == "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    )
+    assert (
+        SUPPORTED_ASSETS["eip155:8453"]["USDT"]["contract"]
+        == "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2"
+    )
+    assert (
+        SUPPORTED_ASSETS["eip155:42161"]["ARB"]["contract"]
+        == "0x912CE59144191C1204E64559FE8253a0e49E6548"
+    )
+    assert (
+        SUPPORTED_ASSETS["solana:mainnet"]["USDC"]["contract"]
+        == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+    )
+    assert (
+        SUPPORTED_ASSETS["solana:mainnet"]["USDT"]["contract"]
+        == "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+    )
+    assert (
+        SUPPORTED_ASSETS["tron:mainnet"]["USDT"]["contract"] == "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+    )
+
+
+def test_caip2_normalization() -> None:
+    """Legacy network names normalize to CAIP-2 ids; ids pass through."""
+    assert normalize_network_id("base") == "eip155:8453"
+    assert normalize_network_id("solana") == "solana:mainnet"
+    assert normalize_network_id("tron") == "tron:mainnet"
+    assert normalize_network_id("eip155:42161") == "eip155:42161"
+    assert normalize_network_id("") == ""
+    assert CAIP2_NETWORK_IDS["arbitrum"] == "eip155:42161"
+
+
+def test_asset_support_lookup() -> None:
+    assert is_asset_supported("solana", "USDC") is True
+    assert is_asset_supported("tron", "USDT") is True
+    assert is_asset_supported("base", "ARB") is False
+    assert is_asset_supported("eip155:42161", "ARB") is True
+    entry = resolve_asset_entry("solana:mainnet", "usdt")
+    assert entry is not None
+    assert entry["verification"] == "spl"
+    assert resolve_asset_entry("base", "BOGUS") is None
+
+
+def test_multi_asset_accepts_include_solana_tron() -> None:
+    """Multi-asset accepts quote Solana/TRON assets with USD-equivalent amounts."""
+    accepts = build_multi_asset_accepts("scrape", "https://pry.dev/api/scrape")
+    by_key = {(a["network"], a["asset"]): a for a in accepts}
+    assert ("solana:mainnet", "USDC") in by_key
+    assert ("tron:mainnet", "USDT") in by_key
+    sol = by_key[("solana:mainnet", "USDC")]
+    assert sol["network"] == "solana:mainnet"
+    assert int(sol["maxAmountRequired"]) > 0
+    assert sol["extra"]["verification"] == "spl"
+    assert sol["extra"]["usdPerUnit"] == 1.0
+    tron = by_key[("tron:mainnet", "USDT")]
+    assert tron["extra"]["verification"] == "trc20"
+    arb = by_key[("eip155:42161", "ARB")]
+    # ARB is quoted at its USD-per-unit rate (18 decimals).
+    assert arb["extra"]["usdPerUnit"] > 0
+    assert arb["extra"]["decimals"] == 18
+
+
+def test_multi_asset_payment_required_body() -> None:
+    """multi_asset=True challenge carries CAIP-2 accepts + surface tables."""
+    body = build_payment_required("scrape", multi_asset=True)
+    assert body["x402Version"] == 1
+    networks = {a["network"] for a in body["accepts"]}
+    assert "eip155:8453" in networks
+    assert "solana:mainnet" in networks
+    assert "tron:mainnet" in networks
+    assert "networks" in body
+    assert "supported_assets" in body
+    # Legacy single-asset path is unchanged.
+    legacy = build_payment_required("scrape")
+    legacy_networks = {a["network"] for a in legacy["accepts"]}
+    assert "base" in legacy_networks
+    assert "solana" in legacy_networks
+    assert "networks" not in legacy
+
+
+def test_multi_asset_solana_tron_challenge_header() -> None:
+    """Solana/TRON challenge headers round-trip per the x402 spec."""
+    body = build_payment_required("scrape", multi_asset=True)
+    encoded = _encode_payment_required_body(body)
+    decoded = json.loads(base64.b64decode(encoded).decode())
+    assert decoded == body
+    tron = next(a for a in decoded["accepts"] if a["network"] == "tron:mainnet")
+    for field in ("scheme", "network", "maxAmountRequired", "resource", "payToAddress", "asset"):
+        assert field in tron
+
+
+def test_per_network_per_asset_price_override() -> None:
+    """X402_PRICING can express per-network per-asset price overrides."""
+    base = resolve_price_usd("scrape")
+    assert base == X402_PRICING["scrape"]["price_usd"]
+    # No override configured → base price applies everywhere.
+    assert resolve_price_usd("scrape", "solana:mainnet", "USDC") == base
+    # Override applies only to its exact network+asset pair.
+    X402_PRICING["scrape"]["prices"] = {
+        "eip155:137": {"USDC": base / 2},
+    }
+    try:
+        assert resolve_price_usd("scrape", "polygon", "USDC") == base / 2
+        assert resolve_price_usd("scrape", "eip155:137", "USDC") == base / 2
+        assert resolve_price_usd("scrape", "base", "USDC") == base
+        assert resolve_price_usd("scrape", "eip155:137", "USDT") == base
+    finally:
+        X402_PRICING["scrape"].pop("prices", None)
+
+
+def test_multi_asset_validate_client_amount() -> None:
+    """Underpayment validation uses table decimals + USD-per-unit per network."""
+    # Solana USDC (6 decimals, 1:1) — same as legacy.
+    ok, _ = validate_client_amount("scrape", 0.001, asset="USDC", network="solana:mainnet")
+    assert ok
+    ok, reason = validate_client_amount("scrape", 0.0001, asset="USDC", network="solana:mainnet")
+    assert not ok
+    assert "underpayment" in reason
+    # Arbitrum ARB (18 decimals, usd_per_unit 0.6) — amount converted correctly.
+    arb_ok, arb_reason = validate_client_amount("scrape", 0.01, asset="ARB", network="arbitrum")
+    assert arb_ok, arb_reason
+    # Unknown pair falls back to legacy behavior (no crash, still enforced).
+    ok, _ = validate_client_amount("scrape", 0.01, asset="ARB", network="base")
+    assert ok
+
+
+def test_asset_to_atomic_uses_table() -> None:
+    """asset_to_atomic uses table decimals + USD-per-unit for supported pairs."""
+    usdc_atomic = asset_to_atomic(0.001, "USDC", "solana:mainnet")
+    assert usdc_atomic == 1000  # 6 decimals, 1:1
+    arb_atomic = asset_to_atomic(0.001, "ARB", "eip155:42161")
+    arb_unit = X402_ASSET_USD_PER_UNIT["ARB"]
+    assert arb_atomic == round(0.001 / arb_unit * 10**18)

@@ -18,15 +18,30 @@ import base64
 import json
 import logging
 import math
+import os
 import uuid
 from enum import StrEnum
 from typing import Any, cast
 
-from x402 import X402_DEFAULT_ASSET, X402_DEFAULT_NETWORK, X402_WALLET
+from x402 import (
+    X402_DEFAULT_ASSET,
+    X402_DEFAULT_NETWORK,
+    X402_NETWORK_WALLETS,
+    X402_WALLET,
+)
 
 logger = logging.getLogger(__name__)
 
-# x402 pricing per operation (USDC atomic units, 6 decimals)
+# x402 pricing per operation (USDC atomic units, 6 decimals).
+#
+# Each entry may optionally carry a ``prices`` sub-table keyed by CAIP-2
+# network id -> asset -> USD price, allowing per-network per-asset prices to
+# override the base ``price_usd`` (see ``resolve_price_usd``). Example:
+#   "scrape": {
+#       "price_usd": 0.001,
+#       "description": "Single URL scrape",
+#       "prices": {"eip155:137": {"USDC": 0.0008}},  # cheaper on Polygon
+#   }
 X402_PRICING: dict[str, dict[str, Any]] = {
     "scrape": {"price_usd": 0.001, "description": "Single URL scrape"},
     "crawl": {"price_usd": 0.01, "description": "Crawl up to 10 pages"},
@@ -76,8 +91,11 @@ class X402Asset(StrEnum):
     USDT = "USDT"
     DAI = "DAI"
     ETH = "ETH"
+    WETH = "WETH"
+    ARB = "ARB"
     SOL = "SOL"
     MATIC = "MATIC"
+    POL = "POL"
     TRX = "TRX"
     BTC = "BTC"
     LTC = "LTC"
@@ -93,13 +111,433 @@ ASSET_DECIMALS: dict[str, int] = {
     X402Asset.USDT.value: 6,
     X402Asset.DAI.value: 18,
     X402Asset.ETH.value: 18,
+    X402Asset.WETH.value: 18,
+    X402Asset.ARB.value: 18,
     X402Asset.SOL.value: 9,
     X402Asset.MATIC.value: 18,
+    X402Asset.POL.value: 18,
     X402Asset.TRX.value: 6,
     X402Asset.BTC.value: 8,
     X402Asset.LTC.value: 8,
     X402Asset.DOGE.value: 8,
 }
+
+# ── Canonical multi-chain / multi-asset acceptance table ────────────────────
+#
+# SUPPORTED_ASSETS is the single source of truth for which (network, asset)
+# pairs Pry accepts for x402 payments, keyed by CAIP-2 network id + asset
+# symbol. `verification` names the authorization method:
+#
+#   eip3009 — ERC-20 transferWithAuthorization (USDC)
+#   permit2 — ERC-20 Permit2 (USDT / ARB / WETH / …)
+#   native  — plain value transfer of the chain's native asset
+#   spl     — Solana SPL token transfer
+#   trc20   — TRON TRC-20 transfer
+#
+# `kind` distinguishes contract tokens from native assets (contract == ""
+# for native). Contract addresses are well-known mainnet addresses.
+
+# CAIP-2 network ids. Legacy x402 network names (X402Network enum values) map
+# to these; both spellings are accepted everywhere.
+CAIP2_NETWORK_IDS: dict[str, str] = {
+    "base": "eip155:8453",
+    "ethereum": "eip155:1",
+    "arbitrum": "eip155:42161",
+    "optimism": "eip155:10",
+    "polygon": "eip155:137",
+    "solana": "solana:mainnet",
+    "tron": "tron:mainnet",
+}
+
+SUPPORTED_NETWORKS: list[dict[str, Any]] = [
+    {"network": "eip155:8453", "name": "Base", "family": "evm", "chain": "eip155"},
+    {"network": "eip155:1", "name": "Ethereum", "family": "evm", "chain": "eip155"},
+    {"network": "eip155:42161", "name": "Arbitrum", "family": "evm", "chain": "eip155"},
+    {"network": "eip155:10", "name": "Optimism", "family": "evm", "chain": "eip155"},
+    {"network": "eip155:137", "name": "Polygon", "family": "evm", "chain": "eip155"},
+    {"network": "solana:mainnet", "name": "Solana", "family": "solana", "chain": "solana"},
+    {"network": "tron:mainnet", "name": "TRON", "family": "tron", "chain": "tron"},
+]
+
+SUPPORTED_ASSETS: dict[str, dict[str, dict[str, Any]]] = {
+    "eip155:8453": {
+        "USDC": {
+            "asset": "USDC",
+            "network": "eip155:8453",
+            "name": "Base USDC",
+            "contract": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            "decimals": 6,
+            "verification": "eip3009",
+            "kind": "erc20",
+        },
+        "USDT": {
+            "asset": "USDT",
+            "network": "eip155:8453",
+            "name": "Base USDT",
+            "contract": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+            "decimals": 6,
+            "verification": "permit2",
+            "kind": "erc20",
+        },
+        "ETH": {
+            "asset": "ETH",
+            "network": "eip155:8453",
+            "name": "Base ETH",
+            "contract": "",
+            "decimals": 18,
+            "verification": "native",
+            "kind": "native",
+        },
+        "WETH": {
+            "asset": "WETH",
+            "network": "eip155:8453",
+            "name": "Base WETH",
+            "contract": "0x4200000000000000000000000000000000000006",
+            "decimals": 18,
+            "verification": "permit2",
+            "kind": "erc20",
+        },
+    },
+    "eip155:1": {
+        "USDC": {
+            "asset": "USDC",
+            "network": "eip155:1",
+            "name": "Ethereum USDC",
+            "contract": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+            "decimals": 6,
+            "verification": "eip3009",
+            "kind": "erc20",
+        },
+        "USDT": {
+            "asset": "USDT",
+            "network": "eip155:1",
+            "name": "Ethereum USDT",
+            "contract": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+            "decimals": 6,
+            "verification": "permit2",
+            "kind": "erc20",
+        },
+        "ETH": {
+            "asset": "ETH",
+            "network": "eip155:1",
+            "name": "Ethereum ETH",
+            "contract": "",
+            "decimals": 18,
+            "verification": "native",
+            "kind": "native",
+        },
+        "WETH": {
+            "asset": "WETH",
+            "network": "eip155:1",
+            "name": "Ethereum WETH",
+            "contract": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+            "decimals": 18,
+            "verification": "permit2",
+            "kind": "erc20",
+        },
+    },
+    "eip155:42161": {
+        "USDC": {
+            "asset": "USDC",
+            "network": "eip155:42161",
+            "name": "Arbitrum USDC",
+            "contract": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+            "decimals": 6,
+            "verification": "eip3009",
+            "kind": "erc20",
+        },
+        "USDT": {
+            "asset": "USDT",
+            "network": "eip155:42161",
+            "name": "Arbitrum USDT",
+            "contract": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+            "decimals": 6,
+            "verification": "permit2",
+            "kind": "erc20",
+        },
+        "ARB": {
+            "asset": "ARB",
+            "network": "eip155:42161",
+            "name": "Arbitrum ARB",
+            "contract": "0x912CE59144191C1204E64559FE8253a0e49E6548",
+            "decimals": 18,
+            "verification": "permit2",
+            "kind": "erc20",
+        },
+        "ETH": {
+            "asset": "ETH",
+            "network": "eip155:42161",
+            "name": "Arbitrum ETH",
+            "contract": "",
+            "decimals": 18,
+            "verification": "native",
+            "kind": "native",
+        },
+        "WETH": {
+            "asset": "WETH",
+            "network": "eip155:42161",
+            "name": "Arbitrum WETH",
+            "contract": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+            "decimals": 18,
+            "verification": "permit2",
+            "kind": "erc20",
+        },
+    },
+    "eip155:10": {
+        "USDC": {
+            "asset": "USDC",
+            "network": "eip155:10",
+            "name": "Optimism USDC",
+            "contract": "0x0b2C639c533813f4Aa9D7837CAf62653d097F85F",
+            "decimals": 6,
+            "verification": "eip3009",
+            "kind": "erc20",
+        },
+        "USDT": {
+            "asset": "USDT",
+            "network": "eip155:10",
+            "name": "Optimism USDT",
+            "contract": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+            "decimals": 6,
+            "verification": "permit2",
+            "kind": "erc20",
+        },
+        "ETH": {
+            "asset": "ETH",
+            "network": "eip155:10",
+            "name": "Optimism ETH",
+            "contract": "",
+            "decimals": 18,
+            "verification": "native",
+            "kind": "native",
+        },
+        "WETH": {
+            "asset": "WETH",
+            "network": "eip155:10",
+            "name": "Optimism WETH",
+            "contract": "0x4200000000000000000000000000000000000006",
+            "decimals": 18,
+            "verification": "permit2",
+            "kind": "erc20",
+        },
+    },
+    "eip155:137": {
+        "USDC": {
+            "asset": "USDC",
+            "network": "eip155:137",
+            "name": "Polygon USDC",
+            "contract": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+            "decimals": 6,
+            "verification": "eip3009",
+            "kind": "erc20",
+        },
+        "USDT": {
+            "asset": "USDT",
+            "network": "eip155:137",
+            "name": "Polygon USDT",
+            "contract": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+            "decimals": 6,
+            "verification": "permit2",
+            "kind": "erc20",
+        },
+        "POL": {
+            "asset": "POL",
+            "network": "eip155:137",
+            "name": "Polygon POL",
+            "contract": "",
+            "decimals": 18,
+            "verification": "native",
+            "kind": "native",
+        },
+        "WETH": {
+            "asset": "WETH",
+            "network": "eip155:137",
+            "name": "Polygon WETH",
+            "contract": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
+            "decimals": 18,
+            "verification": "permit2",
+            "kind": "erc20",
+        },
+    },
+    "solana:mainnet": {
+        "USDC": {
+            "asset": "USDC",
+            "network": "solana:mainnet",
+            "name": "Solana USDC",
+            "contract": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "decimals": 6,
+            "verification": "spl",
+            "kind": "spl",
+        },
+        "USDT": {
+            "asset": "USDT",
+            "network": "solana:mainnet",
+            "name": "Solana USDT",
+            "contract": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+            "decimals": 6,
+            "verification": "spl",
+            "kind": "spl",
+        },
+        "SOL": {
+            "asset": "SOL",
+            "network": "solana:mainnet",
+            "name": "Solana SOL",
+            "contract": "",
+            "decimals": 9,
+            "verification": "native",
+            "kind": "native",
+        },
+    },
+    "tron:mainnet": {
+        "USDT": {
+            "asset": "USDT",
+            "network": "tron:mainnet",
+            "name": "TRON USDT",
+            "contract": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+            "decimals": 6,
+            "verification": "trc20",
+            "kind": "trc20",
+        },
+        "TRX": {
+            "asset": "TRX",
+            "network": "tron:mainnet",
+            "name": "TRON TRX",
+            "contract": "",
+            "decimals": 6,
+            "verification": "native",
+            "kind": "native",
+        },
+    },
+}
+
+# Verification status per chain family — what is REAL vs scaffolded. [REVIEW]
+VERIFICATION_STATUS: dict[str, dict[str, Any]] = {
+    "evm": {
+        "real": True,
+        "scaffolded": False,
+        "note": "EIP-7702 self-verify (receipt + payTo/amount) and external facilitators",
+    },
+    "solana": {
+        "real": False,
+        "scaffolded": True,
+        "note": "[REVIEW] scaffold only — validates header/price/asset; settlement verification needs a facilitator or SPL RPC verifier",
+    },
+    "tron": {
+        "real": False,
+        "scaffolded": True,
+        "note": "[REVIEW] scaffold only — validates header/price/asset; settlement verification needs a facilitator or TRON Grid verifier",
+    },
+}
+
+# USD value of ONE unit of each asset, used to quote USD-equivalent atomic
+# amounts for non-1:1 assets (ETH/ARB/SOL/TRX/POL/…). Stablecoins are fixed
+# at 1.0. Volatile assets use env-overridable STATIC defaults — [REVIEW]
+# replace with a live price oracle before accepting those assets for
+# production payments; the static quote can drift from market price.
+X402_ASSET_USD_PER_UNIT: dict[str, float] = {
+    "USDC": 1.0,
+    "USDT": 1.0,
+    "DAI": 1.0,
+    "ETH": float(os.getenv("PRY_X402_USD_PER_UNIT_ETH", "2500")),
+    "WETH": float(os.getenv("PRY_X402_USD_PER_UNIT_WETH", "2500")),
+    "ARB": float(os.getenv("PRY_X402_USD_PER_UNIT_ARB", "0.6")),
+    "SOL": float(os.getenv("PRY_X402_USD_PER_UNIT_SOL", "140")),
+    "MATIC": float(os.getenv("PRY_X402_USD_PER_UNIT_MATIC", "0.4")),
+    "POL": float(os.getenv("PRY_X402_USD_PER_UNIT_POL", "0.4")),
+    "TRX": float(os.getenv("PRY_X402_USD_PER_UNIT_TRX", "0.15")),
+}
+
+_STABLECOIN_ASSETS = {X402Asset.USDC.value, X402Asset.USDT.value, X402Asset.DAI.value}
+
+
+def normalize_network_id(network: str) -> str:
+    """Map a legacy x402 network name (or CAIP-2 id) to the CAIP-2 id.
+
+    Unknown values pass through unchanged so callers can decide how to treat
+    them; empty input stays empty.
+    """
+    if not network:
+        return network
+    return CAIP2_NETWORK_IDS.get(network.lower(), network)
+
+
+def network_family(network: str) -> str:
+    """Return the chain family for a network: evm | solana | tron | unknown."""
+    network_id = normalize_network_id(network)
+    if ":" not in network_id:
+        return "unknown"
+    prefix = network_id.split(":", 1)[0]
+    if prefix == "eip155":
+        return "evm"
+    if prefix == "solana":
+        return "solana"
+    if prefix == "tron":
+        return "tron"
+    return "unknown"
+
+
+def resolve_asset_entry(network: str, asset: str) -> dict[str, Any] | None:
+    """Look up the canonical SUPPORTED_ASSETS entry for (network, asset).
+
+    Accepts legacy network names or CAIP-2 ids. Returns None when the pair is
+    not in the acceptance table.
+    """
+    network_id = normalize_network_id(network)
+    if not network_id or not asset:
+        return None
+    return SUPPORTED_ASSETS.get(network_id, {}).get(asset.upper())
+
+
+def is_asset_supported(network: str, asset: str) -> bool:
+    """Return True when (network, asset) is in the canonical acceptance table."""
+    return resolve_asset_entry(network, asset) is not None
+
+
+def usd_per_unit_for(asset: str) -> float | None:
+    """Return the USD value of one unit of ``asset`` (None when unknown)."""
+    value = X402_ASSET_USD_PER_UNIT.get(asset.upper())
+    if value is None or value <= 0:
+        return None
+    return value
+
+
+def asset_to_atomic(
+    amount_usd: float,
+    asset: str = X402_DEFAULT_ASSET,
+    network: str = "",
+) -> int:
+    """Convert a USD amount to atomic units for (network, asset).
+
+    Uses the canonical SUPPORTED_ASSETS table when the pair is known so
+    decimals and USD-per-unit come from one place; falls back to the legacy
+    ASSET_DECIMALS table with 1:1 USD pricing for unknown pairs.
+    """
+    entry = resolve_asset_entry(network, asset)
+    if entry:
+        decimals = int(entry.get("decimals", ASSET_DECIMALS.get(asset.upper(), 6)))
+    else:
+        decimals = ASSET_DECIMALS.get(asset.upper(), 6)
+    unit_usd = usd_per_unit_for(asset) or 1.0
+    return round(amount_usd / unit_usd * (10**decimals))
+
+
+def flatten_supported_assets() -> list[dict[str, Any]]:
+    """Flatten SUPPORTED_ASSETS into a single list of asset entries."""
+    flat: list[dict[str, Any]] = []
+    for network_id, assets in SUPPORTED_ASSETS.items():
+        for asset, entry in assets.items():
+            flat.append(
+                {
+                    "asset": asset,
+                    "network": network_id,
+                    "name": entry.get("name", asset),
+                    "contract": entry.get("contract", ""),
+                    "decimals": entry.get("decimals", 6),
+                    "verification": entry.get("verification", ""),
+                    "kind": entry.get("kind", ""),
+                }
+            )
+    return flat
 
 
 def _to_atomic(amount_usd: float, asset: str = X402_DEFAULT_ASSET) -> int:
@@ -170,8 +608,17 @@ def _default_networks_for_asset(asset: str) -> list[str]:
             X402Network.OPTIMISM.value,
             X402Network.POLYGON.value,
         ],
+        X402Asset.WETH.value: [
+            X402Network.ETHEREUM.value,
+            X402Network.BASE.value,
+            X402Network.ARBITRUM.value,
+            X402Network.OPTIMISM.value,
+            X402Network.POLYGON.value,
+        ],
+        X402Asset.ARB.value: [X402Network.ARBITRUM.value],
         X402Asset.SOL.value: [X402Network.SOLANA.value],
         X402Asset.MATIC.value: [X402Network.POLYGON.value],
+        X402Asset.POL.value: [X402Network.POLYGON.value],
         X402Asset.TRX.value: [X402Network.TRON.value],
         X402Asset.BTC.value: [X402Network.BITCOIN.value],
         X402Asset.LTC.value: [X402Network.LITECOIN.value],
@@ -185,20 +632,39 @@ def _asset_on_network(asset: str, network: str) -> bool:
     return network in _default_networks_for_asset(asset)
 
 
-def resolve_price_usd(operation: str) -> float:
+def resolve_price_usd(
+    operation: str,
+    network: str = "",
+    asset: str = "",
+) -> float:
     """Return the SERVER-side authoritative price (USD) for an operation.
 
     Never trust a client-supplied ``amount_usd``: this is the number the
     server enforces. Returns 0.0 for unknown operations (callers must decide
     how to treat those).
+
+    When ``network`` (legacy name or CAIP-2 id) and ``asset`` are supplied, a
+    per-network/per-asset override in ``X402_PRICING[operation]["prices"]``
+    takes precedence; otherwise the operation's base ``price_usd`` applies.
     """
-    return float(X402_PRICING.get(operation, {}).get("price_usd", 0.0))
+    info = X402_PRICING.get(operation) or {}
+    if network and asset:
+        network_id = normalize_network_id(network)
+        raw_prices = info.get("prices")
+        prices = raw_prices if isinstance(raw_prices, dict) else {}
+        raw_network_prices = prices.get(network_id)
+        network_prices = raw_network_prices if isinstance(raw_network_prices, dict) else {}
+        override = network_prices.get(asset.upper())
+        if override is not None:
+            return float(override)
+    return float(info.get("price_usd", 0.0))
 
 
 def validate_client_amount(
     operation: str,
     client_amount_usd: float,
     asset: str = X402_DEFAULT_ASSET,
+    network: str = "",
 ) -> tuple[bool, str]:
     """Reject client-supplied underpayment against the server-side price.
 
@@ -206,18 +672,27 @@ def validate_client_amount(
     Returns ``(ok, reason)``. ``ok=False`` means the client offered LESS than
     the authoritative price (or a non-finite/negative amount) — the payment
     must be refused. Overpayment is allowed (client may pay more).
+
+    When ``network`` is given and the (network, asset) pair is in the
+    canonical SUPPORTED_ASSETS table, the table's decimals and USD-per-unit
+    conversion are used (so non-1:1 assets like ETH/ARB quote correctly);
+    otherwise the legacy 1:1 ASSET_DECIMALS path is used.
     """
     if client_amount_usd is None or not math.isfinite(float(client_amount_usd)):
         return False, "invalid (non-finite) client amount"
     if client_amount_usd < 0:
         return False, f"negative client amount {client_amount_usd}"
-    required = resolve_price_usd(operation)
+    required = resolve_price_usd(operation, network=network, asset=asset)
     if required <= 0:
         # No server price configured for this operation — nothing to enforce.
         return True, ""
     try:
-        required_atomic = _to_atomic(required, asset)
-        client_atomic = _to_atomic(client_amount_usd, asset)
+        if resolve_asset_entry(network, asset) is not None:
+            required_atomic = asset_to_atomic(required, asset, network)
+            client_atomic = asset_to_atomic(client_amount_usd, asset, network)
+        else:
+            required_atomic = _to_atomic(required, asset)
+            client_atomic = _to_atomic(client_amount_usd, asset)
     except (ValueError, TypeError):
         return False, "invalid amount/asset for pricing check"
     if client_atomic < required_atomic:
@@ -229,6 +704,59 @@ def validate_client_amount(
     return True, ""
 
 
+def build_multi_asset_accepts(
+    operation: str,
+    resource: str = "",
+    description: str = "",
+    mime_type: str = "application/json",
+) -> list[dict[str, Any]]:
+    """Build the accepts list covering every quotable asset in SUPPORTED_ASSETS.
+
+    Each option is keyed by CAIP-2 network id and quotes the USD-equivalent
+    atomic amount for the operation's server-side price (per-network
+    ``prices`` overrides in X402_PRICING apply). Assets without a configured
+    USD-per-unit conversion are skipped — they cannot be quoted honestly.
+    """
+    price_info = X402_PRICING.get(operation, {"price_usd": 0.001, "description": operation})
+    resource_url = resource or f"https://pry.dev/api/{operation}"
+    accepts: list[dict[str, Any]] = []
+    for network_id, assets in SUPPORTED_ASSETS.items():
+        for asset, entry in assets.items():
+            price_usd = resolve_price_usd(operation, network=network_id, asset=asset)
+            unit_usd = usd_per_unit_for(asset)
+            if not unit_usd or price_usd <= 0:
+                continue
+            amount = asset_to_atomic(price_usd, asset, network_id)
+            pay_to = X402_NETWORK_WALLETS.get(network_id) or X402_WALLET
+            accepts.append(
+                {
+                    "scheme": X402Scheme.EXACT.value,
+                    "network": network_id,
+                    "maxAmountRequired": str(amount),
+                    "resource": resource_url,
+                    "description": description or price_info.get("description", operation),
+                    "mimeType": mime_type,
+                    "payToAddress": pay_to,
+                    "asset": asset,
+                    "extra": {
+                        "name": entry.get("name", asset),
+                        "version": "2",
+                        "operation": operation,
+                        "caip2": network_id,
+                        "verification": entry.get("verification", ""),
+                        "contract": entry.get("contract", ""),
+                        "decimals": entry.get("decimals", 6),
+                        "priceUsd": price_usd,
+                        "usdPerUnit": unit_usd,
+                        "usdPerUnitSource": (
+                            "stablecoin" if asset in _STABLECOIN_ASSETS else "static-default"
+                        ),
+                    },
+                }
+            )
+    return accepts
+
+
 def build_payment_required(
     operation: str,
     resource: str = "",
@@ -237,6 +765,7 @@ def build_payment_required(
     mime_type: str = "application/json",
     preferred_networks: list[str] | None = None,
     preferred_assets: list[str] | None = None,
+    multi_asset: bool = False,
 ) -> dict[str, Any]:
     """Build a spec-compliant x402 PaymentRequired response.
 
@@ -252,33 +781,47 @@ def build_payment_required(
         mime_type: Expected response MIME type
         preferred_networks: Networks to prioritize in accepts
         preferred_assets: Assets to prioritize in accepts
+        multi_asset: When True (and ``accepts`` is None) build options from
+            the canonical SUPPORTED_ASSETS table — every quotable
+            network/asset keyed by CAIP-2 network id — and attach the
+            supported_assets/networks tables to the body so clients see the
+            full multi-chain acceptance surface. Default False keeps the V1
+            legacy single-asset shape.
     """
     price_info = X402_PRICING.get(operation, {"price_usd": 0.001, "description": operation})
     amount_atomic = _to_atomic(price_info["price_usd"], X402_DEFAULT_ASSET)
     resource_url = resource or f"https://pry.dev/api/{operation}"
 
     if accepts is None:
-        networks = preferred_networks or _default_networks_for_asset(X402_DEFAULT_ASSET)
-        assets = preferred_assets or [X402_DEFAULT_ASSET]
-        accepts = []
-        for network in networks:
-            for asset in assets:
-                if not _asset_on_network(asset, network):
-                    continue
-                amount = _to_atomic(price_info["price_usd"], asset)
-                accepts.append(
-                    {
-                        "scheme": X402Scheme.EXACT.value,
-                        "network": network,
-                        "maxAmountRequired": str(amount),
-                        "resource": resource_url,
-                        "description": description or price_info.get("description", operation),
-                        "mimeType": mime_type,
-                        "payToAddress": X402_WALLET,
-                        "asset": asset,
-                        "extra": {"name": asset, "version": "2", "operation": operation},
-                    }
-                )
+        if multi_asset:
+            accepts = build_multi_asset_accepts(
+                operation,
+                resource=resource_url,
+                description=description,
+                mime_type=mime_type,
+            )
+        else:
+            networks = preferred_networks or _default_networks_for_asset(X402_DEFAULT_ASSET)
+            assets = preferred_assets or [X402_DEFAULT_ASSET]
+            accepts = []
+            for network in networks:
+                for asset in assets:
+                    if not _asset_on_network(asset, network):
+                        continue
+                    amount = _to_atomic(price_info["price_usd"], asset)
+                    accepts.append(
+                        {
+                            "scheme": X402Scheme.EXACT.value,
+                            "network": network,
+                            "maxAmountRequired": str(amount),
+                            "resource": resource_url,
+                            "description": description or price_info.get("description", operation),
+                            "mimeType": mime_type,
+                            "payToAddress": X402_WALLET,
+                            "asset": asset,
+                            "extra": {"name": asset, "version": "2", "operation": operation},
+                        }
+                    )
         if not accepts:
             # Final fallback so we never return an empty accepts array
             accepts.append(
@@ -295,10 +838,16 @@ def build_payment_required(
                 }
             )
 
-    return {
+    body: dict[str, Any] = {
         "x402Version": 1,
         "accepts": accepts,
     }
+    if multi_asset:
+        # Multi-chain acceptance surface so agents can see every network/asset
+        # they may pay with (additive — spec clients ignore unknown keys).
+        body["networks"] = SUPPORTED_NETWORKS
+        body["supported_assets"] = flatten_supported_assets()
+    return body
 
 
 # These return the pre-spec response format. Prefer the spec-compliant methods

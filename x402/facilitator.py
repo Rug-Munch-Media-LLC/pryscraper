@@ -30,12 +30,25 @@ from x402 import (
     X402_TIMEOUT_SECONDS,
     X402_WALLET,
 )
-from x402.scheme import _NATIVE_ASSETS, X402Scheme, _to_atomic
+from x402.scheme import (
+    _NATIVE_ASSETS,
+    VERIFICATION_STATUS,
+    X402Scheme,
+    asset_to_atomic,
+    network_family,
+    normalize_network_id,
+    resolve_asset_entry,
+)
 
 logger = logging.getLogger(__name__)
 
 # ERC-20 transfer(address,uint256) selector — used to parse token payments.
 ERC20_TRANSFER_SELECTOR = "0xa9059cbb"
+
+# Chains with NO real on-chain settlement verification implemented yet.
+# Payments for these networks validate structure/price/asset server-side and
+# then report "needs_facilitator" — they are NOT claimed as verified. [REVIEW]
+SCAFFOLDED_NETWORKS: set[str] = {"solana:mainnet", "tron:mainnet"}
 
 
 @dataclass
@@ -119,6 +132,11 @@ class FacilitatorRouter:
         """Verify a payment with the best available facilitator.
 
         Returns {"verified": bool, "reason": str, "settlement": dict|None}.
+
+        EVM chains are verified via configured facilitators, with an
+        EIP-7702 self-verify fallback. Solana/TRON (SCAFFOLDED_NETWORKS)
+        validate structure/price/asset and then report "needs_facilitator" —
+        they are never claimed verified without a real verifier. [REVIEW]
         """
         if X402_OFFLINE_MODE:
             return {"verified": True, "reason": "offline_mode", "settlement": None}
@@ -128,7 +146,7 @@ class FacilitatorRouter:
             "transactionHash": tx_hash,
             "network": network,
             "asset": asset,
-            "amount": str(_to_atomic(amount_usd, asset)),
+            "amount": str(asset_to_atomic(amount_usd, asset, network)),
             "payToAddress": X402_WALLET,
             "scheme": X402Scheme.EXACT.value,
             "timestamp": datetime.now(UTC).isoformat(),
@@ -170,7 +188,77 @@ class FacilitatorRouter:
                 return result
             last_error = result.get("reason", last_error)
 
+        # Non-EVM chains: validate structure/price/asset, then report that a
+        # real verifier is required — do NOT claim success. [REVIEW]
+        if network_family(network) in ("solana", "tron"):
+            return self._scaffold_non_evm_verify(payment_id, tx_hash, network, asset, amount_usd)
+
         return {"verified": False, "reason": last_error, "settlement": None}
+
+    def _scaffold_non_evm_verify(
+        self,
+        payment_id: str,
+        tx_hash: str,
+        network: str,
+        asset: str,
+        amount_usd: float,
+    ) -> dict[str, Any]:
+        """[REVIEW] Scaffolded acceptance for Solana/TRON payments.
+
+        REAL: header structure (payment_id/tx_hash present), asset membership
+        in SUPPORTED_ASSETS for the CAIP-2 network, and non-negative USD
+        amount are validated; the result is explicitly marked ``scaffolded``.
+
+        NOT REAL: on-chain settlement is NOT checked — no Solana RPC /
+        TRON Grid verification and no SPL/TRC-20 facilitator is wired up yet.
+        The payment is marked ``needs_facilitator`` (verified=False) so it
+        can never be treated as paid. Operators must implement SPL/TRC-20
+        verification before enabling these chains.
+        """
+        network_id = normalize_network_id(network)
+        entry = resolve_asset_entry(network_id, asset)
+        if not payment_id or not tx_hash:
+            return {
+                "verified": False,
+                "reason": "needs_facilitator: missing payment_id/tx_hash in header",
+                "settlement": None,
+                "scaffolded": True,
+                "network": network_id,
+            }
+        if entry is None:
+            return {
+                "verified": False,
+                "reason": (
+                    f"needs_facilitator: asset {asset!r} not in SUPPORTED_ASSETS for {network_id}"
+                ),
+                "settlement": None,
+                "scaffolded": True,
+                "network": network_id,
+            }
+        if amount_usd is None or amount_usd < 0:
+            return {
+                "verified": False,
+                "reason": "needs_facilitator: invalid (non-finite/negative) amount",
+                "settlement": None,
+                "scaffolded": True,
+                "network": network_id,
+            }
+        status = VERIFICATION_STATUS.get(network_family(network_id), {})
+        return {
+            "verified": False,
+            "reason": "needs_facilitator: on-chain settlement verification not "
+            "implemented for this chain",
+            "settlement": None,
+            "scaffolded": True,
+            "network": network_id,
+            "asset": asset,
+            "supported": True,
+            "verification_status": status.get("scaffolded", True),
+            "note": (
+                "Header structure, asset membership and price validated; "
+                "settlement NOT verified. See VERIFICATION_STATUS."
+            ),
+        }
 
     async def settle(
         self,
@@ -189,7 +277,7 @@ class FacilitatorRouter:
             "transactionHash": tx_hash,
             "network": network,
             "asset": asset,
-            "amount": str(_to_atomic(amount_usd, asset)),
+            "amount": str(asset_to_atomic(amount_usd, asset, network)),
             "payToAddress": X402_WALLET,
             "scheme": X402Scheme.EXACT.value,
             "timestamp": datetime.now(UTC).isoformat(),
@@ -223,6 +311,17 @@ class FacilitatorRouter:
         # EIP-7702 fallback settlement receipt
         if network in EIP7702_RPC:
             return self._eip7702_settlement(payment_id, tx_hash, network)
+
+        # Non-EVM chains have no settlement verifier yet — report honestly.
+        if network_family(network) in ("solana", "tron"):
+            return {
+                "success": False,
+                "payment_id": payment_id,
+                "reason": "needs_facilitator: settlement verification not implemented "
+                "for this chain",
+                "scaffolded": True,
+                "network": normalize_network_id(network),
+            }
 
         return {
             "success": False,
@@ -367,7 +466,7 @@ class FacilitatorRouter:
                 return False, "unparseable ERC-20 transfer amount"
             if recipient.lower() != pay_to:
                 return False, f"transfer recipient {recipient} != server wallet {pay_to}"
-            expected_atomic = _to_atomic(amount_usd, asset)
+            expected_atomic = asset_to_atomic(amount_usd, asset, network)
             if paid_atomic < expected_atomic:
                 return (
                     False,
@@ -382,7 +481,7 @@ class FacilitatorRouter:
                 value_atomic = int(tx.get("value") or "0x0", 16)
             except (ValueError, TypeError):
                 return False, "unparseable tx value"
-            expected_atomic = _to_atomic(amount_usd, asset)
+            expected_atomic = asset_to_atomic(amount_usd, asset, network)
             if value_atomic < expected_atomic:
                 return (
                     False,

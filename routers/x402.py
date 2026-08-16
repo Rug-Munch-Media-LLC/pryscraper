@@ -61,7 +61,7 @@ async def x402_verify_payment(
     from x402 import X402_PRICING, X402Handler, validate_client_amount
 
     if payment_id in X402_PRICING:
-        ok, reason = validate_client_amount(payment_id, amount_usd, asset)
+        ok, reason = validate_client_amount(payment_id, amount_usd, asset, network=network)
         if not ok:
             logger.warning(
                 "x402_underpayment_rejected",
@@ -160,7 +160,9 @@ async def x402_pay(
     from x402 import X402Handler, resolve_price_usd, validate_client_amount
 
     # Never trust the client-supplied amount: reject underpayment up front.
-    ok, reason = validate_client_amount(operation, amount_usd, asset)
+    # ``network`` lets the canonical SUPPORTED_ASSETS table quote non-1:1
+    # assets (ETH/ARB/SOL/TRX) with the right decimals + USD-per-unit.
+    ok, reason = validate_client_amount(operation, amount_usd, asset, network=network)
     if not ok:
         logger.warning(
             "x402_underpayment_rejected",

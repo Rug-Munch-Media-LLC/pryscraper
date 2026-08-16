@@ -178,8 +178,11 @@ class X402Middleware:
                 if payment_id and tx_hash:
                     # Server-side pricing is authoritative: never trust the
                     # client-supplied amount. Reject underpayment BEFORE any
-                    # facilitator call.
-                    ok, price_reason = validate_client_amount(operation, amount_usd, asset)
+                    # facilitator call. ``network`` lets the canonical
+                    # SUPPORTED_ASSETS table quote non-1:1 assets correctly.
+                    ok, price_reason = validate_client_amount(
+                        operation, amount_usd, asset, network=network
+                    )
                     if not ok:
                         logger.warning(
                             "x402_underpayment_rejected",
@@ -233,8 +236,16 @@ class X402Middleware:
         await self._send_payment_required(operation, path, send)
 
     async def _send_payment_required(self, operation: str, path: str, send: Any) -> None:
-        """Send a spec-compliant 402 Payment Required response."""
-        body, x402_headers = self.handler.create_payment_required(operation, resource=path)
+        """Send a spec-compliant 402 Payment Required response.
+
+        The challenge is built in multi-asset mode so agents see the full
+        canonical acceptance surface (every SUPPORTED_ASSETS network/asset
+        keyed by CAIP-2 network id) in the body and the PAYMENT-REQUIRED
+        header.
+        """
+        body, x402_headers = self.handler.create_payment_required(
+            operation, resource=path, multi_asset=True
+        )
         body_bytes = json.dumps(body).encode()
 
         response_headers = [

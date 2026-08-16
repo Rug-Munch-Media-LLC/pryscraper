@@ -29,6 +29,9 @@ from x402 import (
 )
 from x402.facilitator import FacilitatorRouter, get_facilitator_router
 from x402.scheme import (
+    SUPPORTED_ASSETS,
+    SUPPORTED_NETWORKS,
+    VERIFICATION_STATUS,
     X402_PRICING,
     X402Asset,
     X402Network,
@@ -107,12 +110,19 @@ class X402Handler:
         accepts: list[dict[str, Any]] | None = None,
         preferred_networks: list[str] | None = None,
         preferred_assets: list[str] | None = None,
+        multi_asset: bool = False,
     ) -> tuple[dict[str, Any], dict[str, str]]:
         """Create a spec-compliant x402 payment request.
 
         Returns: (body_dict, headers_dict)
         - body_dict: the JSON body for the 402 response
         - headers_dict: the HTTP headers to include (PAYMENT-REQUIRED Base64-encoded)
+
+        ``multi_asset=True`` builds options from the canonical
+        SUPPORTED_ASSETS table (CAIP-2 network ids + every quotable asset)
+        and attaches the supported_assets/networks tables to the body so
+        clients see the full multi-chain acceptance surface. The default
+        (False) keeps the V1 legacy single-asset shape.
         """
         body = build_payment_required(
             operation,
@@ -121,6 +131,7 @@ class X402Handler:
             description,
             preferred_networks=preferred_networks,
             preferred_assets=preferred_assets,
+            multi_asset=multi_asset,
         )
         headers = {
             "PAYMENT-REQUIRED": _encode_payment_required_body(body),
@@ -259,6 +270,11 @@ class X402Handler:
             "supported_networks": [n.value for n in X402Network],
             "supported_assets": [a.value for a in X402Asset],
             "supported_schemes": [s.value for s in X402Scheme],
+            # Canonical CAIP-2 acceptance surface (multi-asset table).
+            "networks": SUPPORTED_NETWORKS,
+            "caip2_networks": list(SUPPORTED_ASSETS.keys()),
+            "asset_table": SUPPORTED_ASSETS,
+            "verification_status": VERIFICATION_STATUS,
             "offline_mode": X402_OFFLINE_MODE,
             "payment_validity_seconds": PAYMENT_VALIDITY_SECONDS,
             "default_network": X402_DEFAULT_NETWORK,
