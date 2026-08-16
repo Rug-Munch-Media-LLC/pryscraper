@@ -167,10 +167,10 @@ async def _call_domain_tool(
 async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Local MCP tool executor chaining every data-domain guarded dispatcher.
 
-    Order: crypto-market, marketplace-intelligence, then the twenty data-domain
-    packages (legal, real estate, jobs, travel, attention, local, gov, ip,
-    sports, climate, research, events, freight, energy, food, supply,
-    app-store, news, compliance, deals).
+    Order: crypto-market, marketplace-intelligence, then the twenty-one
+    data-domain packages (legal, real estate, jobs, travel, attention, local,
+    gov, ip, sports, climate, research, events, freight, energy, food,
+    supply, app-store, news, compliance, deals, bidding).
     Raises ``_ToolNotHandled`` when no dispatcher owns the tool so callers
     fall through to the REST proxy.
 
@@ -220,6 +220,7 @@ async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[s
             "call_news_tool",
             "call_compliance_tool",
             "call_deals_tool",
+            "call_bidding_tool",
         ):
             result = await _call_domain_tool(dispatcher_name, name, arguments)
             if result is not None:

@@ -15,6 +15,8 @@ Public API:
 * ``recommend_method(url_or_domain)`` — best-known method + confidence for a
   target, or ``GENERIC_FALLBACK`` (``{method: "generic", confidence: 0.4}``)
   when the target is unknown.
+* ``fallback_for(site_id)``  — ordered fallback chain of other site_ids to try
+  when a site fails (module-level helper + ``SiteCatalog.fallback_for``).
 """
 
 # SPDX-License-Identifier: MIT
@@ -80,6 +82,8 @@ _REQUIRED_KEYS: tuple[str, ...] = (
     "output_schema",
     "requires_key",
     "data_domain",
+    "fallback_chain",
+    "tested",
 )
 
 
@@ -154,6 +158,13 @@ class SiteCatalog:
                 )
             if entry["data_domain"] not in DATA_DOMAINS:
                 raise ValueError(f"site {site_id!r}: unknown data_domain {entry['data_domain']!r}")
+            chain = entry["fallback_chain"]
+            if not isinstance(chain, list) or not all(isinstance(s, str) and s for s in chain):
+                raise ValueError(
+                    f"site {site_id!r}: fallback_chain must be a list of site_id strings"
+                )
+            if not isinstance(entry["tested"], bool):
+                raise ValueError(f"site {site_id!r}: tested must be bool")
 
     # ── public API ─────────────────────────────────────────────────────────
     def __len__(self) -> int:
@@ -167,6 +178,18 @@ class SiteCatalog:
         """Return one entry by ``site_id``, or None when unknown."""
         entry = self._by_id.get(site_id)
         return dict(entry) if entry is not None else None
+
+    def fallback_for(self, site_id: str) -> list[str]:
+        """Ordered fallback chain of site_ids to try when ``site_id`` fails.
+
+        Returns the entry's ``fallback_chain`` verbatim; ``[]`` when the site
+        is unknown or has no declared fallbacks. Never raises.
+        """
+        entry = self._by_id.get(site_id)
+        if entry is None:
+            return []
+        chain = entry.get("fallback_chain") or []
+        return [s for s in chain if isinstance(s, str)]
 
     def recommend_method(self, url_or_domain: str) -> dict[str, Any]:
         """Best-known method + confidence for a URL or domain.
@@ -219,3 +242,24 @@ class SiteCatalog:
 
         best = max(candidates, key=_score)
         return dict(best)
+
+
+# Default catalog instance shared by the module-level fallback_for() helper.
+_DEFAULT_CATALOG: SiteCatalog | None = None
+
+
+def _default_catalog() -> SiteCatalog:
+    global _DEFAULT_CATALOG
+    if _DEFAULT_CATALOG is None:
+        _DEFAULT_CATALOG = SiteCatalog()
+    return _DEFAULT_CATALOG
+
+
+def fallback_for(site_id: str) -> list[str]:
+    """Ordered fallback chain of site_ids to try when ``site_id`` fails.
+
+    Thin wrapper over :meth:`SiteCatalog.fallback_for` using the default
+    catalog instance. Returns ``[]`` for unknown sites or sites with no
+    declared fallbacks. Never raises.
+    """
+    return _default_catalog().fallback_for(site_id)

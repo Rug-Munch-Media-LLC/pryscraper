@@ -21,7 +21,7 @@ Covers four layers of the MCP surface:
    notifications answered with ``202``, and ``Mcp-Session-Id`` lifecycle.
 4. **Tool-count consistency** — ``PRY_TOOLS`` must stay in sync with
    ``server.json`` / ``glama.json`` / ``pulsemcp.json`` / ``llms.txt`` /
-   ``smithery.yaml`` (all currently 69).
+   ``smithery.yaml`` (all currently 71).
 """
 
 from __future__ import annotations
@@ -319,6 +319,18 @@ _DOMAIN_TOOLS: dict[str, tuple[str, tuple[str, ...], dict[str, Any]]] = {
         ("check_drop_alerts", "list_alerts", "get_drop_alerts", "drop_alerts"),
         {"product": "RTX 5090", "limit": 5},
     ),
+    # bidding_data (government contracts + grants) — the newest parallel-built
+    # data-domain package:
+    "pry_contracts": (
+        "bidding_data.contracts",
+        ("search_contracts", "get_contracts", "contracts_search", "find_contracts"),
+        {"query": "cybersecurity", "agency": "DHS", "limit": 5},
+    ),
+    "pry_grants": (
+        "bidding_data.grants",
+        ("search_grants", "get_grants", "grants_search", "find_grants"),
+        {"query": "small business innovation research", "agency": "NSF", "limit": 5},
+    ),
 }
 
 # REST-proxy tools: name -> sample arguments. The fallback server calls the
@@ -433,10 +445,10 @@ async def _call(srv: Any, name: str, args: dict[str, Any], req_id: int = 100) ->
 class TestToolMetadata:
     """Every PRY_TOOLS entry must meet the 2026 MCP quality bar."""
 
-    def test_tool_count_is_69(self) -> None:
-        assert len(PRY_TOOLS) == 69
-        assert len(PRY_TOOL_NAMES) == 69
-        assert len({t["name"] for t in PRY_TOOLS}) == 69
+    def test_tool_count_is_71(self) -> None:
+        assert len(PRY_TOOLS) == 71
+        assert len(PRY_TOOL_NAMES) == 71
+        assert len({t["name"] for t in PRY_TOOLS}) == 71
 
     @pytest.mark.parametrize("tool_name", sorted(PRY_TOOL_NAMES))
     def test_tools_list_metadata(self, tool_name: str) -> None:
@@ -634,7 +646,7 @@ class TestTransportCompliance:
         body = resp.json()
         assert body["jsonrpc"] == "2.0"
         assert body["id"] == 1
-        assert len(body["result"]["tools"]) == 69
+        assert len(body["result"]["tools"]) == 71
 
     def test_post_sse_accept_returns_event_stream(self, mcp_client: TestClient) -> None:
         resp = mcp_client.post(
@@ -787,7 +799,7 @@ def _find_tools_list(obj: Any) -> list[Any] | None:
 
 
 class TestRegistryConsistency:
-    """PRY_TOOLS must match every published registry file (currently 69)."""
+    """PRY_TOOLS must match every published registry file (currently 71)."""
 
     @pytest.mark.parametrize("fname", ["server.json", "glama.json", "pulsemcp.json"])
     def test_json_registries_match(self, fname: str) -> None:
@@ -813,4 +825,4 @@ class TestRegistryConsistency:
 
     def test_smithery_comment_matches_count(self) -> None:
         text = (REPO_ROOT / "smithery.yaml").read_text(encoding="utf-8")
-        assert "Tool count: 69" in text, "smithery.yaml tool-count comment drifted"
+        assert "Tool count: 71" in text, "smithery.yaml tool-count comment drifted"

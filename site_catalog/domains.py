@@ -20,6 +20,10 @@ Entry keys (typed, validated by ``site_catalog.registry.SiteCatalog``):
 
 * ``site_id``              — stable unique identifier
 * ``domain``               — host (optionally with path prefix) the entry covers
+* ``fallback_chain``       — ordered list of other ``site_id``s to try when this
+                             site fails (empty list = no known fallback)
+* ``tested``               — True only when the source was verified via the
+                             repo's live-verified notes; False = untested
 * ``method``               — Pry method vocabulary token, or ``+``-joined
                              compound (e.g. ``"stealth+next_data"``)
 * ``confidence``           — 0.0-1.0 expected success probability
@@ -48,6 +52,8 @@ CATALOG: list[dict[str, Any]] = [
     # cex_listings.py — public REST tickers, keyless.
     {
         "site_id": "binance",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "api.binance.com",
         "method": "api",
         "confidence": 0.95,
@@ -60,6 +66,8 @@ CATALOG: list[dict[str, Any]] = [
     },
     {
         "site_id": "bybit",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "api.bybit.com",
         "method": "api",
         "confidence": 0.95,
@@ -72,6 +80,8 @@ CATALOG: list[dict[str, Any]] = [
     },
     {
         "site_id": "okx",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "www.okx.com",
         "method": "api",
         "confidence": 0.95,
@@ -84,6 +94,8 @@ CATALOG: list[dict[str, Any]] = [
     },
     {
         "site_id": "coinbase",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "api.exchange.coinbase.com",
         "method": "api",
         "confidence": 0.95,
@@ -97,6 +109,8 @@ CATALOG: list[dict[str, Any]] = [
     # token_launches.py — DexScreener / CoinGecko / DefiLlama keyless APIs.
     {
         "site_id": "dexscreener",
+        "fallback_chain": ["coingecko", "defillama"],
+        "tested": False,
         "domain": "api.dexscreener.com",
         "method": "api",
         "confidence": 0.95,
@@ -118,6 +132,8 @@ CATALOG: list[dict[str, Any]] = [
     },
     {
         "site_id": "coingecko",
+        "fallback_chain": ["defillama", "dexscreener"],
+        "tested": False,
         "domain": "api.coingecko.com",
         "method": "api",
         "confidence": 0.9,
@@ -130,6 +146,8 @@ CATALOG: list[dict[str, Any]] = [
     },
     {
         "site_id": "defillama",
+        "fallback_chain": ["coingecko", "dexscreener"],
+        "tested": False,
         "domain": "api.llama.fi",
         "method": "api",
         "confidence": 0.95,
@@ -143,6 +161,8 @@ CATALOG: list[dict[str, Any]] = [
     # token_security.py — GoPlus token-security API.
     {
         "site_id": "goplus",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "api.gopluslabs.io",
         "method": "api",
         "confidence": 0.9,
@@ -166,6 +186,8 @@ CATALOG: list[dict[str, Any]] = [
     # bot-gated → stealth + next_data, high anti-bot.
     {
         "site_id": "amazon",
+        "fallback_chain": ["walmart"],
+        "tested": False,
         "domain": "www.amazon.com",
         "method": "stealth+next_data",
         "confidence": 0.7,
@@ -187,6 +209,8 @@ CATALOG: list[dict[str, Any]] = [
     # walmart.py — _find_script_json(html, "__NEXT_DATA__") on /ip/ pages.
     {
         "site_id": "walmart",
+        "fallback_chain": ["amazon"],
+        "tested": False,
         "domain": "www.walmart.com",
         "method": "next_data",
         "confidence": 0.7,
@@ -201,6 +225,8 @@ CATALOG: list[dict[str, Any]] = [
     # surfaces need signed requests (hence embedded_json + signed).
     {
         "site_id": "tiktok_shop",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "www.tiktok.com",
         "method": "embedded_json+signed",
         "confidence": 0.65,
@@ -215,6 +241,8 @@ CATALOG: list[dict[str, Any]] = [
     # dockets.py — CourtListener REST API v4 (free token optional).
     {
         "site_id": "courtlistener",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "www.courtlistener.com",
         "method": "api",
         "confidence": 0.9,
@@ -228,6 +256,8 @@ CATALOG: list[dict[str, Any]] = [
     # sanctions.py — OFAC SDN downloads as raw JSON/XML/CSV.
     {
         "site_id": "ofac_sdn",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "www.treasury.gov",
         "method": "direct",
         "confidence": 0.95,
@@ -241,6 +271,8 @@ CATALOG: list[dict[str, Any]] = [
     # sec_filings.py — data.sec.gov company-submissions JSON (descriptive UA).
     {
         "site_id": "sec_edgar",
+        "fallback_chain": ["sec_ftsearch"],
+        "tested": False,
         "domain": "data.sec.gov",
         "method": "api",
         "confidence": 0.9,
@@ -254,6 +286,8 @@ CATALOG: list[dict[str, Any]] = [
     # sec_filings.py — efts.sec.gov full-text search index JSON.
     {
         "site_id": "sec_ftsearch",
+        "fallback_chain": ["sec_edgar"],
+        "tested": False,
         "domain": "efts.sec.gov",
         "method": "api",
         "confidence": 0.9,
@@ -268,6 +302,8 @@ CATALOG: list[dict[str, Any]] = [
     # listings.py — Zillow homedetails/SRP __NEXT_DATA__ JSON; Redfin GIS API.
     {
         "site_id": "zillow",
+        "fallback_chain": ["redfin", "apartments", "zumper"],
+        "tested": False,
         "domain": "www.zillow.com",
         "method": "next_data",
         "confidence": 0.6,
@@ -280,6 +316,8 @@ CATALOG: list[dict[str, Any]] = [
     },
     {
         "site_id": "redfin",
+        "fallback_chain": ["zillow", "apartments", "zumper"],
+        "tested": False,
         "domain": "www.redfin.com",
         "method": "api",
         "confidence": 0.7,
@@ -293,6 +331,8 @@ CATALOG: list[dict[str, Any]] = [
     # property_records.py — county ArcGIS FeatureServer REST (e.g. Wake Co.).
     {
         "site_id": "arcgis_parcels",
+        "fallback_chain": [],
+        "tested": True,
         "domain": "maps.wakegov.com",
         "method": "api",
         "confidence": 0.9,
@@ -307,6 +347,8 @@ CATALOG: list[dict[str, Any]] = [
     # ats.py — Greenhouse / Lever / Ashby public job-board JSON APIs.
     {
         "site_id": "greenhouse",
+        "fallback_chain": ["lever", "ashby", "smartrecruiters", "jobvite"],
+        "tested": True,
         "domain": "boards-api.greenhouse.io",
         "method": "api",
         "confidence": 0.95,
@@ -319,6 +361,8 @@ CATALOG: list[dict[str, Any]] = [
     },
     {
         "site_id": "lever",
+        "fallback_chain": ["greenhouse", "ashby", "smartrecruiters", "jobvite"],
+        "tested": True,
         "domain": "api.lever.co",
         "method": "api",
         "confidence": 0.95,
@@ -331,6 +375,8 @@ CATALOG: list[dict[str, Any]] = [
     },
     {
         "site_id": "ashby",
+        "fallback_chain": ["greenhouse", "lever", "smartrecruiters", "jobvite"],
+        "tested": True,
         "domain": "api.ashbyhq.com",
         "method": "api",
         "confidence": 0.95,
@@ -344,6 +390,8 @@ CATALOG: list[dict[str, Any]] = [
     # salary.py — levels.fyi company salary pages fetched with UA headers.
     {
         "site_id": "levels_fyi",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "www.levels.fyi",
         "method": "stealth",
         "confidence": 0.6,
@@ -358,6 +406,8 @@ CATALOG: list[dict[str, Any]] = [
     # flights.py — Google Flights AF_initDataCallback embedded JSON.
     {
         "site_id": "google_flights",
+        "fallback_chain": ["kayak", "expedia"],
+        "tested": False,
         "domain": "www.google.com/travel/flights",
         "method": "embedded_json",
         "confidence": 0.6,
@@ -371,6 +421,8 @@ CATALOG: list[dict[str, Any]] = [
     # hotels.py — Google Hotels embedded JSON (primary), Booking.com fallback.
     {
         "site_id": "google_hotels",
+        "fallback_chain": ["booking"],
+        "tested": False,
         "domain": "www.google.com/travel/hotels",
         "method": "embedded_json",
         "confidence": 0.55,
@@ -383,6 +435,8 @@ CATALOG: list[dict[str, Any]] = [
     },
     {
         "site_id": "booking",
+        "fallback_chain": ["google_hotels"],
+        "tested": False,
         "domain": "www.booking.com",
         "method": "stealth",
         "confidence": 0.6,
@@ -398,6 +452,8 @@ CATALOG: list[dict[str, Any]] = [
     # login-gated for some surfaces → may need a browser pass.
     {
         "site_id": "facebook_ads_library",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "www.facebook.com/ads/library",
         "method": "embedded_json",
         "confidence": 0.5,
@@ -411,6 +467,8 @@ CATALOG: list[dict[str, Any]] = [
     # serp.py — google.com/search HTML with browser-ish headers.
     {
         "site_id": "google_serp",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "www.google.com/search",
         "method": "stealth",
         "confidence": 0.5,
@@ -424,6 +482,8 @@ CATALOG: list[dict[str, Any]] = [
     # trends.py — trends.google.com/trends/api JSON (unofficial, keyless).
     {
         "site_id": "google_trends",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "trends.google.com",
         "method": "api",
         "confidence": 0.8,
@@ -438,6 +498,8 @@ CATALOG: list[dict[str, Any]] = [
     # places.py — Google Maps application/ld+json + embedded JSON blobs.
     {
         "site_id": "google_maps",
+        "fallback_chain": ["yelp"],
+        "tested": False,
         "domain": "www.google.com/maps",
         "method": "embedded_json",
         "confidence": 0.55,
@@ -459,6 +521,8 @@ CATALOG: list[dict[str, Any]] = [
     # reviews.py — yelp.com/biz/{slug} page with UA headers.
     {
         "site_id": "yelp",
+        "fallback_chain": ["google_maps"],
+        "tested": False,
         "domain": "www.yelp.com",
         "method": "stealth",
         "confidence": 0.6,
@@ -473,6 +537,8 @@ CATALOG: list[dict[str, Any]] = [
     # procurement.py — api.sam.gov opportunities/v2/search, REQUIRES a free key.
     {
         "site_id": "sam_gov",
+        "fallback_chain": ["grants_gov", "ted"],
+        "tested": False,
         "domain": "api.sam.gov",
         "method": "api",
         "confidence": 0.9,
@@ -486,6 +552,8 @@ CATALOG: list[dict[str, Any]] = [
     # recalls.py — api.cpsc.gov product-safety recall API.
     {
         "site_id": "cpsc_recalls",
+        "fallback_chain": ["fda_enforcement"],
+        "tested": False,
         "domain": "api.cpsc.gov",
         "method": "api",
         "confidence": 0.95,
@@ -499,6 +567,8 @@ CATALOG: list[dict[str, Any]] = [
     # recalls.py — openFDA /enforcement.json APIs.
     {
         "site_id": "fda_enforcement",
+        "fallback_chain": ["cpsc_recalls"],
+        "tested": False,
         "domain": "api.fda.gov",
         "method": "api",
         "confidence": 0.95,
@@ -513,6 +583,8 @@ CATALOG: list[dict[str, Any]] = [
     # patents.py — patents.google.com/xhr/query JSON (keyless).
     {
         "site_id": "google_patents",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "patents.google.com",
         "method": "api",
         "confidence": 0.85,
@@ -526,6 +598,8 @@ CATALOG: list[dict[str, Any]] = [
     # trademarks.py — USPTO tmsearch POST JSON API.
     {
         "site_id": "uspto_tmsearch",
+        "fallback_chain": ["uspto_tsdr"],
+        "tested": False,
         "domain": "tmsearch.uspto.gov",
         "method": "api",
         "confidence": 0.8,
@@ -539,6 +613,8 @@ CATALOG: list[dict[str, Any]] = [
     # trademarks.py — TSDR case-status JSON endpoint.
     {
         "site_id": "uspto_tsdr",
+        "fallback_chain": ["uspto_tmsearch"],
+        "tested": False,
         "domain": "tsdrapi.uspto.gov",
         "method": "api",
         "confidence": 0.85,
@@ -552,6 +628,8 @@ CATALOG: list[dict[str, Any]] = [
     # company_registry.py — Nevada SOS CorpSearch JSON API.
     {
         "site_id": "nv_sos_registry",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "nv-sos.elb.us-eas-2.aws.sos.nv.gov",
         "method": "api",
         "confidence": 0.85,
@@ -566,6 +644,8 @@ CATALOG: list[dict[str, Any]] = [
     # Generic PDF extraction capability (pdfplumber/camelot/pdfminer).
     {
         "site_id": "pdf_extract",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "pdf://generic",
         "method": "direct",
         "confidence": 0.9,
@@ -579,6 +659,8 @@ CATALOG: list[dict[str, Any]] = [
     # Generic image OCR capability (tesseract).
     {
         "site_id": "ocr_extract",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "image://generic",
         "method": "direct",
         "confidence": 0.85,
@@ -592,6 +674,8 @@ CATALOG: list[dict[str, Any]] = [
     # arXiv — keyless OAI/export API for paper metadata + PDFs.
     {
         "site_id": "arxiv",
+        "fallback_chain": [],
+        "tested": False,
         "domain": "export.arxiv.org",
         "method": "api",
         "confidence": 0.95,
@@ -606,6 +690,8 @@ CATALOG: list[dict[str, Any]] = [
     # Generic JS-rendered page fallback via Playwright.
     {
         "site_id": "browser_generic",
+        "fallback_chain": ["camoufox_stealth", "flaresolverr", "tor_fallback", "proxy_rotate"],
+        "tested": False,
         "domain": "browser://generic",
         "method": "browser",
         "confidence": 0.6,
@@ -619,6 +705,8 @@ CATALOG: list[dict[str, Any]] = [
     # Anti-fingerprinting stealth browser pass.
     {
         "site_id": "camoufox_stealth",
+        "fallback_chain": ["browser_generic", "flaresolverr"],
+        "tested": False,
         "domain": "camoufox://stealth",
         "method": "browser+stealth",
         "confidence": 0.65,
@@ -632,6 +720,8 @@ CATALOG: list[dict[str, Any]] = [
     # FlareSolverr challenge solver for Cloudflare-protected pages.
     {
         "site_id": "flaresolverr",
+        "fallback_chain": ["browser_generic", "camoufox_stealth"],
+        "tested": False,
         "domain": "flaresolverr://challenge",
         "method": "browser",
         "confidence": 0.7,
@@ -645,6 +735,8 @@ CATALOG: list[dict[str, Any]] = [
     # Tor fallback for geo/network-blocked targets.
     {
         "site_id": "tor_fallback",
+        "fallback_chain": ["proxy_rotate", "browser_generic"],
+        "tested": False,
         "domain": "tor://fallback",
         "method": "tor",
         "confidence": 0.5,
@@ -658,6 +750,8 @@ CATALOG: list[dict[str, Any]] = [
     # Rotating proxy pool for geo-restricted targets.
     {
         "site_id": "proxy_rotate",
+        "fallback_chain": ["tor_fallback", "browser_generic"],
+        "tested": False,
         "domain": "proxy://rotate",
         "method": "proxy",
         "confidence": 0.6,
@@ -667,5 +761,272 @@ CATALOG: list[dict[str, Any]] = [
         "output_schema": ["html", "headers"],
         "requires_key": False,
         "data_domain": "browser",
+    },
+    # ── marketplace / retail stores ─────────────────────────────────────────
+    # marketplace.retail — Target / Best Buy JSON-LD + __NEXT_DATA__ product
+    # pages (Akamai-gated; medium anti-bot).
+    {
+        "site_id": "target",
+        "fallback_chain": ["bestbuy", "amazon", "walmart"],
+        "tested": False,
+        "domain": "www.target.com",
+        "method": "next_data",
+        "confidence": 0.7,
+        "anti_bot": "medium",
+        "robots": "restricted",
+        "latency_ms_estimate": 2800,
+        "output_schema": ["product_id", "title", "price", "rating", "stock", "url"],
+        "requires_key": False,
+        "data_domain": "marketplace",
+    },
+    {
+        "site_id": "bestbuy",
+        "fallback_chain": ["target", "amazon", "walmart"],
+        "tested": False,
+        "domain": "www.bestbuy.com",
+        "method": "next_data",
+        "confidence": 0.65,
+        "anti_bot": "medium",
+        "robots": "restricted",
+        "latency_ms_estimate": 2800,
+        "output_schema": ["product_id", "title", "price", "rating", "stock", "url"],
+        "requires_key": False,
+        "data_domain": "marketplace",
+    },
+    # ── jobs / more ATS boards ─────────────────────────────────────────────
+    # jobs.ats — SmartRecruiters public postings API, Jobvite jobs API.
+    {
+        "site_id": "smartrecruiters",
+        "fallback_chain": ["greenhouse", "lever", "ashby", "jobvite"],
+        "tested": False,
+        "domain": "api.smartrecruiters.com",
+        "method": "api",
+        "confidence": 0.9,
+        "anti_bot": "low",
+        "robots": "allowed",
+        "latency_ms_estimate": 700,
+        "output_schema": ["company", "job_id", "title", "location", "url"],
+        "requires_key": False,
+        "data_domain": "jobs",
+    },
+    {
+        "site_id": "jobvite",
+        "fallback_chain": ["greenhouse", "lever", "ashby", "smartrecruiters"],
+        "tested": False,
+        "domain": "{company}.jobvite.com",
+        "method": "api",
+        "confidence": 0.85,
+        "anti_bot": "low",
+        "robots": "allowed",
+        "latency_ms_estimate": 800,
+        "output_schema": ["company", "job_id", "title", "location", "url"],
+        "requires_key": False,
+        "data_domain": "jobs",
+    },
+    # ── real_estate ────────────────────────────────────────────────────────
+    # real_estate.listings — Apartments.com / Zumper rental fallbacks.
+    {
+        "site_id": "apartments",
+        "fallback_chain": ["zillow", "redfin", "zumper"],
+        "tested": False,
+        "domain": "www.apartments.com",
+        "method": "embedded_json",
+        "confidence": 0.55,
+        "anti_bot": "high",
+        "robots": "restricted",
+        "latency_ms_estimate": 3000,
+        "output_schema": [
+            "property_id",
+            "address",
+            "price",
+            "beds",
+            "baths",
+            "sqft",
+            "listing_url",
+        ],
+        "requires_key": False,
+        "data_domain": "real-estate",
+    },
+    {
+        "site_id": "zumper",
+        "fallback_chain": ["apartments", "zillow", "redfin"],
+        "tested": False,
+        "domain": "www.zumper.com",
+        "method": "embedded_json",
+        "confidence": 0.5,
+        "anti_bot": "high",
+        "robots": "restricted",
+        "latency_ms_estimate": 3000,
+        "output_schema": [
+            "property_id",
+            "address",
+            "price",
+            "beds",
+            "baths",
+            "sqft",
+            "listing_url",
+        ],
+        "requires_key": False,
+        "data_domain": "real-estate",
+    },
+    # ── travel ─────────────────────────────────────────────────────────────
+    # travel.hotels — Kayak / Expedia hotel-rate fallbacks.
+    {
+        "site_id": "kayak",
+        "fallback_chain": ["expedia", "google_hotels", "booking"],
+        "tested": False,
+        "domain": "www.kayak.com",
+        "method": "embedded_json",
+        "confidence": 0.5,
+        "anti_bot": "high",
+        "robots": "restricted",
+        "latency_ms_estimate": 3200,
+        "output_schema": ["hotel_name", "price", "rating", "address", "url"],
+        "requires_key": False,
+        "data_domain": "travel",
+    },
+    {
+        "site_id": "expedia",
+        "fallback_chain": ["kayak", "google_hotels", "booking"],
+        "tested": False,
+        "domain": "www.expedia.com",
+        "method": "embedded_json",
+        "confidence": 0.45,
+        "anti_bot": "high",
+        "robots": "restricted",
+        "latency_ms_estimate": 3200,
+        "output_schema": ["hotel_name", "price", "rating", "address", "url"],
+        "requires_key": False,
+        "data_domain": "travel",
+    },
+    # ── gov_data / procurement ─────────────────────────────────────────────
+    # gov_data.procurement + bidding_data — grants.gov, TED EU, NY Contract
+    # Reporter (state-level), FedConnect (bidding).
+    {
+        "site_id": "grants_gov",
+        "fallback_chain": ["sam_gov", "ted", "ny_contract_reporter"],
+        "tested": False,
+        "domain": "api.grants.gov",
+        "method": "api",
+        "confidence": 0.9,
+        "anti_bot": "low",
+        "robots": "allowed",
+        "latency_ms_estimate": 1100,
+        "output_schema": ["notice_id", "title", "agency", "posted_date", "response_date", "url"],
+        "requires_key": False,
+        "data_domain": "gov",
+    },
+    {
+        "site_id": "ted",
+        "fallback_chain": ["grants_gov", "sam_gov", "ny_contract_reporter"],
+        "tested": False,
+        "domain": "api.ted.europa.eu",
+        "method": "api",
+        "confidence": 0.9,
+        "anti_bot": "low",
+        "robots": "allowed",
+        "latency_ms_estimate": 1100,
+        "output_schema": ["notice_id", "title", "agency", "posted_date", "response_date", "url"],
+        "requires_key": False,
+        "data_domain": "gov",
+    },
+    {
+        "site_id": "ny_contract_reporter",
+        "fallback_chain": ["sam_gov", "grants_gov", "ted"],
+        "tested": False,
+        "domain": "www.nycr.ny.gov",
+        "method": "api",
+        "confidence": 0.8,
+        "anti_bot": "low",
+        "robots": "allowed",
+        "latency_ms_estimate": 1200,
+        "output_schema": ["notice_id", "title", "agency", "posted_date", "response_date", "url"],
+        "requires_key": False,
+        "data_domain": "gov",
+    },
+    # compliance_data.enforcement — EPA / OSHA / DOJ public enforcement data.
+    {
+        "site_id": "epa",
+        "fallback_chain": ["osha", "doj", "fda_enforcement"],
+        "tested": False,
+        "domain": "echo.epa.gov",
+        "method": "api",
+        "confidence": 0.85,
+        "anti_bot": "low",
+        "robots": "allowed",
+        "latency_ms_estimate": 1000,
+        "output_schema": [
+            "agency",
+            "id",
+            "title",
+            "type",
+            "company",
+            "date",
+            "penalty_amount",
+            "url",
+        ],
+        "requires_key": False,
+        "data_domain": "gov",
+    },
+    {
+        "site_id": "osha",
+        "fallback_chain": ["epa", "doj", "fda_enforcement"],
+        "tested": False,
+        "domain": "www.osha.gov",
+        "method": "api",
+        "confidence": 0.8,
+        "anti_bot": "low",
+        "robots": "allowed",
+        "latency_ms_estimate": 1000,
+        "output_schema": [
+            "agency",
+            "id",
+            "title",
+            "type",
+            "company",
+            "date",
+            "penalty_amount",
+            "url",
+        ],
+        "requires_key": False,
+        "data_domain": "gov",
+    },
+    {
+        "site_id": "doj",
+        "fallback_chain": ["epa", "osha", "fda_enforcement"],
+        "tested": False,
+        "domain": "www.justice.gov",
+        "method": "api",
+        "confidence": 0.8,
+        "anti_bot": "low",
+        "robots": "allowed",
+        "latency_ms_estimate": 1000,
+        "output_schema": [
+            "agency",
+            "id",
+            "title",
+            "type",
+            "company",
+            "date",
+            "penalty_amount",
+            "url",
+        ],
+        "requires_key": False,
+        "data_domain": "gov",
+    },
+    # bidding_data / contracts — FedConnect public bid search (best-effort).
+    {
+        "site_id": "fedconnect",
+        "fallback_chain": ["sam_gov", "grants_gov", "ted"],
+        "tested": False,
+        "domain": "www.fedconnect.net",
+        "method": "direct",
+        "confidence": 0.6,
+        "anti_bot": "medium",
+        "robots": "restricted",
+        "latency_ms_estimate": 1500,
+        "output_schema": ["notice_id", "title", "agency", "posted_date", "response_date", "url"],
+        "requires_key": False,
+        "data_domain": "gov",
     },
 ]

@@ -110,6 +110,9 @@ PAID_ENDPOINTS = {
     "/v1/compliance/enforcement": "compliance_search",
     "/v1/compliance/watch/": "company_watch",
     "/v1/deals/": "deals_search",
+    # Bidding-data intelligence (government contracts + grants) — paid per
+    # call at $0.005. Prefix covers every /v1/bidding/* sub-route.
+    "/v1/bidding/": "bidding_contracts",
 }
 
 # Price tiers for the crypto-market operations. The canonical pricing table
@@ -342,12 +345,13 @@ _EVENTS_SUPPLY_PRICE_TIERS: dict[str, dict[str, Any]] = {
 for _operation, _tier in _EVENTS_SUPPLY_PRICE_TIERS.items():
     X402_PRICING.setdefault(_operation, _tier)
 
-# Price tiers for the app-store / news / compliance / deals operations.
-# Cheap reads at $0.002-$0.005 — app, news, regulatory, and deal lookups are
-# low-cost data pulls, so gate them well below the sports scans. Same
-# defensive setdefault merge as the tiers above; keeps the /v1/app-store/*,
-# /v1/news/*, /v1/compliance/* and /v1/deals/* gates from being skipped until
-# promoted into x402/scheme.py.
+# Price tiers for the app-store / news / compliance / deals / bidding
+# operations. Cheap reads at $0.002-$0.005 — app, news, regulatory, deal,
+# and government contract/grant lookups are low-cost data pulls, so gate
+# them well below the sports scans. Same defensive setdefault merge as the
+# tiers above; keeps the /v1/app-store/*, /v1/news/*, /v1/compliance/*,
+# /v1/deals/* and /v1/bidding/* gates from being skipped until promoted
+# into x402/scheme.py.
 _NEW_DOMAIN_PRICE_TIERS: dict[str, dict[str, Any]] = {
     "app_store_search": {
         "price_usd": 0.002,
@@ -380,6 +384,10 @@ _NEW_DOMAIN_PRICE_TIERS: dict[str, dict[str, Any]] = {
     "drop_alert": {
         "price_usd": 0.002,
         "description": "Product drop / restock alert check",
+    },
+    "bidding_contracts": {
+        "price_usd": 0.005,
+        "description": "Government contract / grant bidding data search",
     },
 }
 for _operation, _tier in _NEW_DOMAIN_PRICE_TIERS.items():

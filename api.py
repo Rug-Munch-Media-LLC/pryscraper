@@ -162,6 +162,14 @@ try:
     _DEALS_DATA_ROUTER: Any | None = deals_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _DEALS_DATA_ROUTER = None
+# bidding_data router lands from a parallel agent; import it guarded so
+# api.py keeps working (and the x402 gates stay armed) before it arrives.
+try:
+    from routers.bidding_data import router as bidding_data_router
+
+    _BIDDING_DATA_ROUTER: Any | None = bidding_data_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _BIDDING_DATA_ROUTER = None
 from routers.monitoring import router as monitoring_router
 from routers.parsing import router as parsing_router
 from routers.pipeline import router as pipeline_router
@@ -454,6 +462,9 @@ if _COMPLIANCE_DATA_ROUTER is not None:
     app.include_router(_COMPLIANCE_DATA_ROUTER)
 if _DEALS_DATA_ROUTER is not None:
     app.include_router(_DEALS_DATA_ROUTER)
+# bidding_data router is included when it has landed.
+if _BIDDING_DATA_ROUTER is not None:
+    app.include_router(_BIDDING_DATA_ROUTER)
 app.include_router(monitoring_router)
 app.include_router(parsing_router)
 app.include_router(pipeline_router)

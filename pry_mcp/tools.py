@@ -3711,6 +3711,130 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "required": ["success"],
         },
     },
+    {
+        "name": "pry_contracts",
+        "description": (
+            "Search government contract opportunities and awards by keyword across "
+            "public procurement feeds, returning agency, solicitation number, award "
+            "value, status, and deadline for each result. "
+            "Use to monitor public-sector RFPs and awarded contracts, e.g. "
+            "query='cybersecurity' for current federal bidding data. Best-effort over "
+            "free public sources; never raises and returns an empty list on failure."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Contract search keywords, e.g. 'cybersecurity'",
+                },
+                "agency": {
+                    "type": "string",
+                    "description": "Optional agency filter, e.g. 'DHS'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of contracts to return (default: 20)",
+                },
+            },
+            "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "title": {"type": "string"},
+                                    "agency": {"type": "string"},
+                                    "solicitation_number": {"type": "string"},
+                                    "value": {"type": "number"},
+                                    "currency": {"type": "string"},
+                                    "status": {"type": "string"},
+                                    "deadline": {"type": "string"},
+                                    "url": {"type": "string"},
+                                },
+                            },
+                        },
+                        "total": {"type": "integer"},
+                        "query": {"type": "string"},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_grants",
+        "description": (
+            "Search government grant opportunities by keyword across public grant "
+            "feeds, returning agency, opportunity number, funding amount, eligibility, "
+            "and deadline for each result. "
+            "Use to find open funding programs for research, nonprofits, or "
+            "businesses, e.g. query='small business innovation research'. Best-effort "
+            "over free public sources; never raises and returns an empty list on failure."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Grant search keywords, e.g. 'small business innovation research'",
+                },
+                "agency": {
+                    "type": "string",
+                    "description": "Optional agency filter, e.g. 'NSF'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of grants to return (default: 20)",
+                },
+            },
+            "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "title": {"type": "string"},
+                                    "agency": {"type": "string"},
+                                    "opportunity_number": {"type": "string"},
+                                    "amount": {"type": "number"},
+                                    "currency": {"type": "string"},
+                                    "eligibility": {"type": "string"},
+                                    "deadline": {"type": "string"},
+                                    "url": {"type": "string"},
+                                },
+                            },
+                        },
+                        "total": {"type": "integer"},
+                        "query": {"type": "string"},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
 ]
 
 
@@ -3721,7 +3845,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
 # state mutation), non-destructive, idempotent (repeated calls are safe).
 # Tools that mutate server state opt out explicitly.
 #
-# Audit (2026-08-17, all 69 PRY_TOOLS):
+# Audit (2026-08-17, all 71 PRY_TOOLS):
 #   * pry_monitor  — persists a scheduled monitor on the server:
 #     readOnlyHint=False, idempotentHint=False. destructiveHint stays False:
 #     it never deletes data (removal is a separate /v1/monitor/{id} DELETE).
@@ -3747,6 +3871,9 @@ PRY_TOOLS: list[dict[str, Any]] = [
 #     pry_resale, pry_freight, pry_energy_lmp, pry_grocery, pry_restaurant,
 #     pry_imports, pry_firmographics) are pure reads of public ticket /
 #     freight / energy / retail / customs feeds — same default annotations.
+#   * The 2 new bidding tools (pry_contracts, pry_grants) are pure reads of
+#     public government procurement / grant feeds — same default read-only,
+#     non-destructive, idempotent annotations.
 #   * The remaining 33 tools are reads/scrapes with no server-state changes —
 #     the default read-only, non-destructive, idempotent annotations apply.
 _TOOL_ANNOTATIONS: dict[str, dict[str, bool]] = {
@@ -4620,7 +4747,7 @@ async def call_sports_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
             mod = __import__("sports_data.books", fromlist=["books"])
         except ImportError:
             return _sports_module_unavailable(name)
-        methods = getattr(mod, "METHODS", ())
+        book_methods: tuple[str, ...] = getattr(mod, "METHODS", ())
         return {
             "content": [
                 {
@@ -4628,7 +4755,7 @@ async def call_sports_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
                     "text": json.dumps(
                         {
                             "success": True,
-                            "data": {"methods": list(methods), "total": len(methods)},
+                            "data": {"methods": list(book_methods), "total": len(book_methods)},
                         },
                         indent=2,
                     ),
@@ -5078,6 +5205,18 @@ _DEALS_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     ),
 }
 
+# Candidate public function names for the bidding-data package
+# (bidding_data.contracts, bidding_data.grants). The package lands from a
+# parallel agent; every import below is guarded so the dispatchers degrade
+# gracefully (a readable message) if a module has not landed yet. Mirrors the
+# app-store / news / compliance / deals pattern.
+_BIDDING_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "pry_contracts": (
+        ("contracts", ("search_contracts", "get_contracts", "contracts_search", "find_contracts")),
+    ),
+    "pry_grants": (("grants", ("search_grants", "get_grants", "grants_search", "find_grants")),),
+}
+
 
 def _new_domain_tool_kwargs(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Build the kwargs for an app-store / news / compliance / deals tool.
@@ -5131,6 +5270,20 @@ def _new_domain_tool_kwargs(name: str, arguments: dict[str, Any]) -> dict[str, A
         return kwargs
     if name == "pry_drop_alert":
         kwargs = {"product": arguments.get("product", "")}
+        if arguments.get("limit") is not None:
+            kwargs["limit"] = int(arguments["limit"])
+        return kwargs
+    if name == "pry_contracts":
+        kwargs = {"query": arguments.get("query", "")}
+        if arguments.get("agency"):
+            kwargs["agency"] = arguments["agency"]
+        if arguments.get("limit") is not None:
+            kwargs["limit"] = int(arguments["limit"])
+        return kwargs
+    if name == "pry_grants":
+        kwargs = {"query": arguments.get("query", "")}
+        if arguments.get("agency"):
+            kwargs["agency"] = arguments["agency"]
         if arguments.get("limit") is not None:
             kwargs["limit"] = int(arguments["limit"])
         return kwargs
@@ -5211,4 +5364,22 @@ async def call_deals_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
         _DEALS_TOOL_FNS,
         _new_domain_tool_kwargs,
         required_args={"pry_deals": "query", "pry_drop_alert": "product"},
+    )
+
+
+async def call_bidding_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch bidding-data MCP tools to their ``bidding_data`` handlers (guarded).
+
+    The ``bidding_data`` subpackage (``contracts``, ``grants``) is built in
+    parallel by other agents; every import is guarded so this dispatcher
+    degrades gracefully (a readable message) if a module has not landed yet.
+    Returns ``None`` for non-bidding tools so callers fall through.
+    """
+    return await _call_domain_dispatcher(
+        name,
+        arguments,
+        "bidding_data",
+        _BIDDING_TOOL_FNS,
+        _new_domain_tool_kwargs,
+        required_args={"pry_contracts": "query", "pry_grants": "query"},
     )
