@@ -27,6 +27,9 @@ from x402 import (
     EIP7702_RPC,
     EIP7702_TOKEN_ADDRESSES,
     X402_OFFLINE_MODE,
+    X402_SELF_FACILITATE,
+    X402_SELF_FACILITATOR_KEY,
+    X402_SELF_FACILITATOR_RPC,
     X402_TIMEOUT_SECONDS,
     X402_WALLET,
 )
@@ -39,6 +42,7 @@ from x402.scheme import (
     normalize_network_id,
     resolve_asset_entry,
 )
+from x402.self_facilitator import SelfFacilitator, VerifyResult
 
 logger = logging.getLogger(__name__)
 
@@ -96,14 +100,28 @@ class FacilitatorRouter:
     Falls back through enabled facilitators. Records failures and retries
     with exponential backoff. Supports EIP-7702 self-verify mode as a
     last-resort fallback for EVM chains.
+
+    ``self_hosted`` mode (default off; opt-in via ``PRY_X402_SELF_FACILITATE=1``
+    or the constructor arg) uses :class:`SelfFacilitator` INSTEAD of the
+    external facilitator URLs — no Coinbase/CDP dependency. Custom per-network
+    implementations can be plugged in via :meth:`register_facilitator`
+    (the Solana/TRON extension point).
     """
 
-    def __init__(self, facilitators: list[FacilitatorConfig] | None = None) -> None:
+    def __init__(
+        self,
+        facilitators: list[FacilitatorConfig] | None = None,
+        self_hosted: bool | None = None,
+    ) -> None:
         self.facilitators = sorted(
             [f for f in (facilitators or DEFAULT_FACILITATORS) if f.enabled and f.verify_url],
             key=lambda f: f.priority,
         )
         self._failures: dict[str, int] = {}
+        self.self_hosted = X402_SELF_FACILITATE if self_hosted is None else bool(self_hosted)
+        self._self_facilitator: SelfFacilitator | None = None
+        self._network_facilitators: dict[str, Any] = {}
+        self._pending_auths: dict[str, dict[str, Any]] = {}
 
     def _health_key(self, facilitator: FacilitatorConfig) -> str:
         return facilitator.name
@@ -120,6 +138,163 @@ class FacilitatorRouter:
         key = self._health_key(facilitator)
         if key in self._failures:
             del self._failures[key]
+
+    # ── Self-hosted / custom facilitator extension points ─────────────────────
+
+    def register_facilitator(self, network: str, impl: Any) -> None:
+        """Register a custom facilitator implementation for a network.
+
+        Extension point for Solana/TRON (currently scaffolded) or any custom
+        verifier: when an impl is registered for a network, verify/settle are
+        routed to it instead of the external facilitators or the built-in
+        SelfFacilitator. The impl must expose the SelfFacilitator contract:
+
+        - ``async verify(payment: dict) -> VerifyResult``
+        - ``async settle(payment: dict) -> str | None`` (tx hash or None)
+
+        ``network`` may be a legacy name ("solana"), a CAIP-2 id
+        ("solana:mainnet"), or a family ("solana", "tron", "evm").
+        """
+        network_id = normalize_network_id(network)
+        self._network_facilitators[network_id] = impl
+        if ":" not in network:
+            self._network_facilitators[network] = impl
+
+    def submit_authorization(self, payment_id: str, authorization: dict[str, Any]) -> None:
+        """Attach an EIP-3009 transferWithAuthorization to a pending payment.
+
+        Stored in memory keyed by ``payment_id`` so a later
+        ``verify(payment_id, ...)`` / ``settle(payment_id, ...)`` can
+        self-verify and self-settle it without an external facilitator.
+        """
+        self._pending_auths[payment_id] = authorization
+
+    def _impl_for(self, network: str) -> Any | None:
+        """Return a registered custom facilitator for a network, if any."""
+        network_id = normalize_network_id(network)
+        impl = self._network_facilitators.get(network_id)
+        if impl is not None:
+            return impl
+        impl = self._network_facilitators.get(network)
+        if impl is not None:
+            return impl
+        return self._network_facilitators.get(network_family(network))
+
+    def _get_self_facilitator(self) -> SelfFacilitator:
+        """Lazily build the built-in SelfFacilitator (env-configured)."""
+        if self._self_facilitator is None:
+            self._self_facilitator = SelfFacilitator(
+                pay_to=X402_WALLET,
+                facilitator_key=X402_SELF_FACILITATOR_KEY,
+                rpc_url=X402_SELF_FACILITATOR_RPC,
+            )
+        return self._self_facilitator
+
+    def _build_payment(
+        self,
+        payment_id: str,
+        tx_hash: str,
+        network: str,
+        asset: str,
+        amount_usd: float,
+    ) -> dict[str, Any]:
+        """Build the payment dict handed to SelfFacilitator/custom impls."""
+        payment: dict[str, Any] = {
+            "payment_id": payment_id,
+            "tx_hash": tx_hash,
+            "network": network,
+            "asset": asset,
+            "amount_usd": amount_usd,
+        }
+        auth = self._pending_auths.get(payment_id)
+        if auth:
+            payment["authorization"] = auth
+        return payment
+
+    async def _verify_self_hosted(
+        self,
+        payment_id: str,
+        tx_hash: str,
+        network: str,
+        asset: str,
+        amount_usd: float,
+    ) -> dict[str, Any]:
+        """Verify via a registered custom impl or the built-in SelfFacilitator.
+
+        EVM chains keep the EIP-7702 receipt check as a ground-truth fallback
+        (native / permit2 assets and txs that already paid on-chain); the
+        external facilitator URLs are never contacted in self-hosted mode.
+        Solana/TRON stay scaffolded unless an impl is registered.
+        """
+        impl = self._impl_for(network)
+        if impl is None:
+            impl = self._get_self_facilitator()
+        payment = self._build_payment(payment_id, tx_hash, network, asset, amount_usd)
+        result: VerifyResult = await impl.verify(payment)
+        if result.verified:
+            return {
+                "verified": True,
+                "reason": "",
+                "settlement": None,
+                "facilitator": "self-hosted",
+                "signer": result.signer,
+                "amount_atomic": result.amount_atomic,
+                "network": result.network or normalize_network_id(network),
+                "asset": result.asset or asset,
+            }
+
+        if network in EIP7702_RPC:
+            eip_result = await self._eip7702_verify(tx_hash, network, asset, amount_usd)
+            if eip_result["verified"]:
+                eip_result["facilitator"] = "self-hosted-eip7702"
+                return eip_result
+            reason = f"{result.reason}; EIP-7702: {eip_result.get('reason', '')}"
+        else:
+            reason = result.reason
+
+        if network_family(network) in ("solana", "tron"):
+            return self._scaffold_non_evm_verify(payment_id, tx_hash, network, asset, amount_usd)
+
+        return {
+            "verified": False,
+            "reason": reason,
+            "settlement": None,
+            "facilitator": "self-hosted",
+        }
+
+    async def _settle_self_hosted(
+        self,
+        payment_id: str,
+        tx_hash: str,
+        network: str,
+        asset: str,
+        amount_usd: float,
+    ) -> dict[str, Any]:
+        """Settle via a registered custom impl or the built-in SelfFacilitator."""
+        impl = self._impl_for(network)
+        if impl is None:
+            impl = self._get_self_facilitator()
+        payment = self._build_payment(payment_id, tx_hash, network, asset, amount_usd)
+        settled_tx = await impl.settle(payment)
+        if settled_tx:
+            return {
+                "success": True,
+                "transaction": settled_tx,
+                "network": network,
+                "payment_id": payment_id,
+                "facilitator": "self-hosted",
+                "settled_at": datetime.now(UTC).isoformat(),
+                "note": "Broadcast by self-hosted facilitator",
+            }
+        return {
+            "success": False,
+            "payment_id": payment_id,
+            "reason": (
+                "self-hosted settle unavailable: no authorization, no facilitator "
+                "key/RPC, or chain unreachable"
+            ),
+            "facilitator": "self-hosted",
+        }
 
     async def verify(
         self,
@@ -140,6 +315,12 @@ class FacilitatorRouter:
         """
         if X402_OFFLINE_MODE:
             return {"verified": True, "reason": "offline_mode", "settlement": None}
+
+        # Self-hosted mode: verify locally instead of contacting the external
+        # facilitator URLs (no Coinbase/CDP). Registered per-network impls
+        # take precedence over the built-in SelfFacilitator.
+        if self.self_hosted or self._impl_for(network) is not None:
+            return await self._verify_self_hosted(payment_id, tx_hash, network, asset, amount_usd)
 
         payload = {
             "paymentId": payment_id,
@@ -271,6 +452,11 @@ class FacilitatorRouter:
         """Confirm settlement with the best available facilitator."""
         if X402_OFFLINE_MODE:
             return self._offline_settlement(payment_id, tx_hash, network)
+
+        # Self-hosted mode: settle locally instead of contacting the external
+        # facilitator URLs (no Coinbase/CDP).
+        if self.self_hosted or self._impl_for(network) is not None:
+            return await self._settle_self_hosted(payment_id, tx_hash, network, asset, amount_usd)
 
         payload = {
             "paymentId": payment_id,
@@ -524,3 +710,15 @@ def set_facilitator_router(router: FacilitatorRouter) -> None:
     """Override the global facilitator router (useful for tests)."""
     global _facilitator_router
     _facilitator_router = router
+
+
+def register_facilitator(network: str, impl: Any) -> None:
+    """Register a custom facilitator for ``network`` on the global router.
+
+    Convenience wrapper over :meth:`FacilitatorRouter.register_facilitator`.
+    Use this to plug in a real Solana/TRON verifier (those chains remain
+    scaffolded until an impl is registered). ``impl`` must expose
+    ``async verify(payment) -> VerifyResult`` and
+    ``async settle(payment) -> str | None``.
+    """
+    get_facilitator_router().register_facilitator(network, impl)

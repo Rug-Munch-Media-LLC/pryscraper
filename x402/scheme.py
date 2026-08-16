@@ -20,8 +20,11 @@ import logging
 import math
 import os
 import uuid
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, cast
+
+import httpx
 
 from x402 import (
     X402_DEFAULT_ASSET,
@@ -174,6 +177,11 @@ SUPPORTED_ASSETS: dict[str, dict[str, dict[str, Any]]] = {
             "asset": "USDT",
             "network": "eip155:8453",
             "name": "Base USDT",
+            # Canonical bridged Tether USD on Base. NOTE: the legacy V1
+            # EIP7702_TOKEN_ADDRESSES table (x402/__init__.py) still lists
+            # 0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb for Base USDT — a
+            # known discrepancy. The V1 table is intentionally NOT churned;
+            # this entry is the authoritative address.
             "contract": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
             "decimals": 6,
             "verification": "permit2",
@@ -432,8 +440,10 @@ VERIFICATION_STATUS: dict[str, dict[str, Any]] = {
 # USD value of ONE unit of each asset, used to quote USD-equivalent atomic
 # amounts for non-1:1 assets (ETH/ARB/SOL/TRX/POL/…). Stablecoins are fixed
 # at 1.0. Volatile assets use env-overridable STATIC defaults — [REVIEW]
-# replace with a live price oracle before accepting those assets for
-# production payments; the static quote can drift from market price.
+# the live-oracle hook ``get_asset_usd_price`` is the canonical way to quote
+# volatile assets for production payments (it defaults to these static values
+# with ``usdPerUnitSource:"static-default"`` and returns ``"oracle"`` when a
+# live price is available).
 X402_ASSET_USD_PER_UNIT: dict[str, float] = {
     "USDC": 1.0,
     "USDT": 1.0,
@@ -447,7 +457,80 @@ X402_ASSET_USD_PER_UNIT: dict[str, float] = {
     "TRX": float(os.getenv("PRY_X402_USD_PER_UNIT_TRX", "0.15")),
 }
 
+# Optional live price oracle base URL. When set, ``get_asset_usd_price``
+# fetches ``{X402_ORACLE_URL}/price/{ASSET}`` (optionally ``?network=``) and
+# falls back to the static table on any error. Re-read from env per call so
+# tests can toggle it without reloading the module.
+X402_ORACLE_URL: str = os.getenv("PRY_X402_ORACLE_URL", "")
+
 _STABLECOIN_ASSETS = {X402Asset.USDC.value, X402Asset.USDT.value, X402Asset.DAI.value}
+
+
+@dataclass(frozen=True)
+class AssetUsdQuote:
+    """USD price of one unit of an asset plus where it came from.
+
+    ``source`` is ``"oracle"`` (live), ``"stablecoin"`` (fixed 1:1) or
+    ``"static-default"`` (fallback static table).
+    """
+
+    usd: float
+    source: str
+
+
+async def _fetch_oracle_price(asset: str, network: str = "") -> float | None:
+    """Fetch a live USD price from the configured oracle; None on any failure."""
+    oracle_url = os.getenv("PRY_X402_ORACLE_URL") or X402_ORACLE_URL
+    if not oracle_url:
+        return None
+    url = f"{oracle_url.rstrip('/')}/price/{asset.upper()}"
+    if network:
+        url += f"?network={network}"
+    try:
+        timeout = float(os.getenv("PRY_X402_ORACLE_TIMEOUT", "5"))
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
+    except (httpx.HTTPError, ValueError, OSError):
+        logger.warning(
+            "x402_oracle_unavailable_falling_back",
+            extra={"asset": asset, "oracle_url": oracle_url},
+        )
+        return None
+    for candidate in (data, data.get("data") if isinstance(data, dict) else None):
+        if not isinstance(candidate, dict):
+            continue
+        for key in ("usd", "priceUsd", "price"):
+            value = candidate.get(key)
+            if isinstance(value, (int, float)) and float(value) > 0:
+                return float(value)
+    return None
+
+
+async def get_asset_usd_price(asset: str, network: str = "") -> AssetUsdQuote:
+    """Live-oracle hook: USD price of one unit of ``asset``.
+
+    When ``PRY_X402_ORACLE_URL`` is configured, fetches a live quote
+    (``GET {oracle}/price/{ASSET}``, honoring ``usd`` / ``priceUsd`` /
+    ``price`` — top-level or under ``data``). Any failure falls back to the
+    static ``X402_ASSET_USD_PER_UNIT`` table, reporting
+    ``source="static-default"`` (stablecoins report ``"stablecoin"``).
+
+    This is the canonical quote path for async verification
+    (``SelfFacilitator.verify``); the sync pricing helpers
+    (``usd_per_unit_for`` / ``asset_to_atomic`` / ``build_multi_asset_accepts``)
+    keep using the static table so accept-list construction stays sync.
+    """
+    asset = asset.upper()
+    live = await _fetch_oracle_price(asset, network)
+    if live is not None:
+        return AssetUsdQuote(usd=live, source="oracle")
+    static = X402_ASSET_USD_PER_UNIT.get(asset)
+    if static is None or static <= 0:
+        static = 1.0
+    source = "stablecoin" if asset in _STABLECOIN_ASSETS else "static-default"
+    return AssetUsdQuote(usd=static, source=source)
 
 
 def normalize_network_id(network: str) -> str:

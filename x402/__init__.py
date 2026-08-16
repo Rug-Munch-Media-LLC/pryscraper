@@ -31,6 +31,10 @@ Standards compliance:
   scaffolds (structure/price/asset validation only — see VERIFICATION_STATUS).
 - Multiple facilitators: coinbase, payai, cloudflare, eip-7702
 - Smart facilitator router with auto-fallback
+- Self-hosted facilitator (``x402.self_facilitator``): EIP-3009 verify +
+  settlement broadcast on Pry infra — no external facilitator / Coinbase CDP.
+  Opt-in via ``PRY_X402_SELF_FACILITATE=1`` (+ ``PRY_X402_FACILITATOR_KEY``,
+  ``PRY_X402_FACILITATOR_RPC``).
 """
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -135,6 +139,13 @@ EIP7702_RPC: dict[str, str] = {
 # A successful receipt alone is NOT proof of payment — the tx must have been
 # sent TO one of these token contracts with a transfer() to our wallet for at
 # least the server-side price. Addresses are well-known mainnet addresses.
+#
+# NOTE — Base USDT discrepancy: this V1 table lists
+# 0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb, while the canonical
+# SUPPORTED_ASSETS table (x402/scheme.py) uses the official bridged Tether USD
+# 0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2. The V1 table is intentionally
+# NOT churned for compatibility; new code should read
+# SUPPORTED_ASSETS["eip155:8453"]["USDT"]["contract"].
 EIP7702_TOKEN_ADDRESSES: dict[str, dict[str, str]] = {
     "base": {
         "USDC": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
@@ -169,6 +180,20 @@ EIP7702_TOKEN_ADDRESSES: dict[str, dict[str, str]] = {
     },
 }
 
+# Self-hosted x402 facilitator (no external facilitator / Coinbase CDP).
+# Opt-in: PRY_X402_SELF_FACILITATE=1 switches the FacilitatorRouter to the
+# local SelfFacilitator. PRY_X402_FACILITATOR_KEY is the EVM private key used
+# to pay gas when broadcasting settlement; PRY_X402_FACILITATOR_RPC is the
+# JSON-RPC endpoint. See x402/self_facilitator.py.
+X402_SELF_FACILITATE: bool = _env_flag("PRY_X402_SELF_FACILITATE")
+X402_SELF_FACILITATOR_KEY: str = os.getenv("PRY_X402_FACILITATOR_KEY", "")
+X402_SELF_FACILITATOR_RPC: str = os.getenv("PRY_X402_FACILITATOR_RPC", "")
+if X402_SELF_FACILITATE and not (X402_SELF_FACILITATOR_KEY and X402_SELF_FACILITATOR_RPC):
+    logger.warning(
+        "PRY_X402_SELF_FACILITATE=1 but PRY_X402_FACILITATOR_KEY and/or "
+        "PRY_X402_FACILITATOR_RPC are missing: verify works, settle will be unavailable."
+    )
+
 # Re-export the full public surface. Submodules import their config from this
 # package root (constants above), so these imports must come AFTER the config
 # block to avoid circular initialization.
@@ -186,6 +211,7 @@ from .facilitator import (  # noqa: E402
     FacilitatorRouter,
     _facilitator_router,
     get_facilitator_router,
+    register_facilitator,
     set_facilitator_router,
 )
 from .handler import X402Handler  # noqa: E402
@@ -197,7 +223,9 @@ from .scheme import (  # noqa: E402
     SUPPORTED_NETWORKS,
     VERIFICATION_STATUS,
     X402_ASSET_USD_PER_UNIT,
+    X402_ORACLE_URL,
     X402_PRICING,
+    AssetUsdQuote,
     X402Asset,
     X402Network,
     X402Scheme,
@@ -214,6 +242,7 @@ from .scheme import (  # noqa: E402
     build_payment_required,
     create_payment_request,
     flatten_supported_assets,
+    get_asset_usd_price,
     is_asset_supported,
     network_family,
     normalize_network_id,
@@ -223,10 +252,17 @@ from .scheme import (  # noqa: E402
     usd_per_unit_for,
     validate_client_amount,
 )
+from .self_facilitator import (  # noqa: E402
+    CHAIN_ID_BY_NETWORK,
+    NonceStore,
+    SelfFacilitator,
+    VerifyResult,
+)
 
 __all__ = [
     "ASSET_DECIMALS",
     "CAIP2_NETWORK_IDS",
+    "CHAIN_ID_BY_NETWORK",
     "DEFAULT_FACILITATORS",
     "EIP7702_RPC",
     "EIP7702_TOKEN_ADDRESSES",
@@ -243,12 +279,20 @@ __all__ = [
     "X402_FACILITATOR_URL",
     "X402_NETWORK_WALLETS",
     "X402_OFFLINE_MODE",
+    "X402_ORACLE_URL",
     "X402_PRICING",
+    "X402_SELF_FACILITATE",
+    "X402_SELF_FACILITATOR_KEY",
+    "X402_SELF_FACILITATOR_RPC",
     "X402_TIMEOUT_SECONDS",
     "X402_WALLET",
     "_NATIVE_ASSETS",
+    "AssetUsdQuote",
     "FacilitatorConfig",
     "FacilitatorRouter",
+    "NonceStore",
+    "SelfFacilitator",
+    "VerifyResult",
     "X402Asset",
     "X402Handler",
     "X402Network",
@@ -270,12 +314,14 @@ __all__ = [
     "create_batch_payment",
     "create_payment_request",
     "flatten_supported_assets",
+    "get_asset_usd_price",
     "get_facilitator_router",
     "is_asset_supported",
     "is_batch_paid",
     "logger",
     "network_family",
     "normalize_network_id",
+    "register_facilitator",
     "require_payment_legacy",
     "resolve_asset_entry",
     "resolve_price_usd",

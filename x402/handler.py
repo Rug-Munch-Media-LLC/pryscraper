@@ -25,6 +25,7 @@ from x402 import (
     X402_DIR,
     X402_FACILITATOR_URL,
     X402_OFFLINE_MODE,
+    X402_SELF_FACILITATE,
     X402_WALLET,
 )
 from x402.facilitator import FacilitatorRouter, get_facilitator_router
@@ -276,6 +277,7 @@ class X402Handler:
             "asset_table": SUPPORTED_ASSETS,
             "verification_status": VERIFICATION_STATUS,
             "offline_mode": X402_OFFLINE_MODE,
+            "self_hosted": X402_SELF_FACILITATE,
             "payment_validity_seconds": PAYMENT_VALIDITY_SECONDS,
             "default_network": X402_DEFAULT_NETWORK,
             "default_asset": X402_DEFAULT_ASSET,
