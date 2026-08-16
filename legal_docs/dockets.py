@@ -16,6 +16,15 @@ yields nothing, so one provider down never empties the answer):
    full RECAP/PACER archive, ``source="recap"``; same free token).
 3. **Justia dockets scrape** — ``dockets.justia.com`` (``source="justia"``;
    no key, no auth; signature-based HTML extraction, best-effort).
+4. **NY eCourts civil search** — ``iapps.courts.state.ny.us/webcivil/FCASSearch``
+   (``source="state_ny"``; no key, no auth; form POST + signature-based HTML
+   extraction of the results table, best-effort).
+
+``get_docket`` additionally consults CourtListener's **PACER docket lookup**
+(``/api/rest/v4/pacer-fetch/``, ``source="pacer"``; same free token, requires
+the ``pacer_fetch`` permission) between the CourtListener detail endpoint and
+the Justia scrape, and falls through to the NY eCourts index-number lookup
+when a non-numeric id is not a Justia slug.
 
 Contract
 --------
@@ -67,6 +76,7 @@ import logging
 import os
 import re
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -76,6 +86,8 @@ logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://www.courtlistener.com/api/rest/v4"
 _JUSTIA_BASE = "https://dockets.justia.com"
+_PACER_FETCH_URL = f"{_BASE_URL}/pacer-fetch/"
+_NY_ECOURTS_URL = "https://iapps.courts.state.ny.us/webcivil/FCASSearch"
 _TIMEOUT = httpx.Timeout(15.0)
 _RETRY_CONFIG = RetryConfig(
     max_retries=2,
@@ -110,6 +122,35 @@ _JUSTIA_FIELD_RE = {
 }
 _JUSTIA_H1_RE = re.compile(r"<h1[^>]*>(.*?)</h1>", re.IGNORECASE | re.DOTALL)
 _JUSTIA_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+
+# NY eCourts civil case search (https://iapps.courts.state.ny.us/webcivil/).
+# The results page renders a table of matching cases; rows are signature-
+# parsed (the page may change layout, in which case extraction degrades to
+# []). An index number looks like "651256/2023".
+_NY_ECOURTS_ROW_RE = re.compile(
+    r'<tr[^>]*class="[^"]*data[^"]*"[^>]*>(.*?)</tr>', re.IGNORECASE | re.DOTALL
+)
+_NY_ECOURTS_CELL_RE = re.compile(r"<td[^>]*>(.*?)</td>", re.IGNORECASE | re.DOTALL)
+_NY_INDEX_RE = re.compile(r"\b(\d{3,6}/\d{4})\b")
+# The webcivil civil-case search form fields (documented by NY courts; the
+# query is placed in ``defendant`` for free-text name search and in
+# ``index_number`` for the docket lookup path).
+_NY_ECOURTS_FORM: dict[str, str] = {
+    "param": "primary",
+    "idx": "0",
+    "court_type": "CIV",
+    "court_type_1": "ALL",
+    "case_type": "Civil",
+    "case_status": "ALL",
+    "filing_date": "",
+    "filing_date1": "",
+    "docket_number": "",
+    "plaintiff": "",
+    "defendant": "",
+    "judge": "",
+    "index_number": "",
+    "submit": "Search",
+}
 
 
 def _headers() -> dict[str, str]:
@@ -370,13 +411,68 @@ async def _fetch_text(url: str, params: dict[str, Any] | None = None) -> str | N
         return None
 
 
+async def _fetch_json_post(url: str, body: dict[str, Any]) -> dict[str, Any] | None:
+    """POST JSON ``body`` to ``url`` and return the parsed object, or ``None``.
+
+    Used by the CourtListener ``pacer-fetch`` path (PACER docket lookup).
+    """
+
+    async def _one() -> dict[str, Any]:
+        async with httpx.AsyncClient(
+            timeout=_TIMEOUT, headers=_headers(), follow_redirects=True
+        ) as client:
+            response = await client.post(url, json=body)
+            response.raise_for_status()
+            payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError("courtlistener pacer-fetch payload is not an object")
+        return payload
+
+    try:
+        return await async_retry(_one, config=_RETRY_CONFIG)
+    except (httpx.HTTPError, OSError, ValueError):
+        return None
+
+
+async def _fetch_text_post(url: str, data: dict[str, str]) -> str | None:
+    """POST form-encoded ``data`` to ``url`` and return the response text.
+
+    Used by the NY eCourts scrape path; HTML pages are returned as text and
+    parsed with signature regexes (degrades to ``None`` on failure).
+    """
+
+    async def _one() -> str:
+        async with httpx.AsyncClient(
+            timeout=_TIMEOUT, headers=_headers(), follow_redirects=True
+        ) as client:
+            response = await client.post(url, data=data)
+            response.raise_for_status()
+            return response.text
+
+    try:
+        return await async_retry(_one, config=_RETRY_CONFIG)
+    except (httpx.HTTPError, OSError):
+        return None
+
+
+async def _fetch_pacer_docket(docket_id: int) -> dict[str, Any] | None:
+    """POST to CourtListener's ``pacer-fetch`` endpoint (PACER docket lookup).
+
+    Triggers a PACER fetch for a CourtListener ``docket_id`` that is missing
+    from the RECAP archive. Requires the free API token with the
+    ``pacer_fetch`` permission; degrades to ``None`` on failure.
+    """
+    return await _fetch_json_post(_PACER_FETCH_URL, {"docket_id": docket_id})
+
+
 # ── Public API ─────────────────────────────────────────────────────────
 async def search_dockets(query: str, limit: int = 20) -> list[dict[str, Any]]:
     """Search dockets by full-text query across multiple free sources.
 
     Sources are consulted in fallback order — CourtListener dockets,
-    RECAP search API, then Justia — so one provider being down never
-    empties the result. Results are deduplicated by docket URL/id.
+    RECAP search API, Justia, then NY eCourts (state civil) — so one
+    provider being down never empties the result. Results are deduplicated
+    by docket URL/id.
 
     Args:
         query: Full-text search string (e.g. ``"bitcoin ethereum fraud"``).
@@ -407,7 +503,10 @@ async def _search_dockets(query: str, limit: int) -> list[dict[str, Any]]:
         return results
 
     results = await _search_justia(query, limit)
-    return results
+    if results:
+        return results
+
+    return await _search_ny_ecourts(query, limit)
 
 
 async def _search_courtlistener(query: str, limit: int) -> list[dict[str, Any]]:
@@ -454,12 +553,138 @@ async def _search_justia(query: str, limit: int) -> list[dict[str, Any]]:
         return []
 
 
+# ── NY eCourts (state civil) source ────────────────────────────────────
+def _ny_date(value: str | None) -> str | None:
+    """Normalize a NY eCourts ``MM/DD/YYYY`` filing date to ``YYYY-MM-DD``."""
+    if not value:
+        return None
+    text = value.strip()
+    match = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})$", text)
+    if match:
+        month, day, year = match.groups()
+        return f"{year}-{int(month):02d}-{int(day):02d}"
+    return text or None
+
+
+def _parse_ny_ecourts(html_text: str, limit: int) -> list[dict[str, Any]]:
+    """Signature-parse the NY eCourts civil case-search results table.
+
+    Each result row exposes the index number, case type, filing date, judge,
+    plaintiff(s) and defendant(s). Parsing is best-effort: layout changes
+    degrade to ``[]``.
+    """
+    records: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in _NY_ECOURTS_ROW_RE.findall(html_text):
+        if len(records) >= limit:
+            break
+        cells = [
+            cell
+            for cell in (_strip_tags(cell) for cell in _NY_ECOURTS_CELL_RE.findall(row))
+            if cell
+        ]
+        index_number: str | None = None
+        idx = 0
+        for pos, cell in enumerate(cells):
+            match = _NY_INDEX_RE.search(cell)
+            if match:
+                index_number = match.group(1)
+                idx = pos
+                break
+        if not index_number or index_number in seen:
+            continue
+        seen.add(index_number)
+        # eCourts rows are: index number, case type, filing date, [judge],
+        # plaintiff(s), defendant(s). The judge cell is often "&nbsp;" and
+        # gets dropped, so anchor on the index cell for type/date and take
+        # plaintiff/defendant from the last two cells.
+        case_type = cells[idx + 1] if idx + 1 < len(cells) else None
+        filing_date = _ny_date(cells[idx + 2] if idx + 2 < len(cells) else None)
+        plaintiff = cells[-2] if len(cells) >= 5 else None
+        defendant = cells[-1] if len(cells) >= 5 else None
+        case_name = defendant or plaintiff or f"NY eCourts docket {index_number}"
+        records.append(
+            {
+                "id": index_number,
+                "case_name": case_name,
+                "docket_number": index_number,
+                "court": "New York State Supreme Court (Civil)",
+                "date_filed": filing_date,
+                "date_terminated": None,
+                "nature_of_suit": case_type,
+                "cause": None,
+                "url": f"{_NY_ECOURTS_URL}?index_number={quote(index_number)}",
+                "source": "state_ny",
+            }
+        )
+    return records[:limit]
+
+
+async def _search_ny_ecourts(query: str, limit: int) -> list[dict[str, Any]]:
+    """NY eCourts civil case search (keyless form POST, best-effort).
+
+    The query is matched against the defendant name — the free webcivil
+    form only accepts one name field per request.
+    """
+    if not query.strip():
+        return []
+    data = dict(_NY_ECOURTS_FORM)
+    data["defendant"] = query.strip()
+    page = await _fetch_text_post(_NY_ECOURTS_URL, data)
+    if not page:
+        return []
+    try:
+        return _parse_ny_ecourts(page, limit)
+    except (re.error, ValueError, TypeError):
+        logger.warning("legal_dockets_ny_ecourts_parse_failed", extra={"query": query})
+        return []
+
+
+async def _lookup_ny_ecourts(index_number: str) -> dict[str, Any]:
+    """NY eCourts civil lookup by index/docket number (last-resort fallback).
+
+    Returns the full docket shape (detail fields ``None`` where eCourts does
+    not expose them) or ``{}`` when the number is unknown.
+    """
+    value = str(index_number).strip().lstrip("/")
+    if not value:
+        return {}
+    data = dict(_NY_ECOURTS_FORM)
+    data["index_number"] = value
+    page = await _fetch_text_post(_NY_ECOURTS_URL, data)
+    if not page:
+        return {}
+    try:
+        records = _parse_ny_ecourts(page, 1)
+    except (re.error, ValueError, TypeError):
+        logger.warning("legal_dockets_ny_ecourts_lookup_parse_failed", extra={"index": value})
+        return {}
+    if not records:
+        return {}
+    record = records[0]
+    record.update(
+        {
+            "description": None,
+            "jury_demand": None,
+            "jurisdiction_type": None,
+            "date_argued": None,
+            "date_reargued": None,
+            "date_last_filing": None,
+            "appeal_from": None,
+            "panel": None,
+        }
+    )
+    return record
+
+
 async def get_docket(docket_id: int | str) -> dict[str, Any]:
     """Fetch one docket by its CourtListener id (or a Justia slug).
 
     Args:
-        docket_id: CourtListener docket id (int or numeric string), or a
-            Justia docket slug (non-numeric string) for the scrape fallback.
+        docket_id: CourtListener docket id (int or numeric string) — falls
+            back to a CourtListener PACER fetch when the RECAP archive is
+            missing it. A non-numeric string is treated as a Justia docket
+            slug (scrape fallback), then as a NY eCourts index number.
 
     Returns:
         Full docket record (see module docstring) or ``{}`` on failure
@@ -481,17 +706,24 @@ async def _get_docket(docket_id: int | str) -> dict[str, Any]:
         payload = await _fetch_json(f"{_BASE_URL}/dockets/{numeric}/")
         if payload is not None:
             return _map_docket_detail(payload)
+        # PACER fallback: trigger a CourtListener pacer-fetch for the docket
+        # (requires the ``pacer_fetch`` permission on the API token).
+        pacer = await _fetch_pacer_docket(numeric)
+        if pacer:
+            record = _map_docket_detail(pacer)
+            record["source"] = "pacer"
+            return record
         logger.warning("legal_dockets_cl_miss", extra={"docket_id": numeric})
         return {}
-    # Non-numeric: treat as a Justia docket slug and scrape metadata.
+    # Non-numeric: treat as a Justia docket slug and scrape metadata; when
+    # that misses, fall through to the NY eCourts index-number lookup.
     slug = str(docket_id).strip().lstrip("/")
     if not slug:
         return {}
     page = await _fetch_text(f"{_JUSTIA_BASE}/docket/{slug}")
-    if not page:
-        return {}
-    try:
-        return _parse_justia_docket(page, slug)
-    except (re.error, ValueError, TypeError):
-        logger.warning("legal_dockets_justia_docket_parse_failed", extra={"slug": slug})
-        return {}
+    if page:
+        try:
+            return _parse_justia_docket(page, slug)
+        except (re.error, ValueError, TypeError):
+            logger.warning("legal_dockets_justia_docket_parse_failed", extra={"slug": slug})
+    return await _lookup_ny_ecourts(slug)

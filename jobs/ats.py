@@ -16,6 +16,15 @@ that expose free, no-auth, no-anti-bot JSON boards:
 - Breezy HR  ``GET https://{company}.breezy.hr/json``
              (public careers feed; no auth, free JSON; a single response
              holds the whole board, no pagination)
+- SmartRecruiters ``GET https://api.smartrecruiters.com/v1/companies/{company}/postings``
+             (public postings API; no auth, free JSON; paginated
+             ``content`` array, rich per-posting detail endpoint)
+- Recruitee ``GET https://{company}.recruitee.com/api/offers``
+             (public offers API; no auth, free JSON; per-offer detail
+             endpoint carries description/requirements/salary)
+- Jobvite  ``GET https://{company}.jobvite.com/api/v1/jobs``
+             (public requisitions API; no auth, free JSON; the list items
+             embed the full description + apply URL)
 
 Each board's raw shape is normalized into the common listing schema:
 
@@ -61,6 +70,9 @@ SUPPORTED_BOARDS: tuple[str, ...] = (
     "workday",
     "workable",
     "breezy",
+    "smartrecruiters",
+    "recruitee",
+    "jobvite",
 )
 
 # A few known-good public boards used by ``search_jobs`` (verified live).
@@ -179,6 +191,26 @@ def _workable_url(company: str) -> str:
 
 def _breezy_url(company: str) -> str:
     return f"https://{company}.breezy.hr/json"
+
+
+def _smartrecruiters_url(company: str) -> str:
+    return f"https://api.smartrecruiters.com/v1/companies/{company}/postings"
+
+
+def _smartrecruiters_job_url(company: str, job_id: str) -> str:
+    return f"https://api.smartrecruiters.com/v1/companies/{company}/postings/{job_id}"
+
+
+def _recruitee_url(company: str) -> str:
+    return f"https://{company}.recruitee.com/api/offers"
+
+
+def _recruitee_job_url(company: str, job_id: str) -> str:
+    return f"https://{company}.recruitee.com/api/offers/{job_id}"
+
+
+def _jobvite_url(company: str) -> str:
+    return f"https://{company}.jobvite.com/api/v1/jobs"
 
 
 def _workday_site(company: str, site: str | None) -> str:
@@ -495,6 +527,89 @@ def _norm_breezy(raw: dict[str, Any], company: str) -> dict[str, Any]:
     }
 
 
+def _location_from_sr_location(raw: Any) -> str:
+    """Rebuild a location label from SmartRecruiters' structured location."""
+    if not isinstance(raw, dict):
+        return str(raw or "")
+    parts = [
+        str(raw.get(key) or "").strip()
+        for key in ("city", "region", "country")
+        if str(raw.get(key) or "").strip()
+    ]
+    return ", ".join(parts)
+
+
+def _norm_smartrecruiters(raw: dict[str, Any], company: str) -> dict[str, Any]:
+    location = _location_from_sr_location(raw.get("location"))
+    remote = bool((raw.get("location") or {}).get("remote")) or bool(raw.get("remote"))
+    if "remote" in location.lower():
+        remote = True
+    url = str(raw.get("applyUrl") or "")
+    if not url:
+        posting_id = str(raw.get("id") or "")
+        if posting_id:
+            url = f"https://jobs.smartrecruiters.com/{company}/{posting_id}"
+    return {
+        "id": str(raw.get("id") or ""),
+        "title": str(raw.get("name") or ""),
+        "company": company,
+        "location": location,
+        "remote": remote,
+        "url": url,
+        "posted_at": _normalize_dt(raw.get("releasedDate")),
+    }
+
+
+def _norm_recruitee(raw: dict[str, Any], company: str) -> dict[str, Any]:
+    location = str(raw.get("location") or "")
+    if not location:
+        bits = [
+            str(raw.get(key) or "").strip()
+            for key in ("city", "country")
+            if str(raw.get(key) or "").strip()
+        ]
+        location = ", ".join(bits)
+    remote = bool(raw.get("remote"))
+    if "remote" in location.lower():
+        remote = True
+    return {
+        "id": str(raw.get("id") or ""),
+        "title": str(raw.get("title") or ""),
+        "company": company,
+        "location": location,
+        "remote": remote,
+        "url": str(raw.get("careers_url") or ""),
+        "posted_at": _normalize_dt(raw.get("published_at")),
+    }
+
+
+def _norm_jobvite(raw: dict[str, Any], company: str) -> dict[str, Any]:
+    location = str(raw.get("location") or "")
+    if not location:
+        bits = [
+            str(raw.get(key) or "").strip()
+            for key in ("city", "state", "country")
+            if str(raw.get(key) or "").strip()
+        ]
+        location = ", ".join(bits)
+    remote_val = raw.get("remote")
+    remote = remote_val is True or (
+        isinstance(remote_val, str)
+        and remote_val.strip().lower() in {"remote", "yes", "true", "fully remote"}
+    )
+    if "remote" in location.lower():
+        remote = True
+    return {
+        "id": str(raw.get("id") or ""),
+        "title": str(raw.get("title") or ""),
+        "company": company,
+        "location": location,
+        "remote": remote,
+        "url": str(raw.get("applyUrl") or ""),
+        "posted_at": _normalize_dt(raw.get("date")),
+    }
+
+
 # ── Public: list_jobs ──────────────────────────────────────────────────
 async def list_jobs(
     company: str, board: str = "greenhouse", limit: int = 50, *, site: str | None = None
@@ -547,6 +662,18 @@ async def list_jobs(
             else:
                 raw_jobs = []
             items = [_norm_breezy(j, company) for j in raw_jobs if isinstance(j, dict)]
+        elif board == "smartrecruiters":
+            data = await _get_json(_smartrecruiters_url(company))
+            raw_jobs = ((data or {}).get("content") or []) if isinstance(data, dict) else []
+            items = [_norm_smartrecruiters(j, company) for j in raw_jobs if isinstance(j, dict)]
+        elif board == "recruitee":
+            data = await _get_json(_recruitee_url(company))
+            raw_jobs = ((data or {}).get("offers") or []) if isinstance(data, dict) else []
+            items = [_norm_recruitee(j, company) for j in raw_jobs if isinstance(j, dict)]
+        elif board == "jobvite":
+            data = await _get_json(_jobvite_url(company))
+            raw_jobs = ((data or {}).get("requisitions") or []) if isinstance(data, dict) else []
+            items = [_norm_jobvite(j, company) for j in raw_jobs if isinstance(j, dict)]
         else:  # workday
             site_name = _workday_site(company, site)
             data = await _post_json(
@@ -599,6 +726,10 @@ async def get_job(
     try:
         if board == "greenhouse":
             return await _get_job_greenhouse(company, job_id)
+        if board == "smartrecruiters":
+            return await _get_job_smartrecruiters(company, job_id)
+        if board == "recruitee":
+            return await _get_job_recruitee(company, job_id)
         item = await _find_in_board_list(company, board, job_id)
         if item is None:
             return {}
@@ -610,6 +741,8 @@ async def get_job(
             return _job_detail_from_workable(item, company)
         if board == "breezy":
             return _job_detail_from_breezy(item, company)
+        if board == "jobvite":
+            return _job_detail_from_jobvite(item, company)
         return _job_detail_from_workday(item, company)
     except _SAFE_EXCEPTIONS:
         logger.warning("ats_job_failed", extra={"board": board, "company": company})
@@ -664,6 +797,10 @@ async def _find_in_board_list(company: str, board: str, job_id: str) -> dict[str
         else:
             raw = []
         id_key = "posting_id"
+    elif board == "jobvite":
+        data = await _get_json(_jobvite_url(company))
+        raw = ((data or {}).get("requisitions") or []) if isinstance(data, dict) else []
+        id_key = "id"
     else:
         return None
     for item in raw:
@@ -765,4 +902,99 @@ def _job_detail_from_breezy(item: dict[str, Any], company: str) -> dict[str, Any
         "requirements": "",
         "compensation": str(item.get("salary") or ""),
         "url": str(item.get("apply_url") or item.get("url") or ""),
+    }
+
+
+def _compensation_from_sr_comp(comp: Any) -> str:
+    """SmartRecruiters ``compensation`` dict -> ``"min - max CURRENCY PERIOD"``."""
+    if not isinstance(comp, dict):
+        return ""
+    min_v = comp.get("min")
+    max_v = comp.get("max")
+    if min_v is None and max_v is None:
+        return ""
+    band = f"{min_v or ''} - {max_v or ''}".strip(" -")
+    parts = [band, str(comp.get("currency") or ""), str(comp.get("salaryPeriod") or "")]
+    return " ".join(p for p in parts if p).strip()
+
+
+async def _get_job_smartrecruiters(company: str, job_id: str) -> dict[str, Any]:
+    """SmartRecruiters posting detail (description / qualifications / comp)."""
+    data = await _get_json(_smartrecruiters_job_url(company, job_id))
+    if not isinstance(data, dict):
+        return {}
+    sections = (data.get("jobAd") or {}).get("sections") or {}
+    if not isinstance(sections, dict):
+        sections = {}
+    description = _strip_html(str((sections.get("jobDescription") or {}).get("text") or ""))
+    requirements = _strip_html(str((sections.get("qualifications") or {}).get("text") or ""))
+    url = str(data.get("applyUrl") or "")
+    if not url:
+        url = f"https://jobs.smartrecruiters.com/{company}/{job_id}"
+    return {
+        "title": str(data.get("name") or ""),
+        "company": company,
+        "location": _location_from_sr_location(data.get("location")),
+        "description": description,
+        "requirements": requirements,
+        "compensation": _compensation_from_sr_comp(data.get("compensation")),
+        "url": url,
+    }
+
+
+def _compensation_from_recruitee(offer: dict[str, Any]) -> str:
+    """Recruitee offer salary fields -> ``"CURRENCY min - max period"``."""
+    min_v = offer.get("salary_min")
+    max_v = offer.get("salary_max")
+    if min_v is None and max_v is None:
+        return ""
+    band = f"{min_v or ''} - {max_v or ''}".strip(" -")
+    parts = [str(offer.get("salary_currency") or ""), band, str(offer.get("salary_period") or "")]
+    return " ".join(p for p in parts if p).strip()
+
+
+async def _get_job_recruitee(company: str, job_id: str) -> dict[str, Any]:
+    """Recruitee offer detail (description / requirements / salary)."""
+    data = await _get_json(_recruitee_job_url(company, job_id))
+    if not isinstance(data, dict):
+        return {}
+    offer = data.get("offer")
+    if not isinstance(offer, dict) or not offer:
+        return {}
+    url = str(offer.get("careers_url") or "")
+    if not url:
+        url = f"https://{company}.recruitee.com/o/{job_id}"
+    return {
+        "title": str(offer.get("title") or ""),
+        "company": company,
+        "location": str(offer.get("location") or ""),
+        "description": _strip_html(str(offer.get("description") or "")),
+        "requirements": _strip_html(str(offer.get("requirements") or "")),
+        "compensation": _compensation_from_recruitee(offer),
+        "url": url,
+    }
+
+
+def _job_detail_from_jobvite(item: dict[str, Any], company: str) -> dict[str, Any]:
+    """Jobvite detail derived from the public list item.
+
+    The requisitions list carries the full (HTML) description and apply URL,
+    so no separate detail fetch is needed.
+    """
+    location = str(item.get("location") or "")
+    if not location:
+        bits = [
+            str(item.get(key) or "").strip()
+            for key in ("city", "state", "country")
+            if str(item.get(key) or "").strip()
+        ]
+        location = ", ".join(bits)
+    return {
+        "title": str(item.get("title") or ""),
+        "company": company,
+        "location": location,
+        "description": _strip_html(str(item.get("jobDescription") or "")),
+        "requirements": "",
+        "compensation": "",
+        "url": str(item.get("applyUrl") or ""),
     }

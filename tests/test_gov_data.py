@@ -34,6 +34,8 @@ from retry import RetryConfig
 from routers.gov_data import router as gov_router
 
 _SAM = "https://api.sam.gov/opportunities/v2/search"
+_GRANTS = "https://api.grants.gov/v2/search/opportunities/"
+_TED = "https://api.ted.europa.eu/v3/notices/search"
 _CPSC = "https://api.cpsc.gov/cpsc/v1/recalls"
 _FDA_FOOD = "https://api.fda.gov/food/enforcement.json"
 _FDA_DEVICE = "https://api.fda.gov/device/enforcement.json"
@@ -123,6 +125,45 @@ def _fda_payload(recall_number: str, date: str, classification: str) -> dict[str
     }
 
 
+def _grants_payload() -> dict[str, Any]:
+    return {
+        "success": True,
+        "message": "",
+        "data": {
+            "paging": {"page": 1, "limit": 25, "totalRecords": 1},
+            "opportunities": [
+                {
+                    "opportunityId": "326598",
+                    "opportunityTitle": "Rural Broadband Grant Program",
+                    "agencyName": "DEPARTMENT OF AGRICULTURE",
+                    "agencyCode": "USDA",
+                    "opportunityCategory": "Discretionary",
+                    "closeDate": "2026-06-01 23:59:59.000",
+                    "postedDate": "2026-01-15 00:00:00.000",
+                    "opportunityDetailUrl": "https://www.grants.gov/search-results-detail/326598",
+                }
+            ],
+        },
+    }
+
+
+def _ted_payload() -> dict[str, Any]:
+    return {
+        "total": 1,
+        "limit": 25,
+        "offset": 0,
+        "notices": [
+            {
+                "OJS_number": "2023/S 123-456789",
+                "title": {"en": "Aircraft maintenance services"},
+                "buyer": {"name": "Ministry of Defence"},
+                "type": "Contract Notice",
+                "submission_deadline": "2023-12-31T12:00:00",
+            }
+        ],
+    }
+
+
 # ── procurement: search ────────────────────────────────────────────────
 
 
@@ -147,10 +188,17 @@ async def test_search_opportunities_success(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 @respx.mock
-async def test_search_opportunities_no_key_returns_empty() -> None:
-    results = await procurement.search_opportunities("aircraft maintenance")
-    assert results == []
-    assert respx.calls.call_count == 0
+async def test_search_opportunities_no_key_falls_through_to_keyless_sources() -> None:
+    # No PRY_SAM_API_KEY → SAM skipped, grants.gov fills in (no auth).
+    respx.post(_GRANTS).mock(return_value=httpx.Response(200, json=_grants_payload()))
+    results = await procurement.search_opportunities("rural broadband")
+    assert len(results) == 1
+    assert results[0]["source"] == "grants_gov"
+    assert results[0]["id"] == "326598"
+    assert results[0]["title"] == "Rural Broadband Grant Program"
+    assert results[0]["due_date"] == "2026-06-01 23:59:59"
+    # SAM was never hit (no key), grants.gov was.
+    assert not any(str(call.request.url).startswith(_SAM) for call in respx.calls)
 
 
 @respx.mock
@@ -159,6 +207,8 @@ async def test_search_opportunities_http_error_returns_empty(
 ) -> None:
     monkeypatch.setenv("PRY_SAM_API_KEY", "test-key")
     respx.get(url__startswith=_SAM).mock(return_value=httpx.Response(500))
+    respx.post(_GRANTS).mock(return_value=httpx.Response(500))
+    respx.post(_TED).mock(return_value=httpx.Response(500))
     assert await procurement.search_opportunities("aircraft maintenance") == []
 
 
@@ -168,12 +218,82 @@ async def test_search_opportunities_malformed_payload_returns_empty(
 ) -> None:
     monkeypatch.setenv("PRY_SAM_API_KEY", "test-key")
     respx.get(url__startswith=_SAM).mock(return_value=httpx.Response(200, json={"nope": True}))
+    respx.post(_GRANTS).mock(return_value=httpx.Response(200, json={"nope": True}))
+    respx.post(_TED).mock(return_value=httpx.Response(200, json={"nope": True}))
     assert await procurement.search_opportunities("aircraft maintenance") == []
 
 
 @respx.mock
 async def test_search_opportunities_empty_query_returns_empty() -> None:
     assert await procurement.search_opportunities("   ") == []
+    assert respx.calls.call_count == 0
+
+
+@respx.mock
+async def test_search_opportunities_falls_back_to_grants_gov(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # SAM errors → grants.gov fills in.
+    monkeypatch.setenv("PRY_SAM_API_KEY", "test-key")
+    respx.get(url__startswith=_SAM).mock(return_value=httpx.Response(500))
+    respx.post(_GRANTS).mock(return_value=httpx.Response(200, json=_grants_payload()))
+    results = await procurement.search_opportunities("rural broadband", limit=5)
+    assert len(results) == 1
+    assert results[0]["source"] == "grants_gov"
+    assert results[0]["agency"] == "DEPARTMENT OF AGRICULTURE"
+    assert results[0]["type"] == "Discretionary"
+    assert results[0]["url"] == "https://www.grants.gov/search-results-detail/326598"
+
+
+@respx.mock
+async def test_search_opportunities_falls_back_to_ted(monkeypatch: pytest.MonkeyPatch) -> None:
+    # SAM + grants.gov both fail → TED (EU) fills in.
+    monkeypatch.setenv("PRY_SAM_API_KEY", "test-key")
+    respx.get(url__startswith=_SAM).mock(return_value=httpx.Response(500))
+    respx.post(_GRANTS).mock(return_value=httpx.Response(500))
+    respx.post(_TED).mock(return_value=httpx.Response(200, json=_ted_payload()))
+    results = await procurement.search_opportunities("aircraft maintenance", limit=5)
+    assert len(results) == 1
+    record = results[0]
+    assert record["source"] == "ted"
+    assert record["id"] == "2023/S 123-456789"
+    assert record["title"] == "Aircraft maintenance services"
+    assert record["agency"] == "Ministry of Defence"
+    assert record["url"] == "https://ted.europa.eu/en/notice/-/detail/2023/S 123-456789"
+
+
+# ── procurement: search_grants ─────────────────────────────────────────
+
+
+@respx.mock
+async def test_search_grants_success() -> None:
+    respx.post(_GRANTS).mock(return_value=httpx.Response(200, json=_grants_payload()))
+    results = await procurement.search_grants("rural broadband", limit=5)
+    assert len(results) == 1
+    assert results[0]["source"] == "grants_gov"
+    assert results[0]["id"] == "326598"
+    assert results[0]["due_date"] == "2026-06-01 23:59:59"
+
+
+@respx.mock
+async def test_search_grants_falls_back_to_ted() -> None:
+    respx.post(_GRANTS).mock(return_value=httpx.Response(500))
+    respx.post(_TED).mock(return_value=httpx.Response(200, json=_ted_payload()))
+    results = await procurement.search_grants("aircraft", limit=5)
+    assert len(results) == 1
+    assert results[0]["source"] == "ted"
+    assert results[0]["id"] == "2023/S 123-456789"
+
+
+@respx.mock
+async def test_search_grants_never_raises() -> None:
+    respx.post(_GRANTS).mock(return_value=httpx.Response(500))
+    respx.post(_TED).mock(return_value=httpx.Response(500))
+    assert await procurement.search_grants("aircraft") == []
+
+
+async def test_search_grants_blank_query() -> None:
+    assert await procurement.search_grants("   ") == []
     assert respx.calls.call_count == 0
 
 

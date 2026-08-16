@@ -36,6 +36,8 @@ from travel.flights import _build_tfs, _extract_af_callbacks, _find_flight_optio
 _FLIGHTS_URL = "https://www.google.com/travel/flights/"
 _HOTELS_GOOGLE_URL = "https://www.google.com/travel/hotels"
 _HOTELS_BOOKING_URL = "https://www.booking.com/searchresults.html"
+_HOTELS_KAYAK_URL = "https://www.kayak.com/hotels"
+_HOTELS_EXPEDIA_URL = "https://www.expedia.com/Hotel-Search"
 
 
 @pytest.fixture(autouse=True)
@@ -162,6 +164,37 @@ def _booking_html() -> str:
 def _booking_regex_html() -> str:
     """Booking.com page with no JSON blocks — regex price fallback path."""
     return '<html><body><div data-price="210">Some hotel</div><span>\u20ac180</span></body></html>'
+
+
+def _kayak_html() -> str:
+    """A Kayak hotel page with an embedded ``window.__INITIAL_STATE__``."""
+    payload = {
+        "data": {
+            "hotels": [
+                {"name": "The Chelsea Hotel", "price": {"price": 245, "currency": "USD"}},
+                {"name": "The Bowery Hotel", "price": {"price": 312, "currency": "USD"}},
+            ]
+        }
+    }
+    return (
+        "<!DOCTYPE html><html><body>"
+        "<script>window.__INITIAL_STATE__ = " + json.dumps(payload) + ";</script>"
+        "</body></html>"
+    )
+
+
+def _expedia_html() -> str:
+    """An Expedia hotel page with JSON-LD structured data."""
+    ld = {
+        "@type": "Hotel",
+        "name": "Grand Hyatt New York",
+        "offers": {"@type": "Offer", "price": 289, "priceCurrency": "USD"},
+    }
+    return (
+        "<!DOCTYPE html><html><head>"
+        '<script type="application/ld+json">' + json.dumps(ld) + "</script>"
+        "</head><body></body></html>"
+    )
 
 
 # ── tfs encoder ────────────────────────────────────────────────────────
@@ -464,6 +497,66 @@ def test_find_booking_rates_empty() -> None:
     assert hotels._find_booking_rates("<html><body>nothing</body></html>") == []
 
 
+# ── hotels: Kayak / Expedia parsers ───────────────────────────────────
+
+
+def test_extract_embedded_object_parses_state() -> None:
+    data = hotels._extract_embedded_object(_kayak_html(), "window.__INITIAL_STATE__")
+    assert data is not None
+    assert data["data"]["hotels"][0]["name"] == "The Chelsea Hotel"
+
+
+def test_extract_embedded_object_missing() -> None:
+    assert (
+        hotels._extract_embedded_object(
+            "<html><body>nothing</body></html>", "window.__INITIAL_STATE__"
+        )
+        is None
+    )
+    assert hotels._extract_embedded_object("", "window.__INITIAL_STATE__") is None
+
+
+def test_find_kayak_rates() -> None:
+    data = hotels._extract_embedded_object(_kayak_html(), "window.__INITIAL_STATE__")
+    rates = hotels._find_kayak_rates(data)
+    assert rates == [
+        {"hotel": "The Chelsea Hotel", "price_per_night": 245, "currency": "USD", "total": None},
+        {"hotel": "The Bowery Hotel", "price_per_night": 312, "currency": "USD", "total": None},
+    ]
+
+
+def test_find_kayak_rates_empty_and_garbage() -> None:
+    assert hotels._find_kayak_rates(None) == []
+    assert hotels._find_kayak_rates({"data": [1, 2, 3]}) == []
+    assert hotels._find_kayak_rates({"data": {"hotels": [{"name": "No Price"}]}}) == []
+
+
+def test_extract_json_ld_parses_blocks() -> None:
+    blocks = hotels._extract_json_ld(_expedia_html())
+    assert len(blocks) == 1
+    assert blocks[0]["name"] == "Grand Hyatt New York"
+
+
+def test_extract_json_ld_skips_malformed() -> None:
+    html = (
+        '<script type="application/ld+json">not json</script>'
+        '<script type="application/ld+json">{"name": "OK"}</script>'
+    )
+    blocks = hotels._extract_json_ld(html)
+    assert [b["name"] for b in blocks] == ["OK"]
+
+
+def test_find_expedia_rates_json_ld() -> None:
+    rates = hotels._find_expedia_rates(_expedia_html())
+    assert rates == [
+        {"hotel": "Grand Hyatt New York", "price_per_night": 289, "currency": "USD", "total": None}
+    ]
+
+
+def test_find_expedia_rates_empty() -> None:
+    assert hotels._find_expedia_rates("<html><body>no ld+json</body></html>") == []
+
+
 # ── hotels: get_hotel_rates (mocked HTTP) ──────────────────────────────
 
 
@@ -503,6 +596,12 @@ async def test_get_hotel_rates_google_empty_booking_empty_unavailable() -> None:
         respx.get(url__startswith=_HOTELS_BOOKING_URL).mock(
             return_value=httpx.Response(200, text="<html><body>no hotels</body></html>")
         )
+        respx.get(url__startswith=_HOTELS_KAYAK_URL).mock(
+            return_value=httpx.Response(200, text="<html><body>no hotels</body></html>")
+        )
+        respx.get(url__startswith=_HOTELS_EXPEDIA_URL).mock(
+            return_value=httpx.Response(200, text="<html><body>no hotels</body></html>")
+        )
         result = await hotels.get_hotel_rates("Nowhere Hotel", "2026-09-01", "2026-09-03")
     assert result["rates"] == []
     assert result["availability"] == "unavailable"
@@ -512,6 +611,8 @@ async def test_get_hotel_rates_all_http_fail_unknown() -> None:
     with respx.mock:
         respx.get(url__startswith=_HOTELS_GOOGLE_URL).mock(return_value=httpx.Response(503))
         respx.get(url__startswith=_HOTELS_BOOKING_URL).mock(return_value=httpx.Response(503))
+        respx.get(url__startswith=_HOTELS_KAYAK_URL).mock(return_value=httpx.Response(503))
+        respx.get(url__startswith=_HOTELS_EXPEDIA_URL).mock(return_value=httpx.Response(503))
         result = await hotels.get_hotel_rates("Some Hotel", "2026-09-01", "2026-09-03")
     assert result["rates"] == []
     assert result["availability"] == "unknown"
@@ -524,6 +625,45 @@ async def test_get_hotel_rates_invalid_inputs() -> None:
     result = await hotels.get_hotel_rates("Hotel", "not-a-date", "2026-09-03")
     assert result["rates"] == []
     assert result["availability"] == "unknown"
+
+
+async def test_get_hotel_rates_kayak_fallback() -> None:
+    with respx.mock:
+        respx.get(url__startswith=_HOTELS_GOOGLE_URL).mock(
+            return_value=httpx.Response(200, text="<html><body>no hotels</body></html>")
+        )
+        respx.get(url__startswith=_HOTELS_BOOKING_URL).mock(
+            return_value=httpx.Response(200, text="<html><body>no hotels</body></html>")
+        )
+        respx.get(url__startswith=_HOTELS_KAYAK_URL).mock(
+            return_value=httpx.Response(200, text=_kayak_html())
+        )
+        result = await hotels.get_hotel_rates("Chelsea Hotel", "2026-09-01", "2026-09-03")
+    assert result["availability"] == "available"
+    assert result["rates"] == [
+        {"site": "kayak", "price_per_night": 245, "currency": "USD", "total": None}
+    ]
+
+
+async def test_get_hotel_rates_expedia_fallback_last() -> None:
+    with respx.mock:
+        respx.get(url__startswith=_HOTELS_GOOGLE_URL).mock(
+            return_value=httpx.Response(200, text="<html><body>no hotels</body></html>")
+        )
+        respx.get(url__startswith=_HOTELS_BOOKING_URL).mock(
+            return_value=httpx.Response(200, text="<html><body>no hotels</body></html>")
+        )
+        respx.get(url__startswith=_HOTELS_KAYAK_URL).mock(
+            return_value=httpx.Response(200, text="<html><body>no hotels</body></html>")
+        )
+        respx.get(url__startswith=_HOTELS_EXPEDIA_URL).mock(
+            return_value=httpx.Response(200, text=_expedia_html())
+        )
+        result = await hotels.get_hotel_rates("Grand Hyatt", "2026-09-01", "2026-09-03")
+    assert result["availability"] == "available"
+    assert result["rates"] == [
+        {"site": "expedia", "price_per_night": 289, "currency": "USD", "total": None}
+    ]
 
 
 # ── router tests ───────────────────────────────────────────────────────

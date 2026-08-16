@@ -33,6 +33,11 @@ ASHBY_URL = "https://api.ashbyhq.com/posting-api/job-board/linear?includeCompens
 WORKDAY_URL = "https://acme.wd1.myworkdayjobs.com/wday/cxs/acme/acme/jobs"
 WORKABLE_URL = "https://apply.workable.com/api/v3/accounts/acme/jobs"
 BREEZY_URL = "https://acme.breezy.hr/json"
+SMARTRECRUITERS_URL = "https://api.smartrecruiters.com/v1/companies/acme/postings"
+SMARTRECRUITERS_JOB_URL = "https://api.smartrecruiters.com/v1/companies/acme/postings/sr-1"
+RECRUITEE_URL = "https://acme.recruitee.com/api/offers"
+RECRUITEE_JOB_URL = "https://acme.recruitee.com/api/offers/7001"
+JOBVITE_URL = "https://acme.jobvite.com/api/v1/jobs"
 LEVELS_URL = "https://www.levels.fyi/companies/google/salaries/software-engineer"
 LEVELS_HOME = "https://www.levels.fyi/"
 
@@ -143,6 +148,66 @@ BREEZY_JOBS: list[dict[str, Any]] = [
         "is_remote": False,
     },
 ]
+
+SMARTRECRUITERS_JOBS: dict[str, Any] = {
+    "content": [
+        {
+            "id": "sr-1",
+            "name": "DevOps Engineer",
+            "releasedDate": "2026-08-08T00:00:00Z",
+            "location": {"city": "Seattle", "region": "WA", "country": "US", "remote": True},
+            "applyUrl": "https://jobs.smartrecruiters.com/acme/sr-1",
+        },
+        {
+            "id": "sr-2",
+            "name": "Mobile Engineer",
+            "releasedDate": "2026-08-09T00:00:00Z",
+            "location": {"city": "New York", "region": "NY", "country": "US"},
+            "applyUrl": "https://jobs.smartrecruiters.com/acme/sr-2",
+        },
+    ]
+}
+
+RECRUITEE_JOBS: dict[str, Any] = {
+    "offers": [
+        {
+            "id": 7001,
+            "title": "QA Engineer",
+            "location": "Austin, TX",
+            "city": "Austin",
+            "country": "US",
+            "careers_url": "https://acme.recruitee.com/o/qa-engineer",
+            "published_at": "2026-08-10T00:00:00Z",
+            "remote": False,
+        },
+        {
+            "id": 7002,
+            "title": "Support Engineer",
+            "location": "Remote",
+            "city": "Remote",
+            "country": "US",
+            "careers_url": "https://acme.recruitee.com/o/support-engineer",
+            "published_at": "2026-08-11T00:00:00Z",
+            "remote": True,
+        },
+    ]
+}
+
+JOBVITE_JOBS: dict[str, Any] = {
+    "requisitions": [
+        {
+            "id": "jv-1",
+            "title": "Site Reliability Engineer",
+            "location": "Remote, US",
+            "city": "Remote",
+            "state": "US",
+            "country": "United States",
+            "jobDescription": "<p>Keep things up.</p>",
+            "applyUrl": "https://jobs.jobvite.com/acme/jobs/jv-1/apply",
+            "date": "2026-08-12T00:00:00Z",
+        }
+    ]
+}
 
 LEVELS_HTML = """<!DOCTYPE html><html><head><title>Google SWE Salaries</title></head><body>
 <script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{
@@ -298,6 +363,146 @@ async def test_get_job_breezy_detail() -> None:
     assert result["location"] == "Remote, US"
     assert result["compensation"] == "$60k - $75k"
     assert result["url"] == "https://acme.breezy.hr/p/bz-1"
+
+
+# ── list_jobs: SmartRecruiters / Recruitee / Jobvite ─────────────────
+@respx.mock
+async def test_list_jobs_smartrecruiters_normalizes_schema() -> None:
+    respx.get(SMARTRECRUITERS_URL).mock(return_value=httpx.Response(200, json=SMARTRECRUITERS_JOBS))
+    items = await ats.list_jobs("acme", board="smartrecruiters")
+    assert len(items) == 2
+    first = items[0]
+    assert set(first) == {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    assert first["id"] == "sr-1"
+    assert first["title"] == "DevOps Engineer"
+    assert first["company"] == "acme"
+    assert first["location"] == "Seattle, WA, US"
+    assert first["remote"] is True
+    assert first["url"] == "https://jobs.smartrecruiters.com/acme/sr-1"
+    assert first["posted_at"] == "2026-08-08T00:00:00+00:00"
+    assert items[1]["remote"] is False
+
+
+@respx.mock
+async def test_list_jobs_recruitee_normalizes_schema() -> None:
+    respx.get(RECRUITEE_URL).mock(return_value=httpx.Response(200, json=RECRUITEE_JOBS))
+    items = await ats.list_jobs("acme", board="recruitee")
+    assert len(items) == 2
+    first = items[0]
+    assert set(first) == {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    assert first["id"] == "7001"
+    assert first["title"] == "QA Engineer"
+    assert first["location"] == "Austin, TX"
+    assert first["remote"] is False
+    assert first["posted_at"] == "2026-08-10T00:00:00+00:00"
+    assert items[1]["remote"] is True
+
+
+@respx.mock
+async def test_list_jobs_jobvite_normalizes_schema() -> None:
+    respx.get(JOBVITE_URL).mock(return_value=httpx.Response(200, json=JOBVITE_JOBS))
+    items = await ats.list_jobs("acme", board="jobvite")
+    assert len(items) == 1
+    first = items[0]
+    assert set(first) == {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    assert first["id"] == "jv-1"
+    assert first["title"] == "Site Reliability Engineer"
+    assert first["location"] == "Remote, US"
+    assert first["remote"] is True
+    assert first["url"] == "https://jobs.jobvite.com/acme/jobs/jv-1/apply"
+    assert first["posted_at"] == "2026-08-12T00:00:00+00:00"
+
+
+@respx.mock
+async def test_list_jobs_smartrecruiters_http_error_returns_empty() -> None:
+    respx.get(SMARTRECRUITERS_URL).mock(return_value=httpx.Response(500))
+    assert await ats.list_jobs("acme", board="smartrecruiters") == []
+
+
+@respx.mock
+async def test_list_jobs_recruitee_bad_json_returns_empty() -> None:
+    respx.get(RECRUITEE_URL).mock(return_value=httpx.Response(200, text="<html>nope</html>"))
+    assert await ats.list_jobs("acme", board="recruitee") == []
+
+
+# ── get_job: SmartRecruiters / Recruitee / Jobvite ────────────────────
+@respx.mock
+async def test_get_job_smartrecruiters_detail() -> None:
+    detail = {
+        "id": "sr-1",
+        "name": "DevOps Engineer",
+        "location": {"city": "Seattle", "region": "WA", "country": "US", "remote": True},
+        "applyUrl": "https://jobs.smartrecruiters.com/acme/sr-1",
+        "compensation": {"currency": "USD", "min": 120000, "max": 180000, "salaryPeriod": "YEAR"},
+        "jobAd": {
+            "sections": {
+                "jobDescription": {"text": "<p>Run the fleet.</p>", "label": "Job Description"},
+                "qualifications": {
+                    "text": "<p>5+ years Kubernetes.</p>",
+                    "label": "Qualifications",
+                },
+            }
+        },
+    }
+    respx.get(SMARTRECRUITERS_JOB_URL).mock(return_value=httpx.Response(200, json=detail))
+    result = await ats.get_job("sr-1", board="smartrecruiters", company="acme")
+    assert result["title"] == "DevOps Engineer"
+    assert result["company"] == "acme"
+    assert result["location"] == "Seattle, WA, US"
+    assert "Run the fleet" in result["description"]
+    assert "5+ years Kubernetes" in result["requirements"]
+    assert result["compensation"] == "120000 - 180000 USD YEAR"
+    assert result["url"] == "https://jobs.smartrecruiters.com/acme/sr-1"
+
+
+@respx.mock
+async def test_get_job_smartrecruiters_detail_error_returns_empty() -> None:
+    respx.get(SMARTRECRUITERS_JOB_URL).mock(return_value=httpx.Response(404))
+    assert await ats.get_job("sr-1", board="smartrecruiters", company="acme") == {}
+
+
+@respx.mock
+async def test_get_job_recruitee_detail() -> None:
+    detail = {
+        "offer": {
+            "id": 7001,
+            "title": "QA Engineer",
+            "location": "Austin, TX",
+            "description": "<p>Write tests.</p>",
+            "requirements": "<ul><li>Python</li></ul>",
+            "careers_url": "https://acme.recruitee.com/o/qa-engineer",
+            "salary_min": 90000,
+            "salary_max": 120000,
+            "salary_currency": "USD",
+            "salary_period": "yearly",
+        }
+    }
+    respx.get(RECRUITEE_JOB_URL).mock(return_value=httpx.Response(200, json=detail))
+    result = await ats.get_job("7001", board="recruitee", company="acme")
+    assert result["title"] == "QA Engineer"
+    assert result["company"] == "acme"
+    assert result["location"] == "Austin, TX"
+    assert "Write tests" in result["description"]
+    assert "Python" in result["requirements"]
+    assert result["compensation"] == "USD 90000 - 120000 yearly"
+    assert result["url"] == "https://acme.recruitee.com/o/qa-engineer"
+
+
+@respx.mock
+async def test_get_job_recruitee_detail_missing_offer_returns_empty() -> None:
+    respx.get(RECRUITEE_JOB_URL).mock(return_value=httpx.Response(200, json={"offer": {}}))
+    assert await ats.get_job("7001", board="recruitee", company="acme") == {}
+
+
+@respx.mock
+async def test_get_job_jobvite_detail() -> None:
+    respx.get(JOBVITE_URL).mock(return_value=httpx.Response(200, json=JOBVITE_JOBS))
+    result = await ats.get_job("jv-1", board="jobvite", company="acme")
+    assert result["title"] == "Site Reliability Engineer"
+    assert result["company"] == "acme"
+    assert result["location"] == "Remote, US"
+    assert "Keep things up" in result["description"]
+    assert result["url"] == "https://jobs.jobvite.com/acme/jobs/jv-1/apply"
 
 
 # ── list_jobs: degradation ─────────────────────────────────────────────

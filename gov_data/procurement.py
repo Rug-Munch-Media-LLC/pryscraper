@@ -1,16 +1,30 @@
-"""Federal procurement opportunities — free SAM.gov Opportunities API v2.
+"""Federal/EU procurement opportunities — SAM.gov, grants.gov, TED.
 
 SAM.gov publishes federal solicitations / contract opportunities through a
 public REST API. Anonymous access is not supported: a free API key
 (https://sam.gov/content/webservices) must be set via the ``PRY_SAM_API_KEY``
 env var and is sent as the ``api_key`` query parameter. Without a key every
-function degrades to ``[]`` / ``{}`` (never raises) — the module still works
-fully when a key is configured.
+SAM.gov function degrades to ``[]`` / ``{}`` and the fallback sources take
+over (never raises).
+
+Sources, in fallback order (a source is only consulted when the previous one
+yields nothing, so one provider down never empties the answer):
+
+1. **SAM.gov Opportunities v2** — ``api.sam.gov`` (primary, ``source="sam_gov"``,
+   requires ``PRY_SAM_API_KEY``).
+2. **grants.gov v2 search API** — ``api.grants.gov/v2/search/opportunities/``
+   (``source="grants_gov"``; free, no API key; grant + contract opportunities).
+3. **TED (Tenders Electronic Daily, EU)** — ``api.ted.europa.eu/v3/notices/search``
+   (``source="ted"``; free, no API key; EU public procurement notices).
 
 Contract
 --------
 * :func:`search_opportunities` — async, never raises, returns a ``list``
-  (``[]`` on failure). Searches federal opportunities by keyword ``query``.
+  (``[]`` on failure). Searches procurement opportunities by keyword across
+  the SAM.gov → grants.gov → TED fallback chain.
+* :func:`search_grants` — async, never raises, returns a ``list`` (``[]`` on
+  failure). Searches grant opportunities on grants.gov → TED (no API key
+  needed).
 * :func:`get_opportunity` — async, never raises, returns a ``dict`` (``{}``
   on failure). Fetches one opportunity by its SAM.gov ``noticeId``.
 
@@ -30,11 +44,15 @@ Result shapes
         "source": "sam_gov",
     }
 
+``source`` is ``"grants_gov"`` for grants.gov records and ``"ted"`` for TED
+notices; the non-SAM sources leave ``naics`` / ``set_aside`` as ``None``.
+
 ``get_opportunity`` returns the same shape (``{}`` when the notice id does
 not exist).
 
 Free-API terms: https://api.sam.gov/opportunities/v2/search — the v2 API
-caps page size at 200. Backoff: 2 retries, exponential (0.4s -> 1.6s).
+caps page size at 200. grants.gov v2 caps page size at 100; TED v3 at 100.
+Backoff: 2 retries, exponential (0.4s -> 1.6s).
 
 Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 Licensed under MIT. See LICENSE.
@@ -58,6 +76,8 @@ from retry import RetryConfig, async_retry
 logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://api.sam.gov/opportunities/v2/search"
+_GRANTS_GOV_URL = "https://api.grants.gov/v2/search/opportunities/"
+_TED_URL = "https://api.ted.europa.eu/v3/notices/search"
 _TIMEOUT = httpx.Timeout(20.0)
 _RETRY_CONFIG = RetryConfig(
     max_retries=2,
@@ -76,6 +96,7 @@ _HEADERS = {
 # Free API key: https://sam.gov/content/webservices
 _API_KEY_ENV = "PRY_SAM_API_KEY"
 _MAX_LIMIT = 200  # SAM.gov Opportunities v2 caps page size at 200
+_KEYLESS_MAX_LIMIT = 100  # grants.gov v2 / TED v3 both cap page size at 100
 
 
 def _api_key() -> str:
@@ -88,6 +109,16 @@ def _as_text(value: Any) -> str | None:
     if value is None:
         return None
     text = str(value).strip()
+    return text or None
+
+
+def _normalize_due(value: str | None) -> str | None:
+    """Strip fractional seconds from API due dates (e.g. '2026-01-15 23:59:59.000')."""
+    if not value:
+        return None
+    text = value.strip()
+    if "." in text:
+        text = text.split(".", 1)[0]
     return text or None
 
 
@@ -109,6 +140,83 @@ def _map_opportunity(raw: dict[str, Any]) -> dict[str, Any]:
         "url": url,
         "source": "sam_gov",
     }
+
+
+def _map_grants_gov(raw: dict[str, Any]) -> dict[str, Any]:
+    """Map a grants.gov v2 search hit onto the canonical record."""
+    opportunity_id = _as_text(raw.get("opportunityId"))
+    url = _as_text(raw.get("opportunityDetailUrl"))
+    if not url and opportunity_id:
+        url = f"https://www.grants.gov/search-results-detail/{opportunity_id}"
+    return {
+        "id": opportunity_id,
+        "title": _as_text(raw.get("opportunityTitle")),
+        "agency": _as_text(raw.get("agencyName")) or _as_text(raw.get("agencyCode")),
+        "type": _as_text(raw.get("opportunityCategory")),
+        "naics": None,
+        "set_aside": None,
+        "due_date": _normalize_due(_as_text(raw.get("closeDate"))),
+        "url": url,
+        "source": "grants_gov",
+    }
+
+
+def _ted_title(raw: Any) -> str | None:
+    """Extract a human-readable title from a TED notice's multilingual dict."""
+    if isinstance(raw, dict):
+        for lang in ("en", "EN", "en-GB"):
+            value = raw.get(lang)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        for value in raw.values():
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    if isinstance(raw, str):
+        return raw.strip() or None
+    return None
+
+
+def _map_ted(raw: dict[str, Any]) -> dict[str, Any]:
+    """Map a TED (EU) v3 notice onto the canonical record."""
+    notice_id = _as_text(raw.get("OJS_number"))
+    buyer = raw.get("buyer")
+    agency = _as_text(buyer.get("name")) if isinstance(buyer, dict) else None
+    url = f"https://ted.europa.eu/en/notice/-/detail/{notice_id}" if notice_id else None
+    return {
+        "id": notice_id,
+        "title": _ted_title(raw.get("title"))
+        or (f"TED notice {notice_id}" if notice_id else "TED notice"),
+        "agency": agency,
+        "type": _as_text(raw.get("type")) or "TED Notice",
+        "naics": None,
+        "set_aside": None,
+        "due_date": _normalize_due(_as_text(raw.get("submission_deadline"))),
+        "url": url,
+        "source": "ted",
+    }
+
+
+async def _fetch_json_post(url: str, body: dict[str, Any]) -> dict[str, Any] | None:
+    """POST JSON ``body`` to ``url`` and return the parsed object, or ``None``.
+
+    Used by the keyless grants.gov and TED search endpoints.
+    """
+
+    async def _one() -> dict[str, Any]:
+        async with httpx.AsyncClient(
+            timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True
+        ) as client:
+            response = await client.post(url, json=body)
+            response.raise_for_status()
+            payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError("procurement POST payload is not an object")
+        return payload
+
+    try:
+        return await async_retry(_one, config=_RETRY_CONFIG)
+    except (httpx.HTTPError, OSError, ValueError):
+        return None
 
 
 async def _fetch_opportunities(params: dict[str, str]) -> list[dict[str, Any]] | None:
@@ -139,15 +247,19 @@ async def _fetch_opportunities(params: dict[str, str]) -> list[dict[str, Any]] |
 
 # ── Public API ─────────────────────────────────────────────────────────
 async def search_opportunities(query: str, limit: int = 20) -> list[dict[str, Any]]:
-    """Search federal contract opportunities by keyword.
+    """Search procurement opportunities by keyword.
+
+    Sources are consulted in fallback order — SAM.gov (needs
+    ``PRY_SAM_API_KEY``), grants.gov, then TED (EU) — so one provider being
+    down (or unconfigured) never empties the result.
 
     Args:
         query: Keyword search string (e.g. ``"aircraft maintenance"``).
-        limit: Max results to return (1-200; API caps page size at 200).
+        limit: Max results to return (1-200; source APIs cap page sizes).
 
     Returns:
         A list of opportunity records (see module docstring). ``[]`` on
-        failure (no API key, network error, bad payload). Never raises.
+        failure (network error, bad payload). Never raises.
     """
     try:
         return await _search_opportunities(query, limit)
@@ -159,6 +271,20 @@ async def search_opportunities(query: str, limit: int = 20) -> list[dict[str, An
 async def _search_opportunities(query: str, limit: int) -> list[dict[str, Any]]:
     if not query or not query.strip():
         return []
+    clamped = max(1, min(int(limit), _MAX_LIMIT))
+
+    results = await _search_sam(query, clamped)
+    if results:
+        return results
+
+    results = await _search_grants_gov(query, clamped)
+    if results:
+        return results
+
+    return await _search_ted(query, clamped)
+
+
+async def _search_sam(query: str, limit: int) -> list[dict[str, Any]]:
     key = _api_key()
     if not key:
         logger.warning("gov_sam_api_key_missing")
@@ -166,13 +292,90 @@ async def _search_opportunities(query: str, limit: int) -> list[dict[str, Any]]:
     params: dict[str, str] = {
         "api_key": key,
         "q": query.strip(),
-        "limit": str(max(1, min(int(limit), _MAX_LIMIT))),
+        "limit": str(limit),
         "page": "0",
     }
     data = await _fetch_opportunities(params)
     if data is None:
         return []
     return [_map_opportunity(raw) for raw in data if isinstance(raw, dict)]
+
+
+async def _search_grants_gov(query: str, limit: int) -> list[dict[str, Any]]:
+    """grants.gov v2 search (keyless POST)."""
+    payload = await _fetch_json_post(
+        _GRANTS_GOV_URL,
+        {
+            "keyword": query.strip(),
+            "page": 1,
+            "limit": max(1, min(limit, _KEYLESS_MAX_LIMIT)),
+            "sortBy": "postedDate",
+            "sortOrder": "desc",
+        },
+    )
+    if payload is None:
+        return []
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        return []
+    opportunities = data.get("opportunities")
+    if not isinstance(opportunities, list):
+        return []
+    return [_map_grants_gov(raw) for raw in opportunities if isinstance(raw, dict)]
+
+
+async def _search_ted(query: str, limit: int) -> list[dict[str, Any]]:
+    """TED (EU) v3 notices search (keyless POST)."""
+    payload = await _fetch_json_post(
+        _TED_URL,
+        {
+            "query": query.strip(),
+            "limit": max(1, min(limit, _KEYLESS_MAX_LIMIT)),
+            "offset": 0,
+            "fields": ["OJS_number", "title", "buyer", "type", "submission_deadline"],
+        },
+    )
+    if payload is None:
+        return []
+    notices = payload.get("notices")
+    if not isinstance(notices, list):
+        return []
+    return [_map_ted(raw) for raw in notices if isinstance(raw, dict)]
+
+
+async def search_grants(query: str, limit: int = 20) -> list[dict[str, Any]]:
+    """Search grant opportunities on grants.gov (→ TED fallback).
+
+    Unlike :func:`search_opportunities`, this focuses on grant (and
+    discretionary) funding: grants.gov is the primary source, and when it
+    returns nothing (or fails), the search falls back to the EU's TED
+    notices. No API key is required.
+
+    Args:
+        query: Keyword search string (e.g. ``"rural broadband"``).
+        limit: Max results to return (1-100).
+
+    Returns:
+        A list of opportunity records (see module docstring; ``source`` is
+        ``"grants_gov"`` or ``"ted"``). ``[]`` on failure. Never raises.
+    """
+    try:
+        return await _search_grants(query, limit)
+    except Exception:
+        logger.exception("gov_procurement_search_grants_crashed", extra={"query": query})
+        return []
+
+
+async def _search_grants(query: str, limit: int) -> list[dict[str, Any]]:
+    if not query or not query.strip():
+        return []
+    clamped = max(1, min(int(limit), _KEYLESS_MAX_LIMIT))
+
+    results = await _search_grants_gov(query, clamped)
+    if results:
+        return results
+
+    return await _search_ted(query, clamped)
 
 
 async def get_opportunity(notice_id: str | int) -> dict[str, Any]:

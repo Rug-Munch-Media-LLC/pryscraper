@@ -40,7 +40,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _CL_BASE = "https://www.courtlistener.com/api/rest/v4"
+_PACER_FETCH = f"{_CL_BASE}/pacer-fetch/"
 _JUSTIA = "https://dockets.justia.com"
+_NY_ECOURTS = "https://iapps.courts.state.ny.us/webcivil/FCASSearch"
 _FTS = "https://efts.sec.gov/LATEST/search-index"
 _TICKERS = "https://www.sec.gov/files/company_tickers.json"
 _SUBMISSIONS = "https://data.sec.gov/submissions/CIK0000320193.json"
@@ -256,6 +258,9 @@ async def test_dockets_search_never_raises_on_401() -> None:
             401, json={"detail": "Authentication credentials were not provided."}
         )
     )
+    respx.get(url__startswith=f"{_CL_BASE}/search/?").mock(return_value=httpx.Response(401))
+    respx.get(url__startswith=f"{_JUSTIA}/search").mock(return_value=httpx.Response(403))
+    respx.post(_NY_ECOURTS).mock(return_value=httpx.Response(403))
     assert await dockets.search_dockets("bitcoin") == []
 
 
@@ -280,6 +285,7 @@ async def test_dockets_get_never_raises_on_404() -> None:
     respx.get(url__regex=rf"{re.escape(_CL_BASE)}/dockets/999/$").mock(
         return_value=httpx.Response(404, json={})
     )
+    respx.post(_PACER_FETCH).mock(return_value=httpx.Response(404, json={}))
     assert await dockets.get_docket(999) == {}
 
 
@@ -290,8 +296,10 @@ async def test_dockets_get_invalid_id() -> None:
 @respx.mock
 async def test_dockets_get_invalid_slug_degrades() -> None:
     # A non-numeric id is treated as a Justia slug; when the scrape fails
-    # (404 / network) the lookup degrades to {}.
+    # (404 / network) and the NY eCourts lookup also misses, the lookup
+    # degrades to {}.
     respx.get(url__startswith=f"{_JUSTIA}/docket/").mock(return_value=httpx.Response(404))
+    respx.post(_NY_ECOURTS).mock(return_value=httpx.Response(404))
     assert await dockets.get_docket("not-an-int") == {}
 
 
@@ -344,6 +352,8 @@ async def test_dockets_search_recap_never_raises_on_error() -> None:
         return_value=httpx.Response(200, json={"results": []})
     )
     respx.get(url__startswith=f"{_CL_BASE}/search/?").mock(return_value=httpx.Response(500))
+    respx.get(url__startswith=f"{_JUSTIA}/search").mock(return_value=httpx.Response(500))
+    respx.post(_NY_ECOURTS).mock(return_value=httpx.Response(500))
     assert await dockets.search_dockets("bankruptcy") == []
 
 
@@ -399,6 +409,7 @@ async def test_dockets_search_justia_scrape_never_raises() -> None:
         return_value=httpx.Response(200, json={"results": []})
     )
     respx.get(url__startswith=f"{_JUSTIA}/search").mock(return_value=httpx.Response(403))
+    respx.post(_NY_ECOURTS).mock(return_value=httpx.Response(403))
     assert await dockets.search_dockets("example") == []
 
 
@@ -421,6 +432,127 @@ async def test_dockets_get_justia_slug_fallback() -> None:
     assert (
         out["url"] == "https://dockets.justia.com/docket/new-york-southern-district-court/example-1"
     )
+
+
+# ── PACER docket lookup (CourtListener pacer-fetch) ────────────────────
+
+
+def _pacer_payload() -> dict[str, Any]:
+    return {
+        "id": 999,
+        "case_name": "In re PACER Corp.",
+        "docket_number": "1:24-bk-00099",
+        "court": "nyb",
+        "date_filed": "2024-05-01",
+        "date_terminated": None,
+        "nature_of_suit": "Bankruptcy",
+        "cause": None,
+        "description": "PACER-fetched bankruptcy docket",
+        "jury_demand": "None",
+        "jurisdiction_type": "Federal Question",
+        "date_argued": None,
+        "date_reargued": None,
+        "date_last_filing": None,
+        "appeal_from": None,
+        "panel": None,
+    }
+
+
+@respx.mock
+async def test_dockets_get_pacer_fallback() -> None:
+    # CourtListener detail misses (not in RECAP archive) → pacer-fetch POST.
+    respx.get(url__regex=rf"{re.escape(_CL_BASE)}/dockets/999/$").mock(
+        return_value=httpx.Response(404, json={})
+    )
+    respx.post(_PACER_FETCH).mock(return_value=httpx.Response(201, json=_pacer_payload()))
+    out = await dockets.get_docket(999)
+    assert out["id"] == 999
+    assert out["case_name"] == "In re PACER Corp."
+    assert out["docket_number"] == "1:24-bk-00099"
+    assert out["description"] == "PACER-fetched bankruptcy docket"
+    assert out["source"] == "pacer"
+
+
+@respx.mock
+async def test_dockets_get_pacer_never_raises() -> None:
+    respx.get(url__regex=rf"{re.escape(_CL_BASE)}/dockets/42/$").mock(
+        return_value=httpx.Response(404, json={})
+    )
+    respx.post(_PACER_FETCH).mock(return_value=httpx.Response(401, json={}))
+    assert await dockets.get_docket(42) == {}
+
+
+# ── NY eCourts (state civil) source ────────────────────────────────────
+
+
+def _ny_ecourts_html() -> str:
+    return """<html><body><table>
+<tr class="data">
+  <td>651256/2023</td><td>Contract</td><td>11/08/2023</td>
+  <td>&nbsp;</td><td>ACME CORP</td><td>EXAMPLE LLC</td>
+</tr>
+<tr class="data">
+  <td>650001/2022</td><td>Tort</td><td>02/14/2022</td>
+  <td>HON JUDGE</td><td>JANE DOE</td><td>GLOBEX INC</td>
+</tr>
+</table></body></html>"""
+
+
+@respx.mock
+async def test_dockets_search_state_fallback() -> None:
+    # CourtListener + RECAP + Justia all empty → NY eCourts state search.
+    respx.get(url__startswith=f"{_CL_BASE}/dockets/?").mock(
+        return_value=httpx.Response(200, json={"results": []})
+    )
+    respx.get(url__startswith=f"{_CL_BASE}/search/?").mock(
+        return_value=httpx.Response(200, json={"results": []})
+    )
+    respx.get(url__startswith=f"{_JUSTIA}/search").mock(
+        return_value=httpx.Response(200, json={"results": []}),
+        # Justia scrape returns a page with no case blocks → parser yields [].
+    )
+    respx.post(_NY_ECOURTS).mock(return_value=httpx.Response(200, text=_ny_ecourts_html()))
+    out = await dockets.search_dockets("example llc", limit=5)
+    assert len(out) == 2
+    first = out[0]
+    assert first["source"] == "state_ny"
+    assert first["case_name"] == "EXAMPLE LLC"
+    assert first["docket_number"] == "651256/2023"
+    assert first["id"] == "651256/2023"
+    assert first["date_filed"] == "2023-11-08"
+    assert first["nature_of_suit"] == "Contract"
+    assert "New York" in first["court"]
+    assert _NY_ECOURTS in first["url"]
+
+
+@respx.mock
+async def test_dockets_search_state_never_raises() -> None:
+    respx.get(url__startswith=f"{_CL_BASE}/dockets/?").mock(
+        return_value=httpx.Response(200, json={"results": []})
+    )
+    respx.get(url__startswith=f"{_CL_BASE}/search/?").mock(
+        return_value=httpx.Response(200, json={"results": []})
+    )
+    respx.get(url__startswith=f"{_JUSTIA}/search").mock(
+        return_value=httpx.Response(200, text="<html></html>")
+    )
+    respx.post(_NY_ECOURTS).mock(return_value=httpx.Response(500))
+    assert await dockets.search_dockets("example") == []
+
+
+@respx.mock
+async def test_dockets_get_state_fallback() -> None:
+    # Justia docket scrape misses → NY eCourts index-number lookup.
+    respx.get(url__startswith=f"{_JUSTIA}/docket/").mock(return_value=httpx.Response(404))
+    respx.post(_NY_ECOURTS).mock(return_value=httpx.Response(200, text=_ny_ecourts_html()))
+    out = await dockets.get_docket("651256/2023")
+    assert out["source"] == "state_ny"
+    assert out["case_name"] == "EXAMPLE LLC"
+    assert out["docket_number"] == "651256/2023"
+    assert out["date_filed"] == "2023-11-08"
+    # Detail shape: the lookup fills the extended keys with None.
+    assert out["description"] is None
+    assert out["panel"] is None
 
 
 # ── SEC EDGAR filings ──────────────────────────────────────────────────

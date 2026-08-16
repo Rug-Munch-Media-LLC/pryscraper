@@ -208,6 +208,91 @@ def _redfin_detail_payload() -> dict[str, Any]:
     }
 
 
+def _apartments_search_html() -> str:
+    """An Apartments.com SRP page with a ``__PRELOADED_STATE__`` blob."""
+    payload = {
+        "place": {
+            "listings": [
+                {
+                    "id": "apt-1",
+                    "name": "The Aster Apartments",
+                    "address": {
+                        "streetAddress": "100 Congress Ave",
+                        "city": "Austin",
+                        "state": "TX",
+                        "postalCode": "78701",
+                    },
+                    "price": {"min": 1450, "max": 2200},
+                    "beds": {"min": 1, "max": 2},
+                    "baths": {"min": 1, "max": 2},
+                    "sqft": {"min": 650, "max": 1100},
+                    "detailUrl": "/austin-tx/the-aster-apartments/apt-1/",
+                },
+                {
+                    "id": "apt-2",
+                    "name": "Domain Lofts",
+                    "address": {
+                        "streetAddress": "500 Domain Dr",
+                        "city": "Austin",
+                        "state": "TX",
+                        "postalCode": "78758",
+                    },
+                    "price": {"min": 1800},
+                    "beds": {"min": 2},
+                    "baths": {"min": 2},
+                    "sqft": {"min": 900},
+                    "detailUrl": "/austin-tx/domain-lofts/apt-2/",
+                },
+            ]
+        }
+    }
+    return (
+        "<!DOCTYPE html><html><head></head><body>"
+        '<script type="application/json" id="__PRELOADED_STATE__">'
+        + json.dumps(payload)
+        + "</script></body></html>"
+    )
+
+
+def _zumper_search_html() -> str:
+    """A Zumper rent-search page with a ``window.__NUXT__`` state blob."""
+    payload = {
+        "data": {
+            "rentals": [
+                {
+                    "id": "z-1",
+                    "title": "Charming Bungalow",
+                    "address": "701 Rainey St",
+                    "city": "Austin",
+                    "state": "TX",
+                    "price": {"min": 2100, "max": 2400},
+                    "bedrooms": 2,
+                    "bathrooms": 1.5,
+                    "sqft": 950,
+                    "url": "https://www.zumper.com/austin-tx/charming-bungalow/z-1",
+                },
+                {
+                    "id": "z-2",
+                    "title": "Skyline Condo",
+                    "address": "300 E 6th St",
+                    "city": "Austin",
+                    "state": "TX",
+                    "price": {"min": 2600},
+                    "bedrooms": 1,
+                    "bathrooms": 1,
+                    "sqft": 700,
+                    "url": "https://www.zumper.com/austin-tx/skyline-condo/z-2",
+                },
+            ]
+        }
+    }
+    return (
+        "<!DOCTYPE html><html><head></head><body>"
+        "<script>window.__NUXT__ = " + json.dumps(payload) + ";</script>"
+        "</body></html>"
+    )
+
+
 def _arcgis_payload() -> dict[str, Any]:
     return {
         "features": [
@@ -242,6 +327,41 @@ def test_extract_next_data_parses() -> None:
 def test_extract_next_data_missing() -> None:
     assert listings._extract_next_data("<html><body><p>no json here</p></body></html>") is None
     assert listings._extract_next_data("<script>window.__NEXT_DATA__ = {}</script>") is None
+
+
+def test_extract_preloaded_state_parses() -> None:
+    data = listings._extract_preloaded_state(_apartments_search_html())
+    assert data is not None
+    assert data["place"]["listings"][0]["name"] == "The Aster Apartments"
+
+
+def test_extract_preloaded_state_missing() -> None:
+    assert listings._extract_preloaded_state("<html><body>no state</body></html>") is None
+    assert (
+        listings._extract_preloaded_state('<script id="__PRELOADED_STATE__">not json</script>')
+        is None
+    )
+
+
+def test_extract_nuxt_state_parses() -> None:
+    data = listings._extract_nuxt_state(_zumper_search_html())
+    assert data is not None
+    assert len(data["data"]["rentals"]) == 2
+    assert data["data"]["rentals"][0]["id"] == "z-1"
+
+
+def test_extract_nuxt_state_missing() -> None:
+    assert listings._extract_nuxt_state("<html><body>no nuxt</body></html>") is None
+    assert listings._extract_nuxt_state("window.__NUXT__ = {oops}") is None
+
+
+def test_is_bot_page_detects_walls() -> None:
+    assert listings._is_bot_page("<html>Just a moment... checking your browser</html>") is True
+    assert (
+        listings._is_bot_page('<html><div id="captcha">Verify you are human</div></html>') is True
+    )
+    assert listings._is_bot_page("<html><body>normal listings page</body></html>") is False
+    assert listings._is_bot_page("") is False
 
 
 def test_slugify() -> None:
@@ -353,6 +473,32 @@ async def test_get_listing_http_500_never_raises(respx_mock) -> None:
     assert result == {}
 
 
+@respx.mock(assert_all_mocked=False)
+async def test_get_listing_apartments_fallback_when_zillow_redfin_fail(respx_mock) -> None:
+    respx_mock.get(url__startswith="https://www.apartments.com/2064710495/").mock(
+        return_value=httpx.Response(200, text=_apartments_search_html())
+    )
+    result = await listings.get_listing("2064710495")
+    assert result["source"] == "apartments"
+    assert result["price"] == 1450
+    assert result["bed"] == 1
+    assert result["status"] == "For rent"
+
+
+@respx.mock(assert_all_mocked=False)
+async def test_get_listing_zumper_fallback_last(respx_mock) -> None:
+    respx_mock.get(url__startswith="https://www.apartments.com/2064710495/").mock(
+        return_value=httpx.Response(200, text="<html><body>no data</body></html>")
+    )
+    respx_mock.get(url__startswith="https://www.zumper.com/rentals/2064710495").mock(
+        return_value=httpx.Response(200, text=_zumper_search_html())
+    )
+    result = await listings.get_listing("2064710495")
+    assert result["source"] == "zumper"
+    assert result["price"] == 2100
+    assert result["bed"] == 2
+
+
 # ── search_listings async tests (mocked HTTP) ─────────────────────────
 
 
@@ -431,6 +577,95 @@ async def test_search_listings_clamps_limit(monkeypatch: pytest.MonkeyPatch) -> 
     assert captured["limit"] == 50
     await listings.search_listings("Austin", limit=0)
     assert captured["limit"] == 1
+
+
+# ── search_listings: Apartments.com / Zumper rental fallbacks ─────────
+
+
+@respx.mock(assert_all_mocked=False)
+async def test_search_listings_apartments_fallback_for_rent(respx_mock) -> None:
+    respx_mock.get(url__startswith="https://www.apartments.com/austin-tx/").mock(
+        return_value=httpx.Response(200, text=_apartments_search_html())
+    )
+    result = await listings.search_listings("Austin, TX", status="for_rent", limit=10)
+    assert len(result) == 2
+    first = result[0]
+    assert first["source"] == "apartments"
+    assert first["price"] == 1450
+    assert first["bed"] == 1
+    assert first["bath"] == 1
+    assert first["sqft"] == 650
+    assert first["status"] == "For rent"
+    assert first["address"] == "The Aster Apartments, 100 Congress Ave, Austin, TX 78701"
+    assert first["url"].startswith("https://www.apartments.com")
+    assert result[1]["price"] == 1800
+
+
+@respx.mock(assert_all_mocked=False)
+async def test_search_listings_zumper_fallback_after_apartments_fail(respx_mock) -> None:
+    respx_mock.get(url__startswith="https://www.apartments.com/austin-tx/").mock(
+        return_value=httpx.Response(200, text="<html><body>no listings</body></html>")
+    )
+    respx_mock.get(url__startswith="https://www.zumper.com/rent-search/austin-tx").mock(
+        return_value=httpx.Response(200, text=_zumper_search_html())
+    )
+    result = await listings.search_listings("Austin, TX", status="for_rent", limit=10)
+    assert len(result) == 2
+    first = result[0]
+    assert first["source"] == "zumper"
+    assert first["price"] == 2100
+    assert first["bed"] == 2
+    assert first["bath"] == 1.5
+    assert first["sqft"] == 950
+    assert first["status"] == "For rent"
+    assert first["address"] == "Charming Bungalow, 701 Rainey St"
+    assert first["url"].startswith("https://www.zumper.com")
+    assert result[1]["price"] == 2600
+
+
+@respx.mock(assert_all_mocked=False, assert_all_called=False)
+async def test_search_listings_for_sale_skips_rental_sources(respx_mock) -> None:
+    apt_route = respx_mock.get(url__startswith="https://www.apartments.com/").mock(
+        return_value=httpx.Response(200, text=_apartments_search_html())
+    )
+    z_route = respx_mock.get(url__startswith="https://www.zumper.com/").mock(
+        return_value=httpx.Response(200, text=_zumper_search_html())
+    )
+    result = await listings.search_listings("Nowhere, XX", status="for_sale")
+    assert result == []
+    assert not apt_route.called
+    assert not z_route.called
+
+
+@respx.mock(assert_all_mocked=False)
+async def test_search_listings_bot_walls_all_sources_empty(respx_mock) -> None:
+    respx_mock.get(url__startswith="https://www.apartments.com/austin-tx/").mock(
+        return_value=httpx.Response(
+            200, text="<html><body>Just a moment... (Cloudflare challenge)</body></html>"
+        )
+    )
+    respx_mock.get(url__startswith="https://www.zumper.com/rent-search/austin-tx").mock(
+        return_value=httpx.Response(
+            200, text="<html><body>Access denied by PerimeterX</body></html>"
+        )
+    )
+    result = await listings.search_listings("Austin, TX", status="for_rent")
+    assert result == []
+
+
+@respx.mock(assert_all_mocked=False)
+async def test_search_listings_apartments_bot_wall_falls_to_zumper(respx_mock) -> None:
+    respx_mock.get(url__startswith="https://www.apartments.com/austin-tx/").mock(
+        return_value=httpx.Response(
+            200, text='<html><div id="captcha">Verify you are human</div></html>'
+        )
+    )
+    respx_mock.get(url__startswith="https://www.zumper.com/rent-search/austin-tx").mock(
+        return_value=httpx.Response(200, text=_zumper_search_html())
+    )
+    result = await listings.search_listings("Austin, TX", status="for_rent")
+    assert len(result) == 2
+    assert result[0]["source"] == "zumper"
 
 
 # ── robots.txt policy ─────────────────────────────────────────────────

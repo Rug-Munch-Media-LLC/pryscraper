@@ -1,4 +1,4 @@
-"""Real-estate listings — Zillow page parsing with Redfin fallback.
+"""Real-estate listings — Zillow page parsing with Redfin / Apartments.com / Zumper fallbacks.
 
 Zillow has no public listing API since 2021, so listings are extracted from
 the public ``www.zillow.com`` pages themselves: the Next.js pages embed a
@@ -7,11 +7,24 @@ contains the listing/search payload as JSON. This module parses that embedded
 JSON directly — no paid API, no credentials.
 
 When Zillow is unreachable or returns a non-200/parseable page, ``search``
-falls back to Redfin's public ``/stingray/api/gis`` endpoint (the JSONP
-endpoint Redfin's own website uses; returns ``{}&&{...}`` wrapped JSON).
-Redfin's per-home detail endpoint (``/stingray/api/home/details/initialInfo``)
-is attempted for single-listing lookups but is bot-protected from many
-networks — it degrades to ``{}`` when blocked.
+falls back through a guarded chain:
+
+1. Redfin's public ``/stingray/api/gis`` endpoint (the JSONP endpoint
+   Redfin's own website uses; returns ``{}&&{...}`` wrapped JSON). Redfin's
+   per-home detail endpoint (``/stingray/api/home/details/initialInfo``)
+   is attempted for single-listing lookups but is bot-protected from many
+   networks — it degrades to ``{}`` when blocked.
+2. Apartments.com (rentals only) — ``https://www.apartments.com/{location}/``
+   parses the embedded ``__PRELOADED_STATE__`` JSON.
+3. Zumper (rentals only) — ``https://www.zumper.com/rent-search/{location}``
+   parses the embedded ``window.__NUXT__`` JSON.
+
+Apartments.com and Zumper are rental-only sources: they are only consulted
+when ``status="for_rent"``, and both sit behind aggressive anti-bot walls.
+When a page looks like a CAPTCHA / challenge wall (Cloudflare, PerimeterX,
+"Access denied", "Just a moment"), the source is treated as blocked and
+flagged in the logs rather than parsed as an empty result — the honest
+signal is "we could not read this source", never fabricated listings.
 
 Contract (both functions)
 -------------------------
@@ -57,6 +70,8 @@ logger = logging.getLogger(__name__)
 
 ZILLOW_BASE = "https://www.zillow.com"
 REDFIN_BASE = "https://www.redfin.com"
+APARTMENTS_BASE = "https://www.apartments.com"
+ZUMPER_BASE = "https://www.zumper.com"
 
 _TIMEOUT = httpx.Timeout(12.0)
 _RETRY_CONFIG = RetryConfig(
@@ -311,6 +326,89 @@ def _extract_next_data(html: str) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
+# ── Apartments.com / Zumper embedded-state extraction ─────────────────
+_PRELOADED_STATE_RE = re.compile(
+    r'<script[^>]*id="__PRELOADED_STATE__"[^>]*>(.*?)</script>',
+    re.DOTALL,
+)
+_NUXT_STATE_RE = re.compile(r"window\.__NUXT__\s*=", re.DOTALL)
+# Anti-bot walls (Cloudflare / PerimeterX / CAPTCHA) must be flagged
+# honestly instead of being parsed as empty results.
+_BOT_MARKERS_RE = re.compile(
+    r"captcha|cf-challenge|cloudflare|access denied|just a moment|"
+    r"are you a human|perimeterx|puzzle|verify you are human",
+    re.IGNORECASE,
+)
+
+
+def _extract_preloaded_state(html: str) -> dict[str, Any] | None:
+    """Pull the Apartments.com ``__PRELOADED_STATE__`` JSON blob."""
+    match = _PRELOADED_STATE_RE.search(html)
+    if not match:
+        return None
+    try:
+        data = json.loads(match.group(1))
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _extract_nuxt_state(html: str) -> dict[str, Any] | None:
+    """Pull the Zumper ``window.__NUXT__`` JSON state (balanced-brace scan).
+
+    The Nuxt payload is a plain JS object literal assigned to
+    ``window.__NUXT__`` (not wrapped in a script tag with a JSON id), so a
+    small string-aware brace scanner finds the matching close brace before
+    decoding. Returns ``None`` on any failure.
+    """
+    match = _NUXT_STATE_RE.search(html)
+    if not match:
+        return None
+    start = match.end()
+    while start < len(html) and html[start] not in "{[":  # allow arrays too
+        start += 1
+    if start >= len(html) or html[start] != "{":
+        return None
+    opener = html[start]
+    closer = "}" if opener == "{" else "]"
+    depth = 0
+    in_string = False
+    escape = False
+    i = start
+    while i < len(html):
+        ch = html[i]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+        else:
+            if ch == '"':
+                in_string = True
+            elif ch == opener:
+                depth += 1
+            elif ch == closer:
+                depth -= 1
+                if depth == 0:
+                    break
+        i += 1
+    if depth != 0:
+        return None
+    raw = html[start : i + 1]
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _is_bot_page(html: str) -> bool:
+    """True when a page looks like a CAPTCHA / challenge wall (first 20KB)."""
+    return bool(html and _BOT_MARKERS_RE.search(html[:20000]))
+
+
 def _collect_dicts(obj: Any, out: list[dict[str, Any]], depth: int = 0) -> None:
     """Recursively collect every dict in a JSON tree (max depth 16 / 8000 nodes).
 
@@ -389,7 +487,7 @@ def _format_address(raw: Any) -> str:
     street = raw.get("streetAddress") or raw.get("streetAddressLine") or ""
     city = raw.get("city") or ""
     state = raw.get("state") or ""
-    zipcode = raw.get("zipcode") or raw.get("zip") or ""
+    zipcode = raw.get("zipcode") or raw.get("zip") or raw.get("postalCode") or ""
     parts = [str(street).strip(), str(city).strip()]
     state_zip = " ".join(p for p in (str(state).strip(), str(zipcode).strip()) if p)
     if state_zip:
@@ -612,13 +710,189 @@ async def _redfin_listing_fallback(zillow_id: str) -> dict[str, Any]:
     return _normalize_redfin_detail(info, zillow_id)
 
 
+# ── Apartments.com / Zumper (rental-only fallbacks) ───────────────────
+async def _fetch_rental_page(url: str) -> str | None:
+    """Fetch a rental-source page; None on failure **or** a bot wall.
+
+    Apartments.com and Zumper are heavily bot-protected. When the response
+    looks like a CAPTCHA / challenge page we log it and return None — the
+    honest signal is "blocked", not an empty result.
+    """
+    html = await _fetch_page(url)
+    if html is None:
+        return None
+    if _is_bot_page(html):
+        logger.warning("real_estate_rental_bot_wall", extra={"url": url[:80]})
+        return None
+    return html
+
+
+def _apartments_records(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Walk an Apartments.com ``__PRELOADED_STATE__`` tree for listings."""
+    dicts: list[dict[str, Any]] = []
+    _collect_dicts(data, dicts)
+    out: list[dict[str, Any]] = []
+    for record in dicts:
+        if not isinstance(record, dict):
+            continue
+        if not record.get("name"):
+            continue
+        if not isinstance(record.get("price"), (dict, int, float)):
+            continue
+        if not (record.get("address") or record.get("detailUrl")):
+            continue
+        out.append(record)
+    return out
+
+
+def _zumper_records(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Walk a Zumper ``__NUXT__`` tree for rental records."""
+    dicts: list[dict[str, Any]] = []
+    _collect_dicts(data, dicts)
+    out: list[dict[str, Any]] = []
+    for record in dicts:
+        if not isinstance(record, dict):
+            continue
+        if not (record.get("title") or record.get("name")):
+            continue
+        if not isinstance(record.get("price"), (dict, int, float)):
+            continue
+        out.append(record)
+    return out
+
+
+def _normalize_apartments_listing(record: dict[str, Any], base_url: str) -> dict[str, Any]:
+    """Map an Apartments.com listing record to the canonical schema."""
+    name = str(record.get("name") or "")
+    address = (
+        _format_address(record.get("address"))
+        if isinstance(record.get("address"), dict)
+        else str(record.get("address") or "")
+    )
+    if name and name not in address:
+        address = f"{name}, {address}".strip(", ") if address else name
+    url = str(record.get("detailUrl") or "")
+    if url.startswith("/"):
+        url = f"{APARTMENTS_BASE}{url}"
+    return {
+        "address": address,
+        "price": _to_int(record.get("price")),
+        "price_history": [],
+        "zestimate": None,
+        "bed": _to_int(record.get("beds")),
+        "bath": _to_float(record.get("baths")),
+        "sqft": _to_int(record.get("sqft")),
+        "days_on_market": None,
+        "hoa": None,
+        "url": url or base_url,
+        "source": "apartments",
+        "status": "For rent",
+        "robots_allowed": True,
+    }
+
+
+def _normalize_zumper_listing(record: dict[str, Any], base_url: str) -> dict[str, Any]:
+    """Map a Zumper rental record to the canonical schema."""
+    name = str(record.get("title") or record.get("name") or "")
+    address = str(record.get("address") or "")
+    if name and name not in address:
+        address = f"{name}, {address}".strip(", ") if address else name
+    url = str(record.get("url") or "")
+    if url.startswith("/"):
+        url = f"{ZUMPER_BASE}{url}"
+    return {
+        "address": address,
+        "price": _to_int(record.get("price")),
+        "price_history": [],
+        "zestimate": None,
+        "bed": _to_int(record.get("bedrooms") or record.get("beds")),
+        "bath": _to_float(record.get("bathrooms") or record.get("baths")),
+        "sqft": _to_int(record.get("sqft")),
+        "days_on_market": None,
+        "hoa": None,
+        "url": url or base_url,
+        "source": "zumper",
+        "status": "For rent",
+        "robots_allowed": True,
+    }
+
+
+async def _search_apartments(location: str, limit: int) -> list[dict[str, Any]]:
+    slug = _slugify(location)
+    if not slug:
+        return []
+    url = f"{APARTMENTS_BASE}/{slug}/"
+    html = await _fetch_rental_page(url)
+    if html is None:
+        return []
+    data = _extract_preloaded_state(html)
+    if data is None:
+        return []
+    out: list[dict[str, Any]] = []
+    for record in _apartments_records(data):
+        out.append(_normalize_apartments_listing(record, url))
+        if len(out) >= limit:
+            break
+    return out
+
+
+async def _search_zumper(location: str, limit: int) -> list[dict[str, Any]]:
+    slug = _slugify(location)
+    if not slug:
+        return []
+    url = f"{ZUMPER_BASE}/rent-search/{slug}"
+    html = await _fetch_rental_page(url)
+    if html is None:
+        return []
+    data = _extract_nuxt_state(html)
+    if data is None:
+        return []
+    out: list[dict[str, Any]] = []
+    for record in _zumper_records(data):
+        out.append(_normalize_zumper_listing(record, url))
+        if len(out) >= limit:
+            break
+    return out
+
+
+async def _apartments_listing_fallback(zillow_id: str) -> dict[str, Any]:
+    """Best-effort Apartments.com single-listing lookup by id (often 404)."""
+    url = f"{APARTMENTS_BASE}/{quote(zillow_id)}/"
+    html = await _fetch_rental_page(url)
+    if html is None:
+        return {}
+    data = _extract_preloaded_state(html)
+    if data is None:
+        return {}
+    records = _apartments_records(data)
+    if not records:
+        return {}
+    return _normalize_apartments_listing(records[0], url)
+
+
+async def _zumper_listing_fallback(zillow_id: str) -> dict[str, Any]:
+    """Best-effort Zumper single-listing lookup by id (often 404)."""
+    url = f"{ZUMPER_BASE}/rentals/{quote(zillow_id)}"
+    html = await _fetch_rental_page(url)
+    if html is None:
+        return {}
+    data = _extract_nuxt_state(html)
+    if data is None:
+        return {}
+    records = _zumper_records(data)
+    if not records:
+        return {}
+    return _normalize_zumper_listing(records[0], url)
+
+
 # ── Public API ─────────────────────────────────────────────────────────
 async def get_listing(zillow_id: str) -> dict[str, Any]:
     """Look up a single Zillow listing by its zpid. Never raises.
 
     Primary source is the Zillow homedetails page's embedded ``__NEXT_DATA__``
-    JSON. Redfin's home-detail endpoint is used as a best-effort fallback when
-    Zillow is unreachable or unparsable. Returns ``{}`` on any failure.
+    JSON. When Zillow is unreachable or unparsable the guarded fallback chain
+    runs: Redfin home-detail endpoint, then (best-effort, usually 404)
+    Apartments.com and Zumper by id. Returns ``{}`` on any failure.
     """
     try:
         return await _get_listing(zillow_id)
@@ -631,14 +905,30 @@ async def _get_listing(zillow_id: str) -> dict[str, Any]:
     listing_url = f"{ZILLOW_BASE}/homedetails/{zillow_id}_zpid/"
     html = await _fetch_page(listing_url)
     if html is None:
-        return await _redfin_listing_fallback(zillow_id)
+        return await _listing_fallbacks(zillow_id)
     data = _extract_next_data(html)
     if data is None:
-        return await _redfin_listing_fallback(zillow_id)
+        return await _listing_fallbacks(zillow_id)
     record = _parse_zillow_listing(data, listing_url)
     if not record.get("address") and record.get("price") is None:
-        return await _redfin_listing_fallback(zillow_id)
+        return await _listing_fallbacks(zillow_id)
     return record
+
+
+async def _listing_fallbacks(zillow_id: str) -> dict[str, Any]:
+    """Guarded single-listing fallback chain: Redfin -> Apartments -> Zumper.
+
+    The Apartments.com / Zumper lookups treat ``zillow_id`` as the listing id
+    on those sites; like the Redfin path lookup they are best-effort and
+    usually 404 for a Zillow-only id. Each step never raises.
+    """
+    redfin = await _redfin_listing_fallback(zillow_id)
+    if redfin:
+        return redfin
+    apartments = await _apartments_listing_fallback(zillow_id)
+    if apartments:
+        return apartments
+    return await _zumper_listing_fallback(zillow_id)
 
 
 async def search_listings(
@@ -646,8 +936,10 @@ async def search_listings(
 ) -> list[dict[str, Any]]:
     """Search listings for a location. Never raises; ``[]`` on failure.
 
-    Zillow SRP page first (embedded ``__NEXT_DATA__``), Redfin GIS API as the
-    fallback. ``status`` is one of ``for_sale`` / ``for_rent`` / ``sold``.
+    Fallback chain: Zillow SRP page (embedded ``__NEXT_DATA__``) -> Redfin
+    GIS API -> Apartments.com (``for_rent`` only, embedded
+    ``__PRELOADED_STATE__``) -> Zumper (``for_rent`` only, embedded
+    ``__NUXT__``). ``status`` is one of ``for_sale`` / ``for_rent`` / ``sold``.
     """
     try:
         return await _search_listings(location, status, limit)
@@ -664,7 +956,17 @@ async def _search_listings(location: str, status: str, limit: int) -> list[dict[
     zillow_results = await _search_zillow(location, status, limit)
     if zillow_results:
         return zillow_results
-    return await _search_redfin(location, status, limit)
+    redfin_results = await _search_redfin(location, status, limit)
+    if redfin_results:
+        return redfin_results
+    # Apartments.com and Zumper are rental-only sources: only consulted for
+    # for_rent searches, so for_sale/sold never hit the rental chain.
+    if status != "for_rent":
+        return []
+    apartments_results = await _search_apartments(location, limit)
+    if apartments_results:
+        return apartments_results
+    return await _search_zumper(location, limit)
 
 
 async def _search_zillow(location: str, status: str, limit: int) -> list[dict[str, Any]]:

@@ -1,4 +1,4 @@
-"""Regulatory & compliance monitoring — FDA / FTC / CFPB / SEC enforcement.
+"""Regulatory & compliance monitoring — FDA / FTC / CFPB / SEC / EPA / OSHA / DOJ.
 
 Aggregates free, no-auth public sources for enforcement actions and
 consumer complaints. Used for mandatory compliance spend / regulatory
@@ -15,17 +15,30 @@ Sources
   ``consumerfinance.gov/data-research/consumer-complaints/api``.
 * **SEC** — EDGAR full-text search (``efts.sec.gov/LATEST/search-index``)
   plus the AAER / administrative-proceedings listing on ``sec.gov``.
+* **EPA** — ECHO enforcement case search (``echo.epa.gov/rest/enforcement/
+  case_search``; free, no key). Civil/criminal enforcement cases with
+  respondent names and settlement amounts.
+* **OSHA** — IMIS establishment inspections (``osha.gov/pls/imis/
+  establishmentsearch.html``; free, no key; HTML scrape, best-effort).
+* **DOJ** — press releases / actions (``justice.gov/api/v1/press_releases``;
+  free, no key).
+
+The three newer agencies form a fallback chain for single-agency queries:
+``epa`` → ``osha`` → ``doj`` (i.e. a request for ``agency="epa"`` returns
+OSHA/DOJ results when ECHO is down or empty) so a provider being down never
+empties the answer. ``agency="all"`` merges every source, newest first.
 
 Contract
 --------
 * :func:`search_enforcement` — async, never raises, returns a ``list``
   (``[]`` on failure). ``agency`` is ``"all"`` (default), ``"fda"``,
-  ``"ftc"``, ``"cfpb"``, or ``"sec"``; ``"all"`` merges all sources,
-  newest first.
+  ``"ftc"``, ``"cfpb"``, ``"sec"``, ``"epa"``, ``"osha"`` or ``"doj"``;
+  ``"all"`` merges all sources, newest first.
 * :func:`get_action` — async, never raises, returns a ``dict`` (``{}`` on
   failure). Accepts the prefixed ids returned by :func:`search_enforcement`
   (``fda:<recall_number>`` / ``ftc:<slug>`` / ``cfpb:<complaint_id>`` /
-  ``sec:<id>``).
+  ``sec:<id>`` / ``epa:<case_number>`` / ``osha:<inspection_number>`` /
+  ``doj:<slug>``).
 * :func:`watch_company` — async, never raises, returns a ``list`` of
   enforcement/complaint matches for a specific company (compliance
   screening). ``agencies`` is ``"all"`` (default) or a comma-separated
@@ -33,8 +46,8 @@ Contract
 
 Search records carry exactly ``{agency, id, title, type, company, date,
 penalty_amount, url}`` plus a ``source`` tag. ``penalty_amount`` is
-``None`` until an amount can be extracted from the underlying text
-(see module REVIEW notes).
+``None`` unless an amount can be extracted from the underlying source
+(EPA ECHO exposes settlement/civil/criminal amounts).
 
 Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 Licensed under MIT. See LICENSE.
@@ -71,6 +84,10 @@ _CFPB_SEARCH_URL = (
 )
 _SEC_ADMIN_URL = "https://www.sec.gov/enforcement-litigation/administrative-proceedings"
 _SEC_FTS_URL = "https://efts.sec.gov/LATEST/search-index"
+_ECHO_CASE_URL = "https://echo.epa.gov/rest/enforcement/case_search"
+_OSHA_EST_URL = "https://www.osha.gov/pls/imis/establishmentsearch.html"
+_OSHA_DETAIL_URL = "https://www.osha.gov/pls/imis/establishment.html"
+_DOJ_API_URL = "https://www.justice.gov/api/v1/press_releases.json"
 
 _TIMEOUT = httpx.Timeout(20.0)
 _RETRY_CONFIG = RetryConfig(
@@ -92,8 +109,15 @@ _HTML_HEADERS = {
 }
 
 _MAX_LIMIT = 100
-_AGENCIES: tuple[str, ...] = ("fda", "ftc", "cfpb", "sec")
+_AGENCIES: tuple[str, ...] = ("fda", "ftc", "cfpb", "sec", "epa", "osha", "doj")
 _VALID_AGENCIES = {"all", *_AGENCIES}
+# Single-agency queries for the newer enforcement sources fall through the
+# chain below so one provider being down never empties the answer.
+_AGENCY_FALLBACK: dict[str, tuple[str, ...]] = {
+    "epa": ("epa", "osha", "doj"),
+    "osha": ("osha", "doj"),
+    "doj": ("doj",),
+}
 
 
 # ── Generic helpers ───────────────────────────────────────────────────
@@ -115,6 +139,18 @@ def _normalize_date(value: str | None) -> str | None:
     digits = "".join(ch for ch in text if ch.isdigit())
     if len(digits) == 8:
         return f"{digits[:4]}-{digits[4:6]}-{digits[6:8]}"
+    return text or None
+
+
+def _mmddyyyy_date(value: str | None) -> str | None:
+    """Normalize a ``MM/DD/YYYY`` date (EPA ECHO / OSHA IMIS) to ``YYYY-MM-DD``."""
+    if not value:
+        return None
+    text = value.strip()
+    match = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})$", text)
+    if match:
+        month, day, year = match.groups()
+        return f"{year}-{int(month):02d}-{int(day):02d}"
     return text or None
 
 
@@ -646,15 +682,240 @@ async def _get_sec_action(value: str) -> dict[str, Any]:
     return {}
 
 
+# ── EPA (ECHO enforcement case search) ────────────────────────────────
+def _map_epa(raw: dict[str, Any]) -> dict[str, Any]:
+    """Map an ECHO enforcement-case object onto the canonical search record."""
+    case_number = _as_text(raw.get("caseNumber"))
+    title = _as_text(raw.get("caseName")) or _as_text(raw.get("respondent"))
+    amount = (
+        _as_text(raw.get("settledAmount"))
+        or _as_text(raw.get("civilAmount"))
+        or _as_text(raw.get("criminalAmount"))
+    )
+    return {
+        "agency": "epa",
+        "id": f"epa:{case_number}" if case_number else None,
+        "title": title or f"EPA enforcement case {case_number or 'unknown'}",
+        "type": _as_text(raw.get("caseType")) or "EPA Enforcement Case",
+        "company": _as_text(raw.get("respondent")),
+        "date": _mmddyyyy_date(_as_text(raw.get("filingDate")))
+        or _normalize_date(_as_text(raw.get("filingDate"))),
+        "penalty_amount": amount,
+        "url": (
+            f"https://echo.epa.gov/enforcement-case-summary?case_num={quote(case_number)}"
+            if case_number
+            else None
+        ),
+        "source": "echo.epa.gov",
+    }
+
+
+async def _fetch_epa(query: str, limit: int) -> list[dict[str, Any]]:
+    """EPA enforcement case search via the free ECHO REST API (no key)."""
+    params: dict[str, str] = {"output": "JSON", "p_pretty_print": "YES"}
+    if query.strip():
+        params["p_respondent"] = query.strip()
+    payload = await _fetch_json(_ECHO_CASE_URL, params)
+    if payload is None:
+        return []
+    results = payload.get("Results")
+    if not isinstance(results, list):
+        return []
+    return _sort_records([_map_epa(raw) for raw in results if isinstance(raw, dict)], limit)
+
+
+async def _get_epa_action(value: str) -> dict[str, Any]:
+    payload = await _fetch_json(_ECHO_CASE_URL, {"output": "JSON", "p_case_number": value})
+    if payload is None:
+        return {}
+    results = payload.get("Results")
+    if not isinstance(results, list) or not results or not isinstance(results[0], dict):
+        return {}
+    mapped = _map_epa(results[0])
+    return {
+        "agency": "epa",
+        "id": mapped["id"],
+        "title": mapped["title"],
+        "summary": None,
+        "defendants": [mapped["company"]] if mapped["company"] else [],
+        "penalties": (
+            [{"type": "settlement", "amount": mapped["penalty_amount"]}]
+            if mapped["penalty_amount"]
+            else []
+        ),
+        "url": mapped["url"],
+    }
+
+
+# ── OSHA (IMIS establishment inspections) ─────────────────────────────
+_OSHA_ROW_RE = re.compile(r"<tr[^>]*>(.*?)</tr>", re.IGNORECASE | re.DOTALL)
+_OSHA_CELL_RE = re.compile(r"<td[^>]*>(.*?)</td>", re.IGNORECASE | re.DOTALL)
+_OSHA_INSPECTION_RE = re.compile(r"\b(\d{7,12}(?:\.\d{3})?)\b")
+
+
+def _parse_osha_inspections(page: str) -> list[dict[str, Any]]:
+    """Signature-parse the OSHA IMIS establishment-search results table.
+
+    Result rows expose inspection number, opening date and establishment
+    name (in that order, best-effort). Layout changes degrade to ``[]``.
+    """
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in _OSHA_ROW_RE.findall(page):
+        cells = [_strip_tags(cell) or "" for cell in _OSHA_CELL_RE.findall(row)]
+        cells = [cell for cell in cells if cell]
+        if len(cells) < 3:
+            continue
+        inspection: str | None = None
+        for cell in cells:
+            match = _OSHA_INSPECTION_RE.search(cell)
+            if match:
+                inspection = match.group(1)
+                break
+        if not inspection or inspection in seen:
+            continue
+        seen.add(inspection)
+        rows.append(
+            {
+                "id": inspection,
+                "title": f"OSHA inspection {inspection}",
+                "establishment": cells[-1],
+                "date": _mmddyyyy_date(cells[1]) if len(cells) > 1 else None,
+                "url": f"{_OSHA_DETAIL_URL}?inspection_number={quote(inspection)}",
+            }
+        )
+    return rows
+
+
+def _map_osha(raw: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "agency": "osha",
+        "id": f"osha:{raw.get('id')}" if raw.get("id") else None,
+        "title": _as_text(raw.get("title")),
+        "type": "OSHA Inspection",
+        "company": _as_text(raw.get("establishment")),
+        "date": _as_text(raw.get("date")),
+        "penalty_amount": None,
+        "url": _as_text(raw.get("url")),
+        "source": "osha.gov",
+    }
+
+
+async def _fetch_osha(query: str, limit: int) -> list[dict[str, Any]]:
+    """OSHA inspection search (keyless HTML scrape of IMIS, best-effort)."""
+    params: dict[str, str] = {"Submit": "Search"}
+    if query.strip():
+        params["establishment"] = query.strip()
+    page = await _fetch_html(_OSHA_EST_URL, params)
+    if page is None:
+        return []
+    try:
+        rows = _parse_osha_inspections(page)
+    except (re.error, ValueError, TypeError):
+        logger.warning("compliance_osha_parse_failed", extra={"query": query})
+        return []
+    needle = query.strip().lower()
+    if needle:
+        rows = [
+            row
+            for row in rows
+            if needle in str(row.get("establishment") or "").lower()
+            or needle in str(row.get("id") or "").lower()
+        ]
+    return _sort_records([_map_osha(row) for row in rows], limit)
+
+
+async def _get_osha_action(value: str) -> dict[str, Any]:
+    page = await _fetch_html(_OSHA_DETAIL_URL, {"inspection_number": value})
+    if page is None:
+        return {}
+    title_match = re.search(r"<title>(.*?)</title>", page, re.S)
+    title = _strip_tags(title_match.group(1) if title_match else None)
+    est_match = re.search(r"Establishment:\s*(?:</?[^>]+>\s*)*([^<]{2,})", page, re.S)
+    establishment = _strip_tags(est_match.group(1) if est_match else None)
+    if not title and not establishment:
+        return {}
+    return {
+        "agency": "osha",
+        "id": f"osha:{value}",
+        "title": title or f"OSHA inspection {value}",
+        "summary": None,
+        "defendants": [establishment] if establishment else [],
+        "penalties": [],
+        "url": f"{_OSHA_DETAIL_URL}?inspection_number={quote(value)}",
+    }
+
+
+# ── DOJ (press releases / actions API) ────────────────────────────────
+def _doj_slug(url: str | None) -> str | None:
+    """Last path segment of a DOJ press-release URL (used as a stable id)."""
+    if not url:
+        return None
+    tail = url.rstrip("/").rsplit("/", 1)[-1]
+    return tail or None
+
+
+def _map_doj(raw: dict[str, Any]) -> dict[str, Any]:
+    """Map a DOJ press-release API result onto the canonical search record."""
+    url = _as_text(raw.get("url"))
+    return {
+        "agency": "doj",
+        "id": f"doj:{_doj_slug(url)}" if url else None,
+        "title": _as_text(raw.get("title")),
+        "type": _as_text(raw.get("type")) or "DOJ Press Release",
+        "company": None,
+        "date": _normalize_date(_as_text(raw.get("published_at"))),
+        "penalty_amount": None,
+        "url": url,
+        "source": "justice.gov",
+    }
+
+
+async def _fetch_doj(query: str, limit: int) -> list[dict[str, Any]]:
+    """DOJ press-release / action search (free JSON API, no key)."""
+    params: dict[str, str] = {
+        "page": "1",
+        "per_page": str(max(1, min(limit, _MAX_LIMIT))),
+        "fields": "title,url,published_at,agency,type",
+    }
+    if query.strip():
+        params["query"] = query.strip()
+    payload = await _fetch_json(_DOJ_API_URL, params)
+    if payload is None:
+        return []
+    results = payload.get("results")
+    if not isinstance(results, list):
+        return []
+    return _sort_records([_map_doj(raw) for raw in results if isinstance(raw, dict)], limit)
+
+
+async def _get_doj_action(value: str) -> dict[str, Any]:
+    records = await _fetch_doj(value, 1)
+    for record in records:
+        rid = str(record.get("id") or "")
+        if rid == f"doj:{value}" or value in str(record.get("url") or ""):
+            return {
+                "agency": "doj",
+                "id": rid,
+                "title": record["title"],
+                "summary": None,
+                "defendants": [],
+                "penalties": [],
+                "url": record["url"],
+            }
+    return {}
+
+
 # ── Public API ────────────────────────────────────────────────────────
 async def search_enforcement(
     agency: str = "all", query: str = "", limit: int = 20
 ) -> list[dict[str, Any]]:
-    """Search enforcement actions across FDA / FTC / CFPB / SEC.
+    """Search enforcement actions across the supported agencies.
 
     Args:
         agency: ``"all"`` (default, merges every source newest-first),
-            ``"fda"``, ``"ftc"``, ``"cfpb"``, or ``"sec"``.
+            ``"fda"``, ``"ftc"``, ``"cfpb"``, ``"sec"``, ``"epa"``,
+            ``"osha"``, or ``"doj"``.
         query: Keyword search string (empty = recent actions).
         limit: Max results to return (1-100).
 
@@ -685,11 +946,26 @@ async def _search_enforcement(agency: str, query: str, limit: int) -> list[dict[
         return await _fetch_cfpb(query, clamped)
     if normalized == "sec":
         return await _fetch_sec(query, clamped)
+    if normalized in _AGENCY_FALLBACK:
+        # EPA → OSHA → DOJ fallback chain (see module docstring).
+        for source in _AGENCY_FALLBACK[normalized]:
+            if source == "epa":
+                chain_records = await _fetch_epa(query, clamped)
+            elif source == "osha":
+                chain_records = await _fetch_osha(query, clamped)
+            else:
+                chain_records = await _fetch_doj(query, clamped)
+            if chain_records:
+                return chain_records
+        return []
     records: list[dict[str, Any]] = []
     records.extend(await _fetch_fda(query, clamped))
     records.extend(await _fetch_ftc(query, clamped))
     records.extend(await _fetch_cfpb(query, clamped))
     records.extend(await _fetch_sec(query, clamped))
+    records.extend(await _fetch_epa(query, clamped))
+    records.extend(await _fetch_osha(query, clamped))
+    records.extend(await _fetch_doj(query, clamped))
     return _sort_records(_dedupe_records(records), clamped)
 
 
@@ -697,10 +973,13 @@ async def get_action(agency: str, id: str) -> dict[str, Any]:
     """Fetch one enforcement action by its prefixed id.
 
     Args:
-        agency: ``"fda"``, ``"ftc"``, ``"cfpb"``, or ``"sec"``.
+        agency: ``"fda"``, ``"ftc"``, ``"cfpb"``, ``"sec"``, ``"epa"``,
+            ``"osha"``, or ``"doj"``.
         id: The prefixed id returned by :func:`search_enforcement`
             (``fda:<recall_number>`` / ``ftc:<slug>`` /
-            ``cfpb:<complaint_id>`` / ``sec:<id>``).
+            ``cfpb:<complaint_id>`` / ``sec:<id>`` /
+            ``epa:<case_number>`` / ``osha:<inspection_number>`` /
+            ``doj:<slug>``).
 
     Returns:
         Action detail (see module docstring) or ``{}`` on failure
@@ -737,7 +1016,13 @@ async def _get_action(agency: str, action_id: str) -> dict[str, Any]:
         return await _get_ftc_action(rid)
     if normalized == "cfpb":
         return await _get_cfpb_action(rid)
-    return await _get_sec_action(rid)
+    if normalized == "sec":
+        return await _get_sec_action(rid)
+    if normalized == "epa":
+        return await _get_epa_action(rid)
+    if normalized == "osha":
+        return await _get_osha_action(rid)
+    return await _get_doj_action(rid)
 
 
 async def watch_company(company: str, agencies: str = "all") -> list[dict[str, Any]]:
@@ -773,6 +1058,12 @@ async def _watch_company(company: str, agencies: str) -> list[dict[str, Any]]:
             records.extend(await _fetch_cfpb_company(name, _MAX_LIMIT))
         elif agency == "sec":
             records.extend(await _fetch_sec(name, _MAX_LIMIT))
+        elif agency == "epa":
+            records.extend(await _fetch_epa(name, _MAX_LIMIT))
+        elif agency == "osha":
+            records.extend(await _fetch_osha(name, _MAX_LIMIT))
+        elif agency == "doj":
+            records.extend(await _fetch_doj(name, _MAX_LIMIT))
     return _sort_records(_dedupe_records(records), _MAX_LIMIT)
 
 

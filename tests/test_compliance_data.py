@@ -41,6 +41,10 @@ _FTC_LIST = "https://www.ftc.gov/legal-library/browse/cases-proceedings"
 _CFPB = "https://www.consumerfinance.gov/data-research/consumer-complaints/search/api/v1/"
 _SEC_ADMIN = "https://www.sec.gov/enforcement-litigation/administrative-proceedings"
 _SEC_FTS = "https://efts.sec.gov/LATEST/search-index"
+_ECHO = "https://echo.epa.gov/rest/enforcement/case_search"
+_OSHA_EST = "https://www.osha.gov/pls/imis/establishmentsearch.html"
+_OSHA_DETAIL = "https://www.osha.gov/pls/imis/establishment.html"
+_DOJ = "https://www.justice.gov/api/v1/press_releases.json"
 
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
@@ -219,6 +223,53 @@ def _sec_edgar_payload(
     }
 
 
+def _echo_payload(
+    case_number: str = "2023-EPA-0001",
+    respondent: str = "Example Chemical Co.",
+) -> dict[str, Any]:
+    return {
+        "TotalRows": 1,
+        "Results": [
+            {
+                "caseNumber": case_number,
+                "caseName": f"Enforcement case against {respondent}",
+                "respondent": respondent,
+                "caseType": "Administrative",
+                "caseStatus": "Closed",
+                "agency": "EPA",
+                "filingDate": "01/15/2023",
+                "settledAmount": "$1,250,000",
+                "civilAmount": "$1,250,000",
+                "criminalAmount": None,
+            }
+        ],
+        "Message": "OK",
+    }
+
+
+def _osha_html() -> str:
+    return """<html><body><table>
+<tr><td>1731253.015</td><td>09/25/2023</td><td>3541</td>
+<td><a href="/pls/imis/establishment.html?inspection_number=1731253.015">ACME MFG CO</a></td></tr>
+<tr><td>1600012.001</td><td>05/01/2022</td><td>2011</td><td>GLOBEX INDUSTRIES</td></tr>
+</table></body></html>"""
+
+
+def _doj_payload() -> dict[str, Any]:
+    return {
+        "count": 1,
+        "results": [
+            {
+                "title": "Former Executive Indicted for Fraud Scheme",
+                "url": "https://www.justice.gov/opa/pr/former-executive-indicted-fraud-scheme",
+                "published_at": "2022-03-01T12:00:00Z",
+                "agency": "CRM",
+                "type": "Press Release",
+            }
+        ],
+    }
+
+
 def _mock_all_http_500() -> None:
     for endpoint in _ALL_FDA:
         respx.get(url__startswith=endpoint).mock(return_value=httpx.Response(500))
@@ -226,6 +277,9 @@ def _mock_all_http_500() -> None:
     respx.get(_CFPB).mock(return_value=httpx.Response(500))
     respx.get(_SEC_ADMIN).mock(return_value=httpx.Response(500))
     respx.get(url__startswith=_SEC_FTS).mock(return_value=httpx.Response(500))
+    respx.get(_ECHO).mock(return_value=httpx.Response(500))
+    respx.get(_OSHA_EST).mock(return_value=httpx.Response(500))
+    respx.get(_DOJ).mock(return_value=httpx.Response(500))
 
 
 # ── search_enforcement ─────────────────────────────────────────────────
@@ -266,7 +320,7 @@ async def test_search_fda_malformed_payload_returns_empty() -> None:
 
 @respx.mock
 async def test_search_invalid_agency_returns_empty() -> None:
-    assert await enforcement.search_enforcement(agency="epa") == []
+    assert await enforcement.search_enforcement(agency="nasa") == []
     assert respx.calls.call_count == 0
 
 
@@ -349,18 +403,115 @@ async def test_search_all_merges_sources() -> None:
     respx.get(_FTC_LIST).mock(return_value=httpx.Response(200, text=_ftc_listing_html()))
     respx.get(_CFPB).mock(return_value=httpx.Response(200, json=_cfpb_payload()))
     respx.get(_SEC_ADMIN).mock(return_value=httpx.Response(200, text=_sec_admin_html()))
+    respx.get(_ECHO).mock(return_value=httpx.Response(200, json=_echo_payload()))
+    respx.get(_OSHA_EST).mock(return_value=httpx.Response(200, text=_osha_html()))
+    respx.get(_DOJ).mock(return_value=httpx.Response(200, json=_doj_payload()))
     records = await enforcement.search_enforcement(agency="all")
     agencies = {record["agency"] for record in records}
-    assert agencies == {"fda", "ftc", "cfpb", "sec"}
-    # Newest first: SEC 2026-08-14, FTC 2026-08-11, CFPB 2025-04-11, FDA 2024-01-15.
+    assert agencies == {"fda", "ftc", "cfpb", "sec", "epa", "osha", "doj"}
+    # Newest first: SEC 2026-08-14 … DOJ 2022-03-01.
     assert records[0]["agency"] == "sec"
-    assert records[-1]["agency"] == "fda"
+    assert records[-1]["agency"] == "doj"
 
 
 @respx.mock
 async def test_search_all_never_raises_on_failures() -> None:
     _mock_all_http_500()
     assert await enforcement.search_enforcement(agency="all") == []
+
+
+# ── EPA / OSHA / DOJ sources + fallback chain ─────────────────────────
+
+
+@respx.mock
+async def test_search_epa_success() -> None:
+    respx.get(_ECHO).mock(return_value=httpx.Response(200, json=_echo_payload()))
+    records = await enforcement.search_enforcement(agency="epa", query="example chemical")
+    assert len(records) == 1
+    record = records[0]
+    assert record["agency"] == "epa"
+    assert record["id"] == "epa:2023-EPA-0001"
+    assert record["company"] == "Example Chemical Co."
+    assert record["date"] == "2023-01-15"
+    assert record["penalty_amount"] == "$1,250,000"
+    assert record["source"] == "echo.epa.gov"
+
+
+@respx.mock
+async def test_search_osha_parses_inspections() -> None:
+    respx.get(_OSHA_EST).mock(return_value=httpx.Response(200, text=_osha_html()))
+    records = await enforcement.search_enforcement(agency="osha", query="acme")
+    assert len(records) == 1
+    record = records[0]
+    assert record["agency"] == "osha"
+    assert record["id"] == "osha:1731253.015"
+    assert record["company"] == "ACME MFG CO"
+    assert record["type"] == "OSHA Inspection"
+    assert record["date"] == "2023-09-25"
+    assert record["source"] == "osha.gov"
+    assert "inspection_number=1731253.015" in record["url"]
+
+
+@respx.mock
+async def test_search_doj_success() -> None:
+    respx.get(_DOJ).mock(return_value=httpx.Response(200, json=_doj_payload()))
+    records = await enforcement.search_enforcement(agency="doj", query="fraud")
+    assert len(records) == 1
+    record = records[0]
+    assert record["agency"] == "doj"
+    assert record["id"] == "doj:former-executive-indicted-fraud-scheme"
+    assert record["title"] == "Former Executive Indicted for Fraud Scheme"
+    assert record["date"] == "2022-03-01"
+    assert record["source"] == "justice.gov"
+
+
+@respx.mock
+async def test_search_epa_falls_back_to_osha() -> None:
+    # ECHO down → the epa request falls through to OSHA inspections.
+    respx.get(_ECHO).mock(return_value=httpx.Response(500))
+    respx.get(_OSHA_EST).mock(return_value=httpx.Response(200, text=_osha_html()))
+    records = await enforcement.search_enforcement(agency="epa", query="acme")
+    assert len(records) == 1
+    assert records[0]["agency"] == "osha"
+    assert records[0]["id"] == "osha:1731253.015"
+    assert records[0]["company"] == "ACME MFG CO"
+
+
+@respx.mock
+async def test_search_epa_falls_back_to_doj() -> None:
+    # ECHO + OSHA both down → DOJ press releases fill in.
+    respx.get(_ECHO).mock(return_value=httpx.Response(500))
+    respx.get(_OSHA_EST).mock(return_value=httpx.Response(500))
+    respx.get(_DOJ).mock(return_value=httpx.Response(200, json=_doj_payload()))
+    records = await enforcement.search_enforcement(agency="epa", query="fraud")
+    assert len(records) == 1
+    assert records[0]["agency"] == "doj"
+    assert records[0]["id"] == "doj:former-executive-indicted-fraud-scheme"
+
+
+@respx.mock
+async def test_search_osha_falls_back_to_doj() -> None:
+    respx.get(_OSHA_EST).mock(return_value=httpx.Response(500))
+    respx.get(_DOJ).mock(return_value=httpx.Response(200, json=_doj_payload()))
+    records = await enforcement.search_enforcement(agency="osha", query="fraud")
+    assert len(records) == 1
+    assert records[0]["agency"] == "doj"
+
+
+@respx.mock
+async def test_search_epa_never_raises() -> None:
+    respx.get(_ECHO).mock(return_value=httpx.Response(500))
+    respx.get(_OSHA_EST).mock(return_value=httpx.Response(500))
+    respx.get(_DOJ).mock(return_value=httpx.Response(500))
+    assert await enforcement.search_enforcement(agency="epa", query="x") == []
+
+
+@respx.mock
+async def test_search_epa_malformed_payload_returns_empty() -> None:
+    respx.get(_ECHO).mock(return_value=httpx.Response(200, json={"nope": True}))
+    respx.get(_OSHA_EST).mock(return_value=httpx.Response(500))
+    respx.get(_DOJ).mock(return_value=httpx.Response(500))
+    assert await enforcement.search_enforcement(agency="epa") == []
 
 
 # ── get_action ─────────────────────────────────────────────────────────
@@ -433,7 +584,7 @@ async def test_get_action_sec_falls_back_to_admin_listing() -> None:
 
 @respx.mock
 async def test_get_action_unknown_agency_returns_empty() -> None:
-    assert await enforcement.get_action("epa", "fda:D-1234") == {}
+    assert await enforcement.get_action("nasa", "fda:D-1234") == {}
     assert respx.calls.call_count == 0
 
 
@@ -454,6 +605,43 @@ async def test_get_action_network_error_returns_empty() -> None:
     for endpoint in _ALL_FDA:
         respx.get(url__startswith=endpoint).mock(return_value=httpx.Response(500))
     assert await enforcement.get_action("fda", "fda:D-9999") == {}
+
+
+@respx.mock
+async def test_get_action_epa() -> None:
+    respx.get(_ECHO).mock(return_value=httpx.Response(200, json=_echo_payload()))
+    action = await enforcement.get_action("epa", "epa:2023-EPA-0001")
+    assert action["agency"] == "epa"
+    assert action["id"] == "epa:2023-EPA-0001"
+    assert action["title"] == "Enforcement case against Example Chemical Co."
+    assert action["defendants"] == ["Example Chemical Co."]
+    assert action["penalties"] == [{"type": "settlement", "amount": "$1,250,000"}]
+
+
+@respx.mock
+async def test_get_action_osha() -> None:
+    page = (
+        "<html><head><title>Establishment Detail - Inspection 1731253.015</title></head>"
+        "<body><h2>Inspection: 1731253.015</h2>"
+        "<p>Establishment:</p><div>ACME MFG CO</div></body></html>"
+    )
+    respx.get(_OSHA_DETAIL).mock(return_value=httpx.Response(200, text=page))
+    action = await enforcement.get_action("osha", "osha:1731253.015")
+    assert action["agency"] == "osha"
+    assert action["id"] == "osha:1731253.015"
+    assert action["title"].startswith("Establishment Detail")
+    assert action["defendants"] == ["ACME MFG CO"]
+    assert action["penalties"] == []
+
+
+@respx.mock
+async def test_get_action_doj() -> None:
+    respx.get(_DOJ).mock(return_value=httpx.Response(200, json=_doj_payload()))
+    action = await enforcement.get_action("doj", "doj:former-executive-indicted-fraud-scheme")
+    assert action["agency"] == "doj"
+    assert action["id"] == "doj:former-executive-indicted-fraud-scheme"
+    assert action["title"] == "Former Executive Indicted for Fraud Scheme"
+    assert action["penalties"] == []
 
 
 # ── watch_company ──────────────────────────────────────────────────────
@@ -496,6 +684,18 @@ async def test_watch_company_merges_agencies() -> None:
 
 
 @respx.mock
+async def test_watch_company_includes_new_agencies() -> None:
+    respx.get(_ECHO).mock(
+        return_value=httpx.Response(200, json=_echo_payload(respondent="ACME MFG CO"))
+    )
+    respx.get(_OSHA_EST).mock(return_value=httpx.Response(200, text=_osha_html()))
+    records = await enforcement.watch_company("ACME", agencies="epa,osha")
+    assert {record["agency"] for record in records} == {"epa", "osha"}
+    assert any(record["id"] == "epa:2023-EPA-0001" for record in records)
+    assert any(record["id"] == "osha:1731253.015" for record in records)
+
+
+@respx.mock
 async def test_watch_company_empty_name_returns_empty() -> None:
     assert await enforcement.watch_company("   ") == []
     assert respx.calls.call_count == 0
@@ -509,7 +709,7 @@ async def test_watch_company_never_raises_on_failures() -> None:
 
 @respx.mock
 async def test_watch_company_unknown_agencies_returns_empty() -> None:
-    assert await enforcement.watch_company("Acme", agencies="epa,xyz") == []
+    assert await enforcement.watch_company("Acme", agencies="nasa,xyz") == []
     assert respx.calls.call_count == 0
 
 

@@ -1,15 +1,24 @@
-"""Pry — travel hotels: hotel rate lookups (Google Hotels + Booking.com).
+"""Pry — travel hotels: hotel rate lookups (Google Hotels + Booking + Kayak + Expedia).
 
-There is no free, keyless hotel-rate API, so this module scrapes two public
-search pages:
+There is no free, keyless hotel-rate API, so this module scrapes four public
+search pages in a guarded fallback chain:
 
 * Google Hotels (primary) — ``https://www.google.com/travel/hotels`` with
   ``q``/``check_in``/``check_out`` params; rates are read from the embedded
   ``AF_initDataCallback`` JSON (same infrastructure as :mod:`travel.flights`).
-* Booking.com (fallback) — ``https://www.booking.com/searchresults.html``
+* Booking.com (fallback 2) — ``https://www.booking.com/searchresults.html``
   with ``ss``/``checkin``/``checkout`` params; rates are read from embedded
   ``data-capla-trace`` JSON blocks, with a light regex fallback on the raw
   HTML when the JSON blocks are absent.
+* Kayak (fallback 3) — ``https://www.kayak.com/hotels/{query}/{checkin}/
+  {checkout}/2adults``; rates are read from the embedded
+  ``window.__INITIAL_STATE__`` JSON via a string-aware balanced-brace scan.
+* Expedia (fallback 4) — ``https://www.expedia.com/Hotel-Search`` with
+  ``destination``/``checkInDate``/``checkOutDate`` params; rates are read
+  from the page's ``application/ld+json`` structured-data blocks.
+
+The chain is sequential: each source is only fetched when the previous one
+yielded no rates, which keeps rate-limit pressure bounded.
 
 Contract
 --------
@@ -26,10 +35,13 @@ Reliability (read before shipping)
 ----------------------------------
 Google Hotels embeds its results as the same drifting, unversioned
 ``AF_initDataCallback`` JSON as Flights; Booking.com's ``data-capla-trace``
-blocks are obfuscated and change regularly. Extraction is signature-based
-and best-effort: layout changes degrade to ``{}``/empty rates, never an
-exception. Both sources also rate-limit page hits — keep lookups bounded
-and respect the backoff knobs. Treat results as estimates.
+blocks are obfuscated and change regularly; Kayak's ``__INITIAL_STATE__``
+and Expedia's JSON-LD are also layout-coupled and best-effort. Extraction is
+signature-based and best-effort: layout changes degrade to ``{}``/empty
+rates, never an exception. All four sources rate-limit / bot-guard page
+hits — keep lookups bounded and respect the backoff knobs. Expedia in
+particular frequently serves a bot/consent wall instead of results; treat
+output as estimates.
 
 Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 Licensed under MIT. See LICENSE.
@@ -47,6 +59,7 @@ import json
 import logging
 import re
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -56,6 +69,8 @@ logger = logging.getLogger(__name__)
 
 _GOOGLE_URL = "https://www.google.com/travel/hotels"
 _BOOKING_URL = "https://www.booking.com/searchresults.html"
+_KAYAK_URL = "https://www.kayak.com/hotels"
+_EXPEDIA_URL = "https://www.expedia.com/Hotel-Search"
 
 _HEADERS = {
     "User-Agent": (
@@ -302,6 +317,182 @@ def _currency_for_match(html: str, pos: int) -> str:
     return "USD"
 
 
+# ── Kayak extraction (embedded __INITIAL_STATE__ JSON) ────────────────
+def _extract_embedded_object(html: str, marker: str) -> Any:
+    """Extract the JS object/array assigned after ``marker`` (balanced scan).
+
+    Kayak (and many React/Redux sites) embed their state as
+    ``window.__INITIAL_STATE__ = {...};`` — a plain JS literal, not a
+    JSON-typed script tag. The scanner walks braces with string awareness and
+    decodes the captured literal. Returns ``None`` on any failure.
+    """
+    idx = html.find(marker)
+    if idx == -1:
+        return None
+    start = idx + len(marker)
+    while start < len(html) and html[start] not in "{[":  # allow arrays too
+        start += 1
+    if start >= len(html):
+        return None
+    opener = html[start]
+    closer = "}" if opener == "{" else "]"
+    depth = 0
+    in_string = False
+    escape = False
+    i = start
+    while i < len(html):
+        ch = html[i]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+        else:
+            if ch == '"':
+                in_string = True
+            elif ch == opener:
+                depth += 1
+            elif ch == closer:
+                depth -= 1
+                if depth == 0:
+                    break
+        i += 1
+    if depth != 0:
+        return None
+    raw = html[start : i + 1]
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return None
+
+
+def _find_kayak_rates(data: Any) -> list[dict[str, Any]]:
+    """Locate hotel-rate-like records in Kayak's embedded state.
+
+    Kayak hotel records look like ``{"name": ..., "price": {"price": <int>,
+    "currency": "USD"}}``. Signature-based and best-effort, matching the
+    module's layout-tolerant extraction philosophy.
+    """
+    rates: list[dict[str, Any]] = []
+    seen: set[tuple[str, int]] = set()
+    for obj in _walk_dicts(data):
+        name = obj.get("name")
+        if not isinstance(name, str):
+            continue
+        name = name.strip()
+        if not (2 <= len(name) <= 80) or "\n" in name:
+            continue
+        price_obj = obj.get("price")
+        if not isinstance(price_obj, dict):
+            continue
+        raw_price = price_obj.get("price")
+        if not isinstance(raw_price, (int, float)) or not (20 <= raw_price <= 100_000):
+            continue
+        price = int(raw_price)
+        currency = str(price_obj.get("currency") or "").strip().upper()
+        if not _CURRENCY_RE.fullmatch(currency):
+            currency = "USD"
+        key = (name, price)
+        if key in seen:
+            continue
+        seen.add(key)
+        rates.append(
+            {
+                "hotel": name,
+                "price_per_night": price,
+                "currency": currency,
+                "total": None,
+            }
+        )
+    rates.sort(key=lambda entry: (entry["price_per_night"], entry["hotel"]))
+    return rates
+
+
+# ── Expedia extraction (JSON-LD structured data) ──────────────────────
+_LD_JSON_RE = re.compile(
+    r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>',
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _extract_json_ld(html: str) -> list[Any]:
+    """Parse every ``application/ld+json`` block on a page (never raises)."""
+    blocks: list[Any] = []
+    for match in _LD_JSON_RE.finditer(html):
+        body = match.group(1).strip()
+        if not body:
+            continue
+        try:
+            parsed = json.loads(body)
+        except (json.JSONDecodeError, ValueError, TypeError):
+            continue
+        if isinstance(parsed, list):
+            blocks.extend(parsed)
+        elif isinstance(parsed, dict):
+            blocks.append(parsed)
+    return blocks
+
+
+def _ld_price(obj: dict[str, Any]) -> int | None:
+    """Best-effort per-night price from a JSON-LD hotel/offer node."""
+    offers = obj.get("offers")
+    if isinstance(offers, dict):
+        price = offers.get("price")
+        if isinstance(price, (int, float)) and 20 <= price <= 100_000:
+            return int(price)
+        spec = offers.get("priceSpecification")
+        if isinstance(spec, dict):
+            price = spec.get("price")
+            if isinstance(price, (int, float)) and 20 <= price <= 100_000:
+                return int(price)
+    price = obj.get("price")
+    if isinstance(price, (int, float)) and 20 <= price <= 100_000:
+        return int(price)
+    return None
+
+
+def _find_expedia_rates(html: str) -> list[dict[str, Any]]:
+    """Locate hotel-rate records in an Expedia page's JSON-LD blocks."""
+    rates: list[dict[str, Any]] = []
+    seen: set[tuple[str, int]] = set()
+    for obj in _walk_dicts(_extract_json_ld(html)):
+        name = obj.get("name")
+        if not isinstance(name, str):
+            continue
+        name = name.strip()
+        if not (2 <= len(name) <= 80) or "\n" in name:
+            continue
+        price = _ld_price(obj)
+        if price is None:
+            continue
+        currency = str(obj.get("priceCurrency") or obj.get("currency") or "USD").upper()
+        if not _CURRENCY_RE.fullmatch(currency):
+            currency = "USD"
+        key = (name, price)
+        if key in seen:
+            continue
+        seen.add(key)
+        rates.append(
+            {
+                "hotel": name,
+                "price_per_night": price,
+                "currency": currency,
+                "total": None,
+            }
+        )
+    rates.sort(key=lambda entry: (entry["price_per_night"], entry["hotel"]))
+    return rates
+
+
+def _kayak_search_url(name: str, checkin: str, checkout: str) -> str:
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", name.strip().lower()).strip("-")
+    if not slug:
+        slug = quote(name.strip())
+    return f"{_KAYAK_URL}/{slug}/{checkin}/{checkout}/2adults"
+
+
 # ── public API ─────────────────────────────────────────────────────────
 def _empty_result(hotel_name: str, availability: str) -> dict[str, Any]:
     return {
@@ -309,6 +500,25 @@ def _empty_result(hotel_name: str, availability: str) -> dict[str, Any]:
         "rates": [],
         "availability": availability,
     }
+
+
+def _aggregate_site_rates(
+    rates_by_site: dict[str, dict[str, Any]], site: str, entry: dict[str, Any]
+) -> None:
+    """Keep the cheapest rate per source site in ``rates_by_site``."""
+    site_rate = rates_by_site.setdefault(
+        site,
+        {
+            "site": site,
+            "price_per_night": entry["price_per_night"],
+            "currency": entry["currency"],
+            "total": entry["total"],
+        },
+    )
+    if entry["price_per_night"] < site_rate["price_per_night"]:
+        site_rate["price_per_night"] = entry["price_per_night"]
+        site_rate["currency"] = entry["currency"]
+        site_rate["total"] = entry["total"]
 
 
 async def get_hotel_rates(hotel_name: str, checkin: str, checkout: str) -> dict[str, Any]:
@@ -322,17 +532,18 @@ async def get_hotel_rates(hotel_name: str, checkin: str, checkout: str) -> dict[
     Returns:
         ``{"hotel", "rates": [{"site", "price_per_night", "currency",
         "total"}], "availability"}``. Rates are aggregated per source site
-        (cheapest per site). Never raises.
+        (cheapest per site). The fallback chain is sequential — Google Hotels
+        -> Booking.com -> Kayak -> Expedia — each source fetched only when
+        the previous one yielded no rates. Never raises.
     """
     name = hotel_name.strip() if isinstance(hotel_name, str) else ""
     if not name or not _valid_date(checkin) or not _valid_date(checkout):
         return _empty_result(name, "unknown")
 
-    google_fetched = False
-    booking_fetched = False
+    fetched_any = False
     rates_by_site: dict[str, dict[str, Any]] = {}
 
-    # Primary: Google Hotels.
+    # 1. Primary: Google Hotels.
     google_html = await _fetch_page(
         _GOOGLE_URL,
         {
@@ -344,24 +555,12 @@ async def get_hotel_rates(hotel_name: str, checkin: str, checkout: str) -> dict[
         },
     )
     if google_html:
-        google_fetched = True
+        fetched_any = True
         for callback in _extract_af_callbacks(google_html):
             for entry in _find_google_rates(callback.get("data")):
-                site_rate = rates_by_site.setdefault(
-                    "google",
-                    {
-                        "site": "google",
-                        "price_per_night": entry["price_per_night"],
-                        "currency": entry["currency"],
-                        "total": entry["total"],
-                    },
-                )
-                if entry["price_per_night"] < site_rate["price_per_night"]:
-                    site_rate["price_per_night"] = entry["price_per_night"]
-                    site_rate["currency"] = entry["currency"]
-                    site_rate["total"] = entry["total"]
+                _aggregate_site_rates(rates_by_site, "google", entry)
 
-    # Fallback: Booking.com (only if Google yielded nothing).
+    # 2. Booking.com (only if Google yielded nothing).
     if "google" not in rates_by_site:
         booking_html = await _fetch_page(
             _BOOKING_URL,
@@ -376,25 +575,39 @@ async def get_hotel_rates(hotel_name: str, checkin: str, checkout: str) -> dict[
             },
         )
         if booking_html:
-            booking_fetched = True
+            fetched_any = True
             for entry in _find_booking_rates(booking_html):
-                site_rate = rates_by_site.setdefault(
-                    "booking",
-                    {
-                        "site": "booking",
-                        "price_per_night": entry["price_per_night"],
-                        "currency": entry["currency"],
-                        "total": entry["total"],
-                    },
-                )
-                if entry["price_per_night"] < site_rate["price_per_night"]:
-                    site_rate["price_per_night"] = entry["price_per_night"]
-                    site_rate["currency"] = entry["currency"]
-                    site_rate["total"] = entry["total"]
+                _aggregate_site_rates(rates_by_site, "booking", entry)
+
+    # 3. Kayak (embedded __INITIAL_STATE__ JSON).
+    if not rates_by_site:
+        kayak_html = await _fetch_page(_kayak_search_url(name, checkin, checkout), {})
+        if kayak_html:
+            fetched_any = True
+            state = _extract_embedded_object(kayak_html, "window.__INITIAL_STATE__")
+            for entry in _find_kayak_rates(state):
+                _aggregate_site_rates(rates_by_site, "kayak", entry)
+
+    # 4. Expedia (JSON-LD structured data).
+    if not rates_by_site:
+        expedia_html = await _fetch_page(
+            _EXPEDIA_URL,
+            {
+                "destination": name,
+                "checkInDate": checkin,
+                "checkOutDate": checkout,
+                "adults": "2",
+                "rooms": "1",
+            },
+        )
+        if expedia_html:
+            fetched_any = True
+            for entry in _find_expedia_rates(expedia_html):
+                _aggregate_site_rates(rates_by_site, "expedia", entry)
 
     rates = sorted(rates_by_site.values(), key=lambda entry: entry["site"])
     if rates:
         return {"hotel": name, "rates": rates, "availability": "available"}
-    if google_fetched or booking_fetched:
+    if fetched_any:
         return _empty_result(name, "unavailable")
     return _empty_result(name, "unknown")
