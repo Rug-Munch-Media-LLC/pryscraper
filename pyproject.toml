@@ -197,6 +197,7 @@ py-modules = [
     "errors",
     "extraction",
     "extractor",
+    "fallback",
     "fallback_telemetry",
     "freshness",
     "gdpr",
@@ -296,6 +297,7 @@ include = [
     "news_data*",
     "compliance_data*",
     "deals_data*",
+    "bidding_data*",
 ]
 
 [tool.ruff]

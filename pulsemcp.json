@@ -101,7 +101,9 @@
 		"pry_sentiment",
 		"pry_company_watch",
 		"pry_deals",
-		"pry_drop_alert"
+		"pry_drop_alert",
+		"pry_contracts",
+		"pry_grants"
 	],
 	"tags": [
 		"scraping",

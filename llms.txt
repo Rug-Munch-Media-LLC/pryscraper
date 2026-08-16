@@ -1,8 +1,8 @@
 # Pry MCP — Web Scraping, Browser Automation & Data Intelligence
 
-> Pry is a self-hosted MCP server for web scraping, browser automation, and twenty-six data domains: scrape, crawl, extract, template, monitor, comply, enrich, parse documents, screenshot, plus crypto, sports betting, marketplace, legal, real estate, jobs, travel, attention, local, healthcare, commerce long-tail, gov, IP, climate/weather + agriculture, research/academic, events, freight, energy, food, supply, app store, news, compliance, and deals intelligence — all monetized via x402 pay-per-call. It bypasses Cloudflare and other anti-bot systems via a 9-tier fallback chain and needs no API keys. Install with `uvx pryscraper-mcp` or `pipx install pryscraper`.
+> Pry is a self-hosted MCP server for web scraping, browser automation, and twenty-seven data domains: scrape, crawl, extract, template, monitor, comply, enrich, parse documents, screenshot, plus crypto, sports betting, marketplace, legal, real estate, jobs, travel, attention, local, healthcare, commerce long-tail, gov, IP, climate/weather + agriculture, research/academic, events, freight, energy, food, supply, app store, news, compliance, deals, and bidding/grants intelligence — all monetized via x402 pay-per-call. It bypasses Cloudflare and other anti-bot systems via a 9-tier fallback chain and needs no API keys. Install with `uvx pryscraper-mcp` or `pipx install pryscraper`.
 
-Pry exposes 69 MCP tools. All are self-hosted — the server is a FastAPI app mounted at `/mcp` (Streamable HTTP + HTTP+SSE) plus a stdio entry point (`pry-mcp`). Deploy once, then any MCP client (Claude, Cursor, Hermes, any MCP-compatible agent) can call the tools.
+Pry exposes 71 MCP tools. All are self-hosted — the server is a FastAPI app mounted at `/mcp` (Streamable HTTP + HTTP+SSE) plus a stdio entry point (`pry-mcp`). Deploy once, then any MCP client (Claude, Cursor, Hermes, any MCP-compatible agent) can call the tools.
 
 ## Tools
 
@@ -107,6 +107,11 @@ Pry exposes 69 MCP tools. All are self-hosted — the server is a FastAPI app mo
 
 - [pry_deals](https://codeberg.org/cryptorugmunch/pryscraper): Deals, discounts & promotions search by keyword
 - [pry_drop_alert](https://codeberg.org/cryptorugmunch/pryscraper): Product drop / restock alert check — availability windows and price drops
+
+### Bidding & grants (bidding_data)
+
+- [pry_contracts](https://codeberg.org/cryptorugmunch/pryscraper): Government contract opportunities & awards search by keyword
+- [pry_grants](https://codeberg.org/cryptorugmunch/pryscraper): Government grant opportunities search by keyword — funding amount, eligibility, deadline
 
 ### Legal (legal_docs)
 

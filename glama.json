@@ -780,6 +780,14 @@
 		{
 			"name": "pry_drop_alert",
 			"description": "Product drop / restock alert check — availability windows and price drops"
+		},
+		{
+			"name": "pry_contracts",
+			"description": "Government contract opportunities & awards search by keyword — agency, solicitation, value, deadline"
+		},
+		{
+			"name": "pry_grants",
+			"description": "Government grant opportunities search by keyword — agency, funding amount, eligibility, deadline"
 		}
 	],
 	"tags": [
