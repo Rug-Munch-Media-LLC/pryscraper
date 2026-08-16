@@ -1,6 +1,6 @@
-"""Live sports betting odds — The Odds API (free tier) + ESPN scoreboard fallback.
+"""Live sports betting odds — The Odds API + ESPN + multi-source redundancy.
 
-Two free sources are aggregated here:
+Core free sources, aggregated here:
 
 * **The Odds API** (``api.the-odds-api.com``) — the market-standard live
   odds feed used by betting bots. Requires a free API key
@@ -16,6 +16,13 @@ Two free sources are aggregated here:
   converted to decimal; spread and over/under lines where published).
   Coverage varies by league and window; when ESPN publishes no odds the
   module returns ``[]`` (never raises).
+* **Redundancy sources** (:mod:`sports_data.sources`) — OddsPortal
+  (scrape), Bovada and BetOnline (offshore public feeds). ``get_odds``
+  accepts a ``sources`` parameter to combine any of
+  ``the_odds_api,espn,oddsportal,bovada,betonline``; ``get_odds_multi``
+  aggregates every reachable source for one event via ``asyncio.gather``
+  and merges the deduped set. Every source degrades independently — one
+  source down never blanks the result if another works.
 
 Contract
 --------
@@ -112,8 +119,10 @@ Licensed under MIT. See LICENSE.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+import re
 import sys
 import time
 from typing import Any
@@ -1018,6 +1027,32 @@ async def _espn_find_event(
     return None
 
 
+# ── Multi-source support ────────────────────────────────────────────────
+# Canonical source names understood by the ``sources`` parameter. The
+# supplementary fetchers + merge logic live in sports_data.sources (owned
+# alongside this module); they are imported lazily to keep this module's
+# import order independent of the package __init__ cycle.
+_SOURCE_NAMES = ("the_odds_api", "espn", "oddsportal", "bovada", "betonline")
+
+
+def _parse_sources_param(sources: str | None) -> set[str] | None:
+    """Normalize a ``sources`` param into the set of source names to query.
+
+    ``None`` / ``""`` -> ``None`` (legacy behavior: The Odds API when a key
+    is configured, else ESPN). ``"all"`` / ``"*"`` -> every source name.
+    Unknown names are ignored (never raises); if nothing valid remains the
+    result is ``None`` (legacy behavior).
+    """
+    if sources is None:
+        return None
+    raw = str(sources).strip().lower()
+    if not raw or raw in {"all", "*"}:
+        return set(_SOURCE_NAMES)
+    names = {part.strip() for part in re.split(r"[,\s|]+", raw) if part.strip()}
+    valid = names & set(_SOURCE_NAMES)
+    return valid or None
+
+
 # ── Public API ─────────────────────────────────────────────────────────
 async def get_odds(
     event_query: str = "",
@@ -1025,6 +1060,7 @@ async def get_odds(
     limit: int = 20,
     market: str = "h2h",
     book: str | None = None,
+    sources: str | None = None,
 ) -> list[dict[str, Any]]:
     """Fetch live odds across bookmakers for one or more sports.
 
@@ -1040,17 +1076,29 @@ async def get_odds(
         book: Optional single-book filter (e.g. ``"draftkings"``). When set
             The Odds API is asked for just that book and the result is
             filtered client-side too (covers the ESPN fallback).
+        sources: Optional comma-separated source list —
+            ``"the_odds_api"``, ``"espn"``, ``"oddsportal"``, ``"bovada"``,
+            ``"betonline"`` (or ``"all"``). ``None`` (default) keeps the
+            legacy behavior (The Odds API when a key is configured, else
+            ESPN). When set, only those sources are queried and the results
+            are merged/deduped across them; unknown names are ignored.
 
     Returns:
         A list of odds records (see module docstring). ``[]`` on failure or
         invalid sport. Never raises.
     """
     try:
-        return await _get_odds(event_query, sport, limit, market, book)
+        return await _get_odds(event_query, sport, limit, market, book, sources)
     except Exception:
         logger.exception(
             "sports_odds_crashed",
-            extra={"event_query": event_query, "sport": sport, "market": market, "book": book},
+            extra={
+                "event_query": event_query,
+                "sport": sport,
+                "market": market,
+                "book": book,
+                "sources": sources,
+            },
         )
         return []
 
@@ -1061,6 +1109,7 @@ async def _get_odds(
     limit: int,
     market: str,
     book: str | None,
+    sources: str | None = None,
 ) -> list[dict[str, Any]]:
     slugs = _resolve_sports(sport)
     if not slugs:
@@ -1070,10 +1119,12 @@ async def _get_odds(
     markets = _normalize_markets(market)
     key = _api_key()
     book_key = _canonical_book(book) if book else None
-    records: list[dict[str, Any]] = []
+    wanted = _parse_sources_param(sources)
+    core_records: list[dict[str, Any]] = []
+    supplemental: list[dict[str, Any]] = []
     for slug in slugs:
         odds_key, espn = _SPORTS[slug]
-        if key:
+        if key and (wanted is None or "the_odds_api" in wanted):
             params: dict[str, str] = {
                 "apiKey": key,
                 "regions": _ODDS_API_REGIONS,
@@ -1089,9 +1140,16 @@ async def _get_odds(
             if isinstance(payload, list):
                 for raw in payload:
                     if isinstance(raw, dict):
-                        records.extend(_map_odds_event(raw, slug, markets=markets))
-        else:
-            records.extend(await _espn_odds_for_league(espn, slug, markets))
+                        core_records.extend(_map_odds_event(raw, slug, markets=markets))
+        elif wanted is None or "espn" in wanted:
+            core_records.extend(await _espn_odds_for_league(espn, slug, markets))
+        if wanted is not None:
+            supplemental.extend(await _supplementary_records(wanted, slug, markets, book_key))
+    records = core_records + supplemental
+    if wanted is not None and len({record.get("source") for record in records}) > 1:
+        from sports_data import sources as _odds_sources
+
+        records = _odds_sources.merge_odds(records)
     query = (event_query or "").strip().lower()
     if query:
         records = [
@@ -1106,6 +1164,44 @@ async def _get_odds(
         records = [record for record in records if record.get("book") == book_key]
     records.sort(key=lambda record: str(record.get("last_update") or ""), reverse=True)
     return records[:clamped]
+
+
+async def _supplementary_records(
+    wanted: set[str], slug: str, markets: list[str], book_key: str | None
+) -> list[dict[str, Any]]:
+    """Fetch records from the scrape/offshore sources for one sport.
+
+    Each source is fetched independently (``asyncio.gather`` with
+    ``return_exceptions=True``) so one failure never affects the others.
+    """
+    from sports_data import sources as _odds_sources
+
+    jobs: list[tuple[str, Any]] = []
+    if "oddsportal" in wanted and _odds_sources.source_supports("oddsportal", slug):
+        jobs.append(("oddsportal", _odds_sources.fetch_oddsportal(slug)))
+    if "bovada" in wanted and _odds_sources.source_supports("bovada", slug):
+        jobs.append(("bovada", _odds_sources.fetch_bovada(slug)))
+    if "betonline" in wanted and _odds_sources.source_supports("betonline", slug):
+        jobs.append(("betonline", _odds_sources.fetch_betonline(slug)))
+    if not jobs:
+        return []
+    results = await asyncio.gather(*(job for _name, job in jobs), return_exceptions=True)
+    records: list[dict[str, Any]] = []
+    for (name, _job), result in zip(jobs, results, strict=False):
+        if isinstance(result, BaseException):
+            logger.warning(
+                "sports_supplementary_source_failed", extra={"source": name, "sport": slug}
+            )
+            continue
+        for record in result or []:
+            if not isinstance(record, dict):
+                continue
+            if record.get("market") not in markets:
+                continue
+            if book_key is not None and record.get("book") != book_key:
+                continue
+            records.append(record)
+    return records
 
 
 async def get_event_odds(
@@ -1185,6 +1281,129 @@ async def _get_event_odds(
     return {}
 
 
+async def get_odds_multi(
+    event_id: str,
+    market: str = "h2h",
+    book: str | None = None,
+    limit: int = 50,
+    sources: str | None = None,
+) -> list[dict[str, Any]]:
+    """Aggregate one event's odds from every reachable source.
+
+    Resolves the event (label + sport) through the core comparison path,
+    then fetches from each reachable source in parallel via
+    ``asyncio.gather`` (The Odds API / ESPN core plus OddsPortal, Bovada and
+    BetOnline where the sport is mapped) and returns the merged, deduped
+    record set (:func:`sports_data.sources.merge_odds` — Pinnacle wins
+    conflicts). Each source degrades independently: one source being down
+    or blocked never blanks the result if another works.
+
+    Args:
+        event_id: The event id; accepts an optional ``sport:event_id``
+            prefix (e.g. ``nba:bda33adc...``) like :func:`get_event_odds`.
+        market: Market(s) to include — ``"h2h"`` (default), ``"spreads"``,
+            ``"totals"``, ``"outrights"`` or a comma/pipe separated combo.
+        book: Optional single-book filter (e.g. ``"draftkings"``).
+        limit: Max records to return (1-100).
+        sources: Optional comma-separated source list (see
+            :func:`get_odds`); ``None`` queries every reachable source.
+
+    Returns:
+        A deduped list of canonical odds records for the event. ``[]`` when
+        the event cannot be resolved or nothing is reachable. Never raises.
+    """
+    try:
+        return await _get_odds_multi(event_id, market, book, limit, sources)
+    except Exception:
+        logger.exception(
+            "sports_odds_multi_crashed",
+            extra={"event_id": event_id, "market": market, "book": book},
+        )
+        return []
+
+
+async def _get_odds_multi(
+    event_id: str,
+    market: str,
+    book: str | None,
+    limit: int,
+    sources: str | None,
+) -> list[dict[str, Any]]:
+    from sports_data import sources as _odds_sources
+
+    if not event_id or not str(event_id).strip():
+        return []
+    # Resolve event meta (label + sport) through the existing comparison
+    # path — never raises.
+    comparison = await _get_event_odds(event_id, market, book)
+    label = _as_text(comparison.get("event")) if comparison else None
+    sport = _as_text(comparison.get("sport")) if comparison else None
+    if not label:
+        return []
+    slug = sport if sport and sport in _SPORTS else ""
+    if not slug:
+        return []
+    clamped = max(1, min(int(limit), _MAX_LIMIT))
+    markets = _normalize_markets(market)
+    book_key = _canonical_book(book) if book else None
+    key = _api_key()
+    wanted = _parse_sources_param(sources)
+
+    jobs: list[tuple[str, Any]] = []
+    if key and (wanted is None or "the_odds_api" in wanted):
+        jobs.append(
+            (
+                "the_odds_api",
+                _get_odds(
+                    event_query=label, sport=slug, limit=_MAX_LIMIT, market=market, book=book
+                ),
+            )
+        )
+    if wanted is None or "espn" in wanted:
+        espn = _SPORTS[slug][1]
+        jobs.append(("espn", _espn_odds_for_league(espn, slug, markets)))
+    for name in ("oddsportal", "bovada", "betonline"):
+        if wanted is not None and name not in wanted:
+            continue
+        if not _odds_sources.source_supports(name, slug):
+            continue
+        if name == "oddsportal":
+            jobs.append((name, _odds_sources.fetch_oddsportal(slug, limit=8)))
+        elif name == "bovada":
+            jobs.append((name, _odds_sources.fetch_bovada(slug)))
+        else:
+            jobs.append((name, _odds_sources.fetch_betonline(slug)))
+
+    if not jobs:
+        return []
+    results = await asyncio.gather(*(job for _name, job in jobs), return_exceptions=True)
+    records: list[dict[str, Any]] = []
+    for (name, _job), result in zip(jobs, results, strict=False):
+        if isinstance(result, BaseException):
+            logger.warning(
+                "sports_odds_multi_source_failed",
+                extra={"event_id": event_id, "source": name},
+            )
+            continue
+        for record in result or []:
+            if not isinstance(record, dict):
+                continue
+            if record.get("market") not in markets:
+                continue
+            if not (
+                _odds_sources.event_matches(record, label)
+                or _odds_sources._event_id_matches(record, comparison.get("event_id"))
+            ):
+                continue
+            if book_key is not None and record.get("book") != book_key:
+                continue
+            records.append(record)
+    if len({record.get("source") for record in records}) > 1:
+        records = _odds_sources.merge_odds(records)
+    records.sort(key=lambda record: str(record.get("last_update") or ""), reverse=True)
+    return records[:clamped]
+
+
 def supported_coverage() -> dict[str, Any]:
     """Describe the sports x books x markets the odds engine can serve.
 
@@ -1210,6 +1429,7 @@ def supported_coverage() -> dict[str, Any]:
         "markets": list(_MARKETS_ALL),
         "default_sports": list(_DEFAULT_SPORTS),
         "sources": ["the_odds_api", "espn"],
+        "additional_sources": ["oddsportal", "bovada", "betonline"],
         "cache_ttl_seconds": _CACHE_TTL,
         "api_key_configured": bool(_api_key()),
     }
