@@ -45,6 +45,7 @@ from routers.analysis import router as analysis_router
 from routers.auth import router as auth_router
 from routers.automation import router as automation_router
 from routers.batch import router as batch_router
+from routers.capabilities import router as capabilities_router
 from routers.circuit_breaker import router as circuit_breaker_router
 from routers.commerce import router as commerce_router
 from routers.compliance import router as compliance_router
@@ -52,6 +53,7 @@ from routers.config import router as config_router
 from routers.costing import router as costing_router
 from routers.crm import router as crm_router
 from routers.dashboard import router as dashboard_router
+from routers.diagnostics import router as diagnostics_router
 from routers.email import router as email_router
 from routers.enrichment import router as enrichment_router
 from routers.execute import router as execute_router
@@ -299,9 +301,11 @@ app.include_router(crm_router)
 app.include_router(circuit_breaker_router)
 app.include_router(commerce_router)
 app.include_router(compliance_router)
+app.include_router(capabilities_router)
 app.include_router(config_router)
 app.include_router(costing_router)
 app.include_router(dashboard_router)
+app.include_router(diagnostics_router)
 app.include_router(email_router)
 app.include_router(enrichment_router)
 app.include_router(execute_router)
