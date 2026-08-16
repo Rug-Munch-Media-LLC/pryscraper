@@ -23,7 +23,10 @@ import json
 import logging
 import os
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 import httpx
 
@@ -50,6 +53,10 @@ DATABUS_MAX_RETRIES = int(os.getenv("PRY_DATABUS_MAX_RETRIES", "3"))
 # Retry queue (persistent on disk for durability)
 RETRY_DIR = PRY_DATA_DIR / "databus_retry"
 RETRY_DIR.mkdir(parents=True, exist_ok=True)
+
+# Dead-letter file: payloads that exceed the retry cap land here instead of
+# being silently dropped. JSONL — one JSON record per line.
+DEAD_LETTER_PATH = PRY_DATA_DIR / "databus_dead_letter.jsonl"
 
 
 # ── Bridge hook — called by pipeline at "before_return" ─────────────
@@ -229,42 +236,50 @@ def _extract_chain(context: dict[str, Any]) -> str:
 # ── Delivery with retry queue ──────────────────────────────────────
 
 
+async def _deliver_once(payload: dict[str, Any]) -> bool:
+    """Perform a single delivery attempt to the DataBus endpoint.
+
+    Returns True when the backend accepts the payload (2xx). Returns False
+    for any non-success response or transport error; the caller decides
+    whether to retry, requeue, or dead-letter. Transport errors are
+    converted to a False result (never raised) so every payload flows
+    through a lossless decision path.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=DATABUS_TIMEOUT) as client:
+            resp = await client.post(DATABUS_URL, json=payload)
+            if resp.is_success:
+                logger.info(
+                    "databus_published",
+                    data_type=payload.get("data_type"),
+                    url=str(payload.get("url", ""))[:60],
+                    status=resp.status_code,
+                )
+                return True
+
+            logger.warning(
+                "databus_rejected",
+                status=resp.status_code,
+                body=resp.text[:200],
+            )
+            return False
+
+    except (httpx.RequestError, httpx.HTTPError, OSError, TimeoutError) as e:
+        logger.warning("databus_delivery_error", error=str(e)[:100])
+        return False
+
+
 async def _deliver_with_retry(payload: dict[str, Any], attempt: int = 1) -> bool:
     """Post to DataBus with retry on failure.
 
     Retries with exponential backoff (2^attempt seconds).
-    Writes to a persistent file queue if retries exhausted.
+    Writes to a persistent file queue if retries exhausted — the payload is
+    never dropped: every non-success outcome ends up requeued on disk for
+    the retry consumer.
     """
     for a in range(1, DATABUS_MAX_RETRIES + 1):
-        try:
-            async with httpx.AsyncClient(timeout=DATABUS_TIMEOUT) as client:
-                resp = await client.post(DATABUS_URL, json=payload)
-                if resp.is_success:
-                    logger.info(
-                        "databus_published",
-                        data_type=payload.get("data_type"),
-                        url=str(payload.get("url", ""))[:60],
-                        status=resp.status_code,
-                    )
-                    return True
-
-                # Non-retryable client error
-                if resp.status_code < 500:
-                    logger.warning(
-                        "databus_rejected",
-                        status=resp.status_code,
-                        body=resp.text[:200],
-                    )
-                    return False
-
-        except (httpx.RequestError, httpx.HTTPError, OSError, TimeoutError) as e:
-            logger.warning(
-                "databus_retry",
-                attempt=a,
-                error=str(e)[:100],
-                max_retries=DATABUS_MAX_RETRIES,
-            )
-
+        if await _deliver_once(payload):
+            return True
         if a < DATABUS_MAX_RETRIES:
             await asyncio.sleep(2**a)  # exponential backoff
 
@@ -282,7 +297,7 @@ def _queue_for_retry(payload: dict[str, Any]) -> None:
                 {
                     "payload": payload,
                     "queued_at": datetime.now(UTC).isoformat(),
-                    "retry_count": DATABUS_MAX_RETRIES,
+                    "retry_count": 0,
                 },
                 default=str,
             )
@@ -295,11 +310,70 @@ def _queue_for_retry(payload: dict[str, Any]) -> None:
 # ── Retry consumer (call from cron or at startup) ──────────────────
 
 
+def _requeue_with_retry_count(path: Path, payload: dict[str, Any], retry_count: int) -> None:
+    """Rewrite a retry-queue file with an incremented retry_count.
+
+    The new content is written to a sibling temp file and atomically
+    replaced, so a failed write can never destroy the queued payload —
+    on OSError the original queue file is left intact.
+    """
+    data = {
+        "payload": payload,
+        "queued_at": datetime.now(UTC).isoformat(),
+        "retry_count": retry_count,
+    }
+    tmp_path = path.with_name(f"{path.name}.tmp")
+    try:
+        tmp_path.write_text(json.dumps(data, default=str), encoding="utf-8")
+        tmp_path.replace(path)
+        logger.info("databus_requeued", path=str(path), retry_count=retry_count)
+    except OSError as e:
+        logger.error("databus_requeue_failed", path=str(path), error=str(e)[:200])
+
+
+def _write_dead_letter(payload: dict[str, Any], retry_count: int, source: Path) -> bool:
+    """Append a payload to the persisted dead-letter JSONL file.
+
+    Returns True on success. On failure the retry-queue file is left in
+    place so the payload is never silently dropped.
+    """
+    record = {
+        "payload": payload,
+        "dead_lettered_at": datetime.now(UTC).isoformat(),
+        "retry_count": retry_count,
+        "source": str(source),
+    }
+    try:
+        DEAD_LETTER_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with DEAD_LETTER_PATH.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record, default=str) + "\n")
+        logger.warning(
+            "databus_dead_lettered",
+            path=str(DEAD_LETTER_PATH),
+            retry_count=retry_count,
+        )
+        return True
+    except OSError as e:
+        logger.error(
+            "databus_dead_letter_failed",
+            path=str(DEAD_LETTER_PATH),
+            error=str(e)[:200],
+        )
+        return False
+
+
 async def process_retry_queue() -> dict[str, int]:
     """Re-process all queued payloads.
 
     Call this at startup or periodically to drain the retry queue.
     Returns stats: {processed, succeeded, failed, remaining}.
+
+    Lossless guarantee — every visited payload either:
+      - is delivered successfully (queue file removed), or
+      - is requeued with an incremented retry_count, or
+      - is moved to the dead-letter JSONL file once retry_count reaches
+        the cap.
+    No payload is silently dropped.
     """
     if not RETRY_DIR.exists():
         return {"processed": 0, "succeeded": 0, "failed": 0, "remaining": 0}
@@ -309,20 +383,37 @@ async def process_retry_queue() -> dict[str, int]:
     failed = 0
 
     for path in sorted(RETRY_DIR.glob("retry_*.json")):
+        processed += 1
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding="utf-8"))
             payload = data.get("payload", {})
-            if payload:
-                ok = await _deliver_with_retry(payload)
-                if ok:
-                    succeeded += 1
-                else:
-                    failed += 1
-                path.unlink()  # remove regardless (avoid infinite retry loop)
-                processed += 1
-        except (json.JSONDecodeError, OSError) as e:
+            retry_count = int(data.get("retry_count", 0) or 0)
+        except (json.JSONDecodeError, OSError, TypeError, ValueError) as e:
+            # Unreadable/corrupt queue file: keep it on disk for operator
+            # inspection instead of silently deleting the payload.
             logger.warning("retry_queue_read_failed", path=str(path), error=str(e)[:100])
             failed += 1
+            continue
+
+        if not payload:
+            logger.warning("retry_queue_empty_payload", path=str(path))
+            failed += 1
+            continue
+
+        if retry_count >= DATABUS_MAX_RETRIES:
+            # Cap exceeded — persist to dead-letter instead of dropping.
+            if _write_dead_letter(payload, retry_count, path):
+                path.unlink()
+                failed += 1
+            continue
+
+        if await _deliver_once(payload):
+            path.unlink()  # delivered — only now remove the queue file
+            succeeded += 1
+        else:
+            # Delivery failed — requeue with an incremented retry_count.
+            # The queue file is retained (rewritten in place).
+            _requeue_with_retry_count(path, payload, retry_count + 1)
 
     remaining = len(list(RETRY_DIR.glob("retry_*.json")))
     logger.info(
