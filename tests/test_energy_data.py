@@ -34,6 +34,8 @@ from routers.energy_data import router as energy_router
 _NYISO = "https://mis.nyiso.com/public/csv/damlbmp"
 _PJM = "https://dataminer2.pjm.com/feed/da_hrl_lmps"
 _EIA = "https://api.eia.gov/v2/petroleum/pri/gnd/data/"
+_ERCOT = "https://www.ercot.com/api/1/services/read/dashboards/systemWidePrices.json"
+_CAISO = "https://oasis.caiso.com/oasisapi/SingleZip"
 
 # max_retries=0 → single deterministic attempt, zero backoff.
 _ZERO_RETRY = RetryConfig(
@@ -119,6 +121,30 @@ def _eia_payload() -> dict[str, Any]:
     }
 
 
+def _ercot_payload() -> dict[str, Any]:
+    return {
+        "rtSppData": [
+            {"interval": "08/15/2026 14:30", "hbBusAvg": 45.12},
+            {"interval": "08/15/2026 14:15", "hbBusAvg": 44.98},
+        ]
+    }
+
+
+def _caiso_zip() -> bytes:
+    csv_text = (
+        "INTERVALSTARTTIME,NODE_ID,LMP_PRICE\n"
+        "2026-08-15T04:00:00-00:00,TH_NP15_GEN-APND,38.50\n"
+        "2026-08-15T04:00:00-00:00,TH_SP15_GEN-APND,39.10\n"
+    )
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("lmp.csv", csv_text)
+    return buf.getvalue()
+
+
 # ── get_lmp: NYISO ────────────────────────────────────────────────────
 
 
@@ -139,14 +165,18 @@ async def test_get_lmp_nyiso_success() -> None:
 
 
 @respx.mock
-async def test_get_lmp_region_all_fetches_nyiso_without_keys() -> None:
+async def test_get_lmp_region_all_fetches_keyless_sources() -> None:
+    # NYISO, ERCOT and CAISO are all keyless; PJM still needs PRY_PJM_API_KEY.
     respx.get(url__startswith=_NYISO).mock(return_value=httpx.Response(200, text=_nyiso_csv()))
+    respx.get(url=_ERCOT).mock(return_value=httpx.Response(200, json=_ercot_payload()))
+    respx.get(url__startswith=_CAISO).mock(return_value=httpx.Response(200, content=_caiso_zip()))
     results = await lmp.get_lmp(region="all", date="2026-08-15")
-    # Without PRY_PJM_API_KEY / gridstatus, only the keyless NYISO path
-    # produces records (pjm/ercot/caiso degrade to []).
-    assert {r["region"] for r in results} == {"nyiso"}
-    assert len(results) == 3
-    assert respx.calls.call_count == 1
+    regions = {r["region"] for r in results}
+    assert regions == {"nyiso", "ercot", "caiso"}
+    assert len([r for r in results if r["region"] == "nyiso"]) == 3
+    assert len([r for r in results if r["region"] == "ercot"]) == 2
+    assert len([r for r in results if r["region"] == "caiso"]) == 2
+    assert respx.calls.call_count == 3
 
 
 @respx.mock
@@ -222,6 +252,64 @@ async def test_get_lmp_pjm_http_error_returns_empty(
     monkeypatch.setenv("PRY_PJM_API_KEY", "test-key")
     respx.get(url__startswith=_PJM).mock(return_value=httpx.Response(500))
     assert await lmp.get_lmp(region="pjm", date="2026-08-15") == []
+
+
+# ── get_lmp: ERCOT (keyless dashboard) ────────────────────────────────
+
+
+@respx.mock
+async def test_get_lmp_ercot_success() -> None:
+    respx.get(url=_ERCOT).mock(return_value=httpx.Response(200, json=_ercot_payload()))
+    results = await lmp.get_lmp(region="ercot", date="2026-08-15")
+    assert len(results) == 2
+    record = results[0]
+    assert record["region"] == "ercot"
+    assert record["node"] == "HB_BUS_AVG"
+    assert record["timestamp"] == "2026-08-15T19:30:00+00:00"  # CT 14:30 -> UTC 19:30
+    assert record["price_usd_mwh"] == 45.12
+    assert record["lmp_type"] == "RTM"
+
+
+@respx.mock
+async def test_get_lmp_ercot_http_error_returns_empty() -> None:
+    respx.get(url=_ERCOT).mock(return_value=httpx.Response(500))
+    assert await lmp.get_lmp(region="ercot", date="2026-08-15") == []
+
+
+@respx.mock
+async def test_get_lmp_ercot_malformed_payload_returns_empty() -> None:
+    respx.get(url=_ERCOT).mock(return_value=httpx.Response(200, json={"nope": 1}))
+    assert await lmp.get_lmp(region="ercot", date="2026-08-15") == []
+
+
+# ── get_lmp: CAISO OASIS ──────────────────────────────────────────────
+
+
+@respx.mock
+async def test_get_lmp_caiso_success() -> None:
+    respx.get(url__startswith=_CAISO).mock(return_value=httpx.Response(200, content=_caiso_zip()))
+    results = await lmp.get_lmp(region="caiso", date="2026-08-15")
+    assert len(results) == 2
+    record = results[0]
+    assert record["region"] == "caiso"
+    assert record["node"] == "TH_NP15_GEN-APND"
+    assert record["timestamp"] == "2026-08-15T04:00:00+00:00"
+    assert record["price_usd_mwh"] == 38.50
+    assert record["lmp_type"] == "RTM"
+
+
+@respx.mock
+async def test_get_lmp_caiso_http_error_returns_empty() -> None:
+    respx.get(url__startswith=_CAISO).mock(return_value=httpx.Response(500))
+    assert await lmp.get_lmp(region="caiso", date="2026-08-15") == []
+
+
+@respx.mock
+async def test_get_lmp_caiso_bad_zip_returns_empty() -> None:
+    respx.get(url__startswith=_CAISO).mock(
+        return_value=httpx.Response(200, content=b"<html>not a zip</html>")
+    )
+    assert await lmp.get_lmp(region="caiso", date="2026-08-15") == []
 
 
 # ── get_fuel_prices: EIA ──────────────────────────────────────────────

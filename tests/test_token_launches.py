@@ -13,6 +13,7 @@ invalid chain all yield an empty list).
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx
@@ -28,6 +29,8 @@ from crypto_market.token_launches import (
 DEX = "https://api.dexscreener.com"
 CG = "https://api.coingecko.com/api/v3"
 LLAMA = "https://api.llama.fi"
+CMC_NEW = "https://coinmarketcap.com/new/"
+BIRDEYE = "https://public-api.birdeye.so/defi/tokenlist"
 
 SCHEMA_KEYS = {
     "chain",
@@ -49,6 +52,8 @@ def _hermetic_crypto_market(monkeypatch: pytest.MonkeyPatch) -> Any:
     """Clear caches + API keys so tests are hermetic and fast."""
     monkeypatch.delenv("COINGECKO_API_KEY", raising=False)
     monkeypatch.delenv("PRY_COINGECKO_API_KEY", raising=False)
+    monkeypatch.delenv("BIRDEYE_API_KEY", raising=False)
+    monkeypatch.delenv("PRY_BIRDEYE_API_KEY", raising=False)
     import crypto_market.token_launches as tl
 
     monkeypatch.setattr(tl, "RETRY_BASE", 0.0)
@@ -115,6 +120,62 @@ def _mock_tokens(chain: str, *pairs: dict[str, Any]) -> respx.Route:
     return respx.get(url__startswith=f"{DEX}/tokens/v1/{chain}/").mock(
         return_value=httpx.Response(200, json={"pairs": list(pairs)})
     )
+
+
+def _cmc_new_page() -> str:
+    """CoinMarketCap /new/ page with a ``__NEXT_DATA__`` coin row."""
+    data = {
+        "props": {
+            "initialState": {
+                "cryptocurrency": {
+                    "listingLatest": {
+                        "data": [
+                            {
+                                "id": 9001,
+                                "name": "Fresh Token",
+                                "symbol": "FRESH",
+                                "slug": "fresh-token",
+                                "platform": {"id": "solana"},
+                                "date_added": "2026-08-15T00:00:00.000Z",
+                                "quote": {
+                                    "USD": {
+                                        "price": 0.02,
+                                        "volume_24h": 1000.0,
+                                        "percent_change_24h": 5.0,
+                                    }
+                                },
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    return (
+        '<html><head></head><body><script id="__NEXT_DATA__" type="application/json">'
+        + json.dumps(data)
+        + "</script></body></html>"
+    )
+
+
+def _birdeye_tokenlist(chain: str) -> dict[str, Any]:
+    return {
+        "success": True,
+        "data": {
+            "tokens": [
+                {
+                    "address": "bird1",
+                    "symbol": "BIRD",
+                    "name": "Birdeye Coin",
+                    "liquidity": 25_000.0,
+                    "v24hUSD": 8_000.0,
+                    "v24hChangePercent": 12.5,
+                    "lastTradeUnixTime": 1_750_000_000_000,
+                }
+            ],
+            "total": 1,
+        },
+    }
 
 
 def _assert_schema(entry: dict[str, Any]) -> None:
@@ -377,6 +438,104 @@ async def test_get_new_tokens_falls_back_to_coingecko_when_dexscreener_empty() -
     assert result[0]["source"] == "coingecko"
     assert result[0]["chain"] == "solana"  # attributed via platform map
     assert result[0]["address"] == "fresh-coin"
+
+
+# ── CoinMarketCap new-listings fallback ────────────────────────────────
+
+
+@respx.mock
+async def test_get_new_tokens_cmc_fallback_when_others_empty() -> None:
+    _mock_profiles()  # empty DexScreener profiles
+    respx.get(url__startswith=f"{CG}/coins/markets").mock(return_value=httpx.Response(200, json=[]))
+    respx.get(url=CMC_NEW).mock(return_value=httpx.Response(200, text=_cmc_new_page()))
+
+    result = await get_new_tokens(chain="solana")
+
+    assert len(result) == 1
+    entry = result[0]
+    _assert_schema(entry)
+    assert entry["source"] == "coinmarketcap"
+    assert entry["chain"] == "solana"  # platform.id "solana" attributed
+    assert entry["symbol"] == "FRESH"
+    assert entry["name"] == "Fresh Token"
+    assert entry["price_usd"] == 0.02
+    assert entry["volume_24h_usd"] == 1000.0
+    assert entry["created_at_utc"] == "2026-08-15T00:00:00+00:00"
+
+
+@respx.mock
+async def test_get_new_tokens_cmc_bad_html_returns_empty() -> None:
+    _mock_profiles()
+    respx.get(url__startswith=f"{CG}/coins/markets").mock(return_value=httpx.Response(200, json=[]))
+    respx.get(url=CMC_NEW).mock(return_value=httpx.Response(200, text="<html>no data</html>"))
+
+    assert await get_new_tokens(chain="solana") == []
+
+
+@respx.mock
+async def test_get_new_tokens_cmc_http_error_returns_empty() -> None:
+    _mock_profiles()
+    respx.get(url__startswith=f"{CG}/coins/markets").mock(return_value=httpx.Response(200, json=[]))
+    respx.get(url=CMC_NEW).mock(return_value=httpx.Response(403))
+
+    assert await get_new_tokens(chain="solana") == []
+
+
+# ── Birdeye token list fallback ────────────────────────────────────────
+
+
+@respx.mock
+async def test_get_new_tokens_birdeye_fallback_when_others_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PRY_BIRDEYE_API_KEY", "test-key")
+    _mock_profiles()
+    respx.get(url__startswith=f"{CG}/coins/markets").mock(return_value=httpx.Response(200, json=[]))
+    respx.get(url=CMC_NEW).mock(return_value=httpx.Response(200, text="<html>no data</html>"))
+    respx.get(url__startswith=BIRDEYE).mock(
+        return_value=httpx.Response(200, json=_birdeye_tokenlist("solana"))
+    )
+
+    result = await get_new_tokens(chain="solana")
+
+    assert len(result) == 1
+    entry = result[0]
+    _assert_schema(entry)
+    assert entry["source"] == "birdeye"
+    assert entry["chain"] == "solana"
+    assert entry["symbol"] == "BIRD"
+    assert entry["liquidity_usd"] == 25_000.0
+    assert entry["volume_24h_usd"] == 8_000.0
+    assert entry["price_change_24h_pct"] == 12.5
+
+
+@respx.mock
+async def test_get_new_tokens_birdeye_requires_api_key() -> None:
+    _mock_profiles()
+    respx.get(url__startswith=f"{CG}/coins/markets").mock(return_value=httpx.Response(200, json=[]))
+    respx.get(url=CMC_NEW).mock(return_value=httpx.Response(200, text="<html>no data</html>"))
+    # No PRY_BIRDEYE_API_KEY set -> Birdeye is skipped without a network call.
+    assert await get_new_tokens(chain="solana") == []
+    assert not any(str(c.request.url).startswith(BIRDEYE) for c in respx.calls)
+
+
+@respx.mock
+async def test_get_new_tokens_birdeye_sends_chain_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PRY_BIRDEYE_API_KEY", "test-key")
+    _mock_profiles()
+    respx.get(url__startswith=f"{CG}/coins/markets").mock(return_value=httpx.Response(200, json=[]))
+    respx.get(url=CMC_NEW).mock(return_value=httpx.Response(200, text="<html>no data</html>"))
+    route = respx.get(url__startswith=BIRDEYE).mock(
+        return_value=httpx.Response(200, json=_birdeye_tokenlist("solana"))
+    )
+
+    await get_new_tokens(chain="solana")
+
+    request = route.calls.last.request
+    assert request.headers.get("x-api-key") == "test-key"
+    assert request.headers.get("x-chain") == "solana"
 
 
 # ── rate-limit backoff ──────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 """Multi-ATS job board ingestion for Pry — official JSON endpoints.
 
-Aggregates job listings from the four major applicant-tracking systems
+Aggregates job listings from the six major applicant-tracking systems
 that expose free, no-auth, no-anti-bot JSON boards:
 
 - Greenhouse  ``GET https://boards-api.greenhouse.io/v1/boards/{company}/jobs``
@@ -10,6 +10,12 @@ that expose free, no-auth, no-anti-bot JSON boards:
              (JSON body + ``Accept: application/json``; a Workday tenant
              usually requires a browser-like User-Agent and same-origin
              Origin/Referer headers — sent by default, best-effort)
+- Workable   ``GET https://apply.workable.com/api/v3/accounts/{company}/jobs``
+             (public careers-search feed; no auth, free JSON; list items
+             carry title/location/remote + a detail ``url``)
+- Breezy HR  ``GET https://{company}.breezy.hr/json``
+             (public careers feed; no auth, free JSON; a single response
+             holds the whole board, no pagination)
 
 Each board's raw shape is normalized into the common listing schema:
 
@@ -48,7 +54,14 @@ from retry import RetryConfig, async_retry
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_BOARDS: tuple[str, ...] = ("greenhouse", "lever", "ashby", "workday")
+SUPPORTED_BOARDS: tuple[str, ...] = (
+    "greenhouse",
+    "lever",
+    "ashby",
+    "workday",
+    "workable",
+    "breezy",
+)
 
 # A few known-good public boards used by ``search_jobs`` (verified live).
 SEARCH_COMPANIES: tuple[tuple[str, str], ...] = (
@@ -158,6 +171,14 @@ def _ashby_url(company: str, *, include_compensation: bool = True) -> str:
 
 def _workday_url(company: str, site: str) -> str:
     return f"https://{company}.wd1.myworkdayjobs.com/wday/cxs/{company}/{site}/jobs"
+
+
+def _workable_url(company: str) -> str:
+    return f"https://apply.workable.com/api/v3/accounts/{company}/jobs"
+
+
+def _breezy_url(company: str) -> str:
+    return f"https://{company}.breezy.hr/json"
 
 
 def _workday_site(company: str, site: str | None) -> str:
@@ -378,6 +399,102 @@ def _norm_workday(raw: dict[str, Any], company: str, site: str) -> dict[str, Any
     }
 
 
+def _locations_from_structured(raw: dict[str, Any]) -> str:
+    """Best-effort location label from Workable's structured location fields.
+
+    Workable frequently ships ``location`` as null and puts the real value
+    in ``locations`` (list of dicts with city/region/country), in a single
+    ``location`` dict, or in flat city/state/country keys — rebuild the
+    label instead of trusting a null.
+    """
+    locations = raw.get("locations")
+    if isinstance(locations, list) and locations:
+        parts: list[str] = []
+        for loc in locations:
+            if isinstance(loc, dict):
+                bits = [
+                    str(loc.get("city") or "").strip(),
+                    str(loc.get("region") or "").strip(),
+                    str(loc.get("country") or "").strip(),
+                ]
+                bits = [b for b in bits if b]
+                if bits:
+                    parts.append(", ".join(bits))
+            else:
+                text = str(loc).strip()
+                if text:
+                    parts.append(text)
+        if parts:
+            return "; ".join(parts)
+    single = raw.get("location")
+    if isinstance(single, dict):
+        bits = [
+            str(single.get("city") or "").strip(),
+            str(single.get("region") or "").strip(),
+            str(single.get("country") or "").strip(),
+        ]
+        bits = [b for b in bits if b]
+        if bits:
+            return ", ".join(bits)
+    flat = [
+        str(raw.get(k) or "").strip()
+        for k in ("city", "state", "country")
+        if str(raw.get(k) or "").strip()
+    ]
+    if flat:
+        return ", ".join(flat)
+    return str(single or "").strip()
+
+
+def _norm_workable(raw: dict[str, Any], company: str) -> dict[str, Any]:
+    location = _locations_from_structured(raw)
+    workplace = str(raw.get("workplace") or raw.get("workplace_type") or "").lower()
+    remote = bool(raw.get("remote")) or workplace in {"remote", "fully_remote", "fully remote"}
+    if "remote" in location.lower():
+        remote = True
+    url = str(raw.get("url") or raw.get("application_url") or raw.get("shortlink") or "")
+    if not url:
+        shortcode = str(raw.get("shortcode") or "")
+        if shortcode:
+            url = f"https://apply.workable.com/{company}/j/{shortcode}/"
+    return {
+        "id": str(raw.get("id") or raw.get("shortcode") or ""),
+        "title": str(raw.get("title") or ""),
+        "company": company,
+        "location": location,
+        "remote": remote,
+        "url": url,
+        "posted_at": _normalize_dt(
+            raw.get("published") or raw.get("created_at") or raw.get("published_on")
+        ),
+    }
+
+
+def _norm_breezy(raw: dict[str, Any], company: str) -> dict[str, Any]:
+    location = ", ".join(
+        str(raw.get(key) or "").strip()
+        for key in ("location_city", "location_state", "location_country")
+        if str(raw.get(key) or "").strip()
+    )
+    remote = bool(raw.get("is_remote")) or bool(raw.get("remote"))
+    url = str(raw.get("apply_url") or raw.get("url") or "")
+    if not url:
+        posting_id = str(raw.get("posting_id") or "")
+        if posting_id:
+            url = f"https://{company}.breezy.hr/p/{posting_id}"
+    return {
+        "id": str(raw.get("posting_id") or raw.get("id") or ""),
+        "title": str(raw.get("title") or ""),
+        "company": company,
+        "location": location,
+        "remote": remote,
+        "url": url,
+        "posted_at": _normalize_dt(
+            raw.get("published_date") or raw.get("published_at") or raw.get("created_at")
+        ),
+    }
+
+
 # ── Public: list_jobs ──────────────────────────────────────────────────
 async def list_jobs(
     company: str, board: str = "greenhouse", limit: int = 50, *, site: str | None = None
@@ -412,6 +529,24 @@ async def list_jobs(
             data = await _get_json(_ashby_url(company))
             raw_jobs = ((data or {}).get("jobs") or []) if isinstance(data, dict) else []
             items = [_norm_ashby(j, company) for j in raw_jobs if isinstance(j, dict)]
+        elif board == "workable":
+            data = await _get_json(_workable_url(company))
+            if isinstance(data, dict):
+                raw_jobs = data.get("jobs") or []
+            elif isinstance(data, list):
+                raw_jobs = data
+            else:
+                raw_jobs = []
+            items = [_norm_workable(j, company) for j in raw_jobs if isinstance(j, dict)]
+        elif board == "breezy":
+            data = await _get_json(_breezy_url(company))
+            if isinstance(data, list):
+                raw_jobs = data
+            elif isinstance(data, dict):
+                raw_jobs = data.get("postings") or data.get("jobs") or []
+            else:
+                raw_jobs = []
+            items = [_norm_breezy(j, company) for j in raw_jobs if isinstance(j, dict)]
         else:  # workday
             site_name = _workday_site(company, site)
             data = await _post_json(
@@ -471,6 +606,10 @@ async def get_job(
             return _job_detail_from_lever(item, company)
         if board == "ashby":
             return _job_detail_from_ashby(item, company)
+        if board == "workable":
+            return _job_detail_from_workable(item, company)
+        if board == "breezy":
+            return _job_detail_from_breezy(item, company)
         return _job_detail_from_workday(item, company)
     except _SAFE_EXCEPTIONS:
         logger.warning("ats_job_failed", extra={"board": board, "company": company})
@@ -507,6 +646,24 @@ async def _find_in_board_list(company: str, board: str, job_id: str) -> dict[str
         data = await _post_json(_workday_url(company, site_name), payload=_workday_payload(20))
         raw = ((data or {}).get("jobPostings") or []) if isinstance(data, dict) else []
         id_key = "jobPostingId"
+    elif board == "workable":
+        data = await _get_json(_workable_url(company))
+        if isinstance(data, dict):
+            raw = data.get("jobs") or []
+        elif isinstance(data, list):
+            raw = data
+        else:
+            raw = []
+        id_key = "id"
+    elif board == "breezy":
+        data = await _get_json(_breezy_url(company))
+        if isinstance(data, list):
+            raw = data
+        elif isinstance(data, dict):
+            raw = data.get("postings") or data.get("jobs") or []
+        else:
+            raw = []
+        id_key = "posting_id"
     else:
         return None
     for item in raw:
@@ -565,4 +722,47 @@ def _job_detail_from_workday(item: dict[str, Any], company: str) -> dict[str, An
         "requirements": "",
         "compensation": "",
         "url": url,
+    }
+
+
+def _job_detail_from_workable(item: dict[str, Any], company: str) -> dict[str, Any]:
+    """Workable detail derived from the public list item.
+
+    The careers-search feed's list objects carry description / requirements /
+    compensation fields on the full object (the ``?details=true`` widget
+    variant); when absent we degrade gracefully to the list-visible fields.
+    """
+    description = str(item.get("description") or item.get("full_description") or "")
+    if not description:
+        description = _strip_html(str(item.get("description_html") or ""))
+    return {
+        "title": str(item.get("title") or ""),
+        "company": company,
+        "location": _locations_from_structured(item),
+        "description": description,
+        "requirements": str(item.get("requirements") or ""),
+        "compensation": str(item.get("salary") or item.get("compensation") or ""),
+        "url": str(item.get("url") or item.get("application_url") or ""),
+    }
+
+
+def _job_detail_from_breezy(item: dict[str, Any], company: str) -> dict[str, Any]:
+    """Breezy HR detail derived from the public JSON feed.
+
+    The feed publishes apply-url + salary text but no description body, so
+    description/requirements are empty by design (link out for the full ad).
+    """
+    location = ", ".join(
+        str(item.get(key) or "").strip()
+        for key in ("location_city", "location_state", "location_country")
+        if str(item.get(key) or "").strip()
+    )
+    return {
+        "title": str(item.get("title") or ""),
+        "company": company,
+        "location": location,
+        "description": "",
+        "requirements": "",
+        "compensation": str(item.get("salary") or ""),
+        "url": str(item.get("apply_url") or item.get("url") or ""),
     }

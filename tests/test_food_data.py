@@ -37,6 +37,8 @@ from routers.food_data import router as food_router
 _KROGER_OAUTH_URL = "https://api.kroger.com/v1/connect/oauth2/token"
 _KROGER_PRODUCTS_URL = "https://api.kroger.com/v1/products"
 _WALMART_URL = "https://www.walmart.com/search"
+_INSTACART_URL = "https://www.instacart.com/store/s"
+_ALDI_URL = "https://www.aldi.us/en/search"
 _DDG_URL = "https://html.duckduckgo.com/html/"
 _MENU_URL = "https://example.com/menu"
 _LANDING_URL = "https://example.com/"
@@ -116,6 +118,36 @@ def _walmart_regex_html() -> str:
         '<html><body><div>{"name": "Milk 1 gal", "price": '
         '{"currentPrice": 3.12, "currencyUnit": "USD"}}</div></body></html>'
     )
+
+
+def _instacart_apollo_html() -> str:
+    data: dict[str, Any] = {
+        "ROOT_QUERY": {
+            "searchResults": [
+                {"name": "Organic Whole Milk, Half Gallon", "price": {"amount": 4.29}},
+                {"name": "Bananas, per lb", "price": {"amount": 0.69}},
+            ]
+        }
+    }
+    return (
+        "<html><head></head><body><script>window.__APOLLO_STATE__ = "
+        + json.dumps(data)
+        + ";</script></body></html>"
+    )
+
+
+def _instacart_jsonld_html() -> str:
+    return """<html><head>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Product","name":"Organic Milk","offers":{"price":"4.49","priceCurrency":"USD"}}
+</script></head><body></body></html>"""
+
+
+def _aldi_jsonld_html() -> str:
+    return """<html><head>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Product","name":"Simply Nature Organic Milk","offers":{"price":"3.99","priceCurrency":"USD"}}
+</script></head><body></body></html>"""
 
 
 def _ddg_html(*urls: str) -> str:
@@ -292,6 +324,8 @@ async def test_kroger_malformed_then_walmart_fails_returns_empty(
         return_value=httpx.Response(200, json={"nope": 1})
     )
     respx.get(url__startswith=_WALMART_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith=_INSTACART_URL).mock(return_value=httpx.Response(403))
+    respx.get(url__startswith=_ALDI_URL).mock(return_value=httpx.Response(403))
     assert await grocery.get_grocery_prices("milk", "45202") == []
 
 
@@ -321,6 +355,79 @@ async def test_walmart_regex_fallback() -> None:
 @respx.mock
 async def test_walmart_http_error_returns_empty() -> None:
     respx.get(url__startswith=_WALMART_URL).mock(return_value=httpx.Response(403))
+    respx.get(url__startswith=_INSTACART_URL).mock(return_value=httpx.Response(403))
+    respx.get(url__startswith=_ALDI_URL).mock(return_value=httpx.Response(403))
+    assert await grocery.get_grocery_prices("milk", "45202") == []
+
+
+# ── grocery: Instacart fallback ────────────────────────────────────────
+
+
+@respx.mock
+async def test_instacart_apollo_scrape_success() -> None:
+    respx.get(url__startswith=_KROGER_PRODUCTS_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith=_WALMART_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith=_INSTACART_URL).mock(
+        return_value=httpx.Response(200, text=_instacart_apollo_html())
+    )
+    results = await grocery.get_grocery_prices("milk", "45202")
+    assert len(results) == 2
+    first = results[0]
+    assert first["store"] == "Instacart"
+    assert first["product"] == "Organic Whole Milk, Half Gallon"
+    assert first["price"] == 4.29
+    assert first["currency"] == "USD"
+
+
+@respx.mock
+async def test_instacart_jsonld_scrape_success() -> None:
+    respx.get(url__startswith=_KROGER_PRODUCTS_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith=_WALMART_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith=_INSTACART_URL).mock(
+        return_value=httpx.Response(200, text=_instacart_jsonld_html())
+    )
+    results = await grocery.get_grocery_prices("milk", "45202")
+    assert len(results) == 1
+    assert results[0]["store"] == "Instacart"
+    assert results[0]["product"] == "Organic Milk"
+    assert results[0]["price"] == 4.49
+
+
+@respx.mock
+async def test_instacart_http_error_returns_empty() -> None:
+    respx.get(url__startswith=_KROGER_PRODUCTS_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith=_WALMART_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith=_INSTACART_URL).mock(return_value=httpx.Response(403))
+    respx.get(url__startswith=_ALDI_URL).mock(return_value=httpx.Response(403))
+    assert await grocery.get_grocery_prices("milk", "45202") == []
+
+
+# ── grocery: Aldi / regional fallback ──────────────────────────────────
+
+
+@respx.mock
+async def test_aldi_jsonld_scrape_success() -> None:
+    respx.get(url__startswith=_KROGER_PRODUCTS_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith=_WALMART_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith=_INSTACART_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith=_ALDI_URL).mock(
+        return_value=httpx.Response(200, text=_aldi_jsonld_html())
+    )
+    results = await grocery.get_grocery_prices("milk", "45202")
+    assert len(results) == 1
+    first = results[0]
+    assert first["store"] == "Aldi"
+    assert first["product"] == "Simply Nature Organic Milk"
+    assert first["price"] == 3.99
+    assert first["currency"] == "USD"
+
+
+@respx.mock
+async def test_aldi_http_error_returns_empty() -> None:
+    respx.get(url__startswith=_KROGER_PRODUCTS_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith=_WALMART_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith=_INSTACART_URL).mock(return_value=httpx.Response(500))
+    respx.get(url__startswith=_ALDI_URL).mock(return_value=httpx.Response(403))
     assert await grocery.get_grocery_prices("milk", "45202") == []
 
 

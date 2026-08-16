@@ -31,6 +31,8 @@ GREENHOUSE_JOB_URL = "https://boards-api.greenhouse.io/v1/boards/stripe/jobs/123
 LEVER_URL = "https://api.lever.co/v0/postings/leverdemo?mode=json"
 ASHBY_URL = "https://api.ashbyhq.com/posting-api/job-board/linear?includeCompensation=true"
 WORKDAY_URL = "https://acme.wd1.myworkdayjobs.com/wday/cxs/acme/acme/jobs"
+WORKABLE_URL = "https://apply.workable.com/api/v3/accounts/acme/jobs"
+BREEZY_URL = "https://acme.breezy.hr/json"
 LEVELS_URL = "https://www.levels.fyi/companies/google/salaries/software-engineer"
 LEVELS_HOME = "https://www.levels.fyi/"
 
@@ -95,6 +97,52 @@ WORKDAY_JOBS: dict[str, Any] = {
         }
     ]
 }
+
+WORKABLE_JOBS: dict[str, Any] = {
+    "jobs": [
+        {
+            "id": "wb-1",
+            "shortcode": "abc123",
+            "title": "Platform Engineer",
+            "location": {"city": "Denver", "region": "CO", "country": "USA"},
+            "remote": True,
+            "url": "https://apply.workable.com/acme/j/abc123/",
+            "published": "2026-08-04T00:00:00Z",
+        },
+        {
+            "id": "wb-2",
+            "shortcode": "def456",
+            "title": "Account Executive",
+            "location": {"city": "Chicago", "region": "IL", "country": "USA"},
+            "remote": False,
+            "url": "https://apply.workable.com/acme/j/def456/",
+            "published": "2026-08-05T00:00:00Z",
+        },
+    ]
+}
+
+BREEZY_JOBS: list[dict[str, Any]] = [
+    {
+        "posting_id": "bz-1",
+        "title": "Support Specialist",
+        "apply_url": "https://acme.breezy.hr/p/bz-1",
+        "published_date": "2026-08-06T00:00:00Z",
+        "location_city": "Remote",
+        "location_country": "US",
+        "is_remote": True,
+        "salary": "$60k - $75k",
+    },
+    {
+        "posting_id": "bz-2",
+        "title": "Data Analyst",
+        "apply_url": "https://acme.breezy.hr/p/bz-2",
+        "published_date": "2026-08-07T00:00:00Z",
+        "location_city": "Austin",
+        "location_state": "TX",
+        "location_country": "US",
+        "is_remote": False,
+    },
+]
 
 LEVELS_HTML = """<!DOCTYPE html><html><head><title>Google SWE Salaries</title></head><body>
 <script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{
@@ -175,6 +223,81 @@ async def test_list_jobs_workday_posts_json_payload() -> None:
     assert request.method == "POST"
     assert request.headers["content-type"] == "application/json"
     assert request.headers["origin"] == "https://acme.wd1.myworkdayjobs.com"
+
+
+# ── list_jobs: Workable / Breezy HR ───────────────────────────────────
+@respx.mock
+async def test_list_jobs_workable_normalizes_schema() -> None:
+    respx.get(WORKABLE_URL).mock(return_value=httpx.Response(200, json=WORKABLE_JOBS))
+    items = await ats.list_jobs("acme", board="workable")
+    assert len(items) == 2
+    first = items[0]
+    assert set(first) == {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    assert first["id"] == "wb-1"
+    assert first["title"] == "Platform Engineer"
+    assert first["location"] == "Denver, CO, USA"
+    assert first["remote"] is True
+    assert first["posted_at"] == "2026-08-04T00:00:00+00:00"
+    assert items[1]["remote"] is False
+
+
+@respx.mock
+async def test_list_jobs_workable_empty_payload_returns_empty() -> None:
+    respx.get(WORKABLE_URL).mock(return_value=httpx.Response(200, json={"jobs": []}))
+    assert await ats.list_jobs("acme", board="workable") == []
+
+
+@respx.mock
+async def test_list_jobs_breezy_normalizes_schema() -> None:
+    respx.get(BREEZY_URL).mock(return_value=httpx.Response(200, json=BREEZY_JOBS))
+    items = await ats.list_jobs("acme", board="breezy")
+    assert len(items) == 2
+    first = items[0]
+    assert set(first) == {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    assert first["id"] == "bz-1"
+    assert first["title"] == "Support Specialist"
+    assert first["location"] == "Remote, US"
+    assert first["remote"] is True
+    assert first["url"] == "https://acme.breezy.hr/p/bz-1"
+    assert first["posted_at"] == "2026-08-06T00:00:00+00:00"
+    assert items[1]["location"] == "Austin, TX, US"
+    assert items[1]["remote"] is False
+
+
+@respx.mock
+async def test_list_jobs_breezy_dict_payload_uses_postings() -> None:
+    respx.get(BREEZY_URL).mock(return_value=httpx.Response(200, json={"postings": BREEZY_JOBS}))
+    items = await ats.list_jobs("acme", board="breezy")
+    assert len(items) == 2
+    assert items[0]["id"] == "bz-1"
+
+
+@respx.mock
+async def test_list_jobs_breezy_http_error_returns_empty() -> None:
+    respx.get(BREEZY_URL).mock(return_value=httpx.Response(500))
+    assert await ats.list_jobs("acme", board="breezy") == []
+
+
+# ── get_job: Workable / Breezy HR ─────────────────────────────────────
+@respx.mock
+async def test_get_job_workable_detail() -> None:
+    respx.get(WORKABLE_URL).mock(return_value=httpx.Response(200, json=WORKABLE_JOBS))
+    result = await ats.get_job("wb-1", board="workable", company="acme")
+    assert result["title"] == "Platform Engineer"
+    assert result["company"] == "acme"
+    assert result["location"] == "Denver, CO, USA"
+    assert result["url"] == "https://apply.workable.com/acme/j/abc123/"
+
+
+@respx.mock
+async def test_get_job_breezy_detail() -> None:
+    respx.get(BREEZY_URL).mock(return_value=httpx.Response(200, json=BREEZY_JOBS))
+    result = await ats.get_job("bz-1", board="breezy", company="acme")
+    assert result["title"] == "Support Specialist"
+    assert result["company"] == "acme"
+    assert result["location"] == "Remote, US"
+    assert result["compensation"] == "$60k - $75k"
+    assert result["url"] == "https://acme.breezy.hr/p/bz-1"
 
 
 # ── list_jobs: degradation ─────────────────────────────────────────────

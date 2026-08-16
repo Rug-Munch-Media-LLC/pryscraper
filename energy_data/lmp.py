@@ -1,6 +1,6 @@
 """ISO day-ahead LMP + EIA fuel prices — free public energy markets data.
 
-Backed by three free sources:
+Backed by five free sources:
 
 * **NYISO MIS public archive** — day-ahead zonal LBMP CSV at
   ``https://mis.nyiso.com/public/csv/damlbmp/{yyyymmdd}damlbmp_zone.csv``.
@@ -9,8 +9,20 @@ Backed by three free sources:
 * **PJM Data Miner 2** — ``da_hrl_lmps`` day-ahead hourly LMP feed. The
   REST feed requires a free PJM API key (``PRY_PJM_API_KEY``); without a
   key it returns an HTML login page, so it degrades to ``[]``.
+* **ERCOT public dashboard (keyless)** — real-time system-wide price feed
+  at ``https://www.ercot.com/api/1/services/read/dashboards/systemWidePrices.json``
+  (``rtSppData[].hbBusAvg``, ~15-min cadence). No key, no auth — but it is
+  an *unofficial* dashboard endpoint that ERCOT can change or block at any
+  time, and it only exposes a system-wide hub-bus average (not nodal LMPs)
+  for the current time window (the requested ``date`` is best-effort).
+  Honest flag: treat ERCOT as real-time, system-level, best-effort.
+* **CAISO OASIS API (keyless)** — ``SingleZip?queryname=PRC_INTVL_LMP``
+  real-time 5-minute LMP report (``market_run_id=RTM``, ``grp_type=ALL_APNODES``).
+  No key for basic queries; OASIS returns a ZIP of CSVs. Honest flag: the
+  OASIS service has its own availability windows and rate limits, and an
+  ALL_APNODES query is heavy — treat as best-effort.
 * **gridstatus (optional)** — when the ``gridstatus`` library is
-  installed it is used as a fast-path for ERCOT / CAISO / PJM (those ISOs
+  installed it is used as a fast-path for PJM / ERCOT / CAISO (those ISOs
   have cookie / auth / rate-limit quirks that gridstatus handles). It is
   NOT a core dependency and is never exercised by the tests.
 
@@ -38,6 +50,8 @@ Result shapes
 Free-API terms:
 - NYISO MIS: https://www.nyiso.com/ — anonymous CSV archive, no rate limit.
 - PJM Data Miner 2: https://dataminer2.pjm.com/ — free API key.
+- ERCOT dashboard: https://www.ercot.com/ — keyless, unofficial, may change.
+- CAISO OASIS: https://oasis.caiso.com/ — keyless basic queries, rate-limited.
 - EIA v2: https://www.eia.gov/opendata/ — free API key, generous limits.
 
 Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
@@ -58,6 +72,7 @@ import io
 import json
 import logging
 import os
+import zipfile
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -71,6 +86,8 @@ logger = logging.getLogger(__name__)
 _NYISO_BASE = "https://mis.nyiso.com/public/csv/damlbmp"
 _PJM_FEED = "https://dataminer2.pjm.com/feed/da_hrl_lmps"
 _EIA_BASE = "https://api.eia.gov/v2/petroleum/pri/gnd/data/"
+_ERCOT_RT_URL = "https://www.ercot.com/api/1/services/read/dashboards/systemWidePrices.json"
+_CAISO_OASIS_URL = "https://oasis.caiso.com/oasisapi/SingleZip"
 _TIMEOUT = httpx.Timeout(20.0)
 _RETRY_CONFIG = RetryConfig(
     max_retries=2,
@@ -93,6 +110,13 @@ try:
     _ET = ZoneInfo("America/New_York")
 except ZoneInfoNotFoundError:  # pragma: no cover - tzdata-less hosts
     _ET = None
+
+# ERCOT dashboard timestamps are CT wall-clock; convert via America/Chicago.
+_CT: ZoneInfo | None
+try:
+    _CT = ZoneInfo("America/Chicago")
+except ZoneInfoNotFoundError:  # pragma: no cover - tzdata-less hosts
+    _CT = None
 
 # Day-ahead LMP is published the evening before the trading day; when the
 # requested date's file is not out yet, step back up to this many days.
@@ -167,6 +191,27 @@ def _nyiso_ts_to_utc(value: str) -> str:
         return local.isoformat()
     try:
         return local.replace(tzinfo=_ET).astimezone(UTC).isoformat()
+    except (ValueError, OverflowError):  # pragma: no cover - defensive, never raise
+        return local.isoformat()
+
+
+def _ct_ts_to_utc(value: str) -> str:
+    """Convert a Central Time wall-clock timestamp to ISO-8601 UTC.
+
+    Used by the ERCOT dashboard feed (naive CT, no DST marker). Falls back
+    to the raw value when tzdata is missing (``_CT is None``).
+    """
+    text = (value or "").strip()
+    if not text:
+        return ""
+    try:
+        local = datetime.strptime(text, "%m/%d/%Y %H:%M")
+    except ValueError:
+        return text
+    if _CT is None:
+        return local.isoformat()
+    try:
+        return local.replace(tzinfo=_CT).astimezone(UTC).isoformat()
     except (ValueError, OverflowError):  # pragma: no cover - defensive, never raise
         return local.isoformat()
 
@@ -365,6 +410,138 @@ async def _fetch_pjm(start_date: str) -> list[dict[str, Any]]:
     return _parse_pjm_payload(text)
 
 
+# ── ERCOT real-time (keyless dashboard) ───────────────────────────────
+
+
+def _parse_ercot_payload(payload: Any) -> list[dict[str, Any]]:
+    """Parse the ERCOT system-wide real-time price dashboard feed.
+
+    The ``systemWidePrices.json`` dashboard returns ``rtSppData`` rows with
+    ``interval`` (CT wall-clock) and ``hbBusAvg`` ($/MWh system-wide).
+    """
+    if not isinstance(payload, dict):
+        return []
+    rows = payload.get("rtSppData")
+    if not isinstance(rows, list):
+        return []
+    records: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        ts = _as_text(row.get("interval"))
+        price = _as_float(row.get("hbBusAvg"))
+        if not ts or price is None:
+            continue
+        records.append(
+            {
+                "region": "ercot",
+                "node": "HB_BUS_AVG",
+                "timestamp": _ct_ts_to_utc(ts),
+                "price_usd_mwh": price,
+                "lmp_type": "RTM",
+            }
+        )
+    return records
+
+
+async def _fetch_ercot(start_date: str) -> list[dict[str, Any]]:
+    """Fetch ERCOT system-wide real-time prices from the public dashboard.
+
+    Keyless and unauthenticated, but the endpoint is *unofficial* (ERCOT's
+    documented API requires a free subscription key) — it can change or be
+    blocked at any time. The feed only exposes the current real-time window,
+    so ``start_date`` is best-effort (the requested day is included only if
+    the feed happens to cover it).
+    """
+    try:
+        async with httpx.AsyncClient(
+            timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True
+        ) as client:
+            response = await client.get(_ERCOT_RT_URL)
+            response.raise_for_status()
+            payload = response.json()
+    except (httpx.HTTPError, OSError, ValueError):
+        return []
+    return _parse_ercot_payload(payload)
+
+
+# ── CAISO OASIS real-time LMP ─────────────────────────────────────────
+
+
+def _parse_caiso_csv(text: str) -> list[dict[str, Any]]:
+    """Parse a CAISO OASIS PRC_INTVL_LMP CSV into canonical LMP records.
+
+    Best-effort column names: ``INTERVALSTARTTIME``, ``NODE_ID``/``PNODE_ID``,
+    ``LMP_PRICE``.
+    """
+    try:
+        reader = csv.DictReader(io.StringIO(text))
+        rows = list(reader)
+    except (csv.Error, ValueError):
+        return []
+    records: list[dict[str, Any]] = []
+    for row in rows:
+        node = (
+            _as_text(row.get("NODE_ID"))
+            or _as_text(row.get("PNODE_ID"))
+            or _as_text(row.get("node"))
+        )
+        ts = _as_text(row.get("INTERVALSTARTTIME")) or _as_text(row.get("timestamp"))
+        price = _as_float(row.get("LMP_PRICE") or row.get("lmp"))
+        if not node or not ts or price is None:
+            continue
+        records.append(
+            {
+                "region": "caiso",
+                "node": node,
+                "timestamp": _iso_utc(ts),
+                "price_usd_mwh": price,
+                "lmp_type": "RTM",
+            }
+        )
+    return records
+
+
+async def _fetch_caiso(start_date: str) -> list[dict[str, Any]]:
+    """Fetch CAISO real-time 5-minute LMP via the OASIS API (keyless).
+
+    OASIS ``SingleZip`` returns a ZIP archive containing CSVs; we unpack the
+    first CSV and parse it. Honest flag: OASIS has its own availability
+    windows / rate limits and an ALL_APNODES query is heavy — best-effort.
+    """
+    try:
+        start_dt = datetime.strptime(start_date, "%Y%m%d")
+    except ValueError:
+        return []
+    end_dt = start_dt + timedelta(days=1)
+    params = {
+        "queryname": "PRC_INTVL_LMP",
+        "startdatetime": start_dt.strftime("%Y%m%dT00:00-0000"),
+        "enddatetime": end_dt.strftime("%Y%m%dT00:00-0000"),
+        "version": "3",
+        "market_run_id": "RTM",
+        "grp_type": "ALL_APNODES",
+    }
+    try:
+        async with httpx.AsyncClient(
+            timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True
+        ) as client:
+            response = await client.get(_CAISO_OASIS_URL, params=params)
+            response.raise_for_status()
+            content = response.content
+    except (httpx.HTTPError, OSError):
+        return []
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            csv_names = [n for n in archive.namelist() if n.lower().endswith(".csv")]
+            if not csv_names:
+                return []
+            text = archive.read(csv_names[0]).decode("utf-8", errors="replace")
+    except (zipfile.BadZipFile, OSError, ValueError):
+        return []
+    return _parse_caiso_csv(text)
+
+
 # ── gridstatus fast-path (optional) ───────────────────────────────────
 
 
@@ -457,11 +634,26 @@ async def _get_lmp(region: str, date: str) -> list[dict[str, Any]]:
     for name in wanted:
         if name == "nyiso":
             results.extend(await _fetch_nyiso(start))
+        elif name == "ercot":
+            # Keyless direct feed first; gridstatus is a fallback when the
+            # unofficial dashboard is down or the operator installed it.
+            direct = await _fetch_ercot(start)
+            if direct:
+                results.extend(direct)
+            elif has_gridstatus:
+                results.extend(await _fetch_via_gridstatus(name, start))
+        elif name == "caiso":
+            direct = await _fetch_caiso(start)
+            if direct:
+                results.extend(direct)
+            elif has_gridstatus:
+                results.extend(await _fetch_via_gridstatus(name, start))
         elif has_gridstatus:
             results.extend(await _fetch_via_gridstatus(name, start))
         elif name == "pjm":
             results.extend(await _fetch_pjm(start))
-        # ercot / caiso without gridstatus -> no keyless direct fetcher yet
+        # ercot/caiso have direct keyless fetchers; gridstatus (when
+        # installed) is used as a fallback above.
     return results
 
 

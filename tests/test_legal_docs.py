@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _CL_BASE = "https://www.courtlistener.com/api/rest/v4"
+_JUSTIA = "https://dockets.justia.com"
 _FTS = "https://efts.sec.gov/LATEST/search-index"
 _TICKERS = "https://www.sec.gov/files/company_tickers.json"
 _SUBMISSIONS = "https://data.sec.gov/submissions/CIK0000320193.json"
@@ -283,7 +284,143 @@ async def test_dockets_get_never_raises_on_404() -> None:
 
 
 async def test_dockets_get_invalid_id() -> None:
+    assert await dockets.get_docket("") == {}
+
+
+@respx.mock
+async def test_dockets_get_invalid_slug_degrades() -> None:
+    # A non-numeric id is treated as a Justia slug; when the scrape fails
+    # (404 / network) the lookup degrades to {}.
+    respx.get(url__startswith=f"{_JUSTIA}/docket/").mock(return_value=httpx.Response(404))
     assert await dockets.get_docket("not-an-int") == {}
+
+
+# ── RECAP search source ────────────────────────────────────────────────
+
+
+def _recap_payload() -> dict[str, Any]:
+    return {
+        "count": 1,
+        "next": None,
+        "previous": None,
+        "results": [
+            {
+                "id": 77,
+                "caseName": "In re Example Corp.",
+                "docketNumber": "3:23-bk-00099",
+                "court": "ca9",
+                "dateFiled": "2023-04-01",
+                "natureOfSuit": "Bankruptcy",
+                "source": "RECAP",
+                "absoluteURL": "https://www.courtlistener.com/docket/77/example/",
+            }
+        ],
+    }
+
+
+@respx.mock
+async def test_dockets_search_recap_fallback() -> None:
+    # CourtListener dockets search returns nothing -> RECAP search fills in.
+    respx.get(url__startswith=f"{_CL_BASE}/dockets/?").mock(
+        return_value=httpx.Response(200, json={"results": []})
+    )
+    respx.get(url__startswith=f"{_CL_BASE}/search/?").mock(
+        return_value=httpx.Response(200, json=_recap_payload())
+    )
+    out = await dockets.search_dockets("bankruptcy", limit=5)
+    assert len(out) == 1
+    assert out[0]["id"] == 77
+    assert out[0]["case_name"] == "In re Example Corp."
+    assert out[0]["docket_number"] == "3:23-bk-00099"
+    assert out[0]["court"] == "ca9"
+    assert out[0]["date_filed"] == "2023-04-01"
+    assert out[0]["url"] == "https://www.courtlistener.com/docket/77/example/"
+    assert out[0]["source"] == "recap"
+
+
+@respx.mock
+async def test_dockets_search_recap_never_raises_on_error() -> None:
+    respx.get(url__startswith=f"{_CL_BASE}/dockets/?").mock(
+        return_value=httpx.Response(200, json={"results": []})
+    )
+    respx.get(url__startswith=f"{_CL_BASE}/search/?").mock(return_value=httpx.Response(500))
+    assert await dockets.search_dockets("bankruptcy") == []
+
+
+# ── Justia scrape source ───────────────────────────────────────────────
+
+
+def _justia_search_html() -> str:
+    return """<html><body>
+<div class="case-block">
+  <h2><a href="/docket/new-york-southern-district-court/example-1">SEC v. Example Corp.</a></h2>
+  <div class="meta">1:22-cv-00001 &middot; Southern District of New York &middot; filed 2022-01-15</div>
+</div>
+<div class="case-block">
+  <h2><a href="/docket/texas-southern-district-court/example-2">Doe v. Fictitious LLC</a></h2>
+  <div class="meta">4:21-cv-00420 &middot; Southern District of Texas &middot; filed 2021-06-30</div>
+</div>
+</body></html>"""
+
+
+@respx.mock
+async def test_dockets_search_justia_fallback() -> None:
+    # CourtListener + RECAP both empty -> Justia scrape.
+    respx.get(url__startswith=f"{_CL_BASE}/dockets/?").mock(
+        return_value=httpx.Response(200, json={"results": []})
+    )
+    respx.get(url__startswith=f"{_CL_BASE}/search/?").mock(
+        return_value=httpx.Response(200, json={"results": []})
+    )
+    respx.get(url__startswith=f"{_JUSTIA}/search").mock(
+        return_value=httpx.Response(200, text=_justia_search_html())
+    )
+    out = await dockets.search_dockets("example", limit=5)
+    assert len(out) == 2
+    first = out[0]
+    assert first["source"] == "justia"
+    assert first["case_name"] == "SEC v. Example Corp."
+    assert first["docket_number"] == "1:22-cv-00001"
+    assert "Southern District of New York" in first["court"]
+    assert first["date_filed"] == "2022-01-15"
+    assert (
+        first["url"]
+        == "https://dockets.justia.com/docket/new-york-southern-district-court/example-1"
+    )
+    assert first["id"] == "example-1"
+
+
+@respx.mock
+async def test_dockets_search_justia_scrape_never_raises() -> None:
+    respx.get(url__startswith=f"{_CL_BASE}/dockets/?").mock(
+        return_value=httpx.Response(200, json={"results": []})
+    )
+    respx.get(url__startswith=f"{_CL_BASE}/search/?").mock(
+        return_value=httpx.Response(200, json={"results": []})
+    )
+    respx.get(url__startswith=f"{_JUSTIA}/search").mock(return_value=httpx.Response(403))
+    assert await dockets.search_dockets("example") == []
+
+
+@respx.mock
+async def test_dockets_get_justia_slug_fallback() -> None:
+    page = """<html><head><title>SEC v. Example Corp. - Docket</title></head><body>
+<h1>SEC v. Example Corp.</h1>
+<div>1:22-cv-00001 &middot; Southern District of New York</div>
+<div class="date">filed 2022-01-15</div>
+</body></html>"""
+    respx.get(url__startswith=f"{_JUSTIA}/docket/").mock(
+        return_value=httpx.Response(200, text=page)
+    )
+    out = await dockets.get_docket("new-york-southern-district-court/example-1")
+    assert out["source"] == "justia"
+    assert out["case_name"] == "SEC v. Example Corp."
+    assert out["docket_number"] == "1:22-cv-00001"
+    assert "Southern District of New York" in out["court"]
+    assert out["date_filed"] == "2022-01-15"
+    assert (
+        out["url"] == "https://dockets.justia.com/docket/new-york-southern-district-court/example-1"
+    )
 
 
 # ── SEC EDGAR filings ──────────────────────────────────────────────────

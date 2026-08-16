@@ -1,10 +1,13 @@
 """Crypto token-launch detection built on free public APIs.
 
 Detects newly launched tokens / pairs and trending tokens using only
-keyless free-tier providers (DexScreener, CoinGecko, DefiLlama). Optional
-API keys (e.g. ``COINGECKO_API_KEY`` / ``PRY_COINGECKO_API_KEY``) are read
-from the environment when present — never hardcoded — and unlock paid
-endpoints such as ``/coins/list/new`` without changing the public contract.
+keyless free-tier providers (DexScreener, CoinGecko, DefiLlama) plus two
+best-effort secondary sources (CoinMarketCap new-listings scrape and the
+Birdeye token list). Optional API keys (e.g. ``COINGECKO_API_KEY`` /
+``PRY_COINGECKO_API_KEY`` / ``PRY_BIRDEYE_API_KEY``) are read from the
+environment when present — never hardcoded — and unlock paid endpoints
+such as ``/coins/list/new`` or the Birdeye ``/defi/tokenlist`` without
+changing the public contract.
 
 Contract (used by the MCP / x402 wiring):
 
@@ -25,7 +28,7 @@ Every returned item is normalized to:
         "liquidity_usd": float,
         "volume_24h_usd": float,
         "price_change_24h_pct": float,
-        "source": str,                # "dexscreener" | "coingecko"
+        "source": str,                # "dexscreener" | "coingecko" | "coinmarketcap" | "birdeye"
     }
 
 Robustness guarantees:
@@ -34,6 +37,15 @@ Robustness guarantees:
   * exponential backoff with Retry-After support on 429 / 5xx / transport
     errors
   * in-memory result cache (~30s) to avoid hammering free tiers
+
+Source notes / honest flags:
+  * CoinMarketCap ``/new/`` is a Next.js page scrape: we extract the
+    embedded ``__NEXT_DATA__`` JSON (no browser). CMC may block datacenter
+    traffic, so this source is best-effort.
+  * Birdeye ``/defi/tokenlist`` requires a free API key
+    (``PRY_BIRDEYE_API_KEY``) and only exposes per-chain lists; the token
+    list carries no creation timestamp, so ``created_at_utc`` uses the
+    last-trade time as a recency proxy.
 """
 
 # SPDX-License-Identifier: MIT
@@ -47,6 +59,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -70,6 +83,18 @@ COINGECKO_MARKETS_BATCH = 100  # max ids per /coins/markets call
 DEXSCREENER_BASE = "https://api.dexscreener.com"
 COINGECKO_BASE = "https://api.coingecko.com/api/v3"
 DEFILLAMA_BASE = "https://api.llama.fi"
+CMC_NEW_URL = "https://coinmarketcap.com/new/"
+BIRDEYE_TOKENLIST_URL = "https://public-api.birdeye.so/defi/tokenlist"
+
+# Birdeye chain id header values for our supported chains.
+BIRDEYE_CHAIN_IDS: dict[str, str] = {
+    "ethereum": "ethereum",
+    "solana": "solana",
+    "base": "base",
+    "bsc": "bsc",
+    "arbitrum": "arbitrum",
+    "polygon": "polygon",
+}
 
 SUPPORTED_CHAINS: tuple[str, ...] = (
     "ethereum",
@@ -197,6 +222,116 @@ def _retry_after_seconds(resp: httpx.Response) -> float | None:
         return float(value)
     except ValueError:
         return None
+
+
+# ── HTML / embedded-JSON helpers (CoinMarketCap scrape) ────────────────
+_NEXT_DATA_RE = re.compile(r'<script[^>]*id="__NEXT_DATA__"[^>]*>(.*?)</script>', re.DOTALL)
+
+
+def _extract_next_data(html_text: str) -> dict[str, Any] | None:
+    """Pull and parse the ``__NEXT_DATA__`` JSON blob from a Next.js page."""
+    match = _NEXT_DATA_RE.search(html_text or "")
+    if not match:
+        return None
+    try:
+        payload = json.loads(match.group(1))
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _cmc_chain_from_platform(platform: Any) -> str:
+    """Map a CoinMarketCap platform id/name to a supported chain ("" unknown)."""
+    platform_id = ""
+    if isinstance(platform, dict):
+        platform_id = str(platform.get("id") or platform.get("name") or "")
+    elif platform is not None:
+        platform_id = str(platform)
+    pid = platform_id.strip().lower()
+    aliases = {
+        "ethereum": "ethereum",
+        "solana": "solana",
+        "base": "base",
+        "bnb": "bsc",
+        "binance-smart-chain": "bsc",
+        "arbitrum": "arbitrum",
+        "arbitrum-one": "arbitrum",
+        "polygon-pos": "polygon",
+        "polygon": "polygon",
+    }
+    return aliases.get(pid, "")
+
+
+def _extract_cmc_coin_rows(node: Any, out: list[dict[str, Any]]) -> None:
+    """Recursively collect CoinMarketCap coin-row dicts from the page state.
+
+    CMC's new-listings page stores rows under ``props.initialState...data``
+    with per-coin ``quote.USD``; walk the whole embedded JSON for dicts that
+    look like coin rows (have ``symbol`` + ``quote.USD``).
+    """
+    if isinstance(node, list):
+        for child in node:
+            _extract_cmc_coin_rows(child, out)
+        return
+    if not isinstance(node, dict):
+        return
+    quote = node.get("quote")
+    if (
+        isinstance(quote, dict)
+        and isinstance(quote.get("USD"), dict)
+        and str(node.get("symbol") or "").strip()
+        and str(node.get("name") or "").strip()
+    ):
+        out.append(node)
+    for value in node.values():
+        _extract_cmc_coin_rows(value, out)
+
+
+def _normalize_cmc_row(row: dict[str, Any], chain_filter: str | None) -> dict[str, Any] | None:
+    """Normalize a CoinMarketCap coin row into the shared schema.
+
+    ``chain`` is attributed from the platform field when possible; rows with
+    an unknown chain are kept only when no chain filter is applied (their
+    ``chain`` is left empty per the schema).
+    """
+    quote = row.get("quote")
+    usd = quote.get("USD") if isinstance(quote, dict) else None
+    if not isinstance(usd, dict):
+        return None
+    symbol = str(row.get("symbol") or "")
+    name = str(row.get("name") or "")
+    if not symbol and not name:
+        return None
+    chain = _cmc_chain_from_platform(row.get("platform"))
+    if chain_filter is not None and chain != chain_filter:
+        return None
+    return {
+        "chain": chain,
+        "address": str(row.get("tokenAddress") or row.get("slug") or ""),
+        "symbol": symbol,
+        "name": name,
+        "pair_address": "",
+        "created_at_utc": _normalize_iso_utc(row.get("date_added") or row.get("last_updated")),
+        "price_usd": _f(usd.get("price")),
+        "liquidity_usd": 0.0,  # not exposed by the CMC scrape
+        "volume_24h_usd": _f(usd.get("volume_24h")),
+        "price_change_24h_pct": _f(usd.get("percent_change_24h")),
+        "source": "coinmarketcap",
+    }
+
+
+def _normalize_iso_utc(value: Any) -> str:
+    """Normalize an ISO-8601 string to ISO-8601 UTC ("" on failure)."""
+    text = str(value or "").strip().replace("Z", "+00:00")
+    if not text:
+        return ""
+    try:
+        dt = datetime.fromisoformat(text)
+    except ValueError:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).isoformat()
 
 
 def _extract_pairs(data: Any) -> list[dict[str, Any]]:
@@ -576,6 +711,141 @@ async def _trending_coingecko(chain: str | None, limit: int) -> list[dict[str, A
     return results[:limit] if limit else results
 
 
+# ── CoinMarketCap new-listings scrape ─────────────────────────────────
+async def _get_text(url: str, *, params: dict[str, Any] | None = None) -> str:
+    """GET ``url`` and return the response text; "" on any failure."""
+    client = await get_client()
+    try:
+        resp = await client.get(url, params=params, timeout=HTTP_TIMEOUT)
+        resp.raise_for_status()
+        return resp.text
+    except httpx.HTTPError as exc:
+        logger.warning(
+            "crypto_market_http_text_error",
+            extra={"url": url[:120], "error": str(exc)[:120]},
+        )
+        return ""
+
+
+async def _new_tokens_cmc(
+    chain: str | None, limit: int, min_age_minutes: int
+) -> list[dict[str, Any]]:
+    """CoinMarketCap new-listings page scrape (best-effort, no key).
+
+    Parses the embedded ``__NEXT_DATA__`` JSON from ``coinmarketcap.com/new/``.
+    CMC can block datacenter traffic; any failure degrades to ``[]``.
+    """
+    page = await _get_text(CMC_NEW_URL)
+    if not page:
+        return []
+    payload = _extract_next_data(page)
+    if payload is None:
+        return []
+    rows: list[dict[str, Any]] = []
+    _extract_cmc_coin_rows(payload, rows)
+    if not rows:
+        return []
+    seen: set[str] = set()
+    results: list[dict[str, Any]] = []
+    for row in rows:
+        normalized = _normalize_cmc_row(row, chain)
+        if normalized is None:
+            continue
+        dedupe_key = f"{normalized['symbol']}:{normalized['name']}"
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        if min_age_minutes > 0:
+            age = _entry_age_minutes(normalized)
+            if age is None or age < min_age_minutes:
+                continue
+        results.append(normalized)
+    results.sort(key=_created_epoch, reverse=True)
+    return results[:limit] if limit else results
+
+
+# ── Birdeye token list ────────────────────────────────────────────────
+def _normalize_birdeye_token(token: dict[str, Any], chain: str) -> dict[str, Any] | None:
+    """Normalize a Birdeye ``/defi/tokenlist`` token into the shared schema.
+
+    The token list exposes market data (``mc``, ``v24hUSD``,
+    ``v24hChangePercent``, ``liquidity``, ``lastTradeUnixTime``) but no
+    live price or creation time — ``price_usd`` defaults to 0.0 and
+    ``created_at_utc`` is a last-trade recency proxy.
+    """
+    address = str(token.get("address") or "")
+    symbol = str(token.get("symbol") or "")
+    name = str(token.get("name") or "")
+    if not address or (not symbol and not name):
+        return None
+    return {
+        "chain": chain,
+        "address": address,
+        "symbol": symbol,
+        "name": name,
+        "pair_address": "",
+        "created_at_utc": _iso(token.get("lastTradeUnixTime")),
+        "price_usd": 0.0,  # tokenlist has no live price
+        "liquidity_usd": _f(token.get("liquidity")),
+        "volume_24h_usd": _f(token.get("v24hUSD")),
+        "price_change_24h_pct": _f(token.get("v24hChangePercent")),
+        "source": "birdeye",
+    }
+
+
+async def _birdeye_tokens_for_chain(chain: str) -> list[dict[str, Any]]:
+    """Fetch one Birdeye token list page for ``chain`` (needs a free key)."""
+    api_key = _api_key("PRY_BIRDEYE_API_KEY", "BIRDEYE_API_KEY")
+    if not api_key:
+        logger.info("crypto_market_birdeye_skipped_no_api_key")
+        return []
+    chain_id = BIRDEYE_CHAIN_IDS.get(chain)
+    if not chain_id:
+        return []
+    data = await _get_json(
+        BIRDEYE_TOKENLIST_URL,
+        params={"limit": 50, "offset": 0, "sort_by": "v24hUSD", "sort_type": "desc"},
+        headers={"X-API-KEY": api_key, "x-chain": chain_id},
+    )
+    if not isinstance(data, dict):
+        return []
+    inner = data.get("data")
+    tokens = inner.get("tokens") if isinstance(inner, dict) else None
+    if not isinstance(tokens, list):
+        return []
+    results: list[dict[str, Any]] = []
+    for token in tokens:
+        if not isinstance(token, dict):
+            continue
+        normalized = _normalize_birdeye_token(token, chain)
+        if normalized is not None:
+            results.append(normalized)
+    results.sort(key=_created_epoch, reverse=True)
+    return results
+
+
+async def _new_tokens_birdeye(
+    chain: str | None, limit: int, min_age_minutes: int
+) -> list[dict[str, Any]]:
+    """Birdeye token-list fallback (needs a free ``PRY_BIRDEYE_API_KEY``).
+
+    Honest flags: no creation timestamp (recency is last-trade based) and no
+    live price. ``min_age_minutes`` therefore filters on the recency proxy.
+    """
+    chains = [chain] if chain is not None else list(SUPPORTED_CHAINS)
+    results: list[dict[str, Any]] = []
+    for name in chains:
+        results.extend(await _birdeye_tokens_for_chain(name))
+    if min_age_minutes > 0:
+        results = [
+            entry
+            for entry in results
+            if (age := _entry_age_minutes(entry)) is not None and age >= min_age_minutes
+        ]
+    results.sort(key=_created_epoch, reverse=True)
+    return results[:limit] if limit else results
+
+
 # ── DefiLlama chain context ────────────────────────────────────────────
 async def get_chain_context(chain: str = "all") -> list[dict[str, Any]]:
     """Chain context from DefiLlama (TVL snapshot per chain, free, cached 5m).
@@ -623,10 +893,12 @@ async def get_new_tokens(
 ) -> list[dict[str, Any]]:
     """Return the newest launched tokens, normalized into the shared schema.
 
-    Primary source is DexScreener (token profiles + per-token pairs, sorted
-    by pair creation time). When DexScreener yields nothing, falls back to
-    CoinGecko new listings. ``min_age_minutes`` filters to tokens that are
-    at least that many minutes old (0 disables the filter). Never raises.
+    Sources are tried in fallback order: DexScreener (token profiles +
+    per-token pairs) → CoinGecko new listings → CoinMarketCap new-listings
+    scrape → Birdeye token list. When a source yields nothing the next one
+    is consulted, so one provider being down never empties the result.
+    ``min_age_minutes`` filters to tokens that are at least that many
+    minutes old (0 disables the filter). Never raises.
     """
     try:
         normalized = _normalize_chain_arg(chain)
@@ -641,6 +913,10 @@ async def get_new_tokens(
         result = await _new_tokens_dexscreener(normalized, count, min_age)
         if not result:
             result = await _new_tokens_coingecko(normalized, count, min_age)
+        if not result:
+            result = await _new_tokens_cmc(normalized, count, min_age)
+        if not result:
+            result = await _new_tokens_birdeye(normalized, count, min_age)
         _cache_set(cache_key, result)
         return result
     except Exception:  # noqa: BLE001 — public API boundary: never-raise contract
