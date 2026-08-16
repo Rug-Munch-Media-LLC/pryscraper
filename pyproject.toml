@@ -292,6 +292,10 @@ include = [
     "energy_data*",
     "food_data*",
     "supply_data*",
+    "app_store_data*",
+    "news_data*",
+    "compliance_data*",
+    "deals_data*",
 ]
 
 [tool.ruff]

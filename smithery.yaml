@@ -6,7 +6,7 @@
 # https://smithery.ai/docs/config
 #
 # Registry identity: io.rugmunch/pry — matches server.json, glama.json,
-# pulsemcp.json, SKILL.md and llms.txt. Tool count: 62 (see pry_mcp/tools.py
+# pulsemcp.json, SKILL.md and llms.txt. Tool count: 69 (see pry_mcp/tools.py
 # PRY_TOOLS). Smithery fetches the live tool list from tools/list at deploy
 # time; keep this file's comment count in sync with PRY_TOOLS on every release.
 
@@ -40,10 +40,12 @@ buildCommand:
   script: |
     pip install -e ".[dev]"
 
-# The Pry MCP server exposes 62 tools across web scraping, browser
-# automation, and the ten data domains (crypto, marketplace, legal, real
-# estate, jobs, travel, attention, local, gov, ip). All data-domain tools are
-# x402 pay-per-call monetized; see /v1/x402/pricing for the price table.
+# The Pry MCP server exposes 69 tools across web scraping, browser
+# automation, and the fourteen data-domain packages (crypto, marketplace,
+# legal, real estate, jobs, travel, attention, local, gov, ip, sports,
+# climate/research, events/freight/energy/food/supply, and the app-store /
+# news / compliance / deals domains). All data-domain tools are x402
+# pay-per-call monetized; see /v1/x402/pricing for the price table.
 
 examples:
   - name: research_company

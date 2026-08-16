@@ -1,7 +1,7 @@
 {
 	"$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
 	"name": "io.rugmunch/pry",
-	"title": "Pry \u2014 Web Scraping, Browser Automation & Data Intelligence MCP",
+	"title": "Pry — Web Scraping, Browser Automation & Data Intelligence MCP",
 	"description": "Self-hosted web intelligence MCP: scrape, crawl, extract, monitor, parse, screenshot, x402 pricing, plus ten data domains (crypto, marketplace, legal, real estate, jobs, travel, attention, local, gov, ip).",
 	"version": "3.0.0",
 	"websiteUrl": "https://pryscraper.com",
@@ -36,7 +36,7 @@
 		},
 		{
 			"name": "pry_extract",
-			"description": "Extract structured JSON from a URL using CSS selectors \u2014 cheaper than LLM extraction."
+			"description": "Extract structured JSON from a URL using CSS selectors — cheaper than LLM extraction."
 		},
 		{
 			"name": "pry_template",
@@ -52,7 +52,7 @@
 		},
 		{
 			"name": "pry_compliance",
-			"description": "Score scraping legal risk from robots.txt, ToS, GDPR/CCPA, and PII exposure."
+			"description": "Compliance intelligence — URL legal-risk check (robots.txt, ToS, GDPR/CCPA) or regulatory records search by query/agency"
 		},
 		{
 			"name": "pry_enrich",
@@ -72,7 +72,7 @@
 		},
 		{
 			"name": "pry_referrals",
-			"description": "Get Pry's referral catalog \u2014 60+ providers with revenue-attribution links."
+			"description": "Get Pry's referral catalog — 60+ providers with revenue-attribution links."
 		},
 		{
 			"name": "pry_token_launches",
@@ -84,11 +84,11 @@
 		},
 		{
 			"name": "pry_token_security",
-			"description": "Run token security checks \u2014 honeypot, mint authority, LP lock, holder distribution (crypto)."
+			"description": "Run token security checks — honeypot, mint authority, LP lock, holder distribution (crypto)."
 		},
 		{
 			"name": "pry_amazon_product",
-			"description": "Look up a single Amazon product by ASIN \u2014 live price, title, availability, rating (marketplace)."
+			"description": "Look up a single Amazon product by ASIN — live price, title, availability, rating (marketplace)."
 		},
 		{
 			"name": "pry_amazon_search",
@@ -96,7 +96,7 @@
 		},
 		{
 			"name": "pry_walmart_product",
-			"description": "Look up a single Walmart product by product ID \u2014 price, title, seller, rating (marketplace)."
+			"description": "Look up a single Walmart product by product ID — price, title, seller, rating (marketplace)."
 		},
 		{
 			"name": "pry_tiktok_trending",
@@ -108,7 +108,7 @@
 		},
 		{
 			"name": "pry_legal_sec",
-			"description": "Search SEC EDGAR filings by ticker and form type \u2014 filing dates, forms, accession numbers (legal)."
+			"description": "Search SEC EDGAR filings by ticker and form type — filing dates, forms, accession numbers (legal)."
 		},
 		{
 			"name": "pry_legal_sanctions",
@@ -116,11 +116,11 @@
 		},
 		{
 			"name": "pry_realestate_search",
-			"description": "Search real-estate listings by location and status \u2014 price, beds/baths, sqft (real estate)."
+			"description": "Search real-estate listings by location and status — price, beds/baths, sqft (real estate)."
 		},
 		{
 			"name": "pry_jobs_list",
-			"description": "List ATS job postings for a company \u2014 Greenhouse, Lever, Ashby, Workday (jobs)."
+			"description": "List ATS job postings for a company — Greenhouse, Lever, Ashby, Workday (jobs)."
 		},
 		{
 			"name": "pry_jobs_salary",
@@ -132,11 +132,11 @@
 		},
 		{
 			"name": "pry_hotel_rates",
-			"description": "Per-night hotel rates for a stay window \u2014 Google Hotels with Booking.com fallback (travel)."
+			"description": "Per-night hotel rates for a stay window — Google Hotels with Booking.com fallback (travel)."
 		},
 		{
 			"name": "pry_serp",
-			"description": "Scrape a Google SERP \u2014 organic results, AI Overview, People Also Ask (attention)."
+			"description": "Scrape a Google SERP — organic results, AI Overview, People Also Ask (attention)."
 		},
 		{
 			"name": "pry_trends",
@@ -144,7 +144,7 @@
 		},
 		{
 			"name": "pry_places_search",
-			"description": "Search Google Maps for local businesses \u2014 name, rating, address, place IDs (local)."
+			"description": "Search Google Maps for local businesses — name, rating, address, place IDs (local)."
 		},
 		{
 			"name": "pry_reviews",
@@ -678,7 +678,7 @@
 		},
 		{
 			"name": "pry_betting_percentages",
-			"description": "Get public betting percentages \u2014 the share of bets and share of money on each side of a game \u2014 across bookmakers. Use to spot sharp-side steam and contrarian plays, e.g. 'how much money is on the Chiefs tonight?'."
+			"description": "Get public betting percentages — the share of bets and share of money on each side of a game — across bookmakers. Use to spot sharp-side steam and contrarian plays, e.g. 'how much money is on the Chiefs tonight?'."
 		},
 		{
 			"name": "pry_sharp_consensus",
@@ -738,7 +738,7 @@
 		},
 		{
 			"name": "pry_books",
-			"description": "Aggregate odds across all 112 sportsbooks (US, offshore, EU, UK, Asian), scraped directly via intelligent fallback \u2014 no paid odds API."
+			"description": "Aggregate odds across all 112 sportsbooks (US, offshore, EU, UK, Asian), scraped directly via intelligent fallback — no paid odds API."
 		},
 		{
 			"name": "pry_book_coverage",
@@ -750,7 +750,35 @@
 		},
 		{
 			"name": "pry_all_sources",
-			"description": "Aggregate one event's odds from every reachable source \u2014 The Odds API, ESPN, OddsPortal, Bovada, BetOnline, plus 112 sportsbooks."
+			"description": "Aggregate one event's odds from every reachable source — The Odds API, ESPN, OddsPortal, Bovada, BetOnline, plus 112 sportsbooks."
+		},
+		{
+			"name": "pry_app_search",
+			"description": "App Store app search by keyword — name, bundle id, price, rating"
+		},
+		{
+			"name": "pry_app_reviews",
+			"description": "App Store user reviews by app id — rating, title, body, author"
+		},
+		{
+			"name": "pry_news",
+			"description": "News article search by keyword — title, source, date, URL"
+		},
+		{
+			"name": "pry_sentiment",
+			"description": "News sentiment analysis by keyword — positive/neutral/negative with confidence"
+		},
+		{
+			"name": "pry_company_watch",
+			"description": "Company regulatory watch — enforcement actions, fines, sanctions, filings"
+		},
+		{
+			"name": "pry_deals",
+			"description": "Deals, discounts & promotions search by keyword — merchant, price, discount, expiry"
+		},
+		{
+			"name": "pry_drop_alert",
+			"description": "Product drop / restock alert check — availability windows and price drops"
 		}
 	]
 }
