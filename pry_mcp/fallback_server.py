@@ -33,6 +33,42 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Hot MCP tools get a dispatch-level 10s memoization on top of any module
+# cache (e.g. sports_data.odds._http_cache uses the same 10s TTL). Bots that
+# poll the same tool+arguments sub-minute skip the whole guarded-import chain
+# and get an O(1) read, mirroring the "10s cache path" used by the data
+# packages. Entries expire lazily on read; the dict is bounded by
+# _HOT_TOOL_CACHE_MAX entries (LRU by insertion order).
+_HOT_TOOL_CACHE_MAX = 128
+_hot_tool_cache: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
+_HOT_TOOLS_10S = frozenset({"pry_odds", "pry_serp", "pry_live_odds", "pry_scores", "pry_alerts"})
+
+
+def _hot_cache_get(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Return a fresh (<=10s) cached MCP result for a hot tool, else None."""
+    import time
+
+    key = (name, json.dumps(arguments, sort_keys=True, default=str))
+    entry = _hot_tool_cache.get(key)
+    if entry is None:
+        return None
+    cached_at, result = entry
+    if time.monotonic() - cached_at < 10.0:
+        return result
+    _hot_tool_cache.pop(key, None)
+    return None
+
+
+def _hot_cache_set(name: str, arguments: dict[str, Any], result: dict[str, Any]) -> None:
+    """Memoize an MCP result for a hot tool for 10 seconds (bounded LRU)."""
+    import time
+
+    if len(_hot_tool_cache) >= _HOT_TOOL_CACHE_MAX:
+        # Drop the oldest entry (dicts preserve insertion order).
+        _hot_tool_cache.pop(next(iter(_hot_tool_cache)))
+    key = (name, json.dumps(arguments, sort_keys=True, default=str))
+    _hot_tool_cache[key] = (time.monotonic(), result)
+
 
 class _ToolNotHandled(Exception):
     """Raised by a local tool executor to fall through to the REST proxy."""
@@ -131,35 +167,72 @@ async def _call_domain_tool(
 async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Local MCP tool executor chaining every data-domain guarded dispatcher.
 
-    Order: crypto-market, marketplace-intelligence, then the nine data-domain
+    Order: crypto-market, marketplace-intelligence, then the eleven data-domain
     packages (legal, real estate, jobs, travel, attention, local, gov, ip,
-    sports).
+    sports, climate, research).
     Raises ``_ToolNotHandled`` when no dispatcher owns the tool so callers
     fall through to the REST proxy.
+
+    Hot tools (odds, serp, live_odds, scores, alerts) take the 10s dispatch
+    cache path before the guarded-import chain runs, so pollers get O(1)
+    reads. Every dispatch logs its wall time at debug level.
     """
+    if name in _HOT_TOOLS_10S:
+        cached = _hot_cache_get(name, arguments)
+        if cached is not None:
+            logger.debug("mcp_dispatch_cache_hit", extra={"tool": name})
+            return cached
+    import time
+
+    started = time.monotonic()
     try:
-        return await crypto_tool_executor(name, arguments)
+        try:
+            result = await crypto_tool_executor(name, arguments)
+            if result is not None:
+                return result
+        except _ToolNotHandled:
+            pass
+        try:
+            result = await marketplace_tool_executor(name, arguments)
+            if result is not None:
+                return result
+        except _ToolNotHandled:
+            pass
+        for dispatcher_name in (
+            "call_legal_tool",
+            "call_realestate_tool",
+            "call_jobs_tool",
+            "call_travel_tool",
+            "call_attention_tool",
+            "call_local_tool",
+            "call_gov_tool",
+            "call_ip_tool",
+            "call_sports_tool",
+            "call_climate_tool",
+            "call_research_tool",
+        ):
+            result = await _call_domain_tool(dispatcher_name, name, arguments)
+            if result is not None:
+                logger.debug(
+                    "mcp_dispatch_ms",
+                    extra={"tool": name, "ms": round((time.monotonic() - started) * 1000, 2)},
+                )
+                if name in _HOT_TOOLS_10S:
+                    _hot_cache_set(name, arguments, result)
+                return result
+        raise _ToolNotHandled(name)
     except _ToolNotHandled:
-        pass
-    try:
-        return await marketplace_tool_executor(name, arguments)
-    except _ToolNotHandled:
-        pass
-    for dispatcher_name in (
-        "call_legal_tool",
-        "call_realestate_tool",
-        "call_jobs_tool",
-        "call_travel_tool",
-        "call_attention_tool",
-        "call_local_tool",
-        "call_gov_tool",
-        "call_ip_tool",
-        "call_sports_tool",
-    ):
-        result = await _call_domain_tool(dispatcher_name, name, arguments)
-        if result is not None:
-            return result
-    raise _ToolNotHandled(name)
+        raise
+    except Exception as e:
+        logger.debug(
+            "mcp_dispatch_failed_ms",
+            extra={
+                "tool": name,
+                "ms": round((time.monotonic() - started) * 1000, 2),
+                "error": str(e),
+            },
+        )
+        raise
 
 
 def make_fallback_server(
@@ -319,6 +392,18 @@ def make_fallback_server(
                 "pry_injuries": ("GET", "/v1/sports/injuries"),
                 "pry_live_odds": ("GET", "/v1/sports/live"),
                 "pry_scores": ("GET", "/v1/sports/scores"),
+                # Money-printer sports REST fallbacks (historical / percentages /
+                # consensus / alerts land from parallel agents):
+                "pry_historical_odds": ("GET", "/v1/sports/historical"),
+                "pry_betting_percentages": ("GET", "/v1/sports/betting-percentages"),
+                "pry_sharp_consensus": ("GET", "/v1/sports/sharp-consensus"),
+                "pry_alerts": ("GET", "/v1/sports/alerts"),
+                # Climate / research REST fallbacks (climate_data / research_data
+                # land from parallel agents):
+                "pry_weather": ("GET", "/v1/climate/weather"),
+                "pry_agri": ("GET", "/v1/climate/agri"),
+                "pry_papers": ("GET", "/v1/research/papers"),
+                "pry_domain": ("GET", "/v1/research/domain"),
             }
             if name not in tool_map:
                 return {

@@ -2213,6 +2213,462 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "required": ["success"],
         },
     },
+    {
+        "name": "pry_historical_odds",
+        "description": (
+            "Get historical betting odds for past events from The Odds API "
+            "history feed: the closing lines, opening lines, and best available "
+            "prices for moneyline, spreads, and totals on a given date. "
+            "Use to backtest betting models or audit how lines moved, e.g. "
+            "'what were the closing NFL moneylines on 20260810?' or call with "
+            "sport='nba' and date='2026-08-01' for that day's historical slate."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sport": {
+                    "type": "string",
+                    "default": "all",
+                    "description": (
+                        "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, "
+                        "ufc, cfl, or 'all' (default: nba + nfl + epl)"
+                    ),
+                },
+                "date": {
+                    "type": "string",
+                    "default": "today",
+                    "description": ("Date: 'today' (default), YYYYMMDD, or YYYY-MM-DD"),
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of historical records (default: 20)",
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sport": {"type": "string"},
+                            "event": {"type": "string"},
+                            "event_id": {"type": "string"},
+                            "market": {"type": "string"},
+                            "bookmaker": {"type": "string"},
+                            "home_odds": {"type": "number"},
+                            "away_odds": {"type": "number"},
+                            "date": {"type": "string"},
+                        },
+                    },
+                },
+                "sport": {"type": "string"},
+                "date": {"type": "string"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_betting_percentages",
+        "description": (
+            "Get public betting percentages (the share of bets and the share of "
+            "money on each side of a game) across bookmakers, e.g. 'how much of "
+            "the money is on the Chiefs tonight?' or call with sport='nfl' to see "
+            "the whole slate. Use to spot sharp-side steam and contrarian plays "
+            "where the public leans one way but the line is not moving."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sport": {
+                    "type": "string",
+                    "default": "all",
+                    "description": (
+                        "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, "
+                        "ufc, cfl, or 'all' (default)"
+                    ),
+                },
+                "event": {
+                    "type": "string",
+                    "description": "Event substring filter, e.g. 'Chiefs vs Bills'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of percentage records (default: 20)",
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sport": {"type": "string"},
+                            "event": {"type": "string"},
+                            "event_id": {"type": "string"},
+                            "home_bets_pct": {"type": "number"},
+                            "away_bets_pct": {"type": "number"},
+                            "home_money_pct": {"type": "number"},
+                            "away_money_pct": {"type": "number"},
+                            "bookmaker": {"type": "string"},
+                        },
+                    },
+                },
+                "sport": {"type": "string"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_sharp_consensus",
+        "description": (
+            "Get the sharp consensus: the closing-line value and consensus price "
+            "from sharp books (Pinnacle, Circa, BetOnline) for the biggest games. "
+            "Use to identify where professional money is, e.g. 'what is the sharp "
+            "consensus on the Packers game?' or call with sport='nba' for the "
+            "sharpest lines across tonight's slate."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sport": {
+                    "type": "string",
+                    "default": "all",
+                    "description": (
+                        "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, "
+                        "ufc, cfl, or 'all' (default)"
+                    ),
+                },
+                "sharp_books": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "Sharp books to aggregate (e.g., ['pinnacle', 'circa']); "
+                        "defaults to the configured sharp list"
+                    ),
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of consensus records (default: 20)",
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sport": {"type": "string"},
+                            "event": {"type": "string"},
+                            "event_id": {"type": "string"},
+                            "consensus_price": {"type": "number"},
+                            "clv_pct": {"type": "number"},
+                            "books": {"type": "array", "items": {"type": "string"}},
+                        },
+                    },
+                },
+                "sport": {"type": "string"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_alerts",
+        "description": (
+            "Get or manage money-printer alerts: significant line moves, sharp "
+            "steam, limit-up CLV, and bettor-facing notifications you subscribe "
+            "to. Use to stay on top of the market without polling, e.g. 'what "
+            "alerts are active right now?' or call with alert_type='line_move' "
+            "to list the biggest recent line moves across all sports."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "alert_type": {
+                    "type": "string",
+                    "default": "",
+                    "description": (
+                        "Alert category filter: 'line_move', 'steam', 'clv', "
+                        "'injury', or empty for all"
+                    ),
+                },
+                "sport": {
+                    "type": "string",
+                    "default": "all",
+                    "description": (
+                        "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, "
+                        "ufc, cfl, or 'all' (default)"
+                    ),
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of alerts (default: 20)",
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "alert_type": {"type": "string"},
+                            "sport": {"type": "string"},
+                            "event": {"type": "string"},
+                            "message": {"type": "string"},
+                            "severity": {"type": "string"},
+                            "created_at": {"type": "string"},
+                        },
+                    },
+                },
+                "sport": {"type": "string"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_weather",
+        "description": (
+            "Get current weather and short-range forecasts for a location, built "
+            "for research pipelines that need environmental context (rain, wind, "
+            "temperature, AQI) alongside other data. "
+            "Use to enrich scraping jobs or model outdoor conditions, e.g. "
+            "'what is the weather in Austin, TX right now?' or call with "
+            "latitude/longitude to avoid geocoding."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "location": {
+                    "type": "string",
+                    "description": "City name or place query, e.g. 'Austin, TX'",
+                },
+                "latitude": {
+                    "type": "number",
+                    "description": "Latitude (alternative to location)",
+                },
+                "longitude": {
+                    "type": "number",
+                    "description": "Longitude (alternative to location)",
+                },
+                "forecast_days": {
+                    "type": "integer",
+                    "default": 3,
+                    "minimum": 0,
+                    "maximum": 16,
+                    "description": "Days of forecast to include (0 = current only)",
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string"},
+                        "temperature_c": {"type": "number"},
+                        "condition": {"type": "string"},
+                        "humidity_pct": {"type": "number"},
+                        "wind_kph": {"type": "number"},
+                        "forecast": {"type": "array", "items": {"type": "object"}},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_agri",
+        "description": (
+            "Get agricultural data: crop conditions, growing-degree days, soil "
+            "moisture, and commodity-relevant climate indices for a region. "
+            "Use to model crop yield risk or monitor growing regions, e.g. "
+            "'what are the corn growing conditions in Iowa?' or call with "
+            "region='us' and crop='corn' for the USDA-style condition report."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "region": {
+                    "type": "string",
+                    "default": "us",
+                    "description": "Region code, e.g. 'us', 'br', 'in' (default: 'us')",
+                },
+                "crop": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Crop filter, e.g. 'corn', 'soybeans', 'wheat'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of records (default: 20)",
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "region": {"type": "string"},
+                            "crop": {"type": "string"},
+                            "condition": {"type": "string"},
+                            "gdd": {"type": "number"},
+                            "soil_moisture_pct": {"type": "number"},
+                            "date": {"type": "string"},
+                        },
+                    },
+                },
+                "region": {"type": "string"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_papers",
+        "description": (
+            "Search academic papers and preprints (arXiv, Semantic Scholar, "
+            "PubMed) by keyword, author, or topic and return titles, abstracts, "
+            "and citation counts. "
+            "Use for research pipelines that need scholarly grounding, e.g. "
+            "'find recent papers on retrieval-augmented generation' or call with "
+            "author='Smith' and limit=10 for recent works."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query, e.g. 'retrieval augmented generation'",
+                },
+                "author": {
+                    "type": "string",
+                    "description": "Filter by author name, e.g. 'Smith'",
+                },
+                "year_from": {
+                    "type": "integer",
+                    "description": "Earliest publication year, e.g. 2020",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of papers (default: 20)",
+                },
+            },
+            "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "authors": {"type": "array", "items": {"type": "string"}},
+                            "abstract": {"type": "string"},
+                            "year": {"type": "integer"},
+                            "citations": {"type": "integer"},
+                            "url": {"type": "string"},
+                        },
+                    },
+                },
+                "query": {"type": "string"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_domain",
+        "description": (
+            "Get a domain intelligence report: WHOIS registration, SSL/TLS "
+            "details, hosting provider, and technology fingerprint for a "
+            "website. "
+            "Use to enrich leads, vet domains before scraping, or map a "
+            "competitor's stack, e.g. 'what can you tell me about example.com?' "
+            "or call with domain='rugmunch.io' for hosting and tech details."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string",
+                    "description": "Domain to analyze, e.g. 'example.com'",
+                },
+                "include_tech": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Include technology fingerprint (default: true)",
+                },
+            },
+            "required": ["domain"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "domain": {"type": "string"},
+                        "registrar": {"type": "string"},
+                        "registered_at": {"type": "string"},
+                        "expires_at": {"type": "string"},
+                        "hosting_provider": {"type": "string"},
+                        "tech_stack": {"type": "array", "items": {"type": "string"}},
+                        "ssl_issuer": {"type": "string"},
+                    },
+                },
+                "domain": {"type": "string"},
+            },
+            "required": ["success"],
+        },
+    },
 ]
 
 
@@ -2223,7 +2679,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
 # state mutation), non-destructive, idempotent (repeated calls are safe).
 # Tools that mutate server state opt out explicitly.
 #
-# Audit (2026-08-16, all 42 PRY_TOOLS):
+# Audit (2026-08-16, all 50 PRY_TOOLS):
 #   * pry_monitor  — persists a scheduled monitor on the server:
 #     readOnlyHint=False, idempotentHint=False. destructiveHint stays False:
 #     it never deletes data (removal is a separate /v1/monitor/{id} DELETE).
@@ -2235,6 +2691,12 @@ PRY_TOOLS: list[dict[str, Any]] = [
 #     pry_props, pry_injuries, pry_live_odds, pry_scores) are pure reads of
 #     The Odds API / ESPN feeds — no server-state changes, so they keep the
 #     default read-only, non-destructive, idempotent annotations.
+#   * The 4 new money-printer sports tools (pry_historical_odds,
+#     pry_betting_percentages, pry_sharp_consensus, pry_alerts) are pure
+#     reads of odds/history/consensus feeds — same default annotations.
+#   * The climate/research tools (pry_weather, pry_agri, pry_papers,
+#     pry_domain) are pure reads of public weather/academic/WHOIS feeds —
+#     same default read-only, non-destructive, idempotent annotations.
 #   * The remaining 33 tools are reads/scrapes with no server-state changes —
 #     the default read-only, non-destructive, idempotent annotations apply.
 _TOOL_ANNOTATIONS: dict[str, dict[str, bool]] = {
@@ -2868,6 +3330,29 @@ _SPORTS_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
         ("live", ("get_live_odds", "live_odds")),
         ("live_odds", ("get_live_odds", "live_odds")),
     ),
+    # Money-printer tools land from parallel agents (historical_odds,
+    # betting_percentages, sharp_consensus, alerts). Each maps to one or more
+    # (module, candidate-callables) options so the landed module/function name
+    # is resolved defensively, mirroring the arbitrage/plus_ev pattern.
+    "pry_historical_odds": (
+        ("historical", ("get_historical_odds", "historical_odds", "get_historical")),
+        ("historical_odds", ("get_historical_odds", "historical_odds", "get_historical")),
+    ),
+    "pry_betting_percentages": (
+        (
+            "betting_percentages",
+            ("get_betting_percentages", "betting_percentages", "get_percentages"),
+        ),
+        ("percentages", ("get_betting_percentages", "betting_percentages", "get_percentages")),
+    ),
+    "pry_sharp_consensus": (
+        ("sharp_consensus", ("get_sharp_consensus", "sharp_consensus", "get_consensus")),
+        ("consensus", ("get_sharp_consensus", "sharp_consensus", "get_consensus")),
+    ),
+    "pry_alerts": (
+        ("alerts", ("list_alerts", "get_alerts", "alerts")),
+        ("alert", ("list_alerts", "get_alerts", "alerts")),
+    ),
 }
 
 
@@ -2931,6 +3416,45 @@ def _sports_tool_kwargs(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         return {"sport": arguments.get("sport", "all"), "team": arguments.get("team", "all")}
     if name == "pry_live_odds":
         return {"sport": arguments.get("sport", "all"), "limit": int(arguments.get("limit", 20))}
+    if name == "pry_historical_odds":
+        kwargs = {
+            "sport": arguments.get("sport", "all"),
+            "date": arguments.get("date", "today"),
+            "limit": int(arguments.get("limit", 20)),
+        }
+        # The landed historical module keys off the Odds API event id.
+        if arguments.get("event_id"):
+            kwargs["event_id"] = arguments["event_id"]
+        elif arguments.get("event_query"):
+            kwargs["event_id"] = arguments["event_query"]
+        return kwargs
+    if name == "pry_betting_percentages":
+        kwargs = {"sport": arguments.get("sport", "all")}
+        # The landed percentages module is event-id centric.
+        if arguments.get("event_id"):
+            kwargs["event_id"] = arguments["event_id"]
+        elif arguments.get("event"):
+            kwargs["event_id"] = arguments["event"]
+        if arguments.get("limit") is not None:
+            kwargs["limit"] = int(arguments["limit"])
+        return kwargs
+    if name == "pry_sharp_consensus":
+        kwargs: dict[str, Any] = {"sport": arguments.get("sport", "all")}
+        # The landed consensus module is event-id centric.
+        if arguments.get("event_id"):
+            kwargs["event_id"] = arguments["event_id"]
+        if arguments.get("sharp_books"):
+            kwargs["books"] = arguments["sharp_books"]
+        if arguments.get("limit") is not None:
+            kwargs["limit"] = int(arguments["limit"])
+        return kwargs
+    if name == "pry_alerts":
+        kwargs = {"sport": arguments.get("sport", "all")}
+        if arguments.get("alert_type"):
+            kwargs["alert_type"] = arguments["alert_type"]
+        if arguments.get("limit") is not None:
+            kwargs["limit"] = int(arguments["limit"])
+        return kwargs
     return dict(arguments)
 
 
@@ -2977,3 +3501,152 @@ async def call_sports_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
             "isError": False,
         }
     return _sports_module_unavailable(name)
+
+
+# ── Climate / research domains (parallel build, guarded) ───────────────
+# Candidate public function names for the climate_data / research_data
+# modules. These packages land from parallel agents; every import below is
+# guarded so the dispatcher degrades gracefully (a readable message) if a
+# module has not landed yet. Each tool maps to one or more
+# (module, candidate-callables) options tried in order, so the dispatcher
+# resolves whichever module/function the landed code actually exposes.
+_CLIMATE_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "pry_weather": (
+        ("weather", ("get_forecast", "get_weather", "current_weather", "weather_now")),
+    ),
+    "pry_agri": (
+        ("agri", ("get_crop_prices", "get_agri", "agri_report", "get_agriculture")),
+        ("agriculture", ("get_crop_prices", "get_agri", "agri_report", "get_agriculture")),
+    ),
+}
+
+_RESEARCH_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "pry_papers": (
+        ("academic", ("search_papers", "get_papers", "find_papers", "papers")),
+        ("papers", ("search_papers", "get_papers", "find_papers", "papers")),
+    ),
+    "pry_domain": (
+        ("domain", ("whois_lookup", "get_domain_report", "domain_report", "get_domain")),
+        ("whois", ("whois_lookup", "get_domain_report", "domain_report", "get_domain")),
+    ),
+}
+
+
+def _domain_module_unavailable(tool_name: str, package: str) -> dict[str, Any]:
+    """MCP content dict for a climate/research tool whose module has not landed yet."""
+    return {
+        "content": [
+            {
+                "type": "text",
+                "text": (
+                    f"Tool {tool_name} is not available yet: the {package} module has "
+                    "not finished landing (parallel build in progress). Try again shortly."
+                ),
+            }
+        ],
+        "isError": False,
+    }
+
+
+def _domain_tool_kwargs(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    """Build the kwargs for a climate/research tool from MCP arguments.
+
+    Mirrors ``_sports_tool_kwargs``: kwargs the landed callable does not
+    support are filtered out by the dispatcher (``_callable_accepts``) so the
+    call never fails on an unknown keyword.
+    """
+    if name == "pry_weather":
+        kwargs: dict[str, Any] = {"location": arguments.get("location", "")}
+        if arguments.get("latitude") is not None and arguments.get("longitude") is not None:
+            kwargs["location"] = f"{arguments['latitude']},{arguments['longitude']}"
+        if arguments.get("forecast_days") is not None:
+            kwargs["days"] = int(arguments["forecast_days"])
+        return kwargs
+    if name == "pry_agri":
+        kwargs = {
+            "commodity": arguments.get("crop", "") or arguments.get("commodity", ""),
+            "state": arguments.get("region", "all") or arguments.get("state", "all"),
+            "limit": int(arguments.get("limit", 20)),
+        }
+        return kwargs
+    if name == "pry_papers":
+        kwargs = {"query": arguments.get("query", ""), "limit": int(arguments.get("limit", 20))}
+        if arguments.get("author"):
+            kwargs["author"] = arguments["author"]
+        if arguments.get("year_from") is not None:
+            kwargs["year_from"] = int(arguments["year_from"])
+        return kwargs
+    if name == "pry_domain":
+        kwargs = {"domain": arguments.get("domain", "")}
+        if arguments.get("include_tech") is not None:
+            kwargs["include_tech"] = bool(arguments["include_tech"])
+        return kwargs
+    return dict(arguments)
+
+
+async def _call_domain_dispatcher(
+    name: str,
+    arguments: dict[str, Any],
+    package: str,
+    registry: dict[str, tuple[tuple[str, tuple[str, ...]], ...]],
+    kwargs_builder: Any,
+) -> dict[str, Any] | None:
+    """Run a climate/research tool via a candidate registry with guarded import.
+
+    Tries each (module, candidates) option in order; the first landed module
+    that exposes one of the candidate callables wins. Missing required
+    arguments are reported as a tool error; a fully missing module degrades
+    to a readable "not available" message.
+    """
+    entry = registry.get(name)
+    if entry is None:
+        return None
+    required_args = {"pry_papers": "query", "pry_domain": "domain"}
+    if name in required_args and not arguments.get(required_args[name]):
+        return _missing_arg(name, required_args[name])
+    for module_name, candidates in entry:
+        try:
+            mod = __import__(f"{package}.{module_name}", fromlist=[module_name])
+        except ImportError:
+            continue
+        fn = next((getattr(mod, cand, None) for cand in candidates if hasattr(mod, cand)), None)
+        if fn is None:
+            continue
+        kwargs = kwargs_builder(name, arguments)
+        data = await fn(**{k: v for k, v in kwargs.items() if _callable_accepts(fn, k)})
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({"success": True, "data": data}, indent=2),
+                }
+            ],
+            "isError": False,
+        }
+    return _domain_module_unavailable(name, package)
+
+
+async def call_climate_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch climate MCP tools to their ``climate_data`` handlers (guarded).
+
+    The ``climate_data`` subpackage (weather, agri) is built in parallel by
+    other agents; every import is guarded so this dispatcher degrades
+    gracefully (a readable message) if a module has not landed yet. Returns
+    ``None`` for non-climate tools so callers fall through.
+    """
+    return await _call_domain_dispatcher(
+        name, arguments, "climate_data", _CLIMATE_TOOL_FNS, _domain_tool_kwargs
+    )
+
+
+async def call_research_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch research MCP tools to their ``research_data`` handlers (guarded).
+
+    The ``research_data`` subpackage (papers, domain) is built in parallel by
+    other agents; every import is guarded so this dispatcher degrades
+    gracefully (a readable message) if a module has not landed yet. Returns
+    ``None`` for non-research tools so callers fall through.
+    """
+    return await _call_domain_dispatcher(
+        name, arguments, "research_data", _RESEARCH_TOOL_FNS, _domain_tool_kwargs
+    )

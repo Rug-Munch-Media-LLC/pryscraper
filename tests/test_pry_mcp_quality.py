@@ -21,7 +21,7 @@ Covers four layers of the MCP surface:
    notifications answered with ``202``, and ``Mcp-Session-Id`` lifecycle.
 4. **Tool-count consistency** — ``PRY_TOOLS`` must stay in sync with
    ``server.json`` / ``glama.json`` / ``pulsemcp.json`` / ``llms.txt`` /
-   ``smithery.yaml`` (all currently 35).
+   ``smithery.yaml`` (all currently 50).
 """
 
 from __future__ import annotations
@@ -99,6 +99,46 @@ _DOMAIN_TOOLS: dict[str, tuple[str, tuple[str, ...], dict[str, Any]]] = {
         "sports_data.scores",
         ("get_scores",),
         {"sport": "basketball_nba", "date": "today"},
+    ),
+    "pry_historical_odds": (
+        "sports_data.historical",
+        ("get_historical_odds",),
+        {"sport": "basketball_nba", "event_id": "e1", "date": "2026-08-01", "limit": 5},
+    ),
+    "pry_betting_percentages": (
+        "sports_data.betting_percentages",
+        ("get_betting_percentages",),
+        {"event_id": "e1", "sport": "basketball_nba", "limit": 5},
+    ),
+    "pry_sharp_consensus": (
+        "sports_data.sharp_consensus",
+        ("get_sharp_consensus",),
+        {"event_id": "e1", "sharp_books": ["pinnacle", "circa"], "limit": 5},
+    ),
+    "pry_alerts": (
+        "sports_data.alerts",
+        ("list_alerts",),
+        {"alert_type": "line_move", "sport": "all", "limit": 5},
+    ),
+    "pry_weather": (
+        "climate_data.weather",
+        ("get_forecast",),
+        {"location": "38.9072,-77.0369", "forecast_days": 2},
+    ),
+    "pry_agri": (
+        "climate_data.agri",
+        ("get_crop_prices",),
+        {"crop": "corn", "region": "Iowa", "limit": 5},
+    ),
+    "pry_papers": (
+        "research_data.academic",
+        ("search_papers",),
+        {"query": "retrieval augmented generation", "limit": 5},
+    ),
+    "pry_domain": (
+        "research_data.domain",
+        ("whois_lookup",),
+        {"domain": "example.com", "include_tech": True},
     ),
     "pry_amazon_product": ("marketplace.amazon", ("get_product",), {"asin": "B08N5WRWNW"}),
     "pry_amazon_search": (
@@ -257,6 +297,22 @@ def _server() -> Any:
     return srv
 
 
+@pytest.fixture(autouse=True)
+def _clear_hot_tool_cache() -> Iterator[None]:
+    """Reset the dispatch-level 10s hot-tool cache before every test.
+
+    ``combined_tool_executor`` memoizes hot tools (odds, serp, ...) for 10
+    seconds; without a reset, a success-path test caches a result that a
+    later missing-module test would read back instead of the readable
+    "not available" message.
+    """
+    import pry_mcp.fallback_server as _fallback
+
+    _fallback._hot_tool_cache.clear()
+    yield
+    _fallback._hot_tool_cache.clear()
+
+
 async def _call(srv: Any, name: str, args: dict[str, Any], req_id: int = 100) -> dict[str, Any]:
     """Issue a ``tools/call`` JSON-RPC request and return the response."""
     resp = await srv.handle_request(
@@ -279,10 +335,10 @@ async def _call(srv: Any, name: str, args: dict[str, Any], req_id: int = 100) ->
 class TestToolMetadata:
     """Every PRY_TOOLS entry must meet the 2026 MCP quality bar."""
 
-    def test_tool_count_is_35(self) -> None:
-        assert len(PRY_TOOLS) == 42
-        assert len(PRY_TOOL_NAMES) == 42
-        assert len({t["name"] for t in PRY_TOOLS}) == 42
+    def test_tool_count_is_50(self) -> None:
+        assert len(PRY_TOOLS) == 50
+        assert len(PRY_TOOL_NAMES) == 50
+        assert len({t["name"] for t in PRY_TOOLS}) == 50
 
     @pytest.mark.parametrize("tool_name", sorted(PRY_TOOL_NAMES))
     def test_tools_list_metadata(self, tool_name: str) -> None:
@@ -457,7 +513,7 @@ class TestTransportCompliance:
         body = resp.json()
         assert body["jsonrpc"] == "2.0"
         assert body["id"] == 1
-        assert len(body["result"]["tools"]) == 42
+        assert len(body["result"]["tools"]) == 50
 
     def test_post_sse_accept_returns_event_stream(self, mcp_client: TestClient) -> None:
         resp = mcp_client.post(
@@ -610,7 +666,7 @@ def _find_tools_list(obj: Any) -> list[Any] | None:
 
 
 class TestRegistryConsistency:
-    """PRY_TOOLS must match every published registry file (currently 35)."""
+    """PRY_TOOLS must match every published registry file (currently 50)."""
 
     @pytest.mark.parametrize("fname", ["server.json", "glama.json", "pulsemcp.json"])
     def test_json_registries_match(self, fname: str) -> None:
@@ -636,4 +692,4 @@ class TestRegistryConsistency:
 
     def test_smithery_comment_matches_count(self) -> None:
         text = (REPO_ROOT / "smithery.yaml").read_text(encoding="utf-8")
-        assert "Tool count: 42" in text, "smithery.yaml tool-count comment drifted"
+        assert "Tool count: 50" in text, "smithery.yaml tool-count comment drifted"

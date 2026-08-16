@@ -87,6 +87,21 @@ try:
     _IP_DATA_ROUTER: Any | None = ip_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _IP_DATA_ROUTER = None
+# climate_data / research_data routers land in this tree; import them guarded
+# so api.py keeps working (and the x402 gates stay armed) if they have not
+# landed yet.
+try:
+    from routers.climate_data import router as climate_data_router
+
+    _CLIMATE_DATA_ROUTER: Any | None = climate_data_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _CLIMATE_DATA_ROUTER = None
+try:
+    from routers.research_data import router as research_data_router
+
+    _RESEARCH_DATA_ROUTER: Any | None = research_data_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _RESEARCH_DATA_ROUTER = None
 from routers.monitoring import router as monitoring_router
 from routers.parsing import router as parsing_router
 from routers.pipeline import router as pipeline_router
@@ -352,6 +367,11 @@ if _GOV_DATA_ROUTER is not None:
     app.include_router(_GOV_DATA_ROUTER)
 if _IP_DATA_ROUTER is not None:
     app.include_router(_IP_DATA_ROUTER)
+# climate_data / research_data routers are included when they have landed.
+if _CLIMATE_DATA_ROUTER is not None:
+    app.include_router(_CLIMATE_DATA_ROUTER)
+if _RESEARCH_DATA_ROUTER is not None:
+    app.include_router(_RESEARCH_DATA_ROUTER)
 app.include_router(monitoring_router)
 app.include_router(parsing_router)
 app.include_router(pipeline_router)

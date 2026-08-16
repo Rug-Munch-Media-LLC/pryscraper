@@ -77,6 +77,15 @@ PAID_ENDPOINTS = {
     "/v1/sports/props": "sports_props",
     "/v1/sports/injuries": "sports_injuries",
     "/v1/sports/live": "sports_live",
+    # Money-printer sports intelligence — paid per scan at a flat $0.01,
+    # same "stupid to choose others" tier as the existing sports suite:
+    "/v1/sports/historical": "sports_historical",
+    "/v1/sports/betting-percentages": "sports_betting_percentages",
+    "/v1/sports/sharp-consensus": "sports_sharp_consensus",
+    "/v1/sports/alerts": "sports_alerts",
+    # Climate / research intelligence — paid per call at $0.002:
+    "/v1/climate/": "weather",
+    "/v1/research/": "academic",
 }
 
 # Price tiers for the crypto-market operations. The canonical pricing table
@@ -213,8 +222,51 @@ _SPORTS_PRICE_TIERS: dict[str, dict[str, Any]] = {
         "price_usd": 0.01,
         "description": "Live in-play odds (flat $0.01/scan)",
     },
+    # Money-printer sports — flat $0.01/scan like the rest of the suite.
+    "sports_historical": {
+        "price_usd": 0.01,
+        "description": "Historical betting odds (flat $0.01/scan)",
+    },
+    "sports_betting_percentages": {
+        "price_usd": 0.01,
+        "description": "Public betting percentages (flat $0.01/scan)",
+    },
+    "sports_sharp_consensus": {
+        "price_usd": 0.01,
+        "description": "Sharp consensus lines (flat $0.01/scan)",
+    },
+    "sports_alerts": {
+        "price_usd": 0.01,
+        "description": "Money-printer alerts (flat $0.01/scan)",
+    },
 }
 for _operation, _tier in _SPORTS_PRICE_TIERS.items():
+    X402_PRICING.setdefault(_operation, _tier)
+
+# Price tiers for the climate / research operations. Cheap reads at $0.002 —
+# weather, agriculture indices, academic papers, and domain intelligence are
+# low-cost lookups, so gate them well below the sports scans. Same defensive
+# setdefault merge as the tiers above; keeps the /v1/climate/* and
+# /v1/research/* gates from being skipped until promoted into x402/scheme.py.
+_CLIMATE_RESEARCH_PRICE_TIERS: dict[str, dict[str, Any]] = {
+    "weather": {
+        "price_usd": 0.002,
+        "description": "Current weather + short-range forecast",
+    },
+    "agri": {
+        "price_usd": 0.002,
+        "description": "Agricultural climate indices / crop conditions",
+    },
+    "academic": {
+        "price_usd": 0.002,
+        "description": "Academic paper / preprint search",
+    },
+    "domain": {
+        "price_usd": 0.002,
+        "description": "Domain intelligence report (WHOIS/SSL/hosting/tech)",
+    },
+}
+for _operation, _tier in _CLIMATE_RESEARCH_PRICE_TIERS.items():
     X402_PRICING.setdefault(_operation, _tier)
 
 

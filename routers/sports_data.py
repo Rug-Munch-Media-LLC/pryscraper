@@ -11,6 +11,10 @@ Endpoints:
   event (accepts ``sport:event_id`` to skip the default-sport scan)
 - GET /v1/sports/stats/{player}  — player stats (ESPN)
 - GET /v1/sports/scores          — scores for a day (ESPN)
+- GET /v1/sports/historical      — historical closing/open odds for a date
+- GET /v1/sports/betting-percentages — share of bets & money per side
+- GET /v1/sports/sharp-consensus — sharp-book consensus lines w/ CLV
+- GET /v1/sports/alerts          — money-printer alerts (line move/steam/CLV)
 """
 
 # SPDX-License-Identifier: MIT
@@ -249,3 +253,94 @@ async def sports_live_odds(
         _module_unavailable("live_odds")
     data = await fn(sport=sport, limit=limit)
     return {"success": True, "data": data, "sport": sport, "limit": limit}
+
+
+@router.get(
+    "/v1/sports/historical",
+    tags=["Sports Data"],
+    summary="Historical betting odds for past events",
+)
+async def sports_historical_odds(
+    sport: str = Query("all", description="Sport: nba, nfl, mlb, nhl, epl, ... or 'all' (default)"),
+    date: str = Query("today", description="Date: 'today' (default), YYYYMMDD, or YYYY-MM-DD"),
+    limit: int = Query(20, ge=1, le=100, description="Max records (default: 20)"),
+) -> dict[str, Any]:
+    """Fetch historical (closing/open) odds for events on a given date."""
+    mod = _sports_module_first("historical", "historical_odds")
+    fn = _sports_fn(mod, "get_historical_odds", "historical_odds", "get_historical")
+    if fn is None:
+        _module_unavailable("historical")
+    data = await fn(sport=sport, date=date, limit=limit)
+    return {"success": True, "data": data, "sport": sport, "date": date, "limit": limit}
+
+
+@router.get(
+    "/v1/sports/betting-percentages",
+    tags=["Sports Data"],
+    summary="Public betting percentages (bets & money share)",
+)
+async def sports_betting_percentages(
+    sport: str = Query("all", description="Sport: nba, nfl, mlb, nhl, epl, ... or 'all' (default)"),
+    event: str = Query("", max_length=200, description="Event substring filter, e.g. 'Chiefs'"),
+    limit: int = Query(20, ge=1, le=100, description="Max records (default: 20)"),
+) -> dict[str, Any]:
+    """Fetch the share of bets and money on each side of a game."""
+    mod = _sports_module_first("percentages", "betting_percentages")
+    fn = _sports_fn(mod, "get_betting_percentages", "betting_percentages", "get_percentages")
+    if fn is None:
+        _module_unavailable("percentages")
+    kwargs: dict[str, Any] = {"sport": sport, "limit": limit}
+    if event:
+        kwargs["event"] = event
+    data = await fn(**kwargs)
+    return {"success": True, "data": data, "sport": sport, "event": event, "limit": limit}
+
+
+@router.get(
+    "/v1/sports/sharp-consensus",
+    tags=["Sports Data"],
+    summary="Sharp consensus lines (CLV-aware)",
+)
+async def sports_sharp_consensus(
+    sport: str = Query("all", description="Sport: nba, nfl, mlb, nhl, epl, ... or 'all' (default)"),
+    sharp_books: str = Query(
+        "", max_length=200, description="Comma-separated sharp books, e.g. 'pinnacle,circa'"
+    ),
+    limit: int = Query(20, ge=1, le=100, description="Max records (default: 20)"),
+) -> dict[str, Any]:
+    """Fetch consensus lines aggregated from sharp books with CLV estimates."""
+    mod = _sports_module_first("consensus", "sharp_consensus")
+    fn = _sports_fn(mod, "get_sharp_consensus", "sharp_consensus", "get_consensus")
+    if fn is None:
+        _module_unavailable("consensus")
+    kwargs: dict[str, Any] = {"sport": sport, "limit": limit}
+    if sharp_books:
+        kwargs["sharp_books"] = [b.strip() for b in sharp_books.split(",") if b.strip()]
+    data = await fn(**kwargs)
+    return {"success": True, "data": data, "sport": sport, "limit": limit}
+
+
+@router.get(
+    "/v1/sports/alerts",
+    tags=["Sports Data"],
+    summary="Money-printer alerts (line moves, steam, CLV)",
+)
+async def sports_alerts(
+    alert_type: str = Query(
+        "",
+        max_length=50,
+        description="Alert category: line_move, steam, clv, injury, or empty for all",
+    ),
+    sport: str = Query("all", description="Sport: nba, nfl, mlb, nhl, epl, ... or 'all' (default)"),
+    limit: int = Query(20, ge=1, le=100, description="Max records (default: 20)"),
+) -> dict[str, Any]:
+    """Fetch significant betting alerts: line moves, sharp steam, CLV spikes."""
+    mod = _sports_module_first("alerts", "alert")
+    fn = _sports_fn(mod, "get_alerts", "list_alerts", "alerts")
+    if fn is None:
+        _module_unavailable("alerts")
+    kwargs: dict[str, Any] = {"sport": sport, "limit": limit}
+    if alert_type:
+        kwargs["alert_type"] = alert_type
+    data = await fn(**kwargs)
+    return {"success": True, "data": data, "sport": sport, "alert_type": alert_type, "limit": limit}
