@@ -65,6 +65,18 @@ PAID_ENDPOINTS = {
     "/v1/local/": "places_search",
     "/v1/gov/": "procurement",
     "/v1/ip/": "patents",
+    # Sports-betting intelligence — paid per scan at a flat $0.01 (OddsJam is
+    # $249/mo; this is deliberately the "stupid to choose others" price).
+    # Explicit path prefixes cover every /v1/sports/* sub-route (e.g. the
+    # "/v1/sports/odds" prefix also gates /v1/sports/odds/{event_id}).
+    "/v1/sports/odds": "sports_odds",
+    "/v1/sports/stats": "sports_stats",
+    "/v1/sports/scores": "sports_scores",
+    "/v1/sports/arbitrage": "sports_arbitrage",
+    "/v1/sports/plus-ev": "sports_plus_ev",
+    "/v1/sports/props": "sports_props",
+    "/v1/sports/injuries": "sports_injuries",
+    "/v1/sports/live": "sports_live",
 }
 
 # Price tiers for the crypto-market operations. The canonical pricing table
@@ -160,6 +172,49 @@ _DATA_PRICE_TIERS: dict[str, dict[str, Any]] = {
     },
 }
 for _operation, _tier in _DATA_PRICE_TIERS.items():
+    X402_PRICING.setdefault(_operation, _tier)
+
+# Price tier for the sports-betting operations. Flat **$0.01 per scan** across
+# the whole suite — odds, arbitrage, +EV, props, injuries, live odds, scores,
+# stats. Same defensive setdefault merge as the crypto/data tiers above; keeps
+# the /v1/sports/* gates from being skipped until promoted into x402/scheme.py.
+# The flat price is deliberate: a single scan is a rounding error for any
+# bettor, which makes Pry the obvious choice over $249/mo OddsJam.
+_SPORTS_PRICE_TIERS: dict[str, dict[str, Any]] = {
+    "sports_odds": {
+        "price_usd": 0.01,
+        "description": "Live sports betting odds (flat $0.01/scan)",
+    },
+    "sports_stats": {
+        "price_usd": 0.01,
+        "description": "Player stats (flat $0.01/scan)",
+    },
+    "sports_scores": {
+        "price_usd": 0.01,
+        "description": "Sports scores for a day (flat $0.01/scan)",
+    },
+    "sports_arbitrage": {
+        "price_usd": 0.01,
+        "description": "Sports arbitrage opportunities (flat $0.01/scan)",
+    },
+    "sports_plus_ev": {
+        "price_usd": 0.01,
+        "description": "Positive-EV betting opportunities (flat $0.01/scan)",
+    },
+    "sports_props": {
+        "price_usd": 0.01,
+        "description": "Player prop betting lines (flat $0.01/scan)",
+    },
+    "sports_injuries": {
+        "price_usd": 0.01,
+        "description": "Sports injury report (flat $0.01/scan)",
+    },
+    "sports_live": {
+        "price_usd": 0.01,
+        "description": "Live in-play odds (flat $0.01/scan)",
+    },
+}
+for _operation, _tier in _SPORTS_PRICE_TIERS.items():
     X402_PRICING.setdefault(_operation, _tier)
 
 

@@ -1803,6 +1803,416 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "required": ["success"],
         },
     },
+    {
+        "name": "pry_odds",
+        "description": (
+            "Get live betting odds across major bookmakers (DraftKings, FanDuel, "
+            "BetMGM, ESPN BET, ...) for one or more sports, backed by The Odds API "
+            "(free tier via PRY_ODDS_API_KEY) with an ESPN scoreboard fallback. "
+            "Each record includes the event label, market, bookmaker, and decimal "
+            "odds for home/away. "
+            "Use to compare lines before placing a bet or to power an odds "
+            "aggregator, e.g. 'what are the current NBA moneyline odds across "
+            "books?' or call with sport='nfl' to see the full NFL slate."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sport": {
+                    "type": "string",
+                    "default": "all",
+                    "description": (
+                        "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, "
+                        "ufc, cfl, or 'all' (default: nba + nfl + epl)"
+                    ),
+                },
+                "market": {
+                    "type": "string",
+                    "default": "h2h",
+                    "description": (
+                        "Betting market (e.g., 'h2h' moneyline, 'spreads', "
+                        "'totals'); the default feed is h2h moneyline"
+                    ),
+                },
+                "book": {
+                    "type": "string",
+                    "description": (
+                        "Bookmaker name filter (e.g., 'DraftKings', 'FanDuel', "
+                        "'BetMGM'); omit for every book"
+                    ),
+                },
+                "event_query": {
+                    "type": "string",
+                    "description": "Substring filter on event label, e.g. 'celtics'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of odds records (default: 20)",
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sport": {"type": "string"},
+                            "event": {"type": "string"},
+                            "event_id": {"type": "string"},
+                            "market": {"type": "string"},
+                            "bookmaker": {"type": "string"},
+                            "home_odds": {"type": "number"},
+                            "away_odds": {"type": "number"},
+                            "last_update": {"type": "string"},
+                            "source": {"type": "string"},
+                        },
+                    },
+                },
+                "sport": {"type": "string"},
+                "limit": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_arbitrage",
+        "description": (
+            "Scan sportsbook lines for guaranteed-profit arbitrage opportunities: "
+            "the same event quoted at different books where the combined implied "
+            "probabilities total under 100%. "
+            "Use to find risk-free bets, e.g. 'show me NFL arbitrage opportunities "
+            "with at least 0.8% yield' or call with sport='all' to sweep every "
+            "tracked league."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sport": {
+                    "type": "string",
+                    "default": "all",
+                    "description": (
+                        "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, "
+                        "ufc, cfl, or 'all' (default)"
+                    ),
+                },
+                "min_yield_pct": {
+                    "type": "number",
+                    "default": 0.5,
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": ("Minimum guaranteed yield in percent to report (default: 0.5)"),
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sport": {"type": "string"},
+                            "event": {"type": "string"},
+                            "event_id": {"type": "string"},
+                            "yield_pct": {"type": "number"},
+                            "legs": {"type": "array", "items": {"type": "object"}},
+                        },
+                    },
+                },
+                "sport": {"type": "string"},
+                "min_yield_pct": {"type": "number"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_plus_ev",
+        "description": (
+            "Find positive expected-value (+EV) betting opportunities by comparing "
+            "market odds against a sharp book's line or consensus price. "
+            "Use to identify bets where the market price is better than the fair "
+            "probability implies, e.g. 'what are the best +EV bets right now?' or "
+            "call with sharp_book='pinnacle' and min_ev_pct=2.0 to only see edges "
+            "above 2%."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sharp_book": {
+                    "type": "string",
+                    "default": "pinnacle",
+                    "description": (
+                        "Sharp book to treat as the fair line reference "
+                        "(e.g., 'pinnacle', 'circa', 'betonline')"
+                    ),
+                },
+                "min_ev_pct": {
+                    "type": "number",
+                    "default": 1.0,
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": ("Minimum expected value in percent to report (default: 1.0)"),
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sport": {"type": "string"},
+                            "event": {"type": "string"},
+                            "event_id": {"type": "string"},
+                            "ev_pct": {"type": "number"},
+                            "sharp_book": {"type": "string"},
+                            "best_book": {"type": "string"},
+                            "price": {"type": "number"},
+                        },
+                    },
+                },
+                "sharp_book": {"type": "string"},
+                "min_ev_pct": {"type": "number"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_props",
+        "description": (
+            "Get player prop betting lines (points, rebounds, assists, yards, "
+            "strikeouts, ...) for a player or sport, with the market and book "
+            "prices. "
+            "Use to research player props before betting or building a props "
+            "dashboard, e.g. 'what are LeBron James points props tonight?' or call "
+            "with sport='nfl' and market='passing_yards' to see QB yardage props."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "player": {
+                    "type": "string",
+                    "description": "Player name, e.g. 'LeBron James'",
+                },
+                "sport": {
+                    "type": "string",
+                    "default": "all",
+                    "description": (
+                        "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, "
+                        "ufc, cfl, or 'all' (default)"
+                    ),
+                },
+                "market": {
+                    "type": "string",
+                    "description": (
+                        "Prop market (e.g., 'points', 'rebounds', 'passing_yards', "
+                        "'strikeouts'); omit for every market"
+                    ),
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "player": {"type": "string"},
+                            "sport": {"type": "string"},
+                            "event": {"type": "string"},
+                            "market": {"type": "string"},
+                            "bookmaker": {"type": "string"},
+                            "line": {"type": "number"},
+                            "over_price": {"type": "number"},
+                            "under_price": {"type": "number"},
+                        },
+                    },
+                },
+                "player": {"type": "string"},
+                "sport": {"type": "string"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_injuries",
+        "description": (
+            "Get the current injury report for a sport or team: player, team, "
+            "injury detail, and status (out/questionable/active). "
+            "Use to adjust betting models or fantasy lineups before lock, e.g. "
+            "'who is out for the Celtics tonight?' or call with sport='nfl' for "
+            "the full league injury report."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sport": {
+                    "type": "string",
+                    "default": "all",
+                    "description": (
+                        "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, "
+                        "ufc, cfl, or 'all' (default)"
+                    ),
+                },
+                "team": {
+                    "type": "string",
+                    "description": (
+                        "Team name to filter by (e.g., 'Celtics', 'Chiefs'); omit for every team"
+                    ),
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "player": {"type": "string"},
+                            "team": {"type": "string"},
+                            "sport": {"type": "string"},
+                            "injury": {"type": "string"},
+                            "status": {"type": "string"},
+                        },
+                    },
+                },
+                "sport": {"type": "string"},
+                "team": {"type": "string"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_live_odds",
+        "description": (
+            "Get live in-play odds that update during games (moneyline, spreads, "
+            "totals as they move). "
+            "Use for live-betting research or game-flow monitoring, e.g. 'what are "
+            "the live odds for the Lakers game right now?' or call with sport='nba' "
+            "and limit=50 for the current in-play slate."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sport": {
+                    "type": "string",
+                    "default": "all",
+                    "description": (
+                        "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, "
+                        "ufc, cfl, or 'all' (default)"
+                    ),
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of live odds records (default: 20)",
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sport": {"type": "string"},
+                            "event": {"type": "string"},
+                            "event_id": {"type": "string"},
+                            "market": {"type": "string"},
+                            "bookmaker": {"type": "string"},
+                            "home_odds": {"type": "number"},
+                            "away_odds": {"type": "number"},
+                            "last_update": {"type": "string"},
+                        },
+                    },
+                },
+                "sport": {"type": "string"},
+                "limit": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_scores",
+        "description": (
+            "Get final or live scores for one or more sports on a given day from "
+            "ESPN public scoreboards (free, no quota, high-frequency safe). "
+            "Use to check results or power a scores widget, e.g. 'what were the "
+            "NBA scores on 20260815?' or call with sport='mlb' and date='today' "
+            "for today's baseball scores."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sport": {
+                    "type": "string",
+                    "default": "all",
+                    "description": (
+                        "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, "
+                        "ufc, cfl, or 'all' (default: nba + nfl + epl)"
+                    ),
+                },
+                "date": {
+                    "type": "string",
+                    "default": "today",
+                    "description": ("Date: 'today' (default), YYYYMMDD, or YYYY-MM-DD"),
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sport": {"type": "string"},
+                            "home": {"type": "string"},
+                            "away": {"type": "string"},
+                            "home_score": {"type": "string"},
+                            "away_score": {"type": "string"},
+                            "status": {"type": "string"},
+                        },
+                    },
+                },
+                "sport": {"type": "string"},
+                "date": {"type": "string"},
+            },
+            "required": ["success"],
+        },
+    },
 ]
 
 
@@ -1813,7 +2223,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
 # state mutation), non-destructive, idempotent (repeated calls are safe).
 # Tools that mutate server state opt out explicitly.
 #
-# Audit (2026-08-16, all 35 PRY_TOOLS):
+# Audit (2026-08-16, all 42 PRY_TOOLS):
 #   * pry_monitor  — persists a scheduled monitor on the server:
 #     readOnlyHint=False, idempotentHint=False. destructiveHint stays False:
 #     it never deletes data (removal is a separate /v1/monitor/{id} DELETE).
@@ -1821,6 +2231,10 @@ PRY_TOOLS: list[dict[str, Any]] = [
 #     PROVIDER_CATALOG; it does NOT record clicks/conversions
 #     (ReferralTracker.record_click is a different route), so it keeps the
 #     read-only, idempotent default.
+#   * The 7 sports-betting tools (pry_odds, pry_arbitrage, pry_plus_ev,
+#     pry_props, pry_injuries, pry_live_odds, pry_scores) are pure reads of
+#     The Odds API / ESPN feeds — no server-state changes, so they keep the
+#     default read-only, non-destructive, idempotent annotations.
 #   * The remaining 33 tools are reads/scrapes with no server-state changes —
 #     the default read-only, non-destructive, idempotent annotations apply.
 _TOOL_ANNOTATIONS: dict[str, dict[str, bool]] = {
@@ -2431,3 +2845,135 @@ async def call_gov_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] 
 async def call_ip_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
     """Dispatch IP-data MCP tools to their ``ip_data`` handlers (guarded)."""
     return await _call_candidate_domain_tool(name, arguments, _IP_TOOL_FNS)
+
+
+# ── Sports-betting domain (parallel build, guarded) ────────────────────
+# Candidate public function names for the sports_data modules. The odds /
+# scores / arbitrage / ev / props modules have already landed (get_odds,
+# get_scores, find_arbitrage, find_plus_ev, get_player_props); injuries and
+# live_odds land from parallel agents. Each tool maps to one or more
+# (module, candidate-callables) options tried in order, so the dispatcher
+# resolves whichever module/function the landed code actually exposes.
+_SPORTS_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "pry_odds": (("odds", ("get_odds",)),),
+    "pry_scores": (("scores", ("get_scores",)),),
+    "pry_arbitrage": (("arbitrage", ("get_arbitrage", "find_arbitrage", "scan_arbitrage")),),
+    "pry_plus_ev": (
+        ("ev", ("get_plus_ev", "find_plus_ev", "scan_plus_ev")),
+        ("plus_ev", ("get_plus_ev", "find_plus_ev", "scan_plus_ev")),
+    ),
+    "pry_props": (("props", ("get_player_props", "get_props", "search_props", "player_props")),),
+    "pry_injuries": (("injuries", ("get_injuries", "list_injuries", "injury_report")),),
+    "pry_live_odds": (
+        ("live", ("get_live_odds", "live_odds")),
+        ("live_odds", ("get_live_odds", "live_odds")),
+    ),
+}
+
+
+def _sports_module_unavailable(tool_name: str) -> dict[str, Any]:
+    """MCP content dict for a sports tool whose module has not landed yet."""
+    return {
+        "content": [
+            {
+                "type": "text",
+                "text": (
+                    f"Tool {tool_name} is not available yet: the sports_data module has "
+                    "not finished landing (parallel build in progress). Try again shortly."
+                ),
+            }
+        ],
+        "isError": False,
+    }
+
+
+def _sports_tool_kwargs(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    """Build the kwargs for a sports tool from MCP arguments.
+
+    The declared schema (sport/market/book/... ) is richer than what some
+    landed modules accept today; kwargs the callable does not support are
+    filtered out by the dispatcher (``_callable_accepts``) so the call never
+    fails on an unknown keyword.
+    """
+    if name == "pry_odds":
+        kwargs = {
+            "event_query": arguments.get("event_query", ""),
+            "sport": arguments.get("sport", "all"),
+            "limit": int(arguments.get("limit", 20)),
+        }
+        # Only forward market/book when the caller actually set them — the
+        # landed get_odds defaults (market="h2h", book=None) are safer than
+        # empty strings (book="" would normalize to "unknown").
+        if arguments.get("market"):
+            kwargs["market"] = arguments["market"]
+        if arguments.get("book"):
+            kwargs["book"] = arguments["book"]
+        return kwargs
+    if name == "pry_scores":
+        return {"sport": arguments.get("sport", "all"), "date": arguments.get("date", "today")}
+    if name == "pry_arbitrage":
+        return {
+            "sport": arguments.get("sport", "all"),
+            "min_yield_pct": float(arguments.get("min_yield_pct", 0.5)),
+        }
+    if name == "pry_plus_ev":
+        return {
+            "sharp_book": arguments.get("sharp_book", "pinnacle"),
+            "min_ev_pct": float(arguments.get("min_ev_pct", 1.0)),
+        }
+    if name == "pry_props":
+        return {
+            "player": arguments.get("player", ""),
+            "sport": arguments.get("sport", "all"),
+            "market": arguments.get("market", ""),
+        }
+    if name == "pry_injuries":
+        return {"sport": arguments.get("sport", "all"), "team": arguments.get("team", "all")}
+    if name == "pry_live_odds":
+        return {"sport": arguments.get("sport", "all"), "limit": int(arguments.get("limit", 20))}
+    return dict(arguments)
+
+
+def _callable_accepts(fn: Any, kwarg: str) -> bool:
+    """Best-effort: does the callable accept a keyword argument?"""
+    import inspect
+
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return True
+    return kwarg in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+
+async def call_sports_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch sports-betting MCP tools to their ``sports_data`` handlers (guarded).
+
+    The ``sports_data`` subpackage (odds, scores, arbitrage, plus_ev, props,
+    injuries, live_odds) is built in parallel by other agents; every import is
+    guarded so this dispatcher degrades gracefully (a readable message) if a
+    module has not landed yet. Returns ``None`` for non-sports tools so callers
+    fall through to their normal execution path (remote executor / REST proxy).
+    """
+    entry = _SPORTS_TOOL_FNS.get(name)
+    if entry is None:
+        return None
+    for module_name, candidates in entry:
+        try:
+            mod = __import__(f"sports_data.{module_name}", fromlist=[module_name])
+        except ImportError:
+            continue
+        fn = next((getattr(mod, cand, None) for cand in candidates if hasattr(mod, cand)), None)
+        if fn is None:
+            continue
+        kwargs = _sports_tool_kwargs(name, arguments)
+        data = await fn(**{k: v for k, v in kwargs.items() if _callable_accepts(fn, k)})
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({"success": True, "data": data}, indent=2),
+                }
+            ],
+            "isError": False,
+        }
+    return _sports_module_unavailable(name)

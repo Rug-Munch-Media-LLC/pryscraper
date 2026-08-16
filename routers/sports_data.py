@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import importlib
 import logging
-from typing import Any
+from typing import Any, NoReturn
 
 from fastapi import APIRouter, Query
 
@@ -47,10 +47,41 @@ def _sports_module(module_name: str) -> Any:
         return None
 
 
-def _module_unavailable(module_name: str) -> None:
+def _module_unavailable(module_name: str) -> NoReturn:
     raise ExternalServiceError(
         f"sports_data.{module_name} is not available yet (parallel build in progress)"
     )
+
+
+def _sports_module_first(*module_names: str) -> Any | None:
+    """Import the first existing ``sports_data`` submodule among candidates.
+
+    Parallel agents may land a module under a slightly different file name
+    (e.g. ``plus_ev`` vs ``ev``); try each in order and return the first one
+    that imports.
+    """
+    for module_name in module_names:
+        mod = _sports_module(module_name)
+        if mod is not None:
+            return mod
+    return None
+
+
+def _sports_fn(mod: Any, *candidates: str) -> Any | None:
+    """Resolve the first callable attribute among ``candidates`` on a module.
+
+    The arbitrage / plus_ev / props / injuries / live_odds modules land in
+    parallel from other agents, so their public function name is resolved
+    defensively. Returns ``None`` when the module or every candidate is
+    missing (callers degrade to 502).
+    """
+    if mod is None:
+        return None
+    for candidate in candidates:
+        fn = getattr(mod, candidate, None)
+        if callable(fn):
+            return fn
+    return None
 
 
 @router.get(
@@ -119,3 +150,102 @@ async def sports_scores(
         _module_unavailable("scores")
     data = await mod.get_scores(sport, date=date)
     return {"success": True, "data": data, "sport": sport, "date": date}
+
+
+@router.get(
+    "/v1/sports/arbitrage",
+    tags=["Sports Data"],
+    summary="Arbitrage opportunities across bookmakers",
+)
+async def sports_arbitrage(
+    sport: str = Query("all", description="Sport: nba, nfl, mlb, nhl, epl, ... or 'all' (default)"),
+    min_yield_pct: float = Query(
+        0.5, ge=0.0, le=100.0, description="Minimum guaranteed yield % (default: 0.5)"
+    ),
+) -> dict[str, Any]:
+    """Scan sportsbook lines for guaranteed-profit arbitrage opportunities."""
+    mod = _sports_module("arbitrage")
+    fn = _sports_fn(mod, "get_arbitrage", "find_arbitrage", "scan_arbitrage")
+    if fn is None:
+        _module_unavailable("arbitrage")
+    data = await fn(sport=sport, min_yield_pct=min_yield_pct)
+    return {"success": True, "data": data, "sport": sport, "min_yield_pct": min_yield_pct}
+
+
+@router.get(
+    "/v1/sports/plus-ev",
+    tags=["Sports Data"],
+    summary="Positive-EV betting opportunities vs a sharp book",
+)
+async def sports_plus_ev(
+    sharp_book: str = Query(
+        "pinnacle", description="Sharp book to treat as the fair line reference (default: pinnacle)"
+    ),
+    min_ev_pct: float = Query(
+        1.0, ge=0.0, le=100.0, description="Minimum expected value % (default: 1.0)"
+    ),
+) -> dict[str, Any]:
+    """Find +EV bets where market odds beat the sharp book's fair line."""
+    mod = _sports_module_first("plus_ev", "ev")
+    fn = _sports_fn(mod, "get_plus_ev", "find_plus_ev", "scan_plus_ev")
+    if fn is None:
+        _module_unavailable("plus_ev")
+    data = await fn(sharp_book=sharp_book, min_ev_pct=min_ev_pct)
+    return {"success": True, "data": data, "sharp_book": sharp_book, "min_ev_pct": min_ev_pct}
+
+
+@router.get(
+    "/v1/sports/props",
+    tags=["Sports Data"],
+    summary="Player prop betting lines",
+)
+async def sports_props(
+    player: str = Query("", max_length=200, description="Player name, e.g. 'LeBron James'"),
+    sport: str = Query("all", description="Sport: nba, nfl, mlb, nhl, epl, ... or 'all' (default)"),
+    market: str = Query(
+        "", max_length=100, description="Prop market (e.g. 'points', 'passing_yards')"
+    ),
+) -> dict[str, Any]:
+    """Fetch player prop betting lines for a player or sport."""
+    mod = _sports_module("props")
+    fn = _sports_fn(mod, "get_player_props", "get_props", "search_props", "player_props")
+    if fn is None:
+        _module_unavailable("props")
+    data = await fn(player=player, sport=sport, market=market)
+    return {"success": True, "data": data, "player": player, "sport": sport, "market": market}
+
+
+@router.get(
+    "/v1/sports/injuries",
+    tags=["Sports Data"],
+    summary="Injury report for a sport or team",
+)
+async def sports_injuries(
+    sport: str = Query("all", description="Sport: nba, nfl, mlb, nhl, epl, ... or 'all' (default)"),
+    team: str = Query("", max_length=200, description="Team name, e.g. 'Celtics'"),
+) -> dict[str, Any]:
+    """Fetch the current injury report for a sport or team."""
+    mod = _sports_module("injuries")
+    fn = _sports_fn(mod, "get_injuries", "list_injuries", "injury_report")
+    if fn is None:
+        _module_unavailable("injuries")
+    data = await fn(sport=sport, team=team)
+    return {"success": True, "data": data, "sport": sport, "team": team}
+
+
+@router.get(
+    "/v1/sports/live",
+    tags=["Sports Data"],
+    summary="Live in-play odds",
+)
+async def sports_live_odds(
+    sport: str = Query("all", description="Sport: nba, nfl, mlb, nhl, epl, ... or 'all' (default)"),
+    limit: int = Query(20, ge=1, le=100, description="Max records (default: 20)"),
+) -> dict[str, Any]:
+    """Fetch live in-play odds that update during games."""
+    mod = _sports_module_first("live_odds", "live")
+    fn = _sports_fn(mod, "get_live_odds", "live_odds")
+    if fn is None:
+        _module_unavailable("live_odds")
+    data = await fn(sport=sport, limit=limit)
+    return {"success": True, "data": data, "sport": sport, "limit": limit}

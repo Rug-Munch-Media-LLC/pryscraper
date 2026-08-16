@@ -131,8 +131,9 @@ async def _call_domain_tool(
 async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Local MCP tool executor chaining every data-domain guarded dispatcher.
 
-    Order: crypto-market, marketplace-intelligence, then the eight data-domain
-    packages (legal, real estate, jobs, travel, attention, local, gov, ip).
+    Order: crypto-market, marketplace-intelligence, then the nine data-domain
+    packages (legal, real estate, jobs, travel, attention, local, gov, ip,
+    sports).
     Raises ``_ToolNotHandled`` when no dispatcher owns the tool so callers
     fall through to the REST proxy.
     """
@@ -153,6 +154,7 @@ async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[s
         "call_local_tool",
         "call_gov_tool",
         "call_ip_tool",
+        "call_sports_tool",
     ):
         result = await _call_domain_tool(dispatcher_name, name, arguments)
         if result is not None:
@@ -308,6 +310,15 @@ def make_fallback_server(
                 "pry_recalls": ("GET", "/v1/gov/recalls"),
                 "pry_patents": ("GET", "/v1/ip/patents"),
                 "pry_trademarks": ("GET", "/v1/ip/trademarks"),
+                # Sports-betting REST fallbacks (used when a sports_data module
+                # has not landed yet and the guarded local dispatch was declined):
+                "pry_odds": ("GET", "/v1/sports/odds"),
+                "pry_arbitrage": ("GET", "/v1/sports/arbitrage"),
+                "pry_plus_ev": ("GET", "/v1/sports/plus-ev"),
+                "pry_props": ("GET", "/v1/sports/props"),
+                "pry_injuries": ("GET", "/v1/sports/injuries"),
+                "pry_live_odds": ("GET", "/v1/sports/live"),
+                "pry_scores": ("GET", "/v1/sports/scores"),
             }
             if name not in tool_map:
                 return {
