@@ -1,7 +1,7 @@
 {
 	"$schema": "https://pulsemcp.com/schema.json",
 	"name": "io.rugmunch/pry",
-	"display_name": "Pry \u2014 Web Scraping, Browser Automation & Data Intelligence",
+	"display_name": "Pry — Web Scraping, Browser Automation & Data Intelligence",
 	"description": "Scrape, crawl, extract, and automate any website, plus ten data domains (crypto, marketplace, legal, real estate, jobs, travel, attention, local, gov, ip) monetized via x402 pay-per-call. Self-hosted, MCP-compatible.",
 	"version": "3.0.0",
 	"license": "MIT",
@@ -67,7 +67,14 @@
 		"pry_procurement",
 		"pry_recalls",
 		"pry_patents",
-		"pry_trademarks"
+		"pry_trademarks",
+		"pry_odds",
+		"pry_arbitrage",
+		"pry_plus_ev",
+		"pry_props",
+		"pry_injuries",
+		"pry_live_odds",
+		"pry_scores"
 	],
 	"tags": [
 		"scraping",

@@ -99,3 +99,10 @@ Pry exposes 35 MCP tools. All are self-hosted — the server is a FastAPI app mo
 - [Feature list](https://codeberg.org/cryptorugmunch/pryscraper): Full Pry feature matrix
 - [Usage guide](https://codeberg.org/cryptorugmunch/pryscraper): CLI, SDK, and MCP usage examples
 - [Architecture](https://codeberg.org/cryptorugmunch/pryscraper): Pry architecture overview
+- [pry_odds](https://codeberg.org/cryptorugmunch/pryscraper): Get live betting odds across major bookmakers (DraftKings, FanDuel, BetMGM, ESPN BET, .
+- [pry_arbitrage](https://codeberg.org/cryptorugmunch/pryscraper): Scan sportsbook lines for guaranteed-profit arbitrage opportunities: the same event quoted at different books where the combined implied probabilities total under 100%.
+- [pry_plus_ev](https://codeberg.org/cryptorugmunch/pryscraper): Find positive expected-value (+EV) betting opportunities by comparing market odds against a sharp book's line or consensus price.
+- [pry_props](https://codeberg.org/cryptorugmunch/pryscraper): Get player prop betting lines (points, rebounds, assists, yards, strikeouts, .
+- [pry_injuries](https://codeberg.org/cryptorugmunch/pryscraper): Get the current injury report for a sport or team: player, team, injury detail, and status (out/questionable/active).
+- [pry_live_odds](https://codeberg.org/cryptorugmunch/pryscraper): Get live in-play odds that update during games (moneyline, spreads, totals as they move).
+- [pry_scores](https://codeberg.org/cryptorugmunch/pryscraper): Get final or live scores for one or more sports on a given day from ESPN public scoreboards (free, no quota, high-frequency safe).

@@ -165,6 +165,512 @@
 		{
 			"name": "pry_trademarks",
 			"description": "Search U.S. trademarks by keyword or owner via USPTO (ip)."
+		},
+		{
+			"name": "pry_odds",
+			"description": "Get live betting odds across major bookmakers (DraftKings, FanDuel, BetMGM, ESPN BET, ...) for one or more sports, backed by The Odds API (free tier via PRY_ODDS_API_KEY) with an ESPN scoreboard fallback. Each record includes the event label, market, bookmaker, and decimal odds for home/away. Use to compare lines before placing a bet or to power an odds aggregator, e.g. 'what are the current NBA moneyline odds across books?' or call with sport='nfl' to see the full NFL slate.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"sport": {
+						"type": "string",
+						"default": "all",
+						"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default: nba + nfl + epl)"
+					},
+					"market": {
+						"type": "string",
+						"default": "h2h",
+						"description": "Betting market (e.g., 'h2h' moneyline, 'spreads', 'totals'); the default feed is h2h moneyline"
+					},
+					"book": {
+						"type": "string",
+						"description": "Bookmaker name filter (e.g., 'DraftKings', 'FanDuel', 'BetMGM'); omit for every book"
+					},
+					"event_query": {
+						"type": "string",
+						"description": "Substring filter on event label, e.g. 'celtics'"
+					},
+					"limit": {
+						"type": "integer",
+						"default": 20,
+						"minimum": 1,
+						"maximum": 100,
+						"description": "Maximum number of odds records (default: 20)"
+					}
+				},
+				"required": []
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean"
+					},
+					"data": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"sport": {
+									"type": "string"
+								},
+								"event": {
+									"type": "string"
+								},
+								"event_id": {
+									"type": "string"
+								},
+								"market": {
+									"type": "string"
+								},
+								"bookmaker": {
+									"type": "string"
+								},
+								"home_odds": {
+									"type": "number"
+								},
+								"away_odds": {
+									"type": "number"
+								},
+								"last_update": {
+									"type": "string"
+								},
+								"source": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"sport": {
+						"type": "string"
+					},
+					"limit": {
+						"type": "integer"
+					}
+				},
+				"required": ["success"]
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"idempotentHint": true
+			}
+		},
+		{
+			"name": "pry_arbitrage",
+			"description": "Scan sportsbook lines for guaranteed-profit arbitrage opportunities: the same event quoted at different books where the combined implied probabilities total under 100%. Use to find risk-free bets, e.g. 'show me NFL arbitrage opportunities with at least 0.8% yield' or call with sport='all' to sweep every tracked league.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"sport": {
+						"type": "string",
+						"default": "all",
+						"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
+					},
+					"min_yield_pct": {
+						"type": "number",
+						"default": 0.5,
+						"minimum": 0,
+						"maximum": 100,
+						"description": "Minimum guaranteed yield in percent to report (default: 0.5)"
+					}
+				},
+				"required": []
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean"
+					},
+					"data": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"sport": {
+									"type": "string"
+								},
+								"event": {
+									"type": "string"
+								},
+								"event_id": {
+									"type": "string"
+								},
+								"yield_pct": {
+									"type": "number"
+								},
+								"legs": {
+									"type": "array",
+									"items": {
+										"type": "object"
+									}
+								}
+							}
+						}
+					},
+					"sport": {
+						"type": "string"
+					},
+					"min_yield_pct": {
+						"type": "number"
+					}
+				},
+				"required": ["success"]
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"idempotentHint": true
+			}
+		},
+		{
+			"name": "pry_plus_ev",
+			"description": "Find positive expected-value (+EV) betting opportunities by comparing market odds against a sharp book's line or consensus price. Use to identify bets where the market price is better than the fair probability implies, e.g. 'what are the best +EV bets right now?' or call with sharp_book='pinnacle' and min_ev_pct=2.0 to only see edges above 2%.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"sharp_book": {
+						"type": "string",
+						"default": "pinnacle",
+						"description": "Sharp book to treat as the fair line reference (e.g., 'pinnacle', 'circa', 'betonline')"
+					},
+					"min_ev_pct": {
+						"type": "number",
+						"default": 1.0,
+						"minimum": 0,
+						"maximum": 100,
+						"description": "Minimum expected value in percent to report (default: 1.0)"
+					}
+				},
+				"required": []
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean"
+					},
+					"data": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"sport": {
+									"type": "string"
+								},
+								"event": {
+									"type": "string"
+								},
+								"event_id": {
+									"type": "string"
+								},
+								"ev_pct": {
+									"type": "number"
+								},
+								"sharp_book": {
+									"type": "string"
+								},
+								"best_book": {
+									"type": "string"
+								},
+								"price": {
+									"type": "number"
+								}
+							}
+						}
+					},
+					"sharp_book": {
+						"type": "string"
+					},
+					"min_ev_pct": {
+						"type": "number"
+					}
+				},
+				"required": ["success"]
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"idempotentHint": true
+			}
+		},
+		{
+			"name": "pry_props",
+			"description": "Get player prop betting lines (points, rebounds, assists, yards, strikeouts, ...) for a player or sport, with the market and book prices. Use to research player props before betting or building a props dashboard, e.g. 'what are LeBron James points props tonight?' or call with sport='nfl' and market='passing_yards' to see QB yardage props.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"player": {
+						"type": "string",
+						"description": "Player name, e.g. 'LeBron James'"
+					},
+					"sport": {
+						"type": "string",
+						"default": "all",
+						"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
+					},
+					"market": {
+						"type": "string",
+						"description": "Prop market (e.g., 'points', 'rebounds', 'passing_yards', 'strikeouts'); omit for every market"
+					}
+				},
+				"required": []
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean"
+					},
+					"data": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"player": {
+									"type": "string"
+								},
+								"sport": {
+									"type": "string"
+								},
+								"event": {
+									"type": "string"
+								},
+								"market": {
+									"type": "string"
+								},
+								"bookmaker": {
+									"type": "string"
+								},
+								"line": {
+									"type": "number"
+								},
+								"over_price": {
+									"type": "number"
+								},
+								"under_price": {
+									"type": "number"
+								}
+							}
+						}
+					},
+					"player": {
+						"type": "string"
+					},
+					"sport": {
+						"type": "string"
+					}
+				},
+				"required": ["success"]
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"idempotentHint": true
+			}
+		},
+		{
+			"name": "pry_injuries",
+			"description": "Get the current injury report for a sport or team: player, team, injury detail, and status (out/questionable/active). Use to adjust betting models or fantasy lineups before lock, e.g. 'who is out for the Celtics tonight?' or call with sport='nfl' for the full league injury report.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"sport": {
+						"type": "string",
+						"default": "all",
+						"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
+					},
+					"team": {
+						"type": "string",
+						"description": "Team name to filter by (e.g., 'Celtics', 'Chiefs'); omit for every team"
+					}
+				},
+				"required": []
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean"
+					},
+					"data": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"player": {
+									"type": "string"
+								},
+								"team": {
+									"type": "string"
+								},
+								"sport": {
+									"type": "string"
+								},
+								"injury": {
+									"type": "string"
+								},
+								"status": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"sport": {
+						"type": "string"
+					},
+					"team": {
+						"type": "string"
+					}
+				},
+				"required": ["success"]
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"idempotentHint": true
+			}
+		},
+		{
+			"name": "pry_live_odds",
+			"description": "Get live in-play odds that update during games (moneyline, spreads, totals as they move). Use for live-betting research or game-flow monitoring, e.g. 'what are the live odds for the Lakers game right now?' or call with sport='nba' and limit=50 for the current in-play slate.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"sport": {
+						"type": "string",
+						"default": "all",
+						"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
+					},
+					"limit": {
+						"type": "integer",
+						"default": 20,
+						"minimum": 1,
+						"maximum": 100,
+						"description": "Maximum number of live odds records (default: 20)"
+					}
+				},
+				"required": []
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean"
+					},
+					"data": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"sport": {
+									"type": "string"
+								},
+								"event": {
+									"type": "string"
+								},
+								"event_id": {
+									"type": "string"
+								},
+								"market": {
+									"type": "string"
+								},
+								"bookmaker": {
+									"type": "string"
+								},
+								"home_odds": {
+									"type": "number"
+								},
+								"away_odds": {
+									"type": "number"
+								},
+								"last_update": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"sport": {
+						"type": "string"
+					},
+					"limit": {
+						"type": "integer"
+					}
+				},
+				"required": ["success"]
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"idempotentHint": true
+			}
+		},
+		{
+			"name": "pry_scores",
+			"description": "Get final or live scores for one or more sports on a given day from ESPN public scoreboards (free, no quota, high-frequency safe). Use to check results or power a scores widget, e.g. 'what were the NBA scores on 20260815?' or call with sport='mlb' and date='today' for today's baseball scores.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"sport": {
+						"type": "string",
+						"default": "all",
+						"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default: nba + nfl + epl)"
+					},
+					"date": {
+						"type": "string",
+						"default": "today",
+						"description": "Date: 'today' (default), YYYYMMDD, or YYYY-MM-DD"
+					}
+				},
+				"required": []
+			},
+			"outputSchema": {
+				"type": "object",
+				"properties": {
+					"success": {
+						"type": "boolean"
+					},
+					"data": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"sport": {
+									"type": "string"
+								},
+								"home": {
+									"type": "string"
+								},
+								"away": {
+									"type": "string"
+								},
+								"home_score": {
+									"type": "string"
+								},
+								"away_score": {
+									"type": "string"
+								},
+								"status": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"sport": {
+						"type": "string"
+					},
+					"date": {
+						"type": "string"
+					}
+				},
+				"required": ["success"]
+			},
+			"annotations": {
+				"readOnlyHint": true,
+				"destructiveHint": false,
+				"idempotentHint": true
+			}
 		}
 	]
 }

@@ -73,6 +73,33 @@ _DOMAIN_TOOLS: dict[str, tuple[str, tuple[str, ...], dict[str, Any]]] = {
         ("scan_token",),
         {"chain": "solana", "address": "So11111111111111111111111111111111111111112"},
     ),
+    "pry_odds": ("sports_data.odds", ("get_odds",), {"sport": "basketball_nba", "limit": 5}),
+    "pry_arbitrage": (
+        "sports_data.arbitrage",
+        ("find_arbitrage",),
+        {"sport": "all", "min_yield_pct": 0.5},
+    ),
+    "pry_plus_ev": (
+        "sports_data.ev",
+        ("find_plus_ev",),
+        {"sharp_book": "pinnacle", "min_ev_pct": 2.0},
+    ),
+    "pry_props": (
+        "sports_data.props",
+        ("get_player_props",),
+        {"player": "LeBron James", "sport": "basketball_nba", "limit": 5},
+    ),
+    "pry_injuries": (
+        "sports_data.injuries",
+        ("get_injuries",),
+        {"sport": "basketball_nba", "team": "all"},
+    ),
+    "pry_live_odds": ("sports_data.live", ("get_live_odds",), {"sport": "all", "limit": 5}),
+    "pry_scores": (
+        "sports_data.scores",
+        ("get_scores",),
+        {"sport": "basketball_nba", "date": "today"},
+    ),
     "pry_amazon_product": ("marketplace.amazon", ("get_product",), {"asin": "B08N5WRWNW"}),
     "pry_amazon_search": (
         "marketplace.amazon",
@@ -253,9 +280,9 @@ class TestToolMetadata:
     """Every PRY_TOOLS entry must meet the 2026 MCP quality bar."""
 
     def test_tool_count_is_35(self) -> None:
-        assert len(PRY_TOOLS) == 35
-        assert len(PRY_TOOL_NAMES) == 35
-        assert len({t["name"] for t in PRY_TOOLS}) == 35
+        assert len(PRY_TOOLS) == 42
+        assert len(PRY_TOOL_NAMES) == 42
+        assert len({t["name"] for t in PRY_TOOLS}) == 42
 
     @pytest.mark.parametrize("tool_name", sorted(PRY_TOOL_NAMES))
     def test_tools_list_metadata(self, tool_name: str) -> None:
@@ -430,7 +457,7 @@ class TestTransportCompliance:
         body = resp.json()
         assert body["jsonrpc"] == "2.0"
         assert body["id"] == 1
-        assert len(body["result"]["tools"]) == 35
+        assert len(body["result"]["tools"]) == 42
 
     def test_post_sse_accept_returns_event_stream(self, mcp_client: TestClient) -> None:
         resp = mcp_client.post(
@@ -609,4 +636,4 @@ class TestRegistryConsistency:
 
     def test_smithery_comment_matches_count(self) -> None:
         text = (REPO_ROOT / "smithery.yaml").read_text(encoding="utf-8")
-        assert "Tool count: 35" in text, "smithery.yaml tool-count comment drifted"
+        assert "Tool count: 42" in text, "smithery.yaml tool-count comment drifted"
