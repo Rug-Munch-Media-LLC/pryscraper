@@ -18,7 +18,7 @@ import random
 import re
 import time
 from typing import Any, ClassVar
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 from errors import InvalidRequestError
 from observability import SCRAPE_LATENCY
@@ -408,17 +408,26 @@ class UltimateScraper:
             def _do_fetch() -> str:
                 import undetected_chromedriver as uc
 
-                driver = uc.Chrome(headless=True, use_subprocess=True)
-                driver.get(url)
-                # Note: time.sleep is used inside a sync thread-pool task because
-                # undetected_chromedriver's blocking API runs in asyncio.to_thread.
-                # Replacing with asyncio.sleep would require restructuring the tier
-                # to be fully async; this sync sleep is bounded and does not block
-                # the event loop directly.
-                time.sleep(_RNG.uniform(2, 4))
-                html = driver.page_source
-                driver.quit()
-                return html
+                driver = None
+                try:
+                    driver = uc.Chrome(headless=True, use_subprocess=True)
+                    driver.get(url)
+                    # Note: time.sleep is used inside a sync thread-pool task because
+                    # undetected_chromedriver's blocking API runs in asyncio.to_thread.
+                    # Replacing with asyncio.sleep would require restructuring the tier
+                    # to be fully async; this sync sleep is bounded and does not block
+                    # the event loop directly.
+                    time.sleep(_RNG.uniform(2, 4))
+                    return driver.page_source
+                finally:
+                    # Always quit the driver — a page-goto timeout or any other
+                    # exception would otherwise leak a Chrome process per failed
+                    # attempt.
+                    if driver is not None:
+                        try:
+                            driver.quit()
+                        except Exception:  # noqa: BLE001 - cleanup must not mask the original error
+                            logger.debug("undetected_quit_failed", exc_info=True)
 
             return await asyncio.to_thread(_do_fetch)
         except Exception as e:  # noqa: BLE001
@@ -441,28 +450,35 @@ class UltimateScraper:
                         "--disable-web-security",
                     ],
                 )
-                context = await browser.new_context(
-                    viewport={
-                        "width": _RNG.choice([1920, 1366, 1440]),
-                        "height": _RNG.choice([1080, 768, 900]),
-                    },
-                    user_agent=self._rotate_ua(),
-                    locale="en-US",
-                    timezone_id="America/New_York",
-                )
-                stealth_script = _stealth_engine.generate_all() if _stealth_engine else ""
-                if stealth_script:
-                    await context.add_init_script(stealth_script)
-                page = await context.new_page()
-                await page.goto(url, wait_until="domcontentloaded", timeout=60000)
-                await page.wait_for_timeout(_RNG.randint(1000, 3000))
-                for _ in range(_RNG.randint(2, 5)):
-                    await page.evaluate(f"window.scrollBy(0, {_RNG.randint(200, 500)})")
-                    await page.wait_for_timeout(_RNG.randint(300, 1000))
-                    await page.mouse.move(_RNG.randint(100, 1400), _RNG.randint(100, 800))
-                html = await page.content()
-                await browser.close()
-                return html
+                try:
+                    context = await browser.new_context(
+                        viewport={
+                            "width": _RNG.choice([1920, 1366, 1440]),
+                            "height": _RNG.choice([1080, 768, 900]),
+                        },
+                        user_agent=self._rotate_ua(),
+                        locale="en-US",
+                        timezone_id="America/New_York",
+                    )
+                    stealth_script = _stealth_engine.generate_all() if _stealth_engine else ""
+                    if stealth_script:
+                        await context.add_init_script(stealth_script)
+                    page = await context.new_page()
+                    await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                    await page.wait_for_timeout(_RNG.randint(1000, 3000))
+                    for _ in range(_RNG.randint(2, 5)):
+                        await page.evaluate(f"window.scrollBy(0, {_RNG.randint(200, 500)})")
+                        await page.wait_for_timeout(_RNG.randint(300, 1000))
+                        await page.mouse.move(_RNG.randint(100, 1400), _RNG.randint(100, 800))
+                    return await page.content()
+                finally:
+                    # Always close the browser — a page-goto timeout (up to 60s)
+                    # or any other failure would otherwise leak a browser per
+                    # failed attempt.
+                    try:
+                        await browser.close()
+                    except Exception:  # noqa: BLE001 - cleanup must not mask the original error
+                        logger.debug("playwright_close_failed", exc_info=True)
         except OSError as e:
             logger.debug("playwright_failed", extra={"error": str(e)[:50]})
         return None
@@ -529,14 +545,19 @@ class UltimateScraper:
         try:
             import httpx
 
-            cdx_url = f"https://web.archive.org/cdx/search/cdx?url={url}&output=json&limit=1&fl=timestamp,original"
+            # URL-encode the target before embedding it in the CDX query param
+            # and the archive path. An unencoded query string (e.g. ?a=1&b=2)
+            # would corrupt the surrounding URL (the & becomes a param separator
+            # in the CDX call and breaks the /web/{ts}id_/ path entirely).
+            target = quote(url, safe="")
+            cdx_url = f"https://web.archive.org/cdx/search/cdx?url={target}&output=json&limit=1&fl=timestamp,original"
             async with httpx.AsyncClient(timeout=15) as c:
                 r = await c.get(cdx_url, headers={"User-Agent": "Mozilla/5.0"})
                 if r.is_success:
                     data = r.json()
                     if len(data) > 1:
                         timestamp = data[1][0]
-                        archive_url = f"https://web.archive.org/web/{timestamp}id_/{url}"
+                        archive_url = f"https://web.archive.org/web/{timestamp}id_/{target}"
                         ar = await safe_get(c, archive_url, timeout=30)
                         if ar.is_success:
                             return ar.text
@@ -550,7 +571,10 @@ class UltimateScraper:
         try:
             import httpx
 
-            cache_url = f"https://webcache.googleusercontent.com/search?q=cache:{url}"
+            # Same encoding requirement as the archive tier: an unencoded
+            # query string would be parsed as extra params of the cache URL.
+            target = quote(url, safe="")
+            cache_url = f"https://webcache.googleusercontent.com/search?q=cache:{target}"
             async with httpx.AsyncClient(timeout=15) as c:
                 r = await safe_get(c, cache_url, headers={"User-Agent": "Mozilla/5.0"})
                 if r.is_success:

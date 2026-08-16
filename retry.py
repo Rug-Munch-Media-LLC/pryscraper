@@ -86,13 +86,8 @@ class RetryConfig:
 
 
 # ── Wait calculators ──────────────────────────────────────────────
-def _calculate_delay(
-    attempt: int,
-    config: RetryConfig,
-    *,
-    previous_delay: float = 0.0,
-) -> float:
-    """Compute the base delay for the given attempt number."""
+def _calculate_base_delay(attempt: int, config: RetryConfig) -> float:
+    """Compute the un-jittered, max_delay-capped delay for an attempt."""
     if config.strategy == BackoffStrategy.FIXED:
         delay = config.base_delay
     elif config.strategy == BackoffStrategy.LINEAR:
@@ -100,12 +95,33 @@ def _calculate_delay(
     else:  # EXPONENTIAL
         delay = config.base_delay * (2**attempt)
 
-    delay = min(delay, config.max_delay)
-    return _apply_jitter(delay, config.jitter, previous_delay)
+    return min(delay, config.max_delay)
 
 
-def _apply_jitter(delay: float, mode: Jitter, previous_delay: float = 0.0) -> float:
-    """Apply jitter to a delay value."""
+def _calculate_delay(
+    attempt: int,
+    config: RetryConfig,
+    *,
+    previous_delay: float = 0.0,
+) -> float:
+    """Compute the final (jittered) delay for the given attempt number."""
+    base = _calculate_base_delay(attempt, config)
+    return _apply_jitter(
+        base, config.jitter, previous_delay=previous_delay, max_delay=config.max_delay
+    )
+
+
+def _apply_jitter(
+    delay: float,
+    mode: Jitter,
+    previous_delay: float = 0.0,
+    max_delay: float = 60.0,
+) -> float:
+    """Apply jitter to a delay value.
+
+    ``previous_delay`` must be the *un-jittered* previous base delay — passing
+    an already-jittered value here would double-jitter the decorrelated mode.
+    """
     if mode == Jitter.NONE:
         return delay
     if mode == Jitter.FULL:
@@ -116,7 +132,8 @@ def _apply_jitter(delay: float, mode: Jitter, previous_delay: float = 0.0) -> fl
     if mode == Jitter.DECORRELATED:
         if previous_delay <= 0:
             return delay
-        return min(previous_delay * _RNG.uniform(1, 3), 60.0)
+        # Cap at the caller's configured max_delay, not a hardcoded 60s.
+        return min(previous_delay * _RNG.uniform(1, 3), max_delay)
     return delay
 
 
@@ -203,8 +220,16 @@ async def async_retry(
                 break
 
             # Wait before next attempt.
-            delay = _calculate_delay(attempt, cfg, previous_delay=previous_delay)
-            previous_delay = delay
+            # Track the *un-jittered* base delay so the decorrelated jitter
+            # mode does not re-jitter an already-jittered value.
+            base_delay = _calculate_base_delay(attempt, cfg)
+            delay = _apply_jitter(
+                base_delay,
+                cfg.jitter,
+                previous_delay=previous_delay,
+                max_delay=cfg.max_delay,
+            )
+            previous_delay = base_delay
             logger.info(
                 "retry_waiting",
                 extra={

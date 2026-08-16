@@ -6,6 +6,7 @@ Cron-based monitors that diff content and judge meaningful changes."""
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
+import asyncio
 import difflib
 import json
 import logging
@@ -229,81 +230,124 @@ async def create_monitor(
         raise
 
 
-async def run_monitor(monitor_id: str) -> dict[str, Any]:
-    try:
-        with session_scope() as s:
-            monitor = s.query(Monitor).filter(Monitor.monitor_id == monitor_id).first()
-            if not monitor:
-                return {"error": f"Monitor not found: {monitor_id}"}
+def _load_monitor(monitor_id: str) -> dict[str, Any] | None:
+    """Read a monitor row into a plain dict. Runs in a worker thread.
 
-            previous_content: str = str(monitor.last_content or "")
+    The session is opened, used, and closed entirely within this call — no
+    sync connection is ever held across an ``await`` on the event loop.
+    """
+    with session_scope() as s:
+        monitor = s.query(Monitor).filter(Monitor.monitor_id == monitor_id).first()
+        if not monitor:
+            return None
+        return {
+            "name": str(monitor.monitor_name),
+            "url": str(monitor.url),
+            "previous_content": str(monitor.last_content or ""),
+            "use_llm_judge": bool(monitor.use_llm_judge),
+            "goal": str(monitor.goal or ""),
+            "webhook_url": str(monitor.webhook_url or ""),
+        }
 
-            try:
-                from scraper import PryScraper
 
-                scraper = PryScraper()
-                monitor_url: str = str(monitor.url)  # type: ignore[arg-type]  # SQLAlchemy Column → str
-                result = await scraper.scrape(monitor_url)
-                current_content = result.get("content", "")
-            except Exception as e:
-                logger.exception("monitor_scrape_failed", extra={"monitor_id": monitor_id})
-                run = MonitorRun(
-                    monitor_id=monitor_id,
-                    ts=datetime.now(UTC),
-                    status="error",
-                    error=str(e),
-                )
-                s.add(run)
-                return {"error": f"Scrape failed: {e!s}"}
+def _record_error_run(monitor_id: str, error: str, ts: datetime) -> None:
+    """Persist a failed MonitorRun. Runs in a worker thread."""
+    with session_scope() as s:
+        s.add(
+            MonitorRun(
+                monitor_id=monitor_id,
+                ts=ts,
+                status="error",
+                error=error,
+            )
+        )
 
-            monitor_use_llm: bool = bool(monitor.use_llm_judge)  # type: ignore[arg-type]
-            judger = ChangeJudger(use_llm=monitor_use_llm)
-            monitor_goal: str = str(monitor.goal or "")
-            judgment = await judger.judge(previous_content, current_content, monitor_goal)
 
-            changed = bool(previous_content) and current_content != previous_content
-            now = datetime.now(UTC)
-            monitor.last_run_at = now  # type: ignore[assignment]  # SQLAlchemy Column[datetime] → datetime
-            monitor.total_checks = (monitor.total_checks or 0) + 1  # type: ignore[assignment]
+def _persist_run(
+    monitor_id: str,
+    previous_content: str,
+    current_content: str,
+    judgment: dict[str, Any],
+) -> dict[str, Any]:
+    """Apply the post-scrape state to the monitor row and record the run.
 
-            run_status = "success"
-            diff_data = {}
-            if changed:
-                monitor.total_changes = (monitor.total_changes or 0) + 1  # type: ignore[assignment]
-                monitor.current_version = (monitor.current_version or 0) + 1  # type: ignore[assignment]
-                run_status = "changed"
-                diff_data = {
-                    "previous_length": len(previous_content),
-                    "current_length": len(current_content),
-                    "diff": _compute_diff(previous_content, current_content),
-                }
+    Runs entirely in a worker thread — re-opens its own session so no sync
+    connection crosses an ``await`` boundary on the event loop.
+    """
+    with session_scope() as s:
+        monitor = s.query(Monitor).filter(Monitor.monitor_id == monitor_id).first()
+        if not monitor:
+            return {"error": f"Monitor not found: {monitor_id}"}
 
-            monitor.last_content = current_content  # type: ignore[assignment]
+        changed = bool(previous_content) and current_content != previous_content
+        now = datetime.now(UTC)
+        monitor.last_run_at = now  # type: ignore[assignment]  # SQLAlchemy Column[datetime] → datetime
+        monitor.total_checks = (monitor.total_checks or 0) + 1  # type: ignore[assignment]
 
-            run = MonitorRun(
+        run_status = "success"
+        diff_data: dict[str, Any] = {}
+        if changed:
+            monitor.total_changes = (monitor.total_changes or 0) + 1  # type: ignore[assignment]
+            monitor.current_version = (monitor.current_version or 0) + 1  # type: ignore[assignment]
+            run_status = "changed"
+            diff_data = {
+                "previous_length": len(previous_content),
+                "current_length": len(current_content),
+                "diff": _compute_diff(previous_content, current_content),
+            }
+
+        monitor.last_content = current_content  # type: ignore[assignment]
+
+        s.add(
+            MonitorRun(
                 monitor_id=monitor_id,
                 ts=now,
                 status=run_status,
                 diff=diff_data,
             )
-            s.add(run)
+        )
 
-            result = {
-                "monitor_id": monitor_id,
-                "name": monitor.monitor_name,
-                "changed": changed,
-                "previous_content_length": len(previous_content),
-                "current_content_length": len(current_content),
-                "judgment": judgment,
-                "total_checks": monitor.total_checks,
-                "total_changes": monitor.total_changes,
-            }
+        return {
+            "monitor_id": monitor_id,
+            "name": str(monitor.monitor_name),
+            "changed": changed,
+            "previous_content_length": len(previous_content),
+            "current_content_length": len(current_content),
+            "judgment": judgment,
+            "total_checks": monitor.total_checks,
+            "total_changes": monitor.total_changes,
+        }
 
-            webhook_url: str = str(monitor.webhook_url)  # type: ignore[arg-type]
-            meaningful = judgment["meaningful"]
 
-        if meaningful and webhook_url:
-            await _fire_webhook(webhook_url, result)
+async def run_monitor(monitor_id: str) -> dict[str, Any]:
+    try:
+        loaded = await asyncio.to_thread(_load_monitor, monitor_id)
+        if loaded is None:
+            return {"error": f"Monitor not found: {monitor_id}"}
+
+        previous_content = loaded["previous_content"]
+
+        try:
+            from scraper import PryScraper
+
+            scraper = PryScraper()
+            result = await scraper.scrape(loaded["url"])
+            current_content = result.get("content", "")
+        except Exception as e:
+            logger.exception("monitor_scrape_failed", extra={"monitor_id": monitor_id})
+            await asyncio.to_thread(_record_error_run, monitor_id, str(e), datetime.now(UTC))
+            return {"error": f"Scrape failed: {e!s}"}
+
+        judger = ChangeJudger(use_llm=loaded["use_llm_judge"])
+        judgment = await judger.judge(previous_content, current_content, loaded["goal"])
+
+        result = await asyncio.to_thread(
+            _persist_run, monitor_id, previous_content, current_content, judgment
+        )
+
+        meaningful = bool(judgment["meaningful"])
+        if meaningful and loaded["webhook_url"]:
+            await _fire_webhook(loaded["webhook_url"], result)
 
         return result
     except Exception:

@@ -6,6 +6,7 @@ Track CSS selector validity over time. Alert before scrapers break."""
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
+import asyncio
 import hashlib
 import logging
 from datetime import UTC, datetime
@@ -115,6 +116,117 @@ async def check_selectors(
     return result
 
 
+def _persist_snapshot(
+    url: str,
+    url_hash: str,
+    template_id: str,
+    current: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Compare against history and store a new snapshot.
+
+    Runs entirely in a worker thread — the sync session is opened, used, and
+    closed inside this call so no sync connection is held across an ``await``.
+    Returns the list of detected changes.
+    """
+    with session_scope() as s:
+        if template_id:
+            previous_snap = (
+                s.query(StructureSnapshot)
+                .filter(StructureSnapshot.template_id == template_id)
+                .order_by(StructureSnapshot.checked_at.desc())
+                .first()
+            )
+        else:
+            previous_snap = (
+                s.query(StructureSnapshot)
+                .filter(StructureSnapshot.url_hash == url_hash)
+                .order_by(StructureSnapshot.checked_at.desc())
+                .first()
+            )
+
+        previous_selectors: list[Any]
+        if previous_snap:
+            raw_selectors = previous_snap.selectors
+            previous_selectors = raw_selectors if isinstance(raw_selectors, list) else []
+            previous_all_matched = (
+                bool(previous_snap.all_matched)
+                if isinstance(previous_snap.all_matched, bool)
+                else True
+            )
+        else:
+            previous_selectors = []
+            previous_all_matched = True
+
+        changes: list[dict[str, Any]] = []
+        prev_map = {s["name"]: s for s in previous_selectors if isinstance(s, dict)}
+        curr_map = {s["name"]: s for s in current.get("selectors", []) if isinstance(s, dict)}
+
+        for name, curr_sel in curr_map.items():
+            prev_sel = prev_map.get(name)
+            if prev_sel:
+                if prev_sel.get("matched") and not curr_sel.get("matched"):
+                    changes.append(
+                        {
+                            "type": "selector_broken",
+                            "severity": "critical",
+                            "name": name,
+                            "selector": curr_sel.get("selector", ""),
+                            "message": f"CSS selector '{name}' stopped matching (was matching before)",
+                        }
+                    )
+                elif not prev_sel.get("matched") and curr_sel.get("matched"):
+                    changes.append(
+                        {
+                            "type": "selector_fixed",
+                            "severity": "info",
+                            "name": name,
+                            "message": f"CSS selector '{name}' started matching again",
+                        }
+                    )
+                elif curr_sel.get("match_count") != prev_sel.get("match_count"):
+                    changes.append(
+                        {
+                            "type": "count_changed",
+                            "severity": "medium",
+                            "name": name,
+                            "message": f"Selector '{name}' matched {prev_sel.get('match_count')} elements before, now {curr_sel.get('match_count')}",
+                            "previous_count": prev_sel.get("match_count"),
+                            "current_count": curr_sel.get("match_count"),
+                        }
+                    )
+
+        if previous_selectors and previous_all_matched and not current.get("all_matched"):
+            changes.append(
+                {
+                    "type": "structure_broken",
+                    "severity": "critical",
+                    "name": "page_structure",
+                    "message": f"Page structure changed — {current.get('failed_count')} selectors now fail",
+                    "failed_selectors": [
+                        s["name"] for s in current.get("selectors", []) if not s.get("matched")
+                    ],
+                }
+            )
+
+        now = datetime.now(UTC)
+        snapshot = StructureSnapshot(
+            url=url,
+            url_hash=url_hash,
+            template_id=template_id,
+            selectors=current.get("selectors", []),
+            all_matched=current.get("all_matched", False),
+            matched_count=current.get("matched_count", 0),
+            failed_count=current.get("failed_count", 0),
+            changes=changes,
+            change_count=len(changes),
+            has_changes=len(changes) > 0,
+            dom_summary={},
+            checked_at=now,
+        )
+        s.add(snapshot)
+        return changes
+
+
 async def monitor_page_structure(
     url: str,
     selectors: list[dict[str, Any]],
@@ -130,113 +242,11 @@ async def monitor_page_structure(
     if "error" in current:
         return current
 
-    changes = []
-
     try:
-        with session_scope() as s:
-            if template_id:
-                previous_snap = (
-                    s.query(StructureSnapshot)
-                    .filter(StructureSnapshot.template_id == template_id)
-                    .order_by(StructureSnapshot.checked_at.desc())
-                    .first()
-                )
-            else:
-                previous_snap = (
-                    s.query(StructureSnapshot)
-                    .filter(StructureSnapshot.url_hash == url_hash)
-                    .order_by(StructureSnapshot.checked_at.desc())
-                    .first()
-                )
-
-            previous_selectors: list[Any]
-            if previous_snap:
-                raw_selectors = previous_snap.selectors
-                previous_selectors = raw_selectors if isinstance(raw_selectors, list) else []
-                previous_all_matched = (
-                    bool(previous_snap.all_matched)
-                    if isinstance(previous_snap.all_matched, bool)
-                    else True
-                )
-            else:
-                previous_selectors = []
-                previous_all_matched = True
-
-            prev_map = {s["name"]: s for s in previous_selectors if isinstance(s, dict)}
-            curr_map = {s["name"]: s for s in current.get("selectors", []) if isinstance(s, dict)}
-
-            for name, curr_sel in curr_map.items():
-                prev_sel = prev_map.get(name)
-                if prev_sel:
-                    if prev_sel.get("matched") and not curr_sel.get("matched"):
-                        changes.append(
-                            {
-                                "type": "selector_broken",
-                                "severity": "critical",
-                                "name": name,
-                                "selector": curr_sel.get("selector", ""),
-                                "message": f"CSS selector '{name}' stopped matching (was matching before)",
-                            }
-                        )
-                    elif not prev_sel.get("matched") and curr_sel.get("matched"):
-                        changes.append(
-                            {
-                                "type": "selector_fixed",
-                                "severity": "info",
-                                "name": name,
-                                "message": f"CSS selector '{name}' started matching again",
-                            }
-                        )
-                    elif curr_sel.get("match_count") != prev_sel.get("match_count"):
-                        changes.append(
-                            {
-                                "type": "count_changed",
-                                "severity": "medium",
-                                "name": name,
-                                "message": f"Selector '{name}' matched {prev_sel.get('match_count')} elements before, now {curr_sel.get('match_count')}",
-                                "previous_count": prev_sel.get("match_count"),
-                                "current_count": curr_sel.get("match_count"),
-                            }
-                        )
-
-            if previous_selectors and previous_all_matched and not current.get("all_matched"):
-                changes.append(
-                    {
-                        "type": "structure_broken",
-                        "severity": "critical",
-                        "name": "page_structure",
-                        "message": f"Page structure changed — {current.get('failed_count')} selectors now fail",
-                        "failed_selectors": [
-                            s["name"] for s in current.get("selectors", []) if not s.get("matched")
-                        ],
-                    }
-                )
-
-            now = datetime.now(UTC)
-            snapshot = StructureSnapshot(
-                url=url,
-                url_hash=url_hash,
-                template_id=template_id,
-                selectors=current.get("selectors", []),
-                all_matched=current.get("all_matched", False),
-                matched_count=current.get("matched_count", 0),
-                failed_count=current.get("failed_count", 0),
-                changes=changes,
-                change_count=len(changes),
-                has_changes=len(changes) > 0,
-                dom_summary={},
-                checked_at=now,
-            )
-            s.add(snapshot)
-
+        changes = await asyncio.to_thread(_persist_snapshot, url, url_hash, template_id, current)
     except Exception:
         logger.exception("structure_monitor_save_failed", extra={"url": url})
-        current["changes"] = changes
-        current["change_count"] = len(changes)
-        current["has_changes"] = len(changes) > 0
-        current["template_id"] = template_id
-        current["url_hash"] = url_hash
-        return current
+        changes = []
 
     current["changes"] = changes
     current["change_count"] = len(changes)
@@ -247,36 +257,41 @@ async def monitor_page_structure(
     return current
 
 
+def _fetch_history(url: str, template_id: str) -> dict[str, Any]:
+    """Fetch the latest structure snapshot. Runs in a worker thread."""
+    with session_scope() as s:
+        if template_id:
+            snap = (
+                s.query(StructureSnapshot)
+                .filter(StructureSnapshot.template_id == template_id)
+                .order_by(StructureSnapshot.checked_at.desc())
+                .first()
+            )
+        else:
+            url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
+            snap = (
+                s.query(StructureSnapshot)
+                .filter(StructureSnapshot.url_hash == url_hash)
+                .order_by(StructureSnapshot.checked_at.desc())
+                .first()
+            )
+
+        if not snap:
+            return {"url": url, "has_history": False}
+
+        return {
+            "url": url,
+            "has_history": True,
+            "last_checked": snap.checked_at.isoformat() if snap.checked_at else "",
+            "last_all_matched": snap.all_matched,
+            "last_selectors": snap.selectors or [],
+        }
+
+
 async def get_structure_history(url: str, template_id: str = "") -> dict[str, Any]:
     """Get structure check history for a URL."""
     try:
-        with session_scope() as s:
-            if template_id:
-                snap = (
-                    s.query(StructureSnapshot)
-                    .filter(StructureSnapshot.template_id == template_id)
-                    .order_by(StructureSnapshot.checked_at.desc())
-                    .first()
-                )
-            else:
-                url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
-                snap = (
-                    s.query(StructureSnapshot)
-                    .filter(StructureSnapshot.url_hash == url_hash)
-                    .order_by(StructureSnapshot.checked_at.desc())
-                    .first()
-                )
-
-            if not snap:
-                return {"url": url, "has_history": False}
-
-            return {
-                "url": url,
-                "has_history": True,
-                "last_checked": snap.checked_at.isoformat() if snap.checked_at else "",
-                "last_all_matched": snap.all_matched,
-                "last_selectors": snap.selectors or [],
-            }
+        return await asyncio.to_thread(_fetch_history, url, template_id)
     except Exception:
         logger.exception("structure_history_fetch_failed", extra={"url": url})
         return {"url": url, "has_history": False}

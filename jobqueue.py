@@ -7,11 +7,13 @@ Async processing engine inspired by Firecrawl's webhook system."""
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
+import asyncio
 import hashlib
 import hmac
 import json
+import threading
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -27,12 +29,24 @@ class JobQueue:
     - Status tracking (pending, running, completed, failed)
     - Webhook callbacks on completion
     - Job timeout and cleanup
+
+    Note: jobs are addressed directly by ID via ``pry:job:<id>``. The legacy
+    ``rpush("pry:queue", ...)`` registration was removed because nothing ever
+    popped the list — it grew unbounded and served no consumer.
     """
 
     def __init__(self, redis_url: str = "redis://localhost:6379/0"):
         self.redis_url = redis_url
         self._redis = None
         self._local_jobs: dict[str, dict] = {}
+        # Serializes in-process job mutations. The local fallback store is
+        # touched only in synchronous sections (never across an await), so a
+        # plain threading.Lock is safe there. Redis read-modify-write must not
+        # hold a threading.Lock across awaits in an asyncio loop (it would
+        # deadlock the loop thread), so Redis RMW is serialized with an
+        # asyncio.Lock instead.
+        self._lock = threading.Lock()
+        self._redis_lock = asyncio.Lock()
 
     async def _get_redis(self):
         if self._redis is None:
@@ -54,13 +68,14 @@ class JobQueue:
     ) -> str:
         """Create a new job and return its ID."""
         job_id = f"job_{uuid.uuid4().hex[:16]}"
+        now = datetime.now(UTC)
         job = {
             "id": job_id,
             "type": job_type,
             "payload": payload,
             "status": "pending",
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
             "webhook": webhook,
             "timeout": timeout_s,
             "result": None,
@@ -68,35 +83,50 @@ class JobQueue:
         }
         redis = await self._get_redis()
         if redis:
-            await redis.set(f"pry:job:{job_id}", json.dumps(job), ex=timeout_s + 60)
-            await redis.rpush("pry:queue", job_id)
+            async with self._redis_lock:
+                await redis.set(f"pry:job:{job_id}", json.dumps(job), ex=timeout_s + 60)
         else:
-            self._local_jobs[job_id] = job
+            with self._lock:
+                self._local_jobs[job_id] = job
         return job_id
 
     async def get_job(self, job_id: str) -> dict | None:
         """Get job status and result."""
         redis = await self._get_redis()
         if redis:
-            data = await redis.get(f"pry:job:{job_id}")
+            async with self._redis_lock:
+                data = await redis.get(f"pry:job:{job_id}")
             return json.loads(data) if data else None
-        return self._local_jobs.get(job_id)
+        with self._lock:
+            job = self._local_jobs.get(job_id)
+            # Return a copy so callers cannot mutate the shared store outside
+            # the lock.
+            return dict(job) if job else None
 
     async def update_job(self, job_id: str, **updates):
-        """Update job fields."""
+        """Update job fields.
+
+        The Redis path performs a read-modify-write; it is serialized with an
+        asyncio.Lock so concurrent updates cannot clobber each other's changes
+        (TOCTOU race). The local fallback path is guarded by a threading.Lock.
+        """
         redis = await self._get_redis()
+        now = datetime.now(UTC)
         if redis:
-            data = await redis.get(f"pry:job:{job_id}")
-            if data:
-                job = json.loads(data)
-                job.update(updates)
-                job["updated_at"] = datetime.utcnow().isoformat()
-                await redis.set(
-                    f"pry:job:{job_id}", json.dumps(job), ex=job.get("timeout", 300) + 60
-                )
-        elif job_id in self._local_jobs:
-            self._local_jobs[job_id].update(updates)
-            self._local_jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
+            async with self._redis_lock:
+                data = await redis.get(f"pry:job:{job_id}")
+                if data:
+                    job = json.loads(data)
+                    job.update(updates)
+                    job["updated_at"] = now.isoformat()
+                    await redis.set(
+                        f"pry:job:{job_id}", json.dumps(job), ex=job.get("timeout", 300) + 60
+                    )
+        else:
+            with self._lock:
+                if job_id in self._local_jobs:
+                    self._local_jobs[job_id].update(updates)
+                    self._local_jobs[job_id]["updated_at"] = now.isoformat()
 
     async def complete_job(self, job_id: str, result: Any):
         """Mark job as completed and fire webhook."""
