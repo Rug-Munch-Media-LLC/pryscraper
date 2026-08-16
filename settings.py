@@ -151,14 +151,10 @@ class PrySettings(BaseSettings):
     )
 
     # Stealth
-    stealth_enabled: bool = True
-    random_user_agent: bool = True
     webdriver_override: bool = True
     canvas_noise: bool = True
     webrtc_disable: bool = True
     geolocation_spoof: bool = True
-    min_delay_ms: int = 500
-    max_delay_ms: int = 3000
 
     # Output
     default_format: str = "markdown"
@@ -166,28 +162,10 @@ class PrySettings(BaseSettings):
     include_links: bool = True
 
     # Storage
-    screenshot_dir: Path = Path("/tmp/pry-screenshots")  # noqa: S108
-    cache_ttl_seconds: int = 3600
     config_file: Path = Field(
         default=DEFAULT_CONFIG_FILE,
         validation_alias=AliasChoices("PRY_CONFIG_FILE", "CONFIG_FILE"),
     )
-
-    # DataBus bridge (publish scraped data to rmi-backend)
-    databus_enabled: bool = True
-    databus_url: str = "http://rmi-backend:8000/api/v1/databus/ingest"
-    databus_timeout: int = 10
-    databus_max_retries: int = 3
-
-    # x402 / MCP
-    x402_enabled: bool = False
-    x402_pay_to: str = ""
-    mcp_enabled: bool = True
-    mcp_tools_count: int = 8
-
-    # Rate limits (legacy Settings class)
-    rate_limit_per_domain: int = 10
-    rate_limit_per_ip: int = 60
 
     def model_post_init(self, __context: Any) -> None:
         """Post-init: pull sensitive fields from secrets_backend, then config file."""

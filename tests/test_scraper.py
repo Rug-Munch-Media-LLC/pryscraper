@@ -11,7 +11,7 @@ from scraper import PryScraper
 @pytest.mark.asyncio
 async def test_scraper_invalid_url() -> None:
     s = PryScraper()
-    result = await s._scrape_attempt("not-a-url", {}, 0)
+    result = await s.scrape("not-a-url")
     assert result["status"] == "error"
 
 

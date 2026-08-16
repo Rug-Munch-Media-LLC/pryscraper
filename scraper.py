@@ -21,7 +21,6 @@ from trafilatura.settings import use_config
 
 from errors import InvalidRequestError
 from settings import settings
-from stealth_engine import StealthEngine
 from url_guard import safe_get, validate_url
 
 # SystemRandom: crypto-grade entropy so stealth jitter is not predictable.
@@ -34,24 +33,6 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
     "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0",
-]
-
-CLOUDFLARE_INDICATORS = [
-    "cf-browser-verification",
-    "cf-challenge",
-    "cloudflare",
-    "awsWafCookieDomainList",
-    "challenge-platform",
-    "data-cf-script",
-    "checking your browser",
-    "ddos protection",
-    "just a moment",
-    "security check",
-    "enable javascript",
-    "verify you are human",
-    "_cf_chl_opt",
-    "cf-ray",
-    "cdn-cgi/challenge-platform",
 ]
 
 
@@ -186,54 +167,8 @@ class PryScraper:
         self.config = use_config()
         self.config.set("DEFAULT", "extraction_corkboard", "false")
         self.config.set("DEFAULT", "max_file_size", "5000000")
-        self.flare_available = True
-        self.playwright_available = False
-        self._check_playwright()
         self._ultimate = None
         self._ua_index = 0
-
-    def _check_playwright(self):
-        import os
-        import shutil
-
-        try:
-            self.playwright_available = (
-                shutil.which("chromium") is not None
-                or shutil.which("chromium-browser") is not None
-                or shutil.which("google-chrome") is not None
-                or shutil.which("google-chrome-stable") is not None
-            )
-            # Check Playwright's managed browser cache
-            if not self.playwright_available:
-                home = os.path.expanduser("~")
-                pw_cache = os.path.join(home, ".cache", "ms-playwright")
-                if os.path.isdir(pw_cache):
-                    for entry in os.listdir(pw_cache):
-                        if entry.startswith("chromium"):
-                            browser_dir = os.path.join(pw_cache, entry)
-                            chrome_bin = os.path.join(browser_dir, "chrome-linux64", "chrome")
-                            chrome_bin2 = os.path.join(browser_dir, "chrome", "chrome")
-                            if os.path.isfile(chrome_bin) or os.path.isfile(chrome_bin2):
-                                self.playwright_available = True
-                                break
-                # Also check PIP playwright installs
-                if not self.playwright_available:
-                    try:
-                        import subprocess
-
-                        r = subprocess.run(
-                            ["python3", "-m", "playwright", "install", "--dry-run", "chromium"],  # noqa: S607 - static argv; "python3" resolved from PATH intentionally
-                            capture_output=True,
-                            text=True,
-                            timeout=10,
-                            shell=False,
-                        )
-                        if "chromium" in r.stdout:
-                            self.playwright_available = True
-                    except (subprocess.SubprocessError, OSError):
-                        pass
-        except (subprocess.SubprocessError, OSError):
-            self.playwright_available = False
 
     def _rotate_ua(self) -> str:
         ua = USER_AGENTS[self._ua_index % len(USER_AGENTS)]
@@ -258,18 +193,6 @@ class PryScraper:
             "Connection": "keep-alive",
             "Cache-Control": "max-age=0",
         }
-
-    def _is_cloudflare(self, html: str) -> bool:
-        html_lower = html.lower()[:5000]
-        for indicator in CLOUDFLARE_INDICATORS:
-            if indicator.lower() in html_lower:
-                return True
-        # Check for very short / challenge-looking pages
-        return bool(
-            len(html) < 2000
-            and "document" in html_lower
-            and ("var " in html_lower or "function" in html_lower)
-        )
 
     def _quality_score(self, content: str) -> int:
         """Score content quality 0-100. Low score triggers retry with better tier."""
@@ -317,79 +240,6 @@ class PryScraper:
             extracted["raw_html"] = raw_html
 
         return extracted
-
-    # Kept for reference/testing only. Will be removed in v4.0.
-    # The scrape() method delegates to UltimateScraper instead.
-    # DEPRECATED: This method is no longer called by scrape().
-    async def _scrape_attempt(self, url: str, opts: dict, attempt: int) -> dict:
-        """Single scrape attempt with adaptive tier selection."""
-        errors = []
-
-        # Tier 1: Direct fetch (attempt 0, or if not previously blocked)
-        if attempt == 0 and not opts.get("force_flaresolverr"):
-            try:
-                headers = self._build_headers(url)
-                raw_html = await self._fetch_direct(url, headers, opts.get("timeout", 30))
-                if self._is_cloudflare(raw_html):
-                    errors.append("direct: Cloudflare detected")
-                else:
-                    result = self._extract(raw_html, url, opts)
-                    if result.get("content") and len(result["content"]) > 100:
-                        result["method"] = "direct"
-                        return result
-                    errors.append(f"direct: thin content ({len(result.get('content', ''))} chars)")
-            except Exception as e:  # noqa: BLE001
-                errors.append(f"direct: {str(e)[:80]}")
-
-        # Tier 2: FlareSolverr (bypass Cloudflare/WAF)
-        if self.flare_available:
-            try:
-                raw_html = await self._fetch_via_flaresolverr(
-                    url, opts.get("timeout", 60) + attempt * 15
-                )
-                if self._is_cloudflare(raw_html):
-                    errors.append("flaresolverr: still blocked")
-                else:
-                    result = self._extract(raw_html, url, {**opts, "_bypass_tried": True})
-                    if result.get("content") and len(result["content"]) > 100:
-                        result["method"] = "flaresolverr"
-                        return result
-                    errors.append(
-                        f"flaresolverr: thin content ({len(result.get('content', ''))} chars)"
-                    )
-            except Exception as e:  # noqa: BLE001
-                errors.append(f"flaresolverr: {str(e)[:80]}")
-
-        # Tier 3: Playwright stealth (full browser with fingerprint)
-        if self.playwright_available or opts.get("js_render"):
-            try:
-                raw_html = await self._fetch_via_playwright(
-                    url, opts.get("timeout", 90) + attempt * 20
-                )
-                result = self._extract(raw_html, url, {**opts, "_bypass_tried": True})
-                if result.get("content") and len(result["content"]) > 100:
-                    result["method"] = "playwright"
-                    return result
-                errors.append("playwright: thin content")
-            except Exception as e:  # noqa: BLE001
-                errors.append(f"playwright: {str(e)[:80]}")
-
-        # Tier 4: Raw retry with different UA + longer timeout
-        try:
-            raw_headers = self._build_headers(url)
-            raw_headers["User-Agent"] = (
-                "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-            )
-            raw_html = await self._fetch_direct(url, raw_headers, opts.get("timeout", 30) + 15)
-            result = self._extract(raw_html, url, opts)
-            if result.get("content") and len(result["content"]) > 100:
-                result["method"] = "googlebot"
-                return result
-            errors.append("googlebot: thin content")
-        except Exception as e:  # noqa: BLE001
-            errors.append(f"googlebot: {str(e)[:80]}")
-
-        return {"status": "error", "url": url, "error": "; ".join(errors), "content": ""}
 
     def _extract(self, raw_html: str, url: str, opts: dict) -> dict:
         result = {"url": url, "status": "ok", "raw_html": raw_html}
@@ -452,63 +302,8 @@ class PryScraper:
             if solution.get("status") == 200:
                 return solution["response"]
             raise Exception(
-                f"FlareSolverr status {solution.get('status')}: {solution.get('status', '')[:200]}"
+                f"FlareSolverr status {solution.get('status')}: {str(solution.get('status', ''))[:200]}"
             )
-
-    async def _fetch_via_playwright(self, url: str, timeout_s: int) -> str:
-        """Full browser rendering with human-like behavior and stealth fingerprint."""
-        from playwright.async_api import async_playwright
-
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch(
-                headless=True,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-dev-shm-usage",
-                    "--no-sandbox",
-                    "--disable-web-security",
-                    "--disable-features=IsolateOrigins,site-per-process",
-                ],
-            )
-            context = await browser.new_context(
-                viewport={
-                    "width": _RNG.choice([1920, 1366, 1440]),
-                    "height": _RNG.choice([1080, 768, 900]),
-                },
-                user_agent=self._rotate_ua(),
-                locale=_RNG.choice(["en-US", "en-GB", "en-CA"]),
-                timezone_id=_RNG.choice(["America/New_York", "Europe/London", "America/Chicago"]),
-                permissions=["geolocation"],
-                geolocation={"latitude": 40.7128, "longitude": -74.0060},
-            )
-            # Stealth: override automation indicators
-            stealth_script = StealthEngine().generate_all()
-            await context.add_init_script(stealth_script)
-            page = await context.new_page()
-            # Human-like navigation: random wait before page load
-            await asyncio.sleep(_RNG.uniform(0.5, 2.0))
-            await page.goto(url, wait_until="domcontentloaded", timeout=timeout_s * 1000)
-            # Wait for page to settle (random human delay)
-            await page.wait_for_timeout(_RNG.randint(1000, 3000))
-            # Human-like scrolling: step scroll with random pauses
-            scroll_height = await page.evaluate("document.body.scrollHeight")
-            steps = _RNG.randint(3, 7)
-            for step in range(steps):
-                target = (scroll_height * (step + 1)) / steps
-                await page.evaluate(f"window.scrollTo({{ top: {target}, behavior: 'smooth' }})")
-                await page.wait_for_timeout(_RNG.randint(300, 1200))
-                # Random mouse movement
-                await page.mouse.move(
-                    _RNG.randint(100, 1800),
-                    _RNG.randint(100, 900),
-                    steps=_RNG.randint(3, 8),
-                )
-            # Scroll back up like a human reading
-            await page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' })")
-            await page.wait_for_timeout(_RNG.randint(500, 1500))
-            content = await page.content()
-            await browser.close()
-            return content
 
     async def crawl(self, url: str, options: dict | None = None) -> list[dict]:
         opts = options or {}

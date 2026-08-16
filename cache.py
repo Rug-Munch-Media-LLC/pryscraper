@@ -1,4 +1,4 @@
-"""Pry — in-memory LRU cache with Redis persistence.
+"""Pry — in-memory LRU cache.
 Prevents re-scraping the same URL within TTL window."""
 
 # SPDX-License-Identifier: MIT
@@ -16,16 +16,14 @@ from observability import CACHE_HITS
 
 
 class ResponseCache:
-    """Two-tier cache: local LRU + optional Redis persistence.
+    """In-memory LRU cache with TTL expiry.
 
     Default TTL: 300 seconds (5 min) for pages, 3600 (1 hr) for API calls.
     """
 
-    def __init__(self, capacity: int = 500, redis_url: str | None = None):
+    def __init__(self, capacity: int = 500):
         self.capacity = capacity
         self._cache: OrderedDict = OrderedDict()
-        self._redis = None
-        self._redis_url = redis_url
         self._hits = 0
         self._misses = 0
 

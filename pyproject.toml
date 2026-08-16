@@ -165,9 +165,9 @@ branch = true
 # `--cov=.` (see .forgejo/workflows/ci.yml) which measures the whole repo
 # minus `omit`, so this list is the curated local-dev subset. Note:
 # `routers/` (54 modules) and `pry_mcp/` (7 modules) were added 2026-08-16;
-# `workers/` and `pry_x402/` contain no Python sources and are kept for
-# documentation (coverage.py ignores them).
-# Removed stale entries `auth`, `tasks` — no such top-level modules exist.
+# `workers/` contains no Python sources and is kept for documentation
+# (coverage.py ignores it).
+# Removed stale entries `auth`, `tasks`, `pry_x402` — no such modules exist.
 source = [
     "api",
     "cli",
@@ -189,7 +189,6 @@ source = [
     "routers/",
     "workers/",
     "pry_mcp",
-    "pry_x402",
 ]
 omit = [
     "tests/*",
