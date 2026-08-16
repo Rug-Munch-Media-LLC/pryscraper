@@ -2457,6 +2457,216 @@ PRY_TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "pry_books",
+        "description": (
+            "Aggregate live odds for one sport/market across all 112 sportsbooks "
+            "in Pry's registry (US, offshore, EU, UK, and Asian books) by "
+            "scraping each book directly through Pry's intelligent fallback "
+            "chain — no paid odds API, no API keys. "
+            "Use to find the best price anywhere for a slate, e.g. call with "
+            "sport='nba' and market='h2h' to see every reachable book's "
+            "moneyline for tonight's games, or pass market='spreads' to sweep "
+            "the point-spread market across the whole registry."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sport": {
+                    "type": "string",
+                    "default": "nba",
+                    "description": (
+                        "Sport key to aggregate (e.g. 'nba', 'nfl', 'mlb', 'nhl', "
+                        "'epl'); books are scraped per-sport (default: nba)"
+                    ),
+                },
+                "market": {
+                    "type": "string",
+                    "default": "h2h",
+                    "description": (
+                        "Betting market (e.g., 'h2h' moneyline, 'spreads', "
+                        "'totals'); default is h2h moneyline"
+                    ),
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 50,
+                    "minimum": 1,
+                    "maximum": 500,
+                    "description": "Maximum number of odds records to return (default: 50)",
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sport": {"type": "string"},
+                            "event": {"type": "string"},
+                            "market": {"type": "string"},
+                            "book": {"type": "string"},
+                            "book_id": {"type": "string"},
+                            "home": {"type": "string"},
+                            "away": {"type": "string"},
+                            "home_odds": {"type": "number"},
+                            "away_odds": {"type": "number"},
+                            "source": {"type": "string"},
+                        },
+                    },
+                },
+                "sport": {"type": "string"},
+                "market": {"type": "string"},
+                "limit": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_book_coverage",
+        "description": (
+            "Get sportsbook coverage-registry statistics: how many of the 112 "
+            "sportsbooks Pry scrapes directly, broken down by category (US, "
+            "offshore, EU, UK, Asian), extraction method, and geo-requirement. "
+            "Use to verify the breadth of the no-paid-API odds network before "
+            "relying on it, e.g. 'how many US books do you cover?' or to confirm "
+            "the 112-book total and the per-category split in one call."
+        ),
+        "inputSchema": {"type": "object", "properties": {}, "required": []},
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "total": {"type": "integer"},
+                        "by_category": {"type": "object"},
+                        "by_method": {"type": "object"},
+                        "geo_required": {"type": "object"},
+                        "categories": {"type": "array", "items": {"type": "string"}},
+                        "methods": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_scrape_methods",
+        "description": (
+            "List the extraction methods Pry uses to scrape sportsbook odds "
+            "pages directly: JSON endpoints, __NEXT_DATA__ (Next.js), __NUXT__, "
+            "__INITIAL_STATE__ / _dida_config_, HTML tables, and browser "
+            "rendering. "
+            "Use to understand how each book in the 112-book registry is reached "
+            "and which fallback tiers apply, e.g. 'which books need a browser?' "
+            "or to audit the no-paid-API scraping layer before building on it."
+        ),
+        "inputSchema": {"type": "object", "properties": {}, "required": []},
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "methods": {"type": "array", "items": {"type": "string"}},
+                        "total": {"type": "integer"},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_all_sources",
+        "description": (
+            "Aggregate one event's odds from every reachable source at once: "
+            "The Odds API (free tier), ESPN, OddsPortal, Bovada, BetOnline, and "
+            "the 112-book sportsbook registry scraped directly via intelligent "
+            "fallback — more sources than any other odds service, with no paid "
+            "odds API. "
+            "Use to get the complete multi-source picture for a single event, "
+            "e.g. call with event_id='nba:bda33adc...' and sources='all' to "
+            "compare every book and feed on one matchup; the merged result is "
+            "deduped with the sharpest line winning conflicts."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "event_id": {
+                    "type": "string",
+                    "description": (
+                        "Event id to aggregate; accepts an optional 'sport:event_id' "
+                        "prefix, e.g. 'nba:bda33adc...' (use get_odds to list ids)"
+                    ),
+                },
+                "market": {
+                    "type": "string",
+                    "default": "h2h",
+                    "description": (
+                        "Betting market (e.g., 'h2h', 'spreads', 'totals', or a "
+                        "comma/pipe separated combo); default is h2h moneyline"
+                    ),
+                },
+                "book": {
+                    "type": "string",
+                    "description": (
+                        "Optional single-book filter (e.g., 'draftkings'); omit "
+                        "for every reachable source"
+                    ),
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 50,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of merged odds records (default: 50)",
+                },
+                "sources": {
+                    "type": "string",
+                    "default": "all",
+                    "description": (
+                        "Comma-separated source list: the_odds_api, espn, "
+                        "oddsportal, bovada, betonline, or 'all' (default) for "
+                        "every reachable source"
+                    ),
+                },
+            },
+            "required": ["event_id"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sport": {"type": "string"},
+                            "event": {"type": "string"},
+                            "market": {"type": "string"},
+                            "book": {"type": "string"},
+                            "source": {"type": "string"},
+                            "home_odds": {"type": "number"},
+                            "away_odds": {"type": "number"},
+                            "last_update": {"type": "string"},
+                        },
+                    },
+                },
+                "event_id": {"type": "string"},
+                "limit": {"type": "integer"},
+            },
+            "required": ["success"],
+        },
+    },
+    {
         "name": "pry_weather",
         "description": (
             "Get current weather and short-range forecasts for a location, built "
@@ -3064,7 +3274,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
 # state mutation), non-destructive, idempotent (repeated calls are safe).
 # Tools that mutate server state opt out explicitly.
 #
-# Audit (2026-08-16, all 58 PRY_TOOLS):
+# Audit (2026-08-16, all 62 PRY_TOOLS):
 #   * pry_monitor  — persists a scheduled monitor on the server:
 #     readOnlyHint=False, idempotentHint=False. destructiveHint stays False:
 #     it never deletes data (removal is a separate /v1/monitor/{id} DELETE).
@@ -3079,6 +3289,10 @@ PRY_TOOLS: list[dict[str, Any]] = [
 #   * The 4 new money-printer sports tools (pry_historical_odds,
 #     pry_betting_percentages, pry_sharp_consensus, pry_alerts) are pure
 #     reads of odds/history/consensus feeds — same default annotations.
+#   * The 4 new coverage tools (pry_books, pry_book_coverage,
+#     pry_scrape_methods, pry_all_sources) are pure reads of the 112-book
+#     sportsbook registry / multi-source odds feeds — same default
+#     read-only, non-destructive, idempotent annotations.
 #   * The climate/research tools (pry_weather, pry_agri, pry_papers,
 #     pry_domain) are pure reads of public weather/academic/WHOIS feeds —
 #     same default read-only, non-destructive, idempotent annotations.
@@ -3742,6 +3956,16 @@ _SPORTS_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
         ("alerts", ("list_alerts", "get_alerts", "alerts")),
         ("alert", ("list_alerts", "get_alerts", "alerts")),
     ),
+    # Expanded sportsbook coverage (landed from parallel agents): the 112-book
+    # registry scraper (books.py) and the multi-source odds aggregator (odds.py).
+    # books.get_all_books_odds is async; books.books_coverage is sync (the
+    # dispatcher below handles both). pry_scrape_methods reads the
+    # scraping_methods.METHODS registry (fallback-chain tiers) and is
+    # special-cased in call_sports_tool.
+    "pry_books": (("books", ("get_all_books_odds",)),),
+    "pry_book_coverage": (("books", ("books_coverage",)),),
+    "pry_scrape_methods": (("scraping_methods", ("METHODS",)),),
+    "pry_all_sources": (("odds", ("get_odds_multi",)),),
 }
 
 
@@ -3844,6 +4068,27 @@ def _sports_tool_kwargs(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if arguments.get("limit") is not None:
             kwargs["limit"] = int(arguments["limit"])
         return kwargs
+    if name == "pry_books":
+        kwargs = {
+            "sport": arguments.get("sport", "nba"),
+            "market": arguments.get("market", "h2h"),
+            "limit": int(arguments.get("limit", 50)),
+        }
+        return kwargs
+    if name == "pry_book_coverage":
+        return {}
+    if name == "pry_scrape_methods":
+        return {}
+    if name == "pry_all_sources":
+        kwargs = {
+            "event_id": arguments.get("event_id", ""),
+            "market": arguments.get("market", "h2h"),
+            "limit": int(arguments.get("limit", 50)),
+            "sources": arguments.get("sources", "all"),
+        }
+        if arguments.get("book"):
+            kwargs["book"] = arguments["book"]
+        return kwargs
     return dict(arguments)
 
 
@@ -3862,14 +4107,88 @@ async def call_sports_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
     """Dispatch sports-betting MCP tools to their ``sports_data`` handlers (guarded).
 
     The ``sports_data`` subpackage (odds, scores, arbitrage, plus_ev, props,
-    injuries, live_odds) is built in parallel by other agents; every import is
-    guarded so this dispatcher degrades gracefully (a readable message) if a
-    module has not landed yet. Returns ``None`` for non-sports tools so callers
-    fall through to their normal execution path (remote executor / REST proxy).
+    injuries, live_odds, books) is built in parallel by other agents; every
+    import is guarded so this dispatcher degrades gracefully (a readable
+    message) if a module has not landed yet. Returns ``None`` for non-sports
+    tools so callers fall through to their normal execution path (remote
+    executor / REST proxy).
     """
     entry = _SPORTS_TOOL_FNS.get(name)
     if entry is None:
         return None
+    # pry_scrape_methods reads the METHODS registries (dicts/tuples of method
+    # metadata, not callables) — resolve them directly instead of trying to
+    # call them. Primary source is the top-level scraping_methods module
+    # (fallback-chain tiers); the sports_data.books extraction vocabulary is
+    # the fallback.
+    if name == "pry_scrape_methods":
+        try:
+            mod = __import__("scraping_methods", fromlist=["METHODS"])
+            registry = getattr(mod, "METHODS", {})
+            if isinstance(registry, dict):
+                methods = [
+                    {
+                        "key": key,
+                        "name": str(meta.get("name", key)),
+                        "sync": bool(meta.get("sync", False)),
+                        "cost": str(meta.get("cost", "")),
+                        "when": str(meta.get("when", "")),
+                        "notes": str(meta.get("notes", "")),
+                    }
+                    for key, meta in registry.items()
+                ]
+                return {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {
+                                    "success": True,
+                                    "data": {"methods": methods, "total": len(methods)},
+                                },
+                                indent=2,
+                            ),
+                        }
+                    ],
+                    "isError": False,
+                }
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": json.dumps(
+                            {
+                                "success": True,
+                                "data": {"methods": list(registry), "total": len(registry)},
+                            },
+                            indent=2,
+                        ),
+                    }
+                ],
+                "isError": False,
+            }
+        except ImportError:
+            pass
+        try:
+            mod = __import__("sports_data.books", fromlist=["books"])
+        except ImportError:
+            return _sports_module_unavailable(name)
+        methods = getattr(mod, "METHODS", ())
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {
+                            "success": True,
+                            "data": {"methods": list(methods), "total": len(methods)},
+                        },
+                        indent=2,
+                    ),
+                }
+            ],
+            "isError": False,
+        }
     for module_name, candidates in entry:
         try:
             mod = __import__(f"sports_data.{module_name}", fromlist=[module_name])
@@ -3879,7 +4198,16 @@ async def call_sports_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
         if fn is None:
             continue
         kwargs = _sports_tool_kwargs(name, arguments)
-        data = await fn(**{k: v for k, v in kwargs.items() if _callable_accepts(fn, k)})
+        result = fn(**{k: v for k, v in kwargs.items() if _callable_accepts(fn, k)})
+        # Handlers are usually async (get_all_books_odds, get_odds_multi) but
+        # some are sync registry reads (books_coverage) — await only when the
+        # callable actually returned a coroutine.
+        import inspect
+
+        if inspect.isawaitable(result):
+            data = await result
+        else:
+            data = result
         return {
             "content": [
                 {

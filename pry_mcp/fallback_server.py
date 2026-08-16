@@ -403,6 +403,15 @@ def make_fallback_server(
                 "pry_betting_percentages": ("GET", "/v1/sports/betting-percentages"),
                 "pry_sharp_consensus": ("GET", "/v1/sports/sharp-consensus"),
                 "pry_alerts": ("GET", "/v1/sports/alerts"),
+                # Expanded sportsbook coverage REST fallbacks (112-book
+                # registry + scrape-method registry land from parallel agents):
+                "pry_books": ("GET", "/v1/sports/books"),
+                "pry_book_coverage": ("GET", "/v1/sports/books/coverage"),
+                "pry_scrape_methods": ("GET", "/v1/scrape/methods"),
+                # pry_all_sources has no dedicated REST route — degrade to the
+                # base odds endpoint (the guarded local dispatch serves the
+                # full get_odds_multi path whenever sports_data.odds landed).
+                "pry_all_sources": ("GET", "/v1/sports/odds"),
                 # Climate / research REST fallbacks (climate_data / research_data
                 # land from parallel agents):
                 "pry_weather": ("GET", "/v1/climate/weather"),

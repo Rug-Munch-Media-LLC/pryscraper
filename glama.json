@@ -736,6 +736,22 @@
 		{
 			"name": "pry_firmographics",
 			"description": "Get firmographic data for a company: employee count band, revenue range, founding year, headquarters, and industry."
+		},
+		{
+			"name": "pry_books",
+			"description": "Aggregate odds across all 112 sportsbooks (US, offshore, EU, UK, Asian), scraped directly via intelligent fallback \u2014 no paid odds API."
+		},
+		{
+			"name": "pry_book_coverage",
+			"description": "Sportsbook coverage-registry statistics: 112 books by category, extraction method, and geo-requirement."
+		},
+		{
+			"name": "pry_scrape_methods",
+			"description": "Sportsbook scraping-method registry: JSON, __NEXT_DATA__, __NUXT__, __INITIAL_STATE__, HTML tables, browser rendering."
+		},
+		{
+			"name": "pry_all_sources",
+			"description": "Aggregate one event's odds from every reachable source \u2014 The Odds API, ESPN, OddsPortal, Bovada, BetOnline, plus 112 sportsbooks."
 		}
 	],
 	"tags": [

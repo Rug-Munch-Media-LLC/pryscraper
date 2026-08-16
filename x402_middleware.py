@@ -33,6 +33,10 @@ logger = logging.getLogger(__name__)
 # endpoint, so a bare prefix (e.g. "/v1/capture") covers every sub-route.
 # Every operation here MUST exist in X402_PRICING or the gate is skipped.
 PAID_ENDPOINTS = {
+    # NOTE: prefix order matters — the first matching prefix wins, so the
+    # more specific /v1/scrape/methods (scrape-method registry, $0.002) must
+    # be listed before the broad /v1/scrape gate.
+    "/v1/scrape/methods": "scrape_methods",
     "/v1/scrape": "scrape",
     "/v1/crawl": "crawl",
     "/v1/extract/css": "extract",
@@ -83,6 +87,9 @@ PAID_ENDPOINTS = {
     "/v1/sports/betting-percentages": "sports_betting_percentages",
     "/v1/sports/sharp-consensus": "sports_sharp_consensus",
     "/v1/sports/alerts": "sports_alerts",
+    # Expanded sportsbook coverage — the 112-book registry aggregate + coverage
+    # stats gate under one prefix at the flat $0.01 sports tier.
+    "/v1/sports/books": "sports_books",
     # Climate / research intelligence — paid per call at $0.002:
     "/v1/climate/": "weather",
     "/v1/research/": "academic",
@@ -247,8 +254,26 @@ _SPORTS_PRICE_TIERS: dict[str, dict[str, Any]] = {
         "price_usd": 0.01,
         "description": "Money-printer alerts (flat $0.01/scan)",
     },
+    # Expanded sportsbook coverage — 112-book registry aggregate + coverage
+    # stats at the flat $0.01 sports tier.
+    "sports_books": {
+        "price_usd": 0.01,
+        "description": "112-book aggregated odds / coverage stats (flat $0.01/scan)",
+    },
 }
 for _operation, _tier in _SPORTS_PRICE_TIERS.items():
+    X402_PRICING.setdefault(_operation, _tier)
+
+# Price tier for the scrape-method registry. Cheap metadata read at $0.002 —
+# same "cheap read" tier as the climate/research lookups. Keeps the
+# /v1/scrape/methods gate from being skipped until promoted into x402/scheme.py.
+_SCRAPE_METHODS_PRICE_TIER: dict[str, dict[str, Any]] = {
+    "scrape_methods": {
+        "price_usd": 0.002,
+        "description": "Sportsbook scraping-method registry",
+    },
+}
+for _operation, _tier in _SCRAPE_METHODS_PRICE_TIER.items():
     X402_PRICING.setdefault(_operation, _tier)
 
 # Price tiers for the climate / research operations. Cheap reads at $0.002 —

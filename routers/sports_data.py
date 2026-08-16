@@ -15,6 +15,9 @@ Endpoints:
 - GET /v1/sports/betting-percentages — share of bets & money per side
 - GET /v1/sports/sharp-consensus — sharp-book consensus lines w/ CLV
 - GET /v1/sports/alerts          — money-printer alerts (line move/steam/CLV)
+- GET /v1/sports/books           — aggregated odds across the 112-book registry
+- GET /v1/sports/books/coverage  — sportsbook coverage-registry statistics
+- GET /v1/scrape/methods         — sportsbook scraping-method registry
 """
 
 # SPDX-License-Identifier: MIT
@@ -344,3 +347,67 @@ async def sports_alerts(
         kwargs["alert_type"] = alert_type
     data = await fn(**kwargs)
     return {"success": True, "data": data, "sport": sport, "alert_type": alert_type, "limit": limit}
+
+
+@router.get(
+    "/v1/sports/books",
+    tags=["Sports Data"],
+    summary="Aggregated odds across the 112-book sportsbook registry",
+)
+async def sports_books(
+    sport: str = Query(
+        "nba", description="Sport key to aggregate across books (e.g. 'nba', 'nfl', 'epl')"
+    ),
+    market: str = Query("h2h", description="Betting market (e.g. 'h2h', 'spreads', 'totals')"),
+    limit: int = Query(50, ge=1, le=500, description="Max records (default: 50)"),
+) -> dict[str, Any]:
+    """Aggregate odds across every reachable book in the 112-book registry.
+
+    Every book is scraped directly (no paid odds API) with per-book
+    degradation: a dead/blocked book contributes nothing and never blanks the
+    result.
+    """
+    mod = _sports_module("books")
+    fn = _sports_fn(mod, "get_all_books_odds")
+    if fn is None:
+        _module_unavailable("books")
+    data = await fn(sport=sport, market=market, limit=limit)
+    return {"success": True, "data": data, "sport": sport, "market": market, "limit": limit}
+
+
+@router.get(
+    "/v1/sports/books/coverage",
+    tags=["Sports Data"],
+    summary="Sportsbook coverage-registry statistics (112 books, 5 categories)",
+)
+async def sports_books_coverage() -> dict[str, Any]:
+    """Return coverage statistics for the 112-book sportsbook registry.
+
+    Counts books by category (US/offshore/EU/UK/Asian), extraction method,
+    and geo-requirement. Never raises.
+    """
+    mod = _sports_module("books")
+    fn = _sports_fn(mod, "books_coverage")
+    if fn is None:
+        _module_unavailable("books")
+    data = fn()
+    return {"success": True, "data": data}
+
+
+@router.get(
+    "/v1/scrape/methods",
+    tags=["Sports Data"],
+    summary="Sportsbook scraping-method registry",
+)
+async def scrape_methods() -> dict[str, Any]:
+    """Return the extraction methods used to scrape sportsbook odds pages.
+
+    Reads the ``METHODS`` registry (json, next_data, nuxT, init_state, html,
+    browser) from ``sports_data.books``; falls back to the package-level
+    scraping-method vocabulary when the books module has not landed yet.
+    """
+    mod = _sports_module("books")
+    if mod is None:
+        _module_unavailable("books")
+    methods = sorted(str(m) for m in getattr(mod, "METHODS", ()))
+    return {"success": True, "data": {"methods": methods, "total": len(methods)}}

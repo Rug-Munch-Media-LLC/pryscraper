@@ -90,7 +90,11 @@
 		"pry_grocery",
 		"pry_restaurant",
 		"pry_imports",
-		"pry_firmographics"
+		"pry_firmographics",
+		"pry_books",
+		"pry_book_coverage",
+		"pry_scrape_methods",
+		"pry_all_sources"
 	],
 	"tags": [
 		"scraping",
