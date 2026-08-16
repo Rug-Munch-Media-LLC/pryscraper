@@ -145,7 +145,7 @@ async def proxy_pool() -> dict[str, Any]:
     """Return the Webshare residential proxy pool (credentials masked).
 
     Loaded from the WEBSHARE_PROXY_LIST env var or, best-effort, from
-    gopass (rmi/infra/webshare_proxy_list). Cached per process.
+    the secrets manager (path via PRY_WEBSHARE_GOPASS_PATH). Cached per process.
     """
     from proxy_manager import ProxyManager
 

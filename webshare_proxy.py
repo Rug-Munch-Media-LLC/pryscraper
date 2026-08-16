@@ -4,9 +4,9 @@ Loads the Webshare residential proxy list (space-separated
 ``http://user:pass@host:port`` URLs) from, in priority order:
 
 1. the ``WEBSHARE_PROXY_LIST`` environment variable (12-factor, CI/local dev), or
-2. the fleet gopass store at ``rmi/infra/webshare_proxy_list``
-   (``gopass show -o [SECRETS]/infra/webshare_proxy_list``) — best-effort,
-   skipped when ``PRY_SECRET_BACKEND`` is explicitly set to ``env``/``file``
+2. the secrets manager (gopass), path configurable via
+   ``PRY_WEBSHARE_GOPASS_PATH`` — best-effort, skipped when
+   ``PRY_SECRET_BACKEND`` is explicitly set to ``env``/``file``
    so tests and non-gopass hosts never depend on the real secret.
 
 The resolved list is cached for the process lifetime (mirrors
@@ -40,8 +40,10 @@ logger = logging.getLogger(__name__)
 
 #: Env var holding the space-separated proxy list. Takes precedence over gopass.
 WEBSHARE_PROXY_LIST_ENV = "WEBSHARE_PROXY_LIST"
-#: Fleet gopass path for the Webshare residential proxy list.
-WEBSHARE_GOPASS_PATH = "rmi/infra/webshare_proxy_list"
+#: Secrets-manager (gopass) path for the Webshare residential proxy list.
+#: Override via PRY_WEBSHARE_GOPASS_PATH. The default is a generic name with
+#: no internal deployment details (this is an open-source repo).
+WEBSHARE_GOPASS_PATH = os.getenv("PRY_WEBSHARE_GOPASS_PATH", "pry/webshare_proxy_list")
 
 _rotation_index = 0
 _rotation_lock = threading.Lock()
