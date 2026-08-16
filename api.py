@@ -49,6 +49,7 @@ from routers.batch import router as batch_router
 from routers.capabilities import router as capabilities_router
 from routers.circuit_breaker import router as circuit_breaker_router
 from routers.commerce import router as commerce_router
+from routers.commerce_data import router as commerce_data_router
 from routers.compliance import router as compliance_router
 from routers.config import router as config_router
 from routers.costing import router as costing_router
@@ -64,6 +65,7 @@ from routers.extraction import router as extraction_router
 from routers.freshness import router as freshness_router
 from routers.gdpr import router as gdpr_router
 from routers.health import router as health_router
+from routers.healthcare_data import router as healthcare_data_router
 from routers.integrations import router as integrations_router
 from routers.intelligence import router as intelligence_router
 from routers.jobs import router as jobs_router
@@ -103,6 +105,7 @@ from routers.seo import router as seo_router
 from routers.sessions import router as sessions_router
 from routers.share import router as share_router
 from routers.signup import router as signup_router
+from routers.sports_data import router as sports_data_router
 from routers.stats import router as stats_router
 from routers.structure import router as structure_router
 from routers.system import router as system_router
@@ -309,6 +312,7 @@ app.add_middleware(PryHttpMiddleware)
 
 app.include_router(auth_router)
 app.include_router(health_router)
+app.include_router(healthcare_data_router)
 app.include_router(scraping_router)
 app.include_router(templates_router)
 app.include_router(ai_router)
@@ -322,6 +326,7 @@ app.include_router(crm_router)
 app.include_router(crypto_market_router)
 app.include_router(circuit_breaker_router)
 app.include_router(commerce_router)
+app.include_router(commerce_data_router)
 app.include_router(compliance_router)
 app.include_router(capabilities_router)
 app.include_router(config_router)
@@ -365,6 +370,7 @@ app.include_router(scraping_api_router)
 app.include_router(sessions_router)
 app.include_router(share_router)
 app.include_router(signup_router)
+app.include_router(sports_data_router)
 app.include_router(stats_router)
 app.include_router(structure_router)
 app.include_router(system_router)

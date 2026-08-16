@@ -281,6 +281,9 @@ include = [
     "gov_data*",
     "ip_data*",
     "site_catalog*",
+    "sports_data*",
+    "healthcare_data*",
+    "commerce_data*",
 ]
 
 [tool.ruff]
