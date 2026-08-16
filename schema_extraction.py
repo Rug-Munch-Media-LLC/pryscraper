@@ -64,8 +64,12 @@ class SchemaExtractor:
     def extract_microdata(self, html: str) -> list[dict[str, Any]]:
         """Extract Microdata from HTML (itemtype, itemprop)."""
         from lxml import html as lxml_html
+        from lxml.etree import ParserError
 
-        tree = lxml_html.fromstring(html)
+        try:
+            tree = lxml_html.fromstring(html)
+        except ParserError:
+            return []
         results: list[dict[str, Any]] = []
         for elem in tree.xpath("//*[@itemtype]"):
             itemtype = elem.get("itemtype") or ""
@@ -87,8 +91,12 @@ class SchemaExtractor:
     def extract_rdfa(self, html: str) -> list[dict[str, Any]]:
         """Extract RDFa attributes from HTML."""
         from lxml import html as lxml_html
+        from lxml.etree import ParserError
 
-        tree = lxml_html.fromstring(html)
+        try:
+            tree = lxml_html.fromstring(html)
+        except ParserError:
+            return []
         results: list[dict[str, Any]] = []
         for elem in tree.xpath("//*[@typeof]"):
             item: dict[str, Any] = {"@type": elem.get("typeof")}

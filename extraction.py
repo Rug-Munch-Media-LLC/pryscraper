@@ -15,6 +15,7 @@ from typing import Any
 
 import httpx
 from lxml import html as lxml_html
+from lxml.etree import ParserError as _LxmlParserError
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,10 @@ class JsonCssExtractionStrategy:
 
     def extract(self, html: str) -> list[dict[str, Any]]:
         """Extract structured data from HTML string."""
-        tree = lxml_html.fromstring(html)
+        try:
+            tree = lxml_html.fromstring(html)
+        except _LxmlParserError:
+            return []
         base_selector = self.schema.get("base_selector")
         fields = self.schema.get("fields", [])
 

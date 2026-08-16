@@ -10,12 +10,99 @@ captures the data stream."""
 # Licensed under MIT. See LICENSE.
 
 import asyncio
+import ipaddress
 import json
 import logging
+import socket
 import time
 from typing import Any
+from urllib.parse import urlparse
+
+from errors import InvalidRequestError
+from url_guard import _INTERNAL_HOST_RE, _PRIVATE_NETS, validate_url
 
 logger = logging.getLogger(__name__)
+
+# WebSocket schemes accepted by the scraper.
+_WS_SCHEMES = {"ws", "wss"}
+
+
+def validate_websocket_url(url: str, *, resolve_dns: bool = True) -> str:
+    """Validate a ``ws://``/``wss://`` URL for SSRF safety.
+
+    ``url_guard.validate_url`` only accepts http/https, so WebSocket URLs were
+    previously left ungated. This host-level guard reuses url_guard's
+    private/reserved IP ranges and internal-hostname rules to reject
+    loopback, link-local, cloud-metadata, CGNAT, and internal host targets
+    (``ws://127.0.0.1``, ``ws://169.254.169.254``, ``ws://[::1]``, ...).
+
+    Args:
+        url: The WebSocket URL to validate.
+        resolve_dns: If True, reject hostnames that resolve to private IPs
+            (guards DNS-rebinding vectors, same default as ``validate_url``).
+
+    Returns:
+        The validated URL (unchanged).
+
+    Raises:
+        InvalidRequestError: If the URL is unsafe.
+    """
+    if not url:
+        raise _ws_error("URL is empty", url)
+
+    parsed = urlparse(url)
+
+    if parsed.scheme not in _WS_SCHEMES:
+        raise _ws_error(
+            f"URL scheme {parsed.scheme} is not allowed (only ws/wss for WebSocket endpoints)",
+            url,
+        )
+
+    if parsed.username or parsed.password:
+        raise _ws_error("URL must not contain embedded credentials (user:password@)", url)
+
+    hostname = parsed.hostname or ""
+    if not hostname:
+        raise _ws_error("URL must have a valid hostname", url)
+
+    # Raw IP literal: reject private/reserved ranges (loopback, link-local,
+    # metadata, CGNAT, ULA, ...).
+    try:
+        ip = ipaddress.ip_address(hostname)
+        for net in _PRIVATE_NETS:
+            if ip in ipaddress.ip_network(net):
+                raise _ws_error(f"URL resolves to a private/reserved IP range ({net})", url)
+    except ValueError:
+        # Not an IP literal — continue with hostname checks.
+        pass
+
+    # Internal/sensitive hostname patterns (localhost, metadata.*, *.internal, ...).
+    if _INTERNAL_HOST_RE.match(hostname):
+        raise _ws_error(f"URL hostname {hostname} appears to be an internal resource", url)
+
+    # DNS resolution to private IPs (opt-in, default on).
+    if resolve_dns:
+        try:
+            addrs = socket.getaddrinfo(hostname, None)
+            for _family, _type, _proto, _canonname, sockaddr in addrs:
+                addr = sockaddr[0]
+                try:
+                    ip = ipaddress.ip_address(addr)
+                    for net in _PRIVATE_NETS:
+                        if ip in ipaddress.ip_network(net):
+                            raise _ws_error(f"URL resolves to private IP {addr} ({net})", url)
+                except ValueError:
+                    continue
+        except OSError as e:
+            logger.debug("dns_lookup_failed", extra={"hostname": hostname, "error": str(e)})
+
+    return url
+
+
+def _ws_error(message: str, url: str) -> InvalidRequestError:
+    """Build a structured InvalidRequestError for WebSocket validation."""
+    logger.warning("websocket_url_rejected", extra={"url": url, "reason": message})
+    return InvalidRequestError(message, details={"url": url, "reason": message})
 
 
 class WebSocketScraper:
@@ -40,6 +127,7 @@ class WebSocketScraper:
             message_filter: Only return messages containing this string
             protocols: WebSocket subprotocols
         """
+        validate_websocket_url(url)
         try:
             import websockets
         except ImportError:
@@ -90,6 +178,7 @@ class WebSocketScraper:
         """Connect to a Server-Sent Events endpoint and capture events."""
         from client import get_client
 
+        validate_url(url)
         client = await get_client()
         events: list[dict[str, Any]] = []
         try:

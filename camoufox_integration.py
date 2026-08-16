@@ -15,6 +15,10 @@ import logging
 import random
 import time
 from typing import Any, ClassVar
+from urllib.parse import urlparse
+
+from errors import InvalidRequestError
+from url_guard import validate_url
 
 # SystemRandom: crypto-grade entropy so human-behavior simulation is unpredictable.
 _RNG = random.SystemRandom()
@@ -72,6 +76,34 @@ class CamoufoxBrowser:
                 extra={"hint": "pip install camoufox && python -m camoufox fetch"},
             )
 
+    async def _guarded_route(self, route: Any) -> None:
+        """Playwright route guard: abort requests that target SSRF-sensitive hosts.
+
+        The browser follows redirects internally, so a ``302 -> 169.254.169.254``
+        would otherwise bypass URL validation. Every network request (including
+        each redirect hop) passes through this handler and is re-validated with
+        :func:`url_guard.validate_url` before continuing. Non-network schemes
+        (``data:``, ``blob:``, ``about:``, ...) never touch the network and are
+        allowed through.
+        """
+        request_url = route.request.url
+        try:
+            parsed = urlparse(request_url)
+        except ValueError:
+            await route.abort()
+            return
+        if parsed.scheme not in {"http", "https"}:
+            # Non-network scheme (data:, blob:, about:) — no SSRF surface.
+            await route.continue_()
+            return
+        try:
+            validate_url(request_url)
+        except InvalidRequestError:
+            logger.warning("camoufox_ssrf_blocked", extra={"url": request_url})
+            await route.abort()
+            return
+        await route.continue_()
+
     async def fetch(
         self,
         url: str,
@@ -104,8 +136,12 @@ class CamoufoxBrowser:
             config["proxy"] = proxy
         try:
             start = time.time()
+            validate_url(url)
             async with AsyncCamoufox(**config) as browser:
                 page = await browser.new_page()
+                # Route guard re-validates every request, including internal
+                # redirect hops the browser follows on its own.
+                await page.route("**/*", self._guarded_route)
                 if cookies:
                     for cookie in cookies:
                         await page.context.add_cookies([cookie])
@@ -153,6 +189,7 @@ class CamoufoxBrowser:
                     config["proxy"] = proxy
                 async with AsyncCamoufox(**config) as browser:
                     page = await browser.new_page()
+                    await page.route("**/*", self._guarded_route)
                     await page.goto(url, wait_until="domcontentloaded")
                     # Apply human behavior
                     if human_behavior.get("scroll"):

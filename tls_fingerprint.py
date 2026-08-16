@@ -14,8 +14,15 @@ import asyncio
 import logging
 import time
 from typing import Any
+from urllib.parse import urljoin
+
+from url_guard import validate_redirect_url, validate_url
 
 logger = logging.getLogger(__name__)
+
+# Redirect statuses followed manually so every hop is SSRF-revalidated.
+_REDIRECT_STATUS = frozenset({301, 302, 303, 307, 308})
+_MAX_REDIRECTS = 10
 
 # Check if curl_cffi is available
 try:
@@ -124,15 +131,35 @@ class TLSScraper:
 
         try:
             start = time.time()
+            validate_url(url)
+            current_url = url
             async with AsyncSession(
                 impersonate=impersonate,  # type: ignore[arg-type]  # curl_cffi uses Literal union; runtime validated
                 headers=default_headers,
                 cookies=cookies or {},
                 proxy=proxy or None,
                 timeout=timeout_s,
-                allow_redirects=follow_redirects,
+                # Redirects are followed manually below so every Location
+                # hop is re-validated against SSRF targets before the next
+                # request (curl_cffi's built-in follow would skip validation).
+                allow_redirects=False,
             ) as session:
-                resp = await session.get(url)
+                resp: Any = None
+                redirects = 0
+                while True:
+                    resp = await session.get(current_url)
+                    if (
+                        not follow_redirects
+                        or resp.status_code not in _REDIRECT_STATUS
+                        or "location" not in resp.headers
+                        or redirects >= _MAX_REDIRECTS
+                    ):
+                        break
+                    location = resp.headers["location"]
+                    target = urljoin(str(resp.url), location)
+                    validate_redirect_url(target)
+                    current_url = target
+                    redirects += 1
                 elapsed = time.time() - start
                 return {
                     "success": True,
@@ -145,7 +172,7 @@ class TLSScraper:
                     "elapsed": round(elapsed, 2),
                     "impersonate": impersonate,
                 }
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # curl_cffi raises heterogeneous exceptions; dict-contract error path
             return {
                 "success": False,
                 "error": str(e)[:300],

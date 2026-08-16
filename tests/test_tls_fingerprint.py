@@ -98,7 +98,9 @@ async def test_fetch_passes_impersonate_to_session() -> None:
     call_kwargs = mock_cls.call_args.kwargs
     assert call_kwargs["impersonate"] == "chrome124"
     assert call_kwargs["timeout"] == 30
-    assert call_kwargs["allow_redirects"] is True
+    # Redirects are followed manually (allow_redirects=False) so every Location
+    # hop is re-validated against SSRF targets before the next request.
+    assert call_kwargs["allow_redirects"] is False
 
 
 async def test_fetch_invalid_impersonate_falls_back_to_chrome() -> None:
@@ -158,6 +160,98 @@ async def test_fetch_exception_returns_error_dict() -> None:
 
     assert result["success"] is False
     assert "boom" in result["error"]
+
+
+# ── fetch() SSRF validation & redirect re-validation ────────────
+
+
+def _mock_session(status: int, headers: dict | None = None, url: str = "https://example.com/start"):
+    """Build a mocked curl_cffi session returning a canned response."""
+    session = AsyncMock()
+    session.get.return_value.status_code = status
+    session.get.return_value.text = "x"
+    session.get.return_value.content = b"x"
+    session.get.return_value.headers = headers or {}
+    session.get.return_value.cookies = {}
+    session.get.return_value.url = url
+    session.__aenter__.return_value = session
+    session.__aexit__.return_value = False
+    return session
+
+
+async def test_fetch_rejects_private_initial_url() -> None:
+    """The initial URL must be SSRF-validated before any request is made."""
+    session = _mock_session(200)
+    with (
+        patch.object(tls_fingerprint, "_has_curl_cffi", True),
+        patch("tls_fingerprint.AsyncSession", create=True, return_value=session),
+    ):
+        result = await TLSScraper().fetch("http://169.254.169.254/latest/meta-data/")
+
+    assert result["success"] is False
+    session.get.assert_not_awaited()
+
+
+async def test_fetch_blocks_redirect_to_loopback() -> None:
+    """A 302 to an internal host must be blocked before the next hop."""
+    session = _mock_session(302, headers={"location": "http://127.0.0.1/evil"})
+    with (
+        patch.object(tls_fingerprint, "_has_curl_cffi", True),
+        patch("tls_fingerprint.AsyncSession", create=True, return_value=session),
+    ):
+        result = await TLSScraper().fetch("https://example.com/start")
+
+    assert result["success"] is False
+    assert "127.0.0.0/8" in result["error"]
+    # The unsafe hop must not be fetched.
+    session.get.assert_awaited_once_with("https://example.com/start")
+
+
+async def test_fetch_blocks_redirect_to_metadata_ip() -> None:
+    session = _mock_session(302, headers={"location": "http://169.254.169.254/"})
+    with (
+        patch.object(tls_fingerprint, "_has_curl_cffi", True),
+        patch("tls_fingerprint.AsyncSession", create=True, return_value=session),
+    ):
+        result = await TLSScraper().fetch("https://example.com/start")
+
+    assert result["success"] is False
+    assert "169.254.0.0/16" in result["error"]
+    session.get.assert_awaited_once_with("https://example.com/start")
+
+
+async def test_fetch_follows_safe_redirect() -> None:
+    """A redirect to a public host is followed after re-validation."""
+    session = AsyncMock()
+    session.get.side_effect = [
+        _mock_session(302, headers={"location": "https://example.com/next"}).get.return_value,
+        _mock_session(200, url="https://example.com/next").get.return_value,
+    ]
+    session.__aenter__.return_value = session
+    session.__aexit__.return_value = False
+
+    with (
+        patch.object(tls_fingerprint, "_has_curl_cffi", True),
+        patch("tls_fingerprint.AsyncSession", create=True, return_value=session),
+    ):
+        result = await TLSScraper().fetch("https://example.com/start")
+
+    assert result["success"] is True
+    assert result["status_code"] == 200
+    assert session.get.await_count == 2
+
+
+async def test_fetch_does_not_follow_redirects_when_disabled() -> None:
+    session = _mock_session(302, headers={"location": "https://example.com/next"})
+    with (
+        patch.object(tls_fingerprint, "_has_curl_cffi", True),
+        patch("tls_fingerprint.AsyncSession", create=True, return_value=session),
+    ):
+        result = await TLSScraper().fetch("https://example.com/start", follow_redirects=False)
+
+    assert result["success"] is True
+    assert result["status_code"] == 302
+    session.get.assert_awaited_once_with("https://example.com/start")
 
 
 # ── fetch_with_rotation() ───────────────────────────────────────

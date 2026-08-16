@@ -86,6 +86,13 @@ paths = [
   '''url_guard\.py''',
   # URL guard tests: test fixtures with example IPs
   '''tests/test_url_guard\.py''',
+  # WebSocket/SSE SSRF guard + tests: private/CGNAT/metadata IP fixtures
+  '''websocket_scraper\.py''',
+  '''tests/test_websocket_scraper\.py''',
+  '''tls_fingerprint\.py''',
+  '''camoufox_integration\.py''',
+  '''tests/test_tls_fingerprint\.py''',
+  '''tests/test_camoufox_integration\.py''',
 ]
 
 # Stopwords (false-positive patterns to ignore)
