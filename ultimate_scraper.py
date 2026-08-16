@@ -66,7 +66,7 @@ except ImportError:
 class UltimateScraper:
     """12-tier anti-detection scraper with automatic fallback.
 
-    Tiers:
+    Tiers (tried in this order by default):
     1. Direct HTTP (smart headers, rotating UAs)
     2. TLS fingerprint impersonation (curl_cffi JA3/JA4 bypass)
     3. cloudscraper (Python-native Cloudflare bypass)
@@ -75,10 +75,15 @@ class UltimateScraper:
     6. Camoufox stealth Firefox (source-level anti-fingerprinting)
     7. Playwright stealth (full browser with human behavior)
     8. Googlebot UA (search engine crawl mimic)
-    9. Premium proxy retry (after cheap tiers fail)
-    10. Archive.org / Wayback Machine (cached version)
-    11. Google Cache (cached version)
-    12. Tor proxy (anonymous routing via SOCKS5)
+    9. Tor proxy (anonymous routing via SOCKS5 — mid-tier, before paid proxy)
+    10. Premium proxy retry (paid last resort, after Tor)
+    11. Archive.org / Wayback Machine (cached version)
+    12. Google Cache (cached version — absolute last resort)
+
+    The per-domain order is adaptive: resilience.DomainTierMemory promotes
+    the domain's proven-best tier to the front and demotes/skips tiers that
+    have been failing, so each domain gets an intelligent, self-improving
+    fallback chain.
     """
 
     USER_AGENTS: ClassVar[list[str]] = [
@@ -145,14 +150,18 @@ class UltimateScraper:
 
         proxy_url = self._resolve_proxy_url(opts)
 
-        # Tier 0: Premium proxy (if configured and forced or first attempt)
-        if proxy_url and opts.get("use_premium_proxy_first", True):
+        # Tier 0: Premium proxy — only first if the caller explicitly asks.
+        # Default is False: paid proxy is a LAST resort, tried after Tor.
+        premium_first = opts.get("use_premium_proxy_first", False)
+        if proxy_url and premium_first:
             html = await self._tier_premium_proxy(url, proxy_url, opts)
             if html and self._is_valid(html):
                 return self._result(url, html, "premium_proxy")
             errors.append("premium_proxy_failed")
 
-        # Build tier list. Order starts cheap/direct and escalates.
+        # Build tier list. Trusted cheap tiers first, then Tor (anonymous,
+        # free), then the paid premium proxy LAST, then cached-version
+        # fallbacks as the absolute last resort.
         # Note: _tier_premium_proxy has signature (url, proxy_url, opts) while
         # other tiers use (url, opts, proxy_url). This is handled at call site.
         tier_order: list[tuple[str, Any]] = [
@@ -164,26 +173,31 @@ class UltimateScraper:
             ("camoufox", self._tier_camoufox),
             ("playwright", self._tier_playwright),
             ("googlebot", self._tier_googlebot),
+            # Tor mid-chain: anonymous fallback tried before we pay for a
+            # premium proxy, but after the trusted cheap methods.
+            ("tor", self._tier_tor),
         ]
 
-        # Premium proxy retry (after cheap tiers fail) if not tried first.
-        if proxy_url and not opts.get("use_premium_proxy_first", True):
+        # Premium proxy — the LAST paid resort, after Tor. Only added when it
+        # was not already tried first above.
+        if proxy_url and not premium_first:
             tier_order.append(("premium_proxy", self._tier_premium_proxy))
 
         tier_order.extend(
             [
                 ("archive", self._tier_archive),
                 ("google_cache", self._tier_google_cache),
-                ("tor", self._tier_tor),
             ]
         )
 
-        # If domain memory knows a good tier, try it first.
+        # Adaptive ordering: promote the domain's proven-best tier to the
+        # front and demote/skip tiers that have been failing recently. Each
+        # domain gets an intelligent, self-improving fallback chain.
         parsed = urlparse(url)
         domain = parsed.netloc
-        best = registry.best_tier_for_domain(domain, [name for name, _ in tier_order])
-        if best:
-            tier_order.sort(key=lambda item: (item[0] != best, item[0]))
+        name_to_fn = dict(tier_order)
+        ordered_names = registry.reorder_for_domain(domain, [name for name, _ in tier_order])
+        tier_order = [(name, name_to_fn[name]) for name in ordered_names]
 
         # External service tiers protected by circuit breakers.
         breaker_for_tier = {

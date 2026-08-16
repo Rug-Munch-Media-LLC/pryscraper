@@ -10,6 +10,7 @@ prompts user to sign up via affiliate links. Pre-wired to 5+ providers."""
 import json
 import logging
 import os
+import threading
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -211,6 +212,65 @@ PREMIUM_PROXY_PROVIDERS: list[dict[str, Any]] = [
 ]
 
 
+# ── Proxy health intelligence ──────────────────────────────────
+# Rolling-window health scoring + circuit breaker for proxy selection.
+# Proxies are the LAST-RESORT fallback tier, so only healthy, known-good
+# proxies should ever be returned by get_proxy_url()/get_best_proxy().
+
+#: Max result samples kept per proxy in the rolling window.
+HEALTH_WINDOW_SIZE = 100
+#: Consecutive failures that trip the circuit breaker (marks proxy dead).
+CONSECUTIVE_FAILURE_THRESHOLD = 3
+#: Seconds a tripped proxy stays in cooldown before it may be retried.
+COOLDOWN_SECONDS = 300
+
+#: Error signatures that mean the SITE blocked us -> premium proxy helps.
+BLOCK_SIGNATURES: tuple[str, ...] = (
+    "cloudflare",
+    "cf-",
+    "challenge",
+    "captcha",
+    "turnstile",
+    "datadome",
+    "akamai",
+    "403",
+    "429",
+    "rate limit",
+    "rate_limit",
+    "blocked",
+    "blocking",
+    "access denied",
+    "unusual traffic",
+    "attention required",
+    "just a moment",
+    "forbidden",
+    "timeout",
+    "timed out",
+    "timed_out",
+)
+
+#: Generic connectivity failures a premium proxy will NOT fix. When an error
+#: is purely one of these (no block signature), do not recommend premium.
+NETWORK_ERROR_SIGNATURES: tuple[str, ...] = (
+    "connection refused",
+    "connection reset",
+    "connectionerror",
+    "econnrefused",
+    "econnreset",
+    "dns",
+    "gaierror",
+    "no route to host",
+    "network unreachable",
+    "unreachable host",
+    "socket closed",
+    "socket error",
+    "proxy error",
+    "tunnel",
+    "ssl handshake",
+    "nodename nor servname",
+)
+
+
 @dataclass
 class ProxyConfig:
     """Proxy configuration."""
@@ -229,13 +289,21 @@ class ProxyConfig:
 class ProxyManager:
     """Manages proxy selection, free fallbacks, and premium signup flow."""
 
+    # Tunable health params (per-instance so tests can shrink them).
+    health_window_size = HEALTH_WINDOW_SIZE
+    consecutive_failure_threshold = CONSECUTIVE_FAILURE_THRESHOLD
+    cooldown_seconds = COOLDOWN_SECONDS
+
     def __init__(self, data_dir: Path | None = None) -> None:
         self.data_dir = data_dir or PROXY_DIR
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.config_file = self.data_dir / "active_config.json"
         self.creds_file = self.data_dir / "credentials.json"
+        self.health_file = self.data_dir / "proxy_health.json"
         self.active_config = self._load_config()
         self.credentials: dict[str, ProxyConfig] = self._load_credentials()
+        self._health_data: dict[str, Any] = self._load_health()
+        self._health_lock = threading.Lock()
         self.auto_configure_from_env()
 
     def _load_config(self) -> ProxyConfig:
@@ -268,24 +336,63 @@ class ProxyManager:
         except OSError as e:
             logger.debug("proxy_creds_save_failed", extra={"error": str(e)[:80]})
 
+    def _load_health(self) -> dict[str, Any]:
+        """Load persisted proxy health state (rolling samples + affinity)."""
+        if self.health_file.exists():
+            try:
+                data = json.loads(self.health_file.read_text())
+                if isinstance(data, dict):
+                    data.setdefault("version", 1)
+                    data.setdefault("proxies", {})
+                    data.setdefault("affinity", {})
+                    return data
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return {"version": 1, "proxies": {}, "affinity": {}}
+
+    def _save_health(self) -> None:
+        try:
+            self.health_file.write_text(json.dumps(self._health_data, indent=2, default=str))
+        except OSError as e:
+            logger.debug("proxy_health_save_failed", extra={"error": str(e)[:80]})
+
     def get_proxy_url(self) -> str | None:
-        """Get the active proxy URL. Returns None if no proxy configured."""
+        """Get the healthiest active proxy URL. Returns None if no usable proxy configured.
+
+        Never returns a dead/cooldown proxy: if the only candidate is tripped,
+        this returns None so callers fall back to the next tier instead of
+        burning the last-resort proxy tier on a known-bad endpoint.
+        """
+        return self.get_best_proxy()
+
+    # ── Health-aware selection ───────────────────────────────────
+    def _candidate_proxies(self) -> list[str]:
+        """Collect the proxy URLs that are currently selectable.
+
+        Mirrors the historical get_proxy_url() resolution per provider, but as
+        a list so health scoring can pick the best one (pool > single URL).
+        """
         c = self.active_config
         if c.provider == "webshare":
-            # Webshare residential pool: rotate through the cached list.
-            pool_url = self.next_webshare_proxy()
-            if pool_url:
-                return pool_url
+            pool = self.webshare_pool()
+            if pool:
+                return pool
             if c.proxy_url and c.proxy_url != "rotating":
-                return c.proxy_url
-            return None
+                return [c.proxy_url]
+            return []
         if c.provider == "free":
             if c.proxy_url and c.proxy_url != "rotating":
-                return c.proxy_url
-            return None
-        if c.provider not in self.credentials:
-            return None
-        cred = self.credentials[c.provider]
+                return [c.proxy_url]
+            return []
+        cred = self.credentials.get(c.provider)
+        if not cred:
+            return []
+        url = self._credential_proxy_url(cred)
+        return [url] if url else []
+
+    @staticmethod
+    def _credential_proxy_url(cred: ProxyConfig) -> str | None:
+        """Resolve a stored credential entry to a concrete proxy URL."""
         if cred.api_key:
             return f"http://{cred.api_key}@proxy.{cred.provider}.com:8000"
         if cred.username and cred.password:
@@ -293,6 +400,134 @@ class ProxyManager:
         if cred.proxy_url:
             return cred.proxy_url
         return None
+
+    def _ensure_proxy_entry(self, proxy_url: str) -> dict[str, Any]:
+        """Get (creating if needed) the health entry for a proxy URL."""
+        proxies = self._health_data.setdefault("proxies", {})
+        entry = proxies.setdefault(
+            proxy_url, {"samples": [], "consecutive_failures": 0, "cooldown_until": 0.0}
+        )
+        entry.setdefault("samples", [])
+        entry.setdefault("consecutive_failures", 0)
+        entry.setdefault("cooldown_until", 0.0)
+        return entry
+
+    def _is_in_cooldown(self, proxy_url: str) -> bool:
+        """Whether a proxy is currently tripped by the circuit breaker."""
+        entry = self._health_data["proxies"].get(proxy_url)
+        if not entry:
+            return False
+        return entry.get("cooldown_until", 0.0) > time.time()
+
+    def _health_score_of(self, proxy_url: str) -> float:
+        """Score a proxy in [0, 1]: 0.7 * success-rate + 0.3 * latency score.
+
+        Unknown proxies (no samples yet) get a neutral 0.5 so they are
+        preferred over known-bad ones but not over proven-good ones.
+        """
+        entry = self._health_data["proxies"].get(proxy_url)
+        if not entry or not entry.get("samples"):
+            return 0.5
+        samples = entry["samples"]
+        successes = sum(1 for _, ok, _ in samples if ok)
+        success_rate = successes / len(samples)
+        latencies = [lat for _, _, lat in samples if lat is not None]
+        avg_latency = sum(latencies) / len(latencies) if latencies else 0.0
+        # 10s+ latency scores 0; sub-second scores ~0.9+.
+        latency_score = max(0.0, 1.0 - avg_latency / 10.0)
+        return round(0.7 * success_rate + 0.3 * latency_score, 4)
+
+    def record_proxy_result(
+        self, proxy_url: str, success: bool, latency: float, domain: str | None = None
+    ) -> None:
+        """Record a proxy outcome for health scoring (rolling window).
+
+        On success, resets the consecutive-failure counter and bumps
+        per-domain affinity. On failure, increments the counter and trips
+        the circuit breaker (cooldown) once the threshold is reached.
+        State is persisted to the data-dir JSON file.
+        """
+        with self._health_lock:
+            entry = self._ensure_proxy_entry(proxy_url)
+            samples = entry["samples"]
+            samples.append([time.time(), bool(success), max(0.0, float(latency))])
+            if len(samples) > self.health_window_size:
+                del samples[: len(samples) - self.health_window_size]
+            entry["consecutive_failures"] = entry["consecutive_failures"] + 1 if not success else 0
+            if not success and entry["consecutive_failures"] >= self.consecutive_failure_threshold:
+                entry["cooldown_until"] = time.time() + self.cooldown_seconds
+            if domain:
+                self._record_affinity(proxy_url, success, domain)
+            self._save_health()
+
+    def _record_affinity(self, proxy_url: str, success: bool, domain: str) -> None:
+        """Update per-domain affinity: which proxy worked for this domain."""
+        domain_key = self._normalize_domain(domain)
+        aff = self._health_data.setdefault("affinity", {}).setdefault(domain_key, {})
+        if success:
+            aff[proxy_url] = aff.get(proxy_url, 0) + 1
+        else:
+            current = aff.get(proxy_url, 0)
+            if current > 0:
+                aff[proxy_url] = current - 1
+
+    @staticmethod
+    def _normalize_domain(domain: str) -> str:
+        """Normalize a URL/host to a bare lowercase domain for affinity keys."""
+        d = domain.strip().lower()
+        if "://" in d:
+            d = d.split("://", 1)[1]
+        d = d.split("/", 1)[0].split("?", 1)[0].split(":", 1)[0]
+        if d.startswith("www."):
+            d = d[4:]
+        return d
+
+    def get_best_proxy(self, domain: str | None = None) -> str | None:
+        """Return the healthiest available proxy, honoring per-domain affinity.
+
+        - Skips proxies in cooldown (circuit breaker).
+        - When a domain is given and a proxy previously succeeded for it, that
+          proxy is preferred (still only if healthy).
+        - Otherwise returns the highest health-scored proxy; ties break toward
+          the first configured candidate.
+        """
+        candidates = self._candidate_proxies()
+        if not candidates:
+            return None
+        with self._health_lock:
+            healthy = [p for p in candidates if not self._is_in_cooldown(p)]
+            if not healthy:
+                return None
+            domain_key = self._normalize_domain(domain) if domain else None
+            if domain_key:
+                affinity = self._health_data.get("affinity", {}).get(domain_key, {})
+                winners = [p for p in healthy if affinity.get(p, 0) > 0]
+                if winners:
+                    return max(
+                        winners, key=lambda p: (affinity.get(p, 0), self._health_score_of(p))
+                    )
+            return max(healthy, key=self._health_score_of)
+
+    def proxy_health_summary(self, proxy_url: str) -> dict[str, Any]:
+        """Return a health summary for a proxy (observability / tests)."""
+        with self._health_lock:
+            entry = self._health_data["proxies"].get(proxy_url)
+            if not entry or not entry.get("samples"):
+                return {"proxy_url": proxy_url, "known": False}
+            samples = entry["samples"]
+            successes = sum(1 for _, ok, _ in samples if ok)
+            latencies = [lat for _, _, lat in samples]
+            return {
+                "proxy_url": proxy_url,
+                "known": True,
+                "success_rate": round(successes / len(samples), 3),
+                "avg_latency": round(sum(latencies) / len(latencies), 3),
+                "samples": len(samples),
+                "consecutive_failures": entry.get("consecutive_failures", 0),
+                "in_cooldown": self._is_in_cooldown(proxy_url),
+                "cooldown_until": entry.get("cooldown_until", 0.0),
+                "score": self._health_score_of(proxy_url),
+            }
 
     def test_proxy(
         self, proxy_url: str, test_url: str = "https://httpbin.org/ip", timeout: int = 10
@@ -315,18 +550,24 @@ class ProxyManager:
             return {"working": False, "error": str(e)[:100]}
 
     def needs_premium_proxy(self, last_error: str) -> bool:
-        """Determine if we need a premium proxy based on the error type."""
-        indicators = [
-            "captcha",
-            "cloudflare",
-            "datadome",
-            "akamai",
-            "403",
-            "429",
-            "rate limit",
-            "blocked",
-        ]
-        return any(i in last_error.lower() for i in indicators)
+        """Determine if we need a premium proxy based on the error type.
+
+        Only block/rate-limit signatures (Cloudflare, 403, captcha, timeout)
+        recommend a premium proxy. Generic connectivity failures (connection
+        refused, DNS errors, resets) do NOT — a premium proxy cannot fix a
+        broken network path, so we keep the free fallback tier instead.
+        """
+        if not last_error:
+            return False
+        err = last_error.lower()
+        has_block = any(sig in err for sig in BLOCK_SIGNATURES)
+        if has_block and any(sig in err for sig in NETWORK_ERROR_SIGNATURES):
+            # Ambiguous error: an explicit block signature (e.g. Cloudflare)
+            # wins over a generic connectivity signal present in the message.
+            return True
+        if any(sig in err for sig in NETWORK_ERROR_SIGNATURES):
+            return False
+        return has_block
 
     def get_signup_link(self, provider_tag: str = "") -> str:
         """Get the affiliate signup link for a provider. Records the click for revenue tracking."""

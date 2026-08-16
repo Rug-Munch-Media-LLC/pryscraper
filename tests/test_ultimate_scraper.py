@@ -20,6 +20,9 @@ from ultimate_scraper import UltimateScraper
 def _clear_registry() -> None:
     """Reset global resilience registry to avoid cross-test contamination."""
     resilience.registry.domain_memory.data.clear()
+    # Persistence is env-gated and off by default, but make sure tests never
+    # write real state even if the default is flipped in the future.
+    resilience.registry.disable_persistence()
     for name in list(resilience.registry.breakers.keys()):
         cb = resilience.registry.breakers[name]
         cb.state = "closed"
@@ -30,11 +33,20 @@ def _clear_registry() -> None:
 
 
 _TIER_ALL = [
-    "_tier_direct", "_tier_tls_fingerprint", "_tier_cloudscraper",
-    "_tier_flaresolverr", "_tier_undetected", "_tier_camoufox",
-    "_tier_playwright", "_tier_googlebot", "_tier_premium_proxy",
-    "_tier_archive", "_tier_google_cache", "_tier_tor",
+    "_tier_direct",
+    "_tier_tls_fingerprint",
+    "_tier_cloudscraper",
+    "_tier_flaresolverr",
+    "_tier_undetected",
+    "_tier_camoufox",
+    "_tier_playwright",
+    "_tier_googlebot",
+    "_tier_premium_proxy",
+    "_tier_archive",
+    "_tier_google_cache",
+    "_tier_tor",
 ]
+
 
 def test_ultimate_init() -> None:
     s = UltimateScraper()
@@ -132,17 +144,19 @@ async def test_tier_camoufox_failure() -> None:
 async def test_scrape_falls_through_all_tiers() -> None:
     _clear_registry()
     s = UltimateScraper()
-    with patch.object(s, "_tier_direct", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_tls_fingerprint", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_cloudscraper", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_flaresolverr", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_undetected", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_camoufox", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_playwright", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_googlebot", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_archive", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_google_cache", new=AsyncMock(return_value=None)), \
-         patch.object(s, "_tier_tor", new=AsyncMock(return_value=None)):
+    with (
+        patch.object(s, "_tier_direct", new=AsyncMock(return_value=None)),
+        patch.object(s, "_tier_tls_fingerprint", new=AsyncMock(return_value=None)),
+        patch.object(s, "_tier_cloudscraper", new=AsyncMock(return_value=None)),
+        patch.object(s, "_tier_flaresolverr", new=AsyncMock(return_value=None)),
+        patch.object(s, "_tier_undetected", new=AsyncMock(return_value=None)),
+        patch.object(s, "_tier_camoufox", new=AsyncMock(return_value=None)),
+        patch.object(s, "_tier_playwright", new=AsyncMock(return_value=None)),
+        patch.object(s, "_tier_googlebot", new=AsyncMock(return_value=None)),
+        patch.object(s, "_tier_archive", new=AsyncMock(return_value=None)),
+        patch.object(s, "_tier_google_cache", new=AsyncMock(return_value=None)),
+        patch.object(s, "_tier_tor", new=AsyncMock(return_value=None)),
+    ):
         result = await s.scrape("http://example.com")
         assert result["status"] == "error"
 
@@ -175,3 +189,85 @@ async def test_scrape_camoufox_tier_succeeds() -> None:
         result = await s.scrape("http://example.com")
         assert result["status"] == "ok"
         assert result["method"] == "camoufox"
+
+
+@pytest.mark.anyio
+async def test_premium_proxy_not_first_by_default() -> None:
+    """Default order: trusted tiers -> Tor -> premium proxy LAST.
+
+    With both Tor and the premium proxy returning valid HTML, Tor wins
+    because it is tried first — proving the default is NOT premium-first.
+    """
+    _clear_registry()
+    s = UltimateScraper()
+    html = "<html><body>" + "x" * 1000 + "</body></html>"
+    ctx_mocks = {name: AsyncMock(return_value=None) for name in _TIER_ALL}
+    ctx_mocks["_tier_tor"].return_value = html
+    ctx_mocks["_tier_premium_proxy"].return_value = html
+    stack = ExitStack()
+    with stack:
+        for name in _TIER_ALL:
+            stack.enter_context(patch.object(s, name, new=ctx_mocks[name]))
+        result = await s.scrape("http://example.com", {"proxy_url": "http://proxy:8080"})
+    assert result["status"] == "ok"
+    assert result["method"] == "tor"
+    ctx_mocks["_tier_tor"].assert_awaited()
+    ctx_mocks["_tier_premium_proxy"].assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_premium_proxy_used_last_after_tor_fails() -> None:
+    """When trusted tiers and Tor fail, the premium proxy is the paid last resort."""
+    _clear_registry()
+    s = UltimateScraper()
+    html = "<html><body>" + "x" * 1000 + "</body></html>"
+    ctx_mocks = {name: AsyncMock(return_value=None) for name in _TIER_ALL}
+    ctx_mocks["_tier_premium_proxy"].return_value = html
+    with ExitStack() as stack:
+        for name in _TIER_ALL:
+            stack.enter_context(patch.object(s, name, new=ctx_mocks[name]))
+        result = await s.scrape("http://example.com", {"proxy_url": "http://proxy:8080"})
+    assert result["status"] == "ok"
+    assert result["method"] == "premium_proxy"
+    # Tor was tried (and failed) BEFORE the premium proxy.
+    ctx_mocks["_tier_tor"].assert_awaited()
+    ctx_mocks["_tier_premium_proxy"].assert_awaited()
+
+
+@pytest.mark.anyio
+async def test_premium_proxy_first_when_forced() -> None:
+    """Explicit use_premium_proxy_first=True tries the proxy before any tier."""
+    _clear_registry()
+    s = UltimateScraper()
+    html = "<html><body>" + "x" * 1000 + "</body></html>"
+    ctx_mocks = {name: AsyncMock(return_value=None) for name in _TIER_ALL}
+    ctx_mocks["_tier_premium_proxy"].return_value = html
+    with ExitStack() as stack:
+        for name in _TIER_ALL:
+            stack.enter_context(patch.object(s, name, new=ctx_mocks[name]))
+        result = await s.scrape(
+            "http://example.com",
+            {"proxy_url": "http://proxy:8080", "use_premium_proxy_first": True},
+        )
+    assert result["status"] == "ok"
+    assert result["method"] == "premium_proxy"
+    ctx_mocks["_tier_tor"].assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_adaptive_order_skips_chronic_failure_tier() -> None:
+    """A tier that chronically fails for a domain is skipped in the chain."""
+    _clear_registry()
+    s = UltimateScraper()
+    for _ in range(3):
+        resilience.registry.record_domain_tier_result("example.com", "direct", False)
+    html = "<html><body>" + "x" * 1000 + "</body></html>"
+    ctx_mocks = {name: AsyncMock(return_value=None) for name in _TIER_ALL}
+    ctx_mocks["_tier_direct"].return_value = html  # would succeed if tried
+    with ExitStack() as stack:
+        for name in _TIER_ALL:
+            stack.enter_context(patch.object(s, name, new=ctx_mocks[name]))
+        result = await s.scrape("http://example.com")
+    # direct is skipped for this domain -> every other tier fails -> error.
+    assert result["status"] == "error"
+    ctx_mocks["_tier_direct"].assert_not_awaited()

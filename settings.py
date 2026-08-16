@@ -38,6 +38,9 @@ _NESTED_KEY_MAP: dict[str, str] = {
     "tor.socks5_host": "tor_socks5_host",
     "tor.socks5_port": "tor_socks5_port",
     "tor.control_port": "tor_control_port",
+    "tor.host": "tor_host",
+    "tor.port": "tor_port",
+    "tor.timeout": "tor_timeout",
     "rotation.user_agent": "rotation_user_agent",
     "rotation.ip": "ip_rotation",
     "rotation.timing": "rotation_timing",
@@ -136,6 +139,22 @@ class PrySettings(BaseSettings):
         validation_alias=AliasChoices("PRY_TOR_SOCKS5_PORT", "TOR_SOCKS5_PORT"),
     )
     tor_control_port: int = 9051
+
+    # Tor fallback (tor_fallback.py) — canonical fields used by the
+    # standalone fetch_via_tor() helper. The legacy tor_socks5_* fields
+    # above remain for the resolved_proxy_chain path.
+    tor_host: str = Field(
+        default="127.0.0.1",
+        validation_alias=AliasChoices("PRY_TOR_HOST", "TOR_HOST"),
+    )
+    tor_port: int = Field(
+        default=9050,
+        validation_alias=AliasChoices("PRY_TOR_PORT", "TOR_PORT"),
+    )
+    tor_timeout: float = Field(
+        default=30.0,
+        validation_alias=AliasChoices("PRY_TOR_TIMEOUT", "TOR_TIMEOUT"),
+    )
 
     # Rotation / retry (legacy env aliases)
     rotation_user_agent: str = "rotate"
@@ -293,6 +312,9 @@ class PrySettings(BaseSettings):
             },
             "tor": {
                 "enabled": self.tor_enabled,
+                "host": self.tor_host,
+                "port": self.tor_port,
+                "timeout": self.tor_timeout,
                 "socks5_host": self.tor_socks5_host,
                 "socks5_port": self.tor_socks5_port,
                 "control_port": self.tor_control_port,
