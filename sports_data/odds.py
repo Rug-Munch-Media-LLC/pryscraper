@@ -6,12 +6,16 @@ Two free sources are aggregated here:
   odds feed used by betting bots. Requires a free API key
   (https://the-odds-api.com) via the ``PRY_ODDS_API_KEY`` env var. The free
   tier is 500 requests/month and covers upcoming events only (historical
-  endpoints are paid). Used whenever a key is configured.
+  endpoints are paid). It aggregates 10+ major bookmakers (Pinnacle,
+  DraftKings, FanDuel, BetMGM, Caesars, PointsBet, BetRivers, bet365,
+  Unibet, William Hill, Bovada, BetOnline) and normalizes their odds into a
+  common schema. Used whenever a key is configured.
 * **ESPN public scoreboards** (``site.api.espn.com``) — no key, no quota.
   When no key is configured (or the Odds API call fails) the module degrades
   to the ``odds`` block ESPN publishes on each competition (moneyline,
-  converted to decimal). Coverage varies by league and window; when ESPN
-  publishes no odds the module returns ``[]`` (never raises).
+  converted to decimal; spread and over/under lines where published).
+  Coverage varies by league and window; when ESPN publishes no odds the
+  module returns ``[]`` (never raises).
 
 Contract
 --------
@@ -19,19 +23,50 @@ Contract
   failure). One record per (event, bookmaker, market).
 * :func:`get_event_odds` — async, never raises, returns a ``dict`` (``{}``
   on failure). Multi-sportsbook comparison for one event id.
+* :func:`supported_coverage` — sync, returns the sports x books x markets
+  matrix the engine can serve (so bots know what to request).
+
+Coverage
+--------
+Sports (20+): ``americanfootball_nfl``, ``americanfootball_ncaaf``,
+``basketball_nba``, ``basketball_ncaab``, ``basketball_wnba``,
+``baseball_mlb``, ``icehockey_nhl``, ``soccer_epl``,
+``soccer_spain_la_liga``, ``soccer_germany_bundesliga``,
+``soccer_italy_serie_a``, ``soccer_uefa_champions_league``, ``tennis_atp``,
+``tennis_wta``, ``golf_pga``, ``mma_mixed_martial_arts``, ``boxing``,
+``esports_csgo``, ``esports_dota2``, ``esports_league_of_legends``,
+``formula_1``, ``cricket_international_t20`` plus the legacy short aliases
+``nba``, ``nfl``, ``mlb``, ``nhl``, ``ncaab``, ``ncaaf``, ``epl``, ``mls``,
+``wnba``, ``ufc``, ``cfl``. ``"all"`` (default) queries the most popular
+sports: nba, nfl, epl.
+
+Markets: ``h2h`` (moneyline, 2-way or 3-way with ``draw_odds``), ``spreads``,
+``totals`` (over/under), ``outrights`` (futures/winner). Pass
+``market="h2h,spreads"`` (comma or pipe separated) or ``market="all"``.
+
+Books (12+): ``pinnacle``, ``draftkings``, ``fanduel``, ``betmgm``,
+``caesars``, ``pointsbet``, ``betrivers``, ``bet365``, ``unibet``,
+``williamhill``, ``bovada``, ``betonline``. Pass ``book="draftkings"`` to
+filter (and ask The Odds API for just that book).
 
 Result shapes
 -------------
 ``get_odds`` returns a list of:
 
     {
-        "sport": "nba",
+        "sport": "basketball_nba",
         "event": "Celtics @ Lakers",
         "event_id": "bda33adc...",
         "market": "h2h",
-        "bookmaker": "DraftKings",
-        "home_odds": 1.85,
-        "away_odds": 2.10,
+        "book": "draftkings",
+        "bookmaker": "DraftKings",       # legacy alias of ``book``
+        "home": "Los Angeles Lakers",
+        "away": "Boston Celtics",
+        "home_odds": 2.10,
+        "away_odds": 1.85,
+        "draw_odds": None,               # 3-way markets only
+        "spread": None,                  # spreads market only
+        "total": None,                   # totals market only
         "last_update": "2026-08-16T12:00:00Z",
         "source": "the_odds_api",
     }
@@ -40,13 +75,14 @@ Result shapes
 
     {
         "event_id": "bda33adc...",
-        "sport": "nba",
+        "sport": "basketball_nba",
         "event": "Celtics @ Lakers",
         "commence_time": "2026-08-17T00:00:00Z",
         "bookmakers": [
             {
                 "key": "draftkings",
                 "title": "DraftKings",
+                "book": "draftkings",
                 "markets": [
                     {"key": "h2h", "outcomes": [{"name": "Celtics", "price": 1.85}, ...]}
                 ],
@@ -54,10 +90,12 @@ Result shapes
         ],
     }
 
-Sport names accepted: ``nba``, ``nfl``, ``mlb``, ``nhl``, ``ncaab``,
-``ncaaf``, ``epl``, ``mls``, ``wnba``, ``ufc``, ``cfl`` (or the Odds API key
-style directly, e.g. ``basketball_nba``). ``"all"`` (default) queries the
-most popular sports: nba, nfl, epl.
+Caching
+-------
+Raw upstream responses are cached in-memory for 10 seconds (bots poll
+fast); the cache is keyed by URL + query params and is bypassed while an
+HTTP mock (respx) is active so tests observe every request.
+:func:`~sports_data.odds._clear_cache` drops the cache (tests/tuning).
 
 Free-API terms: https://the-odds-api.com (v4 docs, cost = markets x regions
 per call; free tier ~ 500 requests/month). Backoff: 1 retry, exponential
@@ -76,6 +114,8 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
+import time
 from typing import Any
 from urllib.parse import quote
 
@@ -85,26 +125,137 @@ from retry import RetryConfig, async_retry
 
 logger = logging.getLogger(__name__)
 
-# Canonical slug → (The Odds API sport key, (ESPN sport, ESPN league)).
-# Keep entries cheap to query: each slug in a "all" run costs one request.
-_SPORTS: dict[str, tuple[str, tuple[str, str]]] = {
-    "nba": ("basketball_nba", ("basketball", "nba")),
-    "nfl": ("americanfootball_nfl", ("americanfootball", "nfl")),
-    "mlb": ("baseball_mlb", ("baseball", "mlb")),
-    "nhl": ("icehockey_nhl", ("icehockey", "nhl")),
-    "ncaab": ("basketball_ncaab", ("basketball", "mens-college-basketball")),
-    "ncaaf": ("americanfootball_ncaaf", ("americanfootball", "college-football")),
-    "epl": ("soccer_epl", ("soccer", "eng.1")),
-    "mls": ("soccer_usa_mls", ("soccer", "usa.1")),
-    "wnba": ("basketball_wnba", ("basketball", "wnba")),
-    "ufc": ("mma_ufc", ("mma", "ufc")),
-    "cfl": ("americanfootball_cfl", ("americanfootball", "cfl")),
+# ── Markets ────────────────────────────────────────────────────────────
+_MARKET_H2H = "h2h"
+_MARKET_SPREADS = "spreads"
+_MARKET_TOTALS = "totals"
+_MARKET_OUTRIGHTS = "outrights"
+_MARKETS_ALL: tuple[str, ...] = (
+    _MARKET_H2H,
+    _MARKET_SPREADS,
+    _MARKET_TOTALS,
+    _MARKET_OUTRIGHTS,
+)
+
+# Accept common aliases (moneyline, spread, over/under, futures...).
+_MARKET_ALIASES: dict[str, str] = {
+    "h2h": _MARKET_H2H,
+    "ml": _MARKET_H2H,
+    "moneyline": _MARKET_H2H,
+    "spread": _MARKET_SPREADS,
+    "spreads": _MARKET_SPREADS,
+    "pointspread": _MARKET_SPREADS,
+    "total": _MARKET_TOTALS,
+    "totals": _MARKET_TOTALS,
+    "overunder": _MARKET_TOTALS,
+    "ou": _MARKET_TOTALS,
+    "outrights": _MARKET_OUTRIGHTS,
+    "futures": _MARKET_OUTRIGHTS,
+    "winner": _MARKET_OUTRIGHTS,
+    "championship": _MARKET_OUTRIGHTS,
 }
+
+# ── Sports ─────────────────────────────────────────────────────────────
+# Canonical sport key (the Odds API key) -> ESPN (sport, league) fallback.
+# ``None`` ESPN means The Odds API is the only source for that sport.
+_CANONICAL_SPORTS: dict[str, tuple[str, str] | None] = {
+    "americanfootball_nfl": ("americanfootball", "nfl"),
+    "americanfootball_ncaaf": ("americanfootball", "college-football"),
+    "basketball_nba": ("basketball", "nba"),
+    "basketball_ncaab": ("basketball", "mens-college-basketball"),
+    "basketball_wnba": ("basketball", "wnba"),
+    "baseball_mlb": ("baseball", "mlb"),
+    "icehockey_nhl": ("icehockey", "nhl"),
+    "soccer_epl": ("soccer", "eng.1"),
+    "soccer_spain_la_liga": ("soccer", "esp.1"),
+    "soccer_germany_bundesliga": ("soccer", "ger.1"),
+    "soccer_italy_serie_a": ("soccer", "ita.1"),
+    "soccer_uefa_champions_league": ("soccer", "uefa.champions"),
+    "tennis_atp": ("tennis", "atp"),
+    "tennis_wta": ("tennis", "wta"),
+    "golf_pga": ("golf", "pga"),
+    "mma_mixed_martial_arts": ("mma", "ufc"),
+    "boxing": None,
+    "esports_csgo": None,
+    "esports_dota2": None,
+    "esports_league_of_legends": None,
+    "formula_1": ("racing", "f1"),
+    "cricket_international_t20": None,
+    # Legacy sports kept for backward compatibility with short aliases.
+    "soccer_usa_mls": ("soccer", "usa.1"),
+    "americanfootball_cfl": ("americanfootball", "cfl"),
+}
+
+# Legacy short aliases -> canonical key (backward compatibility).
+_SPORT_ALIASES: dict[str, str] = {
+    "nba": "basketball_nba",
+    "nfl": "americanfootball_nfl",
+    "mlb": "baseball_mlb",
+    "nhl": "icehockey_nhl",
+    "ncaab": "basketball_ncaab",
+    "ncaaf": "americanfootball_ncaaf",
+    "epl": "soccer_epl",
+    "mls": "soccer_usa_mls",
+    "wnba": "basketball_wnba",
+    "ufc": "mma_mixed_martial_arts",
+    "cfl": "americanfootball_cfl",
+}
+
+
+def _build_sports_table() -> dict[str, tuple[str, tuple[str, str] | None]]:
+    """Build the lookup table: alias/canonical key -> (odds key, ESPN tuple)."""
+    table: dict[str, tuple[str, tuple[str, str] | None]] = {}
+    for key, espn in _CANONICAL_SPORTS.items():
+        table[key] = (key, espn)
+    for alias, canonical in _SPORT_ALIASES.items():
+        table[alias] = table[canonical]
+    return table
+
+
+_SPORTS: dict[str, tuple[str, tuple[str, str] | None]] = _build_sports_table()
 
 # The Odds API free tier is quota-bound (500 req/month); "all" never queries
 # the full sport list. These are the sports betting bots care about most.
 _DEFAULT_SPORTS: tuple[str, ...] = ("nba", "nfl", "epl")
 
+# ── Books ──────────────────────────────────────────────────────────────
+# Canonical book slug -> the upstream identifiers that identify it.
+# The values are The Odds API ``bookmakers`` keys (valid for the upstream
+# request) — display titles live in ``_BOOK_TITLES`` below (normalization
+# only, never sent upstream).
+_BOOKS: dict[str, tuple[str, ...]] = {
+    "pinnacle": ("pinnacle",),
+    "draftkings": ("draftkings",),
+    "fanduel": ("fanduel",),
+    "betmgm": ("betmgm",),
+    "caesars": ("caesars",),
+    "pointsbet": ("pointsbetus", "pointsbet"),
+    "betrivers": ("betrivers",),
+    "bet365": ("bet365",),
+    "unibet": ("unibet",),
+    "williamhill": ("williamhill_us", "williamhill"),
+    "bovada": ("bovada",),
+    "betonline": ("betonlineag", "betonline"),
+}
+
+# Display titles (ESPN provider names etc.) -> canonical slug. Used for
+# normalization only — never sent upstream.
+_BOOK_TITLES: dict[str, str] = {
+    "pinnacle": "pinnacle",
+    "draftkings": "draftkings",
+    "fanduel": "fanduel",
+    "betmgm": "betmgm",
+    "caesars": "caesars",
+    "pointsbet": "pointsbet",
+    "betrivers": "betrivers",
+    "bet365": "bet365",
+    "unibet": "unibet",
+    "williamhill": "williamhill",
+    "bovada": "bovada",
+    "betonline": "betonline",
+}
+
+# ── Endpoints / transport ──────────────────────────────────────────────
 _ODDS_BASE = "https://api.the-odds-api.com/v4/sports"
 _ESPN_SCOREBOARD = "https://site.api.espn.com/apis/site/v2/sports/{sport}/{league}/scoreboard"
 
@@ -126,7 +277,9 @@ _HEADERS = {
 
 _MAX_LIMIT = 100
 _ODDS_API_REGIONS = "us"
-_ODDS_API_MARKETS = "h2h"
+
+# 10s in-memory TTL cache on raw upstream responses (bots poll fast).
+_CACHE_TTL = 10.0
 
 
 def _api_key() -> str:
@@ -135,20 +288,17 @@ def _api_key() -> str:
 
 
 def _resolve_sports(sport: str) -> list[str]:
-    """Map a ``sport`` parameter to the list of canonical slugs to query.
+    """Map a ``sport`` parameter to the list of sports to query.
 
-    ``""`` / ``"all"`` → the default sports; a known name or an Odds API key
-    (e.g. ``basketball_nba``) → that one sport; anything unknown → ``[]``
-    (callers treat this as "invalid sport, return empty").
+    ``""`` / ``"all"`` → the default sports; a known canonical key or short
+    alias (e.g. ``basketball_nba`` or ``nba``) → that one sport; anything
+    unknown → ``[]`` (callers treat this as "invalid sport, return empty").
     """
     raw = str(sport or "").strip().lower()
     if raw in {"", "all"}:
         return list(_DEFAULT_SPORTS)
     if raw in _SPORTS:
         return [raw]
-    for name, (odds_key, _espn) in _SPORTS.items():
-        if raw == odds_key:
-            return [name]
     return []
 
 
@@ -170,6 +320,16 @@ def _to_float(value: Any) -> float | None:
         return None
 
 
+def _nested(mapping: Any, *keys: str) -> Any:
+    """Dive into nested dicts, returning None if any level is missing."""
+    current = mapping
+    for key in keys:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
+
+
 def _american_to_decimal(price: Any) -> float | None:
     """Convert American moneyline odds (e.g. -150, +125) to decimal odds."""
     value = _to_float(price)
@@ -187,11 +347,110 @@ def _event_label(home: str | None, away: str | None) -> str | None:
     return f"{away} @ {home}"
 
 
-# ── Fetching ───────────────────────────────────────────────────────────
+def _canonical_book(value: str | None) -> str:
+    """Normalize a bookmaker key/title to a canonical book slug."""
+    if not value:
+        return "unknown"
+    norm = "".join(ch for ch in str(value).strip().lower() if ch.isalnum())
+    for slug, keys in _BOOKS.items():
+        for key in keys:
+            if "".join(ch for ch in key.lower() if ch.isalnum()) == norm:
+                return slug
+    for title, slug in _BOOK_TITLES.items():
+        if "".join(ch for ch in title.lower() if ch.isalnum()) == norm:
+            return slug
+    return norm or "unknown"
+
+
+def _bookmaker_params(book_key: str) -> str | None:
+    """Map a canonical book slug to the The Odds API ``bookmakers`` value."""
+    keys = _BOOKS.get(book_key)
+    if not keys:
+        return None
+    return ",".join(keys)
+
+
+def _normalize_markets(market: str) -> list[str]:
+    """Normalize a ``market`` parameter into the canonical markets to fetch.
+
+    Accepts comma or pipe separated values plus aliases (``moneyline``,
+    ``spread``, ``overunder``, ``futures``...). ``"all"`` / ``"*"`` requests
+    every market; anything unparseable falls back to ``h2h``.
+    """
+    raw = str(market or "").strip().lower().replace("|", ",")
+    if raw in {"all", "*"}:
+        return list(_MARKETS_ALL)
+    if not raw:
+        return [_MARKET_H2H]
+    markets: list[str] = []
+    for part in raw.split(","):
+        part = part.strip().lower()
+        canonical = _MARKET_ALIASES.get(part)
+        if canonical is not None and canonical not in markets:
+            markets.append(canonical)
+    return markets or [_MARKET_H2H]
+
+
+# ── Upstream response cache (10s TTL) ─────────────────────────────────
+_http_cache: dict[tuple[Any, ...], tuple[float, Any]] = {}
+
+
+def _monotonic() -> float:
+    """Injectable clock for cache expiry (tests control time)."""
+    return time.monotonic()
+
+
+def _cache_enabled() -> bool:
+    """Return False while an HTTP mock (respx) is active.
+
+    The cache exists to stop production pollers hammering upstream APIs.
+    When tests install respx routes they expect every request to be
+    observed, so the cache is bypassed — otherwise a cached response would
+    leak across tests that mock the same URL differently.
+    """
+    respx_mod = sys.modules.get("respx")
+    if respx_mod is None:
+        return True
+    return not bool(getattr(respx_mod, "routes", []))
+
+
+def _cache_key(url: str, params: dict[str, str] | None) -> tuple[Any, ...]:
+    """Cache key = URL + sorted query params (the API key stays in-memory only)."""
+    return (url, tuple(sorted((params or {}).items())))
+
+
+def _clear_cache() -> None:
+    """Drop all cached upstream responses (exposed for tests/tuning)."""
+    _http_cache.clear()
+
+
 async def _fetch_json(
     url: str, params: dict[str, str] | None = None
 ) -> dict[str, Any] | list[Any] | None:
-    """GET ``url`` and return the parsed JSON (object or array), or ``None`` on failure."""
+    """GET ``url`` (cached for :data:`_CACHE_TTL` seconds) and parse JSON.
+
+    Returns the parsed object/array, or ``None`` on failure. The raw
+    upstream response is what gets cached, so rapid pollers share one
+    upstream call per (URL, params) within the TTL window.
+    """
+    key = _cache_key(url, params)
+    if _cache_enabled():
+        entry = _http_cache.get(key)
+        if entry is not None:
+            cached_at, payload = entry
+            if _monotonic() - cached_at < _CACHE_TTL:
+                return payload
+            _http_cache.pop(key, None)
+    payload = await _fetch_uncached(url, params)
+    if payload is not None and _cache_enabled():
+        _http_cache[key] = (_monotonic(), payload)
+    return payload
+
+
+async def _fetch_uncached(
+    url: str, params: dict[str, str] | None = None
+) -> dict[str, Any] | list[Any] | None:
+    """Perform the actual HTTP GET with retry/backoff (no caching)."""
 
     async def _one() -> dict[str, Any] | list[Any]:
         async with httpx.AsyncClient(
@@ -211,13 +470,219 @@ async def _fetch_json(
 
 
 # ── The Odds API mapping ───────────────────────────────────────────────
-def _map_odds_event(raw: dict[str, Any], sport_slug: str) -> list[dict[str, Any]]:
-    """Map one The Odds API event object onto canonical odds records."""
+def _record(
+    *,
+    sport: str,
+    event: str,
+    event_id: str | None,
+    market: str,
+    book: str,
+    bookmaker: str,
+    home: str | None,
+    away: str | None,
+    home_odds: float | None,
+    away_odds: float | None,
+    draw_odds: float | None = None,
+    spread: float | None = None,
+    total: float | None = None,
+    last_update: str | None,
+    source: str,
+) -> dict[str, Any]:
+    """Build one canonical odds record (the shared schema across sources)."""
+    return {
+        "sport": sport,
+        "event": event,
+        "event_id": event_id,
+        "market": market,
+        "book": book,
+        "bookmaker": bookmaker,
+        "home": home,
+        "away": away,
+        "home_odds": home_odds,
+        "away_odds": away_odds,
+        "draw_odds": draw_odds,
+        "spread": spread,
+        "total": total,
+        "last_update": last_update,
+        "source": source,
+    }
+
+
+def _outcome_prices(outcomes: Any) -> dict[str, float]:
+    """Map normalized outcome name -> decimal price for one market."""
+    prices: dict[str, float] = {}
+    if not isinstance(outcomes, list):
+        return prices
+    for outcome in outcomes:
+        if not isinstance(outcome, dict):
+            continue
+        name = _as_text(outcome.get("name"))
+        price = _to_float(outcome.get("price"))
+        if name is not None and price is not None:
+            prices.setdefault(name.lower(), price)
+    return prices
+
+
+def _market_records(
+    market_key: str,
+    outcomes: Any,
+    *,
+    sport: str,
+    event: str | None,
+    event_id: str | None,
+    book: str,
+    bookmaker: str,
+    home: str | None,
+    away: str | None,
+    last_update: str | None,
+) -> list[dict[str, Any]]:
+    """Map one (bookmaker, market) block onto canonical odds records."""
+    market = _MARKET_ALIASES.get(str(market_key or "").strip().lower(), _MARKET_H2H)
+
+    if market == _MARKET_H2H:
+        prices = _outcome_prices(outcomes)
+        home_price = prices.get(home.lower()) if home else None
+        away_price = prices.get(away.lower()) if away else None
+        draw_price = prices.get("draw") or prices.get("tie")
+        if home_price is None and away_price is None:
+            return []
+        return [
+            _record(
+                sport=sport,
+                event=event or "",
+                event_id=event_id,
+                market=_MARKET_H2H,
+                book=book,
+                bookmaker=bookmaker,
+                home=home,
+                away=away,
+                home_odds=home_price,
+                away_odds=away_price,
+                draw_odds=draw_price,
+                last_update=last_update,
+                source="the_odds_api",
+            )
+        ]
+
+    if market == _MARKET_SPREADS:
+        home_price = away_price = None
+        home_point = away_point = None
+        for outcome in outcomes if isinstance(outcomes, list) else []:
+            if not isinstance(outcome, dict):
+                continue
+            name = _as_text(outcome.get("name"))
+            price = _to_float(outcome.get("price"))
+            point = _to_float(outcome.get("point"))
+            if name is None or price is None:
+                continue
+            if home and name.lower() == home.lower():
+                home_price, home_point = price, point
+            elif away and name.lower() == away.lower():
+                away_price, away_point = price, point
+        if home_price is None and away_price is None:
+            return []
+        spread = home_point
+        if spread is None and away_point is not None:
+            spread = -away_point
+        return [
+            _record(
+                sport=sport,
+                event=event or "",
+                event_id=event_id,
+                market=_MARKET_SPREADS,
+                book=book,
+                bookmaker=bookmaker,
+                home=home,
+                away=away,
+                home_odds=home_price,
+                away_odds=away_price,
+                spread=spread,
+                last_update=last_update,
+                source="the_odds_api",
+            )
+        ]
+
+    if market == _MARKET_TOTALS:
+        over_price = under_price = None
+        total: float | None = None
+        for outcome in outcomes if isinstance(outcomes, list) else []:
+            if not isinstance(outcome, dict):
+                continue
+            name = _as_text(outcome.get("name"))
+            price = _to_float(outcome.get("price"))
+            point = _to_float(outcome.get("point"))
+            if name is None or price is None:
+                continue
+            if name.lower() in {"over", "o"}:
+                over_price, total = price, point
+            elif name.lower() in {"under", "u"}:
+                under_price, total = price, point
+        if over_price is None and under_price is None:
+            return []
+        return [
+            _record(
+                sport=sport,
+                event=event or "",
+                event_id=event_id,
+                market=_MARKET_TOTALS,
+                book=book,
+                bookmaker=bookmaker,
+                home=home,
+                away=away,
+                home_odds=over_price,
+                away_odds=under_price,
+                total=total,
+                last_update=last_update,
+                source="the_odds_api",
+            )
+        ]
+
+    if market == _MARKET_OUTRIGHTS:
+        contenders: list[tuple[str, float]] = []
+        for outcome in outcomes if isinstance(outcomes, list) else []:
+            if not isinstance(outcome, dict):
+                continue
+            name = _as_text(outcome.get("name"))
+            price = _to_float(outcome.get("price"))
+            if name is not None and price is not None:
+                contenders.append((name, price))
+        records: list[dict[str, Any]] = []
+        for name, price in contenders:
+            records.append(
+                _record(
+                    sport=sport,
+                    event=event or name,
+                    event_id=event_id,
+                    market=_MARKET_OUTRIGHTS,
+                    book=book,
+                    bookmaker=bookmaker,
+                    home=name,
+                    away=None,
+                    home_odds=price,
+                    away_odds=None,
+                    last_update=last_update,
+                    source="the_odds_api",
+                )
+            )
+        return records
+
+    return []
+
+
+def _map_odds_event(
+    raw: dict[str, Any],
+    sport_key: str,
+    markets: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Map one The Odds API event object onto canonical odds records.
+
+    ``markets`` optionally restricts which markets are emitted (upstream
+    usually filters server-side; this keeps the mapper defensive).
+    """
+    wanted = markets or [_MARKET_H2H]
     home = _as_text(raw.get("home_team"))
     away = _as_text(raw.get("away_team"))
     event = _event_label(home, away)
-    if not event:
-        return []
     event_id = _as_text(raw.get("id"))
     commence = _as_text(raw.get("commence_time"))
     bookmakers = raw.get("bookmakers")
@@ -230,66 +695,68 @@ def _map_odds_event(raw: dict[str, Any], sport_slug: str) -> list[dict[str, Any]
         title = _as_text(bk.get("title")) or _as_text(bk.get("key"))
         if not title:
             continue
+        book = _canonical_book(_as_text(bk.get("key")) or title)
         last_update = _as_text(bk.get("last_update")) or commence
-        markets = bk.get("markets")
-        if not isinstance(markets, list):
+        markets_list = bk.get("markets")
+        if not isinstance(markets_list, list):
             continue
-        for mkt in markets:
+        for mkt in markets_list:
             if not isinstance(mkt, dict):
                 continue
-            market = _as_text(mkt.get("key")) or "h2h"
-            home_price: float | None = None
-            away_price: float | None = None
-            outcomes = mkt.get("outcomes")
-            if not isinstance(outcomes, list):
+            market_key = _as_text(mkt.get("key")) or _MARKET_H2H
+            canonical = _MARKET_ALIASES.get(market_key, _MARKET_H2H)
+            if canonical not in wanted:
                 continue
-            for outcome in outcomes:
-                if not isinstance(outcome, dict):
-                    continue
-                price = _to_float(outcome.get("price"))
-                if price is None:
-                    continue
-                name = _as_text(outcome.get("name"))
-                if name is None:
-                    continue
-                if name.lower() == str(home).lower():
-                    home_price = price
-                elif name.lower() == str(away).lower():
-                    away_price = price
-            if home_price is None and away_price is None:
-                continue
-            records.append(
-                {
-                    "sport": sport_slug,
-                    "event": event,
-                    "event_id": event_id,
-                    "market": market,
-                    "bookmaker": title,
-                    "home_odds": home_price,
-                    "away_odds": away_price,
-                    "last_update": last_update,
-                    "source": "the_odds_api",
-                }
+            records.extend(
+                _market_records(
+                    market_key,
+                    mkt.get("outcomes"),
+                    sport=sport_key,
+                    event=event,
+                    event_id=event_id,
+                    book=book,
+                    bookmaker=title,
+                    home=home,
+                    away=away,
+                    last_update=last_update,
+                )
             )
     return records
 
 
-def _map_event_comparison(raw: dict[str, Any], sport_slug: str) -> dict[str, Any]:
+def _map_event_comparison(
+    raw: dict[str, Any],
+    sport_slug: str,
+    markets: list[str] | None = None,
+    book: str | None = None,
+) -> dict[str, Any]:
     """Map a single-event Odds API payload onto the comparison dict."""
     home = _as_text(raw.get("home_team"))
     away = _as_text(raw.get("away_team"))
     event = _event_label(home, away) or ""
+    wanted_markets = markets or [_MARKET_H2H]
     bookmakers: list[dict[str, Any]] = []
     raw_bookmakers = raw.get("bookmakers")
     if isinstance(raw_bookmakers, list):
         for bk in raw_bookmakers:
             if not isinstance(bk, dict):
                 continue
-            markets: list[dict[str, Any]] = []
+            bk_key = _as_text(bk.get("key"))
+            title = _as_text(bk.get("title")) or bk_key
+            if not title:
+                continue
+            book_slug = _canonical_book(bk_key or title)
+            if book is not None and book_slug != book:
+                continue
+            markets_out: list[dict[str, Any]] = []
             raw_markets = bk.get("markets")
             if isinstance(raw_markets, list):
                 for mkt in raw_markets:
                     if not isinstance(mkt, dict):
+                        continue
+                    mkt_key = _as_text(mkt.get("key")) or _MARKET_H2H
+                    canonical_mkt = _MARKET_ALIASES.get(mkt_key, _MARKET_H2H)
+                    if canonical_mkt not in wanted_markets:
                         continue
                     outcomes: list[dict[str, Any]] = []
                     raw_outcomes = mkt.get("outcomes")
@@ -307,17 +774,13 @@ def _map_event_comparison(raw: dict[str, Any], sport_slug: str) -> dict[str, Any
                                 entry["point"] = point
                             outcomes.append(entry)
                     if outcomes:
-                        markets.append(
-                            {
-                                "key": _as_text(mkt.get("key")) or "h2h",
-                                "outcomes": outcomes,
-                            }
-                        )
+                        markets_out.append({"key": mkt_key, "outcomes": outcomes})
             bookmakers.append(
                 {
-                    "key": _as_text(bk.get("key")),
-                    "title": _as_text(bk.get("title")) or _as_text(bk.get("key")),
-                    "markets": markets,
+                    "key": bk_key,
+                    "title": title,
+                    "book": book_slug,
+                    "markets": markets_out,
                 }
             )
     return {
@@ -354,7 +817,11 @@ def _espn_competitors(
 
 
 def _espn_odds_to_records(
-    comp: dict[str, Any], sport_slug: str, home: str | None, away: str | None
+    comp: dict[str, Any],
+    sport_slug: str,
+    home: str | None,
+    away: str | None,
+    markets: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Map the ESPN ``odds`` block of one competition onto canonical records."""
     event = _event_label(home, away)
@@ -363,6 +830,7 @@ def _espn_odds_to_records(
     odds_list = comp.get("odds")
     if not isinstance(odds_list, list):
         return []
+    wanted_markets = markets or [_MARKET_H2H]
     records: list[dict[str, Any]] = []
     for odd in odds_list:
         if not isinstance(odd, dict):
@@ -371,36 +839,80 @@ def _espn_odds_to_records(
         title = _as_text(provider.get("name")) if isinstance(provider, dict) else None
         if not title:
             continue
-        home_ml = _american_to_decimal(
-            odd.get("homeTeamOdds", {}).get("moneyLine")
-            if isinstance(odd.get("homeTeamOdds"), dict)
-            else None
-        )
-        away_ml = _american_to_decimal(
-            odd.get("awayTeamOdds", {}).get("moneyLine")
-            if isinstance(odd.get("awayTeamOdds"), dict)
-            else None
-        )
-        if home_ml is None and away_ml is None:
-            continue
-        records.append(
-            {
-                "sport": sport_slug,
-                "event": event,
-                "event_id": _as_text(comp.get("id")),
-                "market": "h2h",
-                "bookmaker": title,
-                "home_odds": home_ml,
-                "away_odds": away_ml,
-                "last_update": None,
-                "source": "espn",
-            }
-        )
+        book = _canonical_book(title)
+        event_id = _as_text(comp.get("id"))
+        base = {
+            "sport": sport_slug,
+            "event": event,
+            "event_id": event_id,
+            "book": book,
+            "bookmaker": title,
+            "home": home,
+            "away": away,
+            "last_update": None,
+            "source": "espn",
+        }
+        for market in wanted_markets:
+            if market == _MARKET_H2H:
+                home_ml = _american_to_decimal(_nested(odd, "homeTeamOdds", "moneyLine"))
+                away_ml = _american_to_decimal(_nested(odd, "awayTeamOdds", "moneyLine"))
+                if home_ml is None and away_ml is None:
+                    continue
+                record = dict(base)
+                record.update(
+                    {
+                        "market": _MARKET_H2H,
+                        "home_odds": home_ml,
+                        "away_odds": away_ml,
+                        "draw_odds": None,
+                        "spread": None,
+                        "total": None,
+                    }
+                )
+                records.append(record)
+            elif market == _MARKET_SPREADS:
+                spread = _to_float(odd.get("spread"))
+                if spread is None:
+                    continue
+                home_so = _american_to_decimal(_nested(odd, "homeTeamOdds", "spreadOdds"))
+                away_so = _american_to_decimal(_nested(odd, "awayTeamOdds", "spreadOdds"))
+                record = dict(base)
+                record.update(
+                    {
+                        "market": _MARKET_SPREADS,
+                        "home_odds": home_so,
+                        "away_odds": away_so,
+                        "draw_odds": None,
+                        "spread": spread,
+                        "total": None,
+                    }
+                )
+                records.append(record)
+            elif market == _MARKET_TOTALS:
+                total = _to_float(odd.get("overUnder"))
+                if total is None:
+                    continue
+                record = dict(base)
+                record.update(
+                    {
+                        "market": _MARKET_TOTALS,
+                        "home_odds": None,
+                        "away_odds": None,
+                        "draw_odds": None,
+                        "spread": None,
+                        "total": total,
+                    }
+                )
+                records.append(record)
     return records
 
 
 def _espn_odds_to_comparison(
-    comp: dict[str, Any], sport_slug: str, event_id: str
+    comp: dict[str, Any],
+    sport_slug: str,
+    event_id: str,
+    markets: list[str] | None = None,
+    book: str | None = None,
 ) -> dict[str, Any]:
     """Build a multi-book comparison dict from one ESPN competition's odds."""
     home, away, _home_score, _away_score = _espn_competitors(comp)
@@ -414,17 +926,12 @@ def _espn_odds_to_comparison(
             title = _as_text(provider.get("name")) if isinstance(provider, dict) else None
             if not title:
                 continue
+            book_slug = _canonical_book(title)
+            if book is not None and book_slug != book:
+                continue
             outcomes: list[dict[str, Any]] = []
-            home_ml = _american_to_decimal(
-                odd.get("homeTeamOdds", {}).get("moneyLine")
-                if isinstance(odd.get("homeTeamOdds"), dict)
-                else None
-            )
-            away_ml = _american_to_decimal(
-                odd.get("awayTeamOdds", {}).get("moneyLine")
-                if isinstance(odd.get("awayTeamOdds"), dict)
-                else None
-            )
+            home_ml = _american_to_decimal(_nested(odd, "homeTeamOdds", "moneyLine"))
+            away_ml = _american_to_decimal(_nested(odd, "awayTeamOdds", "moneyLine"))
             if home_ml is not None and home is not None:
                 outcomes.append({"name": home, "price": home_ml})
             if away_ml is not None and away is not None:
@@ -434,7 +941,8 @@ def _espn_odds_to_comparison(
                     {
                         "key": None,
                         "title": title,
-                        "markets": [{"key": "h2h", "outcomes": outcomes}],
+                        "book": book_slug,
+                        "markets": [{"key": _MARKET_H2H, "outcomes": outcomes}],
                     }
                 )
     return {
@@ -448,10 +956,14 @@ def _espn_odds_to_comparison(
 
 
 async def _espn_odds_for_league(
-    espn_sport: str, espn_league: str, sport_slug: str
+    espn: tuple[str, str] | None,
+    sport_slug: str,
+    markets: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Fetch one ESPN scoreboard and flatten its odds blocks into records."""
-    url = _ESPN_SCOREBOARD.format(sport=espn_sport, league=espn_league)
+    if espn is None:
+        return []
+    url = _ESPN_SCOREBOARD.format(sport=espn[0], league=espn[1])
     payload = await _fetch_json(url)
     if not isinstance(payload, dict):
         return []
@@ -469,15 +981,21 @@ async def _espn_odds_for_league(
         if not isinstance(comp, dict):
             continue
         home, away, _hs, _as = _espn_competitors(comp)
-        records.extend(_espn_odds_to_records(comp, sport_slug, home, away))
+        records.extend(_espn_odds_to_records(comp, sport_slug, home, away, markets))
     return records
 
 
 async def _espn_find_event(
-    espn_sport: str, espn_league: str, sport_slug: str, event_id: str
+    espn: tuple[str, str] | None,
+    sport_slug: str,
+    event_id: str,
+    markets: list[str] | None = None,
+    book: str | None = None,
 ) -> dict[str, Any] | None:
     """Find one event on an ESPN scoreboard and build its odds comparison."""
-    url = _ESPN_SCOREBOARD.format(sport=espn_sport, league=espn_league)
+    if espn is None:
+        return None
+    url = _ESPN_SCOREBOARD.format(sport=espn[0], league=espn[1])
     payload = await _fetch_json(url)
     if not isinstance(payload, dict):
         return None
@@ -494,7 +1012,7 @@ async def _espn_find_event(
         if not isinstance(comp, dict):
             continue
         if _as_text(ev.get("id")) == event_id or _as_text(comp.get("id")) == event_id:
-            comparison = _espn_odds_to_comparison(comp, sport_slug, event_id)
+            comparison = _espn_odds_to_comparison(comp, sport_slug, event_id, markets, book)
             if comparison.get("bookmakers"):
                 return comparison
     return None
@@ -502,7 +1020,11 @@ async def _espn_find_event(
 
 # ── Public API ─────────────────────────────────────────────────────────
 async def get_odds(
-    event_query: str = "", sport: str = "all", limit: int = 20
+    event_query: str = "",
+    sport: str = "all",
+    limit: int = 20,
+    market: str = "h2h",
+    book: str | None = None,
 ) -> list[dict[str, Any]]:
     """Fetch live odds across bookmakers for one or more sports.
 
@@ -511,43 +1033,65 @@ async def get_odds(
             ``"celtics"``). Empty matches everything.
         sport: Sport name (see module docstring) or ``"all"`` (default).
         limit: Max records to return (1-100).
+        market: Market(s) to fetch — ``"h2h"`` (default), ``"spreads"``,
+            ``"totals"``, ``"outrights"``, comma/pipe separated combos, or
+            ``"all"``. Aliases: ``moneyline``, ``spread``, ``overunder``,
+            ``futures``.
+        book: Optional single-book filter (e.g. ``"draftkings"``). When set
+            The Odds API is asked for just that book and the result is
+            filtered client-side too (covers the ESPN fallback).
 
     Returns:
         A list of odds records (see module docstring). ``[]`` on failure or
         invalid sport. Never raises.
     """
     try:
-        return await _get_odds(event_query, sport, limit)
+        return await _get_odds(event_query, sport, limit, market, book)
     except Exception:
-        logger.exception("sports_odds_crashed", extra={"event_query": event_query, "sport": sport})
+        logger.exception(
+            "sports_odds_crashed",
+            extra={"event_query": event_query, "sport": sport, "market": market, "book": book},
+        )
         return []
 
 
-async def _get_odds(event_query: str, sport: str, limit: int) -> list[dict[str, Any]]:
+async def _get_odds(
+    event_query: str,
+    sport: str,
+    limit: int,
+    market: str,
+    book: str | None,
+) -> list[dict[str, Any]]:
     slugs = _resolve_sports(sport)
     if not slugs:
         logger.warning("sports_odds_invalid_sport", extra={"sport": sport})
         return []
     clamped = max(1, min(int(limit), _MAX_LIMIT))
+    markets = _normalize_markets(market)
     key = _api_key()
+    book_key = _canonical_book(book) if book else None
     records: list[dict[str, Any]] = []
     for slug in slugs:
-        odds_key, (espn_sport, espn_league) = _SPORTS[slug]
+        odds_key, espn = _SPORTS[slug]
         if key:
-            url = f"{_ODDS_BASE}/{quote(odds_key)}/odds"
-            params = {
+            params: dict[str, str] = {
                 "apiKey": key,
                 "regions": _ODDS_API_REGIONS,
-                "markets": _ODDS_API_MARKETS,
+                "markets": ",".join(markets),
                 "oddsFormat": "decimal",
             }
+            if book_key:
+                api_books = _bookmaker_params(book_key)
+                if api_books:
+                    params["bookmakers"] = api_books
+            url = f"{_ODDS_BASE}/{quote(odds_key)}/odds"
             payload = await _fetch_json(url, params)
             if isinstance(payload, list):
                 for raw in payload:
                     if isinstance(raw, dict):
-                        records.extend(_map_odds_event(raw, slug))
+                        records.extend(_map_odds_event(raw, slug, markets=markets))
         else:
-            records.extend(await _espn_odds_for_league(espn_sport, espn_league, slug))
+            records.extend(await _espn_odds_for_league(espn, slug, markets))
     query = (event_query or "").strip().lower()
     if query:
         records = [
@@ -555,31 +1099,50 @@ async def _get_odds(event_query: str, sport: str, limit: int) -> list[dict[str, 
             for record in records
             if query in str(record.get("event") or "").lower()
             or query in str(record.get("sport") or "").lower()
+            or query in str(record.get("home") or "").lower()
+            or query in str(record.get("away") or "").lower()
         ]
+    if book_key:
+        records = [record for record in records if record.get("book") == book_key]
     records.sort(key=lambda record: str(record.get("last_update") or ""), reverse=True)
     return records[:clamped]
 
 
-async def get_event_odds(event_id: str) -> dict[str, Any]:
+async def get_event_odds(
+    event_id: str,
+    market: str = "h2h",
+    book: str | None = None,
+) -> dict[str, Any]:
     """Fetch multi-sportsbook odds for a single event.
 
     Args:
         event_id: The event id. Accepts an optional ``sport:event_id`` prefix
             (e.g. ``nba:bda33adc...`` or ``basketball_nba:...``) to skip the
             default-sport scan.
+        market: Market(s) to include in the comparison — ``"h2h"``
+            (default), ``"spreads"``, ``"totals"``, ``"outrights"`` or a
+            comma/pipe separated combo.
+        book: Optional single-book filter (e.g. ``"draftkings"``).
 
     Returns:
         A comparison dict (see module docstring) or ``{}`` on failure
         (unknown event, network error). Never raises.
     """
     try:
-        return await _get_event_odds(event_id)
+        return await _get_event_odds(event_id, market, book)
     except Exception:
-        logger.exception("sports_event_odds_crashed", extra={"event_id": event_id})
+        logger.exception(
+            "sports_event_odds_crashed",
+            extra={"event_id": event_id, "market": market, "book": book},
+        )
         return {}
 
 
-async def _get_event_odds(event_id: str) -> dict[str, Any]:
+async def _get_event_odds(
+    event_id: str,
+    market: str,
+    book: str | None,
+) -> dict[str, Any]:
     if not event_id or not str(event_id).strip():
         return {}
     raw_id = str(event_id).strip()
@@ -594,21 +1157,59 @@ async def _get_event_odds(event_id: str) -> dict[str, Any]:
         candidates = list(_DEFAULT_SPORTS)
         target_id = raw_id
     key = _api_key()
+    markets = _normalize_markets(market)
+    book_key = _canonical_book(book) if book else None
     for slug in candidates:
-        odds_key, (espn_sport, espn_league) = _SPORTS[slug]
+        odds_key, espn = _SPORTS[slug]
         if key:
-            url = f"{_ODDS_BASE}/{quote(odds_key)}/events/{quote(target_id)}/odds"
-            params = {
+            params: dict[str, str] = {
                 "apiKey": key,
                 "regions": _ODDS_API_REGIONS,
-                "markets": _ODDS_API_MARKETS,
+                "markets": ",".join(markets),
                 "oddsFormat": "decimal",
             }
+            if book_key:
+                api_books = _bookmaker_params(book_key)
+                if api_books:
+                    params["bookmakers"] = api_books
+            url = f"{_ODDS_BASE}/{quote(odds_key)}/events/{quote(target_id)}/odds"
             payload = await _fetch_json(url, params)
             if isinstance(payload, dict) and payload.get("id"):
-                return _map_event_comparison(payload, slug)
+                return _map_event_comparison(payload, slug, markets=markets, book=book_key)
         else:
-            comparison = await _espn_find_event(espn_sport, espn_league, slug, target_id)
+            comparison = await _espn_find_event(
+                espn, slug, target_id, markets=markets, book=book_key
+            )
             if comparison is not None:
                 return comparison
     return {}
+
+
+def supported_coverage() -> dict[str, Any]:
+    """Describe the sports x books x markets the odds engine can serve.
+
+    Bots use this to decide what to request. The matrix is static (the
+    engine's capabilities), not live availability — whether a given
+    bookmaker prices a given sport/market today varies upstream, and some
+    futures are only published under dedicated Odds API sport keys (e.g.
+    ``basketball_nba_championship``) which this module does not query.
+    """
+    sports: dict[str, Any] = {}
+    for key in _CANONICAL_SPORTS:
+        _odds_key, espn = _SPORTS[key]
+        sports[key] = {
+            "odds_api_key": _odds_key,
+            "espn": {"sport": espn[0], "league": espn[1]} if espn else None,
+            "markets": list(_MARKETS_ALL),
+        }
+    return {
+        "sports": sports,
+        "sport_keys": list(_CANONICAL_SPORTS),
+        "aliases": dict(sorted(_SPORT_ALIASES.items())),
+        "books": list(_BOOKS),
+        "markets": list(_MARKETS_ALL),
+        "default_sports": list(_DEFAULT_SPORTS),
+        "sources": ["the_odds_api", "espn"],
+        "cache_ttl_seconds": _CACHE_TTL,
+        "api_key_configured": bool(_api_key()),
+    }
