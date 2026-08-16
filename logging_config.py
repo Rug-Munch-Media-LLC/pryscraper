@@ -46,7 +46,11 @@ SERVICE_NAME = "pry"
 LOG_FORMAT_ENV = "PRY_LOG_FORMAT"  # "json" (default) or "console"
 LOG_LEVEL_ENV = "PRY_LOG_LEVEL"  # "DEBUG", "INFO", "WARNING", "ERROR"
 
+REQUEST_ID_KEY = "request_id"
+
 _configured = False
+# Track the active level so set_log_level() can reconfigure structlog.
+_current_level: int = logging.INFO
 
 
 def _resolve_level() -> int:
@@ -61,6 +65,23 @@ def _resolve_level() -> int:
 def _resolve_format() -> str:
     """Resolve the format from env. Default: json (production-safe)."""
     return os.getenv(LOG_FORMAT_ENV, "json").lower()
+
+
+def _shared_processors() -> list[Any]:
+    """The processors applied to every log record (structlog + stdlib bridge).
+
+    Order matters: outer processors wrap inner ones. Timestamps go first.
+    """
+    return [
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        _filter_reserved_extras,
+        _add_service_name,
+        _add_request_id_if_present,
+    ]
 
 
 def setup_logging(level: int | None = None, fmt: str | None = None) -> None:
@@ -87,19 +108,11 @@ def setup_logging(level: int | None = None, fmt: str | None = None) -> None:
 
     level = level if level is not None else _resolve_level()
     fmt = fmt or _resolve_format()
+    global _current_level
+    _current_level = level
 
     # Shared processors that add the standard fields per CONVENTIONS.md Part 5.
-    # Order matters: outer processors wrap inner ones. Timestamps go first.
-    shared_processors: list[Any] = [
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso", utc=True),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        _filter_reserved_extras,
-        _add_service_name,
-        _add_request_id_if_present,
-    ]
+    shared_processors = _shared_processors()
 
     if fmt == "console":
         # Pretty console renderer for local dev
@@ -139,6 +152,70 @@ def setup_logging(level: int | None = None, fmt: str | None = None) -> None:
     _configured = True
 
 
+def bind_request_id(request_id: str) -> None:
+    """Bind a request id into structlog contextvars for this context.
+
+    Every structlog record emitted inside the context (asyncio task /
+    thread) will carry ``request_id`` automatically. The ASGI middleware
+    (or a FastAPI dependency) should call this once per request.
+
+    Stdlib ``logging.getLogger(...)`` callers can also pass
+    ``extra={"request_id": ...}`` — the foreign_pre_chain preserves it.
+    """
+    if _HAS_STRUCTLOG:
+        structlog.contextvars.bind_contextvars(**{REQUEST_ID_KEY: request_id})
+
+
+def unbind_request_id() -> None:
+    """Remove the request id from the current context."""
+    if _HAS_STRUCTLOG:
+        structlog.contextvars.unbind_contextvars(REQUEST_ID_KEY)
+
+
+def clear_request_id() -> None:
+    """Clear the request id (and any other bound contextvars)."""
+    if _HAS_STRUCTLOG:
+        structlog.contextvars.clear_contextvars()
+
+
+def get_log_level() -> int:
+    """Return the currently active log level (int, as in the logging module)."""
+    return _current_level
+
+
+def set_log_level(level: int | str) -> None:
+    """Override the log level at runtime (e.g. from a debug endpoint).
+
+    Accepts a ``logging`` level int (``logging.DEBUG``) or a level name
+    ("DEBUG", "info", ...). Updates the root stdlib logger immediately
+    and reconfigures structlog so *newly created* loggers filter at the
+    new level. Already-cached structlog loggers keep their original
+    wrapper until they are re-created.
+    """
+    global _current_level
+    if isinstance(level, str):
+        resolved = getattr(logging, level.upper(), None)
+        if not isinstance(resolved, int):
+            raise ValueError(f"unknown log level: {level!r}")
+        level = resolved
+    if not isinstance(level, int):
+        raise TypeError("level must be an int or a level name string")
+
+    _current_level = level
+    logging.getLogger().setLevel(level)
+    if _HAS_STRUCTLOG:
+        structlog.configure(
+            processors=[
+                *_shared_processors(),
+                structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+            ],
+            wrapper_class=structlog.make_filtering_bound_logger(level),
+            context_class=dict,
+            logger_factory=structlog.stdlib.LoggerFactory(),
+            cache_logger_on_first_use=True,
+        )
+
+
 def _add_service_name(_, __, event_dict: dict[str, Any]) -> dict[str, Any]:
     """Add the service name to every log record (CONVENTIONS.md Part 5)."""
     event_dict.setdefault("service", SERVICE_NAME)
@@ -146,9 +223,27 @@ def _add_service_name(_, __, event_dict: dict[str, Any]) -> dict[str, Any]:
 
 
 def _add_request_id_if_present(_, __, event_dict: dict[str, Any]) -> dict[str, Any]:
-    """Pull request_id from contextvars (set by middleware) if present."""
-    # The middleware (or FastAPI dependency) sets this. We don't import
-    # the middleware here to avoid circular imports.
+    """Propagate request_id into every structured log record.
+
+    Priority:
+      1. An explicit ``request_id`` already in the event (a direct structlog
+         kwarg) — preserved.
+      2. ``extra={"request_id": ...}`` on a stdlib log call — lives on the
+         ``_record`` LogRecord, not the foreign event dict, so it must be
+         pulled out of the record.
+      3. ``request_id`` bound via ``bind_request_id()`` in structlog
+         contextvars (merged in by ``merge_contextvars``).
+    """
+    request_id = event_dict.get(REQUEST_ID_KEY)
+    if not request_id:
+        record = event_dict.get("_record")
+        if record is not None:
+            request_id = getattr(record, REQUEST_ID_KEY, None)
+    if not request_id and _HAS_STRUCTLOG:
+        ctx = structlog.contextvars.get_contextvars()
+        request_id = ctx.get(REQUEST_ID_KEY)
+    if request_id:
+        event_dict[REQUEST_ID_KEY] = request_id
     return event_dict
 
 

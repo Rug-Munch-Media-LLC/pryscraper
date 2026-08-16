@@ -1,4 +1,20 @@
-# Pry — Multi-stage Docker build
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+# Pry — Multi-stage Docker build (production-hardened)
+#
+#   * Pinned base image (digest) — reproducible builds
+#   * Stage 1 builds deps + Playwright + Tesseract; stage 2 is a slim runtime
+#   * Runs as non-root user `pry` (uid 1000); /app is owned by pry
+#   * HEALTHCHECK via curl against /health
+#   * ENTRYPOINT handles SIGTERM/SIGINT and drains in-flight requests
+#   * read_only rootfs-compatible: writable paths live under /app/pry-data
+#     (named volume) and /tmp (tmpfs); Python bytecode writes are disabled;
+#     Playwright browsers live at PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+#     (read-only shared location)
+
 # Stage 1: Build deps + Playwright + Tesseract
 FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS builder
 
@@ -39,7 +55,14 @@ FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+LABEL org.opencontainers.image.title="Pry" \
+      org.opencontainers.image.description="Pry open any website — web scraping + browser automation API" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.vendor="Rug Munch Media LLC"
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl=8.14.1-2+deb13u4 \
+    ca-certificates=20250419 \
     libnss3=2:3.110-1+deb13u3 \
     libnspr4=2:4.36-1 \
     libatk1.0-0t64=2.56.2-1+deb13u1 \
@@ -60,9 +83,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr-eng=1:4.1.0-2 \
     && rm -rf /var/lib/apt/lists/*
 
+# Playwright browsers are copied to a shared, read-only location and pointed
+# at via PLAYWRIGHT_BROWSERS_PATH. This keeps them out of $HOME (which is
+# read-only under `read_only: true`) and works for the non-root `pry` user.
+# config.json lives inside the data volume so runtime config changes persist
+# and the root filesystem can stay read-only.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PRY_CONFIG_FILE=/app/pry-data/config.json
+
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /root/.cache/ms-playwright /root/.cache/ms-playwright
+COPY --from=builder /root/.cache/ms-playwright /ms-playwright
 
 WORKDIR /app
 COPY *.py ./
@@ -74,15 +107,28 @@ COPY llm_providers/ ./llm_providers/
 COPY stealth_scripts/ ./stealth_scripts/
 COPY templates/ ./templates/
 COPY pry_mcp/ ./pry_mcp/
-RUN mkdir -p /app/sessions /app/pry-data
+RUN mkdir -p /app/sessions /app/pry-data \
+    && chmod +x /usr/local/bin/docker-entrypoint.sh
 
-RUN useradd --create-home --shell /bin/bash --uid 1000 pry && chown -R pry:pry /app
+# Non-root runtime user. /app (and its writable subdirs) belong to pry.
+# /ms-playwright stays root-owned: it is read-only at runtime (read_only
+# rootfs) and pry only needs read access to the browser binaries.
+RUN useradd --create-home --shell /bin/bash --uid 1000 pry \
+    && chown -R pry:pry /app
 USER pry
 
 EXPOSE 8002
-HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
-    CMD python3 -c "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8002/health', timeout=2).status == 200 else 1)" || exit 1
 
-ENTRYPOINT ["docker-entrypoint.sh"]
+# docker-compose healthcheck uses the same probe. /health returns 200 only
+# when the process is up (and FlareSolverr is reachable); the start_period
+# absorbs the migration + warmup window.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
+    CMD ["curl", "-fsS", "http://localhost:8002/health"]
+
+# SIGTERM lets the entrypoint drain in-flight requests before exit.
+STOPSIGNAL SIGTERM
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8002", \
-     "--workers", "1", "--timeout-keep-alive", "120", "--limit-concurrency", "20"]
+     "--workers", "1", "--timeout-keep-alive", "120", "--limit-concurrency", "20", \
+     "--timeout-graceful-shutdown", "30"]

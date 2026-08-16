@@ -2,11 +2,26 @@
 # Copyright (c) 2026 Rug Munch Media LLC
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
+#
+# Production-hardened compose file:
+#   * pry runs as non-root (Dockerfile `pry` user), read-only rootfs with
+#     tmpfs scratch + named volumes for persistence
+#   * healthcheck, resource limits, restart policy, init (zombie reaping),
+#     no-new-privileges, and a graceful-shutdown stop grace period
+#   * FlareSolverr and Tor are helper services (Tor behind the `tor` profile)
 services:
   pry:
     build: .
     container_name: pry
     restart: unless-stopped
+    init: true
+    stop_grace_period: 35s
+    read_only: true
+    tmpfs:
+      # Chromium + Python scratch space. Browsers live in /ms-playwright
+      # (read-only); writable state goes to /tmp and the named volumes.
+      - /tmp:size=512m,mode=1777
+      - /home/pry:size=128m,mode=0700
     ports:
       - "127.0.0.1:8005:8002"
     volumes:
@@ -18,6 +33,13 @@ services:
       - PRY_TIMEOUT=60
       - PRY_API_KEY=${PRY_API_KEY:-}
       - PRY_DATA_DIR=/app/pry-data
+      # config.json is written into the data volume so the rootfs can be
+      # read-only while runtime config changes still persist.
+      - PRY_CONFIG_FILE=/app/pry-data/config.json
+      # Playwright browsers are at a shared read-only location; $HOME is
+      # tmpfs so Chromium can write its cache there.
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+      - PYTHONDONTWRITEBYTECODE=1
       - PRY_FLARESOLVERR_URL=http://flaresolverr:8191/v1
       - TOR_ENABLED=0
       - TOR_SOCKS5_HOST=tor
@@ -29,7 +51,7 @@ services:
       - MIN_QUALITY=20
       - RATE_LIMIT_RPM=120
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8002/health', timeout=10).status == 200 else 1)"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8002/health"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -39,6 +61,11 @@ services:
         limits:
           memory: 2G
           cpus: "2"
+        reservations:
+          memory: 512M
+          cpus: "0.5"
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       flaresolverr:
         condition: service_healthy
@@ -47,6 +74,7 @@ services:
     image: ghcr.io/flaresolverr/flaresolverr:latest
     container_name: pry-flaresolverr
     restart: unless-stopped
+    init: true
     ports:
       - "127.0.0.1:8192:8191"
     environment:
@@ -68,6 +96,7 @@ services:
     image: dperson/torproxy:latest
     container_name: pry-tor
     restart: unless-stopped
+    init: true
     ports:
       - "127.0.0.1:9050:9050"
       - "127.0.0.1:9051:9051"

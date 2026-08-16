@@ -9,11 +9,18 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from llm_providers.base import LLMProvider, LLMResponse
+from llm_providers.base import (
+    LLM_TIMEOUT_SECONDS,
+    LLMProvider,
+    LLMResponse,
+    _stream_openai_compatible,
+)
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from llm_providers.registry import LLMRegistry
 
 logger = logging.getLogger(__name__)
@@ -47,8 +54,9 @@ class OpenAIProvider(LLMProvider):
                 "temperature": temperature,
             },
             headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout=60,
+            timeout=LLM_TIMEOUT_SECONDS,
         )
+        resp.raise_for_status()
         data = resp.json()
         choice = data["choices"][0]
         return LLMResponse(
@@ -60,6 +68,31 @@ class OpenAIProvider(LLMProvider):
             raw=data,
         )
 
+    async def stream_chat(
+        self,
+        prompt: str,
+        system: str = "",
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+        model: str = "gpt-4o-mini",
+        **kwargs: Any,
+    ) -> AsyncIterator[str]:
+        """Stream text deltas via the OpenAI chat completions SSE endpoint."""
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        async for chunk in _stream_openai_compatible(
+            base_url="https://api.openai.com/v1",
+            api_key=self.api_key,
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout_seconds=LLM_TIMEOUT_SECONDS,
+        ):
+            yield chunk
+
     async def embed(self, text, model="text-embedding-3-small"):
         from client import get_client
 
@@ -68,8 +101,9 @@ class OpenAIProvider(LLMProvider):
             "https://api.openai.com/v1/embeddings",
             json={"input": text, "model": model},
             headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout=30,
+            timeout=LLM_TIMEOUT_SECONDS,
         )
+        resp.raise_for_status()
         return resp.json()["data"][0]["embedding"]
 
 
@@ -100,8 +134,9 @@ class AnthropicProvider(LLMProvider):
             "https://api.anthropic.com/v1/messages",
             json=body,
             headers={"x-api-key": self.api_key, "anthropic-version": "2023-06-01"},
-            timeout=60,
+            timeout=LLM_TIMEOUT_SECONDS,
         )
+        resp.raise_for_status()
         data = resp.json()
         return LLMResponse(
             text=data["content"][0]["text"],
@@ -139,7 +174,8 @@ class GoogleProvider(LLMProvider):
         }
         if system:
             body["systemInstruction"] = {"parts": [{"text": system}]}
-        resp = await client.post(url, json=body, timeout=60)
+        resp = await client.post(url, json=body, timeout=LLM_TIMEOUT_SECONDS)
+        resp.raise_for_status()
         data = resp.json()
         text = data["candidates"][0]["content"]["parts"][0]["text"]
         usage = data.get("usageMetadata", {})
@@ -157,7 +193,10 @@ class GoogleProvider(LLMProvider):
 
         client = await get_client()
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:embedContent?key={self.api_key}"
-        resp = await client.post(url, json={"content": {"parts": [{"text": text}]}}, timeout=30)
+        resp = await client.post(
+            url, json={"content": {"parts": [{"text": text}]}}, timeout=LLM_TIMEOUT_SECONDS
+        )
+        resp.raise_for_status()
         return resp.json()["embedding"]["values"]
 
 
@@ -188,8 +227,9 @@ class CohereProvider(LLMProvider):
             "https://api.cohere.ai/v1/chat",
             json=body,
             headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout=60,
+            timeout=LLM_TIMEOUT_SECONDS,
         )
+        resp.raise_for_status()
         data = resp.json()
         return LLMResponse(text=data["text"], model=model, provider=self.name, raw=data)
 
@@ -201,8 +241,9 @@ class CohereProvider(LLMProvider):
             "https://api.cohere.ai/v1/embed",
             json={"texts": [text], "model": model, "input_type": "search_document"},
             headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout=30,
+            timeout=LLM_TIMEOUT_SECONDS,
         )
+        resp.raise_for_status()
         return resp.json()["embeddings"][0]
 
 
@@ -234,8 +275,9 @@ class MistralProvider(LLMProvider):
                 "temperature": temperature,
             },
             headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout=60,
+            timeout=LLM_TIMEOUT_SECONDS,
         )
+        resp.raise_for_status()
         data = resp.json()
         return LLMResponse(
             text=data["choices"][0]["message"]["content"],
@@ -254,8 +296,9 @@ class MistralProvider(LLMProvider):
             "https://api.mistral.ai/v1/embeddings",
             json={"model": model, "input": [text]},
             headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout=30,
+            timeout=LLM_TIMEOUT_SECONDS,
         )
+        resp.raise_for_status()
         return resp.json()["data"][0]["embedding"]
 
 
@@ -282,7 +325,10 @@ class OllamaProvider(LLMProvider):
         }
         if system:
             body["system"] = system
-        resp = await client.post(f"{self.base_url}/api/generate", json=body, timeout=300)
+        resp = await client.post(
+            f"{self.base_url}/api/generate", json=body, timeout=LLM_TIMEOUT_SECONDS
+        )
+        resp.raise_for_status()
         data = resp.json()
         return LLMResponse(
             text=data["response"],
@@ -299,8 +345,11 @@ class OllamaProvider(LLMProvider):
         client = await get_client()
         model = model or "nomic-embed-text"
         resp = await client.post(
-            f"{self.base_url}/api/embeddings", json={"model": model, "prompt": text}, timeout=60
+            f"{self.base_url}/api/embeddings",
+            json={"model": model, "prompt": text},
+            timeout=LLM_TIMEOUT_SECONDS,
         )
+        resp.raise_for_status()
         return resp.json()["embedding"]
 
 
@@ -337,8 +386,9 @@ class OpenRouterProvider(LLMProvider):
                 "temperature": temperature,
             },
             headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout=60,
+            timeout=LLM_TIMEOUT_SECONDS,
         )
+        resp.raise_for_status()
         data = resp.json()
         usage = data.get("usage", {})
         return LLMResponse(
@@ -349,6 +399,31 @@ class OpenRouterProvider(LLMProvider):
             output_tokens=usage.get("completion_tokens", 0),
             raw=data,
         )
+
+    async def stream_chat(
+        self,
+        prompt: str,
+        system: str = "",
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+        model: str = "meta-llama/llama-3.2-3b-instruct:free",
+        **kwargs: Any,
+    ) -> AsyncIterator[str]:
+        """Stream text deltas via the OpenRouter chat completions SSE endpoint."""
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        async for chunk in _stream_openai_compatible(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=self.api_key,
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout_seconds=LLM_TIMEOUT_SECONDS,
+        ):
+            yield chunk
 
     async def embed(self, text, model=""):
         raise NotImplementedError("OpenRouter focuses on chat; use dedicated embedding providers")

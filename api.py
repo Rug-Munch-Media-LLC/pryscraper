@@ -80,6 +80,7 @@ from routers.scraping_api import router as scraping_api_router
 from routers.seo import router as seo_router
 from routers.sessions import router as sessions_router
 from routers.share import router as share_router
+from routers.signup import router as signup_router
 from routers.stats import router as stats_router
 from routers.structure import router as structure_router
 from routers.system import router as system_router
@@ -133,6 +134,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if hasattr(obj, "close"):
             with suppress(Exception):
                 await obj.close()
+    # Dispose DB engine/session pools (graceful shutdown).
+    with suppress(Exception):
+        from db import dispose_engines
+
+        dispose_engines()
 
 
 app = FastAPI(
@@ -322,6 +328,7 @@ app.include_router(seo_router)
 app.include_router(scraping_api_router)
 app.include_router(sessions_router)
 app.include_router(share_router)
+app.include_router(signup_router)
 app.include_router(stats_router)
 app.include_router(structure_router)
 app.include_router(system_router)

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager, contextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -209,3 +209,20 @@ async def async_session_scope() -> AsyncIterator[AsyncSession]:
         raise
     finally:
         await s.close()
+
+
+def dispose_engines() -> None:
+    """Dispose the sync and async engine connection pools (graceful shutdown).
+
+    Idempotent: clears module state so a subsequent get_engine()/get_async_engine()
+    recreates fresh engines. Called from the FastAPI lifespan shutdown phase.
+    """
+    global _engine, _SessionLocal, _async_engine, _async_session_local
+    for eng in (_engine, _async_engine):
+        if eng is not None:
+            with suppress(Exception):
+                eng.dispose()
+    _engine = None
+    _SessionLocal = None
+    _async_engine = None
+    _async_session_local = None
