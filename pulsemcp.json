@@ -82,7 +82,15 @@
 		"pry_weather",
 		"pry_agri",
 		"pry_papers",
-		"pry_domain"
+		"pry_domain",
+		"pry_events",
+		"pry_resale",
+		"pry_freight",
+		"pry_energy_lmp",
+		"pry_grocery",
+		"pry_restaurant",
+		"pry_imports",
+		"pry_firmographics"
 	],
 	"tags": [
 		"scraping",

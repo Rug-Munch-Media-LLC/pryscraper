@@ -286,6 +286,11 @@ include = [
     "commerce_data*",
     "climate_data*",
     "research_data*",
+    "events_data*",
+    "freight_data*",
+    "energy_data*",
+    "food_data*",
+    "supply_data*",
 ]
 
 [tool.ruff]

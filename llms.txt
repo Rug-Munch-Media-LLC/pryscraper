@@ -1,8 +1,8 @@
 # Pry MCP — Web Scraping, Browser Automation & Data Intelligence
 
-> Pry is a self-hosted MCP server for web scraping, browser automation, and seventeen data domains: scrape, crawl, extract, template, monitor, comply, enrich, parse documents, screenshot, plus crypto, sports betting, marketplace, legal, real estate, jobs, travel, attention, local, healthcare, commerce long-tail, gov, IP, climate/weather + agriculture, and research/academic intelligence — all monetized via x402 pay-per-call. It bypasses Cloudflare and other anti-bot systems via a 9-tier fallback chain and needs no API keys. Install with `uvx pryscraper-mcp` or `pipx install pryscraper`.
+> Pry is a self-hosted MCP server for web scraping, browser automation, and twenty-two data domains: scrape, crawl, extract, template, monitor, comply, enrich, parse documents, screenshot, plus crypto, sports betting, marketplace, legal, real estate, jobs, travel, attention, local, healthcare, commerce long-tail, gov, IP, climate/weather + agriculture, research/academic, events, freight, energy, food, and supply intelligence — all monetized via x402 pay-per-call. It bypasses Cloudflare and other anti-bot systems via a 9-tier fallback chain and needs no API keys. Install with `uvx pryscraper-mcp` or `pipx install pryscraper`.
 
-Pry exposes 50 MCP tools. All are self-hosted — the server is a FastAPI app mounted at `/mcp` (Streamable HTTP + HTTP+SSE) plus a stdio entry point (`pry-mcp`). Deploy once, then any MCP client (Claude, Cursor, Hermes, any MCP-compatible agent) can call the tools.
+Pry exposes 58 MCP tools. All are self-hosted — the server is a FastAPI app mounted at `/mcp` (Streamable HTTP + HTTP+SSE) plus a stdio entry point (`pry-mcp`). Deploy once, then any MCP client (Claude, Cursor, Hermes, any MCP-compatible agent) can call the tools.
 
 ## Tools
 
@@ -60,6 +60,29 @@ Pry exposes 50 MCP tools. All are self-hosted — the server is a FastAPI app mo
 
 - [pry_papers](https://codeberg.org/cryptorugmunch/pryscraper): Search academic papers and preprints (OpenAlex/Crossref) by keyword or author
 - [pry_domain](https://codeberg.org/cryptorugmunch/pryscraper): Domain intelligence report — RDAP WHOIS, SSL/TLS, hosting, tech fingerprint
+
+### Events & ticketing (events_data)
+
+- [pry_events](https://codeberg.org/cryptorugmunch/pryscraper): Search live events (concerts, sports, theater) by keyword, location, or date
+- [pry_resale](https://codeberg.org/cryptorugmunch/pryscraper): Resale ticket pricing for an event — asking prices, counts, section ranges
+
+### Freight (freight_data)
+
+- [pry_freight](https://codeberg.org/cryptorugmunch/pryscraper): Ocean container freight rates per 40ft box by route, plus FMC contracts
+
+### Energy (energy_data)
+
+- [pry_energy_lmp](https://codeberg.org/cryptorugmunch/pryscraper): Electricity locational marginal prices (LMP) by ISO region and date
+
+### Food & grocery (food_data)
+
+- [pry_grocery](https://codeberg.org/cryptorugmunch/pryscraper): Grocery prices by item and ZIP code
+- [pry_restaurant](https://codeberg.org/cryptorugmunch/pryscraper): Restaurant menu with per-dish prices
+
+### Supply chain (supply_data)
+
+- [pry_imports](https://codeberg.org/cryptorugmunch/pryscraper): U.S. customs import records for a company
+- [pry_firmographics](https://codeberg.org/cryptorugmunch/pryscraper): Company firmographics — headcount, revenue, founding, HQ, industry
 
 ### Legal (legal_docs)
 

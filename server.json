@@ -703,6 +703,38 @@
 		{
 			"name": "pry_domain",
 			"description": "Get a domain intelligence report: WHOIS registration, SSL/TLS details, hosting provider, and technology fingerprint. Use to enrich leads or vet domains, e.g. what can you tell me about example.com?"
+		},
+		{
+			"name": "pry_events",
+			"description": "Search live event listings (concerts, sports, theater) by keyword and optionally location or date, e.g. 'what concerts are near Austin next month?'."
+		},
+		{
+			"name": "pry_resale",
+			"description": "Get resale ticket pricing for a specific event: asking prices, ticket counts, and section-level ranges across resale marketplaces."
+		},
+		{
+			"name": "pry_freight",
+			"description": "Get ocean container freight rates for a route: spot and contract rates per 40ft container across major trade lanes, plus FMC contract visibility."
+		},
+		{
+			"name": "pry_energy_lmp",
+			"description": "Get electricity locational marginal prices (LMP) for an ISO region and date, with day-ahead / real-time splits where available."
+		},
+		{
+			"name": "pry_grocery",
+			"description": "Get grocery prices for a product or category, optionally filtered by ZIP code for local store pricing."
+		},
+		{
+			"name": "pry_restaurant",
+			"description": "Get a restaurant's menu with prices: items, sections, and per-dish pricing for a named restaurant."
+		},
+		{
+			"name": "pry_imports",
+			"description": "Get U.S. customs import records for a company: shipment dates, commodity descriptions, suppliers, and origin countries."
+		},
+		{
+			"name": "pry_firmographics",
+			"description": "Get firmographic data for a company: employee count band, revenue range, founding year, headquarters, and industry."
 		}
 	]
 }
