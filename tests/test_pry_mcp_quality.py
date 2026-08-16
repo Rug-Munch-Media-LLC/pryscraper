@@ -21,7 +21,7 @@ Covers four layers of the MCP surface:
    notifications answered with ``202``, and ``Mcp-Session-Id`` lifecycle.
 4. **Tool-count consistency** — ``PRY_TOOLS`` must stay in sync with
    ``server.json`` / ``glama.json`` / ``pulsemcp.json`` / ``llms.txt`` /
-   ``smithery.yaml`` (all currently 50).
+   ``smithery.yaml`` (all currently 58).
 """
 
 from __future__ import annotations
@@ -221,6 +221,48 @@ _DOMAIN_TOOLS: dict[str, tuple[str, tuple[str, ...], dict[str, Any]]] = {
         ("search_trademarks",),
         {"query": "RugMunch", "limit": 2},
     ),
+    # events_data / freight_data / energy_data / food_data / supply_data
+    # (the five new parallel-built data-domain packages):
+    "pry_events": (
+        "events_data.tickets",
+        ("search_events", "find_events", "get_events", "events"),
+        {"query": "Taylor Swift", "location": "New York", "limit": 5},
+    ),
+    "pry_resale": (
+        "events_data.tickets",
+        ("get_resale_prices", "resale_prices", "get_resale"),
+        {"event_id": "vv1aZt7B8v"},
+    ),
+    "pry_freight": (
+        "freight_data.rates",
+        ("get_container_rates", "get_fmc_contracts", "container_rates"),
+        {"route": "Shanghai to Los Angeles", "limit": 5},
+    ),
+    "pry_energy_lmp": (
+        "energy_data.lmp",
+        ("get_lmp", "get_lmp_prices", "lmp_prices", "get_fuel_prices", "fuel_prices"),
+        {"region": "ERCOT", "date": "2026-08-16"},
+    ),
+    "pry_grocery": (
+        "food_data.grocery",
+        ("get_grocery_prices", "grocery_prices", "get_prices"),
+        {"query": "eggs", "zip": "10001", "limit": 5},
+    ),
+    "pry_restaurant": (
+        "food_data.restaurants",
+        ("get_restaurant_menu", "restaurant_menu", "get_menu"),
+        {"name": "Katz's Delicatessen", "location": "New York"},
+    ),
+    "pry_imports": (
+        "supply_data.imports",
+        ("get_import_records", "import_records", "get_imports"),
+        {"company": "Tesla Inc", "limit": 5},
+    ),
+    "pry_firmographics": (
+        "supply_data.firmographics",
+        ("get_company_firmographics", "company_firmographics", "get_firmographics"),
+        {"company": "Rug Munch Media"},
+    ),
 }
 
 # REST-proxy tools: name -> sample arguments. The fallback server calls the
@@ -335,10 +377,10 @@ async def _call(srv: Any, name: str, args: dict[str, Any], req_id: int = 100) ->
 class TestToolMetadata:
     """Every PRY_TOOLS entry must meet the 2026 MCP quality bar."""
 
-    def test_tool_count_is_50(self) -> None:
-        assert len(PRY_TOOLS) == 50
-        assert len(PRY_TOOL_NAMES) == 50
-        assert len({t["name"] for t in PRY_TOOLS}) == 50
+    def test_tool_count_is_58(self) -> None:
+        assert len(PRY_TOOLS) == 58
+        assert len(PRY_TOOL_NAMES) == 58
+        assert len({t["name"] for t in PRY_TOOLS}) == 58
 
     @pytest.mark.parametrize("tool_name", sorted(PRY_TOOL_NAMES))
     def test_tools_list_metadata(self, tool_name: str) -> None:
@@ -513,7 +555,7 @@ class TestTransportCompliance:
         body = resp.json()
         assert body["jsonrpc"] == "2.0"
         assert body["id"] == 1
-        assert len(body["result"]["tools"]) == 50
+        assert len(body["result"]["tools"]) == 58
 
     def test_post_sse_accept_returns_event_stream(self, mcp_client: TestClient) -> None:
         resp = mcp_client.post(
@@ -666,7 +708,7 @@ def _find_tools_list(obj: Any) -> list[Any] | None:
 
 
 class TestRegistryConsistency:
-    """PRY_TOOLS must match every published registry file (currently 50)."""
+    """PRY_TOOLS must match every published registry file (currently 58)."""
 
     @pytest.mark.parametrize("fname", ["server.json", "glama.json", "pulsemcp.json"])
     def test_json_registries_match(self, fname: str) -> None:
@@ -692,4 +734,4 @@ class TestRegistryConsistency:
 
     def test_smithery_comment_matches_count(self) -> None:
         text = (REPO_ROOT / "smithery.yaml").read_text(encoding="utf-8")
-        assert "Tool count: 50" in text, "smithery.yaml tool-count comment drifted"
+        assert "Tool count: 58" in text, "smithery.yaml tool-count comment drifted"

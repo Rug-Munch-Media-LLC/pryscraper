@@ -167,9 +167,9 @@ async def _call_domain_tool(
 async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Local MCP tool executor chaining every data-domain guarded dispatcher.
 
-    Order: crypto-market, marketplace-intelligence, then the eleven data-domain
+    Order: crypto-market, marketplace-intelligence, then the sixteen data-domain
     packages (legal, real estate, jobs, travel, attention, local, gov, ip,
-    sports, climate, research).
+    sports, climate, research, events, freight, energy, food, supply).
     Raises ``_ToolNotHandled`` when no dispatcher owns the tool so callers
     fall through to the REST proxy.
 
@@ -187,7 +187,7 @@ async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[s
     started = time.monotonic()
     try:
         try:
-            result = await crypto_tool_executor(name, arguments)
+            result: dict[str, Any] | None = await crypto_tool_executor(name, arguments)
             if result is not None:
                 return result
         except _ToolNotHandled:
@@ -210,6 +210,11 @@ async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[s
             "call_sports_tool",
             "call_climate_tool",
             "call_research_tool",
+            "call_events_tool",
+            "call_freight_tool",
+            "call_energy_tool",
+            "call_food_tool",
+            "call_supply_tool",
         ):
             result = await _call_domain_tool(dispatcher_name, name, arguments)
             if result is not None:
@@ -404,6 +409,17 @@ def make_fallback_server(
                 "pry_agri": ("GET", "/v1/climate/agri"),
                 "pry_papers": ("GET", "/v1/research/papers"),
                 "pry_domain": ("GET", "/v1/research/domain"),
+                # Events / freight / energy / food / supply REST fallbacks
+                # (events_data, freight_data, energy_data, food_data,
+                # supply_data land from parallel agents):
+                "pry_events": ("GET", "/v1/events/search"),
+                "pry_resale": ("GET", "/v1/events/resale"),
+                "pry_freight": ("GET", "/v1/freight/rates"),
+                "pry_energy_lmp": ("GET", "/v1/energy/lmp"),
+                "pry_grocery": ("GET", "/v1/food/grocery"),
+                "pry_restaurant": ("GET", "/v1/food/restaurants/menu"),
+                "pry_imports": ("GET", "/v1/supply/imports"),
+                "pry_firmographics": ("GET", "/v1/supply/firmographics"),
             }
             if name not in tool_map:
                 return {
@@ -515,6 +531,43 @@ def make_fallback_server(
                     return json.dumps(ReferralTracker().get_catalog(), indent=2)  # type: ignore[no-untyped-call]
                 except (json.JSONDecodeError, ValueError) as e:
                     return json.dumps({"error": f"Could not load referrals: {e}"})
+            if uri == "pry://coverage":
+                try:
+                    from site_catalog import SiteCatalog
+
+                    catalog = SiteCatalog().coverage()
+                    by_domain: dict[str, int] = {}
+                    by_method: dict[str, int] = {}
+                    by_anti_bot: dict[str, int] = {}
+                    for entry in catalog:
+                        domain = entry.get("data_domain", "unknown")
+                        method = entry.get("method", "unknown")
+                        anti_bot = entry.get("anti_bot", "unknown")
+                        by_domain[domain] = by_domain.get(domain, 0) + 1
+                        by_method[method] = by_method.get(method, 0) + 1
+                        by_anti_bot[anti_bot] = by_anti_bot.get(anti_bot, 0) + 1
+                    return json.dumps(
+                        {
+                            "total_sites": len(catalog),
+                            "by_data_domain": by_domain,
+                            "by_method": by_method,
+                            "by_anti_bot": by_anti_bot,
+                            "note": "Use pry://domains for the data-domain list.",
+                        },
+                        indent=2,
+                    )
+                except (json.JSONDecodeError, ValueError, ImportError) as e:
+                    return json.dumps({"error": f"Could not load site catalog coverage: {e}"})
+            if uri == "pry://domains":
+                try:
+                    from pry_mcp.resources import DATA_DOMAINS
+
+                    return json.dumps(
+                        {"count": len(DATA_DOMAINS), "domains": DATA_DOMAINS},
+                        indent=2,
+                    )
+                except (json.JSONDecodeError, ValueError, ImportError) as e:
+                    return json.dumps({"error": f"Could not load data domains: {e}"})
             return f"Resource {uri} (placeholder)"
 
         def get_prompt(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
