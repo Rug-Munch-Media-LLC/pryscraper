@@ -195,6 +195,20 @@ class PrySettings(BaseSettings):
         validation_alias=AliasChoices("PRY_CONFIG_FILE", "CONFIG_FILE"),
     )
 
+    # Sports data (sports_data/ package) — The Odds API
+    # Live odds key (https://the-odds-api.com). Free tier: 500
+    # requests/month. Without a key the sports_data modules degrade to ESPN
+    # public scoreboards. Also resolved via the secrets backend under the
+    # name "odds_api_key" (see _apply_secrets_backend).
+    odds_api_key: str = ""
+    # In-memory TTL for cached odds/stats/scores (seconds). Bots poll
+    # sub-minute; a ~10s TTL collapses upstream calls ~6x and keeps reads
+    # sub-100ms.
+    sports_odds_cache_ttl_seconds: int = Field(default=10, ge=1)
+    # Sustained upstream request budget for The Odds API (requests/min),
+    # enforced by the sports_data.cache token-bucket rate limiter.
+    sports_odds_rate_limit_rpm: int = Field(default=30, ge=1)
+
     def model_post_init(self, __context: Any) -> None:
         """Post-init: pull sensitive fields from secrets_backend, then config file."""
         self._apply_secrets_backend()
@@ -222,6 +236,7 @@ class PrySettings(BaseSettings):
             "webhook_secret",
             "captcha_2captcha_api_key",
             "captcha_capsolver_api_key",
+            "odds_api_key",
         )
         try:
             from secrets_backend import get_secret
