@@ -18,7 +18,7 @@ import logging
 from typing import Any
 
 from pry_mcp.constants import SERVER_NAME, SERVER_VERSION
-from pry_mcp.fallback_server import crypto_tool_executor, make_fallback_server
+from pry_mcp.fallback_server import combined_tool_executor, make_fallback_server
 from pry_mcp.resources import PRY_PROMPTS, PRY_RESOURCES
 from pry_mcp.tools import PRY_TOOLS
 
@@ -66,10 +66,11 @@ def create_server() -> Any:
         # TODO: register tools/resources/prompts using official SDK decorators
         # and return the SDK server when tool registration is complete.
         Server(SERVER_NAME, SERVER_VERSION)
-    # Crypto-market tools (pry_token_launches / pry_cex_listings /
-    # pry_token_security) execute locally via guarded imports; other tools
-    # fall through to the REST proxy.
-    return make_fallback_server(tool_executor=crypto_tool_executor)
+    # Crypto-market and marketplace-intelligence tools (pry_token_launches /
+    # pry_cex_listings / pry_token_security / pry_amazon_product /
+    # pry_amazon_search / pry_walmart_product / pry_tiktok_trending) execute
+    # locally via guarded imports; other tools fall through to the REST proxy.
+    return make_fallback_server(tool_executor=combined_tool_executor)
 
 
 def register_all(server: Any) -> None:

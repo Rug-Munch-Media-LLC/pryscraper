@@ -70,6 +70,50 @@ async def crypto_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str
     return result
 
 
+async def _call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch marketplace-intelligence tools to their guarded handlers.
+
+    The ``marketplace`` subpackage is built in parallel by other agents; the
+    dispatcher handles missing modules gracefully. Returns ``None`` for
+    non-marketplace tools so callers fall through to their normal execution path.
+    """
+    try:
+        from pry_mcp.tools import call_marketplace_tool
+    except ImportError:
+        return None
+    try:
+        return await call_marketplace_tool(name, arguments)
+    except Exception as e:  # noqa: BLE001 — surface marketplace handler failures as MCP errors
+        logger.warning("mcp_marketplace_tool_failed", extra={"tool": name, "error": str(e)})
+        return {
+            "content": [{"type": "text", "text": f"Tool {name} failed: {e}"}],
+            "isError": True,
+        }
+
+
+async def marketplace_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    """Local MCP tool executor: runs marketplace-intelligence tools directly
+    (guarded import) and signals non-marketplace tools to fall through to the
+    REST proxy. Pass as ``tool_executor`` to ``make_fallback_server``.
+    """
+    result = await _call_marketplace_tool(name, arguments)
+    if result is None:
+        raise _ToolNotHandled(name)
+    return result
+
+
+async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    """Local MCP tool executor chaining the crypto-market then the
+    marketplace-intelligence handlers. Raises ``_ToolNotHandled`` when neither
+    set handles the tool so callers fall through to the REST proxy.
+    """
+    try:
+        return await crypto_tool_executor(name, arguments)
+    except _ToolNotHandled:
+        pass
+    return await marketplace_tool_executor(name, arguments)
+
+
 def make_fallback_server(
     base_url: str = DEFAULT_BASE_URL,
     tool_executor: Callable[[str, dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
@@ -174,6 +218,13 @@ def make_fallback_server(
             crypto_result = await _call_crypto_tool(name, arguments)
             if crypto_result is not None:
                 return crypto_result
+
+            # Marketplace-intelligence tools execute locally via guarded imports
+            # (the marketplace modules land in parallel; degrade to a readable
+            # message if a module is absent).
+            marketplace_result = await _call_marketplace_tool(name, arguments)
+            if marketplace_result is not None:
+                return marketplace_result
 
             tool_map = {
                 "pry_scrape": ("POST", "/v1/scrape"),
