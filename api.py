@@ -135,6 +135,33 @@ try:
     _SUPPLY_DATA_ROUTER: Any | None = supply_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _SUPPLY_DATA_ROUTER = None
+# app_store_data / news_data / compliance_data / deals_data routers land in
+# this tree from parallel agents; import them guarded so api.py keeps working
+# (and the x402 gates stay armed) if they have not landed yet.
+try:
+    from routers.app_store_data import router as app_store_data_router
+
+    _APP_STORE_DATA_ROUTER: Any | None = app_store_data_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _APP_STORE_DATA_ROUTER = None
+try:
+    from routers.news_data import router as news_data_router
+
+    _NEWS_DATA_ROUTER: Any | None = news_data_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _NEWS_DATA_ROUTER = None
+try:
+    from routers.compliance_data import router as compliance_data_router
+
+    _COMPLIANCE_DATA_ROUTER: Any | None = compliance_data_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _COMPLIANCE_DATA_ROUTER = None
+try:
+    from routers.deals_data import router as deals_data_router
+
+    _DEALS_DATA_ROUTER: Any | None = deals_data_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _DEALS_DATA_ROUTER = None
 from routers.monitoring import router as monitoring_router
 from routers.parsing import router as parsing_router
 from routers.pipeline import router as pipeline_router
@@ -417,6 +444,16 @@ if _FOOD_DATA_ROUTER is not None:
     app.include_router(_FOOD_DATA_ROUTER)
 if _SUPPLY_DATA_ROUTER is not None:
     app.include_router(_SUPPLY_DATA_ROUTER)
+# app_store_data / news_data / compliance_data / deals_data routers are
+# included when they have landed.
+if _APP_STORE_DATA_ROUTER is not None:
+    app.include_router(_APP_STORE_DATA_ROUTER)
+if _NEWS_DATA_ROUTER is not None:
+    app.include_router(_NEWS_DATA_ROUTER)
+if _COMPLIANCE_DATA_ROUTER is not None:
+    app.include_router(_COMPLIANCE_DATA_ROUTER)
+if _DEALS_DATA_ROUTER is not None:
+    app.include_router(_DEALS_DATA_ROUTER)
 app.include_router(monitoring_router)
 app.include_router(parsing_router)
 app.include_router(pipeline_router)

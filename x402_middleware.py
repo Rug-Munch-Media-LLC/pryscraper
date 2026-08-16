@@ -101,6 +101,15 @@ PAID_ENDPOINTS = {
     "/v1/energy/": "energy_lmp",
     "/v1/food/": "food_grocery",
     "/v1/supply/": "supply_imports",
+    # App-store / news / deals intelligence — paid per call at $0.002 (cheap
+    # reads; deliberate undercut of app-intelligence and deal-tracking APIs).
+    # Compliance gates use explicit prefixes so the legacy URL-check route
+    # /v1/compliance/check stays free (backwards compatibility).
+    "/v1/appstore/": "app_store_search",
+    "/v1/news/": "news_search",
+    "/v1/compliance/enforcement": "compliance_search",
+    "/v1/compliance/watch/": "company_watch",
+    "/v1/deals/": "deals_search",
 }
 
 # Price tiers for the crypto-market operations. The canonical pricing table
@@ -331,6 +340,49 @@ _EVENTS_SUPPLY_PRICE_TIERS: dict[str, dict[str, Any]] = {
     },
 }
 for _operation, _tier in _EVENTS_SUPPLY_PRICE_TIERS.items():
+    X402_PRICING.setdefault(_operation, _tier)
+
+# Price tiers for the app-store / news / compliance / deals operations.
+# Cheap reads at $0.002-$0.005 — app, news, regulatory, and deal lookups are
+# low-cost data pulls, so gate them well below the sports scans. Same
+# defensive setdefault merge as the tiers above; keeps the /v1/app-store/*,
+# /v1/news/*, /v1/compliance/* and /v1/deals/* gates from being skipped until
+# promoted into x402/scheme.py.
+_NEW_DOMAIN_PRICE_TIERS: dict[str, dict[str, Any]] = {
+    "app_store_search": {
+        "price_usd": 0.002,
+        "description": "App Store app search by keyword",
+    },
+    "app_store_reviews": {
+        "price_usd": 0.002,
+        "description": "App Store user reviews by app id",
+    },
+    "news_search": {
+        "price_usd": 0.002,
+        "description": "News article search by keyword",
+    },
+    "news_sentiment": {
+        "price_usd": 0.002,
+        "description": "News sentiment analysis by keyword",
+    },
+    "compliance_search": {
+        "price_usd": 0.003,
+        "description": "Regulatory compliance records search by query/agency",
+    },
+    "company_watch": {
+        "price_usd": 0.005,
+        "description": "Company regulatory watch — enforcement actions & fines",
+    },
+    "deals_search": {
+        "price_usd": 0.002,
+        "description": "Deals / discounts / promotions search",
+    },
+    "drop_alert": {
+        "price_usd": 0.002,
+        "description": "Product drop / restock alert check",
+    },
+}
+for _operation, _tier in _NEW_DOMAIN_PRICE_TIERS.items():
     X402_PRICING.setdefault(_operation, _tier)
 
 

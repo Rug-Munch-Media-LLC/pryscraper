@@ -167,9 +167,10 @@ async def _call_domain_tool(
 async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Local MCP tool executor chaining every data-domain guarded dispatcher.
 
-    Order: crypto-market, marketplace-intelligence, then the sixteen data-domain
+    Order: crypto-market, marketplace-intelligence, then the twenty data-domain
     packages (legal, real estate, jobs, travel, attention, local, gov, ip,
-    sports, climate, research, events, freight, energy, food, supply).
+    sports, climate, research, events, freight, energy, food, supply,
+    app-store, news, compliance, deals).
     Raises ``_ToolNotHandled`` when no dispatcher owns the tool so callers
     fall through to the REST proxy.
 
@@ -215,6 +216,10 @@ async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[s
             "call_energy_tool",
             "call_food_tool",
             "call_supply_tool",
+            "call_app_store_tool",
+            "call_news_tool",
+            "call_compliance_tool",
+            "call_deals_tool",
         ):
             result = await _call_domain_tool(dispatcher_name, name, arguments)
             if result is not None:
@@ -429,6 +434,19 @@ def make_fallback_server(
                 "pry_restaurant": ("GET", "/v1/food/restaurants/menu"),
                 "pry_imports": ("GET", "/v1/supply/imports"),
                 "pry_firmographics": ("GET", "/v1/supply/firmographics"),
+                # App-store / news / compliance / deals REST fallbacks
+                # (app_store_data, news_data, compliance_data, deals_data land
+                # from parallel agents). pry_compliance keeps its legacy
+                # URL-check REST route (POST /v1/compliance/check) — the
+                # query/agency regulatory mode is served by the guarded local
+                # dispatcher (call_compliance_tool).
+                "pry_app_search": ("GET", "/v1/appstore/search"),
+                "pry_app_reviews": ("GET", "/v1/appstore/apple/"),
+                "pry_news": ("GET", "/v1/news/headlines"),
+                "pry_sentiment": ("GET", "/v1/news/sentiment"),
+                "pry_company_watch": ("GET", "/v1/compliance/watch/"),
+                "pry_deals": ("GET", "/v1/deals/search"),
+                "pry_drop_alert": ("GET", "/v1/deals/drops/check"),
             }
             if name not in tool_map:
                 return {

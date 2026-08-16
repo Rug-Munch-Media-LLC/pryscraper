@@ -21,7 +21,7 @@ Covers four layers of the MCP surface:
    notifications answered with ``202``, and ``Mcp-Session-Id`` lifecycle.
 4. **Tool-count consistency** — ``PRY_TOOLS`` must stay in sync with
    ``server.json`` / ``glama.json`` / ``pulsemcp.json`` / ``llms.txt`` /
-   ``smithery.yaml`` (all currently 58).
+   ``smithery.yaml`` (all currently 69).
 """
 
 from __future__ import annotations
@@ -55,8 +55,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # Domain-dispatched tools: name -> (module to patch, function names to mock,
 # sample arguments). The module names match the guarded imports in
-# pry_mcp.tools; all 10 data-domain packages have landed, so these run the
-# success path with mocked modules (no network).
+# pry_mcp.tools; the data-domain packages are built in parallel, so these run
+# the success path with mocked modules (no network).
 _DOMAIN_TOOLS: dict[str, tuple[str, tuple[str, ...], dict[str, Any]]] = {
     "pry_token_launches": (
         "crypto_market.token_launches",
@@ -274,6 +274,51 @@ _DOMAIN_TOOLS: dict[str, tuple[str, tuple[str, ...], dict[str, Any]]] = {
         ("get_odds_multi",),
         {"event_id": "eid123", "market": "h2h", "limit": 5, "sources": "all"},
     ),
+    # app_store_data / news_data / compliance_data / deals_data (the four
+    # newest parallel-built data-domain packages):
+    "pry_app_search": (
+        "app_store_data.apple",
+        ("search_apps", "app_search", "search_products", "search"),
+        {"query": "crypto wallet", "country": "us", "limit": 5},
+    ),
+    "pry_app_reviews": (
+        "app_store_data.apple",
+        ("get_reviews", "app_reviews", "get_app_reviews"),
+        {"app_id": "com.coinbase.app", "limit": 5},
+    ),
+    "pry_news": (
+        "news_data.headlines",
+        ("get_headlines", "search_news", "news_search", "search_articles", "get_news"),
+        {"query": "crypto regulation", "language": "en", "limit": 5},
+    ),
+    "pry_sentiment": (
+        "news_data.sentiment",
+        ("get_sentiment", "sentiment_analysis", "analyze_sentiment", "news_sentiment"),
+        {"query": "Bitcoin ETF", "limit": 5},
+    ),
+    # pry_compliance's query/agency mode dispatches to compliance_data; its
+    # legacy url-only mode falls through to the REST proxy (covered by
+    # test_pry_compliance_url_falls_through_to_rest_proxy).
+    "pry_compliance": (
+        "compliance_data.enforcement",
+        ("search_enforcement", "search_compliance", "compliance_search", "get_compliance"),
+        {"query": "Binance", "agency": "SEC", "limit": 5},
+    ),
+    "pry_company_watch": (
+        "compliance_data.enforcement",
+        ("watch_company", "company_watch", "get_company_watch"),
+        {"company": "OpenAI", "limit": 5},
+    ),
+    "pry_deals": (
+        "deals_data.coupons",
+        ("search_deals", "get_deals", "deals_search", "find_deals"),
+        {"query": "PS5", "limit": 5},
+    ),
+    "pry_drop_alert": (
+        "deals_data.drops",
+        ("check_drop_alerts", "list_alerts", "get_drop_alerts", "drop_alerts"),
+        {"product": "RTX 5090", "limit": 5},
+    ),
 }
 
 # REST-proxy tools: name -> sample arguments. The fallback server calls the
@@ -294,7 +339,6 @@ _REST_PROXY_TOOLS: dict[str, dict[str, Any]] = {
     },
     "pry_search_templates": {"q": "amazon"},
     "pry_monitor": {"name": "price watch", "url": "https://example.com/pricing"},
-    "pry_compliance": {"url": "https://example.com"},
     "pry_enrich": {"url": "https://startup.example.com"},
     "pry_parse_document": {"url": "https://example.com/spec.pdf"},
     "pry_screenshot": {"url": "https://example.com/checkout"},
@@ -389,10 +433,10 @@ async def _call(srv: Any, name: str, args: dict[str, Any], req_id: int = 100) ->
 class TestToolMetadata:
     """Every PRY_TOOLS entry must meet the 2026 MCP quality bar."""
 
-    def test_tool_count_is_58(self) -> None:
-        assert len(PRY_TOOLS) == 62
-        assert len(PRY_TOOL_NAMES) == 62
-        assert len({t["name"] for t in PRY_TOOLS}) == 62
+    def test_tool_count_is_69(self) -> None:
+        assert len(PRY_TOOLS) == 69
+        assert len(PRY_TOOL_NAMES) == 69
+        assert len({t["name"] for t in PRY_TOOLS}) == 69
 
     @pytest.mark.parametrize("tool_name", sorted(PRY_TOOL_NAMES))
     def test_tools_list_metadata(self, tool_name: str) -> None:
@@ -524,6 +568,29 @@ class TestToolRoundTrips:
         assert resp["result"]["isError"] is False
         assert "Would call POST /v1/scrape" in resp["result"]["content"][0]["text"]
 
+    async def test_pry_compliance_url_falls_through_to_rest_proxy(self) -> None:
+        """pry_compliance with only a URL keeps the legacy REST-proxy mode.
+
+        The compliance dispatcher declines url-only calls (no query/agency) so
+        the original POST /v1/compliance/check path stays wired — the mocked
+        httpx client must receive the REST call, not a 'not available' message.
+        """
+        srv = _server()
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_response.json.return_value = {"success": True, "data": {"risk_level": "green"}}
+        mock_client.post.return_value = mock_response
+        with patch("pry_mcp.fallback_server.httpx.AsyncClient", return_value=mock_client):
+            resp = await _call(srv, "pry_compliance", {"url": "https://example.com"})
+        assert resp["jsonrpc"] == "2.0"
+        assert "error" not in resp, f"pry_compliance url fall-through failed: {resp.get('error')}"
+        assert resp["result"]["content"], "pry_compliance url fall-through: empty content"
+        assert resp["result"]["isError"] is False
+        # The REST proxy path was taken (POST /v1/compliance/check).
+        assert mock_client.post.called is True
+
     async def test_unknown_tool_returns_jsonrpc_error(self) -> None:
         srv = _server()
         resp = await _call(srv, "pry_not_a_real_tool", {})
@@ -567,7 +634,7 @@ class TestTransportCompliance:
         body = resp.json()
         assert body["jsonrpc"] == "2.0"
         assert body["id"] == 1
-        assert len(body["result"]["tools"]) == 62
+        assert len(body["result"]["tools"]) == 69
 
     def test_post_sse_accept_returns_event_stream(self, mcp_client: TestClient) -> None:
         resp = mcp_client.post(
@@ -720,7 +787,7 @@ def _find_tools_list(obj: Any) -> list[Any] | None:
 
 
 class TestRegistryConsistency:
-    """PRY_TOOLS must match every published registry file (currently 58)."""
+    """PRY_TOOLS must match every published registry file (currently 69)."""
 
     @pytest.mark.parametrize("fname", ["server.json", "glama.json", "pulsemcp.json"])
     def test_json_registries_match(self, fname: str) -> None:
@@ -746,4 +813,4 @@ class TestRegistryConsistency:
 
     def test_smithery_comment_matches_count(self) -> None:
         text = (REPO_ROOT / "smithery.yaml").read_text(encoding="utf-8")
-        assert "Tool count: 62" in text, "smithery.yaml tool-count comment drifted"
+        assert "Tool count: 69" in text, "smithery.yaml tool-count comment drifted"

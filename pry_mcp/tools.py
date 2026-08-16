@@ -365,11 +365,13 @@ PRY_TOOLS: list[dict[str, Any]] = [
     {
         "name": "pry_compliance",
         "description": (
-            "Check whether scraping a URL is legally safe by analyzing robots.txt, ToS, "
-            "GDPR/CCPA, and PII exposure, returning a green/yellow/red risk score with "
-            "recommendations. "
-            "Use before scraping a site you are unsure about, e.g. a competitor's member-only "
-            "directory."
+            "Compliance intelligence in two modes: pass a URL to check whether scraping it "
+            "is legally safe (robots.txt, ToS, GDPR/CCPA, PII exposure -> green/yellow/red "
+            "risk score with recommendations), or pass query/agency to search regulatory "
+            "compliance records — enforcement actions, fines, sanctions, and watchlist "
+            "entries, e.g. query='Binance' for its regulatory history. "
+            "Use before scraping an uncertain site or when screening a company for "
+            "compliance exposure."
         ),
         "inputSchema": {
             "type": "object",
@@ -377,10 +379,34 @@ PRY_TOOLS: list[dict[str, Any]] = [
                 "url": {
                     "type": "string",
                     "format": "uri",
-                    "description": "The URL to run a compliance check on, e.g. https://example.com",
-                }
+                    "description": (
+                        "The URL to run a legal compliance check on, e.g. https://example.com "
+                        "(legacy URL-check mode — omit when using query/agency)"
+                    ),
+                },
+                "query": {
+                    "type": "string",
+                    "description": (
+                        "Regulatory compliance search query (company, entity, or topic), "
+                        "e.g. 'Binance' or 'crypto exchange fines'"
+                    ),
+                },
+                "agency": {
+                    "type": "string",
+                    "description": (
+                        "Optional regulator / agency filter for the compliance search, "
+                        "e.g. 'SEC', 'FTC', 'CFTC', 'OFAC'"
+                    ),
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of compliance records to return (default: 20)",
+                },
             },
-            "required": ["url"],
+            "required": [],
         },
         "outputSchema": {
             "type": "object",
@@ -397,6 +423,23 @@ PRY_TOOLS: list[dict[str, Any]] = [
                         "risk_score": {"type": "number"},
                         "checks": {"type": "array", "items": {"type": "object"}},
                         "recommendations": {"type": "array", "items": {"type": "string"}},
+                        "query": {"type": "string"},
+                        "agency": {"type": "string"},
+                        "records": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "kind": {"type": "string"},
+                                    "title": {"type": "string"},
+                                    "agency": {"type": "string"},
+                                    "date": {"type": "string"},
+                                    "severity": {"type": "string"},
+                                    "source": {"type": "string"},
+                                },
+                            },
+                        },
+                        "total": {"type": "integer"},
                     },
                 },
             },
@@ -3264,6 +3307,410 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "required": ["success"],
         },
     },
+    {
+        "name": "pry_app_search",
+        "description": (
+            "Search the Apple App Store by keyword and return matching apps — name, "
+            "bundle id, price, rating, category, and store URL. "
+            "Use to find apps by feature, compare pricing across categories, or feed "
+            "app-market research, e.g. search query='crypto wallet' to list every mobile "
+            "wallet on the store. Backed by the free public iTunes Search API; never "
+            "raises and returns an empty list when the feed is unreachable."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "App store search keywords, e.g. 'crypto wallet'",
+                },
+                "country": {
+                    "type": "string",
+                    "default": "us",
+                    "description": "Two-letter store country code (default: 'us')",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of apps to return (default: 20)",
+                },
+            },
+            "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "app_id": {"type": "string"},
+                                    "name": {"type": "string"},
+                                    "price": {"type": "number"},
+                                    "currency": {"type": "string"},
+                                    "rating": {"type": "number"},
+                                    "categories": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                    },
+                                    "url": {"type": "string"},
+                                },
+                            },
+                        },
+                        "total": {"type": "integer"},
+                        "query": {"type": "string"},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_app_reviews",
+        "description": (
+            "Get recent user reviews for an app by its store identifier — the numeric App "
+            "Store id or bundle id, e.g. 'com.coinbase.app' — returning rating, title, "
+            "body, author, and review date for each. "
+            "Use to gauge app sentiment, triage support complaints, or feed product-"
+            "research pipelines, e.g. reviews for '284910350' (Coinbase). Reads the free "
+            "public App Store customer reviews feed; never raises and returns an empty "
+            "list when the feed is unreachable."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "app_id": {
+                    "type": "string",
+                    "description": (
+                        "App Store numeric id or bundle id, e.g. '284910350' or 'com.coinbase.app'"
+                    ),
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 200,
+                    "description": "Maximum number of reviews to return (default: 20)",
+                },
+            },
+            "required": ["app_id"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "app_id": {"type": "string"},
+                                    "rating": {"type": "integer"},
+                                    "title": {"type": "string"},
+                                    "body": {"type": "string"},
+                                    "author": {"type": "string"},
+                                    "date": {"type": "string"},
+                                },
+                            },
+                        },
+                        "total": {"type": "integer"},
+                        "app_id": {"type": "string"},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_news",
+        "description": (
+            "Search news articles by keyword across public news feeds and aggregators, "
+            "returning title, source, published date, and URL for each result. "
+            "Use to monitor a brand, topic, or competitor in the press, e.g. "
+            "query='crypto regulation' for the latest regulatory coverage. Best-effort "
+            "over free public feeds; never raises and returns an empty list when a feed "
+            "is unreachable or rate-limited."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "News search keywords, e.g. 'crypto regulation'",
+                },
+                "language": {
+                    "type": "string",
+                    "default": "en",
+                    "description": "Two-letter article language filter (default: 'en')",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of articles to return (default: 20)",
+                },
+            },
+            "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "title": {"type": "string"},
+                                    "source": {"type": "string"},
+                                    "published_at": {"type": "string"},
+                                    "url": {"type": "string"},
+                                },
+                            },
+                        },
+                        "total": {"type": "integer"},
+                        "query": {"type": "string"},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_sentiment",
+        "description": (
+            "Score the sentiment of recent news about a keyword — positive / neutral / "
+            "negative with a confidence score — using lightweight text analysis over the "
+            "same public news feeds as pry_news. "
+            "Use to gauge market or brand mood, e.g. query='Bitcoin ETF' before a trade "
+            "or campaign. Degrades to a neutral score when no articles are found; never "
+            "raises on feed failures."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Topic to score, e.g. 'Bitcoin ETF'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of articles analyzed (default: 20)",
+                },
+            },
+            "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string"},
+                        "sentiment": {
+                            "type": "string",
+                            "enum": ["positive", "neutral", "negative"],
+                        },
+                        "score": {"type": "number"},
+                        "confidence": {"type": "number"},
+                        "articles_analyzed": {"type": "integer"},
+                        "sample_articles": {
+                            "type": "array",
+                            "items": {"type": "object"},
+                        },
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_company_watch",
+        "description": (
+            "Return the regulatory watch record for a company — recent enforcement "
+            "actions, fines, sanctions, and compliance filings — e.g. company='OpenAI' "
+            "for its compliance exposure. "
+            "Use for due diligence, vendor screening, or competitor risk monitoring "
+            "before partnering or trading. Backed by free public regulatory feeds; "
+            "degrades to an empty record when no data is found."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "company": {
+                    "type": "string",
+                    "description": "Company name to watch, e.g. 'OpenAI'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of watch records to return (default: 20)",
+                },
+            },
+            "required": ["company"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "company": {"type": "string"},
+                        "findings": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "kind": {"type": "string"},
+                                    "title": {"type": "string"},
+                                    "date": {"type": "string"},
+                                    "severity": {"type": "string"},
+                                    "source": {"type": "string"},
+                                },
+                            },
+                        },
+                        "total": {"type": "integer"},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_deals",
+        "description": (
+            "Search deals, discounts, and promotions by keyword across public deal feeds, "
+            "returning merchant, product, price, discount percentage, and expiry for each "
+            "result. "
+            "Use to build deal trackers, power shopping comparisons, or feed coupon "
+            "content, e.g. query='PS5' for current console offers. Best-effort over free "
+            "public sources; never raises and returns an empty list on failure."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Deal search keywords, e.g. 'PS5'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of deals to return (default: 20)",
+                },
+            },
+            "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "title": {"type": "string"},
+                                    "merchant": {"type": "string"},
+                                    "price": {"type": "number"},
+                                    "currency": {"type": "string"},
+                                    "discount_pct": {"type": "number"},
+                                    "expires_at": {"type": "string"},
+                                    "url": {"type": "string"},
+                                },
+                            },
+                        },
+                        "total": {"type": "integer"},
+                        "query": {"type": "string"},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_drop_alert",
+        "description": (
+            "Check for drop alerts / limited product restock or flash-sale signals for a "
+            "product, returning availability windows, price drops, and the merchant for "
+            "each signal, e.g. product='RTX 5090' to track GPU drops. "
+            "Use to power restock-notification bots, supply monitoring, or scalper-"
+            "resistant buying queues. Best-effort over public feeds; degrades to an "
+            "empty list when no drop signal is found."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "product": {
+                    "type": "string",
+                    "description": "Product name or SKU to watch for drops, e.g. 'RTX 5090'",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Maximum number of drop signals to return (default: 20)",
+                },
+            },
+            "required": ["product"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "product": {"type": "string"},
+                                    "merchant": {"type": "string"},
+                                    "price": {"type": "number"},
+                                    "currency": {"type": "string"},
+                                    "availability": {"type": "string"},
+                                    "alert_type": {"type": "string"},
+                                    "url": {"type": "string"},
+                                },
+                            },
+                        },
+                        "total": {"type": "integer"},
+                        "product": {"type": "string"},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
 ]
 
 
@@ -3274,7 +3721,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
 # state mutation), non-destructive, idempotent (repeated calls are safe).
 # Tools that mutate server state opt out explicitly.
 #
-# Audit (2026-08-16, all 62 PRY_TOOLS):
+# Audit (2026-08-17, all 69 PRY_TOOLS):
 #   * pry_monitor  — persists a scheduled monitor on the server:
 #     readOnlyHint=False, idempotentHint=False. destructiveHint stays False:
 #     it never deletes data (removal is a separate /v1/monitor/{id} DELETE).
@@ -4331,7 +4778,17 @@ async def _call_domain_dispatcher(
         if fn is None:
             continue
         kwargs = kwargs_builder(name, arguments)
-        data = await fn(**{k: v for k, v in kwargs.items() if _callable_accepts(fn, k)})
+        result = fn(**{k: v for k, v in kwargs.items() if _callable_accepts(fn, k)})
+        # Handlers are usually async (events/freight/energy/...) but some
+        # landed modules expose sync registry reads (app-store/news/
+        # compliance/deals) — await only when the callable returned a
+        # coroutine.
+        import inspect
+
+        if inspect.isawaitable(result):
+            data = await result
+        else:
+            data = result
         return {
             "content": [
                 {
@@ -4558,4 +5015,200 @@ async def call_supply_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
         _SUPPLY_TOOL_FNS,
         _broad_domain_tool_kwargs,
         required_args={"pry_imports": "company", "pry_firmographics": "company"},
+    )
+
+
+# ── App store / news / compliance / deals domains (parallel build) ──────
+# Candidate public function names for the four newest data-domain packages
+# (app_store_data, news_data, compliance_data, deals_data). These packages
+# land from parallel agents; every import below is guarded so the dispatchers
+# degrade gracefully (a readable message) if a module has not landed yet.
+# Each tool maps to one or more (module, candidate-callables) options tried
+# in order, mirroring the events/freight/energy/food/supply pattern.
+_APP_STORE_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "pry_app_search": (("apple", ("search_apps", "app_search", "search_products", "search")),),
+    "pry_app_reviews": (("apple", ("get_reviews", "app_reviews", "get_app_reviews")),),
+}
+
+_NEWS_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "pry_news": (
+        (
+            "headlines",
+            ("get_headlines", "search_news", "news_search", "search_articles", "get_news"),
+        ),
+        ("sentiment", ("get_headlines", "search_news", "news_search")),
+    ),
+    "pry_sentiment": (
+        (
+            "sentiment",
+            ("get_sentiment", "sentiment_analysis", "analyze_sentiment", "news_sentiment"),
+        ),
+        ("headlines", ("get_sentiment", "sentiment_analysis", "analyze_sentiment")),
+    ),
+}
+
+_COMPLIANCE_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "pry_compliance": (
+        (
+            "enforcement",
+            (
+                "search_enforcement",
+                "search_compliance",
+                "compliance_search",
+                "check_compliance",
+                "get_compliance",
+            ),
+        ),
+    ),
+    "pry_company_watch": (
+        ("enforcement", ("watch_company", "company_watch", "get_company_watch")),
+    ),
+}
+
+_DEALS_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "pry_deals": (
+        ("coupons", ("search_deals", "get_deals", "deals_search", "find_deals")),
+        ("drops", ("search_deals", "get_deals", "deals_search")),
+    ),
+    "pry_drop_alert": (
+        (
+            "drops",
+            ("check_drop_alerts", "list_alerts", "get_drop_alerts", "drop_alerts"),
+        ),
+    ),
+}
+
+
+def _new_domain_tool_kwargs(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    """Build the kwargs for an app-store / news / compliance / deals tool.
+
+    Mirrors ``_broad_domain_tool_kwargs`` / ``_domain_tool_kwargs``: kwargs
+    the landed callable does not support are filtered out by the dispatcher
+    (``_callable_accepts``) so the call never fails on an unknown keyword.
+    """
+    if name == "pry_app_search":
+        kwargs: dict[str, Any] = {"query": arguments.get("query", "")}
+        if arguments.get("country"):
+            kwargs["country"] = arguments["country"]
+        if arguments.get("limit") is not None:
+            kwargs["limit"] = int(arguments["limit"])
+        return kwargs
+    if name == "pry_app_reviews":
+        kwargs = {"app_id": arguments.get("app_id", "")}
+        if arguments.get("limit") is not None:
+            kwargs["limit"] = int(arguments["limit"])
+        return kwargs
+    if name == "pry_news":
+        kwargs = {"query": arguments.get("query", "")}
+        if arguments.get("language"):
+            kwargs["language"] = arguments["language"]
+        if arguments.get("limit") is not None:
+            kwargs["limit"] = int(arguments["limit"])
+        return kwargs
+    if name == "pry_sentiment":
+        kwargs = {"query": arguments.get("query", "")}
+        if arguments.get("limit") is not None:
+            kwargs["limit"] = int(arguments["limit"])
+        return kwargs
+    if name == "pry_compliance":
+        kwargs = {}
+        if arguments.get("query"):
+            kwargs["query"] = arguments["query"]
+        if arguments.get("agency"):
+            kwargs["agency"] = arguments["agency"]
+        if arguments.get("limit") is not None:
+            kwargs["limit"] = int(arguments["limit"])
+        return kwargs
+    if name == "pry_company_watch":
+        kwargs = {"company": arguments.get("company", "")}
+        if arguments.get("limit") is not None:
+            kwargs["limit"] = int(arguments["limit"])
+        return kwargs
+    if name == "pry_deals":
+        kwargs = {"query": arguments.get("query", "")}
+        if arguments.get("limit") is not None:
+            kwargs["limit"] = int(arguments["limit"])
+        return kwargs
+    if name == "pry_drop_alert":
+        kwargs = {"product": arguments.get("product", "")}
+        if arguments.get("limit") is not None:
+            kwargs["limit"] = int(arguments["limit"])
+        return kwargs
+    return dict(arguments)
+
+
+async def call_app_store_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch app-store MCP tools to their ``app_store_data`` handlers (guarded).
+
+    The ``app_store_data`` subpackage (``search``, ``reviews``) is built in
+    parallel by other agents; every import is guarded so this dispatcher
+    degrades gracefully (a readable message) if a module has not landed yet.
+    Returns ``None`` for non-app-store tools so callers fall through.
+    """
+    return await _call_domain_dispatcher(
+        name,
+        arguments,
+        "app_store_data",
+        _APP_STORE_TOOL_FNS,
+        _new_domain_tool_kwargs,
+        required_args={"pry_app_search": "query", "pry_app_reviews": "app_id"},
+    )
+
+
+async def call_news_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch news MCP tools to their ``news_data`` handlers (guarded).
+
+    The ``news_data`` subpackage (``articles``, ``sentiment``) is built in
+    parallel by other agents; every import is guarded so this dispatcher
+    degrades gracefully (a readable message) if a module has not landed yet.
+    Returns ``None`` for non-news tools so callers fall through.
+    """
+    return await _call_domain_dispatcher(
+        name,
+        arguments,
+        "news_data",
+        _NEWS_TOOL_FNS,
+        _new_domain_tool_kwargs,
+        required_args={"pry_news": "query", "pry_sentiment": "query"},
+    )
+
+
+async def call_compliance_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch compliance-data MCP tools to their ``compliance_data`` handlers (guarded).
+
+    ``pry_compliance`` keeps a legacy URL-check mode: when called with only a
+    ``url`` (no ``query``/``agency``) this dispatcher returns ``None`` so the
+    original legal-risk REST proxy (``POST /v1/compliance/check``) keeps
+    serving that mode while the ``compliance_data`` package lands. With
+    ``query``/``agency`` it dispatches to the regulatory search. All imports
+    are guarded so a missing module degrades to a readable message. Returns
+    ``None`` for non-compliance tools so callers fall through.
+    """
+    if name == "pry_compliance" and not arguments.get("query") and not arguments.get("agency"):
+        return None
+    return await _call_domain_dispatcher(
+        name,
+        arguments,
+        "compliance_data",
+        _COMPLIANCE_TOOL_FNS,
+        _new_domain_tool_kwargs,
+        required_args={"pry_company_watch": "company"},
+    )
+
+
+async def call_deals_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch deals MCP tools to their ``deals_data`` handlers (guarded).
+
+    The ``deals_data`` subpackage (``deals``, ``drops``) is built in parallel
+    by other agents; every import is guarded so this dispatcher degrades
+    gracefully (a readable message) if a module has not landed yet. Returns
+    ``None`` for non-deals tools so callers fall through.
+    """
+    return await _call_domain_dispatcher(
+        name,
+        arguments,
+        "deals_data",
+        _DEALS_TOOL_FNS,
+        _new_domain_tool_kwargs,
+        required_args={"pry_deals": "query", "pry_drop_alert": "product"},
     )
