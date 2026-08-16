@@ -75,6 +75,12 @@ dev = [
     "commitizen>=3.12.0",
     "hypothesis>=6.0.0",
     "pact-python>=2.0.0",
+    # Postgres drivers for the integration test job. asyncpg is used by the
+    # async engine (PRY_DATABASE_URL=postgresql+asyncpg://); psycopg2-binary
+    # by the sync engine (db.session.session_scope). Both are required by
+    # tests/test_integration_db_redis.py and the `integration-nightly` CI job.
+    "asyncpg>=0.29.0",
+    "psycopg2-binary>=2.9.9",
     "vulture>=2.16",
     "radon>=6.0",
     "interrogate>=1.7",
@@ -94,6 +100,13 @@ extend = "../standards/templates/ruff-base.toml"
 [tool.ruff.lint]
 extend-select = ["A", "BLE"]
 extend-ignore = ["N815", "A002", "RUF006"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/fuzz/test_stealth_fuzz.py" = ["PT019"]
+"tests/fuzz/test_extractor_fuzz.py" = ["PT018"]
+"tests/fuzz/test_parser_fuzz.py" = ["PT018"]
+"tests/test_integration_db_redis.py" = ["PT012"]
+"tests/contract/test_rmi_backend_contract.py" = ["S105"]
 
 # BLE001 (blind except Exception) is enforced. Pre-existing sites are
 # marked with `# noqa: BLE001`; new code must use specific exception
@@ -153,7 +166,9 @@ testpaths = ["tests"]
 # CI runs them nightly, non-blocking, in .forgejo/workflows/ci.yml
 # (`integration-nightly` job) which starts ephemeral postgres:16 + redis:7
 # containers and sets PRY_DATABASE_URL / PRY_REDIS_URL.
-addopts = "-m 'not integration'"
+# `tests/contract/` is also excluded from the default run: pact tests start a
+# native mock service and only make sense in the explicit `contract-test` job.
+addopts = "-m 'not integration' --ignore=tests/contract"
 markers = [
     "integration: tests that require live infrastructure (Postgres, Redis, external HTTP). Skipped by default; run with `pytest -m integration`.",
     "fuzz: marks tests as fuzz/property-based tests (can be slow)",
@@ -204,7 +219,7 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 45  # gradual path: current is ~50% (whole-repo `--cov=.`); raise to 60, 70, 75, 80 in successive PRs
+fail_under = 55  # gradual path: current is ~55% (whole-repo `--cov=.`); raise to 60, 70, 75, 80 in successive PRs
 precision = 1
 show_missing = true
 exclude_lines = [
