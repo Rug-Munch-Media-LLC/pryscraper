@@ -102,6 +102,39 @@ try:
     _RESEARCH_DATA_ROUTER: Any | None = research_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _RESEARCH_DATA_ROUTER = None
+# events_data / freight_data / energy_data / food_data / supply_data routers
+# land in this tree; import them guarded so api.py keeps working (and the
+# x402 gates stay armed) if they have not landed yet.
+try:
+    from routers.events_data import router as events_data_router
+
+    _EVENTS_DATA_ROUTER: Any | None = events_data_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _EVENTS_DATA_ROUTER = None
+try:
+    from routers.freight_data import router as freight_data_router
+
+    _FREIGHT_DATA_ROUTER: Any | None = freight_data_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _FREIGHT_DATA_ROUTER = None
+try:
+    from routers.energy_data import router as energy_data_router
+
+    _ENERGY_DATA_ROUTER: Any | None = energy_data_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _ENERGY_DATA_ROUTER = None
+try:
+    from routers.food_data import router as food_data_router
+
+    _FOOD_DATA_ROUTER: Any | None = food_data_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _FOOD_DATA_ROUTER = None
+try:
+    from routers.supply_data import router as supply_data_router
+
+    _SUPPLY_DATA_ROUTER: Any | None = supply_data_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _SUPPLY_DATA_ROUTER = None
 from routers.monitoring import router as monitoring_router
 from routers.parsing import router as parsing_router
 from routers.pipeline import router as pipeline_router
@@ -372,6 +405,18 @@ if _CLIMATE_DATA_ROUTER is not None:
     app.include_router(_CLIMATE_DATA_ROUTER)
 if _RESEARCH_DATA_ROUTER is not None:
     app.include_router(_RESEARCH_DATA_ROUTER)
+# events_data / freight_data / energy_data / food_data / supply_data routers
+# are included when they have landed.
+if _EVENTS_DATA_ROUTER is not None:
+    app.include_router(_EVENTS_DATA_ROUTER)
+if _FREIGHT_DATA_ROUTER is not None:
+    app.include_router(_FREIGHT_DATA_ROUTER)
+if _ENERGY_DATA_ROUTER is not None:
+    app.include_router(_ENERGY_DATA_ROUTER)
+if _FOOD_DATA_ROUTER is not None:
+    app.include_router(_FOOD_DATA_ROUTER)
+if _SUPPLY_DATA_ROUTER is not None:
+    app.include_router(_SUPPLY_DATA_ROUTER)
 app.include_router(monitoring_router)
 app.include_router(parsing_router)
 app.include_router(pipeline_router)

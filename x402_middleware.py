@@ -86,6 +86,14 @@ PAID_ENDPOINTS = {
     # Climate / research intelligence — paid per call at $0.002:
     "/v1/climate/": "weather",
     "/v1/research/": "academic",
+    # Events / freight / energy / food / supply intelligence — paid per call
+    # at $0.002-$0.005 (cheap reads; deliberate undercut of Ticketmaster /
+    # BeenVerified-class APIs). Prefixes cover every sub-route of each domain.
+    "/v1/events/": "events_search",
+    "/v1/freight/": "freight_rates",
+    "/v1/energy/": "energy_lmp",
+    "/v1/food/": "food_grocery",
+    "/v1/supply/": "supply_imports",
 }
 
 # Price tiers for the crypto-market operations. The canonical pricing table
@@ -267,6 +275,37 @@ _CLIMATE_RESEARCH_PRICE_TIERS: dict[str, dict[str, Any]] = {
     },
 }
 for _operation, _tier in _CLIMATE_RESEARCH_PRICE_TIERS.items():
+    X402_PRICING.setdefault(_operation, _tier)
+
+# Price tiers for the events / freight / energy / food / supply operations.
+# Cheap reads at $0.002-$0.005 — ticket, container, LMP, grocery, and customs
+# lookups are low-cost data pulls, so gate them well below the sports scans.
+# Same defensive setdefault merge as the tiers above; keeps the /v1/events/*,
+# /v1/freight/*, /v1/energy/*, /v1/food/* and /v1/supply/* gates from being
+# skipped until promoted into x402/scheme.py.
+_EVENTS_SUPPLY_PRICE_TIERS: dict[str, dict[str, Any]] = {
+    "events_search": {
+        "price_usd": 0.003,
+        "description": "Live event search (Ticketmaster / SeatGeek class feeds)",
+    },
+    "freight_rates": {
+        "price_usd": 0.005,
+        "description": "Ocean container / FMC freight rates by route",
+    },
+    "energy_lmp": {
+        "price_usd": 0.002,
+        "description": "Electricity locational marginal prices (LMP) by ISO region",
+    },
+    "food_grocery": {
+        "price_usd": 0.002,
+        "description": "Grocery prices by item / ZIP and restaurant menu pricing",
+    },
+    "supply_imports": {
+        "price_usd": 0.004,
+        "description": "U.S. customs import records by company",
+    },
+}
+for _operation, _tier in _EVENTS_SUPPLY_PRICE_TIERS.items():
     X402_PRICING.setdefault(_operation, _tier)
 
 
