@@ -1,8 +1,8 @@
 # Pry MCP — Web Scraping, Browser Automation & Data Intelligence
 
-> Pry is a self-hosted MCP server for web scraping, browser automation, and ten data domains: scrape, crawl, extract, template, monitor, comply, enrich, parse documents, screenshot, plus crypto, marketplace, legal, real estate, jobs, travel, attention, local, gov, and IP intelligence — all monetized via x402 pay-per-call. It bypasses Cloudflare and other anti-bot systems via a 9-tier fallback chain and needs no API keys. Install with `uvx pryscraper-mcp` or `pipx install pryscraper`.
+> Pry is a self-hosted MCP server for web scraping, browser automation, and seventeen data domains: scrape, crawl, extract, template, monitor, comply, enrich, parse documents, screenshot, plus crypto, sports betting, marketplace, legal, real estate, jobs, travel, attention, local, healthcare, commerce long-tail, gov, IP, climate/weather + agriculture, and research/academic intelligence — all monetized via x402 pay-per-call. It bypasses Cloudflare and other anti-bot systems via a 9-tier fallback chain and needs no API keys. Install with `uvx pryscraper-mcp` or `pipx install pryscraper`.
 
-Pry exposes 35 MCP tools. All are self-hosted — the server is a FastAPI app mounted at `/mcp` (Streamable HTTP + HTTP+SSE) plus a stdio entry point (`pry-mcp`). Deploy once, then any MCP client (Claude, Cursor, Hermes, any MCP-compatible agent) can call the tools.
+Pry exposes 50 MCP tools. All are self-hosted — the server is a FastAPI app mounted at `/mcp` (Streamable HTTP + HTTP+SSE) plus a stdio entry point (`pry-mcp`). Deploy once, then any MCP client (Claude, Cursor, Hermes, any MCP-compatible agent) can call the tools.
 
 ## Tools
 
@@ -36,6 +36,30 @@ Pry exposes 35 MCP tools. All are self-hosted — the server is a FastAPI app mo
 - [pry_amazon_search](https://codeberg.org/cryptorugmunch/pryscraper): Amazon keyword search — listings with price and ASIN
 - [pry_walmart_product](https://codeberg.org/cryptorugmunch/pryscraper): Walmart product lookup by ID — price, seller, rating
 - [pry_tiktok_trending](https://codeberg.org/cryptorugmunch/pryscraper): Trending TikTok Shop products by engagement
+
+### Sports betting (sports_data)
+
+- [pry_odds](https://codeberg.org/cryptorugmunch/pryscraper): Live betting odds across major bookmakers (DraftKings, FanDuel, BetMGM, ESPN BET, …)
+- [pry_arbitrage](https://codeberg.org/cryptorugmunch/pryscraper): Scan sportsbook lines for guaranteed-profit arbitrage opportunities
+- [pry_plus_ev](https://codeberg.org/cryptorugmunch/pryscraper): Find positive expected-value (+EV) betting opportunities vs a sharp book
+- [pry_props](https://codeberg.org/cryptorugmunch/pryscraper): Player prop betting lines (points, rebounds, assists, yards, strikeouts, …)
+- [pry_injuries](https://codeberg.org/cryptorugmunch/pryscraper): Injury report for a sport or team (out/questionable/active)
+- [pry_live_odds](https://codeberg.org/cryptorugmunch/pryscraper): Live in-play odds (moneyline, spreads, totals as they move)
+- [pry_scores](https://codeberg.org/cryptorugmunch/pryscraper): Final or live scores from ESPN public scoreboards
+- [pry_historical_odds](https://codeberg.org/cryptorugmunch/pryscraper): Historical betting odds for past events (closing/open lines) — backtest models
+- [pry_betting_percentages](https://codeberg.org/cryptorugmunch/pryscraper): Public betting percentages (bets & money share) — spot sharp-side steam
+- [pry_sharp_consensus](https://codeberg.org/cryptorugmunch/pryscraper): Sharp consensus lines from Pinnacle/Circa/BetOnline with CLV estimates
+- [pry_alerts](https://codeberg.org/cryptorugmunch/pryscraper): Money-printer alerts — line moves, sharp steam, CLV spikes
+
+### Climate / weather & agriculture (climate_data)
+
+- [pry_weather](https://codeberg.org/cryptorugmunch/pryscraper): Current weather and short-range forecasts (NOAA NWS) for a location
+- [pry_agri](https://codeberg.org/cryptorugmunch/pryscraper): Agricultural data — crop conditions, growing-degree days, soil moisture, USDA NASS prices
+
+### Research & academic (research_data)
+
+- [pry_papers](https://codeberg.org/cryptorugmunch/pryscraper): Search academic papers and preprints (OpenAlex/Crossref) by keyword or author
+- [pry_domain](https://codeberg.org/cryptorugmunch/pryscraper): Domain intelligence report — RDAP WHOIS, SSL/TLS, hosting, tech fingerprint
 
 ### Legal (legal_docs)
 
@@ -99,10 +123,3 @@ Pry exposes 35 MCP tools. All are self-hosted — the server is a FastAPI app mo
 - [Feature list](https://codeberg.org/cryptorugmunch/pryscraper): Full Pry feature matrix
 - [Usage guide](https://codeberg.org/cryptorugmunch/pryscraper): CLI, SDK, and MCP usage examples
 - [Architecture](https://codeberg.org/cryptorugmunch/pryscraper): Pry architecture overview
-- [pry_odds](https://codeberg.org/cryptorugmunch/pryscraper): Get live betting odds across major bookmakers (DraftKings, FanDuel, BetMGM, ESPN BET, .
-- [pry_arbitrage](https://codeberg.org/cryptorugmunch/pryscraper): Scan sportsbook lines for guaranteed-profit arbitrage opportunities: the same event quoted at different books where the combined implied probabilities total under 100%.
-- [pry_plus_ev](https://codeberg.org/cryptorugmunch/pryscraper): Find positive expected-value (+EV) betting opportunities by comparing market odds against a sharp book's line or consensus price.
-- [pry_props](https://codeberg.org/cryptorugmunch/pryscraper): Get player prop betting lines (points, rebounds, assists, yards, strikeouts, .
-- [pry_injuries](https://codeberg.org/cryptorugmunch/pryscraper): Get the current injury report for a sport or team: player, team, injury detail, and status (out/questionable/active).
-- [pry_live_odds](https://codeberg.org/cryptorugmunch/pryscraper): Get live in-play odds that update during games (moneyline, spreads, totals as they move).
-- [pry_scores](https://codeberg.org/cryptorugmunch/pryscraper): Get final or live scores for one or more sports on a given day from ESPN public scoreboards (free, no quota, high-frequency safe).

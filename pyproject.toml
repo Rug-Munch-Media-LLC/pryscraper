@@ -284,6 +284,8 @@ include = [
     "sports_data*",
     "healthcare_data*",
     "commerce_data*",
+    "climate_data*",
+    "research_data*",
 ]
 
 [tool.ruff]

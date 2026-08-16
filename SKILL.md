@@ -1,13 +1,13 @@
 ---
 name: pry-mcp
-description: Use Pry MCP to scrape, crawl, extract, monitor, parse documents, take screenshots, check compliance, or pull crypto token intelligence (launches, CEX listings, security) from any website. Trigger words — "scrape", "crawl", "extract from URL", "monitor page", "parse PDF", "screenshot", "token security", "CEX listing", "token launch", "template", "x402 pricing".
+description: Use Pry MCP to scrape, crawl, extract, monitor, parse documents, take screenshots, check compliance, or pull data intelligence from any website — crypto tokens (launches, CEX listings, security), sports betting (odds, arbitrage, +EV, money-printer alerts), marketplace products, legal & public records, real estate, jobs, travel, SEO, local business, government data, IP data, weather/agri, academic papers, and domain intelligence. Trigger words — "scrape", "crawl", "extract from URL", "monitor page", "parse PDF", "screenshot", "token security", "CEX listing", "token launch", "betting odds", "arbitrage", "sports", "weather", "papers", "domain", "template", "x402 pricing".
 ---
 
 # Pry MCP — Onboarding Skill
 
 ## What Pry Is
 
-Pry is a **self-hosted MCP server** for web scraping and browser automation. It fetches any web page as clean markdown — bypassing Cloudflare, DataDome, Akamai and other anti-bot systems via a 9-tier fallback chain (direct → cloudscraper → FlareSolverr → Playwright → Googlebot → Archive.org → Google Cache → Tor → undetected-chromedriver) — and exposes 42 tools for crawling, structured extraction, templated scraping, monitoring, document parsing, screenshots, compliance checks, enrichment, marketplace intelligence (Amazon, Walmart, TikTok Shop), x402 pay-per-call pricing, referrals, and crypto token intelligence.
+Pry is a **self-hosted MCP server** for web scraping and browser automation. It fetches any web page as clean markdown — bypassing Cloudflare, DataDome, Akamai and other anti-bot systems via a 9-tier fallback chain (direct → cloudscraper → FlareSolverr → Playwright → Googlebot → Archive.org → Google Cache → Tor → undetected-chromedriver) — and exposes 50 tools for crawling, structured extraction, templated scraping, monitoring, document parsing, screenshots, compliance checks, enrichment, marketplace intelligence (Amazon, Walmart, TikTok Shop), sports betting (odds, arbitrage, +EV, props, money-printer alerts), crypto token intelligence, legal & public records, real estate, jobs, travel, attention/SEO, local business, government data (procurement, recalls), IP data (patents, trademarks), climate/weather + agriculture, research/academic (papers, domain intelligence), x402 pay-per-call pricing, and referrals.
 
 - **No API keys needed** — self-hosted; the server is a FastAPI app mounted at `/mcp` plus a stdio entry point (`pry-mcp`).
 - **Registry identity**: `io.rugmunch/pry` (see `server.json`); install `uvx pryscraper-mcp` or `pipx install pryscraper`.
@@ -26,7 +26,10 @@ Pry is a **self-hosted MCP server** for web scraping and browser automation. It 
 9. **Company/tech intel from a URL** → `pry_enrich`
 10. **Marketplace product/trend intelligence** → `pry_amazon_product`, `pry_amazon_search`, `pry_walmart_product`, `pry_tiktok_trending`
 11. **Crypto token intelligence** → `pry_token_launches`, `pry_cex_listings`, `pry_token_security`
-12. **Cost display before a paid call** → `pry_x402_pricing`; **partner/referral lookup** → `pry_referrals`
+12. **Sports betting / money-printer signals** → `pry_odds`, `pry_arbitrage`, `pry_plus_ev`, `pry_sharp_consensus`, `pry_alerts`
+13. **Weather / agri research context** → `pry_weather`, `pry_agri`
+14. **Scholarly grounding / domain vetting** → `pry_papers`, `pry_domain`
+15. **Cost display before a paid call** → `pry_x402_pricing`; **partner/referral lookup** → `pry_referrals`
 
 ## Tool Reference
 
@@ -101,6 +104,57 @@ Pry is a **self-hosted MCP server** for web scraping and browser automation. It 
 - **pry_token_security** — *Use when* screening a token for rug-pull risk: honeypot, mint authority, LP lock, holder distribution.
   Example: `pry_token_security(address="TOKEN_MINT_ADDRESS", chain="solana")` → risk flags + severity.
 
+### Sports Betting & Money-Printer Alerts (new)
+
+- **pry_odds** — *Use when* you need live betting odds across bookmakers (DraftKings, FanDuel, BetMGM, …).
+  Example: `pry_odds(sport="nba", limit=20)` → event odds with bookmaker, market, decimal price.
+
+- **pry_arbitrage** — *Use when* hunting guaranteed-profit arbitrage across books.
+  Example: `pry_arbitrage(sport="nba", min_yield_pct=1.0)` → opportunities where implied probabilities total under 100%.
+
+- **pry_plus_ev** — *Use when* you want +EV bets where market odds beat the sharp book's fair line.
+  Example: `pry_plus_ev(sharp_book="pinnacle", min_ev_pct=1.0)` → +EV plays with expected value.
+
+- **pry_props** — *Use when* researching player props (points, rebounds, assists, yards, strikeouts).
+  Example: `pry_props(player="LeBron James", market="points")` → prop lines across books.
+
+- **pry_injuries** — *Use when* checking who's out/questionable before betting or lineup building.
+  Example: `pry_injuries(sport="nfl", team="Chiefs")` → injury report with status.
+
+- **pry_live_odds** — *Use when* live-betting research: in-play moneyline, spreads, totals.
+  Example: `pry_live_odds(sport="nba")` → odds updating during games.
+
+- **pry_scores** — *Use when* you need final/live scores for a day (ESPN, free, no quota).
+  Example: `pry_scores(sport="nfl", date="today")` → scoreboard.
+
+- **pry_historical_odds** — *Use when* backtesting models or auditing line movement.
+  Example: `pry_historical_odds(sport="nfl", date="2026-01-15")` → closing/open lines for past events.
+
+- **pry_betting_percentages** — *Use when* spotting sharp-side steam and contrarian plays.
+  Example: `pry_betting_percentages(sport="nfl", event="Chiefs")` → share of bets and money on each side.
+
+- **pry_sharp_consensus** — *Use when* you need to see where professional money is (CLV-aware).
+  Example: `pry_sharp_consensus(sharp_books="pinnacle,circa")` → consensus lines with CLV estimates.
+
+- **pry_alerts** — *Use when* staying on top of the market without polling: line moves, sharp steam, CLV spikes.
+  Example: `pry_alerts(alert_type="steam", sport="nfl")` → money-printer alerts.
+
+### Climate / Weather & Agriculture (new)
+
+- **pry_weather** — *Use when* you need current weather + short-range forecasts for research pipelines.
+  Example: `pry_weather(location="Austin, TX", forecast_days=3)` → current conditions, forecast, alerts (NOAA NWS).
+
+- **pry_agri** — *Use when* modeling crop yield risk or monitoring growing regions.
+  Example: `pry_agri(commodity="corn", region="us")` → crop prices/conditions (USDA NASS).
+
+### Research & Academic (new)
+
+- **pry_papers** — *Use when* you need scholarly grounding with real citation counts (OpenAlex/Crossref, keyless).
+  Example: `pry_papers(query="attention is all you need", limit=5)` → papers with authors, year, citations.
+
+- **pry_domain** — *Use when* vetting a domain before scraping or enriching a lead.
+  Example: `pry_domain(domain="example.com")` → RDAP WHOIS, SSL/TLS, hosting, tech fingerprint.
+
 ## Running / Connecting
 
 ```bash
@@ -120,4 +174,6 @@ uvx pryscraper-mcp            # or: pipx install pryscraper && pry-mcp
 - Run `pry_compliance` before scraping a site you are unsure about.
 - For marketplace intel, `pry_amazon_search` first to find ASINs, then `pry_amazon_product` for a single listing; `pry_tiktok_trending` for viral-commerce research.
 - For crypto tokens, prefer `pry_token_security` before any engagement; pair `pry_token_launches` + `pry_cex_listings` for market-timing research.
+- For sports, sweep `pry_arbitrage` for guaranteed profit, then `pry_plus_ev` for edge; use `pry_alerts` to stop polling.
+- For research pipelines, enrich jobs with `pry_weather` / `pry_agri` context and ground claims with `pry_papers`.
 - All tools are self-hosted — data never leaves your deployment unless you call a remote HTTP endpoint.

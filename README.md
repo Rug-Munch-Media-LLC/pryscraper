@@ -129,7 +129,7 @@ result = mc.scrape("https://example.com")
 
 <!-- mcp-name: io.rugmunch/pry -->
 
-Pry ships a Model Context Protocol server — 42 tools for scraping, crawling, extraction, monitoring, document parsing, screenshots, compliance, enrichment, marketplace intelligence (Amazon, Walmart, TikTok Shop), x402 pricing, and crypto token intelligence. Compatible with Claude, Hermes, Cursor, and any MCP client.
+Pry ships a Model Context Protocol server — 50 tools for scraping, crawling, extraction, monitoring, document parsing, screenshots, compliance, enrichment, marketplace intelligence (Amazon, Walmart, TikTok Shop), sports betting (odds, arbitrage, +EV, props, money-printer alerts), crypto token intelligence, legal & public records, real estate, jobs, travel, attention/SEO, local business, government data (procurement, recalls), IP data (patents, trademarks), climate/weather + agriculture, and research/academic (papers, domain intelligence), plus x402 pricing. Compatible with Claude, Hermes, Cursor, and any MCP client.
 
 ### One-command install
 
