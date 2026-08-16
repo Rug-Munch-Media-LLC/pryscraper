@@ -22,13 +22,16 @@ Usage: app.add_middleware(X402Middleware, free_paths=["/health", "/v1/templates"
 import base64
 import json
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from x402 import X402_PRICING, X402Handler
+from x402 import PAYMENT_VALIDITY_SECONDS, X402_PRICING, X402Handler, validate_client_amount
 
 logger = logging.getLogger(__name__)
 
+# Path prefix -> x402 operation. ``path.startswith(prefix)`` gates the
+# endpoint, so a bare prefix (e.g. "/v1/capture") covers every sub-route.
+# Every operation here MUST exist in X402_PRICING or the gate is skipped.
 PAID_ENDPOINTS = {
     "/v1/scrape": "scrape",
     "/v1/crawl": "crawl",
@@ -39,7 +42,27 @@ PAID_ENDPOINTS = {
     "/v1/automate": "browser_automation",
     "/v1/monitor": "monitor",
     "/v1/pdf/extract": "pdf_extract",
+    # Previously ungated (free) — now paid:
+    "/v1/ultimate-scrape": "scrape",
+    "/v1/batch": "bulk_crawl",
+    "/v1/crawl/adaptive": "crawl",
+    "/v1/map": "crawl",
+    "/v1/capture": "browser_automation",
+    "/v1/graphql": "graphql_query",
 }
+
+
+def _caller_key_from_scope(scope: dict[str, Any]) -> str:
+    """Derive a caller binding key from the ASGI connection.
+
+    Uses the socket peer IP only — X-Forwarded-For is spoofable and must not
+    be trusted for payment binding. Returns "" when no client info is present
+    (e.g. tests / local unix sockets); such payments still expire.
+    """
+    client = scope.get("client")
+    if client and isinstance(client, (list, tuple)) and len(client) >= 1 and client[0]:
+        return str(client[0])
+    return ""
 
 
 class X402Middleware:
@@ -74,20 +97,40 @@ class X402Middleware:
             await self.app(scope, receive, send)
             return
 
+        # CORS preflight: OPTIONS requests carry no credentials or body and must
+        # reach CORSMiddleware so browsers get the Access-Control-Allow-* headers.
+        # Never gate preflight behind payment.
+        if scope.get("method") == "OPTIONS":
+            await self.app(scope, receive, send)
+            return
+
         path = scope.get("path", "")
         if path in self.free_paths or not any(path.startswith(p) for p in PAID_ENDPOINTS):
             await self.app(scope, receive, send)
             return
+
+        # Resolve the operation once, up front, so server-side pricing can be
+        # enforced against any client-supplied amount.
+        operation = next((op for ep, op in PAID_ENDPOINTS.items() if path.startswith(ep)), None)
+        if not operation or operation not in X402_PRICING:
+            await self.app(scope, receive, send)
+            return
+
+        caller_key = _caller_key_from_scope(scope)
 
         headers = dict(scope.get("headers", []))
         payment_sig = headers.get(b"payment-signature", b"").decode()
         payment_id_header = headers.get(b"x-payment-id", b"").decode()
         batch_id_header = headers.get(b"x-batch-payment-id", b"").decode()
 
-        # Check pre-verified individual payment
-        if payment_id_header and self.handler.is_paid(payment_id_header):
-            await self.app(scope, receive, send)
-            return
+        # Check pre-verified individual payment (expiry + caller-bound).
+        # Refresh first so payments issued by other handlers (e.g. the
+        # /v1/x402/pay route) are visible to this middleware instance.
+        if payment_id_header:
+            self.handler.refresh()
+            if self.handler.is_paid(payment_id_header, caller_key=caller_key):
+                await self.app(scope, receive, send)
+                return
 
         # Check pre-verified batch payment
         if batch_id_header:
@@ -106,17 +149,43 @@ class X402Middleware:
                 asset = payload.get("asset", "")
                 amount_usd = float(payload.get("amount_usd", 0.0))
                 if payment_id and tx_hash:
+                    # Server-side pricing is authoritative: never trust the
+                    # client-supplied amount. Reject underpayment BEFORE any
+                    # facilitator call.
+                    ok, price_reason = validate_client_amount(operation, amount_usd, asset)
+                    if not ok:
+                        logger.warning(
+                            "x402_underpayment_rejected",
+                            extra={"operation": operation, "path": path, "reason": price_reason},
+                        )
+                        await self._send_payment_required(operation, path, send)
+                        return
                     verify_result = await self.handler.verify_payment(
-                        payment_id, tx_hash, network=network, asset=asset, amount_usd=amount_usd
+                        payment_id,
+                        tx_hash,
+                        network=network,
+                        asset=asset,
+                        amount_usd=amount_usd,
+                        operation=operation,
+                        caller_key=caller_key,
                     )
                     if verify_result.get("verified"):
                         settlement = await self.handler.settle_payment(
-                            payment_id, tx_hash, network=network, asset=asset, amount_usd=amount_usd
+                            payment_id,
+                            tx_hash,
+                            network=network,
+                            asset=asset,
+                            amount_usd=amount_usd,
+                            operation=operation,
                         )
                         response_b64 = base64.b64encode(json.dumps(settlement).encode()).decode()
                         self.payments[payment_id] = {
                             "payment_id": payment_id,
                             "tx_hash": tx_hash,
+                            "caller_key": caller_key,
+                            "expires_at": (
+                                datetime.now(UTC) + timedelta(seconds=PAYMENT_VALIDITY_SECONDS)
+                            ).isoformat(),
                             "verified_at": datetime.now(UTC).isoformat(),
                         }
 
@@ -134,11 +203,10 @@ class X402Middleware:
             except (ValueError, KeyError, TypeError) as e:
                 logger.warning("x402_payment_decode_failed", extra={"error": str(e)})
 
-        operation = next((op for ep, op in PAID_ENDPOINTS.items() if path.startswith(ep)), None)
-        if not operation or operation not in X402_PRICING:
-            await self.app(scope, receive, send)
-            return
+        await self._send_payment_required(operation, path, send)
 
+    async def _send_payment_required(self, operation: str, path: str, send: Any) -> None:
+        """Send a spec-compliant 402 Payment Required response."""
         body, x402_headers = self.handler.create_payment_required(operation, resource=path)
         body_bytes = json.dumps(body).encode()
 

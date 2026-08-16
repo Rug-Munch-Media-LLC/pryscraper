@@ -16,6 +16,8 @@ from typing import Any
 
 import httpx
 
+from settings import settings
+
 
 class JobQueue:
     """Redis-backed async job queue for batch scrape/crawl operations.
@@ -111,10 +113,16 @@ class JobQueue:
             await self._fire_webhook(job["webhook"], job)
 
     async def _fire_webhook(self, url: str, job: dict):
-        """Fire webhook callback with job result."""
+        """Fire webhook callback with job result.
+
+        The HMAC key comes from settings.webhook_secret (PRY_WEBHOOK_SECRET
+        env / pry/webhook_secret in gopass — see settings.py), so a deployed
+        secret is actually honored. Webhook verification requires a
+        configured secret; with an empty secret the signature is unverifiable.
+        """
         try:
             signature = hmac.new(
-                b"pry-webhook-secret", json.dumps(job).encode(), hashlib.sha256
+                settings.webhook_secret.encode(), json.dumps(job).encode(), hashlib.sha256
             ).hexdigest()
             async with httpx.AsyncClient(timeout=10) as client:
                 await client.post(

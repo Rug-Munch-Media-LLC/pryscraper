@@ -22,7 +22,7 @@ from trafilatura.settings import use_config
 from errors import InvalidRequestError
 from settings import settings
 from stealth_engine import StealthEngine
-from url_guard import validate_url
+from url_guard import safe_get, validate_url
 
 # SystemRandom: crypto-grade entropy so stealth jitter is not predictable.
 _RNG = random.SystemRandom()
@@ -427,9 +427,10 @@ class PryScraper:
 
     async def _fetch_direct(self, url: str, headers: dict, timeout_s: int) -> str:
         proxy_url = settings.resolved_proxy_url
+        # Note: follow_redirects stays False (httpx default); safe_get manually
+        # follows redirects and re-validates each Location target (SSRF guard).
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(timeout_s),
-            follow_redirects=True,
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=20),
             headers=headers,
             cookies=httpx.Cookies(),
@@ -437,7 +438,7 @@ class PryScraper:
         ) as client:
             delay = _RNG.uniform(*settings.rotation_delay_range)
             await asyncio.sleep(delay)
-            resp = await client.get(url)
+            resp = await safe_get(client, url)
             resp.raise_for_status()
             return resp.text
 
@@ -550,6 +551,10 @@ class PryScraper:
 
     async def _extract_links(self, url: str, options: dict | None = None) -> list[str]:
         opts = options or {}
+        # map_urls -> _extract_links fetches the user-supplied URL directly,
+        # so it must be validated here (not just in scrape()). An unsafe URL
+        # raises InvalidRequestError and aborts before any network I/O.
+        validate_url(url)
         base_domain = urlparse(url).netloc
         html = None
         try:

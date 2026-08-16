@@ -12,13 +12,14 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Request
 
 from errors import InvalidRequestError
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["x402"])
+
 
 @router.get("/v1/x402/pricing", tags=["x402"], summary="Get x402 pricing for all paid operations")
 async def x402_pricing() -> dict[str, Any]:
@@ -51,11 +52,33 @@ async def x402_verify_payment(
     asset: str = Body(""),
     amount_usd: float = Body(0.0),
 ) -> dict[str, Any]:
-    """Verify a x402 payment has been settled on-chain via facilitator router."""
-    from x402 import X402Handler
+    """Verify a x402 payment has been settled on-chain via facilitator router.
+
+    When ``payment_id`` names a priced operation, the client-supplied
+    ``amount_usd`` is validated against the SERVER-side price first and
+    underpayment is rejected before any facilitator call.
+    """
+    from x402 import X402_PRICING, X402Handler, validate_client_amount
+
+    if payment_id in X402_PRICING:
+        ok, reason = validate_client_amount(payment_id, amount_usd, asset)
+        if not ok:
+            logger.warning(
+                "x402_underpayment_rejected",
+                extra={"operation": payment_id, "reason": reason},
+            )
+            return {
+                "success": False,
+                "data": {"verified": False, "reason": reason, "settlement": None},
+            }
 
     result = await X402Handler().verify_payment(
-        payment_id, tx_hash, network=network, asset=asset, amount_usd=amount_usd
+        payment_id,
+        tx_hash,
+        network=network,
+        asset=asset,
+        amount_usd=amount_usd,
+        operation=payment_id if payment_id in X402_PRICING else "",
     )
     return {"success": result["verified"], "data": result}
 
@@ -112,6 +135,7 @@ async def x402_batch_verify(payload: dict[str, Any] = Body(...)) -> dict[str, An
     summary="Process x402 payment and get access token",
 )
 async def x402_pay(
+    request: Request,
     operation: str = Body(...),
     tx_hash: str = Body(...),
     payer_wallet: str = Body(...),
@@ -127,18 +151,57 @@ async def x402_pay(
     3. User calls this endpoint with the tx_hash
     4. Pry verifies the transaction through the facilitator router
     5. Returns access token (payment_id) to use in X-Payment-Hash header
-    """
-    from x402 import X402Handler
 
+    Security: the client-supplied ``amount_usd`` is validated against the
+    SERVER-side price for ``operation`` before any verification, so a client
+    cannot underpay by claiming a lower amount. The returned payment_id is
+    bound to the caller IP and expires after PAYMENT_VALIDITY_SECONDS.
+    """
+    from x402 import X402Handler, resolve_price_usd, validate_client_amount
+
+    # Never trust the client-supplied amount: reject underpayment up front.
+    ok, reason = validate_client_amount(operation, amount_usd, asset)
+    if not ok:
+        logger.warning(
+            "x402_underpayment_rejected",
+            extra={"operation": operation, "reason": reason},
+        )
+        return {
+            "success": False,
+            "data": {
+                "payment_id": "",
+                "tx_hash": tx_hash,
+                "verified": {"verified": False, "reason": reason, "settlement": None},
+                "settlement": None,
+                "payer_wallet": payer_wallet,
+                "required_amount_usd": resolve_price_usd(operation),
+            },
+        }
+
+    # Bind the payment to the caller IP so the middleware replay check (which
+    # also uses the socket peer IP) can match it within the TTL window.
+    caller_key = request.client.host if request.client else ""
     h = X402Handler()
     payment_id = uuid.uuid4().hex[:12]
+    # Use the server-side price for the operation.
     verify_result = await h.verify_payment(
-        payment_id, tx_hash, network=network, asset=asset, amount_usd=amount_usd
+        payment_id,
+        tx_hash,
+        network=network,
+        asset=asset,
+        amount_usd=amount_usd,
+        operation=operation,
+        caller_key=caller_key,
     )
     settlement = None
     if verify_result.get("verified"):
         settlement = await h.settle_payment(
-            payment_id, tx_hash, network=network, asset=asset, amount_usd=amount_usd
+            payment_id,
+            tx_hash,
+            network=network,
+            asset=asset,
+            amount_usd=amount_usd,
+            operation=operation,
         )
     return {
         "success": verify_result.get("verified", False),

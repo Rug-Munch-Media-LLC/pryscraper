@@ -12,7 +12,7 @@ import json
 import re
 import time
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime
 from typing import Any, cast
@@ -114,7 +114,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if not settings.api_key:
         logger.warning(
             "pry_api_key_unset",
-            message="PRY_API_KEY is not set; all protected endpoints are publicly accessible",
+            message=(
+                "PRY_API_KEY is not set; protected endpoints are loopback-only "
+                "(remote requests get 401). Set a strong key to allow remote clients."
+            ),
         )
     get_pipeline()  # Initialize pipeline
     # Register DataBus bridge (publish scraped results to rmi-backend)
@@ -361,7 +364,7 @@ class PryHttpMiddleware:
         self.app = app
 
     @staticmethod
-    def _get_header(scope: dict[str, Any], name: bytes) -> str:
+    def _get_header(scope: Mapping[str, Any], name: bytes) -> str:
         for key, value in scope.get("headers", []):
             if key.lower() == name.lower():
                 return cast("bytes", value).decode("latin-1")
@@ -369,6 +372,13 @@ class PryHttpMiddleware:
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
         if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # CORS preflight: OPTIONS requests carry no credentials and must reach
+        # CORSMiddleware without auth/rate-limit gating so browsers can probe
+        # cross-origin access before sending the real request.
+        if scope.get("method") == "OPTIONS":
             await self.app(scope, receive, send)
             return
 
@@ -380,50 +390,43 @@ class PryHttpMiddleware:
         ip = client[0] if client else "unknown"
         response_status = 200
 
+        # Authentication check — fail closed.
+        # Runs BEFORE the unknown-path pass-through: a keyless instance must
+        # reject every non-loopback source (even for unknown paths) with 401,
+        # and a configured key must be presented from every source. The
+        # route-existence check below only decides whether an *authorized*
+        # request is passed to the router (which 404s unknown paths).
+        if path not in _AUTH_PUBLIC_PATHS and not request_authorized(scope):
+            body = json.dumps(
+                {
+                    "type": "/errors/unauthorized",
+                    "title": "Unauthorized",
+                    "status": 401,
+                    "detail": "Invalid or missing API key",
+                    "request_id": request_id,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "code": "unauthorized",
+                }
+            ).encode()
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 401,
+                    "headers": [
+                        (b"content-type", b"application/json"),
+                        (b"content-length", str(len(body)).encode()),
+                        (b"x-request-id", request_id.encode()),
+                    ],
+                }
+            )
+            await send({"type": "http.response.body", "body": body})
+            return
+
         # Check if route exists — pass through unknown paths to 404 handler
         _app = getattr(self, "app", None)
         if _app and not _path_exists(path, _app):
             await _app(scope, receive, send)
             return
-
-        # Authentication check
-
-        # Authentication check — supports PRY_API_KEY (legacy) and JWT from rmi-backend
-        api_key = settings.api_key
-        if api_key and path not in _AUTH_PUBLIC_PATHS:
-            auth = self._get_header(scope, b"authorization")
-            authenticated = False
-            if auth.startswith("Bearer "):
-                token = auth[7:]
-                if token == api_key:
-                    authenticated = True  # Legacy API key — allowed
-                elif is_jwt(token) and validate_rmi_jwt(token):
-                    authenticated = True  # JWT from rmi-backend — allowed
-            if not authenticated:
-                body = json.dumps(
-                    {
-                        "type": "/errors/unauthorized",
-                        "title": "Unauthorized",
-                        "status": 401,
-                        "detail": "Invalid or missing API key",
-                        "request_id": request_id,
-                        "timestamp": datetime.now(UTC).isoformat(),
-                        "code": "unauthorized",
-                    }
-                ).encode()
-                await send(
-                    {
-                        "type": "http.response.start",
-                        "status": 401,
-                        "headers": [
-                            (b"content-type", b"application/json"),
-                            (b"content-length", str(len(body)).encode()),
-                            (b"x-request-id", request_id.encode()),
-                        ],
-                    }
-                )
-                await send({"type": "http.response.body", "body": body})
-                return
 
         allowed, stats = ratelimiter.check(ip)
         if not allowed:
@@ -509,6 +512,53 @@ class PryHttpMiddleware:
 
 
 app.add_middleware(PryHttpMiddleware)
+
+
+# ── Fail-closed auth policy ──
+# Shared by PryHttpMiddleware and the sensitive configuration routers
+# (routers/proxy.py, routers/config.py) so every egress-mutating endpoint
+# enforces the same rule as the middleware:
+#
+#   * PRY_API_KEY configured -> a valid Bearer credential (API key or rmi JWT)
+#     is required from EVERY source, loopback included.
+#   * PRY_API_KEY unset      -> only loopback clients are allowed; every other
+#     source is rejected with 401. This keeps a keyless instance from being
+#     exposed to the internet (e.g. when the Docker port mapping is public).
+#
+# "testclient" is the peer host Starlette's TestClient reports; tests run from
+# localhost without a key and must keep passing.
+_LOOPBACK_OR_TEST_HOSTS: frozenset[str] = frozenset(
+    {"127.0.0.1", "::1", "::ffff:127.0.0.1", "testclient"}
+)
+
+
+def is_loopback_client(ip: str) -> bool:
+    """Return True when the peer address is loopback (or the ASGI test client)."""
+    if not ip or ip == "unknown":
+        return False
+    return ip in _LOOPBACK_OR_TEST_HOSTS or ip.startswith(
+        ("127.", "::ffff:127.")  # 127.0.0.0/8 loopback range
+    )
+
+
+def request_authorized(scope: Mapping[str, Any]) -> bool:
+    """Apply the fail-closed auth policy to an ASGI request scope.
+
+    * key configured -> valid Bearer PRY_API_KEY or rmi JWT required
+    * no key         -> loopback client only
+    """
+    api_key = settings.api_key
+    if api_key:
+        auth = PryHttpMiddleware._get_header(scope, b"authorization")
+        if auth.startswith("Bearer "):
+            token = auth[7:]
+            if token == api_key:
+                return True  # Legacy API key — allowed
+            if is_jwt(token) and validate_rmi_jwt(token):
+                return True  # JWT from rmi-backend — allowed
+        return False
+    client = scope.get("client")
+    return is_loopback_client(client[0] if client else "")
 
 
 # ── Stats ──

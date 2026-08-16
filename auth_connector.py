@@ -15,7 +15,7 @@ import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 import httpx
 
@@ -26,11 +26,25 @@ logger = logging.getLogger(__name__)
 VAULT_DIR = PRY_DATA_DIR / "vault"
 VAULT_DIR.mkdir(parents=True, exist_ok=True)
 
-# ── Credential Vault (encrypted at rest) ──
+# ── Credential Vault (owner-scoped; secrets masked on read) ──
+
+_MASKED = "***"
 
 
 def _vault_path(credential_id: str) -> Path:
     return VAULT_DIR / f"{credential_id}.json"
+
+
+def _public_entry(entry: dict[str, Any]) -> dict[str, Any]:
+    """Return a credential entry with secret values masked on read.
+
+    The on-disk vault still holds plaintext until at-rest encryption lands
+    (see [REVIEW]); every read path returns this masked shape instead.
+    """
+    public = dict(entry)
+    public["credentials"] = _MASKED
+    public["secrets_masked"] = True
+    return public
 
 
 def store_credential(
@@ -38,6 +52,7 @@ def store_credential(
     credential_type: str,
     credentials: dict[str, Any],
     target_url: str = "",
+    owner: str = "",
 ) -> dict[str, Any]:
     """Store credentials in the vault.
 
@@ -46,9 +61,12 @@ def store_credential(
         credential_type: "password", "api_key", "cookie", "token", "sso"
         credentials: Dict containing the credential details
         target_url: The URL these credentials are for
+        owner: Caller identity (JWT sub / API-key hash). Credentials are
+            scoped to this owner so other callers cannot read or delete them.
 
-    In production, this would encrypt at rest. For now, stores as JSON
-    with a warning about production use.
+    The response masks secrets (``***``); callers never receive plaintext
+    back. The on-disk entry keeps the real values for internal automation
+    use until at-rest encryption is implemented (see [REVIEW]).
     """
     credential_id = uuid.uuid4().hex[:12]
     entry = {
@@ -56,11 +74,12 @@ def store_credential(
         "name": name,
         "type": credential_type,
         "target_url": target_url,
+        "owner": owner,
         "credentials": credentials,
         "created_at": datetime.now(UTC).isoformat(),
         "last_used": None,
         "use_count": 0,
-        "note": "WARNING: Credentials stored in plaintext. Enable encryption for production use.",
+        "note": "WARNING: Stored as plaintext JSON on disk. API responses mask secrets; at-rest encryption is a follow-up.",
     }
     try:
         path = _vault_path(credential_id)
@@ -71,57 +90,88 @@ def store_credential(
                 "credential_id": credential_id,
                 "credential_name": name,
                 "type": credential_type,
+                "owner": owner,
             },
         )
-        return {"success": True, "credential_id": credential_id, "credential": entry}
+        return {
+            "success": True,
+            "credential_id": credential_id,
+            "credential": _public_entry(entry),
+        }
     except OSError as e:
         return {"success": False, "error": str(e)}
 
 
-def get_credential(credential_id: str) -> dict[str, Any] | None:
-    """Retrieve credentials from the vault."""
+def get_credential(credential_id: str, owner: str | None = None) -> dict[str, Any] | None:
+    """Retrieve credentials from the vault (owner-scoped, secrets masked).
+
+    When ``owner`` is provided, entries owned by a different caller are not
+    returned (access control). Secrets are masked to ``***`` on read; the
+    raw values remain on disk until at-rest encryption lands (see [REVIEW]).
+    """
     path = _vault_path(credential_id)
     if not path.exists():
         return None
     try:
         entry = json.loads(path.read_text())
+        if owner is not None and entry.get("owner") != owner:
+            return None
         entry["last_used"] = datetime.now(UTC).isoformat()
         entry["use_count"] = entry.get("use_count", 0) + 1
         path.write_text(json.dumps(entry, indent=2))
-        return cast("dict[str, Any]", entry)
+        return _public_entry(entry)
     except (json.JSONDecodeError, OSError):
         return None
 
 
-def delete_credential(credential_id: str) -> bool:
-    """Delete credentials from the vault."""
+def delete_credential(credential_id: str, owner: str | None = None) -> bool:
+    """Delete credentials from the vault (owner-scoped).
+
+    When ``owner`` is provided, only the owner of the entry may delete it;
+    foreign entries are treated as not found.
+    """
     path = _vault_path(credential_id)
-    if path.exists():
-        path.unlink()
-        logger.info("credential_deleted", extra={"credential_id": credential_id})
-        return True
-    return False
+    if not path.exists():
+        return False
+    if owner is not None:
+        try:
+            entry = json.loads(path.read_text())
+        except (json.JSONDecodeError, OSError):
+            return False
+        if entry.get("owner") != owner:
+            return False
+    path.unlink()
+    logger.info("credential_deleted", extra={"credential_id": credential_id})
+    return True
 
 
-def list_credentials() -> list[dict[str, Any]]:
-    """List all stored credentials (without exposing secrets)."""
+def list_credentials(owner: str | None = None) -> list[dict[str, Any]]:
+    """List stored credentials (without exposing secrets).
+
+    When ``owner`` is provided, only entries owned by that caller are
+    returned; ``None`` lists every entry (legacy behavior). Legacy entries
+    stored before owner-scoping have owner ``""``.
+    """
     credentials = []
     for path in sorted(VAULT_DIR.glob("*.json"), key=os.path.getmtime, reverse=True):
         try:
             entry = json.loads(path.read_text())
-            credentials.append(
-                {
-                    "id": entry["id"],
-                    "name": entry["name"],
-                    "type": entry["type"],
-                    "target_url": entry.get("target_url", ""),
-                    "created_at": entry["created_at"],
-                    "last_used": entry.get("last_used"),
-                    "use_count": entry.get("use_count", 0),
-                }
-            )
         except (json.JSONDecodeError, OSError):
             continue
+        if owner is not None and entry.get("owner") != owner:
+            continue
+        credentials.append(
+            {
+                "id": entry["id"],
+                "name": entry["name"],
+                "type": entry["type"],
+                "target_url": entry.get("target_url", ""),
+                "created_at": entry["created_at"],
+                "last_used": entry.get("last_used"),
+                "use_count": entry.get("use_count", 0),
+                "owner": entry.get("owner", ""),
+            }
+        )
     return credentials
 
 

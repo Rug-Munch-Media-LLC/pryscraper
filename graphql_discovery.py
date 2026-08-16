@@ -16,6 +16,8 @@ from typing import Any, ClassVar
 
 import httpx
 
+from url_guard import validate_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -77,6 +79,8 @@ class GraphQLDiscovery:
         for path in self.COMMON_PATHS:
             url = base_url.rstrip("/") + path
             try:
+                # SSRF gate: each candidate endpoint is a user-derived URL.
+                validate_url(url)
                 resp = await client.post(url, json={"query": "{ __typename }"}, timeout=10)
                 if resp.is_success:
                     try:
@@ -96,6 +100,8 @@ class GraphQLDiscovery:
 
         client = await get_client()
         try:
+            # SSRF gate: endpoint is user-supplied.
+            validate_url(endpoint)
             resp = await client.post(endpoint, json={"query": self.INTROSPECTION_QUERY}, timeout=30)
             if resp.is_success:
                 return resp.json()
@@ -111,6 +117,8 @@ class GraphQLDiscovery:
 
         client = await get_client()
         try:
+            # SSRF gate: endpoint is user-supplied.
+            validate_url(endpoint)
             resp = await client.post(
                 endpoint,
                 json={"query": query, "variables": variables or {}},

@@ -392,17 +392,29 @@ class TestCORS:
     """CORS middleware should set broad allow-origin."""
 
     def test_cors_headers_present(self, client: TestClient) -> None:
+        # Preflight must NOT be gated by auth or the x402 paywall: browsers send
+        # OPTIONS before the real request and expect a 200 with allow headers.
         resp = client.options(
             "/v1/scrape",
             headers={
-                "Origin": "https://example.com",
+                "Origin": "https://[INTERNAL]",
                 "Access-Control-Request-Method": "POST",
             },
         )
         assert resp.status_code == 200
         headers = resp.headers
-        assert headers.get("access-control-allow-origin") == "*"
+        assert headers.get("access-control-allow-origin") == "https://[INTERNAL]"
         assert "POST" in headers.get("access-control-allow-methods", "")
+
+    def test_cors_disallowed_origin_rejected(self, client: TestClient) -> None:
+        resp = client.options(
+            "/v1/scrape",
+            headers={
+                "Origin": "https://evil.example.com",
+                "Access-Control-Request-Method": "POST",
+            },
+        )
+        assert resp.status_code == 400
 
 
 class TestMetricsEndpoint:

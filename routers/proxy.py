@@ -11,11 +11,31 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Proxy"])
+
+# Fields on ProxyManager.active_config that must never be returned to a
+# client in plaintext (credentials used to reach the proxy/egress provider).
+_SENSITIVE_CONFIG_FIELDS: frozenset[str] = frozenset({"username", "password", "api_key"})
+
+
+def require_sensitive_config_auth(request: Request) -> None:
+    """Fail-closed guard for egress configuration endpoints.
+
+    Mirrors the app middleware (api.py request_authorized): with PRY_API_KEY
+    set, a valid Bearer credential is required from any source; without a key,
+    only loopback clients may change proxy/tor egress configuration.
+    """
+    from api import request_authorized
+
+    if not request_authorized(request.scope):
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized: valid API key required (or loopback client when no key is configured)",
+        )
 
 
 @router.get("/v1/proxy/providers", tags=["Proxy"], summary="List all available proxy providers")
@@ -81,7 +101,12 @@ async def get_proxy_referral(tag: str) -> dict[str, Any]:
     return {"success": True, "data": {"tag": tag, **info}}
 
 
-@router.post("/v1/proxy/configure", tags=["Proxy"], summary="Configure proxy credentials")
+@router.post(
+    "/v1/proxy/configure",
+    tags=["Proxy"],
+    summary="Configure proxy credentials",
+    dependencies=[Depends(require_sensitive_config_auth)],
+)
 async def proxy_configure(
     provider: str = Body(...),
     username: str = Body(""),
@@ -130,14 +155,21 @@ async def proxy_pool() -> dict[str, Any]:
 
 @router.get("/v1/proxy/status", tags=["Proxy"], summary="Get current proxy status")
 async def proxy_status() -> dict[str, Any]:
-    """Get current proxy configuration and available providers."""
+    """Get current proxy configuration and available providers.
+
+    Credential fields (username/password/api_key) are redacted to "***".
+    """
     from proxy_manager import ProxyManager
 
     pm = ProxyManager()
+    active_config = dict(pm.active_config.__dict__)
+    for field in _SENSITIVE_CONFIG_FIELDS:
+        if active_config.get(field):
+            active_config[field] = "***"
     return {
         "success": True,
         "data": {
-            "active_config": pm.active_config.__dict__,
+            "active_config": active_config,
             "configured_providers": list(pm.credentials.keys()),
             "available_providers": pm.list_providers(),
         },

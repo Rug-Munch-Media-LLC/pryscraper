@@ -23,11 +23,12 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import math
 import os
 import threading
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any, cast
 
@@ -114,8 +115,35 @@ except ImportError:
     X402_FACILITATOR_URL = os.getenv("PRY_X402_FACILITATOR", "https://x402.org/facilitator")
 X402_DEFAULT_NETWORK = os.getenv("PRY_X402_NETWORK", X402Network.BASE.value)
 X402_DEFAULT_ASSET = os.getenv("PRY_X402_ASSET", X402Asset.USDC.value)
-X402_OFFLINE_MODE = os.getenv("PRY_X402_OFFLINE", "false").lower() in ("1", "true", "yes")
+
+
+def _env_flag(name: str) -> bool:
+    """Parse a common truthy env-var flag."""
+    return os.getenv(name, "false").lower() in ("1", "true", "yes")
+
+
+# Offline mode is a DEV-ONLY bypass: it makes every verify/settle succeed
+# without touching a facilitator. It must NEVER be active in production, so
+# it requires BOTH PRY_X402_OFFLINE=true AND DEBUG=true (or PRY_DEBUG=true).
+# Without the debug gate a bare PRY_X402_OFFLINE=true is ignored loudly.
+X402_DEBUG_MODE = _env_flag("DEBUG") or _env_flag("PRY_DEBUG")
+X402_OFFLINE_MODE = _env_flag("PRY_X402_OFFLINE") and X402_DEBUG_MODE
+if _env_flag("PRY_X402_OFFLINE") and not X402_DEBUG_MODE:
+    logger.warning(
+        "PRY_X402_OFFLINE=true IGNORED: offline mode requires DEBUG=true (or PRY_DEBUG=true) "
+        "and is intended for local development only."
+    )
+if X402_OFFLINE_MODE:
+    logger.warning(
+        "x402_offline_mode_active: ALL payment verification is BYPASSED — "
+        "dev-only setting. DO NOT run with PRY_X402_OFFLINE=true in production."
+    )
 X402_TIMEOUT_SECONDS = float(os.getenv("PRY_X402_TIMEOUT", "15"))
+
+# How long a verified payment_id stays valid for replay (access reuse).
+# After this window the client must pay again. Payments recorded before this
+# setting existed (no expires_at) are treated as expired (fail closed).
+PAYMENT_VALIDITY_SECONDS = int(os.getenv("PRY_X402_PAYMENT_TTL", "3600"))
 
 # EIP-7702 self-verify RPC endpoints (public defaults, override via env)
 EIP7702_RPC: dict[str, str] = {
@@ -128,6 +156,50 @@ EIP7702_RPC: dict[str, str] = {
     "avalanche": os.getenv("PRY_X402_AVALANCHE_RPC", "https://api.avax.network/ext/bc/C/rpc"),
     "base-sepolia": os.getenv("PRY_X402_BASE_SEPOLIA_RPC", "https://sepolia.base.org"),
 }
+
+# Canonical ERC-20 token addresses used to validate EIP-7702 self-verify txs.
+# A successful receipt alone is NOT proof of payment — the tx must have been
+# sent TO one of these token contracts with a transfer() to our wallet for at
+# least the server-side price. Addresses are well-known mainnet addresses.
+EIP7702_TOKEN_ADDRESSES: dict[str, dict[str, str]] = {
+    "base": {
+        "USDC": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "USDT": "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
+    },
+    "ethereum": {
+        "USDC": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "USDT": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    },
+    "polygon": {
+        "USDC": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+        "USDT": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+    },
+    "arbitrum": {
+        "USDC": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "USDT": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+    },
+    "optimism": {
+        "USDC": "0x0b2C639c533813f4Aa9D7837CAf62653d097F85F",
+        "USDT": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+    },
+    "bnb": {
+        "USDC": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+        "USDT": "0x55d398326f99059fF775485246999027B3197955",
+    },
+    "avalanche": {
+        "USDC": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+        "USDT": "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7",
+    },
+    "base-sepolia": {
+        "USDC": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    },
+}
+
+# ERC-20 transfer(address,uint256) selector — used to parse token payments.
+ERC20_TRANSFER_SELECTOR = "0xa9059cbb"
+
+# Native assets that settle via plain value transfers on the EIP-7702 RPCs.
+_NATIVE_ASSETS = {X402Asset.ETH.value}
 
 # Asset decimals for atomic conversion
 ASSET_DECIMALS: dict[str, int] = {
@@ -225,6 +297,50 @@ def _default_networks_for_asset(asset: str) -> list[str]:
 def _asset_on_network(asset: str, network: str) -> bool:
     """Check whether an asset is generally supported on a network."""
     return network in _default_networks_for_asset(asset)
+
+
+def resolve_price_usd(operation: str) -> float:
+    """Return the SERVER-side authoritative price (USD) for an operation.
+
+    Never trust a client-supplied ``amount_usd``: this is the number the
+    server enforces. Returns 0.0 for unknown operations (callers must decide
+    how to treat those).
+    """
+    return float(X402_PRICING.get(operation, {}).get("price_usd", 0.0))
+
+
+def validate_client_amount(
+    operation: str,
+    client_amount_usd: float,
+    asset: str = X402_DEFAULT_ASSET,
+) -> tuple[bool, str]:
+    """Reject client-supplied underpayment against the server-side price.
+
+    Comparison happens in atomic units so float drift cannot be exploited.
+    Returns ``(ok, reason)``. ``ok=False`` means the client offered LESS than
+    the authoritative price (or a non-finite/negative amount) — the payment
+    must be refused. Overpayment is allowed (client may pay more).
+    """
+    if client_amount_usd is None or not math.isfinite(float(client_amount_usd)):
+        return False, "invalid (non-finite) client amount"
+    if client_amount_usd < 0:
+        return False, f"negative client amount {client_amount_usd}"
+    required = resolve_price_usd(operation)
+    if required <= 0:
+        # No server price configured for this operation — nothing to enforce.
+        return True, ""
+    try:
+        required_atomic = _to_atomic(required, asset)
+        client_atomic = _to_atomic(client_amount_usd, asset)
+    except (ValueError, TypeError):
+        return False, "invalid amount/asset for pricing check"
+    if client_atomic < required_atomic:
+        return (
+            False,
+            f"underpayment: client supplied {client_amount_usd} USD, "
+            f"server requires {required} USD for '{operation}'",
+        )
+    return True, ""
 
 
 def build_payment_required(
@@ -533,37 +649,125 @@ class FacilitatorRouter:
         asset: str,
         amount_usd: float,
     ) -> dict[str, Any]:
-        """Lightweight EIP-7702 self-verify: poll RPC for tx receipt."""
+        """EIP-7702 self-verify: poll RPC for tx receipt AND check payTo/amount.
+
+        A successful receipt alone is NOT proof of payment. We require:
+        - the tx to have been sent to the facilitator's wallet (native) or to
+          the asset's token contract with a transfer() to our wallet (ERC-20);
+        - the transferred value to be >= the server-side price.
+        """
         rpc = EIP7702_RPC.get(network)
         if not rpc:
             return {"verified": False, "reason": f"No EIP-7702 RPC for {network}"}
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "eth_getTransactionReceipt",
-            "params": [tx_hash],
-        }
         try:
             async with httpx.AsyncClient(timeout=X402_TIMEOUT_SECONDS) as client:
-                response = await client.post(rpc, json=payload)
-                response.raise_for_status()
-                data = response.json()
-                receipt = data.get("result") or {}
-                if receipt.get("status") == "0x1":
+                receipt = await self._rpc_call(client, rpc, "eth_getTransactionReceipt", [tx_hash])
+                if not receipt or receipt.get("status") != "0x1":
                     return {
-                        "verified": True,
-                        "reason": "",
+                        "verified": False,
+                        "reason": "EIP-7702 receipt not found or tx failed",
+                        "settlement": receipt or None,
+                        "facilitator": "eip-7702",
+                    }
+                tx = await self._rpc_call(client, rpc, "eth_getTransactionByHash", [tx_hash])
+                if not tx:
+                    return {
+                        "verified": False,
+                        "reason": "EIP-7702 tx not found",
+                        "settlement": receipt,
+                        "facilitator": "eip-7702",
+                    }
+                ok, reason = self._eip7702_matches(tx, network, asset, amount_usd)
+                if not ok:
+                    return {
+                        "verified": False,
+                        "reason": f"EIP-7702 payment mismatch: {reason}",
                         "settlement": receipt,
                         "facilitator": "eip-7702",
                     }
                 return {
-                    "verified": False,
-                    "reason": "EIP-7702 receipt not found or tx failed",
+                    "verified": True,
+                    "reason": "",
                     "settlement": receipt,
                     "facilitator": "eip-7702",
                 }
         except (httpx.HTTPError, httpx.RequestError) as e:
             return {"verified": False, "reason": f"EIP-7702 verify failed: {e}", "settlement": None}
+
+    async def _rpc_call(
+        self,
+        client: httpx.AsyncClient,
+        rpc: str,
+        method: str,
+        params: list[Any],
+    ) -> dict[str, Any] | None:
+        """Issue a JSON-RPC call and return the ``result`` dict (or None)."""
+        response = await client.post(
+            rpc,
+            json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data.get("result") or None
+
+    def _eip7702_matches(
+        self,
+        tx: dict[str, Any],
+        network: str,
+        asset: str,
+        amount_usd: float,
+    ) -> tuple[bool, str]:
+        """Verify an EIP-7702 tx actually paid OUR wallet at least the price.
+
+        Returns ``(ok, reason)``. ERC-20 assets must transfer() to the
+        server wallet on the asset's token contract; native assets must send
+        value directly to the server wallet. Unknown assets fail closed.
+        """
+        pay_to = (X402_WALLET or "").lower()
+        if not pay_to or pay_to == "pry-default-wallet":
+            return False, "server wallet not configured"
+        tx_to = str(tx.get("to") or "").lower()
+        tokens = EIP7702_TOKEN_ADDRESSES.get(network, {})
+        if asset in tokens:
+            token = tokens[asset].lower()
+            if tx_to != token:
+                return False, f"tx recipient {tx_to} is not {asset} token on {network}"
+            calldata = str(tx.get("input") or "0x")
+            if not calldata.lower().startswith(ERC20_TRANSFER_SELECTOR):
+                return False, "tx is not an ERC-20 transfer()"
+            if len(calldata) < 138:
+                return False, "ERC-20 transfer calldata too short"
+            recipient = "0x" + calldata[34:74]
+            try:
+                paid_atomic = int(calldata[74:138], 16)
+            except ValueError:
+                return False, "unparseable ERC-20 transfer amount"
+            if recipient.lower() != pay_to:
+                return False, f"transfer recipient {recipient} != server wallet {pay_to}"
+            expected_atomic = _to_atomic(amount_usd, asset)
+            if paid_atomic < expected_atomic:
+                return (
+                    False,
+                    f"underpayment: tx paid {paid_atomic} < required {expected_atomic} "
+                    f"atomic {asset}",
+                )
+            return True, ""
+        if asset in _NATIVE_ASSETS:
+            if tx_to != pay_to:
+                return False, f"tx recipient {tx_to} != server wallet {pay_to}"
+            try:
+                value_atomic = int(tx.get("value") or "0x0", 16)
+            except (ValueError, TypeError):
+                return False, "unparseable tx value"
+            expected_atomic = _to_atomic(amount_usd, asset)
+            if value_atomic < expected_atomic:
+                return (
+                    False,
+                    f"underpayment: tx value {value_atomic} < required {expected_atomic} "
+                    f"atomic {asset}",
+                )
+            return True, ""
+        return False, f"unsupported asset {asset} for EIP-7702 self-verify on {network}"
 
     def _eip7702_settlement(
         self,
@@ -642,6 +846,15 @@ class X402Handler:
         except OSError as e:
             logger.warning("x402_payment_record_failed", extra={"error": str(e)})
 
+    def refresh(self) -> None:
+        """Reload payment records from the audit file.
+
+        Picks up payments recorded by OTHER X402Handler instances (e.g. the
+        /v1/x402/pay route creates a fresh handler per request). Call before
+        ``is_paid()`` on the gate path so a just-issued payment_id is visible.
+        """
+        self._load_payments()
+
     def _record_settlement(self, settlement: dict[str, Any]) -> None:
         try:
             with open(self.settlements_file, "a") as f:
@@ -686,15 +899,25 @@ class X402Handler:
         network: str = "",
         asset: str = "",
         amount_usd: float = 0.0,
+        operation: str = "",
+        caller_key: str = "",
     ) -> dict[str, Any]:
         """Verify a payment via the x402 facilitator router.
 
         In production this calls POST /verify on the configured facilitator(s).
         Offline mode accepts the payment record directly for self-hosted Pry.
+
+        Server-side pricing is authoritative: when ``operation`` is known the
+        configured price is used and any client-supplied ``amount_usd`` is
+        ignored. The recorded payment carries an ``expires_at`` and a
+        ``caller_key`` so ``is_paid()`` can reject stale/replayed ids.
         """
         network = network or X402_DEFAULT_NETWORK
         asset = asset or X402_DEFAULT_ASSET
-        amount_usd = amount_usd or X402_PRICING.get(payment_id, {}).get("price_usd", 0.001)
+        if operation:
+            amount_usd = resolve_price_usd(operation)
+        if amount_usd <= 0:
+            amount_usd = X402_PRICING.get(payment_id, {}).get("price_usd", 0.001)
 
         result = await self.router.verify(payment_id, tx_hash, network, asset, amount_usd)
         payment_record = {
@@ -706,6 +929,10 @@ class X402Handler:
             "verified": result["verified"],
             "reason": result.get("reason", ""),
             "facilitator": result.get("facilitator", ""),
+            "caller_key": caller_key or "",
+            "expires_at": (
+                datetime.now(UTC) + timedelta(seconds=PAYMENT_VALIDITY_SECONDS)
+            ).isoformat(),
             "verified_at": datetime.now(UTC).isoformat(),
         }
         self._record_payment(payment_record)
@@ -718,6 +945,7 @@ class X402Handler:
         network: str = "",
         asset: str = "",
         amount_usd: float = 0.0,
+        operation: str = "",
     ) -> dict[str, Any]:
         """Settle a payment via the facilitator router.
 
@@ -725,7 +953,10 @@ class X402Handler:
         """
         network = network or X402_DEFAULT_NETWORK
         asset = asset or X402_DEFAULT_ASSET
-        amount_usd = amount_usd or X402_PRICING.get(payment_id, {}).get("price_usd", 0.001)
+        if operation:
+            amount_usd = resolve_price_usd(operation)
+        if amount_usd <= 0:
+            amount_usd = X402_PRICING.get(payment_id, {}).get("price_usd", 0.001)
 
         settlement = await self.router.settle(payment_id, tx_hash, network, asset, amount_usd)
         self._record_settlement(settlement)
@@ -748,8 +979,33 @@ class X402Handler:
             "body": body,
         }
 
-    def is_paid(self, payment_id: str) -> bool:
-        return any(p["payment_id"] == payment_id and p.get("verified") for p in self.payments)
+    def is_paid(self, payment_id: str, caller_key: str = "") -> bool:
+        """Return True only if the payment is verified, unexpired and caller-bound.
+
+        Replay hardening: a verified payment_id is usable for
+        ``PAYMENT_VALIDITY_SECONDS`` only, and only by the caller it was bound
+        to (IP/payer wallet where available). Payments recorded without an
+        ``expires_at`` (pre-hardening data) fail closed.
+        """
+        now = datetime.now(UTC)
+        for p in self.payments:
+            if p.get("payment_id") != payment_id or not p.get("verified"):
+                continue
+            expires_at = p.get("expires_at")
+            if expires_at:
+                try:
+                    if datetime.fromisoformat(expires_at) <= now:
+                        continue  # expired — must pay again
+                except ValueError:
+                    continue  # malformed expiry → fail closed
+            else:
+                continue  # no expiry recorded → treat as expired (fail closed)
+            # If the payment was bound to a caller, only that caller may reuse it.
+            stored_caller = p.get("caller_key") or ""
+            if stored_caller and (not caller_key or stored_caller != caller_key):
+                continue
+            return True
+        return False
 
     def get_payment(self, payment_id: str) -> dict[str, Any] | None:
         for p in self.payments:
@@ -767,6 +1023,7 @@ class X402Handler:
             "supported_assets": [a.value for a in X402Asset],
             "supported_schemes": [s.value for s in X402Scheme],
             "offline_mode": X402_OFFLINE_MODE,
+            "payment_validity_seconds": PAYMENT_VALIDITY_SECONDS,
             "default_network": X402_DEFAULT_NETWORK,
             "default_asset": X402_DEFAULT_ASSET,
         }
@@ -821,6 +1078,9 @@ async def create_batch_payment(operations: list[str]) -> dict[str, Any]:
             "tx_hash": "",
             "payment_required": payment_required,
             "created_at": datetime.now(UTC).isoformat(),
+            "expires_at": (
+                datetime.now(UTC) + timedelta(seconds=PAYMENT_VALIDITY_SECONDS)
+            ).isoformat(),
         }
 
     return {
@@ -864,9 +1124,22 @@ async def verify_batch_payment(
 
 
 def is_batch_paid(batch_id: str) -> bool:
-    """Check whether a batch payment has been verified."""
+    """Check whether a batch payment has been verified and is still valid.
+
+    Batch payments are in-memory and expire after PAYMENT_VALIDITY_SECONDS;
+    expired batches fail closed (client must create a new batch payment).
+    """
     batch = _batch_payments.get(batch_id)
-    return bool(batch and batch.get("paid"))
+    if not batch or not batch.get("paid"):
+        return False
+    expires_at = batch.get("expires_at")
+    if expires_at:
+        try:
+            if datetime.fromisoformat(expires_at) <= datetime.now(UTC):
+                return False
+        except ValueError:
+            return False
+    return True
 
 
 # These return the pre-spec response format. Prefer the spec-compliant methods

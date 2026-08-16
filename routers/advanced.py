@@ -16,6 +16,7 @@ import httpx
 from fastapi import APIRouter, Body
 
 from client import get_client
+from url_guard import validate_url
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ async def tls_impersonate(
     Bypasses JA3/JA4 fingerprinting that blocks 80%+ of bot traffic."""
     from tls_fingerprint import TLSScraper
 
+    validate_url(url)
     s = TLSScraper()
     if not s.is_available():
         return {"success": False, "error": "curl_cffi not installed. Run: pip install curl_cffi"}
@@ -55,6 +57,7 @@ async def tls_rotate(
     """Try multiple browser fingerprints until one succeeds (anti-fingerprint rotation)."""
     from tls_fingerprint import TLSScraper
 
+    validate_url(url)
     s = TLSScraper()
     if not s.is_available():
         return {"success": False, "error": "curl_cffi not installed. Run: pip install curl_cffi"}
@@ -79,6 +82,7 @@ async def camoufox_fetch(
     """
     from camoufox_integration import CamoufoxBrowser
 
+    validate_url(url)
     b = CamoufoxBrowser()
     if not b.is_available():
         return {
@@ -96,6 +100,7 @@ async def graphql_discover(base_url: str = Body(...)) -> dict[str, Any]:
     """Auto-discover GraphQL endpoints for a website."""
     from graphql_discovery import GraphQLDiscovery
 
+    validate_url(base_url)
     g = GraphQLDiscovery()
     found = await g.discover(base_url)
     return {"success": True, "data": {"found": found, "count": len(found)}}
@@ -108,6 +113,7 @@ async def graphql_introspect(endpoint: str = Body(...)) -> dict[str, Any]:
     """Run GraphQL introspection query against a discovered endpoint."""
     from graphql_discovery import GraphQLDiscovery
 
+    validate_url(endpoint)
     g = GraphQLDiscovery()
     result = await g.introspect(endpoint)
     return {"success": "error" not in result, "data": result}
@@ -122,6 +128,7 @@ async def graphql_query(
     """Execute a GraphQL query against a discovered endpoint."""
     from graphql_discovery import GraphQLDiscovery
 
+    validate_url(endpoint)
     g = GraphQLDiscovery()
     result = await g.query(endpoint, query, variables)
     return {"success": "error" not in result, "data": result}
@@ -138,6 +145,7 @@ async def schema_extract(url: str = Body(...)) -> dict[str, Any]:
     scraping HTML. 100x faster and more accurate."""
     from schema_extraction import SchemaExtractor
 
+    validate_url(url)
     client = await get_client()
     resp = await client.get(url, timeout=30)
     e = SchemaExtractor()
@@ -241,6 +249,7 @@ async def extract_pdf(
     """Download a PDF and extract structured tables and text."""
     from pdf_extractor import PDFTableExtractor
 
+    validate_url(pdf_url)
     client = await get_client()
     try:
         resp = await client.get(pdf_url, timeout=60)
@@ -270,6 +279,7 @@ async def ocr_extract(
 
     o = ImageOCR()
     if image_url:
+        validate_url(image_url)
         result = await o.extract_from_url(image_url)
     elif image_base64:
         data = base64.b64decode(image_base64.split(",", 1)[-1])

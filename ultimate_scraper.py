@@ -24,7 +24,7 @@ from errors import InvalidRequestError
 from observability import SCRAPE_LATENCY
 from resilience import registry
 from retry import RetryConfig, async_retry
-from url_guard import validate_url
+from url_guard import safe_get, validate_url
 
 # SystemRandom: crypto-grade entropy so stealth jitter is not predictable.
 _RNG = random.SystemRandom()
@@ -212,6 +212,11 @@ class UltimateScraper:
                     html = await async_retry(
                         tier_fn, url, opts, proxy_url=proxy_url, config=retry_cfg
                     )
+            except InvalidRequestError:
+                # SSRF rejection (e.g. redirect to a private/metadata IP) is not a
+                # tier failure — abort the whole chain instead of falling through
+                # to other tiers that would hit the same unsafe target.
+                raise
             except Exception as e:  # noqa: BLE001
                 logger.debug("tier_exception", extra={"tier": tier_name, "error": str(e)[:50]})
                 html = None
@@ -328,8 +333,8 @@ class UltimateScraper:
         try:
             import httpx
 
-            async with httpx.AsyncClient(timeout=30, follow_redirects=True, proxy=proxy_url) as c:
-                r = await c.get(url, headers=self._build_headers(url))
+            async with httpx.AsyncClient(timeout=30, proxy=proxy_url) as c:
+                r = await safe_get(c, url, headers=self._build_headers(url))
                 if r.is_success:
                     return r.text
         except (httpx.HTTPError, httpx.RequestError) as e:
@@ -343,8 +348,8 @@ class UltimateScraper:
         try:
             import httpx
 
-            async with httpx.AsyncClient(timeout=45, follow_redirects=True, proxy=proxy_url) as c:
-                r = await c.get(url, headers=self._build_headers(url))
+            async with httpx.AsyncClient(timeout=45, proxy=proxy_url) as c:
+                r = await safe_get(c, url, headers=self._build_headers(url))
                 if r.is_success:
                     return r.text
         except (httpx.HTTPError, httpx.RequestError) as e:
@@ -509,8 +514,8 @@ class UltimateScraper:
             headers["User-Agent"] = (
                 "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
             )
-            async with httpx.AsyncClient(timeout=30, follow_redirects=True, proxy=proxy_url) as c:
-                r = await c.get(url, headers=headers)
+            async with httpx.AsyncClient(timeout=30, proxy=proxy_url) as c:
+                r = await safe_get(c, url, headers=headers)
                 if r.is_success:
                     return r.text
         except (httpx.HTTPError, httpx.RequestError) as e:
@@ -532,7 +537,7 @@ class UltimateScraper:
                     if len(data) > 1:
                         timestamp = data[1][0]
                         archive_url = f"https://web.archive.org/web/{timestamp}id_/{url}"
-                        ar = await c.get(archive_url, timeout=30, follow_redirects=True)
+                        ar = await safe_get(c, archive_url, timeout=30)
                         if ar.is_success:
                             return ar.text
         except (httpx.HTTPError, httpx.RequestError) as e:
@@ -546,8 +551,8 @@ class UltimateScraper:
             import httpx
 
             cache_url = f"https://webcache.googleusercontent.com/search?q=cache:{url}"
-            async with httpx.AsyncClient(timeout=15, follow_redirects=True) as c:
-                r = await c.get(cache_url, headers={"User-Agent": "Mozilla/5.0"})
+            async with httpx.AsyncClient(timeout=15) as c:
+                r = await safe_get(c, cache_url, headers={"User-Agent": "Mozilla/5.0"})
                 if r.is_success:
                     return r.text
         except (httpx.HTTPError, httpx.RequestError) as e:

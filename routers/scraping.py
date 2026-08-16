@@ -35,6 +35,7 @@ from errors import ExternalServiceError, InvalidRequestError, PryError, ScrapeEr
 from observability import track_scrape
 from scraper import BlockDetector
 from settings import settings
+from url_guard import safe_get, validate_url
 
 logger = logging.getLogger(__name__)
 
@@ -154,16 +155,18 @@ async def detect_block(url: str = Body(...)) -> dict[str, Any]:
     Returns detection tier, vendor (Cloudflare/DataDome/etc.), and confidence.
     Useful for debugging scraping issues.
     """
+    # SSRF gate: reject private/loopback/metadata targets before any probe.
+    validate_url(url)
     detector = BlockDetector()
     results = []
 
     # Test direct
     try:
         client = await get_client()
-        resp = await client.get(
+        resp = await safe_get(
+            client,
             url,
             timeout=15,
-            follow_redirects=True,
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -208,6 +211,8 @@ async def detect_lazy_content(
 
     Optionally generate JS to auto-scroll and load all content.
     """
+    # SSRF gate: the fallback raw-HTML fetch below also uses this URL.
+    validate_url(url)
     from lazy_load import (
         detect_lazy_loading,
         generate_load_more_script,
@@ -223,9 +228,7 @@ async def detect_lazy_content(
     if not html:
         client = await get_client()
         try:
-            resp = await client.get(
-                url, timeout=30, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}
-            )
+            resp = await safe_get(client, url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
             html = resp.text
         except (httpx.HTTPError, httpx.RequestError):
             raise ScrapeError("Could not fetch raw HTML") from None
@@ -278,6 +281,8 @@ async def crawl(request: CrawlRequest) -> dict[str, Any]:
 @router.post("/v1/map", summary="Discover URLs on a site")
 async def map_pages(request: MapRequest) -> dict[str, Any]:
     """Discover URLs on a site."""
+    # SSRF gate: map_urls -> _extract_links fetches the target directly.
+    validate_url(request.url)
     with track_scrape(method="map"):
         urls = await scraper.map_urls(request.url, {"limit": request.limit})
     return {"success": True, "data": {"links": urls}}

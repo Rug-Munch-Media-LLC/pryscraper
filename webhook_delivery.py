@@ -19,6 +19,7 @@ from typing import Any
 import httpx
 
 from paths import PRY_DATA_DIR
+from settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +30,14 @@ WEBHOOK_DIR.mkdir(parents=True, exist_ok=True)
 class WebhookDelivery:
     """Deliver webhooks reliably with retries and HMAC signing."""
 
-    # Default placeholder, overridden by PRY_WEBHOOK_SECRET env; never used in production.
-    DEFAULT_SIGNING_SECRET = "change-me-in-production"  # noqa: S105 - explicit non-secret placeholder default
-
     def __init__(self, signing_secret: str = ""):
-        self.signing_secret = signing_secret or os.getenv(
-            "PRY_WEBHOOK_SECRET", self.DEFAULT_SIGNING_SECRET
+        # Secret resolution order: explicit arg → PRY_WEBHOOK_SECRET env →
+        # settings.webhook_secret (which reads PRY_WEBHOOK_SECRET /
+        # pry/webhook_secret in gopass — see settings.py). An empty secret
+        # means webhook signatures cannot be verified; operators must
+        # configure a real secret for deployments that verify webhooks.
+        self.signing_secret = (
+            signing_secret or os.getenv("PRY_WEBHOOK_SECRET") or settings.webhook_secret
         )
         self.delivery_log = WEBHOOK_DIR / "deliveries.jsonl"
         self.dead_letter = WEBHOOK_DIR / "dead_letter.jsonl"

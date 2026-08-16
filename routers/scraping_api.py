@@ -19,10 +19,12 @@ from fastapi import APIRouter, Body
 from client import get_client
 from deps import scraper
 from errors import ScrapeError
+from url_guard import safe_get, validate_url
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Scraping"])
+
 
 @router.post(
     "/v1/ultimate-scrape", tags=["Scraping"], summary="Scrape with 10-tier anti-bot fallback system"
@@ -39,6 +41,8 @@ async def ultimate_scrape(
     """
     from ultimate_scraper import UltimateScraper
 
+    # SSRF gate before the 10-tier fetch chain.
+    validate_url(url)
     s = UltimateScraper()
     result = await s.scrape(url)
     if result.get("status") != "ok":
@@ -67,6 +71,8 @@ async def capture_network(
 
     Useful for understanding how SPAs load data and finding hidden API endpoints.
     """
+    # SSRF gate: the fallback raw-HTML fetch below also uses this URL.
+    validate_url(url)
     from network import (
         extract_api_calls_from_html,
         extract_graphql_queries,
@@ -83,9 +89,7 @@ async def capture_network(
     if not html:
         client = await get_client()
         try:
-            resp = await client.get(
-                url, timeout=30, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}
-            )
+            resp = await safe_get(client, url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
             html = resp.text
         except (httpx.HTTPError, httpx.RequestError):
             raise ScrapeError("Could not fetch raw HTML") from None

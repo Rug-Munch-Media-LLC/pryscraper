@@ -24,17 +24,51 @@ Licensed under MIT. See LICENSE.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Request
 
 from errors import NotFoundError  # type: ignore[import-not-found]
+from jwt_auth import is_jwt, validate_rmi_jwt
 
 router = APIRouter(tags=["Auth"])
 
 
+def _request_owner(request: Request) -> str:
+    """Derive a stable per-caller owner id for credential-vault scoping.
+
+    Preference order:
+      1. Identity stashed on request.state by auth middleware, if present
+         (e.g. ``request.state.identity`` / ``request.state.user_id``).
+      2. The Authorization header the middleware already validated: JWT
+         ``sub`` claim for rmi-backend users, or a one-way SHA-256 hash of
+         the token for legacy API-key callers.
+
+    The current middleware (PryHttpMiddleware in api.py) only authenticates
+    and does not stash identity, so the header path is the active one.
+    Callers with no Authorization header get owner ``""`` (legacy entries).
+    """
+    state_id = getattr(request.state, "identity", None) or getattr(request.state, "user_id", None)
+    if state_id:
+        return str(state_id)
+    auth = request.headers.get("authorization", "")
+    if not auth.lower().startswith("bearer "):
+        return ""
+    token = auth[7:].strip()
+    if not token:
+        return ""
+    if is_jwt(token):
+        claims = validate_rmi_jwt(token)
+        if claims and claims.get("id"):
+            return f"jwt:{claims['id']}"
+    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
+    return f"key:{digest}"
+
+
 @router.post("/v1/auth/credentials", summary="Store credentials in the vault")
 async def store_credentials(
+    request: Request,
     name: str = Body(...),
     credential_type: str = Body("password"),
     credentials: dict[str, Any] = Body(...),
@@ -43,28 +77,36 @@ async def store_credentials(
     """Store credentials in the encrypted vault for authenticated scraping.
 
     Credential types: password, api_key, cookie, token, sso
+    Credentials are scoped to the authenticated caller and masked in the
+    response (never returned in plaintext).
     """
     from auth_connector import store_credential
 
-    result = store_credential(name, credential_type, credentials, target_url)
+    result = store_credential(
+        name,
+        credential_type,
+        credentials,
+        target_url,
+        owner=_request_owner(request),
+    )
     return {"success": result["success"], "data": result}
 
 
 @router.get("/v1/auth/credentials", summary="List stored credentials")
-async def list_credentials_endpoint() -> dict[str, Any]:
-    """List all stored credentials (without exposing secrets)."""
+async def list_credentials_endpoint(request: Request) -> dict[str, Any]:
+    """List stored credentials scoped to the caller (no secrets exposed)."""
     from auth_connector import list_credentials
 
-    creds = list_credentials()
+    creds = list_credentials(owner=_request_owner(request))
     return {"success": True, "data": {"credentials": creds, "total": len(creds)}}
 
 
 @router.delete("/v1/auth/credentials/{credential_id}", summary="Delete stored credentials")
-async def delete_credentials_endpoint(credential_id: str) -> dict[str, Any]:
-    """Delete stored credentials from the vault."""
+async def delete_credentials_endpoint(request: Request, credential_id: str) -> dict[str, Any]:
+    """Delete a stored credential (owner-scoped; 404 if not found or not owned)."""
     from auth_connector import delete_credential
 
-    success = delete_credential(credential_id)
+    success = delete_credential(credential_id, owner=_request_owner(request))
     if not success:
         raise NotFoundError(f"Credential not found: {credential_id}")
     return {"success": True, "data": {"deleted": True}}
