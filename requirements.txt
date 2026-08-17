@@ -39,3 +39,5 @@ eth-keys>=0.7.0
 eth-account>=0.13.0
 eth-hash[pycryptodome]>=0.8.0
 alembic>=1.14.0
+psycopg2-binary>=2.9.9
+asyncpg>=0.29.0
