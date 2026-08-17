@@ -98,15 +98,11 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /root/.cache/ms-playwright /ms-playwright
 
 WORKDIR /app
-COPY *.py ./
+# Copy the full app tree so every package ships (db/, x402/, billing/, data
+# domains, routers, ...). The .dockerignore excludes tests/, *.md, caches,
+# .env, and build files — this is the single source of truth for the image.
+COPY . ./
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-COPY alembic.ini ./alembic.ini
-COPY alembic/ ./alembic/
-COPY routers/ ./routers/
-COPY llm_providers/ ./llm_providers/
-COPY stealth_scripts/ ./stealth_scripts/
-COPY templates/ ./templates/
-COPY pry_mcp/ ./pry_mcp/
 RUN mkdir -p /app/sessions /app/pry-data \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
 

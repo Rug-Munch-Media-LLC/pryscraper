@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Generated from pyproject.toml; do not edit manually.
 
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
+mcp>=1.0.0
 trafilatura>=2.0.0
 readability-lxml>=0.8.1
 lxml>=5.3.0
@@ -26,7 +25,6 @@ croniter>=2.0.0
 structlog>=24.0.0
 sqlalchemy>=2.0.0
 aiosqlite>=0.19.0
-alembic>=1.14.0
 prometheus-client>=0.21.0
 opentelemetry-api>=1.29.0
 opentelemetry-sdk>=1.29.0
@@ -37,3 +35,6 @@ undetected-chromedriver>=3.5.0
 pyjwt>=2.8.0
 apify>=2.0.0
 playwright-stealth>=1.0.0
+eth-keys>=0.7.0
+eth-account>=0.13.0
+eth-hash[pycryptodome]>=0.8.0
