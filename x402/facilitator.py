@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -26,6 +27,7 @@ import httpx
 from x402 import (
     EIP7702_RPC,
     EIP7702_TOKEN_ADDRESSES,
+    X402_NETWORK_WALLETS,
     X402_OFFLINE_MODE,
     X402_SELF_FACILITATE,
     X402_SELF_FACILITATOR_KEY,
@@ -52,7 +54,10 @@ ERC20_TRANSFER_SELECTOR = "0xa9059cbb"
 # Chains with NO real on-chain settlement verification implemented yet.
 # Payments for these networks validate structure/price/asset server-side and
 # then report "needs_facilitator" — they are NOT claimed as verified. [REVIEW]
-SCAFFOLDED_NETWORKS: set[str] = {"solana:mainnet", "tron:mainnet"}
+# Solana was moved to a REAL on-chain verifier (x402.solana_verifier — SPL RPC
+# getTransaction jsonParsed); TRON stays scaffolded until a TRC-20 verifier
+# exists.
+SCAFFOLDED_NETWORKS: set[str] = {"tron:mainnet"}
 
 
 @dataclass
@@ -144,9 +149,9 @@ class FacilitatorRouter:
     def register_facilitator(self, network: str, impl: Any) -> None:
         """Register a custom facilitator implementation for a network.
 
-        Extension point for Solana/TRON (currently scaffolded) or any custom
-        verifier: when an impl is registered for a network, verify/settle are
-        routed to it instead of the external facilitators or the built-in
+        Extension point for custom verifiers (e.g. TRON, which is still
+        scaffolded): when an impl is registered for a network, verify/settle
+        are routed to it instead of the external facilitators or the built-in
         SelfFacilitator. The impl must expose the SelfFacilitator contract:
 
         - ``async verify(payment: dict) -> VerifyResult``
@@ -265,7 +270,9 @@ class FacilitatorRouter:
         EVM chains keep the EIP-7702 receipt check as a ground-truth fallback
         (native / permit2 assets and txs that already paid on-chain); the
         external facilitator URLs are never contacted in self-hosted mode.
-        Solana/TRON stay scaffolded unless an impl is registered.
+        Solana verifies on-chain via the SPL RPC verifier
+        (``x402.solana_verifier``); TRON stays scaffolded unless an impl is
+        registered.
         """
         impl = self._impl_for(network)
         if impl is None:
@@ -293,7 +300,9 @@ class FacilitatorRouter:
         else:
             reason = result.reason
 
-        if network_family(network) in ("solana", "tron"):
+        if network_family(network) == "solana":
+            return await self._verify_solana(payment_id, tx_hash, network, asset, amount_usd)
+        if network_family(network) == "tron":
             return self._scaffold_non_evm_verify(payment_id, tx_hash, network, asset, amount_usd)
 
         return {
@@ -350,9 +359,10 @@ class FacilitatorRouter:
         Returns {"verified": bool, "reason": str, "settlement": dict|None}.
 
         EVM chains are verified via configured facilitators, with an
-        EIP-7702 self-verify fallback. Solana/TRON (SCAFFOLDED_NETWORKS)
-        validate structure/price/asset and then report "needs_facilitator" —
-        they are never claimed verified without a real verifier. [REVIEW]
+        EIP-7702 self-verify fallback. Solana verifies on-chain via the SPL
+        RPC verifier (``x402.solana_verifier``). TRON (SCAFFOLDED_NETWORKS)
+        validates structure/price/asset and then reports "needs_facilitator"
+        — it is never claimed verified without a real verifier. [REVIEW]
         """
         if X402_OFFLINE_MODE:
             return {"verified": True, "reason": "offline_mode", "settlement": None}
@@ -410,12 +420,87 @@ class FacilitatorRouter:
                 return result
             last_error = result.get("reason", last_error)
 
-        # Non-EVM chains: validate structure/price/asset, then report that a
-        # real verifier is required — do NOT claim success. [REVIEW]
-        if network_family(network) in ("solana", "tron"):
+        # Non-EVM chains: Solana verifies on-chain via the SPL RPC verifier;
+        # TRON stays scaffolded (no TRC-20 verifier yet). [REVIEW]
+        if network_family(network) == "solana":
+            return await self._verify_solana(payment_id, tx_hash, network, asset, amount_usd)
+        if network_family(network) == "tron":
             return self._scaffold_non_evm_verify(payment_id, tx_hash, network, asset, amount_usd)
 
         return {"verified": False, "reason": last_error, "settlement": None}
+
+    async def _verify_solana(
+        self,
+        payment_id: str,
+        tx_hash: str,
+        network: str,
+        asset: str,
+        amount_usd: float,
+    ) -> dict[str, Any]:
+        """Verify a Solana USDC payment on-chain via the SPL RPC verifier.
+
+        Uses ``x402.solana_verifier.verify_solana_payment`` (guarded import —
+        if the module is absent, e.g. an older checkout, fall back to the
+        scaffolded path). The server Solana receiving wallet comes from
+        ``X402_NETWORK_WALLETS`` (``PRY_X402_WALLET_SOLANA``) — a Solana
+        address is NOT the EVM wallet, so verification fails closed when it is
+        unconfigured. The result reflects real on-chain verification.
+        """
+        network_id = normalize_network_id(network)
+        if not payment_id or not tx_hash:
+            return {
+                "verified": False,
+                "reason": "needs_facilitator: missing payment_id/tx_hash in header",
+                "settlement": None,
+                "scaffolded": True,
+                "network": network_id,
+            }
+        if amount_usd is None or not math.isfinite(amount_usd) or amount_usd < 0:
+            return {
+                "verified": False,
+                "reason": "invalid (non-finite/negative) amount",
+                "settlement": None,
+                "network": network_id,
+            }
+        entry = resolve_asset_entry(network_id, asset)
+        if entry is None:
+            return {
+                "verified": False,
+                "reason": f"asset {asset!r} not in SUPPORTED_ASSETS for {network_id}",
+                "settlement": None,
+                "network": network_id,
+            }
+        recipient = (X402_NETWORK_WALLETS.get(network_id) or X402_WALLET or "").strip()
+        if not recipient or recipient == "pry-default-wallet":
+            return {
+                "verified": False,
+                "reason": (
+                    "solana receiving wallet not configured — set "
+                    "PRY_X402_WALLET_SOLANA (a Solana base58 address, not the EVM wallet)"
+                ),
+                "settlement": None,
+                "network": network_id,
+            }
+        try:
+            from x402.solana_verifier import verify_solana_payment
+        except ImportError:
+            # Module absent (older checkout) — keep the honest scaffold path.
+            return self._scaffold_non_evm_verify(payment_id, tx_hash, network, asset, amount_usd)
+
+        result = await verify_solana_payment(tx_hash, recipient, amount_usd)
+        return {
+            "verified": bool(result.get("verified")),
+            "reason": result.get("reason", ""),
+            "settlement": None,
+            "network": network_id,
+            "facilitator": "solana-rpc",
+            "signer": result.get("recipient") or recipient,
+            "amount_atomic": result.get("amount_raw"),
+            "asset": asset,
+            "mint": result.get("mint"),
+            "confirmed_at": result.get("confirmed_at"),
+            "amount_usd": result.get("amount_usd"),
+        }
 
     def _scaffold_non_evm_verify(
         self,
@@ -425,17 +510,18 @@ class FacilitatorRouter:
         asset: str,
         amount_usd: float,
     ) -> dict[str, Any]:
-        """[REVIEW] Scaffolded acceptance for Solana/TRON payments.
+        """[REVIEW] Scaffolded acceptance for TRON payments.
 
         REAL: header structure (payment_id/tx_hash present), asset membership
         in SUPPORTED_ASSETS for the CAIP-2 network, and non-negative USD
         amount are validated; the result is explicitly marked ``scaffolded``.
 
-        NOT REAL: on-chain settlement is NOT checked — no Solana RPC /
-        TRON Grid verification and no SPL/TRC-20 facilitator is wired up yet.
-        The payment is marked ``needs_facilitator`` (verified=False) so it
-        can never be treated as paid. Operators must implement SPL/TRC-20
-        verification before enabling these chains.
+        NOT REAL: on-chain settlement is NOT checked — no TRON Grid
+        verification and no TRC-20 facilitator is wired up yet. The payment is
+        marked ``needs_facilitator`` (verified=False) so it can never be
+        treated as paid. Operators must implement TRC-20 verification before
+        enabling this chain. (Solana now verifies via the SPL RPC verifier —
+        see ``_verify_solana``.)
         """
         network_id = normalize_network_id(network)
         entry = resolve_asset_entry(network_id, asset)
@@ -756,7 +842,7 @@ def register_facilitator(network: str, impl: Any) -> None:
     """Register a custom facilitator for ``network`` on the global router.
 
     Convenience wrapper over :meth:`FacilitatorRouter.register_facilitator`.
-    Use this to plug in a real Solana/TRON verifier (those chains remain
+    Use this to plug in a custom verifier (e.g. TRON, which remains
     scaffolded until an impl is registered). ``impl`` must expose
     ``async verify(payment) -> VerifyResult`` and
     ``async settle(payment) -> str | None``.

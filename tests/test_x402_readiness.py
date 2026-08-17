@@ -11,7 +11,7 @@ Closes the gaps the readiness lane flagged:
   compatible with the pre-existing test contract);
 - ``/v1/x402/health`` probing facilitator mode/readiness + oracle reachability
   + per-network verification status + settlement counters;
-- per-network ``verification_status`` ("live" vs "scaffolded:needs_facilitator")
+- per-network ``verification_status`` ("live" vs "live")
   surfaced on the health + pricing endpoints;
 - settlement hardening: idempotency (never double-submits), a bounded
   pending-settlement tracker, and an error taxonomy (insufficient gas, nonce
@@ -266,8 +266,8 @@ def test_network_verification_status_labels() -> None:
     assert network_verification_status("eip155:8453") == "live"
     assert network_verification_status("eip155:1") == "live"
     assert network_verification_status("base") == "live"
-    assert network_verification_status("solana:mainnet") == "scaffolded:needs_facilitator"
-    assert network_verification_status("solana") == "scaffolded:needs_facilitator"
+    assert network_verification_status("solana:mainnet") == "live"
+    assert network_verification_status("solana") == "live"
     assert network_verification_status("tron:mainnet") == "scaffolded:needs_facilitator"
     assert network_verification_status("") == "unknown"
 
@@ -277,7 +277,7 @@ def test_stats_expose_verification_status_by_network() -> None:
     by_network = stats["verification_status_by_network"]
     assert set(by_network) == set(SUPPORTED_ASSETS.keys())
     assert by_network["eip155:8453"] == "live"
-    assert by_network["solana:mainnet"] == "scaffolded:needs_facilitator"
+    assert by_network["solana:mainnet"] == "live"
     assert by_network["tron:mainnet"] == "scaffolded:needs_facilitator"
 
 
@@ -308,7 +308,7 @@ async def test_health_self_hosted_ready(monkeypatch, tmp_path) -> None:
         assert "solana:mainnet" in body["supported_networks"]
         assert body["supported_assets_count"] == sum(len(a) for a in SUPPORTED_ASSETS.values())
         assert body["verification_status"]["eip155:8453"] == "live"
-        assert body["verification_status"]["solana:mainnet"] == "scaffolded:needs_facilitator"
+        assert body["verification_status"]["solana:mainnet"] == "live"
         assert body["settlement"]["nonces_seen"] >= 0
         assert body["settlement"]["pending"] >= 0
     finally:

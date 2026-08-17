@@ -11,6 +11,8 @@ when tests patch ``secrets_backend.get_secret``. Domain code lives in:
 - ``x402.facilitator`` — FacilitatorRouter + EIP-7702 self-verify
 - ``x402.handler``     — X402Handler (verify/settle orchestration)
 - ``x402.batch``       — batch payment helpers
+- ``x402.solana_verifier`` — Solana SPL USDC on-chain verifier (getTransaction
+  jsonParsed, httpx + stdlib — no Solana SDK)
 
 The public import surface is unchanged: ``from x402 import X`` still works
 (every public name is re-exported below), and ``x402.py`` remains as a thin
@@ -27,8 +29,10 @@ Standards compliance:
 - Canonical multi-asset acceptance table (``SUPPORTED_ASSETS``) keyed by
   CAIP-2 network id + asset: EVM ERC-20 (USDC/USDT/ETH/ARB/WETH), Solana SPL
   (USDC/USDT/SOL), TRON TRC-20 (USDT/TRX). EVM settlement verification is
-  real (EIP-7702 self-verify + facilitators); Solana/TRON are [REVIEW]
-  scaffolds (structure/price/asset validation only — see VERIFICATION_STATUS).
+  real (EIP-7702 self-verify + facilitators); Solana is real too (SPL RPC
+  verifier — getTransaction jsonParsed USDC transferChecked); TRON is a
+  [REVIEW] scaffold (structure/price/asset validation only — see
+  VERIFICATION_STATUS).
 - Multiple facilitators: coinbase, payai, cloudflare, eip-7702
 - Smart facilitator router with auto-fallback
 - Self-hosted facilitator (``x402.self_facilitator``): EIP-3009 verify +
@@ -267,6 +271,12 @@ from .self_facilitator import (  # noqa: E402
     SettleOutcome,
     VerifyResult,
 )
+from .solana_verifier import (  # noqa: E402
+    DEFAULT_SOLANA_RPC_URL,
+    SOLANA_RPC_TIMEOUT_SECONDS,
+    SOLANA_USDC_MINT,
+    verify_solana_payment,
+)
 
 __all__ = [
     "ASSET_DECIMALS",
@@ -274,10 +284,13 @@ __all__ = [
     "CHAIN_ID_BY_NETWORK",
     "COINGECKO_ASSET_IDS",
     "DEFAULT_FACILITATORS",
+    "DEFAULT_SOLANA_RPC_URL",
     "EIP7702_RPC",
     "EIP7702_TOKEN_ADDRESSES",
     "ERC20_TRANSFER_SELECTOR",
     "PAYMENT_VALIDITY_SECONDS",
+    "SOLANA_RPC_TIMEOUT_SECONDS",
+    "SOLANA_USDC_MINT",
     "SUPPORTED_ASSETS",
     "SUPPORTED_NETWORKS",
     "VERIFICATION_STATUS",
@@ -347,4 +360,5 @@ __all__ = [
     "usd_per_unit_for",
     "validate_client_amount",
     "verify_batch_payment",
+    "verify_solana_payment",
 ]

@@ -421,11 +421,12 @@ SUPPORTED_ASSETS: dict[str, dict[str, dict[str, Any]]] = {
 
 # Verification status per chain family — what is REAL vs scaffolded.
 # ``status`` is the machine-readable label exposed by the health + pricing
-# endpoints: "live" (EVM — EIP-7702 self-verify + facilitators) vs
-# "scaffolded:needs_facilitator" (Solana/TRON — structure/price/asset
-# validated only; on-chain settlement verification needs a facilitator impl
-# or an SPL/TRC-20 RPC verifier). No fake security: scaffolded chains are
-# never reported as live. [REVIEW] Solana/TRON need a real verifier.
+# endpoints: "live" (EVM — EIP-7702 self-verify + facilitators; Solana —
+# SPL RPC verifier, getTransaction jsonParsed USDC transferChecked) vs
+# "scaffolded:needs_facilitator" (TRON — structure/price/asset validated
+# only; on-chain settlement verification needs a facilitator impl or a
+# TRC-20 RPC verifier). No fake security: scaffolded chains are never
+# reported as live. [REVIEW] TRON needs a real verifier.
 VERIFICATION_STATUS: dict[str, dict[str, Any]] = {
     "evm": {
         "status": "live",
@@ -434,10 +435,10 @@ VERIFICATION_STATUS: dict[str, dict[str, Any]] = {
         "note": "EIP-7702 self-verify (receipt + payTo/amount) and external facilitators",
     },
     "solana": {
-        "status": "scaffolded:needs_facilitator",
-        "real": False,
-        "scaffolded": True,
-        "note": "[REVIEW] scaffold only — validates header/price/asset; settlement verification needs a facilitator or SPL RPC verifier",
+        "status": "live",
+        "real": True,
+        "scaffolded": False,
+        "note": "SPL RPC verifier — getTransaction jsonParsed USDC transferChecked to the configured Solana wallet",
     },
     "tron": {
         "status": "scaffolded:needs_facilitator",
@@ -682,12 +683,13 @@ def network_family(network: str) -> str:
 def network_verification_status(network: str) -> str:
     """Return the verification-status label for a network.
 
-    ``"live"`` for EVM chains (EIP-7702 self-verify + facilitators);
-    ``"scaffolded:needs_facilitator"`` for Solana/TRON (structure/price/asset
-    validated; on-chain settlement NOT verified until a facilitator impl or
-    SPL/TRC-20 verifier is registered); ``"unknown"`` otherwise. Exposed by
-    the health + pricing endpoints so operators never mistake a scaffold for
-    real settlement verification.
+    ``"live"`` for EVM chains (EIP-7702 self-verify + facilitators) and
+    Solana (SPL RPC verifier — getTransaction jsonParsed USDC
+    transferChecked); ``"scaffolded:needs_facilitator"`` for TRON
+    (structure/price/asset validated; on-chain settlement NOT verified until
+    a facilitator impl or TRC-20 verifier is registered); ``"unknown"``
+    otherwise. Exposed by the health + pricing endpoints so operators never
+    mistake a scaffold for real settlement verification.
     """
     status = VERIFICATION_STATUS.get(network_family(network), {})
     return str(status.get("status", "unknown"))
