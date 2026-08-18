@@ -8,6 +8,8 @@
 #     tmpfs scratch + named volumes for persistence
 #   * healthcheck, resource limits, restart policy, init (zombie reaping),
 #     no-new-privileges, and a graceful-shutdown stop grace period
+#   * Postgres + Redis for production persistence
+#   * Prometheus + Grafana for observability
 #   * FlareSolverr and Tor are helper services (Tor behind the `tor` profile)
 services:
   pry:
@@ -50,6 +52,9 @@ services:
       - MAX_RETRIES=3
       - MIN_QUALITY=20
       - RATE_LIMIT_RPM=120
+      # Database & Redis
+      - PRY_DATABASE_URL=postgresql+asyncpg://pry:pry@postgres:5432/pry
+      - PRY_REDIS_URL=redis://redis:6379/0
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8002/health"]
       interval: 15s
@@ -68,6 +73,127 @@ services:
       - no-new-privileges:true
     depends_on:
       flaresolverr:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: pry-postgres
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pry-postgres:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=pry
+      - POSTGRES_PASSWORD=pry
+      - POSTGRES_DB=pry
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pry -d pry"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+          cpus: "0.25"
+
+  redis:
+    image: redis:7-alpine
+    container_name: pry-redis
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - pry-redis:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+        reservations:
+          memory: 64M
+          cpus: "0.1"
+
+  prometheus:
+    image: prom/prometheus:v2.54.0
+    container_name: pry-prometheus
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+          cpus: "0.25"
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: pry-grafana
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+        reservations:
+          memory: 64M
+          cpus: "0.1"
+    depends_on:
+      prometheus:
         condition: service_healthy
 
   flaresolverr:
@@ -113,3 +239,5 @@ volumes:
   pry-sessions:
   pry-redis:
   pry-postgres:
+  prometheus-data:
+  grafana-data:

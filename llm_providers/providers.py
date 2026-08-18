@@ -249,15 +249,15 @@ class CohereProvider(LLMProvider):
 
 class MistralProvider(LLMProvider):
     name = "mistral"
-    cost_per_1k_input = 0.0002
-    cost_per_1k_output = 0.0006
+    cost_per_1k_input = 0.0  # Free tier: open-mistral-nemo
+    cost_per_1k_output = 0.0
     referral_url = "https://console.mistral.ai/?ref=pry"
 
     def __init__(self, api_key: str = ""):
         self.api_key = api_key or os.getenv("MISTRAL_API_KEY", "")
 
     async def complete(
-        self, prompt, system="", max_tokens=1024, temperature=0.7, model="mistral-small-latest"
+        self, prompt, system="", max_tokens=1024, temperature=0.7, model="open-mistral-nemo"
     ):
         from client import get_client
 
@@ -429,15 +429,760 @@ class OpenRouterProvider(LLMProvider):
         raise NotImplementedError("OpenRouter focuses on chat; use dedicated embedding providers")
 
 
+class KiloCodeProvider(LLMProvider):
+    """KiloCode provider - free models via KiloCode gateway.
+
+    Models available (free tier):
+    - kilo-auto/free (auto-routing to best free model)
+    - stepfun/step-3.7-flash:free (262K ctx)
+    - nvidia/nemotron-3-ultra-550b-a55b:free (1M ctx)
+    - nvidia/nemotron-3-super-120b-a12b:free (128K ctx)
+    - nvidia/nemotron-3.5-lightning:free (128K ctx)
+    - poolside/laguna-s-2.1:free (262K ctx)
+    - poolside/laguna-xs-2.1:free (262K ctx)
+    - tencent/hy3:free (128K ctx)
+    - cohere/north-mini-code:free (128K ctx)
+    - dots-studio/dots-3-note-preview:free (128K ctx)
+    - nvidia/nemotron-3.5-content-safety:free (128K ctx)
+    - nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free (128K ctx)
+    - openrouter/free (meta-router)
+    """
+
+    name = "kilocode"
+    cost_per_1k_input = 0.0  # Free tier
+    cost_per_1k_output = 0.0
+    referral_url = "https://kilocode.ai"
+
+    def __init__(self, api_key: str = "", base_url: str = ""):
+        self.api_key = api_key or os.getenv("KILOCODE_API_KEY", "")
+        self.base_url = base_url or os.getenv(
+            "KILOCODE_BASE_URL", "http://127.0.0.1:18091/api/gateway"
+        )
+
+    async def complete(
+        self,
+        prompt,
+        system="",
+        max_tokens=1024,
+        temperature=0.7,
+        model="kilo-auto/free",
+    ):
+        from client import get_client
+
+        client = await get_client()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        resp = await client.post(
+            f"{self.base_url}/chat/completions",
+            json={
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        usage = data.get("usage", {})
+        choice = data["choices"][0]
+        message = choice.get("message", {})
+        # Some models (e.g., StepFun) return response in reasoning field instead of content
+        text = message.get("content", "") or message.get("reasoning", "")
+        return LLMResponse(
+            text=text,
+            model=model,
+            provider=self.name,
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            raw=data,
+        )
+
+    async def stream_chat(
+        self,
+        prompt: str,
+        system: str = "",
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+        model: str = "kilo-auto/free",
+        **kwargs: Any,
+    ) -> AsyncIterator[str]:
+        """Stream text deltas via the KiloCode gateway SSE endpoint."""
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        async for chunk in _stream_openai_compatible(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout_seconds=LLM_TIMEOUT_SECONDS,
+        ):
+            yield chunk
+
+    async def embed(self, text, model=""):
+        raise NotImplementedError("KiloCode focuses on chat; use dedicated embedding providers")
+
+
+class DeepSeekProvider(LLMProvider):
+    """DeepSeek V4 API - paid but fast and high quality."""
+
+    name = "deepseek"
+    cost_per_1k_input = 0.0  # Paid but low cost
+    cost_per_1k_output = 0.0
+    referral_url = "https://platform.deepseek.com/?ref=pry"
+
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key or os.getenv("DEEPSEEK_API_KEY", "")
+
+    async def complete(
+        self, prompt, system="", max_tokens=1024, temperature=0.7, model="deepseek-chat"
+    ):
+        from client import get_client
+
+        client = await get_client()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        resp = await client.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            json={
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        usage = data.get("usage", {})
+        return LLMResponse(
+            text=data["choices"][0]["message"]["content"],
+            model=model,
+            provider=self.name,
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            raw=data,
+        )
+
+    async def stream_chat(
+        self, prompt, system="", max_tokens=1024, temperature=0.7, model="deepseek-chat", **kwargs
+    ):
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        async for chunk in _stream_openai_compatible(
+            base_url="https://api.deepseek.com/v1",
+            api_key=self.api_key,
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        ):
+            yield chunk
+
+    async def embed(self, text, model=""):
+        raise NotImplementedError("DeepSeek doesn't offer public embedding API")
+
+
+class GroqProvider(LLMProvider):
+    """Groq API - free tier with Llama/Mixtral models."""
+
+    name = "groq"
+    cost_per_1k_input = 0.0  # Free tier
+    cost_per_1k_output = 0.0
+    referral_url = "https://groq.com/?ref=pry"
+
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key or os.getenv("GROQ_API_KEY", "")
+
+    async def complete(
+        self, prompt, system="", max_tokens=1024, temperature=0.7, model="llama-3.3-70b-versatile"
+    ):
+        from client import get_client
+
+        client = await get_client()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        resp = await client.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            json={
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        usage = data.get("usage", {})
+        return LLMResponse(
+            text=data["choices"][0]["message"]["content"],
+            model=model,
+            provider=self.name,
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            raw=data,
+        )
+
+    async def stream_chat(
+        self,
+        prompt,
+        system="",
+        max_tokens=1024,
+        temperature=0.7,
+        model="llama-3.3-70b-versatile",
+        **kwargs,
+    ):
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        async for chunk in _stream_openai_compatible(
+            base_url="https://api.groq.com/openai/v1",
+            api_key=self.api_key,
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        ):
+            yield chunk
+
+    async def embed(self, text, model=""):
+        raise NotImplementedError("Groq focuses on chat inference")
+
+
+class KimiProvider(LLMProvider):
+    """Kimi API - Moonshot AI (Chinese LLM provider)."""
+
+    name = "kimi"
+    cost_per_1k_input = 0.0
+    cost_per_1k_output = 0.0
+    referral_url = "https://kimi.moonshot.cn/?ref=pry"
+
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key or os.getenv("KIMI_API_KEY", "")
+
+    async def complete(
+        self, prompt, system="", max_tokens=1024, temperature=0.7, model="kimi-latest"
+    ):
+        from client import get_client
+
+        client = await get_client()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        resp = await client.post(
+            "https://api.moonshot.cn/v1/chat/completions",
+            json={
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        usage = data.get("usage", {})
+        return LLMResponse(
+            text=data["choices"][0]["message"]["content"],
+            model=model,
+            provider=self.name,
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            raw=data,
+        )
+
+    async def embed(self, text, model=""):
+        raise NotImplementedError("Kimi doesn't offer public embedding API")
+
+
+class NvidiaProvider(LLMProvider):
+    """NVIDIA NIM API - free tier with Nemotron models."""
+
+    name = "nvidia"
+    cost_per_1k_input = 0.0  # Free tier
+    cost_per_1k_output = 0.0
+    referral_url = "https://build.nvidia.com/?ref=pry"
+
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key or os.getenv("NVIDIA_API_KEY", "")
+
+    async def complete(
+        self,
+        prompt,
+        system="",
+        max_tokens=1024,
+        temperature=0.7,
+        model="meta/llama-3.1-8b-instruct",
+    ):
+        from client import get_client
+
+        client = await get_client()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        resp = await client.post(
+            "https://integrate.api.nvidia.com/v1/chat/completions",
+            json={
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        usage = data.get("usage", {})
+        return LLMResponse(
+            text=data["choices"][0]["message"]["content"],
+            model=model,
+            provider=self.name,
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            raw=data,
+        )
+
+    async def stream_chat(
+        self,
+        prompt,
+        system="",
+        max_tokens=1024,
+        temperature=0.7,
+        model="meta/llama-3.1-8b-instruct",
+        **kwargs,
+    ):
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        async for chunk in _stream_openai_compatible(
+            base_url="https://integrate.api.nvidia.com/v1",
+            api_key=self.api_key,
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        ):
+            yield chunk
+
+    async def embed(self, text, model=""):
+        raise NotImplementedError("NVIDIA NIM focuses on chat inference")
+
+
+class NousProvider(LLMProvider):
+    """Nous Research API."""
+
+    name = "nous"
+    cost_per_1k_input = 0.0
+    cost_per_1k_output = 0.0
+    referral_url = "https://nousresearch.com/?ref=pry"
+
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key or os.getenv("NOUS_API_KEY", "")
+
+    async def complete(
+        self, prompt, system="", max_tokens=1024, temperature=0.7, model="nous-hermes-3"
+    ):
+        from client import get_client
+
+        client = await get_client()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        resp = await client.post(
+            "https://api.nousresearch.com/v1/chat/completions",
+            json={
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        usage = data.get("usage", {})
+        return LLMResponse(
+            text=data["choices"][0]["message"]["content"],
+            model=model,
+            provider=self.name,
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            raw=data,
+        )
+
+    async def embed(self, text, model=""):
+        raise NotImplementedError("Nous doesn't offer public embedding API")
+
+
+class ZaiProvider(LLMProvider):
+    """Z.ai API."""
+
+    name = "zai"
+    cost_per_1k_input = 0.0
+    cost_per_1k_output = 0.0
+    referral_url = "https://z.ai/?ref=pry"
+
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key or os.getenv("ZAI_API_KEY", "")
+
+    async def complete(self, prompt, system="", max_tokens=1024, temperature=0.7, model="zai-chat"):
+        from client import get_client
+
+        client = await get_client()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        resp = await client.post(
+            "https://api.z.ai/v1/chat/completions",
+            json={
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        usage = data.get("usage", {})
+        return LLMResponse(
+            text=data["choices"][0]["message"]["content"],
+            model=model,
+            provider=self.name,
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            raw=data,
+        )
+
+    async def embed(self, text, model=""):
+        raise NotImplementedError("Z.ai doesn't offer public embedding API")
+
+
+class CerebrasProvider(LLMProvider):
+    """Cerebras API - wafer-scale AI inference."""
+
+    name = "cerebras"
+    cost_per_1k_input = 0.0
+    cost_per_1k_output = 0.0
+    referral_url = "https://cerebras.ai/?ref=pry"
+
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key or os.getenv("CEREBRAS_API_KEY", "")
+
+    async def complete(
+        self, prompt, system="", max_tokens=1024, temperature=0.7, model="llama3.1-8b"
+    ):
+        from client import get_client
+
+        client = await get_client()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        resp = await client.post(
+            "https://api.cerebras.ai/v1/chat/completions",
+            json={
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        usage = data.get("usage", {})
+        return LLMResponse(
+            text=data["choices"][0]["message"]["content"],
+            model=model,
+            provider=self.name,
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            raw=data,
+        )
+
+    async def stream_chat(
+        self, prompt, system="", max_tokens=1024, temperature=0.7, model="llama3.1-8b", **kwargs
+    ):
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        async for chunk in _stream_openai_compatible(
+            base_url="https://api.cerebras.ai/v1",
+            api_key=self.api_key,
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        ):
+            yield chunk
+
+    async def embed(self, text, model=""):
+        raise NotImplementedError("Cerebras focuses on fast inference")
+
+
+class MinimaxProvider(LLMProvider):
+    """MiniMax API (Hailuo AI)."""
+
+    name = "minimax"
+    cost_per_1k_input = 0.0
+    cost_per_1k_output = 0.0
+    referral_url = "https://minimax.io/?ref=pry"
+
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key or os.getenv("MINIMAX_API_KEY", "")
+
+    async def complete(
+        self, prompt, system="", max_tokens=1024, temperature=0.7, model="minimax-chat"
+    ):
+        from client import get_client
+
+        client = await get_client()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        resp = await client.post(
+            "https://api.minimax.io/v1/text/chatcompletion_v2",
+            json={
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        usage = data.get("usage", {})
+        return LLMResponse(
+            text=data["choices"][0]["message"]["content"],
+            model=model,
+            provider=self.name,
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            raw=data,
+        )
+
+    async def embed(self, text, model=""):
+        raise NotImplementedError("MiniMax focuses on chat")
+
+
+class SiliconFlowProvider(LLMProvider):
+    """SiliconFlow API - Chinese cloud LLM provider (OpenAI-compatible)."""
+
+    name = "siliconflow"
+    cost_per_1k_input = 0.0
+    cost_per_1k_output = 0.0
+    referral_url = "https://siliconflow.cn/?ref=pry"
+
+    def __init__(self, api_key: str = "", base_url: str = ""):
+        self.api_key = api_key or os.getenv("SILICONFLOW_API_KEY", "")
+        self.base_url = base_url or os.getenv(
+            "SILICONFLOW_BASE_URL", "https://api.siliconflow.cn/v1"
+        )
+
+    async def complete(
+        self, prompt, system="", max_tokens=1024, temperature=0.7, model="Qwen/Qwen2.5-7B-Instruct"
+    ):
+        from client import get_client
+
+        client = await get_client()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        resp = await client.post(
+            f"{self.base_url}/chat/completions",
+            json={
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        usage = data.get("usage", {})
+        return LLMResponse(
+            text=data["choices"][0]["message"]["content"],
+            model=model,
+            provider=self.name,
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            raw=data,
+        )
+
+    async def stream_chat(
+        self,
+        prompt,
+        system="",
+        max_tokens=1024,
+        temperature=0.7,
+        model="Qwen/Qwen2.5-7B-Instruct",
+        **kwargs,
+    ):
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        async for chunk in _stream_openai_compatible(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        ):
+            yield chunk
+
+    async def embed(self, text, model="BAAI/bge-large-en-v1.5"):
+        from client import get_client
+
+        client = await get_client()
+        resp = await client.post(
+            f"{self.base_url}/embeddings",
+            json={"model": model, "input": [text]},
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        return resp.json()["data"][0]["embedding"]
+
+
+class OpenCodeZenProvider(LLMProvider):
+    """OpenCode Zen API - free deepseek-v4-flash."""
+
+    name = "opencode_zen"
+    cost_per_1k_input = 0.0  # Always free
+    cost_per_1k_output = 0.0
+    referral_url = "https://opencode.ai/?ref=pry"
+
+    def __init__(self, api_key: str = "", base_url: str = ""):
+        self.api_key = api_key or os.getenv("OPENCODE_ZEN_API_KEY", "")
+        self.base_url = base_url or os.getenv(
+            "OPENCODE_ZEN_BASE_URL", "https://opencode.ai/api/zen/v1"
+        )
+
+    async def complete(
+        self, prompt, system="", max_tokens=1024, temperature=0.7, model="deepseek-v4-flash-free"
+    ):
+        from client import get_client
+
+        client = await get_client()
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        resp = await client.post(
+            f"{self.base_url}/chat/completions",
+            json={
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=LLM_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        usage = data.get("usage", {})
+        return LLMResponse(
+            text=data["choices"][0]["message"]["content"],
+            model=model,
+            provider=self.name,
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            raw=data,
+        )
+
+    async def stream_chat(
+        self,
+        prompt,
+        system="",
+        max_tokens=1024,
+        temperature=0.7,
+        model="deepseek-v4-flash-free",
+        **kwargs,
+    ):
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        async for chunk in _stream_openai_compatible(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        ):
+            yield chunk
+
+    async def embed(self, text, model=""):
+        raise NotImplementedError("OpenCode Zen doesn't offer embedding API")
+
+
 def register_default_providers(registry: LLMRegistry) -> None:
     """Register all providers whose API keys are set in environment."""
+    from settings import settings
+
     api_key_map = {
-        "openai": os.getenv("OPENAI_API_KEY"),
-        "anthropic": os.getenv("ANTHROPIC_API_KEY"),
-        "google": os.getenv("GOOGLE_API_KEY"),
-        "cohere": os.getenv("COHERE_API_KEY"),
-        "mistral": os.getenv("MISTRAL_API_KEY"),
-        "openrouter": os.getenv("OPENROUTER_API_KEY"),
+        "openai": settings.openai_api_key,
+        "anthropic": settings.anthropic_api_key,
+        "google": settings.gemini_api_key,
+        "cohere": settings.cohere_api_key,
+        "mistral": settings.mistral_api_key,
+        "openrouter": settings.openrouter_api_key,
+        "kilocode": settings.kilocode_api_key,
+        "deepseek": settings.deepseek_api_key,
+        "groq": settings.groq_api_key,
+        "kimi": settings.kimi_api_key,
+        "nvidia": settings.nvidia_api_key,
+        "nous": settings.nous_api_key,
+        "zai": settings.zai_api_key,
+        "cerebras": settings.cerebras_api_key,
+        "minimax": settings.minimax_api_key,
+        "siliconflow": settings.siliconflow_api_key,
+        "siliconflow_2": settings.siliconflow_api_key_2,
+        "siliconflow_v2": settings.siliconflow_api_key_v2,
+        "opencode_zen": settings.opencode_zen_api_key,
+        "opencode_zen_backup": settings.opencode_zen_backup_api_key,
+        "opencode_zen_3": settings.opencode_zen_3_api_key,
+        "openrouter_backup": settings.openrouter_backup_api_key,
+        "mistral_free": settings.mistral_free_api_key,
     }
     provider_classes = {
         "openai": OpenAIProvider,
@@ -446,10 +1191,36 @@ def register_default_providers(registry: LLMRegistry) -> None:
         "cohere": CohereProvider,
         "mistral": MistralProvider,
         "openrouter": OpenRouterProvider,
+        "kilocode": KiloCodeProvider,
+        "deepseek": DeepSeekProvider,
+        "groq": GroqProvider,
+        "kimi": KimiProvider,
+        "nvidia": NvidiaProvider,
+        "nous": NousProvider,
+        "zai": ZaiProvider,
+        "cerebras": CerebrasProvider,
+        "minimax": MinimaxProvider,
+        "siliconflow": SiliconFlowProvider,
+        "siliconflow_2": SiliconFlowProvider,
+        "siliconflow_v2": SiliconFlowProvider,
+        "opencode_zen": OpenCodeZenProvider,
+        "opencode_zen_backup": OpenCodeZenProvider,
+        "opencode_zen_3": OpenCodeZenProvider,
+        "openrouter_backup": OpenRouterProvider,
+        "mistral_free": MistralProvider,
     }
     for name, cls in provider_classes.items():
         key = api_key_map.get(name)
         if key:
-            registry.register(cls(api_key=key))
+            if name in ("siliconflow_2", "siliconflow_v2"):
+                registry.register(cls(api_key=key, base_url="https://api.siliconflow.cn/v1"))
+            elif name in ("opencode_zen_backup", "opencode_zen_3"):
+                registry.register(cls(api_key=key, base_url="https://opencode.ai/zen/v1"))
+            elif name == "mistral_free":
+                registry.register(cls(api_key=key, model="open-mistral-nemo"))
+            else:
+                registry.register(cls(api_key=key))
     # Ollama is always available if running locally
     registry.register(OllamaProvider())
+    # KiloCode is always available if gateway is running locally
+    registry.register(KiloCodeProvider())

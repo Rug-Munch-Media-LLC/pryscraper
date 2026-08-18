@@ -21,6 +21,7 @@ from parser import DocumentParser
 from ratelimit import RateLimiter
 from scraper import PryScraper
 from settings import settings
+from user_ratelimit import user_ratelimiter
 
 scraper = PryScraper()
 automator = PryAutomator()
@@ -30,3 +31,4 @@ cache = ResponseCache(capacity=1000)
 ratelimiter = RateLimiter(default_rpm=settings.rate_limit_rpm, burst=200)
 queue = JobQueue()
 advanced = PryAdvanced(cache=cache)
+user_ratelimiter = user_ratelimiter

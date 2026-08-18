@@ -44,7 +44,7 @@ from typing import Any, cast
 
 from starlette.routing import Mount as StarletteMount, Route as StarletteRoute
 
-from deps import ratelimiter
+from deps import ratelimiter, user_ratelimiter
 from jwt_auth import is_jwt, validate_rmi_jwt
 from observability import REQUEST_COUNT, REQUEST_LATENCY
 from settings import settings
@@ -276,7 +276,37 @@ class PryHttpMiddleware:
             await _app(scope, receive, send)
             return
 
-        allowed, stats = ratelimiter.check(ip)
+        # Rate limiting: use user rate limiter if API key present, else IP-based
+        auth_header = self._get_header(scope, b"authorization")
+        api_key = None
+        if auth_header.startswith("Bearer "):
+            api_key = auth_header[7:]
+
+        if api_key and api_key != settings.api_key:
+            # Valid API key (not the legacy global key) — use user rate limiter
+            # We need to validate the key and get its tier/limits
+            # For now, use a simple check - in production this would validate against DB
+            allowed, stats = await user_ratelimiter.check(
+                api_key_id=api_key[:12],  # Use prefix as bucket key
+                tier="FREE",  # Would be looked up from DB
+                cost_usd=0.0,  # Would be calculated per endpoint
+            )
+            rate_limit_headers = {
+                "x-ratelimit-limit": str(stats.get("limit", ratelimiter.default_rpm)),
+                "x-ratelimit-remaining": str(stats.get("remaining", 0)),
+                "x-ratelimit-reset": str(int(stats.get("quota_reset_at", time.time()))),
+                "x-ratelimit-quota-used": str(stats.get("quota_used", 0)),
+                "x-ratelimit-quota-limit": str(stats.get("quota_limit", 10000)),
+            }
+        else:
+            # Legacy global key or no key — use IP-based rate limiter
+            allowed, stats = ratelimiter.check(ip)
+            rate_limit_headers = {
+                "x-ratelimit-limit": str(ratelimiter.default_rpm),
+                "x-ratelimit-remaining": str(stats.get("remaining", 0)),
+                "x-ratelimit-reset": str(stats.get("retry_after", 1)),
+            }
+
         if not allowed:
             elapsed = time.time() - start
             logger.warning(
@@ -286,6 +316,7 @@ class PryHttpMiddleware:
                     "ip": ip,
                     "path": path,
                     "retry_after": stats.get("retry_after", 1),
+                    "reason": stats.get("reason", "rate_limited"),
                 },
             )
 
@@ -294,22 +325,24 @@ class PryHttpMiddleware:
                     "type": "/errors/rate_limit_exceeded",
                     "title": "Too Many Requests",
                     "status": 429,
-                    "detail": "Rate limit exceeded",
+                    "detail": stats.get("reason", "Rate limit exceeded"),
                     "request_id": request_id,
                     "instance": path,
                     "timestamp": datetime.now(UTC).isoformat(),
                     "code": "rate_limit_exceeded",
-                    "retry_after": stats.get("retry_after", 1),
+                    "retry_after": stats.get(
+                        "retry_after", stats.get("quota_reset_at", time.time()) - time.time()
+                    ),
                 }
             ).encode()
             headers = [
                 (b"content-type", b"application/json"),
                 (b"content-length", str(len(body)).encode()),
-                (b"x-ratelimit-limit", str(ratelimiter.default_rpm).encode()),
-                (b"x-ratelimit-remaining", b"0"),
-                (b"x-ratelimit-reset", str(stats.get("retry_after", 1)).encode()),
                 (b"x-request-id", request_id.encode()),
             ]
+            # Add rate limit headers
+            for k, v in rate_limit_headers.items():
+                headers.append((k.encode(), str(v).encode()))
             await send({"type": "http.response.start", "status": 429, "headers": headers})
             await send({"type": "http.response.body", "body": body})
             return
@@ -324,9 +357,9 @@ class PryHttpMiddleware:
             },
         )
 
-        ratelimit_limit = str(ratelimiter.default_rpm).encode()
-        ratelimit_remaining = str(stats.get("remaining", 0)).encode()
-        ratelimit_reset = str(stats.get("reset_at", 0)).encode()
+        ratelimit_limit = rate_limit_headers["x-ratelimit-limit"].encode()
+        ratelimit_remaining = rate_limit_headers["x-ratelimit-remaining"].encode()
+        ratelimit_reset = rate_limit_headers["x-ratelimit-reset"].encode()
         request_id_bytes = request_id.encode()
 
         async def wrapped_send(message: dict[str, Any]) -> None:

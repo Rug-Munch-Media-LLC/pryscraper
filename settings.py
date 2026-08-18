@@ -89,6 +89,31 @@ class PrySettings(BaseSettings):
     openai_api_key: str = ""
     anthropic_api_key: str = ""
     cohere_api_key: str = ""
+    # Additional LLM providers from gopass
+    deepseek_api_key: str = ""
+    gemini_api_key: str = ""
+    groq_api_key: str = ""
+    mistral_api_key: str = ""
+    kilocode_api_key: str = ""
+    kilocode_base_url: str = "http://127.0.0.1:18091/api/gateway"
+    kimi_api_key: str = ""
+    nvidia_api_key: str = ""
+    nous_api_key: str = ""
+    zai_api_key: str = ""
+    cerebras_api_key: str = ""
+    minimax_api_key: str = ""
+    siliconflow_api_key: str = ""
+    siliconflow_api_key_2: str = ""
+    siliconflow_api_key_v2: str = ""
+    cerebras_api_key: str = ""
+    # OpenCode Zen (3 accounts)
+    opencode_zen_api_key: str = ""
+    opencode_zen_backup_api_key: str = ""
+    opencode_zen_3_api_key: str = ""
+    # OpenRouter (main + backup)
+    openrouter_backup_api_key: str = ""
+    # Mistral (free tier)
+    mistral_free_api_key: str = ""
 
     # Services
     flaresolverr_url: str = "http://flaresolverr:8191/v1"
@@ -233,6 +258,25 @@ class PrySettings(BaseSettings):
             "openai_api_key",
             "anthropic_api_key",
             "cohere_api_key",
+            "deepseek_api_key",
+            "gemini_api_key",
+            "groq_api_key",
+            "mistral_api_key",
+            "kilocode_api_key",
+            "kimi_api_key",
+            "nvidia_api_key",
+            "nous_api_key",
+            "zai_api_key",
+            "cerebras_api_key",
+            "minimax_api_key",
+            "siliconflow_api_key",
+            "siliconflow_api_key_2",
+            "siliconflow_api_key_v2",
+            "opencode_zen_api_key",
+            "opencode_zen_backup_api_key",
+            "opencode_zen_3_api_key",
+            "openrouter_backup_api_key",
+            "mistral_free_api_key",
             "webhook_secret",
             "captcha_2captcha_api_key",
             "captcha_capsolver_api_key",

@@ -226,7 +226,12 @@ class LLMRegistry:
                 start = time.time()
 
                 async def _call(_provider: LLMProvider = provider) -> LLMResponse:
-                    return await _provider.complete(prompt, system, max_tokens, temperature, model)
+                    # Only pass model if explicitly provided (non-empty), otherwise let provider use its default
+                    if model:
+                        return await _provider.complete(
+                            prompt, system, max_tokens, temperature, model
+                        )
+                    return await _provider.complete(prompt, system, max_tokens, temperature)
 
                 response = await self._execute(provider, _call)
                 response.latency_ms = int((time.time() - start) * 1000)
