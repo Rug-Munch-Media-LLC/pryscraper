@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import time
+from datetime import UTC
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -80,10 +81,10 @@ def test_quota_reset_timestamp_future(limiter: UserRateLimiter):
 
 def test_quota_reset_timestamp_is_first_of_month(limiter: UserRateLimiter):
     """Quota reset timestamp should always be the 1st of a month."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     ts = limiter._get_quota_reset_timestamp()
-    dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+    dt = datetime.fromtimestamp(ts, tz=UTC)
     assert dt.day == 1, f"Quota reset should be the 1st, got day {dt.day}"
     assert dt.hour == 0
     assert dt.minute == 0
@@ -289,6 +290,7 @@ def test_multiple_requests_increments_counters(limiter: UserRateLimiter):
 
 def test_cost_usd_accumulates(limiter: UserRateLimiter):
     with patch.object(limiter, "_get_quota_reset_timestamp", return_value=time.time() + 3600):
+        info: dict = {}
         for i in range(3):
             allowed, info = limiter.check("cost_key", tier="FREE", cost_usd=10.0)
             assert allowed is True

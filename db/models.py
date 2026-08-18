@@ -13,6 +13,7 @@ Licensed under MIT. See LICENSE.
 #
 # Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
+# pyright: basic
 from __future__ import annotations
 
 from datetime import UTC, datetime

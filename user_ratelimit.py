@@ -13,12 +13,10 @@ Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
-from db import APIKey, Usage, async_session_scope
-from settings import settings
-
+from db import Usage, async_session_scope
 
 # Tier-based default limits
 TIER_LIMITS = {
@@ -36,7 +34,7 @@ class UserBucket:
     last_refill: float
     total_requests: int = 0
     blocked_requests: int = 0
-    quota_used: int = 0
+    quota_used: float = 0.0
     quota_reset_at: float = 0.0
 
 

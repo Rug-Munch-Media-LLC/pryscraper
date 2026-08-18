@@ -286,7 +286,7 @@ class PryHttpMiddleware:
             # Valid API key (not the legacy global key) — use user rate limiter
             # We need to validate the key and get its tier/limits
             # For now, use a simple check - in production this would validate against DB
-            allowed, stats = await user_ratelimiter.check(
+            allowed, stats = user_ratelimiter.check(
                 api_key_id=api_key[:12],  # Use prefix as bucket key
                 tier="FREE",  # Would be looked up from DB
                 cost_usd=0.0,  # Would be calculated per endpoint

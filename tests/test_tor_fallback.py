@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -17,7 +17,6 @@ from tor_fallback import (
     DEFAULT_TOR_TIMEOUT,
     _aiohttp_socks_installed,
     _socks_port_reachable,
-    fetch_via_tor,
     tor_available,
     tor_status,
 )
@@ -70,7 +69,6 @@ def test_tor_status_returns_info(mock_reach, mock_install):
 @pytest.mark.skip(reason="fetch_via_tor needs aiohttp environment; tested via integration")
 def test_fetch_via_tor_contract():
     """fetch_via_tor returns None when aiohttp_socks is missing."""
-    pass
 
 
 def test_socks_port_reachable():
