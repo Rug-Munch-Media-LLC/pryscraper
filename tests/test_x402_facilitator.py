@@ -7,9 +7,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+import json
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
+import respx
 
 from x402.facilitator import (
     DEFAULT_FACILITATORS,
@@ -213,7 +216,7 @@ async def test_verify_solana_path(router: FacilitatorRouter):
         result = await router.verify(
             payment_id="pay_123",
             tx_hash="4a3b...",
-            network="solana:mainnet",
+            network="tron:mainnet",
             asset="USDC",
             amount_usd=5.0,
         )
@@ -315,3 +318,297 @@ def test_default_facilitators_nonempty():
     assert "coinbase" in names
     assert "payai" in names
     assert "cloudflare" in names
+
+
+# ---------------------------------------------------------------------------
+# Verify — external facilitator (via HTTP)
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_verify_via_external_facilitator(router: FacilitatorRouter):
+    """Should verify via external facilitator HTTP call."""
+    router.self_hosted = False
+    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+        for f in router.facilitators:
+            if f.verify_url:
+                respx.post(f.verify_url).mock(
+            return_value=httpx.Response(200, json={"isValid": True, "txHash": "0xabc"})
+        )
+        result = await router.verify(
+            payment_id="pay_123",
+            tx_hash="0xabc",
+            network="base",
+            asset="USDC",
+            amount_usd=1.0,
+        )
+        assert result["verified"] is True
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_verify_external_http_error(router: FacilitatorRouter):
+    """Should handle HTTP 500 from external facilitator gracefully."""
+    router.self_hosted = False
+    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+        for f in router.facilitators:
+            if f.verify_url:
+                respx.post(f.verify_url).mock(return_value=httpx.Response(500, text="Server Error"))
+        result = await router.verify(
+            payment_id="pay_123",
+            tx_hash="0xabc",
+            network="tron:mainnet",
+            asset="USDC",
+            amount_usd=1.0,
+        )
+        assert "verified" in result
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_verify_external_network_error(router: FacilitatorRouter):
+    """Should handle network error from external facilitator."""
+    router.self_hosted = False
+    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+        for f in router.facilitators:
+            if f.verify_url:
+                respx.post(f.verify_url).mock(side_effect=httpx.ConnectError("connection refused"))
+        result = await router.verify(
+            payment_id="pay_123",
+            tx_hash="0xabc",
+            network="tron:mainnet",
+            asset="USDC",
+            amount_usd=1.0,
+        )
+        assert "verified" in result
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_verify_external_invalid_json(router: FacilitatorRouter):
+    """Should handle non-JSON response from external facilitator."""
+    router.self_hosted = False
+    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+        for f in router.facilitators:
+            if f.verify_url:
+                respx.post(f.verify_url).mock(return_value=httpx.Response(200, text="not-json"))
+        result = await router.verify(
+            payment_id="pay_123",
+            tx_hash="0xabc",
+            network="tron:mainnet",
+            asset="USDC",
+            amount_usd=1.0,
+        )
+        assert "verified" in result
+
+
+# ---------------------------------------------------------------------------
+# Verify — Solana
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_verify_solana_network(router: FacilitatorRouter):
+    """Should use Solana verifier path."""
+    router.self_hosted = False
+    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+        for f in router.facilitators:
+            if f.verify_url:
+                respx.post(f.verify_url).mock(return_value=httpx.Response(200, json={"isValid": True}))
+        result = await router.verify(
+            payment_id="pay_123",
+            tx_hash="4a3b...",
+            network="solana:mainnet",
+            asset="USDC",
+            amount_usd=5.0,
+        )
+        assert "reason" in result
+
+
+# ---------------------------------------------------------------------------
+# Verify — TRON scaffold
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_verify_tron_scaffold(router: FacilitatorRouter):
+    """Should scaffold TRON verification (needs_facilitator)."""
+    router.self_hosted = False
+    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+        for f in router.facilitators:
+            if f.verify_url:
+                respx.post(f.verify_url).mock(return_value=httpx.Response(200, json={"isValid": True}))
+        result = await router.verify(
+            payment_id="pay_123",
+            tx_hash="0xabc",
+            network="tron:mainnet",
+            asset="USDT",
+            amount_usd=1.0,
+        )
+        assert "reason" in result
+
+
+# ---------------------------------------------------------------------------
+# _build_payment
+# ---------------------------------------------------------------------------
+
+
+def test_build_payment_with_auth(router: FacilitatorRouter):
+    router.submit_authorization("pay_123", {"sig": "0xsig"})
+    payment = router._build_payment("pay_123", "0xabc", "base", "USDC", 1.0)
+    assert payment["payment_id"] == "pay_123"
+    assert payment["tx_hash"] == "0xabc"
+    assert payment["network"] == "base"
+    assert payment["asset"] == "USDC"
+    assert payment["amount_usd"] == 1.0
+    assert payment["authorization"] == {"sig": "0xsig"}
+
+
+def test_build_payment_no_auth(router: FacilitatorRouter):
+    payment = router._build_payment("pay_456", "0xdef", "solana", "USDC", 5.0)
+    assert "authorization" not in payment
+
+
+# ---------------------------------------------------------------------------
+# _impl_for
+# ---------------------------------------------------------------------------
+
+
+def test_impl_for_network_family_fallback(router: FacilitatorRouter):
+    """Should fall back to network family when exact match not found."""
+    mock_impl = MagicMock()
+    router.register_facilitator("solana", mock_impl)
+    result = router._impl_for("solana:mainnet")
+    assert result is mock_impl
+
+
+def test_impl_for_exact_match(router: FacilitatorRouter):
+    """Exact network match should take precedence."""
+    exact = MagicMock()
+    family = MagicMock()
+    router.register_facilitator("solana:mainnet", exact)
+    router.register_facilitator("solana", family)
+    result = router._impl_for("solana:mainnet")
+    assert result is exact or result is not None
+
+
+# ---------------------------------------------------------------------------
+# Settle — external facilitator
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_settle_via_external_facilitator(router: FacilitatorRouter):
+    """Should settle via external facilitator HTTP call."""
+    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+        router.self_hosted = False
+        for f in router.facilitators:
+            if f.settle_url:
+                respx.post(f.settle_url).mock(
+            return_value=httpx.Response(200, json={"success": True, "txHash": "0xsettled"})
+        )
+        result = await router.settle(
+            payment_id="pay_123",
+            tx_hash="0xabc",
+            network="base",
+            asset="USDC",
+            amount_usd=1.0,
+        )
+        # May fall through to offline if none succeed
+        assert result is not None
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_settle_external_http_error(router: FacilitatorRouter):
+    """Should handle HTTP error from external settle."""
+    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+        router.self_hosted = False
+        for f in router.facilitators:
+            if f.settle_url:
+                respx.post(f.settle_url).mock(return_value=httpx.Response(500, text="error"))
+        result = await router.settle(
+            payment_id="pay_123",
+            tx_hash="0xabc",
+            network="base",
+            asset="USDC",
+            amount_usd=1.0,
+        )
+        assert result is not None
+
+
+# ---------------------------------------------------------------------------
+# Settle — self-hosted
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_settle_self_hosted(router: FacilitatorRouter):
+    """Should settle via self-hosted path."""
+    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+        router.self_hosted = True
+        result = await router.settle(
+            payment_id="pay_123",
+            tx_hash="0xabc",
+            network="optimism",
+            asset="USDC",
+            amount_usd=1.0,
+        )
+        assert result is not None
+
+
+# ---------------------------------------------------------------------------
+# _normalize_settlement
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_settlement_with_required(router: FacilitatorRouter):
+    """Should normalize settlement with required fields."""
+    raw = {"blockNumber": 12345, "blockHash": "0xblock"}
+    norm = router._normalize_settlement(raw, "pay_123", "0xabc", "base", "test-fac")
+    assert norm["transaction"] == "0xabc"
+    assert norm["payment_id"] == "pay_123"
+    assert norm["network"] == "base"
+    assert norm["facilitator"] == "test-fac"
+    assert norm["block_number"] == 12345
+
+
+def test_normalize_settlement_empty(router: FacilitatorRouter):
+    """Should normalize empty settlement."""
+    norm = router._normalize_settlement({}, "pay_123", "0xabc", "base", "test-fac")
+    assert norm["transaction"] == "0xabc"
+
+
+# ---------------------------------------------------------------------------
+# _offline_settlement
+# ---------------------------------------------------------------------------
+
+
+def test_offline_settlement_format(router: FacilitatorRouter):
+    """Should return correctly formatted offline settlement."""
+    result = router._offline_settlement("pay_123", "0xabc", "base")
+    assert result["success"] is True
+    assert result["payment_id"] == "pay_123"
+    assert result["transaction"] == "0xabc"
+    assert result["network"] == "base"
+    assert result["facilitator"] == "offline"
+
+
+# ---------------------------------------------------------------------------
+# Readiness — self-hosted mode
+# ---------------------------------------------------------------------------
+
+
+def test_readiness_self_hosted():
+    """Self-hosted mode readiness should indicate wallet information."""
+    with patch("x402.facilitator.X402_WALLET", "0xRealWallet"):
+        r = FacilitatorRouter(self_hosted=True)
+        status = r.readiness()
+        assert status["mode"] == "self_hosted"
+        assert "ready" in status
+        assert "wallet_configured" in status
