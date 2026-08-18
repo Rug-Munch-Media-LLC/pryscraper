@@ -1,0 +1,56 @@
+# Pry — Self-hosted monitoring stack
+# Add to your docker-compose.yml alongside the pry service:
+#
+#   services:
+#     pry:
+#       image: pryscraper/pry:latest
+#       environment:
+#         - PRY_ADMIN_PATH=${PRY_ADMIN_PATH}
+#         - PRY_ADMIN_LOOPBACK_ONLY=false  # allow prometheus to scrape
+#     prometheus:
+#       ...
+#     grafana:
+#       ...
+#
+# Start: docker compose -f compose.yml -f compose.monitoring.yml up -d
+
+version: "3.8"
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.55.5
+    container_name: pry-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: pry-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-changeme}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus_data:
+  grafana_data:

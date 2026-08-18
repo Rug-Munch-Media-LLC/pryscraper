@@ -1,0 +1,15 @@
+# Prometheus config for Pry monitoring
+# Scrapes pry admin/metrics endpoint every 15s
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "pry"
+    static_configs:
+      - targets: ["pry:8005"]
+    metrics_path: "/${PRY_ADMIN_PATH}/v1/admin/metrics"
+    scheme: http
+    # Add headers if auth is required
+    # authorization:
+    #   credentials: "${PRY_API_KEY}"
