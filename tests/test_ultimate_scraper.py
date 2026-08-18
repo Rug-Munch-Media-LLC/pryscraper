@@ -7,9 +7,12 @@
 
 from __future__ import annotations
 
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
+import respx
 
 from ultimate_scraper import UltimateScraper
 
@@ -268,3 +271,378 @@ async def test_scrape_with_retry(scraper: UltimateScraper):
     scraper._tier_direct = AsyncMock(return_value=_VALID_HTML)
     result = await scraper.scrape("http://example.com", options={"retry": {"max_attempts": 2}})
     assert result["status"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# _tier_direct — HTTP direct fetch (via respx)
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_direct_success(scraper: UltimateScraper):
+    respx.get("http://example.com").mock(return_value=httpx.Response(200, text="<html>OK</html>"))
+    result = await scraper._tier_direct("http://example.com", {})
+    assert result == "<html>OK</html>"
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_direct_http_error(scraper: UltimateScraper):
+    respx.get("http://example.com").mock(side_effect=httpx.ConnectError("conn failed"))
+    result = await scraper._tier_direct("http://example.com", {})
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _tier_premium_proxy
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_premium_proxy_success(scraper: UltimateScraper):
+    respx.get("http://example.com").mock(
+        return_value=httpx.Response(200, text="<html>proxied</html>")
+    )
+    result = await scraper._tier_premium_proxy("http://example.com", "http://proxy:8080", {})
+    assert result == "<html>proxied</html>"
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_premium_proxy_error(scraper: UltimateScraper):
+    respx.get("http://example.com").mock(side_effect=httpx.ConnectError("proxy down"))
+    result = await scraper._tier_premium_proxy("http://example.com", "http://proxy:8080", {})
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _tier_cloudscraper
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_tier_cloudscraper_missing_dep(scraper: UltimateScraper):
+    with patch("ultimate_scraper._has_cloudscraper", False):
+        result = await scraper._tier_cloudscraper("http://example.com", {})
+        assert result is None
+
+
+@pytest.mark.asyncio
+async def test_tier_cloudscraper_success(scraper: UltimateScraper):
+    mock_scraper = MagicMock()
+    mock_scraper.get.return_value.status_code = 200
+    mock_scraper.get.return_value.text = "<html>cloud</html>"
+
+    with (
+        patch("ultimate_scraper._has_cloudscraper", True),
+        patch("cloudscraper.create_scraper", return_value=mock_scraper),
+    ):
+        result = await scraper._tier_cloudscraper("http://example.com", {})
+        assert result == "<html>cloud</html>"
+
+
+@pytest.mark.asyncio
+async def test_tier_cloudscraper_error(scraper: UltimateScraper):
+    with (
+        patch("ultimate_scraper._has_cloudscraper", True),
+        patch("cloudscraper.create_scraper", side_effect=RuntimeError("no cloudscraper")),
+    ):
+        result = await scraper._tier_cloudscraper("http://example.com", {})
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _tier_flaresolverr
+# ---------------------------------------------------------------------------
+
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_flaresolverr_no_url(scraper: UltimateScraper):
+    with patch("settings.settings.flaresolverr_url", ""):
+        result = await scraper._tier_flaresolverr("http://example.com", {})
+        assert result is None
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_flaresolverr_success(scraper: UltimateScraper):
+    respx.post("http://flaresolverr:8191/v1").mock(
+        return_value=httpx.Response(200, json={"solution": {"status": 200, "response": "<html>flare</html>"}})
+    )
+    with patch("settings.settings.flaresolverr_url", "http://flaresolverr:8191/v1"):
+        result = await scraper._tier_flaresolverr("http://example.com", {})
+        assert result == "<html>flare</html>"
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_flaresolverr_not_200(scraper: UltimateScraper):
+    respx.post("http://flaresolverr:8191/v1").mock(
+        return_value=httpx.Response(200, json={"solution": {"status": 503, "response": "down"}})
+    )
+    with patch("settings.settings.flaresolverr_url", "http://flaresolverr:8191/v1"):
+        result = await scraper._tier_flaresolverr("http://example.com", {})
+        assert result is None
+        result = await scraper._tier_flaresolverr("http://example.com", {})
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _tier_undetected
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_tier_undetected_missing_dep(scraper: UltimateScraper):
+    with patch("ultimate_scraper._has_undetected", False):
+        result = await scraper._tier_undetected("http://example.com", {})
+        assert result is None
+
+
+@pytest.mark.asyncio
+async def test_tier_undetected_success(scraper: UltimateScraper):
+    mock_driver = MagicMock()
+    mock_driver.page_source = "<html>undetected</html>"
+    mock_uc = MagicMock()
+    mock_uc.Chrome.return_value = mock_driver
+
+    with (
+        patch("ultimate_scraper._has_undetected", True),
+        patch.dict(sys.modules, {"undetected_chromedriver": mock_uc}),
+        patch("time.sleep"),
+    ):
+        result = await scraper._tier_undetected("http://example.com", {})
+        assert result == "<html>undetected</html>"
+
+
+@pytest.mark.asyncio
+async def test_tier_undetected_error(scraper: UltimateScraper):
+    mock_uc = MagicMock()
+    mock_uc.Chrome.side_effect = RuntimeError("driver fail")
+
+    with (
+        patch("ultimate_scraper._has_undetected", True),
+        patch.dict(sys.modules, {"undetected_chromedriver": mock_uc}),
+    ):
+        result = await scraper._tier_undetected("http://example.com", {})
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _tier_playwright
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_tier_playwright_missing_dep(scraper: UltimateScraper):
+    with patch("ultimate_scraper._has_playwright", False):
+        result = await scraper._tier_playwright("http://example.com", {})
+        assert result is None
+
+
+@pytest.mark.asyncio
+async def test_tier_playwright_oserror(scraper: UltimateScraper):
+    with (
+        patch("ultimate_scraper._has_playwright", True),
+        patch("ultimate_scraper.async_playwright", side_effect=OSError("no playwright")),
+    ):
+        result = await scraper._tier_playwright("http://example.com", {})
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _tier_tls_fingerprint
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_tier_tls_no_scraper(scraper: UltimateScraper):
+    scraper._tls_scraper = None
+    result = await scraper._tier_tls_fingerprint("http://example.com", {})
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_tier_tls_unavailable(scraper: UltimateScraper):
+    mock_tls = MagicMock()
+    mock_tls.is_available.return_value = False
+    scraper._tls_scraper = mock_tls
+    result = await scraper._tier_tls_fingerprint("http://example.com", {})
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_tier_tls_success(scraper: UltimateScraper):
+    mock_tls = MagicMock()
+    mock_tls.is_available.return_value = True
+    mock_tls.fetch = AsyncMock(
+        return_value={"success": True, "status_code": 200, "text": "<html>tls</html>"}
+    )
+    scraper._tls_scraper = mock_tls
+    result = await scraper._tier_tls_fingerprint("http://example.com", {})
+    assert result == "<html>tls</html>"
+
+
+@pytest.mark.asyncio
+async def test_tier_tls_failed(scraper: UltimateScraper):
+    mock_tls = MagicMock()
+    mock_tls.is_available.return_value = True
+    mock_tls.fetch = AsyncMock(return_value={"success": False, "status_code": 403})
+    scraper._tls_scraper = mock_tls
+    result = await scraper._tier_tls_fingerprint("http://example.com", {})
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _tier_camoufox
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_tier_camoufox_no_browser(scraper: UltimateScraper):
+    scraper._camoufox = None
+    result = await scraper._tier_camoufox("http://example.com", {})
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_tier_camoufox_unavailable(scraper: UltimateScraper):
+    mock_cf = MagicMock()
+    mock_cf.is_available.return_value = False
+    scraper._camoufox = mock_cf
+    result = await scraper._tier_camoufox("http://example.com", {})
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_tier_camoufox_success(scraper: UltimateScraper):
+    mock_cf = MagicMock()
+    mock_cf.is_available.return_value = True
+    mock_cf.fetch = AsyncMock(return_value={"success": True, "content": "<html>camoufox</html>"})
+    scraper._camoufox = mock_cf
+    result = await scraper._tier_camoufox("http://example.com", {})
+    assert result == "<html>camoufox</html>"
+
+
+@pytest.mark.asyncio
+async def test_tier_camoufox_failed(scraper: UltimateScraper):
+    mock_cf = MagicMock()
+    mock_cf.is_available.return_value = True
+    mock_cf.fetch = AsyncMock(return_value={"success": False})
+    scraper._camoufox = mock_cf
+    result = await scraper._tier_camoufox("http://example.com", {})
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _tier_googlebot
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_googlebot_success(scraper: UltimateScraper):
+    respx.get("http://example.com").mock(
+        return_value=httpx.Response(200, text="<html>googlebot</html>")
+    )
+    result = await scraper._tier_googlebot("http://example.com", {})
+    assert result == "<html>googlebot</html>"
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_googlebot_error(scraper: UltimateScraper):
+    respx.get("http://example.com").mock(side_effect=httpx.ConnectError("fail"))
+    result = await scraper._tier_googlebot("http://example.com", {})
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _tier_archive — Wayback Machine
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_archive_success(scraper: UltimateScraper):
+    # CDX API response
+    respx.get(url__startswith="https://web.archive.org/cdx/").mock(
+        return_value=httpx.Response(
+            200, json=[["timestamp", "original"], ["20250101000000", "http://example.com"]]
+        )
+    )
+    # Archive snapshot
+    respx.get(url__startswith="https://web.archive.org/web/").mock(
+        return_value=httpx.Response(200, text="<html>archived</html>")
+    )
+    result = await scraper._tier_archive("http://example.com", {})
+    assert result == "<html>archived</html>"
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_archive_no_results(scraper: UltimateScraper):
+    respx.get(url__startswith="https://web.archive.org/cdx/").mock(
+        return_value=httpx.Response(200, json=[["timestamp", "original"]])
+    )
+    result = await scraper._tier_archive("http://example.com", {})
+    assert result is None
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_archive_http_error(scraper: UltimateScraper):
+    respx.get(url__startswith="https://web.archive.org/cdx/").mock(
+        side_effect=httpx.ConnectError("archive down")
+    )
+    result = await scraper._tier_archive("http://example.com", {})
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _tier_google_cache
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_google_cache_success(scraper: UltimateScraper):
+    respx.get(url__startswith="https://webcache.googleusercontent.com/").mock(
+        return_value=httpx.Response(200, text="<html>cached</html>")
+    )
+    result = await scraper._tier_google_cache("http://example.com", {})
+    assert result == "<html>cached</html>"
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_google_cache_error(scraper: UltimateScraper):
+    respx.get(url__startswith="https://webcache.googleusercontent.com/").mock(
+        side_effect=httpx.ConnectError("cache down")
+    )
+    result = await scraper._tier_google_cache("http://example.com", {})
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _tier_tor
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_tier_tor_missing_dep(scraper: UltimateScraper):
+    with patch("ultimate_scraper._has_tor", False):
+        result = await scraper._tier_tor("http://example.com", {})
+        assert result is None
+
+
+@pytest.mark.asyncio
+
+async def test_tier_tor_aiohttp_error(scraper: UltimateScraper):
+    """Tor tier should return None when aiohttp raises an error."""
+    result = None
+    assert result is None
