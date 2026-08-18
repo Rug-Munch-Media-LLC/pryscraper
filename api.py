@@ -37,6 +37,7 @@ from observability import setup_tracing
 from pipeline import get_pipeline
 from pry_mcp import make_fallback_server, register_all
 from pry_mcp.app import create_mcp_app
+from routers.admin import router as admin_router
 from routers.advanced import router as advanced_router
 from routers.agency import router as agency_router
 from routers.ai import router as ai_router
@@ -399,6 +400,7 @@ app.include_router(healthcare_data_router)
 app.include_router(scraping_router)
 app.include_router(templates_router)
 app.include_router(ai_router)
+app.include_router(admin_router)
 app.include_router(advanced_router)
 app.include_router(agency_router)
 app.include_router(alerts_router)
