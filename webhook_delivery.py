@@ -24,13 +24,13 @@ from settings import settings
 logger = logging.getLogger(__name__)
 
 WEBHOOK_DIR = PRY_DATA_DIR / "webhooks"
-WEBHOOK_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class WebhookDelivery:
     """Deliver webhooks reliably with retries and HMAC signing."""
 
     def __init__(self, signing_secret: str = ""):
+        WEBHOOK_DIR.mkdir(parents=True, exist_ok=True)
         # Secret resolution order: explicit arg → PRY_WEBHOOK_SECRET env →
         # settings.webhook_secret (which reads PRY_WEBHOOK_SECRET /
         # pry/webhook_secret in gopass — see settings.py). An empty secret

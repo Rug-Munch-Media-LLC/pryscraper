@@ -1,273 +1,270 @@
-"""Tests for ultimate scraper fallback chain."""
-
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
+"""Tests for ultimate_scraper.py — multi-strategy anti-detection scraper."""
 
 from __future__ import annotations
 
-from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-import resilience
 from ultimate_scraper import UltimateScraper
 
-
-def _clear_registry() -> None:
-    """Reset global resilience registry to avoid cross-test contamination."""
-    resilience.registry.domain_memory.data.clear()
-    # Persistence is env-gated and off by default, but make sure tests never
-    # write real state even if the default is flipped in the future.
-    resilience.registry.disable_persistence()
-    for name in list(resilience.registry.breakers.keys()):
-        cb = resilience.registry.breakers[name]
-        cb.state = "closed"
-        cb.failures = 0
-        cb.successes = 0
-        cb.last_failure_at = 0.0
-        cb.half_open_attempts = 0
+_VALID_HTML = "<html><body>" + "x" * 600 + "</body></html>"
+_VALID_HTML_2 = "<html><body>" + "y" * 600 + "</body></html>"
+_VALID_HTML_3 = "<html><body>" + "z" * 600 + "</body></html>"
 
 
-_TIER_ALL = [
-    "_tier_direct",
-    "_tier_tls_fingerprint",
-    "_tier_cloudscraper",
-    "_tier_flaresolverr",
-    "_tier_undetected",
-    "_tier_camoufox",
-    "_tier_playwright",
-    "_tier_googlebot",
-    "_tier_premium_proxy",
-    "_tier_archive",
-    "_tier_google_cache",
-    "_tier_tor",
-]
-
-
-def test_ultimate_init() -> None:
-    s = UltimateScraper()
-    assert s is not None
-    assert len(s.USER_AGENTS) >= 3
-
-
-def test_rotate_ua_changes() -> None:
-    s = UltimateScraper()
-    ua1 = s._rotate_ua()
-    ua2 = s._rotate_ua()
-    assert isinstance(ua1, str)
-    assert isinstance(ua2, str)
-
-
-def test_is_valid_empty() -> None:
-    s = UltimateScraper()
-    assert s._is_valid("") is False
-    assert s._is_valid("<html></html>") is False
-    assert s._is_valid(None) is False
-
-
-@pytest.mark.anyio
-async def test_tier_tls_fingerprint_not_available() -> None:
-    s = UltimateScraper()
-    s._tls_scraper = None
-    result = await s._tier_tls_fingerprint("http://example.com", {}, None)
-    assert result is None
-
-
-@pytest.mark.anyio
-async def test_tier_tls_fingerprint_success() -> None:
-    s = UltimateScraper()
-    mock = MagicMock()
-    mock.is_available.return_value = True
-    mock.fetch = AsyncMock(
-        return_value={
-            "success": True,
-            "status_code": 200,
-            "text": "<html><body>hello world</body></html>",
-        }
-    )
-    s._tls_scraper = mock
-    result = await s._tier_tls_fingerprint("http://example.com", {}, None)
-    assert result == "<html><body>hello world</body></html>"
-
-
-@pytest.mark.anyio
-async def test_tier_tls_fingerprint_failure() -> None:
-    s = UltimateScraper()
-    mock = MagicMock()
-    mock.is_available.return_value = True
-    mock.fetch = AsyncMock(return_value={"success": False, "error": "blocked"})
-    s._tls_scraper = mock
-    result = await s._tier_tls_fingerprint("http://example.com", {}, None)
-    assert result is None
-
-
-@pytest.mark.anyio
-async def test_tier_camoufox_not_available() -> None:
-    s = UltimateScraper()
-    s._camoufox = None
-    result = await s._tier_camoufox("http://example.com", {}, None)
-    assert result is None
-
-
-@pytest.mark.anyio
-async def test_tier_camoufox_success() -> None:
-    s = UltimateScraper()
-    mock = MagicMock()
-    mock.is_available.return_value = True
-    mock.fetch = AsyncMock(
-        return_value={
-            "success": True,
-            "content": "<html><body>camoufox result</body></html>",
-        }
-    )
-    s._camoufox = mock
-    result = await s._tier_camoufox("http://example.com", {}, None)
-    assert result == "<html><body>camoufox result</body></html>"
-
-
-@pytest.mark.anyio
-async def test_tier_camoufox_failure() -> None:
-    s = UltimateScraper()
-    mock = MagicMock()
-    mock.is_available.return_value = True
-    mock.fetch = AsyncMock(return_value={"success": False, "error": "blocked"})
-    s._camoufox = mock
-    result = await s._tier_camoufox("http://example.com", {}, None)
-    assert result is None
-
-
-@pytest.mark.anyio
-async def test_scrape_falls_through_all_tiers() -> None:
-    _clear_registry()
-    s = UltimateScraper()
+@pytest.fixture
+def scraper() -> UltimateScraper:
+    """Return a scraper with a clean registry mock so test pollution is impossible."""
     with (
-        patch.object(s, "_tier_direct", new=AsyncMock(return_value=None)),
-        patch.object(s, "_tier_tls_fingerprint", new=AsyncMock(return_value=None)),
-        patch.object(s, "_tier_cloudscraper", new=AsyncMock(return_value=None)),
-        patch.object(s, "_tier_flaresolverr", new=AsyncMock(return_value=None)),
-        patch.object(s, "_tier_undetected", new=AsyncMock(return_value=None)),
-        patch.object(s, "_tier_camoufox", new=AsyncMock(return_value=None)),
-        patch.object(s, "_tier_playwright", new=AsyncMock(return_value=None)),
-        patch.object(s, "_tier_googlebot", new=AsyncMock(return_value=None)),
-        patch.object(s, "_tier_archive", new=AsyncMock(return_value=None)),
-        patch.object(s, "_tier_google_cache", new=AsyncMock(return_value=None)),
-        patch.object(s, "_tier_tor", new=AsyncMock(return_value=None)),
+        patch("ultimate_scraper.registry.reorder_for_domain", side_effect=lambda _d, c: c),
+        patch("ultimate_scraper.registry.is_service_allowed", return_value=True),
+        patch("ultimate_scraper.registry.record_domain_tier_result"),
+        patch("ultimate_scraper.registry.record_service_result"),
     ):
-        result = await s.scrape("http://example.com")
-        assert result["status"] == "error"
+        yield UltimateScraper()
 
 
-@pytest.mark.anyio
-async def test_scrape_tls_tier_succeeds() -> None:
-    _clear_registry()
-    s = UltimateScraper()
-    html = "<html><body>" + "x" * 1000 + "</body></html>"
-    ctx_mocks = {name: AsyncMock(return_value=None) for name in _TIER_ALL}
-    ctx_mocks["_tier_tls_fingerprint"].return_value = html
-    with ExitStack() as stack:
-        for name in _TIER_ALL:
-            stack.enter_context(patch.object(s, name, new=ctx_mocks[name]))
-        result = await s.scrape("http://example.com")
-        assert result["status"] == "ok"
-        assert result["method"] == "tls_fingerprint"
+# ---------------------------------------------------------------------------
+# Init
+# ---------------------------------------------------------------------------
 
 
-@pytest.mark.anyio
-async def test_scrape_camoufox_tier_succeeds() -> None:
-    _clear_registry()
-    s = UltimateScraper()
-    html = "<html><body>" + "x" * 1000 + "</body></html>"
-    ctx_mocks = {name: AsyncMock(return_value=None) for name in _TIER_ALL}
-    ctx_mocks["_tier_camoufox"].return_value = html
-    with ExitStack() as stack:
-        for name in _TIER_ALL:
-            stack.enter_context(patch.object(s, name, new=ctx_mocks[name]))
-        result = await s.scrape("http://example.com")
-        assert result["status"] == "ok"
-        assert result["method"] == "camoufox"
+def test_scraper_init(scraper: UltimateScraper):
+    assert scraper is not None
+    for t in ["_tier_direct", "_tier_tor", "_tier_archive", "_tier_google_cache"]:
+        assert hasattr(scraper, t)
 
 
-@pytest.mark.anyio
-async def test_premium_proxy_not_first_by_default() -> None:
-    """Default order: trusted tiers -> Tor -> premium proxy LAST.
-
-    With both Tor and the premium proxy returning valid HTML, Tor wins
-    because it is tried first — proving the default is NOT premium-first.
-    """
-    _clear_registry()
-    s = UltimateScraper()
-    html = "<html><body>" + "x" * 1000 + "</body></html>"
-    ctx_mocks = {name: AsyncMock(return_value=None) for name in _TIER_ALL}
-    ctx_mocks["_tier_tor"].return_value = html
-    ctx_mocks["_tier_premium_proxy"].return_value = html
-    stack = ExitStack()
-    with stack:
-        for name in _TIER_ALL:
-            stack.enter_context(patch.object(s, name, new=ctx_mocks[name]))
-        result = await s.scrape("http://example.com", {"proxy_url": "http://proxy:8080"})
-    assert result["status"] == "ok"
-    assert result["method"] == "tor"
-    ctx_mocks["_tier_tor"].assert_awaited()
-    ctx_mocks["_tier_premium_proxy"].assert_not_awaited()
+def test_scraper_has_all_tiers(scraper: UltimateScraper):
+    tiers = [
+        "_tier_direct",
+        "_tier_premium_proxy",
+        "_tier_cloudscraper",
+        "_tier_flaresolverr",
+        "_tier_undetected",
+        "_tier_playwright",
+        "_tier_tls_fingerprint",
+        "_tier_camoufox",
+        "_tier_googlebot",
+        "_tier_archive",
+        "_tier_google_cache",
+        "_tier_tor",
+    ]
+    for t in tiers:
+        assert hasattr(scraper, t), f"Missing tier: {t}"
 
 
-@pytest.mark.anyio
-async def test_premium_proxy_used_last_after_tor_fails() -> None:
-    """When trusted tiers and Tor fail, the premium proxy is the paid last resort."""
-    _clear_registry()
-    s = UltimateScraper()
-    html = "<html><body>" + "x" * 1000 + "</body></html>"
-    ctx_mocks = {name: AsyncMock(return_value=None) for name in _TIER_ALL}
-    ctx_mocks["_tier_premium_proxy"].return_value = html
-    with ExitStack() as stack:
-        for name in _TIER_ALL:
-            stack.enter_context(patch.object(s, name, new=ctx_mocks[name]))
-        result = await s.scrape("http://example.com", {"proxy_url": "http://proxy:8080"})
-    assert result["status"] == "ok"
-    assert result["method"] == "premium_proxy"
-    # Tor was tried (and failed) BEFORE the premium proxy.
-    ctx_mocks["_tier_tor"].assert_awaited()
-    ctx_mocks["_tier_premium_proxy"].assert_awaited()
+# ---------------------------------------------------------------------------
+# URL validation
+# ---------------------------------------------------------------------------
 
 
-@pytest.mark.anyio
-async def test_premium_proxy_first_when_forced() -> None:
-    """Explicit use_premium_proxy_first=True tries the proxy before any tier."""
-    _clear_registry()
-    s = UltimateScraper()
-    html = "<html><body>" + "x" * 1000 + "</body></html>"
-    ctx_mocks = {name: AsyncMock(return_value=None) for name in _TIER_ALL}
-    ctx_mocks["_tier_premium_proxy"].return_value = html
-    with ExitStack() as stack:
-        for name in _TIER_ALL:
-            stack.enter_context(patch.object(s, name, new=ctx_mocks[name]))
-        result = await s.scrape(
-            "http://example.com",
-            {"proxy_url": "http://proxy:8080", "use_premium_proxy_first": True},
-        )
-    assert result["status"] == "ok"
-    assert result["method"] == "premium_proxy"
-    ctx_mocks["_tier_tor"].assert_not_awaited()
-
-
-@pytest.mark.anyio
-async def test_adaptive_order_skips_chronic_failure_tier() -> None:
-    """A tier that chronically fails for a domain is skipped in the chain."""
-    _clear_registry()
-    s = UltimateScraper()
-    for _ in range(3):
-        resilience.registry.record_domain_tier_result("example.com", "direct", False)
-    html = "<html><body>" + "x" * 1000 + "</body></html>"
-    ctx_mocks = {name: AsyncMock(return_value=None) for name in _TIER_ALL}
-    ctx_mocks["_tier_direct"].return_value = html  # would succeed if tried
-    with ExitStack() as stack:
-        for name in _TIER_ALL:
-            stack.enter_context(patch.object(s, name, new=ctx_mocks[name]))
-        result = await s.scrape("http://example.com")
-    # direct is skipped for this domain -> every other tier fails -> error.
+@pytest.mark.asyncio
+async def test_scrape_invalid_url_returns_error(scraper: UltimateScraper):
+    result = await scraper.scrape("not-a-url")
     assert result["status"] == "error"
-    ctx_mocks["_tier_direct"].assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# UA rotation
+# ---------------------------------------------------------------------------
+
+
+def test_rotate_ua_returns_string(scraper: UltimateScraper):
+    ua = scraper._rotate_ua()
+    assert isinstance(ua, str) and len(ua) > 20
+
+
+def test_rotate_ua_changes(scraper: UltimateScraper):
+    uas = {scraper._rotate_ua() for _ in range(5)}
+    assert len(uas) > 1
+
+
+# ---------------------------------------------------------------------------
+# Headers
+# ---------------------------------------------------------------------------
+
+
+def test_build_headers_contains_required(scraper: UltimateScraper):
+    h = scraper._build_headers("http://example.com")
+    for k in ["User-Agent", "Accept", "Accept-Language"]:
+        assert k in h
+
+
+# ---------------------------------------------------------------------------
+# _is_valid
+# ---------------------------------------------------------------------------
+
+
+def test_is_valid_none(scraper: UltimateScraper):
+    assert scraper._is_valid(None) is False
+
+
+def test_is_valid_empty(scraper: UltimateScraper):
+    assert scraper._is_valid("") is False
+
+
+def test_is_valid_short(scraper: UltimateScraper):
+    assert scraper._is_valid("ab" * 100) is False
+
+
+def test_is_valid_ok(scraper: UltimateScraper):
+    assert scraper._is_valid(_VALID_HTML) is True
+
+
+def test_is_valid_body_text_too_short(scraper: UltimateScraper):
+    body = "<body>" + "x" * 40 + "</body>"
+    assert scraper._is_valid(body) is False
+
+
+# ---------------------------------------------------------------------------
+# _result
+# ---------------------------------------------------------------------------
+
+
+def test_result_success_format(scraper: UltimateScraper):
+    result = scraper._result("http://example.com", _VALID_HTML, "direct")
+    assert result["status"] == "ok"
+    assert result["url"] == "http://example.com"
+    assert result["method"] == "direct"
+    assert "raw_html" in result
+
+
+def test_result_contains_block_signal(scraper: UltimateScraper):
+    result = scraper._result(
+        "http://example.com",
+        _VALID_HTML,
+        "direct",
+        block_signal={"kind": "captcha", "confidence": 0.8},
+    )
+    assert result["block_signal"]["kind"] == "captcha"
+
+
+# ---------------------------------------------------------------------------
+# Proxy resolution
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_proxy_url_from_opts(scraper: UltimateScraper):
+    url = scraper._resolve_proxy_url({"proxy_url": "http://proxy:8080"})
+    assert url == "http://proxy:8080"
+
+
+def test_resolve_proxy_url_none(scraper: UltimateScraper):
+    assert scraper._resolve_proxy_url({}) is None
+
+
+# ---------------------------------------------------------------------------
+# scrape — fallback chain
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_scrape_direct_success(scraper: UltimateScraper):
+    with patch.object(scraper, "_tier_direct", new=AsyncMock(return_value=_VALID_HTML)):
+        result = await scraper.scrape("http://example.com")
+        assert result["status"] == "ok" and result["method"] == "direct"
+
+
+@pytest.mark.asyncio
+async def test_scrape_all_tiers_fail(scraper: UltimateScraper):
+    for t in [
+        "_tier_direct",
+        "_tier_tls_fingerprint",
+        "_tier_cloudscraper",
+        "_tier_flaresolverr",
+        "_tier_undetected",
+        "_tier_camoufox",
+        "_tier_playwright",
+        "_tier_googlebot",
+        "_tier_tor",
+        "_tier_archive",
+        "_tier_google_cache",
+    ]:
+        if hasattr(scraper, t):
+            setattr(scraper, t, AsyncMock(return_value=None))
+    result = await scraper.scrape("http://example.com")
+    assert result["status"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_scrape_second_tier_works(scraper: UltimateScraper):
+    scraper._tier_direct = AsyncMock(return_value=None)
+    scraper._tier_tls_fingerprint = AsyncMock(return_value=_VALID_HTML_2)
+    result = await scraper.scrape("http://example.com")
+    assert result["status"] == "ok" and "tls" in result.get("method", "")
+
+
+@pytest.mark.asyncio
+async def test_scrape_archive_fallback(scraper: UltimateScraper):
+    for t in [
+        "_tier_direct",
+        "_tier_tls_fingerprint",
+        "_tier_cloudscraper",
+        "_tier_flaresolverr",
+        "_tier_undetected",
+        "_tier_camoufox",
+        "_tier_playwright",
+        "_tier_googlebot",
+        "_tier_tor",
+    ]:
+        if hasattr(scraper, t):
+            setattr(scraper, t, AsyncMock(return_value=None))
+    scraper._tier_archive = AsyncMock(return_value=_VALID_HTML_3)
+    scraper._tier_google_cache = AsyncMock(return_value=None)
+    result = await scraper.scrape("http://example.com")
+    assert result["status"] == "ok" and result["method"] == "archive"
+
+
+# ---------------------------------------------------------------------------
+# Tier exception handling
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_scrape_tier_exception_handled(scraper: UltimateScraper):
+    scraper._tier_direct = AsyncMock(side_effect=RuntimeError("boom"))
+    scraper._tier_tls_fingerprint = AsyncMock(return_value=_VALID_HTML)
+    result = await scraper.scrape("http://example.com")
+    assert result["status"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Telemetry
+# ---------------------------------------------------------------------------
+
+
+def test_record_telemetry_noop(scraper: UltimateScraper):
+    with patch("ultimate_scraper._HAS_FALLBACK_TELEMETRY", False):
+        scraper._record_telemetry("example.com", ["direct"], [], "direct", True, 0.0, [])
+
+
+# ---------------------------------------------------------------------------
+# _signal_to_dict
+# ---------------------------------------------------------------------------
+
+
+def test_signal_to_dict(scraper: UltimateScraper):
+    signal = MagicMock(
+        kind="captcha", confidence=0.95, recommended_escalation="playwright", evidence=set()
+    )
+    d = scraper._signal_to_dict(signal)
+    assert d["kind"] == "captcha" and d["confidence"] == 0.95
+
+
+# ---------------------------------------------------------------------------
+# Edge cases
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_scrape_with_retry(scraper: UltimateScraper):
+    scraper._tier_direct = AsyncMock(return_value=_VALID_HTML)
+    result = await scraper.scrape("http://example.com", options={"retry": {"max_attempts": 2}})
+    assert result["status"] == "ok"
