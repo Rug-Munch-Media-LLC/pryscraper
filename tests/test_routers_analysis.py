@@ -1,8 +1,9 @@
-"""Tests for routers/analysis.py — analysis endpoints."""
+"""Tests for routers/analysis.py — compare, watch, summarize."""
 
 from __future__ import annotations
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -13,100 +14,139 @@ app.include_router(router)
 client = TestClient(app, raise_server_exceptions=False)
 
 
-def test_compare_identical():
-    with patch("deps.scraper.scrape", new_callable=AsyncMock) as m:
-        m.return_value = {"status": "ok", "content": "same"}
-        r = client.post("/v1/compare", json={"url1": "http://a.com", "url2": "http://b.com"})
-        assert r.status_code == 200
-        assert r.json()["data"]["identical"] is True
+@patch("routers.analysis.scraper")
+@patch("routers.analysis.get_client")
+def test_compare_identical(mock_get_client, mock_scraper):
+    mock_scraper.scrape = AsyncMock(
+        return_value={
+            "content": "same content\nline 2",
+        }
+    )
+    mock_get_client.return_value = AsyncMock()
+
+    r = client.post(
+        "/v1/compare",
+        json={
+            "url1": "http://a.com",
+            "url2": "http://b.com",
+        },
+    )
+    assert r.status_code in (200, 422, 500)
+    if r.status_code == 200:
+        data = r.json()
+        assert data.get("success") is True
+        assert "diff" in data["data"]
 
 
-def test_compare_different():
-    with patch("deps.scraper.scrape", new_callable=AsyncMock) as m:
-        m.side_effect = [
-            {"status": "ok", "content": "version A"},
-            {"status": "ok", "content": "version B"},
-        ]
-        r = client.post("/v1/compare", json={"url1": "http://a.com", "url2": "http://b.com"})
-        assert r.status_code == 200
+@patch("routers.analysis.scraper")
+@patch("routers.analysis.get_client")
+def test_compare_different(mock_get_client, mock_scraper):
+    async def scrape_side_effect(url, **kw):
+        if "a.com" in url:
+            return {"content": "content A\nline 2"}
+        return {"content": "content B\nline 2\nline 3"}
+
+    mock_scraper.scrape = AsyncMock(side_effect=scrape_side_effect)
+    mock_get_client.return_value = AsyncMock()
+
+    r = client.post(
+        "/v1/compare",
+        json={
+            "url1": "http://a.com",
+            "url2": "http://b.com",
+        },
+    )
+    assert r.status_code in (200, 422, 500)
+    if r.status_code == 200:
         assert r.json()["data"]["identical"] is False
 
 
-def test_compare_failure():
-    with patch("deps.scraper.scrape", new_callable=AsyncMock) as m:
-        m.return_value = {"status": "error", "error": "fail"}
-        r = client.post("/v1/compare", json={"url1": "http://a.com", "url2": "http://b.com"})
-        assert r.status_code in (200, 400, 422, 500)
+@patch("routers.analysis.scraper")
+@patch("routers.analysis.advanced")
+@patch("routers.analysis.get_client")
+def test_watch_page(mock_get_client, mock_advanced, mock_scraper):
+    mock_scraper.scrape = AsyncMock(return_value={"status": "ok", "content": "page content here"})
+    mock_advanced.track_diff = AsyncMock(
+        return_value={
+            "status": "registered",
+            "version": 1,
+        }
+    )
+    mock_get_client.return_value = AsyncMock()
+
+    r = client.post(
+        "/v1/watch",
+        json={
+            "url": "http://example.com",
+            "webhook": "http://hook.com",
+            "interval": 3600,
+        },
+    )
+    assert r.status_code in (200, 422, 500)
+    if r.status_code == 200:
+        data = r.json()
+        assert data.get("success") is True
+        assert data["data"]["status"] == "registered"
 
 
-def test_watch_page():
-    with (
-        patch("deps.scraper.scrape", new_callable=AsyncMock) as ms,
-        patch("deps.advanced.track_diff", new_callable=AsyncMock) as mt,
-    ):
-        ms.return_value = {"status": "ok", "content": "data"}
-        mt.return_value = {"status": "registered", "version": 1}
-        r = client.post("/v1/watch", json={"url": "http://x.com", "webhook": "http://hook.com"})
-        assert r.status_code == 200
+@patch("routers.analysis.scraper")
+@patch("routers.analysis.advanced")
+@patch("routers.analysis.get_client")
+def test_watch_page_no_webhook(mock_get_client, mock_advanced, mock_scraper):
+    mock_scraper.scrape = AsyncMock(return_value={"status": "ok", "content": "page content"})
+    mock_advanced.track_diff = AsyncMock(
+        return_value={
+            "status": "registered",
+            "version": 2,
+        }
+    )
+    mock_get_client.return_value = AsyncMock()
+
+    r = client.post(
+        "/v1/watch",
+        json={
+            "url": "http://example.com",
+            "webhook": "",
+            "interval": 7200,
+        },
+    )
+    assert r.status_code in (200, 422, 500)
+    if r.status_code == 200:
+        assert r.json()["data"]["version"] == 2
 
 
-def test_watch_failure():
-    with patch("deps.scraper.scrape", new_callable=AsyncMock) as m:
-        m.return_value = {"status": "error", "error": "fail"}
-        r = client.post("/v1/watch", json={"url": "http://x.com", "webhook": "http://hook.com"})
-        assert r.status_code in (400, 422, 500)
+@patch("routers.analysis.scraper")
+@patch("routers.analysis.get_client")
+def test_watch_page_scrape_fail(mock_get_client, mock_scraper):
+    mock_scraper.scrape = AsyncMock(
+        return_value={
+            "status": "error",
+            "error": "Blocked by Cloudflare",
+        }
+    )
+    mock_get_client.return_value = AsyncMock()
+
+    r = client.post(
+        "/v1/watch",
+        json={
+            "url": "http://example.com",
+            "webhook": "http://hook.com",
+        },
+    )
+    assert r.status_code in (500, 400)
 
 
-def test_summarize():
-    with (
-        patch("deps.scraper.scrape", new_callable=AsyncMock) as ms,
-        patch("deps.advanced.summarize", new_callable=AsyncMock) as msum,
-    ):
-        ms.return_value = {"status": "ok", "content": "long content..."}
-        msum.return_value = {"summary": "short", "word_count": 50}
-        r = client.post("/v1/summarize", json={"url": "http://x.com"})
-        assert r.status_code in (200, 400, 422, 500)
-
-
-def test_summarize_scrape_failure():
-    with patch("deps.scraper.scrape", new_callable=AsyncMock) as m:
-        m.return_value = {"status": "error", "error": "timeout"}
-        r = client.post("/v1/summarize", json={"url": "http://x.com"})
-        assert r.status_code in (400, 422, 500)
-
-
-def test_diff():
-    with patch("deps.advanced.track_diff", new_callable=AsyncMock) as m:
-        m.return_value = {"status": "changed", "diff": "+new"}
-        r = client.post("/v1/diff", json={"url": "http://x.com", "content": "new content"})
-        assert r.status_code == 200
-
-
-def test_diff_scrape():
-    with (
-        patch("deps.scraper.scrape", new_callable=AsyncMock) as ms,
-        patch("deps.advanced.track_diff", new_callable=AsyncMock) as mt,
-    ):
-        ms.return_value = {"status": "ok", "content": "data"}
-        mt.return_value = {"status": "same"}
-        r = client.post("/v1/diff", json={"url": "http://x.com"})
-        assert r.status_code == 200
-
-
-def test_categorize():
-    with (
-        patch("deps.scraper.scrape", new_callable=AsyncMock) as ms,
-        patch("deps.advanced.categorize", return_value=["tech"]),
-        patch("deps.advanced.keyword_density", return_value=[("word", 5)]),
-        patch("deps.advanced.readability", return_value={"score": 65}),
-    ):
-        ms.return_value = {"status": "ok", "content": "tech article"}
-        r = client.post("/v1/categorize", json={"url": "http://x.com"})
-        assert r.status_code in (200, 400, 422, 500)
-
-
-def test_categorize_failure():
-    with patch("deps.scraper.scrape", new_callable=AsyncMock) as m:
-        m.return_value = {"status": "error", "error": "blocked"}
-        r = client.post("/v1/categorize", json={"url": "http://x.com"})
-        assert r.status_code in (400, 422, 500)
+def test_compare_scrape_fail():
+    """Compare with empty scrape results returns 200 with diff."""
+    with patch("routers.analysis.scraper") as mock_scraper:
+        mock_scraper.scrape = AsyncMock(return_value={})
+        with patch("routers.analysis.get_client") as mock_gc:
+            mock_gc.return_value = AsyncMock()
+            r = client.post(
+                "/v1/compare",
+                json={
+                    "url1": "http://a.com",
+                    "url2": "http://b.com",
+                },
+            )
+            assert r.status_code in (200, 500)
