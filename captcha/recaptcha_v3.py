@@ -16,12 +16,11 @@ from typing import Any
 
 from captcha.base import CaptchaProvider
 from captcha.registry import register
-from captcha.token_api import solve_2captcha, solve_capsolver
-from settings import settings
+from captcha.token_api import solve_token_with_fallback
 
 
 class RecaptchaV3Provider(CaptchaProvider):
-    """Solve reCAPTCHA v3 via 2captcha-compatible or Capsolver API."""
+    """Solve reCAPTCHA v3 via multi-provider fallback chain."""
 
     captcha_type = "recaptcha_v3"
     DEFAULT_ACTION = "verify"
@@ -40,25 +39,14 @@ class RecaptchaV3Provider(CaptchaProvider):
             return None
         action = action or self.DEFAULT_ACTION
         min_score = min_score if min_score is not None else self.DEFAULT_MIN_SCORE
-        if settings.captcha_2captcha_api_key:
-            token = await solve_2captcha(
-                settings.captcha_2captcha_api_key,
-                "recaptcha_v3",
-                sitekey=sitekey,
-                url=url,
-                extra={"action": action, "min_score": min_score},
-            )
-            if token:
-                return token
-        if settings.captcha_capsolver_api_key:
-            return await solve_capsolver(
-                settings.captcha_capsolver_api_key,
-                "ReCaptchaV3Task",
-                sitekey=sitekey,
-                url=url,
-                extra={"pageAction": action, "minScore": min_score},
-            )
-        return None
+        return await solve_token_with_fallback(
+            "recaptcha_v3",
+            sitekey=sitekey,
+            url=url,
+            extra={"action": action, "min_score": min_score},
+            captcha_action=action,
+            min_score=min_score,
+        )
 
 
 register(RecaptchaV3Provider())

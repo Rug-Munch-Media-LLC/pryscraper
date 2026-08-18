@@ -13,6 +13,8 @@ no live network), and graceful ``None`` on missing API keys.
 import base64
 import sys
 import types
+
+import pytest
 from io import BytesIO
 from unittest.mock import Mock
 
@@ -299,3 +301,117 @@ async def test_solve_captcha_turnstile_via_capsolver(monkeypatch) -> None:
     assert token == "TURNSTILE_TOKEN"  # noqa: S105 - test fixture token
     sent = respx.calls[0].request.content.decode()
     assert "TurnstileTask" in sent
+
+
+# ---------------------------------------------------------------------------
+# Fallback chain tests
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_solve_token_with_fallback_2captcha_first(monkeypatch) -> None:
+    """Should use 2captcha when key is set and capsolver is also set."""
+    monkeypatch.setattr(settings, "captcha_2captcha_api_key", "2cap-key")
+    monkeypatch.setattr(settings, "captcha_capsolver_api_key", "caps-key")
+    respx.post("https://2captcha.com/in.php").mock(
+        return_value=httpx.Response(200, json={"status": 1, "request": "123"})
+    )
+    respx.get(
+        httpx.URL("https://2captcha.com/res.php").copy_with(
+            params={"key": "2cap-key", "action": "get", "id": "123", "json": 1}
+        )
+    ).mock(return_value=httpx.Response(200, json={"status": 1, "request": "TOKEN_2CAPTCHA"}))
+    from captcha.token_api import solve_token_with_fallback
+
+    token = await solve_token_with_fallback("recaptcha_v2", sitekey="sk", url="https://x.test")
+    assert token == "TOKEN_2CAPTCHA"
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_solve_token_with_fallback_falls_to_capsolver(monkeypatch) -> None:
+    """Should fallback to capsolver when 2captcha key is empty."""
+    monkeypatch.setattr(settings, "captcha_2captcha_api_key", "")
+    monkeypatch.setattr(settings, "captcha_capsolver_api_key", "caps-key")
+    respx.post("https://api.capsolver.com/createTask").mock(
+        return_value=httpx.Response(200, json={"errorId": 0, "taskId": "t1"})
+    )
+    respx.post("https://api.capsolver.com/getTaskResult").mock(
+        return_value=httpx.Response(
+            200, json={"status": "ready", "solution": {"gRecaptchaResponse": "CAPS_TOKEN"}}
+        )
+    )
+    from captcha.token_api import solve_token_with_fallback
+
+    token = await solve_token_with_fallback("recaptcha_v2", sitekey="sk", url="https://x.test")
+    assert token == "CAPS_TOKEN"
+
+
+@pytest.mark.asyncio
+async def test_solve_token_with_fallback_all_fail_returns_none(monkeypatch) -> None:
+    """Should return None when all providers have no keys."""
+    monkeypatch.setattr(settings, "captcha_2captcha_api_key", "")
+    monkeypatch.setattr(settings, "captcha_capsolver_api_key", "")
+    from captcha.token_api import solve_token_with_fallback
+
+    token = await solve_token_with_fallback("recaptcha_v2", sitekey="sk", url="https://x.test")
+    assert token is None
+
+
+@pytest.mark.asyncio
+async def test_solve_token_with_fallback_unknown_type_returns_none() -> None:
+    """Should return None for unknown captcha types."""
+    from captcha.token_api import solve_token_with_fallback
+
+    token = await solve_token_with_fallback("unknown_type", sitekey="sk", url="https://x.test")
+    assert token is None
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_solve_deathbycaptcha_success(monkeypatch) -> None:
+    """DeathByCaptcha should return a token on success."""
+    from captcha.token_api import solve_deathbycaptcha
+
+    respx.post("https://api.deathbycaptcha.com/api/captcha").mock(
+        return_value=httpx.Response(200, json={"status": 1, "text": "DBC_TOKEN"})
+    )
+    token = await solve_deathbycaptcha("user", "pass", sitekey="sk", url="https://x.test")
+    assert token == "DBC_TOKEN"
+
+
+@pytest.mark.asyncio
+async def test_solve_deathbycaptcha_missing_creds() -> None:
+    """Should return None when username/password are empty."""
+    from captcha.token_api import solve_deathbycaptcha
+
+    token = await solve_deathbycaptcha("", "", sitekey="sk", url="https://x.test")
+    assert token is None
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_solve_nextcaptcha_success(monkeypatch) -> None:
+    """NextCaptcha should return a token on success."""
+    from captcha.token_api import solve_nextcaptcha
+
+    respx.post("https://api.nextcaptcha.com/v1/createTask").mock(
+        return_value=httpx.Response(200, json={"errorId": 0, "taskId": "nc1"})
+    )
+    respx.post("https://api.nextcaptcha.com/v1/getTaskResult").mock(
+        return_value=httpx.Response(
+            200, json={"status": "ready", "solution": {"token": "NC_TOKEN"}}
+        )
+    )
+    token = await solve_nextcaptcha("nc-key", "ReCaptchaV2Task", sitekey="sk", url="https://x.test")
+    assert token == "NC_TOKEN"
+
+
+@pytest.mark.asyncio
+async def test_solve_nextcaptcha_missing_key() -> None:
+    """Should return None when API key is empty."""
+    from captcha.token_api import solve_nextcaptcha
+
+    token = await solve_nextcaptcha("", "ReCaptchaV2Task", sitekey="sk", url="https://x.test")
+    assert token is None

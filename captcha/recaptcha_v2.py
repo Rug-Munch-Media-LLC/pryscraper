@@ -17,12 +17,12 @@ from typing import Any
 
 from captcha.base import CaptchaProvider
 from captcha.registry import register
-from captcha.token_api import solve_2captcha, solve_capsolver
+from captcha.token_api import solve_token_with_fallback
 from settings import settings
 
 
 class RecaptchaV2Provider(CaptchaProvider):
-    """Solve reCAPTCHA v2 via 2captcha-compatible or Capsolver API."""
+    """Solve reCAPTCHA v2 via multi-provider fallback chain."""
 
     captcha_type = "recaptcha_v2"
 
@@ -35,22 +35,11 @@ class RecaptchaV2Provider(CaptchaProvider):
     ) -> str | None:
         if not sitekey or not url:
             return None
-        if settings.captcha_2captcha_api_key:
-            token = await solve_2captcha(
-                settings.captcha_2captcha_api_key,
-                "userrecaptcha",
-                sitekey=sitekey,
-                url=url,
-            )
-            if token:
-                return token
-        if settings.captcha_capsolver_api_key:
-            return await solve_capsolver(
-                settings.captcha_capsolver_api_key,
-                "ReCaptchaV2Task",
-                sitekey=sitekey,
-                url=url,
-            )
+        return await solve_token_with_fallback(
+            "recaptcha_v2",
+            sitekey=sitekey,
+            url=url,
+        )
         return None
 
 

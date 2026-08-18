@@ -127,6 +127,11 @@ class PrySettings(BaseSettings):
     captcha_capsolver_api_key: str = ""
     # OCR backend for image captchas: "tesseract" (pytesseract) | "easyocr" | "auto"
     captcha_ocr_backend: str = "tesseract"
+    # DeathByCaptcha credentials (https://www.deathbycaptcha.com)
+    captcha_deathbycaptcha_username: str = ""
+    captcha_deathbycaptcha_password: str = ""
+    # NextCaptcha API key (https://nextcaptcha.com)
+    captcha_nextcaptcha_api_key: str = ""
 
     # Proxy (legacy env aliases for migration)
     proxy_url: str = Field(
@@ -281,6 +286,9 @@ class PrySettings(BaseSettings):
             "captcha_2captcha_api_key",
             "captcha_capsolver_api_key",
             "odds_api_key",
+            "captcha_deathbycaptcha_username",
+            "captcha_deathbycaptcha_password",
+            "captcha_nextcaptcha_api_key",
         )
         try:
             from secrets_backend import get_secret

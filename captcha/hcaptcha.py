@@ -15,12 +15,11 @@ from typing import Any
 
 from captcha.base import CaptchaProvider
 from captcha.registry import register
-from captcha.token_api import solve_2captcha, solve_capsolver
-from settings import settings
+from captcha.token_api import solve_token_with_fallback
 
 
 class HCaptchaProvider(CaptchaProvider):
-    """Solve hCaptcha via 2captcha-compatible or Capsolver API."""
+    """Solve hCaptcha via multi-provider fallback chain."""
 
     captcha_type = "hcaptcha"
 
@@ -33,23 +32,11 @@ class HCaptchaProvider(CaptchaProvider):
     ) -> str | None:
         if not sitekey or not url:
             return None
-        if settings.captcha_2captcha_api_key:
-            token = await solve_2captcha(
-                settings.captcha_2captcha_api_key,
-                "hcaptcha",
-                sitekey=sitekey,
-                url=url,
-            )
-            if token:
-                return token
-        if settings.captcha_capsolver_api_key:
-            return await solve_capsolver(
-                settings.captcha_capsolver_api_key,
-                "HCaptchaTask",
-                sitekey=sitekey,
-                url=url,
-            )
-        return None
+        return await solve_token_with_fallback(
+            "hcaptcha",
+            sitekey=sitekey,
+            url=url,
+        )
 
 
 register(HCaptchaProvider())
