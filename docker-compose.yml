@@ -23,17 +23,24 @@ services:
       # Chromium + Python scratch space. Browsers live in /ms-playwright
       # (read-only); writable state goes to /tmp and the named volumes.
       - /tmp:size=512m,mode=1777
-      - /home/pry:size=128m,mode=0700
+      # uid/gid 1000 = the `pry` user (Dockerfile). Without them the tmpfs
+      # is root:root 0700 and the non-root app cannot enter $HOME, which
+      # crashes every asyncpg connect (SSL probe stats ~/.postgresql/...).
+      - /home/pry:size=128m,mode=0700,uid=1000,gid=1000
     ports:
       - "127.0.0.1:8005:8002"
     volumes:
       - pry-data:/app/pry-data
       - pry-sessions:/app/sessions
-    env_file: .env
+    # Secrets live OUTSIDE the public repo tree (fleet convention, see
+    # /srv/rmi-infra/.env.secrets). Contains only PRY_API_KEY, PRY_X402_*
+    # and OPENROUTER_API_KEY — no fleet keys (2026-08-20 audit, P0-1/P0-2).
+    env_file: /srv/rmi-infra/.env.pry
     environment:
       - PYTHONUNBUFFERED=1
       - PRY_TIMEOUT=60
-      - PRY_API_KEY=${PRY_API_KEY:-}
+      # PRY_API_KEY intentionally NOT listed here: any `environment:` entry
+      # shadows the env_file value; it is supplied solely by env_file.
       - PRY_DATA_DIR=/app/pry-data
       # config.json is written into the data volume so the rootfs can be
       # read-only while runtime config changes still persist.
@@ -55,6 +62,11 @@ services:
       # Database & Redis
       - PRY_DATABASE_URL=postgresql+asyncpg://pry:pry@postgres:5432/pry
       - PRY_REDIS_URL=redis://redis:6379/0
+      # alembic/env.py connects synchronously and crashes on the asyncpg URL
+      # (MissingGreenlet), so entrypoint migrations are disabled. Schema was
+      # stamped at head (0003) on 2026-08-21 via a sync psycopg2 URL from the
+      # host. Remove this once env.py supports async URLs. See audit P0-1.
+      - PRY_SKIP_MIGRATIONS=1
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8002/health"]
       interval: 15s
