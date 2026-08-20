@@ -81,6 +81,9 @@ paths = [
   '''\.pytest_cache/''',
   '''\.ruff_cache/''',
   '''\.mypy_cache/''',
+  # Hypothesis fuzz cache: constants files capture test inputs (incl. any
+  # hostnames exercised) — not secrets. Also in .gitignore (audit P2-13).
+  '''\.hypothesis/''',
   '''vendor/''',
   # URL guard: RFC1918/RFC6598 CIDR ranges defined intentionally in security code
   '''url_guard\.py''',

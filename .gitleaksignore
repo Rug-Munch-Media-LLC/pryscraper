@@ -1,0 +1,6 @@
+# Known false positives: eth_keyfile package hashes in uv.lock
+# (2026-08-20 audit, evidence log). Review on dependency changes.
+uv.lock:ethereum-private-key:1754
+uv.lock:ethereum-private-key:1756
+uv.lock:ethereum-private-key:1767
+uv.lock:ethereum-private-key:1769
