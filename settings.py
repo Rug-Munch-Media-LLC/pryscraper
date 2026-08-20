@@ -83,19 +83,21 @@ class PrySettings(BaseSettings):
     database_url: str = "postgresql+asyncpg://pry:pry@localhost/pry"
     redis_url: str = "redis://localhost:6379/0"
 
-    # LLM providers
+    # LLM providers — BYOK (bring your own key).
+    # Consumers set these (PRY_<NAME>_API_KEY env, or the provider's standard
+    # env var) to enable each AI feature. One account per provider; multi-key
+    # fan-out is a deployment concern, not a product setting.
     ollama_url: str = "http://localhost:11434"
     openrouter_api_key: str = ""
     openai_api_key: str = ""
     anthropic_api_key: str = ""
     cohere_api_key: str = ""
-    # Additional LLM providers from gopass
     deepseek_api_key: str = ""
     gemini_api_key: str = ""
     groq_api_key: str = ""
     mistral_api_key: str = ""
     kilocode_api_key: str = ""
-    kilocode_base_url: str = "http://127.0.0.1:18091/api/gateway"
+    kilocode_base_url: str = ""  # set KILOCODE_BASE_URL to your gateway
     kimi_api_key: str = ""
     nvidia_api_key: str = ""
     nous_api_key: str = ""
@@ -103,21 +105,16 @@ class PrySettings(BaseSettings):
     cerebras_api_key: str = ""
     minimax_api_key: str = ""
     siliconflow_api_key: str = ""
-    siliconflow_api_key_2: str = ""
-    siliconflow_api_key_v2: str = ""
-    cerebras_api_key: str = ""
-    # OpenCode Zen (3 accounts)
     opencode_zen_api_key: str = ""
-    opencode_zen_backup_api_key: str = ""
-    opencode_zen_3_api_key: str = ""
-    # OpenRouter (main + backup)
-    openrouter_backup_api_key: str = ""
-    # Mistral (free tier)
-    mistral_free_api_key: str = ""
 
     # Services
     flaresolverr_url: str = "http://flaresolverr:8191/v1"
-    webhook_secret: str = "pry-webhook-secret"  # noqa: S105
+    # SECURITY (2026-08-20 audit): the previous hardcoded default was a
+    # published static secret — anyone reading this OSS repo could forge
+    # webhook signatures. Now fail-closed: empty means signatures are
+    # unverifiable and webhook_delivery/jobqueue log a warning. Operators
+    # MUST set PRY_WEBHOOK_SECRET (or gopass pry/webhook_secret) in prod.
+    webhook_secret: str = ""
 
     # CAPTCHA solving (see captcha_solver.py + captcha/ package)
     captcha_enabled: bool = True
@@ -275,13 +272,7 @@ class PrySettings(BaseSettings):
             "cerebras_api_key",
             "minimax_api_key",
             "siliconflow_api_key",
-            "siliconflow_api_key_2",
-            "siliconflow_api_key_v2",
             "opencode_zen_api_key",
-            "opencode_zen_backup_api_key",
-            "opencode_zen_3_api_key",
-            "openrouter_backup_api_key",
-            "mistral_free_api_key",
             "webhook_secret",
             "captcha_2captcha_api_key",
             "captcha_capsolver_api_key",

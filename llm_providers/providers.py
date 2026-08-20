@@ -455,9 +455,9 @@ class KiloCodeProvider(LLMProvider):
 
     def __init__(self, api_key: str = "", base_url: str = ""):
         self.api_key = api_key or os.getenv("KILOCODE_API_KEY", "")
-        self.base_url = base_url or os.getenv(
-            "KILOCODE_BASE_URL", "http://127.0.0.1:18091/api/gateway"
-        )
+        # BYOK: consumers point this at their own KiloCode-compatible gateway
+        # via KILOCODE_BASE_URL — there is no universal public endpoint.
+        self.base_url = base_url or os.getenv("KILOCODE_BASE_URL", "")
 
     async def complete(
         self,
@@ -1159,6 +1159,10 @@ def register_default_providers(registry: LLMRegistry) -> None:
     """Register all providers whose API keys are set in environment."""
     from settings import settings
 
+    # BYOK (bring your own key): one account per provider. Consumers set
+    # PRY_<PROVIDER>_API_KEY (or the provider's standard env var, which each
+    # provider class falls back to). Multi-account fan-out is a deployment
+    # concern, not a product concern — run multiple instances or a router.
     api_key_map = {
         "openai": settings.openai_api_key,
         "anthropic": settings.anthropic_api_key,
@@ -1176,13 +1180,7 @@ def register_default_providers(registry: LLMRegistry) -> None:
         "cerebras": settings.cerebras_api_key,
         "minimax": settings.minimax_api_key,
         "siliconflow": settings.siliconflow_api_key,
-        "siliconflow_2": settings.siliconflow_api_key_2,
-        "siliconflow_v2": settings.siliconflow_api_key_v2,
         "opencode_zen": settings.opencode_zen_api_key,
-        "opencode_zen_backup": settings.opencode_zen_backup_api_key,
-        "opencode_zen_3": settings.opencode_zen_3_api_key,
-        "openrouter_backup": settings.openrouter_backup_api_key,
-        "mistral_free": settings.mistral_free_api_key,
     }
     provider_classes = {
         "openai": OpenAIProvider,
@@ -1201,26 +1199,11 @@ def register_default_providers(registry: LLMRegistry) -> None:
         "cerebras": CerebrasProvider,
         "minimax": MinimaxProvider,
         "siliconflow": SiliconFlowProvider,
-        "siliconflow_2": SiliconFlowProvider,
-        "siliconflow_v2": SiliconFlowProvider,
         "opencode_zen": OpenCodeZenProvider,
-        "opencode_zen_backup": OpenCodeZenProvider,
-        "opencode_zen_3": OpenCodeZenProvider,
-        "openrouter_backup": OpenRouterProvider,
-        "mistral_free": MistralProvider,
     }
     for name, cls in provider_classes.items():
         key = api_key_map.get(name)
         if key:
-            if name in ("siliconflow_2", "siliconflow_v2"):
-                registry.register(cls(api_key=key, base_url="https://api.siliconflow.cn/v1"))
-            elif name in ("opencode_zen_backup", "opencode_zen_3"):
-                registry.register(cls(api_key=key, base_url="https://opencode.ai/zen/v1"))
-            elif name == "mistral_free":
-                registry.register(cls(api_key=key, model="open-mistral-nemo"))
-            else:
-                registry.register(cls(api_key=key))
-    # Ollama is always available if running locally
+            registry.register(cls(api_key=key))
+    # Ollama is always available if running locally (free, private)
     registry.register(OllamaProvider())
-    # KiloCode is always available if gateway is running locally
-    registry.register(KiloCodeProvider())
