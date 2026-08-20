@@ -18,11 +18,15 @@ config file (default `/app/config.json`).
 from __future__ import annotations
 
 import json
+import logging
+import secrets
 from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_FILE = Path("/app/config.json")
 
@@ -109,11 +113,14 @@ class PrySettings(BaseSettings):
 
     # Services
     flaresolverr_url: str = "http://flaresolverr:8191/v1"
-    # SECURITY (2026-08-20 audit): the previous hardcoded default was a
+    # SECURITY (2026-08-20 audit, P0-4): the original hardcoded default was a
     # published static secret — anyone reading this OSS repo could forge
-    # webhook signatures. Now fail-closed: empty means signatures are
-    # unverifiable and webhook_delivery/jobqueue log a warning. Operators
-    # MUST set PRY_WEBHOOK_SECRET (or gopass pry/webhook_secret) in prod.
+    # webhook signatures. Now fail-closed with NO static default: if neither
+    # PRY_WEBHOOK_SECRET env nor the secrets backend (gopass
+    # pry/webhook_secret) provides a value, _ensure_webhook_secret()
+    # generates a random 32-byte hex secret at boot and logs a warning that
+    # it is EPHEMERAL (does not survive restarts). Operators MUST set
+    # PRY_WEBHOOK_SECRET in production.
     webhook_secret: str = ""
 
     # CAPTCHA solving (see captcha_solver.py + captcha/ package)
@@ -240,6 +247,26 @@ class PrySettings(BaseSettings):
         """Post-init: pull sensitive fields from secrets_backend, then config file."""
         self._apply_secrets_backend()
         self._load_config_file()
+        self._ensure_webhook_secret()
+
+    def _ensure_webhook_secret(self) -> None:
+        """Fail-closed: never run with an empty webhook signing secret.
+
+        If no value was supplied via PRY_WEBHOOK_SECRET env, the secrets
+        backend (gopass pry/webhook_secret) or the config file, generate a
+        random 32-byte hex secret at boot. The generated value is EPHEMERAL:
+        it changes on every restart, so webhook receivers cannot validate
+        signatures across deployments unless an explicit secret is configured.
+        """
+        if self.webhook_secret:
+            return
+        self.webhook_secret = secrets.token_hex(32)  # 32 random bytes as hex
+        logger.warning(
+            "webhook_secret not configured (PRY_WEBHOOK_SECRET / gopass "
+            "pry/webhook_secret) — generated an EPHEMERAL random signing "
+            "secret that will not survive restarts. Set PRY_WEBHOOK_SECRET "
+            "in production."
+        )
 
     def _apply_secrets_backend(self) -> None:
         """Override sensitive fields with values from secrets_backend if present.

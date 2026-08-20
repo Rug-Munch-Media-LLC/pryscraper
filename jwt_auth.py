@@ -37,6 +37,20 @@ _JWT_PUBLIC_KEY: str = os.getenv("PRY_JWT_PUBLIC_KEY", "")
 _JWKS_URL: str = os.getenv("PRY_JWKS_URL", "https://rugmunch.io/.well-known/jwks.json")
 _JWKS_CACHE_TTL: int = int(os.getenv("PRY_JWKS_CACHE_TTL", "3600"))
 
+# SECURITY (2026-08-20 audit, P0-4): RS256 ONLY — enforced fail-closed at
+# startup. The old code silently fell back to HS256 for any non-RS256 value,
+# using the RSA *public* key as the HMAC secret — the classic
+# algorithm-confusion attack: the public key is served on a public JWKS
+# endpoint, so anyone who could read it could forge valid tokens. A
+# non-RS256 PRY_JWT_ALGORITHM is therefore a fatal misconfiguration: refuse
+# to start instead of ever validating a token with it.
+if _JWT_ALGORITHM != "RS256":
+    raise RuntimeError(
+        f"PRY_JWT_ALGORITHM={_JWT_ALGORITHM!r} is not supported: only RS256 is "
+        "allowed. The HS256 fallback was removed (algorithm-confusion forgery, "
+        "2026-08-20 security audit). Unset PRY_JWT_ALGORITHM or set it to 'RS256'."
+    )
+
 # Cache
 _jwks_cache: dict[str, Any] = {"key": None, "fetched_at": 0.0}
 
@@ -96,11 +110,13 @@ def validate_rmi_jwt(token: str) -> dict[str, Any] | None:
         logger.warning("No public key configured for JWT validation")
         return None
 
-    # SECURITY (2026-08-20 audit): RS256 ONLY, fail-closed. The previous
-    # code fell back to HS256 for any non-RS256 PRY_JWT_ALGORITHM value,
-    # using the RSA *public* key as the HMAC secret — the classic
-    # algorithm-confusion attack: anyone holding the public key (it is
-    # served on a public JWKS endpoint) could forge valid tokens.
+    # SECURITY (2026-08-20 audit, P0-4): RS256 ONLY, fail-closed. A non-RS256
+    # PRY_JWT_ALGORITHM already aborts process startup (see module top) — this
+    # runtime guard is defense-in-depth against the module constant being
+    # altered after import. The old code fell back to HS256 for any non-RS256
+    # value, using the RSA *public* key as the HMAC secret — the classic
+    # algorithm-confusion attack: anyone holding the public key (it is served
+    # on a public JWKS endpoint) could forge valid tokens.
     if _JWT_ALGORITHM != "RS256":
         logger.error(
             "Unsupported PRY_JWT_ALGORITHM %r — only RS256 is allowed; refusing token",
