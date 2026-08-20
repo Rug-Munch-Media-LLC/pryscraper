@@ -17,8 +17,8 @@ from retry import Jitter, RetryConfig, async_retry
 def _valid_html(text: str = "content") -> str:
     body = f"<p>{text}</p>" * 40
     return (
-        "<!DOCTYPE html><html lang=\"en\"><head><title>T</title>"
-        "<meta charset=\"utf-8\"></head>"
+        '<!DOCTYPE html><html lang="en"><head><title>T</title>'
+        '<meta charset="utf-8"></head>'
         f"<body>{body}</body></html>"
     )
 
@@ -152,7 +152,9 @@ class TestCircuitBreakerIntegration:
         monkeypatch.setattr(resilience.time, "time", lambda: future)
 
         fn = AsyncMock(return_value="ok")
-        cfg = RetryConfig(max_retries=1, circuit_breaker="ollama_int", base_delay=0.01, jitter=Jitter.NONE)
+        cfg = RetryConfig(
+            max_retries=1, circuit_breaker="ollama_int", base_delay=0.01, jitter=Jitter.NONE
+        )
         result = await async_retry(fn, config=cfg)
         assert result == "ok"
 
@@ -202,7 +204,9 @@ class TestDomainTierMemoryWithRetry:
     async def test_domain_memory_used_on_retry(self, fresh_registry, scraper_with_mocks):
         """After domain learns best tier, prefers it."""
         s, _mocks = scraper_with_mocks
-        fresh_registry.record_domain_tier_result("example.com", "archive", success=True, latency=0.1)
+        fresh_registry.record_domain_tier_result(
+            "example.com", "archive", success=True, latency=0.1
+        )
         html = _valid_html("archive content")
         _mocks["_tier_archive"].return_value = html
         _mocks["_tier_direct"].return_value = _valid_html("direct")
@@ -242,7 +246,9 @@ class TestGracefulDegradation:
                     raise RuntimeError(result.get("error", "scrape failed"))
                 return result
 
-            cfg = RetryConfig(max_retries=1, circuit_breaker=name, base_delay=0.01, jitter=Jitter.NONE)
+            cfg = RetryConfig(
+                max_retries=1, circuit_breaker=name, base_delay=0.01, jitter=Jitter.NONE
+            )
             with pytest.raises(RuntimeError):
                 await async_retry(scrape_and_raise, "https://example.com/page", config=cfg)
 
@@ -255,11 +261,13 @@ class TestRetrySettings:
 
     def test_retry_config_from_settings(self) -> None:
         from settings import PrySettings
+
         settings = PrySettings()
         assert settings.retry_backoff == "exponential"
 
     def test_api_dict_includes_backoff(self) -> None:
         from settings import PrySettings
+
         settings = PrySettings()
         api_dict = settings.to_api_dict()
         assert "retry" in api_dict

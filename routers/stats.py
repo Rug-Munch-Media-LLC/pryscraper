@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Stats"])
 
+
 @router.get("/v0/stats", tags=["Stats"], summary="Get cache, rate limiter, and session stats")
 async def stats() -> dict[str, Any]:
     return {

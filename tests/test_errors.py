@@ -1,23 +1,21 @@
 """Tests for errors.py — RFC 7807 typed error hierarchy."""
 
 from __future__ import annotations
-import json
-from datetime import UTC, datetime
-from unittest.mock import MagicMock, patch
 
-import pytest
+import json
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from errors import (
-    PryError,
+    ExternalServiceError,
+    InvalidRequestError,
     NotFoundError,
+    PryError,
     RateLimitError,
     ScrapeError,
-    InvalidRequestError,
-    ExternalServiceError,
-    _default_title,
     _code_to_type,
+    _default_title,
 )
 
 

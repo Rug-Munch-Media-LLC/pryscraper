@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Automation"])
 
+
 @router.post("/v1/automate", tags=["Automation"], summary="Execute browser automation steps")
 async def automate(request: AutomateRequest) -> dict[str, Any]:
     """Execute browser automation steps. Sessions persist for login flows."""

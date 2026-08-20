@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Share"])
 
+
 @router.post("/v1/share", tags=["Share"], summary="Share scraped content via link")
 async def share_scrape(data: dict[str, Any] = Body(...)) -> dict[str, Any]:
     url = data.get("url", "")

@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Costing"])
 
+
 @router.get("/v1/costing/dashboard", tags=["Costing"], summary="Get cost analytics dashboard")
 async def cost_dashboard() -> dict[str, Any]:
     """Get the full cost analytics dashboard.

@@ -1,20 +1,21 @@
 """Tests for x402/__init__.py and x402/handler.py — payment orchestration."""
 
 from __future__ import annotations
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from x402 import (
-    X402Handler,
-    create_payment_request,
-    create_batch_payment,
-    verify_batch_payment,
-    require_payment_legacy,
-    X402_PRICING,
     SUPPORTED_NETWORKS,
+    X402_PRICING,
+    X402Handler,
+    create_batch_payment,
+    create_payment_request,
+    require_payment_legacy,
     resolve_price_usd,
     validate_client_amount,
+    verify_batch_payment,
 )
 
 
@@ -38,17 +39,17 @@ def test_resolve_price_usd_unknown():
 
 
 def test_validate_client_amount_valid():
-    ok, reason = validate_client_amount("scrape", 1.0, "USDC")
+    ok, _reason = validate_client_amount("scrape", 1.0, "USDC")
     assert ok is True
 
 
 def test_validate_client_amount_underpay():
-    ok, reason = validate_client_amount("scrape", 0.0000001, "USDC")
+    ok, _reason = validate_client_amount("scrape", 0.0000001, "USDC")
     assert ok is False
 
 
 def test_validate_client_amount_unknown_asset():
-    ok, reason = validate_client_amount("scrape", 1.0, "UNKNOWN")
+    ok, _reason = validate_client_amount("scrape", 1.0, "UNKNOWN")
     assert ok is True  # unknown assets pass through
 
 
@@ -92,7 +93,7 @@ def test_require_payment_legacy():
 @pytest.mark.asyncio
 async def test_handler_verify_payment():
     with (
-        patch("x402.handler.FacilitatorRouter") as mock_router_cls,
+        patch("x402.handler.FacilitatorRouter"),
         patch("x402.handler.get_facilitator_router") as mock_get,
     ):
         mock_instance = MagicMock()
@@ -106,7 +107,7 @@ async def test_handler_verify_payment():
 @pytest.mark.asyncio
 async def test_handler_settle_payment():
     with (
-        patch("x402.handler.FacilitatorRouter") as mock_router_cls,
+        patch("x402.handler.FacilitatorRouter"),
         patch("x402.handler.get_facilitator_router") as mock_get,
     ):
         mock_instance = MagicMock()

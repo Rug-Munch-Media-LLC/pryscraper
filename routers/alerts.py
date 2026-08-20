@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Alerts"])
 
+
 @router.post("/v1/alert/send", tags=["Alerts"], summary="Send an alert to any channel")
 async def send_alert_endpoint(
     channel: str = Body(...),

@@ -129,9 +129,7 @@ class HumanBehaviorSimulator:
                 scroll_amount = _RNG.randint(200, 600)
                 current_y = min(page_height, current_y + scroll_amount)
                 # Pause longer on certain content (images, headings)
-                pause = (
-                    _RNG.uniform(1.0, 4.0) if _RNG.random() < 0.2 else _RNG.uniform(0.2, 1.0)
-                )
+                pause = _RNG.uniform(1.0, 4.0) if _RNG.random() < 0.2 else _RNG.uniform(0.2, 1.0)
                 patterns.append(
                     {
                         "y": current_y,

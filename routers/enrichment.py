@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Enrichment"])
 
+
 @router.post(
     "/v1/enrich",
     tags=["Enrichment"],

@@ -26,7 +26,7 @@ def clear_batch_registry():
     """Clear the in-memory batch registry before each test."""
     with _batch_lock:
         _batch_payments.clear()
-    yield
+    return
 
 
 # ---------------------------------------------------------------------------

@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Extraction"])
 
+
 @router.post(
     "/v1/extract-table", tags=["Extraction"], summary="Extract HTML tables as structured data"
 )
@@ -122,7 +123,9 @@ async def analyze_seo(url: str = Body(...)) -> dict[str, Any]:
     }
 
 
-@router.post("/v1/schema", tags=["Extraction"], summary="Extract Schema.org/JSON-LD structured data")
+@router.post(
+    "/v1/schema", tags=["Extraction"], summary="Extract Schema.org/JSON-LD structured data"
+)
 async def extract_schema(url: str = Body(...)) -> dict[str, Any]:
     """Extract Schema.org/JSON-LD structured data from a page."""
     client = await get_client()
@@ -211,7 +214,9 @@ async def extract_css(
     }
 
 
-@router.post("/v1/extract/llm", tags=["Extraction"], summary="Extract with LLM + chunking strategies")
+@router.post(
+    "/v1/extract/llm", tags=["Extraction"], summary="Extract with LLM + chunking strategies"
+)
 async def extract_llm(
     url: str = Body(...),
     instruction: str = Body("Extract all key information from this content."),

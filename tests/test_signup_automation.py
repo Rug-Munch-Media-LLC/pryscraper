@@ -364,7 +364,7 @@ def test_imap_config_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert config.host == "imap.example.com"
     assert config.port == 143
     assert config.user == "user"
-    assert config.password == "secret"  # noqa: S105 - test fixture assertion
+    assert config.password == "secret"
 
 
 def test_imap_config_from_env_none(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -377,7 +377,7 @@ def test_poll_imap_for_verification_finds_link(monkeypatch: pytest.MonkeyPatch) 
     fake.messages = {1: make_message("Verify now: https://example.com/confirm?token=abc")}
     monkeypatch.setattr("signup.email_verification.imaplib.IMAP4_SSL", lambda host, port: fake)
 
-    config = IMAPConfig(host="imap.example.com", user="user", password="secret")  # noqa: S106 - test fixture
+    config = IMAPConfig(host="imap.example.com", user="user", password="secret")
     result = poll_imap_for_verification(config, from_email="user@example.com")
     assert result["success"] is True
     assert result["link"] == "https://example.com/confirm?token=abc"
@@ -388,7 +388,7 @@ def test_poll_imap_for_verification_empty(monkeypatch: pytest.MonkeyPatch) -> No
     fake = FakeIMAP("imap.example.com", 993)
     monkeypatch.setattr("signup.email_verification.imaplib.IMAP4_SSL", lambda host, port: fake)
 
-    config = IMAPConfig(host="imap.example.com", user="user", password="secret")  # noqa: S106 - test fixture
+    config = IMAPConfig(host="imap.example.com", user="user", password="secret")
     result = poll_imap_for_verification(config)
     assert result["success"] is True
     assert result["link"] is None
@@ -399,7 +399,7 @@ def test_poll_imap_for_verification_connect_error(monkeypatch: pytest.MonkeyPatc
         raise OSError("connection refused")
 
     monkeypatch.setattr("signup.email_verification.imaplib.IMAP4_SSL", _boom)
-    config = IMAPConfig(host="imap.example.com", user="user", password="secret")  # noqa: S106 - test fixture
+    config = IMAPConfig(host="imap.example.com", user="user", password="secret")
     result = poll_imap_for_verification(config)
     assert result["success"] is False
     assert "imap connect failed" in (result.get("error") or "")
@@ -433,7 +433,7 @@ async def test_verify_email_no_mailbox(monkeypatch: pytest.MonkeyPatch) -> None:
 
 async def test_fetch_temp_mail_finds_link() -> None:
     fake = FakeHTTPXClient()
-    result = await fetch_temp_mail("user@mail.tm", password="pwd123", client=fake)  # type: ignore[arg-type]  # noqa: S106 - test fixture password
+    result = await fetch_temp_mail("user@mail.tm", password="pwd123", client=fake)  # type: ignore[arg-type]
     assert result["verified"] is True
     assert result["method"] == "mail_tm"
     assert result["link"] == "https://example.com/verify?t=1"
@@ -442,7 +442,7 @@ async def test_fetch_temp_mail_finds_link() -> None:
 
 async def test_fetch_temp_mail_creates_account() -> None:
     fake = FakeHTTPXClient(token=None)
-    result = await fetch_temp_mail("user@mail.tm", password="pwd123", client=fake)  # type: ignore[arg-type]  # noqa: S106 - test fixture password
+    result = await fetch_temp_mail("user@mail.tm", password="pwd123", client=fake)  # type: ignore[arg-type]
     assert result["verified"] is True
     assert any(call[0] == "post" and call[1].endswith("/accounts") for call in fake.calls)
 

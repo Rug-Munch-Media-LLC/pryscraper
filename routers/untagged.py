@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Untagged"])
 
+
 @router.websocket("/v1/stream/{job_id}")
 async def stream_endpoint(websocket: WebSocket, job_id: str = "live") -> None:
     await websocket.accept()

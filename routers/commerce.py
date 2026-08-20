@@ -19,7 +19,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Commerce"])
 
-@router.post("/v1/commerce/sync", tags=["Commerce"], summary="Sync products to WooCommerce or Shopify")
+
+@router.post(
+    "/v1/commerce/sync", tags=["Commerce"], summary="Sync products to WooCommerce or Shopify"
+)
 async def sync_commerce(
     platform: str = Body(...),
     products: list[dict[str, Any]] = Body(...),
@@ -58,7 +61,9 @@ async def sync_commerce(
     return {"success": result["success"], "data": result}
 
 
-@router.get("/v1/commerce/platforms", tags=["Commerce"], summary="List supported commerce platforms")
+@router.get(
+    "/v1/commerce/platforms", tags=["Commerce"], summary="List supported commerce platforms"
+)
 async def list_commerce_platforms() -> dict[str, Any]:
     """List supported e-commerce platforms and their credential requirements."""
     return {

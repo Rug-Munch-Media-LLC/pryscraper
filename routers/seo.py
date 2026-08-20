@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["SEO"])
 
+
 @router.post("/v1/seo/analyze", tags=["SEO"], summary="Analyze SEO elements from a URL")
 async def seo_analyze(url: str = Body(...)) -> dict[str, Any]:
     """Analyze all SEO elements from a URL.

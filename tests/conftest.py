@@ -126,7 +126,7 @@ _make_lenient_logrecord()
 def _pry_disable_secrets_gopass() -> None:
     import os
 
-    os.environ["PRY_SECRET_BACKEND"] = "env"  # noqa: S105
+    os.environ["PRY_SECRET_BACKEND"] = "env"
     os.environ.setdefault("PRY_API_KEY", "")
     os.environ.setdefault("PRY_OPENROUTER_API_KEY", "")
     os.environ.setdefault("PRY_OPENAI_API_KEY", "")

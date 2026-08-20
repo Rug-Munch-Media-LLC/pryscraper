@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Dashboard"])
 
+
 @router.get("/dashboard", tags=["Dashboard"], summary="Pry health and performance dashboard")
 async def dashboard() -> HTMLResponse:
     cache_stats = cache.stats()

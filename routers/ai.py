@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["AI"])
 
+
 @router.get("/v1/ai/gpt-manifest", tags=["AI"], summary="Get GPT Action manifest for ChatGPT")
 async def get_gpt_manifest() -> JSONResponse:
     """Get the GPT Action manifest for ChatGPT integration.

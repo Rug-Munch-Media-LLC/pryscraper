@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Freshness"])
 
+
 @router.post(
     "/v1/freshness/check",
     tags=["Freshness"],
@@ -63,7 +64,9 @@ async def freshness_frequency(
     return {"success": True, "data": result}
 
 
-@router.get("/v1/freshness/dashboard", tags=["Freshness"], summary="Get content staleness dashboard")
+@router.get(
+    "/v1/freshness/dashboard", tags=["Freshness"], summary="Get content staleness dashboard"
+)
 async def freshness_dashboard() -> dict[str, Any]:
     """Get the content staleness dashboard.
 

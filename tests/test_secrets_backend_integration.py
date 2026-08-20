@@ -14,7 +14,7 @@ def test_settings_pulls_from_secrets_backend() -> None:
     when env vars are not set."""
 
     # Force a known value from secrets_backend
-    fake_secret = "fake-secret-from-gopass"  # noqa: S105
+    fake_secret = "fake-secret-from-gopass"
 
     def fake_get_secret(name: str, default: str = "") -> str:
         if name == "openrouter_api_key":
@@ -70,7 +70,7 @@ def test_x402_constants_come_from_secrets_backend() -> None:
 
 def test_settings_does_not_override_set_env() -> None:
     """If the env var is already set, secrets_backend must NOT override it."""
-    fake_secret = "from-gopass"  # noqa: S105
+    fake_secret = "from-gopass"
     from_env = "from-env"
 
     def fake_get_secret(name: str, default: str = "") -> str:

@@ -13,12 +13,11 @@ no live network), and graceful ``None`` on missing API keys.
 import base64
 import sys
 import types
-
-import pytest
 from io import BytesIO
 from unittest.mock import Mock
 
 import httpx
+import pytest
 import respx
 
 from captcha import REGISTRY
@@ -155,7 +154,7 @@ async def test_solve_2captcha_success() -> None:
         poll_interval=0.001,
         max_polls=5,
     )
-    assert token == "TOKEN_XYZ"  # noqa: S105 - test fixture token
+    assert token == "TOKEN_XYZ"
 
 
 @respx.mock
@@ -217,7 +216,7 @@ async def test_solve_capsolver_success() -> None:
         poll_interval=0.001,
         max_polls=5,
     )
-    assert token == "CAP_TOKEN"  # noqa: S105 - test fixture token
+    assert token == "CAP_TOKEN"
 
 
 @respx.mock
@@ -245,7 +244,7 @@ async def test_solve_captcha_recaptcha_v2_via_2captcha(monkeypatch) -> None:
         return_value=httpx.Response(200, json={"status": 1, "request": "V2_TOKEN"})
     )
     token = await solve_captcha("recaptcha_v2", sitekey="sk", url="https://x.test")
-    assert token == "V2_TOKEN"  # noqa: S105 - test fixture token
+    assert token == "V2_TOKEN"
 
 
 @respx.mock
@@ -259,7 +258,7 @@ async def test_solve_captcha_recaptcha_v3_uses_action_and_min_score(monkeypatch)
         return_value=httpx.Response(200, json={"status": 1, "request": "V3_TOKEN"})
     )
     token = await solve_captcha("recaptcha_v3", sitekey="sk", url="https://x.test")
-    assert token == "V3_TOKEN"  # noqa: S105 - test fixture token
+    assert token == "V3_TOKEN"
     sent = respx.calls[0].request.content.decode()
     assert "action=verify" in sent
     assert "min_score=0.3" in sent
@@ -279,7 +278,7 @@ async def test_solve_captcha_hcaptcha_via_capsolver(monkeypatch) -> None:
         )
     )
     token = await solve_captcha("hcaptcha", sitekey="sk", url="https://x.test")
-    assert token == "HCAP"  # noqa: S105 - test fixture token
+    assert token == "HCAP"
     sent = respx.calls[0].request.content.decode()
     assert "HCaptchaTask" in sent
 
@@ -298,7 +297,7 @@ async def test_solve_captcha_turnstile_via_capsolver(monkeypatch) -> None:
         )
     )
     token = await solve_captcha("turnstile", sitekey="sk", url="https://x.test")
-    assert token == "TURNSTILE_TOKEN"  # noqa: S105 - test fixture token
+    assert token == "TURNSTILE_TOKEN"
     sent = respx.calls[0].request.content.decode()
     assert "TurnstileTask" in sent
 

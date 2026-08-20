@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import pytest
-from fastapi.testclient import TestClient
-
 # Mock external dependencies before importing app
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from fastapi.testclient import TestClient
 
 # The app import triggers loading x402 module which may try network calls
 # We'll patch at function level instead

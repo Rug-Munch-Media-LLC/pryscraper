@@ -1,6 +1,7 @@
 """Tests for routers/advanced.py — advanced analysis TLS/analysis tools."""
 
 from __future__ import annotations
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import FastAPI

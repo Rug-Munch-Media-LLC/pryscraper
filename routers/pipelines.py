@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Pipelines"])
 
+
 @router.get(
     "/v1/pipelines/steps", tags=["Pipelines"], summary="List all available pipeline step types"
 )

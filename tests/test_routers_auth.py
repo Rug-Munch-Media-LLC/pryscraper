@@ -1,13 +1,13 @@
 """Tests for routers/auth.py — credential vault, SSO, CAPTCHA, session health."""
 
 from __future__ import annotations
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
-import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from routers.auth import router, _request_owner
+from routers.auth import _request_owner, router
 
 app = FastAPI()
 app.include_router(router)
@@ -40,9 +40,11 @@ def test_request_owner_bearer_jwt():
     req.state.identity = None
     req.state.user_id = None
     req.headers = {"authorization": "Bearer eyJ.eyJpZCI6ICJ1c2VyLTc4OSJ9.sig"}
-    with patch("routers.auth.is_jwt", return_value=True):
-        with patch("routers.auth.validate_rmi_jwt", return_value={"id": "user-789"}):
-            assert _request_owner(req) == "jwt:user-789"
+    with (
+        patch("routers.auth.is_jwt", return_value=True),
+        patch("routers.auth.validate_rmi_jwt", return_value={"id": "user-789"}),
+    ):
+        assert _request_owner(req) == "jwt:user-789"
 
 
 def test_request_owner_bearer_apikey():

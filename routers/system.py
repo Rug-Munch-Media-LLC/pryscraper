@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["System"])
 
+
 @router.get("/metrics", tags=["System"], summary="Prometheus metrics", include_in_schema=False)
 async def metrics() -> Response:
     """Expose Prometheus metrics for scraping."""

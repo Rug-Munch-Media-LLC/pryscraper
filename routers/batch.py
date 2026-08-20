@@ -20,7 +20,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Batch"])
 
-@router.post("/v1/batch-file", tags=["Batch"], summary="Batch scrape URLs from a file with templates")
+
+@router.post(
+    "/v1/batch-file", tags=["Batch"], summary="Batch scrape URLs from a file with templates"
+)
 async def batch_from_file(request: BatchFileRequest) -> dict[str, Any]:
     bp = BatchProcessor()
     results = await bp.from_file(

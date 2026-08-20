@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Reports"])
 
+
 @router.post(
     "/v1/reports/generate",
     tags=["Reports"],

@@ -1,11 +1,9 @@
 """Tests for routers/extraction.py — table, links, schema extraction."""
 
 from __future__ import annotations
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
-import httpx
-import pytest
-import respx
+from unittest.mock import AsyncMock, patch
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -24,20 +22,24 @@ def test_extract_table():
     mock_client = AsyncMock()
     mock_client.get = AsyncMock()
     mock_client.get.return_value.text = (
-        '<html><body><table><tr><th>Name</th></tr><tr><td>Alice</td></tr></table></body></html>'
+        "<html><body><table><tr><th>Name</th></tr><tr><td>Alice</td></tr></table></body></html>"
     )
     mock_client.get.return_value.status_code = 200
 
     with patch("routers.extraction.get_client", return_value=mock_client):
-        r = client.post("/v1/extract-table", json={
-            "url": "http://example.com",
-            "table_index": 0,
-        })
+        r = client.post(
+            "/v1/extract-table",
+            json={
+                "url": "http://example.com",
+                "table_index": 0,
+            },
+        )
         assert r.status_code in (200, 422, 500)
         if r.status_code == 200:
             data = r.json()
             assert data.get("success") is True
             assert len(data["data"]["rows"]) > 0
+
 
 def test_router_tags():
     assert router.tags == ["Extraction"]

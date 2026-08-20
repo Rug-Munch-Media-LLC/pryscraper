@@ -12,11 +12,16 @@ Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 from typing import Any
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from db import Usage, async_session_scope
+
+logger = logging.getLogger(__name__)
 
 # Tier-based default limits
 TIER_LIMITS = {
@@ -88,7 +93,7 @@ class UserRateLimiter:
                     .where(Usage.created_at >= month_start)
                 )
                 return int(result.scalar() or 0)
-        except Exception:
+        except SQLAlchemyError:
             return 0
 
     async def _sync_quota(self, api_key_id: str, bucket: UserBucket) -> None:
@@ -247,8 +252,11 @@ class UserRateLimiter:
                     error_message=error_message,
                 )
                 session.add(usage)
-        except Exception:
-            pass  # Never let usage recording break the request
+        except (SQLAlchemyError, RuntimeError, OSError) as e:
+            # Best-effort contract: usage recording must never break the
+            # request. Covers DB driver errors, session-scope failures and
+            # I/O errors; programming errors still surface.
+            logger.warning("usage_recording_failed: %s", e)
 
 
 # Global instance

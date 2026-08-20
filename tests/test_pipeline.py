@@ -1,21 +1,19 @@
 """Tests for pipeline.py — hook system."""
 
 from __future__ import annotations
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from pipeline import (
-    Pipeline,
-    get_pipeline,
-    run_pipeline,
-    _is_async,
-    log_request,
-    strip_html_comments,
-    extract_all_links,
     HOOK_POINTS,
+    Pipeline,
+    _is_async,
+    extract_all_links,
+    get_pipeline,
+    log_request,
+    run_pipeline,
+    strip_html_comments,
 )
-
 
 # ── Pipeline class ──
 

@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Integrations"])
 
+
 @router.get(
     "/v1/destinations",
     tags=["Integrations"],

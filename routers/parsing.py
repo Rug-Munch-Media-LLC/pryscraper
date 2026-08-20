@@ -23,7 +23,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Parsing"])
 
-@router.post("/v1/parse", tags=["Parsing"], summary="Parse a document (PDF, DOCX, image, CSV, JSON)")
+
+@router.post(
+    "/v1/parse", tags=["Parsing"], summary="Parse a document (PDF, DOCX, image, CSV, JSON)"
+)
 async def parse_document(request: ParseRequest) -> dict[str, Any]:
     """Parse a document (PDF, DOCX, image, CSV, JSON) to text."""
     try:

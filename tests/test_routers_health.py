@@ -1,9 +1,9 @@
 """Tests for routers/health.py — health, liveness, readiness probes."""
 
 from __future__ import annotations
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
-import pytest
+from unittest.mock import AsyncMock, patch
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 

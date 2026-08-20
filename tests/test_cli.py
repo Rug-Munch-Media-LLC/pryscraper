@@ -3,39 +3,35 @@ Tests helpers, command functions, and Click CLI group.
 """
 
 from __future__ import annotations
+
 import json
 import os
-import sys
 import tempfile
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import httpx
 import pytest
 import respx
-from click.testing import CliRunner
 
 from cli import (
-    _api,
-    _req,
-    _spinner,
-    _print_usage,
-    cmd_open,
-    cmd_watch,
-    cmd_crawl,
-    cmd_batch,
-    cmd_parse,
-    cmd_screenshot,
-    cmd_migrate,
-    cmd_completions,
-    VERSION,
+    BOLD,
+    GREEN,
     NC,
     RED,
-    GREEN,
+    VERSION,
     YELLOW,
-    CYAN,
-    BOLD,
+    _api,
+    _print_usage,
+    _req,
+    _spinner,
+    cmd_batch,
+    cmd_crawl,
+    cmd_migrate,
+    cmd_open,
+    cmd_parse,
+    cmd_screenshot,
+    cmd_watch,
 )
-
 
 # ── Helpers ──
 
@@ -86,9 +82,8 @@ def test_req_post():
 
 def test_req_connect_error():
     api_url = "http://localhost:8005"
-    with patch.dict("os.environ", {"PRY_URL": api_url}):
-        with pytest.raises(SystemExit):
-            _req("GET", "/v1/health")
+    with patch.dict("os.environ", {"PRY_URL": api_url}), pytest.raises(SystemExit):
+        _req("GET", "/v1/health")
 
 
 @respx.mock
@@ -246,7 +241,8 @@ def test_cmd_crawl(mock_print):
 @patch("builtins.print")
 def test_cmd_crawl_with_output(mock_print):
     api_url = "http://localhost:8005"
-    outfile = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False).name
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as _tf:
+        outfile = _tf.name
     with patch.dict("os.environ", {"PRY_URL": api_url}):
         respx.post(f"{api_url}/v1/crawl").mock(
             return_value=httpx.Response(
@@ -283,9 +279,8 @@ def test_cmd_crawl_many_pages(mock_print):
 
 
 def test_cmd_batch_file_not_found():
-    with patch("builtins.print"):
-        with pytest.raises(SystemExit):
-            cmd_batch("/nonexistent/file.json")
+    with patch("builtins.print"), pytest.raises(SystemExit):
+        cmd_batch("/nonexistent/file.json")
 
 
 @respx.mock
@@ -405,7 +400,8 @@ def test_cmd_screenshot_to_file(mock_print):
     import base64
 
     api_url = "http://localhost:8005"
-    outfile = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as _tf:
+        outfile = _tf.name
     with patch.dict("os.environ", {"PRY_URL": api_url}):
         respx.post(f"{api_url}/v1/screenshot").mock(
             return_value=httpx.Response(
@@ -424,23 +420,28 @@ def test_cmd_screenshot_to_file(mock_print):
 
 @patch("builtins.print")
 def test_cmd_migrate(mock_print):
-    try:
+    """cmd_migrate delegates to db.run_migrations."""
+    with patch("db.run_migrations") as mock_migrations:
         cmd_migrate()
-    except Exception:
-        pass
-    assert True
+    mock_migrations.assert_called_once()
 
 
-@patch("cli.subprocess.run")
-def test_cmd_completions(mock_run):
-    """Test shell completions generation."""
-    try:
-        import cli as cli_mod
+@patch("builtins.print")
+def test_cmd_completions(mock_print):
+    """Shell completions prints argcomplete setup instructions (no subprocess)."""
+    import cli as cli_mod
 
-        cli_mod.cmd_completions("bash")
-    except Exception:
-        pass
-    assert True
+    cli_mod.cmd_completions("bash")
+    assert mock_print.called
+
+
+@patch("builtins.print")
+def test_cmd_completions_unknown_shell(mock_print):
+    """Unknown shells print a friendly message, not an error."""
+    import cli as cli_mod
+
+    cli_mod.cmd_completions("powershell")
+    assert mock_print.called
 
 
 # ── Click CLI group ──

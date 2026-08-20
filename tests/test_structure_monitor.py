@@ -37,7 +37,7 @@ def _fresh_db(monkeypatch):
     import db as db_module
 
     monkeypatch.setenv("PRY_DATABASE_URL", "sqlite:///:memory:")
-    monkeypatch.setenv("PRY_DATA_DIR", "/tmp")  # noqa: S108 - test fixture: isolated scratch data dir
+    monkeypatch.setenv("PRY_DATA_DIR", "/tmp")
     db_module._engine = create_engine(
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, future=True
     )

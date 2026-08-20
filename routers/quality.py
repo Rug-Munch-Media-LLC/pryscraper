@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Quality"])
 
+
 @router.post(
     "/v1/quality/check", tags=["Quality"], summary="Run data quality check on extraction results"
 )

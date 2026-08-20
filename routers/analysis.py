@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Analysis"])
 
+
 @router.post("/v1/compare", tags=["Analysis"], summary="Compare content of two URLs")
 async def compare(url1: str = Body(...), url2: str = Body(...)) -> dict[str, Any]:
     """Scrape two URLs and compare their content. Shows additions, deletions, changes."""

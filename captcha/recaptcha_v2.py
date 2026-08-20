@@ -18,7 +18,6 @@ from typing import Any
 from captcha.base import CaptchaProvider
 from captcha.registry import register
 from captcha.token_api import solve_token_with_fallback
-from settings import settings
 
 
 class RecaptchaV2Provider(CaptchaProvider):

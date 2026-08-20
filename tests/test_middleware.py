@@ -9,17 +9,14 @@ import pytest
 from starlette.routing import Mount, Route
 
 from middleware import (
-    _AUTH_PUBLIC_PATHS,
-    _TRUSTED_PROXY_NETWORKS,
+    PryHttpMiddleware,
     _is_trusted_proxy,
     _parse_trusted_proxy,
     _path_exists,
     _resolve_client_ip,
     is_loopback_client,
     request_authorized,
-    PryHttpMiddleware,
 )
-
 
 # ---------------------------------------------------------------------------
 # _path_exists
@@ -430,6 +427,5 @@ async def test_middleware_401_response_format():
 
     assert len(sent) >= 1
     start = sent[0]
-    body = sent[1]
     assert start["status"] == 401
     assert b"x-request-id" in dict(start.get("headers", []))

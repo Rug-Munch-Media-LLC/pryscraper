@@ -1,17 +1,16 @@
 """Tests for x402/solana_verifier.py — Solana on-chain verification."""
 
 from __future__ import annotations
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from x402.solana_verifier import (
-    verify_solana_payment,
-    _parse_amount,
-    _iter_spl_instructions,
     _amount_usd_value,
     _failure,
+    _iter_spl_instructions,
+    _parse_amount,
     _success,
+    verify_solana_payment,
 )
 
 

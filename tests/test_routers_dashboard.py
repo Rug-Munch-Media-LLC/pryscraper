@@ -1,9 +1,9 @@
 """Tests for routers/dashboard.py — server-rendered HTML dashboard."""
 
 from __future__ import annotations
-from unittest.mock import MagicMock, patch
 
-import pytest
+from unittest.mock import patch
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 

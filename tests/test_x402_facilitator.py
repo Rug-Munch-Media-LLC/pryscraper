@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -334,8 +333,8 @@ async def test_verify_via_external_facilitator(router: FacilitatorRouter):
         for f in router.facilitators:
             if f.verify_url:
                 respx.post(f.verify_url).mock(
-            return_value=httpx.Response(200, json={"isValid": True, "txHash": "0xabc"})
-        )
+                    return_value=httpx.Response(200, json={"isValid": True, "txHash": "0xabc"})
+                )
         result = await router.verify(
             payment_id="pay_123",
             tx_hash="0xabc",
@@ -416,7 +415,9 @@ async def test_verify_solana_network(router: FacilitatorRouter):
     with patch("x402.facilitator.X402_OFFLINE_MODE", False):
         for f in router.facilitators:
             if f.verify_url:
-                respx.post(f.verify_url).mock(return_value=httpx.Response(200, json={"isValid": True}))
+                respx.post(f.verify_url).mock(
+                    return_value=httpx.Response(200, json={"isValid": True})
+                )
         result = await router.verify(
             payment_id="pay_123",
             tx_hash="4a3b...",
@@ -440,7 +441,9 @@ async def test_verify_tron_scaffold(router: FacilitatorRouter):
     with patch("x402.facilitator.X402_OFFLINE_MODE", False):
         for f in router.facilitators:
             if f.verify_url:
-                respx.post(f.verify_url).mock(return_value=httpx.Response(200, json={"isValid": True}))
+                respx.post(f.verify_url).mock(
+                    return_value=httpx.Response(200, json={"isValid": True})
+                )
         result = await router.verify(
             payment_id="pay_123",
             tx_hash="0xabc",
@@ -509,8 +512,8 @@ async def test_settle_via_external_facilitator(router: FacilitatorRouter):
         for f in router.facilitators:
             if f.settle_url:
                 respx.post(f.settle_url).mock(
-            return_value=httpx.Response(200, json={"success": True, "txHash": "0xsettled"})
-        )
+                    return_value=httpx.Response(200, json={"success": True, "txHash": "0xsettled"})
+                )
         result = await router.settle(
             payment_id="pay_123",
             tx_hash="0xabc",
@@ -613,6 +616,7 @@ def test_readiness_self_hosted():
         assert "ready" in status
         assert "wallet_configured" in status
 
+
 # ---------------------------------------------------------------------------
 # Settle — external facilitator with HTTP errors
 # ---------------------------------------------------------------------------
@@ -626,12 +630,13 @@ async def test_settle_external_all_fail(router: FacilitatorRouter):
         router.self_hosted = False
         for f in router.facilitators:
             if f.settle_url:
-                respx.post(f.settle_url).mock(
-                    side_effect=httpx.ConnectError("all down")
-                )
+                respx.post(f.settle_url).mock(side_effect=httpx.ConnectError("all down"))
         result = await router.settle(
-            payment_id="pay_123", tx_hash="0xabc",
-            network="base", asset="USDC", amount_usd=1.0,
+            payment_id="pay_123",
+            tx_hash="0xabc",
+            network="base",
+            asset="USDC",
+            amount_usd=1.0,
         )
         assert result is not None
 
@@ -644,12 +649,13 @@ async def test_settle_external_json_error(router: FacilitatorRouter):
         router.self_hosted = False
         for f in router.facilitators:
             if f.settle_url:
-                respx.post(f.settle_url).mock(
-                    return_value=httpx.Response(200, text="not-json")
-                )
+                respx.post(f.settle_url).mock(return_value=httpx.Response(200, text="not-json"))
         result = await router.settle(
-            payment_id="pay_123", tx_hash="0xabc",
-            network="base", asset="USDC", amount_usd=1.0,
+            payment_id="pay_123",
+            tx_hash="0xabc",
+            network="base",
+            asset="USDC",
+            amount_usd=1.0,
         )
         assert result is not None
 
@@ -667,32 +673,41 @@ async def test_verify_eip7702_fallback(router: FacilitatorRouter):
         router.self_hosted = False
         for f in router.facilitators:
             if f.verify_url:
-                respx.post(f.verify_url).mock(
-                    return_value=httpx.Response(500, text="down")
-                )
+                respx.post(f.verify_url).mock(return_value=httpx.Response(500, text="down"))
+
         # Mock RPC call — _rpc_call extracts data["result"]
         # Two calls go to same URL (getReceipt + getTransactionByHash)
         def _rpc_callback(request: httpx.Request) -> httpx.Response:
             body = request.read().decode()
             if "eth_getTransactionReceipt" in body:
-                return httpx.Response(200, json={
-                    "jsonrpc": "2.0",
-                    "result": {"status": "0x1", "blockNumber": "0x123"},
-                })
-            else:
-                return httpx.Response(200, json={
-                    "jsonrpc": "2.0",
-                    "result": {
-                        "to": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
-                        "from": "0xdead000000000000000000000000000000000000",
-                        "input": "0xa9059cbb" + "0"*64 + "0"*64,
-                        "value": "0x0",
+                return httpx.Response(
+                    200,
+                    json={
+                        "jsonrpc": "2.0",
+                        "result": {"status": "0x1", "blockNumber": "0x123"},
                     },
-                })
+                )
+            else:
+                return httpx.Response(
+                    200,
+                    json={
+                        "jsonrpc": "2.0",
+                        "result": {
+                            "to": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                            "from": "0xdead000000000000000000000000000000000000",
+                            "input": "0xa9059cbb" + "0" * 64 + "0" * 64,
+                            "value": "0x0",
+                        },
+                    },
+                )
+
         respx.post("https://mainnet.base.org/").mock(side_effect=_rpc_callback)
         result = await router.verify(
-            payment_id="pay_123", tx_hash="0xabc",
-            network="base", asset="USDC", amount_usd=1.0,
+            payment_id="pay_123",
+            tx_hash="0xabc",
+            network="base",
+            asset="USDC",
+            amount_usd=1.0,
         )
         assert "verified" in result
 
@@ -705,7 +720,11 @@ async def test_verify_eip7702_fallback(router: FacilitatorRouter):
 def test_scaffold_non_evm_verify(router: FacilitatorRouter):
     """Scaffold verify for non-EVM chains returns structured response."""
     result = router._scaffold_non_evm_verify(
-        "pay_123", "0xabc", "tron:mainnet", "USDT", 1.0,
+        "pay_123",
+        "0xabc",
+        "tron:mainnet",
+        "USDT",
+        1.0,
     )
     assert result["verified"] is False
     assert "reason" in result
@@ -722,8 +741,11 @@ async def test_settle_self_hosted_without_impl(router: FacilitatorRouter):
     router.self_hosted = True
     with patch("x402.facilitator.X402_OFFLINE_MODE", False):
         result = await router.settle(
-            payment_id="pay_123", tx_hash="0xabc",
-            network="optimism", asset="USDC", amount_usd=1.0,
+            payment_id="pay_123",
+            tx_hash="0xabc",
+            network="optimism",
+            asset="USDC",
+            amount_usd=1.0,
         )
         assert result is not None
 
@@ -740,15 +762,24 @@ async def test_verify_self_hosted_custom_impl(router: FacilitatorRouter):
 
     router.self_hosted = True
     mock_impl = MagicMock()
-    mock_impl.verify = AsyncMock(return_value=VerifyResult(
-        verified=True, reason="", signer="0xabc",
-        amount_atomic=1000000, asset="USDC", network="solana:mainnet",
-    ))
+    mock_impl.verify = AsyncMock(
+        return_value=VerifyResult(
+            verified=True,
+            reason="",
+            signer="0xabc",
+            amount_atomic=1000000,
+            asset="USDC",
+            network="solana:mainnet",
+        )
+    )
     router.register_facilitator("solana:mainnet", mock_impl)
     with patch("x402.facilitator.X402_OFFLINE_MODE", False):
         result = await router.verify(
-            payment_id="pay_123", tx_hash="0xabc",
-            network="solana:mainnet", asset="USDC", amount_usd=1.0,
+            payment_id="pay_123",
+            tx_hash="0xabc",
+            network="solana:mainnet",
+            asset="USDC",
+            amount_usd=1.0,
         )
         assert result["verified"] is True
 
@@ -764,7 +795,10 @@ async def test_verify_self_hosted_no_impl(router: FacilitatorRouter):
     router.self_hosted = True
     with patch("x402.facilitator.X402_OFFLINE_MODE", False):
         result = await router.verify(
-            payment_id="pay_123", tx_hash="0xabc",
-            network="unknown:chain", asset="USDC", amount_usd=1.0,
+            payment_id="pay_123",
+            tx_hash="0xabc",
+            network="unknown:chain",
+            asset="USDC",
+            amount_usd=1.0,
         )
         assert "reason" in result

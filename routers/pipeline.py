@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Pipeline"])
 
+
 @router.post("/v1/pipeline/hook", tags=["Pipeline"], summary="Register a hook function")
 async def register_hook(
     hook_point: str = Body(...),

@@ -17,7 +17,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Email"])
 
-@router.post("/v1/email/scrape", tags=["Email"], summary="Extract data from an email (subject + body)")
+
+@router.post(
+    "/v1/email/scrape", tags=["Email"], summary="Extract data from an email (subject + body)"
+)
 async def scrape_email(
     subject: str = Body(""),
     body: str = Body(""),
@@ -56,7 +59,9 @@ async def fetch_gmail(
     return {"success": result.get("success", False), "data": result}
 
 
-@router.post("/v1/email/outlook", tags=["Email"], summary="Fetch and extract data from Outlook inbox")
+@router.post(
+    "/v1/email/outlook", tags=["Email"], summary="Fetch and extract data from Outlook inbox"
+)
 async def fetch_outlook(
     access_token: str = Body(...),
     max_results: int = Body(20),

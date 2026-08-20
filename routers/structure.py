@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Structure"])
 
+
 @router.post(
     "/v1/structure/check",
     tags=["Structure"],

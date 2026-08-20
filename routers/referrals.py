@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Referrals"])
 
+
 @router.get(
     "/v1/referrals/catalog",
     tags=["Referrals"],

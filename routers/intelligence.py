@@ -17,7 +17,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Intelligence"])
 
-@router.post("/v1/intel/snapshot", tags=["Intelligence"], summary="Record a competitor data snapshot")
+
+@router.post(
+    "/v1/intel/snapshot", tags=["Intelligence"], summary="Record a competitor data snapshot"
+)
 async def record_intel_snapshot(
     competitor_id: str = Body(...),
     competitor_name: str = Body(...),

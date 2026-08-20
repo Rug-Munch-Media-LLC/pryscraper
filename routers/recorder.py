@@ -19,13 +19,24 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Recorder"])
 
-@router.post("/v1/record/start", tags=["Recorder"], summary="Start recording browser actions", description="Start recording a sequence of browser actions for later replay or export.")
+
+@router.post(
+    "/v1/record/start",
+    tags=["Recorder"],
+    summary="Start recording browser actions",
+    description="Start recording a sequence of browser actions for later replay or export.",
+)
 async def start_recording(session_id: str = Body(...)) -> dict[str, Any]:
     recorder.start(session_id)
     return {"success": True, "data": {"session_id": session_id, "status": "recording"}}
 
 
-@router.post("/v1/record/step", tags=["Recorder"], summary="Record a browser action step", description="Record a single browser action step (click, type, navigate) as part of an active recording session.")
+@router.post(
+    "/v1/record/step",
+    tags=["Recorder"],
+    summary="Record a browser action step",
+    description="Record a single browser action step (click, type, navigate) as part of an active recording session.",
+)
 async def record_step(
     session_id: str = Body(...), action: str = Body(...), selector: str = "", value: str = ""
 ) -> dict[str, Any]:
@@ -33,13 +44,23 @@ async def record_step(
     return {"success": True, "data": {"recorded": len(recorder._recordings.get(session_id, []))}}
 
 
-@router.post("/v1/record/export", tags=["Recorder"], summary="Export recording as script", description="Export a browser recording session as a reusable Playwright script.")
+@router.post(
+    "/v1/record/export",
+    tags=["Recorder"],
+    summary="Export recording as script",
+    description="Export a browser recording session as a reusable Playwright script.",
+)
 async def export_recording(session_id: str = Body(...), fmt: str = "json") -> dict[str, Any]:
     script = recorder.export(session_id, fmt)
     return {"success": True, "data": {"script": script, "format": fmt}}
 
 
-@router.post("/v1/record/clear", tags=["Recorder"], summary="Clear recorded actions", description="Clear all recorded browser actions from the current session.")
+@router.post(
+    "/v1/record/clear",
+    tags=["Recorder"],
+    summary="Clear recorded actions",
+    description="Clear all recorded browser actions from the current session.",
+)
 async def clear_recording(session_id: str = Body(...)) -> dict[str, Any]:
     recorder.clear(session_id)
     return {"success": True, "data": {"status": "cleared"}}

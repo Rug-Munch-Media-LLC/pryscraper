@@ -1,9 +1,9 @@
 """Tests for routers/sessions.py — browser session API endpoints."""
 
 from __future__ import annotations
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -65,16 +65,18 @@ def test_destroy_session_with_save():
     with patch("routers.sessions.automator") as auto:
         auto.destroy_session = AsyncMock(return_value=True)
         auto.get_session_state = AsyncMock(return_value={"cookies": [], "local_storage": {}})
-        with patch("sessions.save_session", new_callable=AsyncMock):
-            with patch("sessions.delete_session", new_callable=AsyncMock):
-                r = client.post(
-                    "/v1/session/destroy",
-                    json={
-                        "session_id": "session-abc",
-                        "save_state": True,
-                    },
-                )
-                assert r.status_code in (200, 422, 500)
+        with (
+            patch("sessions.save_session", new_callable=AsyncMock),
+            patch("sessions.delete_session", new_callable=AsyncMock),
+        ):
+            r = client.post(
+                "/v1/session/destroy",
+                json={
+                    "session_id": "session-abc",
+                    "save_state": True,
+                },
+            )
+            assert r.status_code in (200, 422, 500)
 
 
 def test_list_sessions():
@@ -117,8 +119,10 @@ def test_restore_session():
 
 
 def test_restore_session_not_found():
-    with patch("routers.sessions.automator") as auto:
-        with patch("sessions.load_session", new_callable=AsyncMock) as load:
-            load.return_value = None
-            r = client.post("/v1/session/restore", json={"session_id": "nonexistent"})
-            assert r.status_code in (404, 422, 500)
+    with (
+        patch("routers.sessions.automator"),
+        patch("sessions.load_session", new_callable=AsyncMock) as load,
+    ):
+        load.return_value = None
+        r = client.post("/v1/session/restore", json={"session_id": "nonexistent"})
+        assert r.status_code in (404, 422, 500)

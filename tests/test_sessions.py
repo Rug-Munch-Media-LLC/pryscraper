@@ -1,22 +1,23 @@
 """Tests for sessions.py — persistent browser session management."""
 
 from __future__ import annotations
+
 import json
 import os
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from sessions import (
-    save_session,
-    load_session,
+    _session_path,
+    cleanup_sessions,
     delete_session,
     list_sessions,
-    cleanup_sessions,
-    _session_path,
+    load_session,
+    save_session,
 )
 
 
@@ -151,7 +152,8 @@ async def test_cleanup_sessions():
     os.utime(old_path, (very_old, very_old))
 
     removed = await cleanup_sessions(max_age_days=1)
-    # "old" should be >1 day old now
+    # "old" should be >1 day old now, so at least it gets removed
+    assert removed >= 1
     remaining = await list_sessions()
     assert len(remaining) <= 2  # at least new remains
 

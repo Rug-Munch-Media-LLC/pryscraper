@@ -1,9 +1,9 @@
 """Tests for routers/analysis.py — compare, watch, summarize."""
 
 from __future__ import annotations
-from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
+from unittest.mock import AsyncMock, patch
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 

@@ -70,7 +70,7 @@ def test_quota_reset_timestamp_future(limiter: UserRateLimiter):
     import time
     from datetime import UTC, datetime
 
-    now = datetime.now(UTC)
+    datetime.now(UTC)
     ts = limiter._get_quota_reset_timestamp()
     now_ts = time.time()
     # Should be in the future
@@ -118,7 +118,7 @@ def test_check_rejects_when_rate_limited(limiter: UserRateLimiter):
     with patch.object(
         limiter, "_get_limits", return_value={"rpm": 1, "quota_monthly": 999999, "burst": 1}
     ):
-        allowed, info = limiter.check("key3", tier="FREE")
+        allowed, _info = limiter.check("key3", tier="FREE")
         assert allowed is True
 
         # Second request should be rate-limited (no tokens, low refill rate)
@@ -291,7 +291,7 @@ def test_multiple_requests_increments_counters(limiter: UserRateLimiter):
 def test_cost_usd_accumulates(limiter: UserRateLimiter):
     with patch.object(limiter, "_get_quota_reset_timestamp", return_value=time.time() + 3600):
         info: dict = {}
-        for i in range(3):
+        for _i in range(3):
             allowed, info = limiter.check("cost_key", tier="FREE", cost_usd=10.0)
             assert allowed is True
         assert info["quota_used"] == 30.0

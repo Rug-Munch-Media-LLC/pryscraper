@@ -1,7 +1,8 @@
 """Tests for routers/vision.py — handler unit tests (no x402 middleware)."""
 
 from __future__ import annotations
-from unittest.mock import AsyncMock, MagicMock, patch
+
+from unittest.mock import AsyncMock, patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient

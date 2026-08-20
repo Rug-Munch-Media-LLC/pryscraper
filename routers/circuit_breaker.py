@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Circuit Breaker"])
 
+
 @router.post("/v1/breaker/status", tags=["Circuit Breaker"], summary="Get circuit breaker status")
 async def breaker_status() -> dict[str, Any]:
     return {

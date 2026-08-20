@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Agency"])
 
+
 @router.post("/v1/agency/create", tags=["Agency"], summary="Create a white-label agency profile")
 async def create_agency_endpoint(
     name: str = Body(...),
@@ -67,7 +68,9 @@ async def update_branding(
     return {"success": result["success"], "data": result}
 
 
-@router.post("/v1/agency/{agency_id}/clients", tags=["Agency"], summary="Create a client sub-account")
+@router.post(
+    "/v1/agency/{agency_id}/clients", tags=["Agency"], summary="Create a client sub-account"
+)
 async def create_client_endpoint(
     agency_id: str,
     client_name: str = Body(...),
@@ -93,7 +96,9 @@ async def list_clients_endpoint(agency_id: str) -> dict[str, Any]:
     return {"success": True, "data": {"clients": clients, "total": len(clients)}}
 
 
-@router.get("/v1/agency/{agency_id}/analytics", tags=["Agency"], summary="Get agency usage analytics")
+@router.get(
+    "/v1/agency/{agency_id}/analytics", tags=["Agency"], summary="Get agency usage analytics"
+)
 async def get_analytics(agency_id: str) -> dict[str, Any]:
     """Get aggregate usage analytics for an agency."""
     from agency import get_agency_analytics

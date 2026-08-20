@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["GDPR"])
 
+
 @router.post("/v1/gdpr/consent", tags=["GDPR"], summary="Record user consent for data processing")
 async def record_consent_endpoint(
     user_id: str = Body(...),

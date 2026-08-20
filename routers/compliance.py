@@ -17,7 +17,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Compliance"])
 
-@router.post("/v1/compliance/check", tags=["Compliance"], summary="Run full compliance check on a URL")
+
+@router.post(
+    "/v1/compliance/check", tags=["Compliance"], summary="Run full compliance check on a URL"
+)
 async def compliance_check(url: str = Body(...)) -> dict[str, Any]:
     """Run a full legal compliance check on a target URL.
 
@@ -35,7 +38,9 @@ async def compliance_check(url: str = Body(...)) -> dict[str, Any]:
     return {"success": True, "data": result}
 
 
-@router.get("/v1/compliance/check", tags=["Compliance"], summary="Get compliance check documentation")
+@router.get(
+    "/v1/compliance/check", tags=["Compliance"], summary="Get compliance check documentation"
+)
 async def compliance_docs() -> dict[str, Any]:
     """Get information about the compliance check endpoint."""
     return {

@@ -1,6 +1,7 @@
 """Tests for routers/sports_data.py — handler unit tests (no x402 middleware)."""
 
 from __future__ import annotations
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import FastAPI

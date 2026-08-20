@@ -1,18 +1,16 @@
 """Tests for destinations.py — data egress functions."""
 
 from __future__ import annotations
-from unittest.mock import AsyncMock, MagicMock, patch
+
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from destinations import (
-    write_to_slack,
-    write_to_slack_csv,
-    write_to_googlesheets,
-    write_to_airtable,
-    write_to_email,
-    dispatch,
     _data_to_rows,
+    dispatch,
+    write_to_email,
+    write_to_slack,
 )
 
 

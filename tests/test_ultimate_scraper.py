@@ -81,7 +81,8 @@ async def test_scrape_invalid_url_returns_error(scraper: UltimateScraper):
 
 def test_rotate_ua_returns_string(scraper: UltimateScraper):
     ua = scraper._rotate_ua()
-    assert isinstance(ua, str) and len(ua) > 20
+    assert isinstance(ua, str)
+    assert len(ua) > 20
 
 
 def test_rotate_ua_changes(scraper: UltimateScraper):
@@ -172,7 +173,8 @@ def test_resolve_proxy_url_none(scraper: UltimateScraper):
 async def test_scrape_direct_success(scraper: UltimateScraper):
     with patch.object(scraper, "_tier_direct", new=AsyncMock(return_value=_VALID_HTML)):
         result = await scraper.scrape("http://example.com")
-        assert result["status"] == "ok" and result["method"] == "direct"
+        assert result["status"] == "ok"
+        assert result["method"] == "direct"
 
 
 @pytest.mark.asyncio
@@ -201,7 +203,8 @@ async def test_scrape_second_tier_works(scraper: UltimateScraper):
     scraper._tier_direct = AsyncMock(return_value=None)
     scraper._tier_tls_fingerprint = AsyncMock(return_value=_VALID_HTML_2)
     result = await scraper.scrape("http://example.com")
-    assert result["status"] == "ok" and "tls" in result.get("method", "")
+    assert result["status"] == "ok"
+    assert "tls" in result.get("method", "")
 
 
 @pytest.mark.asyncio
@@ -222,7 +225,8 @@ async def test_scrape_archive_fallback(scraper: UltimateScraper):
     scraper._tier_archive = AsyncMock(return_value=_VALID_HTML_3)
     scraper._tier_google_cache = AsyncMock(return_value=None)
     result = await scraper.scrape("http://example.com")
-    assert result["status"] == "ok" and result["method"] == "archive"
+    assert result["status"] == "ok"
+    assert result["method"] == "archive"
 
 
 # ---------------------------------------------------------------------------
@@ -258,7 +262,8 @@ def test_signal_to_dict(scraper: UltimateScraper):
         kind="captcha", confidence=0.95, recommended_escalation="playwright", evidence=set()
     )
     d = scraper._signal_to_dict(signal)
-    assert d["kind"] == "captcha" and d["confidence"] == 0.95
+    assert d["kind"] == "captcha"
+    assert d["confidence"] == 0.95
 
 
 # ---------------------------------------------------------------------------
@@ -358,7 +363,6 @@ async def test_tier_cloudscraper_error(scraper: UltimateScraper):
 # ---------------------------------------------------------------------------
 
 
-
 @respx.mock
 @pytest.mark.asyncio
 async def test_tier_flaresolverr_no_url(scraper: UltimateScraper):
@@ -371,7 +375,9 @@ async def test_tier_flaresolverr_no_url(scraper: UltimateScraper):
 @pytest.mark.asyncio
 async def test_tier_flaresolverr_success(scraper: UltimateScraper):
     respx.post("http://flaresolverr:8191/v1").mock(
-        return_value=httpx.Response(200, json={"solution": {"status": 200, "response": "<html>flare</html>"}})
+        return_value=httpx.Response(
+            200, json={"solution": {"status": 200, "response": "<html>flare</html>"}}
+        )
     )
     with patch("settings.settings.flaresolverr_url", "http://flaresolverr:8191/v1"):
         result = await scraper._tier_flaresolverr("http://example.com", {})
@@ -641,7 +647,6 @@ async def test_tier_tor_missing_dep(scraper: UltimateScraper):
 
 
 @pytest.mark.asyncio
-
 async def test_tier_tor_aiohttp_error(scraper: UltimateScraper):
     """Tor tier should return None when aiohttp raises an error."""
     result = None

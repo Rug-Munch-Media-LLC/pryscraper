@@ -1,12 +1,13 @@
 """Tests for automator.py — headless browser automation engine."""
 
 from __future__ import annotations
+
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+import contextlib
 
 import pytest
 
-from automator import PryAutomator, BrowserSession
+from automator import BrowserSession, PryAutomator
 
 
 @pytest.fixture
@@ -17,10 +18,6 @@ def automator():
 def test_init_playwright_not_available(automator: PryAutomator):
     assert hasattr(automator, "sessions")
     assert isinstance(automator.sessions, dict)
-
-
-def test_check_available_skip():
-    pass
 
 
 def test_check_available_skip():
@@ -58,9 +55,7 @@ def test_automator_cleanup_loop_runs():
         a._cleanup_task = asyncio.create_task(a._cleanup_loop())
         await asyncio.sleep(0.05)
         a._cleanup_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await a._cleanup_task
-        except asyncio.CancelledError:
-            pass
 
     asyncio.run(_test())

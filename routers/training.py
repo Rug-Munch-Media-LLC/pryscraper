@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Training"])
 
+
 @router.post(
     "/v1/training/classify-license",
     tags=["Training"],
@@ -36,7 +37,9 @@ async def classify_license_endpoint(text: str = Body(...)) -> dict[str, Any]:
     return {"success": True, "data": result}
 
 
-@router.post("/v1/training/clean", tags=["Training"], summary="Strip PII and copyright from content")
+@router.post(
+    "/v1/training/clean", tags=["Training"], summary="Strip PII and copyright from content"
+)
 async def clean_content(
     text: str = Body(...),
     strip_names: bool = Body(False),

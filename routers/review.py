@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Review"])
 
+
 @router.post("/v1/review/submit", tags=["Review"], summary="Submit extracted data for human review")
 async def review_submit(
     data: dict[str, Any] = Body(...),

@@ -1,20 +1,22 @@
 """Tests for mcp_sse.py — MCP HTTP+SSE transport server."""
 
 from __future__ import annotations
+
 import asyncio
+import contextlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from mcp_sse import (
-    _new_session_id,
-    _create_event,
-    _get_or_create_queue,
-    _enqueue_response,
-    _cleanup_session,
     MCP_SSE_SESSIONS,
     MCP_SSE_TASKS,
     SESSION_TTL_SECONDS,
+    _cleanup_session,
+    _create_event,
+    _enqueue_response,
+    _get_or_create_queue,
+    _new_session_id,
 )
 
 
@@ -62,9 +64,11 @@ def test_enqueue_response_unknown_session():
 def test_cleanup_session():
     """Cleanup session with a mock task."""
     _get_or_create_queue("sid_clean")
-    # Use a done task to avoid event loop issues
-    task = asyncio.Future()
-    task.set_result(None)
+    # Loop-free stand-in for a completed task: asyncio.Future() needs a
+    # current event loop, which sync tests don't have late in a full suite
+    # (pytest-asyncio closes loops after each async test).
+    task = MagicMock()
+    task.done.return_value = True
     MCP_SSE_TASKS["sid_clean"] = task
     _cleanup_session("sid_clean")
     assert "sid_clean" not in MCP_SSE_SESSIONS
@@ -85,23 +89,22 @@ def test_session_ttl_constant():
 @pytest.mark.asyncio
 async def test_keepalive_loop_cancelled():
     """Keepalive loop exits cleanly on cancel."""
-    from mcp_sse import _keepalive_loop, _get_or_create_queue
+    from mcp_sse import _get_or_create_queue, _keepalive_loop
 
     _get_or_create_queue("sid_ka")
     task = asyncio.create_task(_keepalive_loop("sid_ka"))
     await asyncio.sleep(0.05)
     task.cancel()
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await task
-    except asyncio.CancelledError:
-        pass
 
 
 @pytest.mark.asyncio
 async def test_mcp_sse_endpoint():
     """SSE endpoint produces a StreamingResponse."""
-    from mcp_sse import mcp_sse_endpoint
     from fastapi import Request
+
+    from mcp_sse import mcp_sse_endpoint
 
     mock_handler = MagicMock()
     mock_handler.handle_request = AsyncMock(return_value={"jsonrpc": "2.0", "result": "ok"})

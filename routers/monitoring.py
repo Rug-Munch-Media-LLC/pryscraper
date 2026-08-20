@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Monitoring"])
 
+
 @router.post("/v1/monitor", tags=["Monitoring"], summary="Create a scheduled content monitor")
 async def create_monitor_endpoint(
     name: str = Body(...),
