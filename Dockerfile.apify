@@ -14,8 +14,11 @@ WORKDIR /usr/src/app
 RUN pip install --no-cache-dir -r requirements.txt \
     && rm -rf /root/.cache
 
-# Install Apify SDK (not in requirements.txt — only needed for the actor)
-RUN pip install --no-cache-dir "apify~=1.7.0" \
+# Install Apify SDK (not in requirements.txt — only needed for the actor).
+# MUST stay >=3: apify_actor.py uses Actor.configuration (Actor.config was
+# removed in SDK 3.x). 1.7 here was a latent platform-crash bug (2026-08-20
+# audit) — the actor would die on startup inside the Apify platform.
+RUN pip install --no-cache-dir "apify~=4.0" \
     && rm -rf /root/.cache
 
 # The actor entry point
