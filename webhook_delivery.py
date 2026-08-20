@@ -39,6 +39,11 @@ class WebhookDelivery:
         self.signing_secret = (
             signing_secret or os.getenv("PRY_WEBHOOK_SECRET") or settings.webhook_secret
         )
+        if not self.signing_secret:
+            logger.warning(
+                "webhook_secret_empty — webhook signatures are UNVERIFIABLE. "
+                "Set PRY_WEBHOOK_SECRET (or gopass pry/webhook_secret) in production."
+            )
         self.delivery_log = WEBHOOK_DIR / "deliveries.jsonl"
         self.dead_letter = WEBHOOK_DIR / "dead_letter.jsonl"
         self._load_log()

@@ -96,9 +96,21 @@ def validate_rmi_jwt(token: str) -> dict[str, Any] | None:
         logger.warning("No public key configured for JWT validation")
         return None
 
-    algorithm = "RS256" if _JWT_ALGORITHM == "RS256" else "HS256"
+    # SECURITY (2026-08-20 audit): RS256 ONLY, fail-closed. The previous
+    # code fell back to HS256 for any non-RS256 PRY_JWT_ALGORITHM value,
+    # using the RSA *public* key as the HMAC secret — the classic
+    # algorithm-confusion attack: anyone holding the public key (it is
+    # served on a public JWKS endpoint) could forge valid tokens.
+    if _JWT_ALGORITHM != "RS256":
+        logger.error(
+            "Unsupported PRY_JWT_ALGORITHM %r — only RS256 is allowed; refusing token",
+            _JWT_ALGORITHM,
+        )
+        return None
     try:
-        payload = pyjwt.decode(token, key, algorithms=[algorithm])
+        # require=["exp"]: tokens without an expiry claim are rejected —
+        # a leaked token must not grant forever-access.
+        payload = pyjwt.decode(token, key, algorithms=["RS256"], options={"require": ["exp"]})
     except Exception as exc:  # noqa: BLE001 - any decode failure means invalid token; logged at debug
         logger.debug("JWT validation failed: %s", exc)
         return None

@@ -1,20 +1,17 @@
 """Tests for jwt_auth.py — JWT token validation & API key auth."""
 
 from __future__ import annotations
+
 import json
 import time
-import os
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from jwt_auth import (
-    validate_rmi_jwt,
-    is_jwt,
     _fetch_public_key,
     _load_key,
+    is_jwt,
+    validate_rmi_jwt,
 )
-
 
 # ── _load_key ──
 
@@ -157,6 +154,40 @@ def test_validate_rmi_jwt_failure(mock_decode):
         patch("jwt_auth._fetch_public_key", return_value="pub-key"),
     ):
         assert validate_rmi_jwt("bad.jwt.token") is None
+
+
+# ── SECURITY: algorithm-confusion + expiry enforcement (2026-08-20 audit) ──
+
+
+def test_validate_rmi_jwt_rejects_non_rs256_algorithm():
+    """A configured non-RS256 algorithm (e.g. HS256) must be refused.
+
+    Regression: the old code fell back to HS256 using the RSA *public* key
+    as the HMAC secret — anyone with the public key could forge tokens.
+    """
+    with (
+        patch("jwt_auth._HAS_JWT", True),
+        patch("jwt_auth._JWT_ALGORITHM", "HS256"),
+        patch("jwt_auth._fetch_public_key", return_value="pub-key"),
+        patch("jwt_auth.pyjwt.decode") as mock_decode,
+    ):
+        assert validate_rmi_jwt("some.jwt.token") is None
+        mock_decode.assert_not_called()
+
+
+@patch("jwt_auth.pyjwt.decode")
+def test_validate_rmi_jwt_enforces_rs256_and_exp(mock_decode):
+    """RS256 tokens are decoded with exp required."""
+    mock_decode.return_value = {"sub": "u", "exp": time.time() + 60}
+    with (
+        patch("jwt_auth._HAS_JWT", True),
+        patch("jwt_auth._JWT_ALGORITHM", "RS256"),
+        patch("jwt_auth._fetch_public_key", return_value="pub-key"),
+    ):
+        validate_rmi_jwt("good.jwt.token")
+        _args, kwargs = mock_decode.call_args
+        assert kwargs.get("algorithms") == ["RS256"]
+        assert kwargs.get("options", {}).get("require") == ["exp"]
 
 
 # ── is_jwt ──

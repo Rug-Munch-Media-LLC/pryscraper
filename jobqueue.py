@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import logging
 import threading
 import uuid
 from datetime import UTC, datetime
@@ -19,6 +20,8 @@ from typing import Any
 import httpx
 
 from settings import settings
+
+logger = logging.getLogger(__name__)
 
 
 class JobQueue:
@@ -150,6 +153,11 @@ class JobQueue:
         secret is actually honored. Webhook verification requires a
         configured secret; with an empty secret the signature is unverifiable.
         """
+        if not settings.webhook_secret:
+            logger.warning(
+                "webhook_secret_empty — job webhook signature is UNVERIFIABLE. "
+                "Set PRY_WEBHOOK_SECRET in production."
+            )
         try:
             signature = hmac.new(
                 settings.webhook_secret.encode(), json.dumps(job).encode(), hashlib.sha256
