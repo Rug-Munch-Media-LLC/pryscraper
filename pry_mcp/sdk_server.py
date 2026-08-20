@@ -77,36 +77,55 @@ def _create_sdk_server() -> Any:
         PromptArgument,
         PromptMessage,
         ReadResourceResult,
-        Role,
         TextContent,
         TextResourceContents,
         Tool,
     )
-    from pydantic import AnyUrl
+
+    # Kept runtime-importable: SDK <2 may resolve handler annotations.
+    from pydantic import AnyUrl  # noqa: TC002
 
     # The fallback server holds the execution logic (local executors,
     # domain dispatch, REST proxy fallback); the SDK server wraps it.
     delegate = make_fallback_server(tool_executor=combined_tool_executor)
     register_all(delegate)
 
-    server = Server(SERVER_NAME, SERVER_VERSION)
+    server = Server(SERVER_NAME, version=SERVER_VERSION)
+    # MCP SDK >=2.0 removed the decorator-based low-level Server API
+    # (list_tools/call_tool/...). Detect it early and let create_server()
+    # fall back to the built-in server, which exposes the identical
+    # tool/resource/prompt surface over stdio.
+    if not hasattr(server, "list_tools"):
+        raise AttributeError(
+            "MCP SDK >=2.0 detected: decorator Server API removed; "
+            "using Pry fallback server instead"
+        )
+    # The decorator attributes only exist on SDK <2; the hasattr guard above
+    # proves they exist at runtime, and the Any cast keeps mypy happy.
+    legacy: Any = server
+    dec_list_tools = legacy.list_tools
+    dec_call_tool = legacy.call_tool
+    dec_list_resources = legacy.list_resources
+    dec_read_resource = legacy.read_resource
+    dec_list_prompts = legacy.list_prompts
+    dec_get_prompt = legacy.get_prompt
     # Marker so ``register_all`` (and callers) know the SDK server already
     # carries its registrations via handlers.
     server._pry_sdk_registered = True  # type: ignore[attr-defined]
 
-    @server.list_tools()
+    @dec_list_tools()
     async def list_tools() -> list[Tool]:
         return [
             Tool(
                 name=tool["name"],
                 description=tool.get("description", ""),
-                inputSchema=tool.get("inputSchema", {"type": "object", "properties": {}}),
+                input_schema=tool.get("inputSchema", {"type": "object", "properties": {}}),
                 annotations=tool.get("annotations"),
             )
             for tool in PRY_TOOLS
         ]
 
-    @server.call_tool()
+    @dec_call_tool()
     async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         result = await delegate.call_tool(name, arguments or {})
         if "error" in result:
@@ -119,19 +138,19 @@ def _create_sdk_server() -> Any:
             blocks.append(TextContent(type="text", text=""))
         return blocks
 
-    @server.list_resources()
+    @dec_list_resources()
     async def list_resources() -> list[Resource]:
         return [
             Resource(
-                uri=AnyUrl(r["uri"]),
+                uri=str(r["uri"]),
                 name=r["name"],
                 description=r.get("description", ""),
-                mimeType=r.get("mimeType", "text/plain"),
+                mime_type=r.get("mimeType", "text/plain"),
             )
             for r in PRY_RESOURCES
         ]
 
-    @server.read_resource()
+    @dec_read_resource()
     async def read_resource(uri: AnyUrl) -> ReadResourceResult:
         uri_str = str(uri)
         if uri_str not in delegate.resources:
@@ -139,14 +158,14 @@ def _create_sdk_server() -> Any:
         return ReadResourceResult(
             contents=[
                 TextResourceContents(
-                    uri=AnyUrl(uri_str),
-                    mimeType=delegate.resources[uri_str].get("mimeType", "text/plain"),
+                    uri=uri_str,
+                    mime_type=delegate.resources[uri_str].get("mimeType", "text/plain"),
                     text=delegate._resource_text(uri_str),
                 )
             ]
         )
 
-    @server.list_prompts()
+    @dec_list_prompts()
     async def list_prompts() -> list[Prompt]:
         return [
             Prompt(
@@ -164,7 +183,7 @@ def _create_sdk_server() -> Any:
             for p in PRY_PROMPTS
         ]
 
-    @server.get_prompt()
+    @dec_get_prompt()
     async def get_prompt(name: str, arguments: dict[str, Any]) -> GetPromptResult:
         if name not in delegate.prompts:
             raise ValueError(f"Prompt not found: {name}")
@@ -173,7 +192,8 @@ def _create_sdk_server() -> Any:
             description=delegate.prompts[name].get("description", ""),
             messages=[
                 PromptMessage(
-                    role=Role.USER if m.get("role") == "user" else Role.ASSISTANT,
+                    # mcp SDK >=2: Role is Literal["user", "assistant"], not an enum.
+                    role="user" if m.get("role") == "user" else "assistant",
                     content=TextContent(type="text", text=m.get("content", {}).get("text", "")),
                 )
                 for m in messages
@@ -186,7 +206,12 @@ def _create_sdk_server() -> Any:
 def create_server() -> Any:
     """Create the MCP server (uses official SDK if available, fallback otherwise)."""
     if _has_mcp_sdk:
-        return _create_sdk_server()
+        try:
+            return _create_sdk_server()
+        except AttributeError as exc:
+            # MCP SDK >=2.0 removed the decorator API — fall back to the
+            # built-in server (same tools/resources/prompts over stdio).
+            logger.warning("mcp_sdk_server_unavailable: %s", exc)
     # Crypto-market and marketplace-intelligence tools (pry_token_launches /
     # pry_cex_listings / pry_token_security / pry_amazon_product /
     # pry_amazon_search / pry_walmart_product / pry_tiktok_trending) execute
