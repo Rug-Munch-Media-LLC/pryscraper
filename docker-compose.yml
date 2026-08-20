@@ -138,7 +138,7 @@ services:
     restart: unless-stopped
     init: true
     ports:
-      - "127.0.0.1:9090:9090"
+      - "127.0.0.1:${PRY_PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - prometheus-data:/prometheus
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -168,7 +168,7 @@ services:
     restart: unless-stopped
     init: true
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${PRY_GRAFANA_PORT:-3000}:3000"
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
