@@ -24,7 +24,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + pre-commit
         run: |
           apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl
@@ -38,7 +38,7 @@ jobs:
     container:
       image: node:22-bookworm-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0  # Need full history to check all commits in PR
       - name: Install commitlint
@@ -61,7 +61,7 @@ jobs:
     container:
       image: python:3.12-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install semgrep
         run: pip install semgrep
       - name: Semgrep SAST scan
@@ -91,7 +91,7 @@ jobs:
           apt-get install -y --no-install-recommends nodejs
           rm -rf /var/lib/apt/lists/*
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install system deps
         run: |
@@ -135,7 +135,7 @@ jobs:
           apt-get install -y --no-install-recommends nodejs
           rm -rf /var/lib/apt/lists/*
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install uv + setup
         run: |
           apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
@@ -160,7 +160,7 @@ jobs:
           apt-get install -y --no-install-recommends nodejs
           rm -rf /var/lib/apt/lists/*
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install uv + setup
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl ca-certificates && rm -rf /var/lib/apt/lists/*
@@ -228,7 +228,7 @@ jobs:
           apt-get install -y --no-install-recommends nodejs
           rm -rf /var/lib/apt/lists/*
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install uv + setup
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl ca-certificates && rm -rf /var/lib/apt/lists/*
@@ -251,7 +251,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install deps
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc curl git ca-certificates
@@ -286,7 +286,7 @@ jobs:
           apt-get install -y --no-install-recommends nodejs
           rm -rf /var/lib/apt/lists/*
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Run gitleaks
@@ -308,7 +308,7 @@ jobs:
           apt-get install -y --no-install-recommends nodejs
           rm -rf /var/lib/apt/lists/*
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install uv + setup
         run: |
           apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
@@ -332,7 +332,7 @@ jobs:
     container:
       image: koalaman/shellcheck-alpine:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: ShellCheck all shell scripts
         run: |
           find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.venv/*" -not -path "*/sdks/*" -exec shellcheck -x {} +
@@ -341,7 +341,7 @@ jobs:
     runs-on: docker-x64
     needs: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Build image for scanning
         run: docker build -t app:${{ github.sha }} .
       - name: Run Trivy vulnerability scanner
@@ -363,7 +363,7 @@ jobs:
     container:
       image: python:3.12-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install pip-audit + deps
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc git ca-certificates curl
@@ -380,7 +380,7 @@ jobs:
       image: python:3.11-slim
     needs: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Check dependency freshness
         run: |
           pip install libyear 2>/dev/null || true
@@ -401,7 +401,7 @@ jobs:
     container:
       image: grafana/k6:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Create results directory
         run: mkdir -p tests/k6/results
       - name: Run k6 smoke test against live deployment
@@ -427,7 +427,7 @@ jobs:
           curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
           apt-get install -y --no-install-recommends nodejs
           rm -rf /var/lib/apt/lists/*
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Setup uv + deps
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -457,7 +457,7 @@ jobs:
           curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
           apt-get install -y --no-install-recommends nodejs
           rm -rf /var/lib/apt/lists/*
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Setup uv + deps
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -479,7 +479,7 @@ jobs:
     runs-on: docker-x64
     needs: [test, typecheck]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Generate SBOM (CycloneDX)
         uses: anchore/sbom-action@v0
         with:
@@ -530,7 +530,7 @@ jobs:
       image: node:22-bookworm-slim
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Install Open Code Review
@@ -592,7 +592,7 @@ jobs:
     container:
       image: golang:1.22-bookworm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install archfit
         run: go install github.com/alexei-led/archfit/cmd/archfit@latest || echo "archfit install skipped"
         continue-on-error: true
@@ -609,7 +609,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Install scanners
@@ -628,7 +628,7 @@ jobs:
     container:
       image: python:3.11-slim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Noseyparker full-history secret hunt
