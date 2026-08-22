@@ -107,3 +107,9 @@ stopwords = [
   "your-api-key-here",
   "TODO: add real key",
 ]
+
+# mutmut sandbox — regenerated locally, never committed; uv.lock package names
+# (meth_keys etc.) false-positive the ethereum-private-key rule
+[[rules.allowlists]]
+description = "mutmut sandbox"
+paths = ['''mutants/''']
