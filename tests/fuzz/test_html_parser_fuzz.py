@@ -77,13 +77,24 @@ def test_jsoncss_extraction_never_crashes(html: str) -> None:
         pytest.fail(f"JsonCssExtractionStrategy crashed on input: {e}")
 
 
-@given(url=st.text(min_size=1, max_size=2000).filter(lambda s: s.strip()))
+@given(url=st.text(min_size=1, max_size=2000))
 @settings(max_examples=200, deadline=3000)
 def test_url_parser_never_crashes(url: str) -> None:
-    """URL parsing should handle any string input."""
-    from urllib.parse import urlparse
+    """url_guard.validate_url must never CRASH on any input.
 
-    try:
-        urlparse(url)
-    except Exception:  # noqa: BLE001 - fuzz: urlparse must never raise on any input
-        pytest.fail(f"urlparse crashed on: {url!r}")
+    Malformed URLs are routine in scraping. The guard's documented contract is
+    to reject unsafe/malformed input with InvalidRequestError — only an
+    unexpected exception (TypeError, IndexError, ...) is a real bug.
+
+    Note: the previous version of this test fuzzed stdlib urlparse directly and
+    asserted it never raises — an impossible property (CPython raises
+    ValueError on '//['). Fuzz the production guard instead.
+    """
+    import contextlib
+
+    from errors import InvalidRequestError
+    from url_guard import validate_url
+
+    # safe rejection — the documented contract; anything else propagates
+    with contextlib.suppress(InvalidRequestError):
+        validate_url(url, resolve_dns=False)  # no DNS in fuzzing

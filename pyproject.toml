@@ -302,6 +302,7 @@ include = [
 
 [tool.ruff]
 extend = "../standards/templates/ruff-base.toml"
+exclude = ["mutants", "_archive", "build", "dist"]
 
 [tool.ruff.lint]
 extend-select = ["A", "BLE"]
@@ -450,4 +451,4 @@ exclude = ["tests/*", "setup.py", "browser-extension/*", "shopify-app/*"]
 # mutmut 3.x — core parsing/extraction scope per AI Test Oracle Policy
 [tool.mutmut]
 source_paths = ["parser.py", "extraction.py", "extractor.py", "dedup.py", "quality.py"]
-pytest_add_cli_args_test_selection = ["tests/test_parser.py", "tests/test_extractor.py", "tests/test_quality.py", "tests/test_pry_mcp_quality.py", "--deselect", "tests/test_pry_mcp_quality.py::TestRegistryConsistency"]
+pytest_add_cli_args_test_selection = ["tests/test_parser.py", "tests/test_extractor.py", "tests/test_quality.py", "tests/test_pry_mcp_quality.py", "tests/test_dedup.py", "--deselect", "tests/test_pry_mcp_quality.py::TestRegistryConsistency"]

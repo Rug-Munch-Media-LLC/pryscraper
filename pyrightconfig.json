@@ -1,0 +1,10 @@
+{
+	"exclude": [
+		"_archive",
+		"**/__pycache__",
+		"build",
+		"dist",
+		"mutants",
+		"node_modules"
+	]
+}
