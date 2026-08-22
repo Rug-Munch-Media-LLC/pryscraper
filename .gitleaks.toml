@@ -85,6 +85,9 @@ paths = [
   # hostnames exercised) — not secrets. Also in .gitignore (audit P2-13).
   '''\.hypothesis/''',
   '''vendor/''',
+  # mutmut mutation-testing working dir (generated, gitignored): uv.lock
+  # sha256 integrity hashes trip the ethereum-private-key regex.
+  '''mutants/''',
   # URL guard: RFC1918/RFC6598 CIDR ranges defined intentionally in security code
   '''url_guard\.py''',
   # URL guard tests: test fixtures with example IPs
