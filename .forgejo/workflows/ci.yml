@@ -22,7 +22,7 @@ jobs:
   pre-commit-mirror:
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install system deps + pre-commit
@@ -59,7 +59,7 @@ jobs:
   semgrep:
     runs-on: docker-x64
     container:
-      image: python:3.12-slim
+      image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install semgrep
@@ -81,7 +81,7 @@ jobs:
   lint:
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - name: Install Node.js for actions/checkout
         run: |
@@ -126,7 +126,7 @@ jobs:
   typecheck:
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - name: Install Node.js for actions/checkout
         run: |
@@ -151,7 +151,7 @@ jobs:
   test:
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - name: Install Node.js for actions/checkout
         run: |
@@ -196,7 +196,7 @@ jobs:
     if: github.event_name == 'schedule'
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     services:
       postgres:
         image: postgres:16-alpine
@@ -249,7 +249,7 @@ jobs:
     runs-on: docker-x64
     needs: test
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install deps
@@ -277,7 +277,7 @@ jobs:
     name: Secret scan (gitleaks)
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - name: Install Node.js for actions/checkout
         run: |
@@ -299,7 +299,7 @@ jobs:
     name: Security audit (bandit)
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - name: Install Node.js for actions/checkout
         run: |
@@ -330,7 +330,7 @@ jobs:
   shellcheck:
     runs-on: docker-x64
     container:
-      image: koalaman/shellcheck-alpine:latest
+      image: localhost/ci-alpine-node:3.19
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: ShellCheck all shell scripts
@@ -361,7 +361,7 @@ jobs:
     runs-on: docker-x64
     needs: test
     container:
-      image: python:3.12-slim
+      image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install pip-audit + deps
@@ -377,7 +377,7 @@ jobs:
   deps-freshness:
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     needs: test
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -418,7 +418,7 @@ jobs:
   fuzz:
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     needs: test
     steps:
       - name: Install Node.js + deps
@@ -448,7 +448,7 @@ jobs:
   contract-test:
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     needs: test
     steps:
       - name: Install deps
@@ -590,7 +590,7 @@ jobs:
   archfit:
     runs-on: docker-x64
     container:
-      image: golang:1.22-bookworm
+      image: localhost/ci-golang-node:1.22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install archfit
@@ -607,7 +607,7 @@ jobs:
   supply-chain:
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -626,7 +626,7 @@ jobs:
     if: ${{ github.event_name == 'schedule' }}
     runs-on: docker-x64
     container:
-      image: python:3.11-slim
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
