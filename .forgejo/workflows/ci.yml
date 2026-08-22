@@ -73,7 +73,7 @@ jobs:
             --exclude='.venv/' \
             --sarif=semgrep.sarif \
             .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
           name: semgrep-report
           path: semgrep.sarif
@@ -321,7 +321,7 @@ jobs:
       - name: Bandit (high+medium severity)
         run: source /tmp/bandit-venv/bin/activate && bandit -r . -x tests/,.venv,__pycache__ -ll -f json -o bandit-report.json
       - name: Upload report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: bandit-report
           path: bandit-report.json
@@ -352,7 +352,7 @@ jobs:
           output: 'trivy-results.sarif'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
           name: trivy-results
           path: trivy-results.sarif
@@ -409,7 +409,7 @@ jobs:
           k6 run tests/k6/smoke.js \
             -e BASE_URL=${{ vars.K6_TARGET_URL || 'https://pry.example.com' }} \
             --summary-export=tests/k6/results/smoke-summary.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: k6-smoke-report
@@ -439,7 +439,7 @@ jobs:
           source .venv/bin/activate
           HYPOTHESIS_PROFILE=ci python -m pytest tests/fuzz/ -v --tb=short || echo "Fuzz tests noted (non-blocking)"
         continue-on-error: true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: fuzz-results
@@ -469,7 +469,7 @@ jobs:
           source .venv/bin/activate
           python -m pytest tests/contract/ -v --tb=short
       - name: Upload pact files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: pacts
@@ -493,7 +493,7 @@ jobs:
             echo "❌ SBOM file not generated"
             exit 1
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
           name: sbom
           path: sbom.spdx.json
@@ -579,7 +579,7 @@ jobs:
           fi
         continue-on-error: true
       - name: Upload OCR report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: ocr-review-report
           path: |
