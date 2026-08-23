@@ -1,0 +1,76 @@
+# Pry - Apify Actor CI gateway.
+# Validates the .actor/ packaging on every push and publishes the actor to
+# the Apify platform when APIFY_TOKEN is configured (main branch only).
+# The actor lets any Apify customer run Pry's 12-tier scraper as an Actor
+# and monetizes through Apify's platform pricing.
+
+name: Apify Actor
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".actor/**"
+      - "apify_actor.py"
+      - "apify_schema.py"
+      - "requirements.lock"
+      - ".forgejo/workflows/apify-actor.yml"
+  pull_request:
+    paths:
+      - ".actor/**"
+      - "apify_actor.py"
+      - "apify_schema.py"
+  workflow_dispatch: {}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate actor packaging
+        run: |
+          python3 - << 'PY'
+          import json, sys
+          from pathlib import Path
+
+          actor = Path(".actor")
+          spec = json.loads((actor / "actor.json").read_text())
+          assert spec.get("actorSpecification") == 1, "bad actorSpecification"
+          assert spec.get("name"), "actor name required"
+          docker = actor / spec["dockerFile"].lstrip("./")
+          assert docker.exists(), f"dockerFile missing: {spec['dockerFile']}"
+          # input schema must be valid JSON Schema-ish with required urls
+          props = spec["input"]["schema"]["properties"]
+          assert "urls" in props, "urls input required"
+          print(f"OK: actor '{spec['name']}' v{spec['version']} packaging valid")
+          PY
+
+      - name: Adapter unit tests
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install --disable-pip-version-check -q pytest pytest-asyncio \
+            && pip install -q -r requirements.lock || true
+          python -m pytest tests/test_apify_actor.py tests/test_apify_schema.py -q
+
+  build:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build actor image (no push)
+        run: docker build -f .actor/Dockerfile.apify -t pry-actor:ci .
+
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main' && env.APIFY_TOKEN != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish to Apify
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+        run: |
+          pip install --disable-pip-version-check -q apify-cli
+          apify push --token "$APIFY_TOKEN"

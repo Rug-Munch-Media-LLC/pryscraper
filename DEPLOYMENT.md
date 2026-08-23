@@ -1,97 +1,81 @@
-[//]: # (SPDX-License-Identifier: MIT)
-[//]: # (Copyright (c) 2026 Rug Munch Media LLC)
-# DEPLOYMENT.md — PryScraper
+# Pry — Production Deployment Guide
 
-> How to deploy. Build, push, restart, rollback.
+Audience: operators deploying Pry for production traffic.
+Companion docs: [README](README.md) · [FAQ](FAQ.md) · [Architecture](#architecture-notes)
 
-## Architecture
-- Container: Docker
-- Image registry: local/private
-- Orchestration: docker-compose
-- Reverse proxy: nginx
-- Auto-deploy: forgejo webhook → deploy script
+## 1. Environment matrix
 
-## Deploy
+| Setting | dev | staging / prod |
+|---|---|---|
+| Database | embedded SQLite (`PRY_DATA_DIR/pry.db`) | **PostgreSQL** (default; SQLite needs `PRY_ALLOW_SQLITE_PROD=1`) |
+| Rate limiting | in-process token bucket | Redis-backed (automatic when `PRY_REDIS_URL` reachable) |
+| Auth | keyless loopback | `PRY_API_KEY` set ⇒ Bearer required from every source |
+| Profile | `PRY_ENVIRONMENT=dev` | `PRY_ENVIRONMENT=prod` (or `staging`)
 
-### Automatic (CI/CD)
-On merge to `main`:
-1. forgejo webhook fires
-2. Deploy script pulls latest commit
-3. Rebuilds Docker image
-4. Stops old container, starts new
-5. Runs health check
-6. Rolls back on failure
+Resolution order for the database: explicit `PRY_DATABASE_URL` → profile
+default (Postgres for prod/staging, SQLite for dev). The x402 route
+classification audit runs at boot in strict mode; relax with
+`PRY_X402_AUDIT=warn|off` only when you understand why.
 
-### Manual
+## 2. Required secrets (never in git)
+
+| Secret | Purpose | Source |
+|---|---|---|
+| `PRY_API_KEY` | API auth (fail-closed when set) | generate: `openssl rand -hex 24` |
+| `PRY_WEBHOOK_SECRET` | HMAC webhook signing | gopass `pry/webhook_secret` or generate |
+| `X402_WALLET` / facilitator key | payment settlement | hardware/managed KMS preferred |
+
+Pry refuses to deliver unsigned webhooks and refuses to settle payments
+without a configured facilitator — configure these before exposing traffic.
+
+## 3. Docker Compose (recommended)
+
 ```bash
-# On the deploy host
-cd /path/to/pryscraper
-git pull origin main
-docker build -t pryscraper:latest .
-docker stop pryscraper && docker rm pryscraper
-docker run -d --name pryscraper --restart unless-stopped --network host -p 8005:8005 pryscraper:latest
+export PRY_API_KEY=$(openssl rand -hex 24)
+docker compose up -d          # pry + postgres + redis + flaresolverr
+curl -s http://localhost:8005/health | jq .status
 ```
 
-### Schema Migrations (Alembic)
+The compose stack ships hardened defaults: digest-pinned images, non-root
+container user, read-only rootfs compatible, SIGTERM drain, healthchecks.
 
-The container entrypoint (`docker-entrypoint.sh`) runs Alembic before starting uvicorn:
+## 4. Post-deploy checklist
 
-1. `alembic stamp head` — idempotent. Marks the DB as up-to-date without running migrations (preserves existing data when schema already matches).
-2. On stamp failure: `alembic upgrade head` — applies pending migrations from scratch.
-3. `exec "$@"` — chains to the CMD (uvicorn).
+- [ ] `/health` returns `ok` and `/ready` reflects Postgres+Redis connectivity
+- [ ] `PRY_X402_AUDIT` boot log shows `x402_audit_clean`
+- [ ] `/v1/x402/pricing` lists expected operations
+- [ ] Prometheus scrapes `/metrics`; alerts from `prometheus/alerts.yml` loaded
+- [ ] One paid request verified end-to-end (402 → pay → 200)
+- [ ] Webhook test delivery signed and received (`POST /v1/webhooks/test`)
+- [ ] Backups: Postgres dumps scheduled and restore-tested
 
-`PRY_SKIP_MIGRATIONS=1` skips the migration step entirely (for read-only debug runs).
+## 5. Scaling notes
 
-Manual migration commands:
-```bash
-docker exec pry alembic current
-docker exec pry alembic history
-docker exec pry alembic upgrade head   # apply pending
-docker exec pry alembic stamp head     # mark up-to-date without applying
-```
+- **API tier is stateless** — scale replicas behind any LB. Sessions/jobs
+  state lives in the database.
+- **Rate limiting** switches to shared Redis counters automatically; without
+  Redis each replica enforces its own bucket (documented behaviour).
+- **Browser tiers** are the expensive path: size workers for Chromium memory
+  (~300 MB per concurrent render) and prefer FlareSolverr as a sidecar pool.
+- **k6 smoke** (`perf/smoke.js`, 10 VUs) gates every serving-path change in
+  CI; run the nightly 50-VU profile against staging from fleet-infra.
 
-Create a new migration:
-```bash
-docker exec pry alembic revision --autogenerate -m "describe the change"
-# then COPY the file out, review, commit to pryscraper repo
-docker cp pry:/app/alembic/versions/<new>.py ./alembic/versions/
-```
+## 6. Upgrades
 
-## Health Check
-```bash
-curl -fsS http://localhost:8005/health
-```
+1. Read the changelog; note breaking env/route changes.
+2. `pip install` / pull image pinned by `requirements.lock` (never loose ranges).
+3. Run migrations: `python -m db.migrations` (Alembic-backed).
+4. Rolling restart behind the LB; `/ready` gates traffic shift.
+5. Verify checklist §4 items 1–3 post-rollout.
 
-## Rollback
-```bash
-# On the deploy host
-cd /path/to/pryscraper
-git log --oneline -5   # find last good commit
-git checkout <commit-hash>
-docker build -t pryscraper:latest .
-docker restart pryscraper
-```
+## Architecture notes
 
-## Logs
-```bash
-docker logs pryscraper --tail 100 -f
-```
+- **Serving path**: uvicorn → PryHttpMiddleware (auth/rate-limit/metrics) →
+  X402Middleware (payment gate) → CORS → FastAPI routers.
+- **Scrape pipeline**: UltimateScraper adaptive tier chain → block-signal
+  detection → extraction/quality modules (mutation-tested core).
+- **Payments**: self-hosted EIP-3009 facilitator with local ecrecover,
+  nonce replay store, idempotent settlement and classified RPC errors.
 
-## Monitoring
-- Prometheus: `/metrics` endpoint
-- Grafana: dashboards
-- Loki: log aggregation
-
-## Secrets
-All secrets in a secrets manager (e.g. gopass, 1Password, vault).
-
-Loaded via docker `--env-file` or systemd `EnvironmentFile`.
-
-## Firewall
-- Public ports: nginx
-- Internal: localhost only, behind nginx
-
-## Backup
-- Code: forgejo (source of truth)
-- Data: DB snapshot daily
-- Config: secrets manager
+See `docs/specs/fetch-stack-consolidation.md` for the engine unification
+roadmap and `MUTATION_BASELINE.md` for the testing-oracle methodology.

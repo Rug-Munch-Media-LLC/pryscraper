@@ -1,97 +1,123 @@
 {
-    "actorSpecification": 1,
-    "name": "pry",
-    "title": "Pry — Universal Web Scraper",
-    "description": "Scrape any website with 12-tier automatic fallback. Bypasses Cloudflare, DataDome, Akamai, and other anti-bot systems. Self-hosted, no API keys needed.",
-    "version": "3.0.0",
-    "dockerFile": "./Dockerfile.apify",
-    "input": {
-        "type": "object",
-        "schema": {
-            "type": "object",
-            "title": "Pry Scraper Input",
-            "required": ["urls"],
-            "properties": {
-                "urls": {
-                    "title": "URLs to scrape",
-                    "type": "array",
-                    "description": "One or more URLs to scrape. Each URL is processed through up to 12 fallback tiers.",
-                    "editor": "stringList",
-                    "items": {
-                        "type": "string",
-                        "pattern": "^https?://"
-                    }
-                },
-                "crawl": {
-                    "title": "Crawl linked pages",
-                    "type": "boolean",
-                    "description": "If enabled, follows same-domain links and scrapes them too (up to max_pages total).",
-                    "default": false
-                },
-                "max_pages": {
-                    "title": "Max pages to scrape",
-                    "type": "integer",
-                    "description": "Maximum number of pages to scrape (including crawl).",
-                    "default": 10,
-                    "minimum": 1,
-                    "maximum": 1000
-                },
-                "timeout": {
-                    "title": "Timeout (seconds)",
-                    "type": "integer",
-                    "description": "Per-URL request timeout in seconds.",
-                    "default": 30,
-                    "minimum": 5,
-                    "maximum": 120
-                },
-                "output_format": {
-                    "title": "Output format",
-                    "type": "string",
-                    "description": "The output format for extracted content.",
-                    "enum": ["markdown", "html", "text"],
-                    "default": "markdown"
-                },
-                "proxy_config": {
-                    "title": "Proxy configuration",
-                    "type": "object",
-                    "description": "Proxy settings for scraping.",
-                    "properties": {
-                        "use_apify_proxies": {
-                            "title": "Use Apify proxy",
-                            "type": "boolean",
-                            "description": "Route requests through Apify's datacenter proxy.",
-                            "default": true
-                        }
-                    }
-                }
-            }
-        }
-    },
-    "output": {
-        "type": "object",
-        "schema": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "required": ["url", "status"],
-                "properties": {
-                    "url": { "type": "string" },
-                    "status": { "type": "string", "enum": ["ok", "error", "skipped"] },
-                    "content": { "type": "string" },
-                    "method": { "type": "string" },
-                    "error": { "type": "string" },
-                    "scraped_at": { "type": "string", "format": "date-time" },
-                    "elapsed_seconds": { "type": "number" },
-                    "metadata": {
-                        "type": "object",
-                        "properties": {
-                            "domain": { "type": "string" },
-                            "content_length": { "type": "integer" },
-                            "method": { "type": "string" }
-                        }
-                    }
-                }
-            }
-        }
-    }
+	"actorSpecification": 1,
+	"name": "pry",
+	"title": "Pry \u2014 Universal Web Scraper",
+	"description": "Scrape any website with 12-tier automatic fallback. Bypasses Cloudflare, DataDome, Akamai, and other anti-bot systems. Self-hosted, no API keys needed.",
+	"version": "3.0.0",
+	"dockerFile": "./Dockerfile.apify",
+	"input": {
+		"type": "object",
+		"schema": {
+			"type": "object",
+			"title": "Pry Scraper Input",
+			"required": ["urls"],
+			"properties": {
+				"urls": {
+					"title": "URLs to scrape",
+					"type": "array",
+					"description": "One or more URLs to scrape. Each URL is processed through up to 12 fallback tiers.",
+					"editor": "stringList",
+					"items": {
+						"type": "string",
+						"pattern": "^https?://"
+					}
+				},
+				"crawl": {
+					"title": "Crawl linked pages",
+					"type": "boolean",
+					"description": "If enabled, follows same-domain links and scrapes them too (up to max_pages total).",
+					"default": false
+				},
+				"max_pages": {
+					"title": "Max pages to scrape",
+					"type": "integer",
+					"description": "Maximum number of pages to scrape (including crawl).",
+					"default": 10,
+					"minimum": 1,
+					"maximum": 1000
+				},
+				"timeout": {
+					"title": "Timeout (seconds)",
+					"type": "integer",
+					"description": "Per-URL request timeout in seconds.",
+					"default": 30,
+					"minimum": 5,
+					"maximum": 120
+				},
+				"output_format": {
+					"title": "Output format",
+					"type": "string",
+					"description": "The output format for extracted content.",
+					"enum": ["markdown", "html", "text"],
+					"default": "markdown"
+				},
+				"proxy_config": {
+					"title": "Proxy configuration",
+					"type": "object",
+					"description": "Proxy settings for scraping.",
+					"properties": {
+						"use_apify_proxies": {
+							"title": "Use Apify proxy",
+							"type": "boolean",
+							"description": "Route requests through Apify's datacenter proxy.",
+							"default": true
+						}
+					}
+				}
+			}
+		}
+	},
+	"output": {
+		"type": "object",
+		"schema": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"required": ["url", "status"],
+				"properties": {
+					"url": {
+						"type": "string"
+					},
+					"status": {
+						"type": "string",
+						"enum": ["ok", "error", "skipped"]
+					},
+					"content": {
+						"type": "string"
+					},
+					"method": {
+						"type": "string"
+					},
+					"error": {
+						"type": "string"
+					},
+					"scraped_at": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"elapsed_seconds": {
+						"type": "number"
+					},
+					"metadata": {
+						"type": "object",
+						"properties": {
+							"domain": {
+								"type": "string"
+							},
+							"content_length": {
+								"type": "integer"
+							},
+							"method": {
+								"type": "string"
+							}
+						}
+					},
+					"raw_html": {
+						"type": "string",
+						"description": "Raw HTML of the scraped page (present when status=ok)."
+					}
+				}
+			}
+		}
+	}
 }

@@ -1,0 +1,57 @@
+# Pry - k6 performance smoke (standards-mandated gate).
+# 10 VUs for 30s against a running instance. Thresholds are SMOKE-level
+# (catch gross regressions), not load-certification. The nightly 50-VU
+# profile lives in fleet-infra and runs against staging.
+
+name: Performance smoke (k6)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api.py"
+      - "middleware.py"
+      - "ultimate_scraper.py"
+      - "perf/**"
+      - ".forgejo/workflows/perf-smoke.yml"
+  pull_request:
+    paths:
+      - "perf/**"
+      - ".forgejo/workflows/perf-smoke.yml"
+  workflow_dispatch: {}
+
+jobs:
+  k6-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start Pry (uvicorn, SQLite dev profile)
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install --disable-pip-version-check -q -r requirements.lock
+          # Keyless loopback mode (no gopass on CI): no auth needed for k6,
+          # and the IP-based limiter is raised so the smoke exercises
+          # endpoints, not the limiter.
+          export PRY_ENVIRONMENT=dev PRY_API_KEY="" PRY_RATE_LIMIT_RPM=100000
+          nohup uvicorn api:app --host 127.0.0.1 --port 8005 &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8005/health && break || sleep 2
+          done
+          curl -sf http://127.0.0.1:8005/health
+
+      - name: Run k6 smoke
+        uses: grafana/setup-k6-action@v1
+
+      - name: Execute smoke scenario
+        run: k6 run perf/smoke.js
+
+      - name: Upload k6 summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-smoke-summary
+          path: perf/smoke-summary.json
+          retention-days: 14

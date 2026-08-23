@@ -1,0 +1,155 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+"""Tests for the Apify actor adapter (apify_actor.py) and .actor packaging.
+
+The actor is a distribution channel for the scraper: these tests pin the
+dataset-item contract Apify customers depend on, the crawl-link extraction
+rules, and validate the .actor/ packaging is internally consistent.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from unittest.mock import AsyncMock
+
+import pytest
+
+from apify_actor import _extract_links, scrape_url
+
+REPO = Path(__file__).resolve().parents[1]
+
+
+class TestExtractLinks:
+    def test_same_domain_kept_cross_domain_dropped(self) -> None:
+        html = (
+            '<a href="http://e.com/a">a</a>'
+            '<a href="http://other.com/b">b</a>'
+            '<a href="https://e.com/c">c</a>'
+        )
+        links = _extract_links(html, "http://e.com/start")
+        assert links == ["http://e.com/a", "https://e.com/c"]
+
+    def test_root_relative_href_resolved(self) -> None:
+        html = '<a href="/sub/page">x</a>'
+        links = _extract_links(html, "http://e.com/dir/page")
+        assert "http://e.com/sub/page" in links
+
+    def test_fragments_deduplicated(self) -> None:
+        html = (
+            '<a href="http://e.com/page">p</a>'
+            '<a href="http://e.com/page#section">dup</a>'
+            '<a href="http://e.com/page">again</a>'
+        )
+        links = _extract_links(html, "http://e.com/")
+        assert links == ["http://e.com/page"]
+
+    def test_cap_fifty_per_page(self) -> None:
+        html = "".join(f'<a href="http://e.com/{i}">{i}</a>' for i in range(80))
+        assert len(_extract_links(html, "http://e.com/")) == 50
+
+    def test_no_links_returns_empty(self) -> None:
+        assert _extract_links("<p>no anchors here</p>", "http://e.com/") == []
+
+
+class TestScrapeUrlContract:
+    @pytest.fixture
+    def scraper(self):
+        return AsyncMock()
+
+    @pytest.mark.asyncio
+    async def test_success_item_shape(self, scraper) -> None:
+        scraper.scrape = AsyncMock(
+            return_value={
+                "status": "ok",
+                "content": "# Heading\n\nbody text",
+                "raw_html": "<h1>Heading</h1>",
+                "method": "direct",
+            }
+        )
+        item = await scrape_url(scraper, "http://example.com/x", {})
+        assert item["url"] == "http://example.com/x"
+        assert item["status"] == "ok"
+        assert item["method"] == "direct"
+        assert item["content"] == "# Heading\n\nbody text"
+        assert item["metadata"] == {
+            "domain": "example.com",
+            "content_length": len("# Heading\n\nbody text"),
+            "method": "direct",
+        }
+        assert "scraped_at" in item
+        assert isinstance(item["elapsed_seconds"], float)
+
+    @pytest.mark.asyncio
+    async def test_error_item_has_error_not_content(self, scraper) -> None:
+        scraper.scrape = AsyncMock(return_value={"status": "error", "error": "all_tiers_failed"})
+        item = await scrape_url(scraper, "http://example.com/dead", {})
+        assert item["status"] == "error"
+        assert item["error"] == "all_tiers_failed"
+        assert "content" not in item
+        assert "metadata" not in item
+
+    @pytest.mark.asyncio
+    async def test_options_forwarded_to_scraper(self, scraper) -> None:
+        scraper.scrape = AsyncMock(return_value={"status": "error", "error": "x"})
+        opts = {"timeout": 42, "output_format": "text"}
+        await scrape_url(scraper, "http://example.com/o", opts)
+        scraper.scrape.assert_awaited_once_with("http://example.com/o", opts)
+
+
+class TestActorPackaging:
+    """The actor must be shippable: spec files valid and mutually consistent."""
+
+    @staticmethod
+    def _actor_spec() -> dict:
+        return json.loads((REPO / ".actor" / "actor.json").read_text())
+
+    def test_actor_json_valid_and_buildable(self) -> None:
+        spec = self._actor_spec()
+        assert spec["actorSpecification"] == 1
+        assert spec["name"]
+        assert spec["version"]
+        # dockerFile must point at a file that EXISTS (it was missing once -
+        # the actor could not build on the platform at all).
+        dockerfile = REPO / ".actor" / spec["dockerFile"].lstrip("./")
+        assert dockerfile.exists(), f"referenced Dockerfile missing: {spec['dockerFile']}"
+
+    def test_input_schema_contract(self) -> None:
+        props = self._actor_spec()["input"]["schema"]["properties"]
+        assert props["urls"]["type"] == "array"
+        assert "output_format" in props
+        assert set(props["output_format"]["enum"]) == {"markdown", "html", "text"}
+
+    def test_output_schema_covers_emitted_fields(self) -> None:
+        out = self._actor_spec()["output"]["schema"]["items"]
+        declared = set(out["properties"])
+        emitted = {
+            "url",
+            "status",
+            "method",
+            "scraped_at",
+            "elapsed_seconds",
+            "content",
+            "raw_html",
+            "metadata",
+            "error",
+        }
+        missing = emitted - declared
+        assert not missing, f"scrape_url emits fields absent from output schema: {missing}"
+
+    def test_dockerfile_installs_lock_and_sdk(self) -> None:
+        dockerfile = (REPO / ".actor" / "Dockerfile.apify").read_text()
+        assert "requirements.lock" in dockerfile  # pinned installs
+        assert "apify-sdk" in dockerfile
+        assert "playwright install chromium" in dockerfile
+
+    def test_entry_point_imports_without_sdk(self) -> None:
+        """apify_actor.py imports cleanly WITHOUT apify-sdk installed
+        (Actor is imported lazily inside main()) - the main suite must
+        never depend on the SDK."""
+        import apify_actor
+
+        assert hasattr(apify_actor, "main")

@@ -61,24 +61,27 @@ logger = logging.getLogger(__name__)
 
 
 def _extract_links(html: str, base_url: str) -> list[str]:
-    """Extract same-domain links from raw HTML for crawling."""
+    """Extract same-domain links from raw HTML for crawling.
+
+    Handles absolute URLs AND root-relative hrefs (``/path``) - the latter
+    are the majority on real sites and were previously dropped entirely,
+    crippling crawl mode (the old relative branch was unreachable because
+    the only regex matched absolute URLs).
+    """
     links: list[str] = []
     parsed_base = urlparse(base_url)
     domain = parsed_base.netloc
-    scheme = parsed_base.scheme
 
-    for href in re.findall(r'href=["\'](https?://[^"\']+)["\']', html, re.IGNORECASE):
+    hrefs = re.findall(r'href=["\'](https?://[^"\']+)["\']', html, re.IGNORECASE)
+    hrefs += re.findall(r'href=["\'](/[^"\']*)["\']', html, re.IGNORECASE)
+
+    for href in hrefs:
         link = urljoin(base_url, href)
         link_parsed = urlparse(link)
         if link_parsed.netloc == domain and link_parsed.scheme in ("http", "https"):
-            # Deduplicate by removing fragment
             clean = link.split("#")[0]
             if clean not in links:
                 links.append(clean)
-        elif link.startswith("/"):
-            full = f"{scheme}://{domain}{link}"
-            if full not in links:
-                links.append(full)
 
     return links[:50]  # cap per page
 

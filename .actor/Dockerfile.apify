@@ -1,0 +1,30 @@
+# Pry — Apify Actor image.
+# Builds on Apify's official Python base so the actor runs on the Apify
+# platform with the SDK preinstalled. Installs Pry's pinned dependencies
+# plus Playwright Chromium for the browser tiers.
+
+FROM apify/actor-python:3.13
+
+# System deps for Playwright/Camoufox browsers and document parsing.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    chromium \
+    fonts-liberation \
+    poppler-utils \
+    tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/app
+
+# Dependencies first for layer caching.
+COPY requirements.lock .
+RUN pip install --no-cache-dir --disable-pip-version-check -r requirements.lock \
+    && pip install --no-cache-dir --disable-pip-version-check "apify-sdk>=2.7" \
+    && python -m playwright install chromium 2>&1 | tail -1
+
+# Actor source + application code.
+COPY .actor/src/main.py .actor/src/main.py
+COPY apify_actor.py apify_schema.py ./
+COPY *.py ./
+
+CMD ["python", ".actor/src/main.py"]
