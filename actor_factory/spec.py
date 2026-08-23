@@ -49,6 +49,7 @@ VALID_EDITORS = {
 
 SYNTHETIC_EVENTS = {"apify-actor-start", "apify-default-dataset-item"}
 
+
 EVENT_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 
 
@@ -133,6 +134,36 @@ class PricingEvent:
             raise ValueError(f"event '{self.name}': price must be positive")
 
 
+# Winner-pattern fields appended to every generated actor (docs patterns:
+# proxy passthrough + visible cost cap). See MARKET-ANALYSIS.md.
+WINNER_MAX_ITEMS_FIELD = InputField(
+    name="max_items",
+    title="Max items (cost cap)",
+    type="integer",
+    description=(
+        "Hard cap on processed items for this run - keeps trial costs "
+        "predictable. Billing stops when the cap or your spending limit "
+        "is reached."
+    ),
+    minimum=1,
+    default=25,
+    section_caption="Advanced",
+)
+
+WINNER_PROXY_FIELD = InputField(
+    name="proxy_configuration",
+    title="Proxy configuration",
+    type="object",
+    description=(
+        "Apify proxy settings passed through to Pry's premium-proxy tier. "
+        "Leave default to use the platform proxy automatically."
+    ),
+    editor="hidden",
+    prefill={"useApifyProxy": True},
+    section_caption="Advanced",
+)
+
+
 @dataclass(frozen=True)
 class ActorSpec:
     """Complete specification for a generated Apify actor."""
@@ -178,6 +209,17 @@ class ActorSpec:
                 f"processor '{self.processor}' not in factory registry {sorted(known)}"
             )
 
+    def effective_inputs(self) -> tuple[InputField, ...]:
+        """Inputs plus the standard winner-pattern fields every actor exposes.
+
+        Reverse-engineered from top PPE actors (see MARKET-ANALYSIS.md):
+        proxy passthrough and an explicit cost-cap input. Skipped when the
+        preset already declares them.
+        """
+        declared = {f.name for f in self.inputs}
+        extra = [f for f in (WINNER_MAX_ITEMS_FIELD, WINNER_PROXY_FIELD) if f.name not in declared]
+        return (*self.inputs, *extra)
+
     def primary_event(self) -> PricingEvent:
         """The event best representing core value (first defined)."""
         if not self.pricing_events:
@@ -204,11 +246,8 @@ class ActorSpec:
     def _input_schema(self) -> dict[str, Any]:
         properties: dict[str, Any] = {}
         required: list[str] = []
-        current_section: str | None = None
-        for f in self.inputs:
+        for f in self.effective_inputs():
             prop = f.to_schema()
-            if f.section_caption and f.section_caption != current_section:
-                current_section = f.section_caption
             properties[f.name] = prop
             if f.required:
                 required.append(f.name)

@@ -169,6 +169,10 @@ class PPEScraperRunner:
             max_pages = raw_input.get("max_pages")
             if isinstance(max_pages, int) and max_pages > 0:
                 urls = urls[:max_pages]
+            # Winner pattern: explicit user cost cap (default 25 items).
+            max_items_input = raw_input.get("max_items")
+            if isinstance(max_items_input, int) and max_items_input > 0:
+                urls = urls[:max_items_input]
             options = {k: v for k, v in raw_input.items() if k not in ("urls", "max_pages")}
             output_format = raw_input.get("output_format", self.config.default_output_format)
             options.setdefault("output_format", output_format)

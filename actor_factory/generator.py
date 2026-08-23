@@ -127,17 +127,12 @@ def generate_actor(spec: ActorSpec, out_dir: Path) -> GeneratedActor:
     actor_json.write_text(json.dumps(spec.to_actor_json(), indent=4) + "\n")
     files["actor.json"] = actor_json
 
-    # INPUT_SCHEMA.json (platform auto-detects this path)
-    input_schema = {
-        "title": f"Input schema for {spec.title}",
-        "description": spec.description,
-        "type": "object",
-        "schemaVersion": 1,
-        "properties": {f.name: f.to_schema() for f in spec.inputs},
-        "required": [f.name for f in spec.inputs if f.required],
-    }
-    if not input_schema["required"]:
-        del input_schema["required"]
+    # INPUT_SCHEMA.json (platform auto-detects this path).
+    # Must be byte-equivalent to the embedded actor.json input - both come
+    # from _input_schema() so winner-pattern fields stay in lockstep.
+    input_schema = spec._input_schema()
+    if not input_schema.get("required"):
+        input_schema.pop("required", None)
     isj = actor_dir / "INPUT_SCHEMA.json"
     isj.write_text(json.dumps(input_schema, indent=4) + "\n")
     files["INPUT_SCHEMA.json"] = isj
@@ -265,7 +260,9 @@ def _render_readme(spec: ActorSpec) -> str:
         "4. Export the dataset as JSON/CSV/Excel, or consume it via API/webhook.\n\n"
         "## How much will it cost to scrape with this Actor?\n\n"
         f"Billing is **pay-per-event**: you are charged `${primary.price_usd:.4f}` "
-        f"per `{primary.name}` ({primary.description.lower()}).\n\n"
+        f"per `{primary.name}` ({primary.description.lower()}) - that is "
+        f"**${primary.price_usd * 1000:.2f} per 1,000 items**, with no "
+        "subscription and no minimum.\n\n"
         f"Example: 100 items at {spec.min_memory_mbytes} MB costs roughly "
         f"**${example_cost['revenue_usd']:.2f}** in event charges "
         f"(platform compute adds about ${example_cost['platform_cost_usd']:.4f}). "

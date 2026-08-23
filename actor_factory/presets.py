@@ -264,6 +264,42 @@ DOC_PARSER_ACTOR = ActorSpec(
     max_memory_mbytes=4096,
 )
 
+# ── Winner-pattern shared fields (reverse-engineered from top PPE actors) ────
+
+PROXY_CONFIG_FIELD = InputField(
+    name="proxy_configuration",
+    title="Proxy configuration",
+    type="object",
+    description=(
+        "Apify proxy settings passed through to Pry's premium-proxy tier "
+        "(Apify Proxy, residential, or custom). Leave default to use the "
+        "platform proxy automatically."
+    ),
+    editor="hidden",
+    prefill={"useApifyProxy": True},
+    section_caption="Advanced",
+)
+
+MAX_ITEMS_FIELD = InputField(
+    name="max_items",
+    title="Max items (cost cap)",
+    type="integer",
+    description=(
+        "Hard cap on processed items for this run - keeps trial costs "
+        "predictable. Billing stops when the cap or your spending limit "
+        "is reached."
+    ),
+    minimum=1,
+    default=25,
+    section_caption="Advanced",
+)
+
+
+def _with_winner_fields(*extra: InputField) -> tuple[InputField, ...]:
+    """Standard trailing fields every winning actor exposes."""
+    return (*extra, MAX_ITEMS_FIELD, PROXY_CONFIG_FIELD)
+
+
 ALL_PRESETS: dict[str, ActorSpec] = {
     spec.name: spec
     for spec in (

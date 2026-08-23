@@ -319,3 +319,52 @@ class TestPortfolioScale:
         for name, spec in ALL_PRESETS.items():
             if spec.processor is not None:
                 assert spec.processor in PROCESSORS, name
+
+
+class TestWinnerPatterns:
+    """Patterns reverse-engineered from top PPE actors (MARKET-ANALYSIS.md)."""
+
+    def test_every_actor_exposes_proxy_passthrough(self) -> None:
+        """Standard Apify pattern: users expect to control proxies."""
+        for name, spec in sorted(ALL_PRESETS.items()):
+            fields = {f.name for f in spec.effective_inputs()}
+            assert "proxy_configuration" in fields, name
+
+    def test_every_actor_exposes_visible_cost_cap(self) -> None:
+        """Cheap trials win reviews: max_items default 25 keeps first runs
+        predictable (compass uses maxCrawledPlaces: 5 for the same reason)."""
+        for name, spec in sorted(ALL_PRESETS.items()):
+            fields = {f.name: f for f in spec.effective_inputs()}
+            assert "max_items" in fields, name
+            assert fields["max_items"].default == 25
+
+    def test_readme_shows_price_per_1000(self) -> None:
+        """leads-finder marketing pattern: '$X per 1k' in the listing."""
+        from actor_factory.generator import generate_actor
+
+        g = generate_actor(SCRAPER_ACTOR, Path(tempfile.mkdtemp()))
+        readme = g.read("README.md")
+        assert "per 1,000 items" in readme
+        assert "$4.00 per 1,000 items" in readme  # 0.004 * 1000
+
+    @pytest.mark.asyncio
+    async def test_runner_honors_max_items_input(self) -> None:
+        from actor_factory.runner import ActorRunConfig, PPEScraperRunner
+        from tests.test_actor_factory import FakeActor
+
+        actor = FakeActor()
+        actor.input_data = {
+            "urls": [f"http://e.com/{i}" for i in range(50)],
+            "max_items": 3,
+        }
+        runner = PPEScraperRunner(
+            config=ActorRunConfig(primary_event="page-scraped"), actor_module=actor
+        )
+
+        async def fake_process(url: str, options: dict) -> dict:
+            return {"url": url, "status": "ok"}
+
+        runner.process_url = fake_process  # type: ignore[method-assign]
+        stats = await runner.run()
+        assert len(actor.pushes) == 3
+        assert stats.pushed_ok == 3
