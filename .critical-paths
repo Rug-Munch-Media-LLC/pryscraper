@@ -1,0 +1,8 @@
+# AI Test Oracle — critical paths (see standards/docs/AI-TEST-ORACLE-POLICY.md)
+# Staged TEST files matching these prefixes trigger the independent-oracle
+# advisory in the canonical lefthook config.
+tests/test_parser
+tests/test_extractor
+tests/test_quality
+tests/test_api
+tests/contract
