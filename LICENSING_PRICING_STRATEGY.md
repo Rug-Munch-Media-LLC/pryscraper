@@ -372,7 +372,7 @@ WalletPress is **THREE products** that need different strategies:
 10. **Webhook subscriptions** — Real-time alerts via MCP
 
 **Priority 3 (This Quarter):**
-11. **MCP server hosting** — Managed MCP at [INTERNAL]
+11. **MCP server hosting** — Managed MCP hosting ([INTERNAL] endpoint)
 12. **Custom tool builder** — Let users add their own tools
 13. **Tool analytics** — Usage stats, popular tools
 14. **Multi-MCP routing** — One request, multiple MCPs

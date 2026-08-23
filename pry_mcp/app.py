@@ -39,7 +39,8 @@ from settings import settings
 # same origin(s) and must accept the same browser clients.
 _MCP_CORS_ORIGINS: list[str] = [
     "https://rugmunch.io",
-    "https://[INTERNAL]",
+    # Internal app origins covered by the wildcard regex below — no
+    # internal hostnames in public source (TOP-100 #11).
     "http://localhost:3000",
     "http://localhost:5173",
 ]

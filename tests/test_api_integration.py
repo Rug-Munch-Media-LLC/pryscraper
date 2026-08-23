@@ -397,13 +397,13 @@ class TestCORS:
         resp = client.options(
             "/v1/scrape",
             headers={
-                "Origin": "https://[INTERNAL]",
+                "Origin": "https://app.rugmunch.io",
                 "Access-Control-Request-Method": "POST",
             },
         )
         assert resp.status_code == 200
         headers = resp.headers
-        assert headers.get("access-control-allow-origin") == "https://[INTERNAL]"
+        assert headers.get("access-control-allow-origin") == "https://app.rugmunch.io"
         assert "POST" in headers.get("access-control-allow-methods", "")
 
     def test_cors_disallowed_origin_rejected(self, client: TestClient) -> None:
