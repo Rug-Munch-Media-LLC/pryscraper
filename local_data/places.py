@@ -212,7 +212,7 @@ def _retry_delay(resp: httpx.Response | None, attempt: int) -> float:
             try:
                 return min(float(raw), MAX_BACKOFF)
             except ValueError:
-                pass
+                pass  # malformed Retry-After header — fall back to default backoff
     return min(RETRY_BASE * (2**attempt), MAX_BACKOFF)
 
 
@@ -802,7 +802,7 @@ def _place_url(place_id: str) -> str:
         try:
             return GOOGLE_MAPS_CID.format(cid=str(int(m.group(1), 16)))
         except ValueError:
-            pass
+            pass  # not a hex CID after all — fall through to digit/verbatim handling
     if pid.isdigit():
         return GOOGLE_MAPS_CID.format(cid=pid)
     return GOOGLE_MAPS_PLACE.format(slug=quote(pid))

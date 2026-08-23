@@ -444,8 +444,11 @@ class PrySettings(BaseSettings):
             path.parent.mkdir(parents=True, exist_ok=True)
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(self.to_api_dict(), f, indent=2)
-        except OSError:
-            pass
+        except OSError as e:
+            logger.warning(
+                "settings_persist_failed",
+                extra={"path": str(path), "error": str(e)[:160]},
+            )
 
     def enable_tor(self) -> dict[str, Any]:
         """Convenience helper used by the /v1/config/profile/tor endpoint."""

@@ -1,0 +1,10 @@
+# Hadolint configuration for Pry images.
+# Failure threshold: WARNING. Info-level findings (e.g. DL3066 on
+# `USER pry`, which is deliberate — see Dockerfile stage-2 comments)
+# are reported but do not fail the gate. Errors and warnings still block.
+failure-threshold: warning
+
+# Pin base images by digest AND tag in Dockerfile (DL30xx handled inline).
+trustedRegistries:
+  - docker.io
+  - ghcr.io

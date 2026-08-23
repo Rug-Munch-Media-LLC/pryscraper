@@ -46,8 +46,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install the fully pinned lock (reproducible builds). requirements.txt is
+# only the loose range manifest from pyproject.toml — never an install source.
+COPY requirements.lock .
+RUN pip install --no-cache-dir -r requirements.lock
 RUN python3 -m playwright install chromium 2>&1 | tail -1
 
 # Stage 2: Runtime

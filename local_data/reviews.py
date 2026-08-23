@@ -180,7 +180,7 @@ def _retry_delay(resp: httpx.Response | None, attempt: int) -> float:
             try:
                 return min(float(raw), MAX_BACKOFF)
             except ValueError:
-                pass
+                pass  # malformed Retry-After header — fall back to default backoff
     return min(RETRY_BASE * (2**attempt), MAX_BACKOFF)
 
 

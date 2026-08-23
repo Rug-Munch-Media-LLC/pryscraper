@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+name: Template verification (nightly)
+
+# STATUS.md admitted only ~30-40% of the 80+ site templates are verified
+# end-to-end. This workflow measures template health on a schedule so the
+# number is visible and trending instead of folklore. Non-blocking by
+# design: it publishes a report artifact; flip `blocking` inputs once the
+# pass-rate is known-good.
+
+on:
+  schedule:
+    - cron: '30 3 * * *' # Daily at 3:30 AM UTC (after the k6 slot)
+  workflow_dispatch: {}
+
+jobs:
+  validate-templates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python + deps
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install --disable-pip-version-check -r requirements.lock
+
+      - name: Schema validation (all templates)
+        id: schema
+        continue-on-error: true
+        run: |
+          source .venv/bin/activate
+          python templates/validate_templates.py | tee /tmp/template_schema_report.txt
+
+      - name: Live validation (sampled)
+        id: live
+        continue-on-error: true
+        timeout-minutes: 40
+        run: |
+          source .venv/bin/activate
+          # Live checks hit real sites; keep the sample bounded per run.
+          # validate_live needs a running Pry instance; without one it exits
+          # non-zero and the report records that honestly.
+          if curl -sf -m 3 http://127.0.0.1:8005/health > /dev/null; then
+            python templates/validate_live.py --max-templates 20 | tee /tmp/template_live_report.txt
+          else
+            echo "Pry instance not reachable at 127.0.0.1:8005 — live validation skipped (schema-only run)" | tee /tmp/template_live_report.txt
+          fi
+
+      - name: Publish report
+        if: always()
+        run: |
+          {
+            echo "# Pry template verification — $(date -u +%Y-%m-%dT%H:%MZ)"
+            echo
+            echo "## Schema validation"
+            cat /tmp/template_schema_report.txt 2>/dev/null || echo "(no output)"
+            echo
+            echo "## Live validation (sampled)"
+            cat /tmp/template_live_report.txt 2>/dev/null || echo "(no output)"
+          } > /tmp/template_verification_report.md
+          cp /tmp/template_verification_report.md template_verification_report.md
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: template-verification-report
+          path: template_verification_report.md
+          retention-days: 30

@@ -65,8 +65,8 @@ def record_usage(
     try:
         with open(daily_path, "a") as f:
             f.write(json.dumps(record) + "\n")
-    except OSError:
-        pass
+    except OSError as e:
+        logger.warning("cost_record_write_failed", extra={"error": str(e)[:160]})
 
     return record
 

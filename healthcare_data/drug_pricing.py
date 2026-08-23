@@ -168,7 +168,7 @@ def _parse_effective_date(value: Any) -> date | None:
     try:
         return date.fromisoformat(text)  # already ISO (defensive)
     except ValueError:
-        pass
+        pass  # try human formats below
     for fmt in ("%m/%d/%Y", "%m-%d-%Y"):
         try:
             return datetime.strptime(text, fmt).date()

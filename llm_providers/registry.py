@@ -375,8 +375,8 @@ class LLMRegistry:
                     )
                     + "\n"
                 )
-        except OSError:
-            pass
+        except OSError as e:
+            logger.warning("llm_usage_log_write_failed", extra={"error": str(e)[:160]})
 
     def _load_usage(self) -> None:
         for path in USAGE_DIR.glob("usage_*.jsonl"):

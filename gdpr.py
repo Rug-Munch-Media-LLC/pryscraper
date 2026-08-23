@@ -176,8 +176,12 @@ def process_deletion(user_id: str) -> dict[str, Any]:
         try:
             path.unlink()
             deleted_records += 1
-        except OSError:
-            pass
+        except OSError as e:
+            # Erasure MUST be complete for compliance; surface partial failures.
+            logger.error(
+                "gdpr_consent_record_delete_failed",
+                extra={"path": str(path), "error": str(e)[:160]},
+            )
 
     # Delete from quality history (if email in URLs)
     quality_dir = Path(os.path.expanduser("~/.pry/quality"))

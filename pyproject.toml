@@ -302,10 +302,10 @@ include = [
 
 [tool.ruff]
 extend = "../standards/templates/ruff-base.toml"
-exclude = ["mutants", "_archive", "build", "dist"]
+exclude = ["mutants", "build", "dist"]
 
 [tool.ruff.lint]
-extend-select = ["A", "BLE"]
+extend-select = ["A", "BLE", "T201"]
 extend-ignore = ["N815", "A002", "RUF006"]
 
 [tool.ruff.lint.per-file-ignores]
@@ -313,10 +313,17 @@ extend-ignore = ["N815", "A002", "RUF006"]
 "tests/**" = ["S105", "S106", "S108"]
 "tests/test_sports_sources.py" = ["B007", "PT018"]
 "tests/fuzz/test_stealth_fuzz.py" = ["PT019"]
-"tests/fuzz/test_extractor_fuzz.py" = ["PT018"]
 "tests/fuzz/test_parser_fuzz.py" = ["PT018"]
+"tests/fuzz/test_extractor_fuzz.py" = ["PT018"]
 "tests/test_integration_db_redis.py" = ["PT012"]
 "tests/contract/test_rmi_backend_contract.py" = ["S105"]
+
+# T201 (print) is banned in library code — use structlog/logging.
+# Legitimate stdout output lives only in the CLI and standalone
+# validation scripts; anything else must log, not print.
+"cli.py" = ["T201"]
+"templates/**" = ["T201"]
+"scripts/**" = ["T201"]
 
 # BLE001 (blind except Exception) is enforced. Pre-existing sites are
 # marked with `# noqa: BLE001`; new code must use specific exception
@@ -429,7 +436,7 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 58  # gradual path: current is ~58% (whole-repo `--cov=.`); raise to 60, 70, 75, 80 in successive PRs
+fail_under = 74  # measured 75.0% whole-repo 2026-08-23; ratchet: 74 -> 76 -> 78 -> 80
 precision = 1
 show_missing = true
 exclude_lines = [

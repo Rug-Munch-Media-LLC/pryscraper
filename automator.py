@@ -16,11 +16,14 @@ import asyncio
 import base64
 import contextlib
 import json
+import logging
 import os
 import time
 import uuid
 from dataclasses import dataclass
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 SESSIONS_DIR = "/app/sessions"
 SESSION_MAX_AGE = 3600  # 1 hour
@@ -113,8 +116,11 @@ class PryAutomator:
                     with open(cookies_file) as f:  # noqa: ASYNC230 - tiny cookie JSON (<KB), low-frequency
                         cookies = json.load(f)
                     await context.add_cookies(cookies)
-                except OSError:
-                    pass
+                except OSError as e:
+                    logger.warning(
+                        "session_cookie_load_failed",
+                        extra={"error": str(e)[:160]},
+                    )
 
             self.sessions[sid] = session
             return session
@@ -256,8 +262,11 @@ class PryAutomator:
                 cookies = await session.context.cookies()
                 with open(session.cookies_file, "w") as f:  # noqa: ASYNC230 - tiny cookie JSON (<KB), low-frequency
                     json.dump(cookies, f)
-            except OSError:
-                pass
+            except OSError as e:
+                logger.warning(
+                    "session_cookie_persist_failed",
+                    extra={"error": str(e)[:160]},
+                )
 
             return {
                 "session_id": session.id,

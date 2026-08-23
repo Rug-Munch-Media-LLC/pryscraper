@@ -97,7 +97,7 @@ async def _keepalive_loop(session_id: str) -> None:
             await asyncio.sleep(30)
             queue.put_nowait(": ping\n\n")
     except asyncio.CancelledError:
-        pass
+        pass  # cancellation is control flow, not failure
     except Exception as e:  # noqa: BLE001
         logger.warning("mcp_sse_keepalive_error", extra={"session_id": session_id, "error": str(e)})
 
@@ -170,7 +170,7 @@ async def mcp_sse_endpoint(
                         break
                     continue
         except asyncio.CancelledError:
-            pass
+            pass  # cancellation is control flow, not failure
         finally:
             _cleanup_session(session_id, observer)
 

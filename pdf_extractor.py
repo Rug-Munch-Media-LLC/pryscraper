@@ -25,21 +25,21 @@ try:
     import pdfplumber  # noqa: F401
 
     _pdfplumber = True
-except ImportError:
+except ImportError:  # optional dependency — feature degrades gracefully
     pass
 
 try:
     import camelot  # noqa: F401
 
     _camelot = True
-except ImportError:
+except ImportError:  # optional dependency — feature degrades gracefully
     pass
 
 try:
     from pdfminer.high_level import extract_text  # noqa: F401
 
     _pdfminer = True
-except ImportError:
+except ImportError:  # optional dependency — feature degrades gracefully
     pass
 
 
