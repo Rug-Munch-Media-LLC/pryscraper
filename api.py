@@ -284,7 +284,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://rugmunch.io",
-        "https://[INTERNAL]",
+        # Internal app origins are covered by the wildcard regex below —
+        # do not enumerate internal hostnames in public source (TOP-100 #11).
         "http://localhost:3000",
         "http://localhost:5173",
     ],

@@ -2,8 +2,8 @@
 title: AGENTS.md — pryscraper
 repo: backend
 stack: Python 3.12 + FastAPI + Docker
-domain: [INTERNAL]
-deploy: Docker on Talos (/srv/pry/)
+domain: [INTERNAL] (see ops docs)
+deploy: Docker on [INTERNAL] host
 status: active
 ---
 

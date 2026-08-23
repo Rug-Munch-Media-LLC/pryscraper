@@ -99,3 +99,6 @@ coverage/
 tests/contract/pacts/
 build/
 mutants/
+
+# vendored build artifacts (duplicate of live modules)
+build/
