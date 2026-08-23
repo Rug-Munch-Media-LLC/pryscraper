@@ -121,12 +121,50 @@ def process_seo(
     canonical = canonical_m.group(1) if canonical_m else ""
     if options.get("check_canonicals", True) and not canonical:
         issues.append("missing_canonical")
+
+    # Social preview (og:) tags - shared by meta auditors.
+    og: dict[str, str] = {}
+    _og_re = re.compile(
+        r"""<meta[^>]+(?:property|name)=["']([^"']*)["'][^>]+content=["']([^"']*)["']""",
+        re.I,
+    )
+    for m in _og_re.finditer(html):
+        key, val = m.group(1), m.group(2)
+        if key.startswith("og:"):
+            og[key] = val.strip()[:300]
+
+    if "og:title" not in og:
+        issues.append("missing_og_title")
+    if "og:image" not in og:
+        issues.append("missing_og_image")
+
+    # Image alt-text audit (accessibility signal).
+    imgs = re.findall(r"<img\b[^>]*>", html, re.I)
+    _alt_re = re.compile(r"""alt=["'][^"']*["']""", re.I)
+    missing_alt = sum(1 for tag in imgs if not _alt_re.search(tag))
+    if imgs and missing_alt == len(imgs):
+        issues.append("all_images_missing_alt")
+
+    # Privacy/cookie compliance markers (GDPR checker).
+    lower = html.lower()
+    privacy_markers = {
+        "cookie_banner": any(
+            k in lower for k in ("cookiebot", "onetrust", "cookie-consent", "cookieconsent")
+        ),
+        "privacy_page_linked": 'href="' in lower
+        and ("/privacy" in lower or "/datenschutz" in lower),
+    }
+
     item["seo"] = {
         "title": title_m.group(1).strip()[:200] if title_m else "",
         "meta_description": (desc_m.group(1).strip()[:300] if desc_m else ""),
         "canonical": urljoin(url, canonical) if canonical else "",
         "headings": headings,
         "issues": issues,
+        "og_tags": og,
+        "images_total": len(imgs),
+        "images_missing_alt": missing_alt,
+        "privacy_markers": privacy_markers,
     }
     return item
 
@@ -153,10 +191,13 @@ def process_leads(
     emails = sorted(set(_EMAIL_RE.findall(html)))
     phones = sorted(set(_PHONE_RE.findall(html)))[:10]
     socials = sorted({m.rstrip("/.") for m in _SOCIAL_RE.findall(html)})
+    has_form = bool(re.search(r"<form\b", html, re.I))
+    mailto = bool(re.search(r'href=["\']mailto:', html, re.I))
     item["leads"] = {
         "emails": emails[:25],
         "phones": phones,
         "social_links": socials if options.get("include_social_links", True) else [],
+        "contact_form_present": has_form or mailto,
     }
     return item
 
@@ -250,8 +291,29 @@ def process_price(
 
 ProcessorFn = Callable[[str, dict[str, Any], dict[str, Any], dict[str, Any]], dict[str, Any]]
 
+
+def process_backlinks(
+    url: str, result: dict[str, Any], options: dict[str, Any], state: dict[str, Any]
+) -> dict[str, Any]:
+    """Harvest external outbound links (domain-level) for backlink intel."""
+    item = _base_item(url, result)
+    html = _raw_html(result)
+    if item["status"] != "ok":
+        return item
+    base_domain = url.split("/")[2] if "://" in url else ""
+    externals: dict[str, str] = {}
+    for href in re.findall(r"""href=["'](https?://[^"']+)["']""", html, re.I):
+        target = href.rstrip("/.")
+        domain = target.split("/")[2] if "://" in target else ""
+        if domain and domain != base_domain and domain not in externals:
+            externals[domain] = target
+    item["outbound_domains"] = sorted(externals)[:100]
+    return item
+
+
 PROCESSORS: dict[str, ProcessorFn] = {
     "corpus": process_corpus,
+    "backlinks": process_backlinks,
     "seo": process_seo,
     "leads": process_leads,
     "news": process_news,

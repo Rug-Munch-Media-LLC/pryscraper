@@ -1308,3 +1308,543 @@ ALL_PRESETS.update(
         )
     }
 )
+
+
+# ── Gap-filler batch 2: thin-supply niches from the keyword sweep ────────────
+# Evidence in MARKET-ANALYSIS.md gap table (supply vs demand runs).
+
+BROKEN_LINKS_ACTOR = ActorSpec(
+    name="pry-broken-links-auditor",
+    title="Pry Broken Links Auditor",
+    description=(
+        "Crawl a site and report every broken internal or external link "
+        "with HTTP status, source page and anchor text. Site-health audits "
+        "that used to need desktop tooling now run on a schedule."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="check_externals",
+            title="Check external links",
+            type="boolean",
+            description="Also verify links leaving the domain.",
+            default=True,
+            section_caption="Audit settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="page-audited",
+            title="Page audited",
+            description="One page crawled with all links status-checked.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+SSL_MONITOR_ACTOR = ActorSpec(
+    name="pry-ssl-cert-monitor",
+    title="Pry SSL Certificate Monitor",
+    description=(
+        "Watch TLS certificate health across your domains: expiry "
+        "countdowns, issuer changes and handshake failures - caught by "
+        "connection-level probes before browsers scare your visitors."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="warn_days",
+            title="Warn before expiry (days)",
+            type="integer",
+            description="Emit a warning item when expiry is within this window.",
+            minimum=1,
+            maximum=90,
+            default=14,
+            section_caption="Monitor settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="cert-checked",
+            title="Certificate checked",
+            description="One domain's TLS certificate probed.",
+            price_usd=0.001,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=1024,
+    uses_browser=False,
+)
+
+WAYBACK_DIFF_ACTOR = ActorSpec(
+    name="pry-wayback-diff",
+    title="Pry Wayback Diff",
+    description=(
+        "Compare any live page against its last archive.org snapshot and "
+        "emit a structured diff: what changed, when it changed and how "
+        "similar the versions are (SimHash similarity score included)."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="similarity_threshold",
+            title="Similarity threshold",
+            type="float",
+            description="Below this SimHash similarity the page counts as rewritten.",
+            minimum=0.0,
+            maximum=1.0,
+            default=0.85,
+            section_caption="Diff settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="page-compared",
+            title="Page compared",
+            description="One live-vs-archive comparison computed.",
+            price_usd=0.003,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+PODCAST_MINER_ACTOR = ActorSpec(
+    name="pry-podcast-feed-miner",
+    title="Pry Podcast Feed Miner",
+    description=(
+        "Mine podcast RSS feeds into structured episode datasets: titles, "
+        "descriptions, durations, publish dates and audio URLs - perfect "
+        "for media monitoring and transcript pipeline feeds."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="max_episodes",
+            title="Max episodes per feed",
+            type="integer",
+            description="Cap per feed to control cost.",
+            minimum=1,
+            maximum=200,
+            default=50,
+            section_caption="Feed settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="episode-extracted",
+            title="Episode extracted",
+            description="One podcast episode extracted to the dataset.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=1024,
+    uses_browser=False,
+)
+
+NEWSLETTER_MINER_ACTOR = ActorSpec(
+    name="pry-newsletter-archive-miner",
+    title="Pry Newsletter Archive Miner",
+    description=(
+        "Extract newsletter archives and email digest pages into clean "
+        "structured datasets - issues, subjects, senders and body content "
+        "for competitive content intelligence."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="include_body_text",
+            title="Include body text",
+            type="boolean",
+            description="Extract full issue bodies, not just metadata.",
+            default=True,
+            section_caption="Extract settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="issue-extracted",
+            title="Issue extracted",
+            description="One newsletter issue extracted.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=2048,
+    uses_browser=False,
+)
+
+A11Y_SCANNER_ACTOR = ActorSpec(
+    name="pry-accessibility-scanner",
+    title="Pry Accessibility Scanner",
+    description=(
+        "WCAG-oriented accessibility signals for every page: images "
+        "missing alt text, heading hierarchy violations, missing page "
+        "titles and language declarations - prioritized issue lists per "
+        "crawl."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="fail_on_missing_alt",
+            title="Flag missing alt text",
+            type="boolean",
+            description="Report every image without an alt attribute.",
+            default=True,
+            section_caption="Audit settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="page-scanned",
+            title="Page scanned",
+            description="One page scanned for accessibility signals.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+BACKLINK_HARVESTER_ACTOR = ActorSpec(
+    name="pry-outbound-link-harvester",
+    title="Pry Outbound Link Harvester",
+    description=(
+        "Harvest external outbound links per page across a site: which "
+        "domains a site links to, how often, and from where - prospecting "
+        "data for SEO outreach and partnership research."
+    ),
+    version="1.0",
+    processor="backlinks",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="exclude_domains",
+            title="Excluded domains",
+            type="array",
+            item_type="string",
+            editor="stringList",
+            description="Domains to skip (e.g. social widgets).",
+            prefill=["facebook.com", "twitter.com", "x.com"],
+            section_caption="Harvest settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="page-harvested",
+            title="Page harvested",
+            description="One page's outbound link profile harvested.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+ONION_MONITOR_ACTOR = ActorSpec(
+    name="pry-onion-site-monitor",
+    title="Pry Onion Site Monitor",
+    description=(
+        "Monitor .onion services over Tor - brand abuse, leak-site watch "
+        "and dark-web mention tracking. Pry ships Tor as a first-class "
+        "tier; almost no competitor can reach these sources at all."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="keyword_filter",
+            title="Keyword filter",
+            type="string",
+            description="Only emit pages matching this keyword.",
+            default="",
+            section_caption="Monitor settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="onion-page-checked",
+            title="Onion page checked",
+            description="One .onion page fetched through the Tor tier.",
+            price_usd=0.004,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+GDPR_COOKIE_ACTOR = ActorSpec(
+    name="pry-gdpr-cookie-checker",
+    title="Pry GDPR Cookie Checker",
+    description=(
+        "Check pages for cookie-consent banners, privacy-policy links and "
+        "consent-management platforms - compliance evidence collection "
+        "for audits across hundreds of properties at once."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="require_privacy_link",
+            title="Require privacy link",
+            type="boolean",
+            description="Flag pages without a privacy-policy link.",
+            default=True,
+            section_caption="Check settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="page-checked",
+            title="Page checked",
+            description="One page checked for consent/privacy markers.",
+            price_usd=0.001,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=2048,
+    uses_browser=False,
+)
+
+META_TAG_AUDITOR_ACTOR = ActorSpec(
+    name="pry-social-card-auditor",
+    title="Pry Social Card Auditor",
+    description=(
+        "Audit Open Graph and social preview tags across every page of a "
+        "site: missing og:title/og:image, thin descriptions and canonical "
+        "conflicts - fix link previews before your next campaign."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="require_og_image",
+            title="Require og:image",
+            type="boolean",
+            description="Flag pages missing a social preview image.",
+            default=True,
+            section_caption="Audit settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="page-audited",
+            title="Page audited",
+            description="One page audited for social preview tags.",
+            price_usd=0.001,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=2048,
+    uses_browser=False,
+)
+
+SITEMAP_DIFF_ACTOR = ActorSpec(
+    name="pry-sitemap-diff",
+    title="Pry Sitemap Diff",
+    description=(
+        "Track sitemap changes between runs: new URLs, removed URLs and "
+        "lastmod shifts - the fastest way to catch competitor site launches "
+        "and content strategy moves."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="emit_all",
+            title="Emit full URL list",
+            type="boolean",
+            description="Push every URL found, not just the summary.",
+            default=False,
+            section_caption="Diff settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="sitemap-scanned",
+            title="Sitemap scanned",
+            description="One sitemap scanned and diffed against prior state.",
+            price_usd=0.001,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=1024,
+    uses_browser=False,
+)
+
+TECH_STACK_ACTOR = ActorSpec(
+    name="pry-tech-stack-detector",
+    title="Pry Tech Stack Detector",
+    description=(
+        "Detect the technology behind any website - frameworks, analytics, "
+        "CMS, hosting signals - enriched with contact discovery for sales "
+        "prospecting by stack."
+    ),
+    version="1.0",
+    processor="leads",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="include_headers",
+            title="Inspect response headers",
+            type="boolean",
+            description="Fingerprint servers and CDNs from headers.",
+            default=True,
+            section_caption="Detect settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="stack-detected",
+            title="Stack detected",
+            description="One site's technology stack detected.",
+            price_usd=0.003,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+CONTACT_FORM_FINDER_ACTOR = ActorSpec(
+    name="pry-contact-form-finder",
+    title="Pry Contact Form Finder",
+    description=(
+        "Find contact forms, mailto links and submission endpoints across "
+        "prospect sites - the first step of automated outreach done "
+        "respectfully: know exactly where to reach a business."
+    ),
+    version="1.0",
+    processor="leads",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="probe_contact_pages",
+            title="Probe /contact paths",
+            type="boolean",
+            description="Also try common contact-page paths.",
+            default=True,
+            section_caption="Finder settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="site-probed",
+            title="Site probed",
+            description="One site probed for contact channels.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=2048,
+    uses_browser=False,
+)
+
+BLOG_EXTRACTOR_ACTOR = ActorSpec(
+    name="pry-blog-post-extractor",
+    title="Pry Blog Post Extractor",
+    description=(
+        "Extract complete blog archives: post URLs, titles, publish dates "
+        "and full markdown bodies - content-gap analysis and editorial "
+        "research in one dataset."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="full_text",
+            title="Extract full text",
+            type="boolean",
+            description="Fetch and extract complete post bodies.",
+            default=True,
+            section_caption="Extract settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="post-extracted",
+            title="Post extracted",
+            description="One blog post extracted to the dataset.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+EVENT_LISTINGS_ACTOR = ActorSpec(
+    name="pry-event-listings-aggregator",
+    title="Pry Event Listings Aggregator",
+    description=(
+        "Aggregate event listings from conference, meetup and event-calenda "
+        "sites: names, dates, venues, organizers and registration links - "
+        "normalized for calendar and intel products."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="upcoming_only",
+            title="Upcoming only",
+            type="boolean",
+            description="Drop events that already started.",
+            default=True,
+            section_caption="Filter settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="event-extracted",
+            title="Event extracted",
+            description="One event listing extracted.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+ALL_PRESETS.update(
+    {
+        spec.name: spec
+        for spec in (
+            BROKEN_LINKS_ACTOR,
+            SSL_MONITOR_ACTOR,
+            WAYBACK_DIFF_ACTOR,
+            PODCAST_MINER_ACTOR,
+            NEWSLETTER_MINER_ACTOR,
+            A11Y_SCANNER_ACTOR,
+            BACKLINK_HARVESTER_ACTOR,
+            ONION_MONITOR_ACTOR,
+            GDPR_COOKIE_ACTOR,
+            META_TAG_AUDITOR_ACTOR,
+            SITEMAP_DIFF_ACTOR,
+            TECH_STACK_ACTOR,
+            CONTACT_FORM_FINDER_ACTOR,
+            BLOG_EXTRACTOR_ACTOR,
+            EVENT_LISTINGS_ACTOR,
+        )
+    }
+)

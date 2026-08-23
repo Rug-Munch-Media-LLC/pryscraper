@@ -108,6 +108,8 @@ def lint_actor(spec: ActorSpec) -> list[str]:
             "updated",
             "collected",
             "screened",
+            "probed",
+            "compared",
             "page",
             "pages",
             "set",

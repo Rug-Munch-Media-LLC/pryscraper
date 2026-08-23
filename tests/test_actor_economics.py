@@ -303,11 +303,32 @@ class TestMarketDrivenPresets:
 
 
 class TestPortfolioScale:
-    def test_thirty_presets_all_store_ready(self) -> None:
-        """The full catalog: 30 actors, zero lint findings."""
-        assert len(ALL_PRESETS) == 30
+    def test_full_catalog_all_store_ready(self) -> None:
+        """The full catalog: 45 actors, zero lint findings."""
+        assert len(ALL_PRESETS) == 45
         for name, spec in sorted(ALL_PRESETS.items()):
             assert lint_actor(spec) == [], name
+
+    def test_gap_filler_batch_present(self) -> None:
+        """Thin-supply niche actors from the keyword sweep (MARKET-ANALYSIS.md)."""
+        for key in (
+            "pry-broken-links-auditor",
+            "pry-ssl-cert-monitor",
+            "pry-wayback-diff",
+            "pry-podcast-feed-miner",
+            "pry-accessibility-scanner",
+            "pry-outbound-link-harvester",
+            "pry-onion-site-monitor",
+            "pry-gdpr-cookie-checker",
+            "pry-social-card-auditor",
+            "pry-sitemap-diff",
+            "pry-tech-stack-detector",
+            "pry-contact-form-finder",
+            "pry-blog-post-extractor",
+            "pry-event-listings-aggregator",
+        ):
+            assert key in ALL_PRESETS, key
+            assert lint_actor(ALL_PRESETS[key]) == [], key
 
     def test_names_globally_unique(self) -> None:
         names = [s.name for s in ALL_PRESETS.values()]

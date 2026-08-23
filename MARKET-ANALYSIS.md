@@ -96,6 +96,31 @@ Patterns:
 
 All margins verified >=40% at realistic loads (`tests/test_actor_economics.py`).
 
+## Gap-hunt sweep (supply vs demand by keyword)
+
+Second sweep: store search per niche keyword, measuring competition
+density (supply) against demand signal (top-actor runs). Raw data:
+/tmp/opencode/gap_hunt.json (session artifact).
+
+| Niche | Supply | Demand (top runs) | Verdict |
+|---|---|---|---|
+| broken links | 2,008 | 6.7M | **gap** — thin supply |
+| ssl certificate | 293 | thinnest supply found | **gap** |
+| wayback/archives | 181 | thinnest supply found | **gap** |
+| backlink | 464 | 31M | **gap** — high demand, few tools |
+| accessibility | 1,200 | 36M | **gap** |
+| podcast | 865 | 5.1M | niche gap |
+| newsletter | 1,796 | 41M | content-mining demand |
+| dark web (.onion) | ~none via Tor | unique | **our moat** (built-in Tor tier) |
+| keyword rank | 12,036 | crowded but huge | covered w/ differentiation |
+
+15 gap-filler presets built from this table (portfolio now 45): broken-links
+auditor, ssl-cert monitor, wayback diff, podcast feed miner, newsletter
+archive miner, accessibility scanner, outbound-link harvester, onion site
+monitor (Tor moat), gdpr cookie checker, social card auditor, sitemap diff,
+tech stack detector, contact form finder, blog post extractor, event
+listings aggregator.
+
 ## Daily-test survival rule
 
 Apify's automated testing runs each Store actor with its DEFAULT input and

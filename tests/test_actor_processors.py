@@ -76,7 +76,8 @@ class TestSeoProcessor:
         assert seo["meta_description"] == "Reviews of the best running shoes."
         assert seo["canonical"] == "https://shop.example/shoes"
         assert len(seo["headings"]["h2"]) == 2
-        assert seo["issues"] == []
+        # no og tags in this fixture -> flagged by the new social-card audit
+        assert set(seo["issues"]) == {"missing_og_title", "missing_og_image"}
 
     def test_missing_signals_flagged_as_issues(self) -> None:
         item = process_seo("http://e.com/bare", _ok_result("<p>no head</p>"), {}, {})
@@ -188,3 +189,55 @@ class TestProcessorRegistry:
         for spec in ALL_PRESETS.values():
             if spec.processor is not None:
                 assert spec.processor in PROCESSORS, f"{spec.name}: {spec.processor}"
+
+
+class TestSeoExtendedSignals:
+    """og-tags / alt-audit / privacy markers added for gap-filler actors."""
+
+    PAGE = (
+        "<html><head><title>T</title>"
+        '<meta property="og:title" content="Social Title">'
+        '<meta property="og:image" content="https://e.com/img.png">'
+        "</head><body>"
+        '<h1>H</h1><img src="a.png"><img src="b.png" alt="described">'
+        '<a href="/privacy">Privacy</a>'
+        "<script>cookieconsent</script>"
+        "</body></html>"
+    )
+
+    def test_og_tags_extracted(self) -> None:
+        item = process_seo("http://e.com/", _ok_result(self.PAGE), {}, {})
+        assert item["seo"]["og_tags"]["og:title"] == "Social Title"
+        assert item["seo"]["og_tags"]["og:image"] == "https://e.com/img.png"
+
+    def test_alt_audit_counts_missing(self) -> None:
+        item = process_seo("http://e.com/", _ok_result(self.PAGE), {}, {})
+        assert item["seo"]["images_total"] == 2
+        assert item["seo"]["images_missing_alt"] == 1
+
+    def test_privacy_markers_detected(self) -> None:
+        item = process_seo("http://e.com/", _ok_result(self.PAGE), {}, {})
+        markers = item["seo"]["privacy_markers"]
+        assert markers["cookie_banner"] is True
+        assert markers["privacy_page_linked"] is True
+
+
+class TestLeadsContactForms:
+    def test_contact_form_and_mailto_detected(self) -> None:
+        html = '<form action="/submit"></form><a href="mailto:x@e.com">mail</a>'
+        item = process_leads("http://e.com", _ok_result(html), {}, {})
+        assert item["leads"]["contact_form_present"] is True
+
+
+class TestBacklinksProcessor:
+    def test_external_domains_deduped_internal_excluded(self) -> None:
+        from actor_factory.processors import process_backlinks
+
+        html = (
+            '<a href="https://other.com/a">x</a>'
+            '<a href="https://other.com/b">dup-domain</a>'
+            '<a href="/internal">i</a>'
+            '<a href="https://third.io/">t</a>'
+        )
+        item = process_backlinks("http://mysite.com/x", {"status": "ok", "raw_html": html}, {}, {})
+        assert item["outbound_domains"] == ["other.com", "third.io"]

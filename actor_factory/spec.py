@@ -197,13 +197,9 @@ class ActorSpec:
             # Docs: browser-based scraping needs more memory; keep users from
             # under-provisioning into OOM.
             raise ValueError("browser actors need minMemoryMbytes >= 512")
-        known = {
-            "corpus",
-            "seo",
-            "leads",
-            "news",
-            "price",
-        }
+        from actor_factory.processors import PROCESSORS
+
+        known = set(PROCESSORS)
         if self.processor is not None and self.processor not in known:
             raise ValueError(
                 f"processor '{self.processor}' not in factory registry {sorted(known)}"
