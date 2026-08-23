@@ -1848,3 +1848,269 @@ ALL_PRESETS.update(
         )
     }
 )
+
+
+# ── Gap-filler batch 3: thinnest-supply niches from sweep #3 ─────────────────
+# Evidence: MARKET-ANALYSIS.md gap table round 3 (scholarship=45 supply,
+# udemy=61, course-catalog=260, weather=295, electricity=310, air-quality=438,
+# press-release=591).
+
+SCHOLARSHIP_FINDER_ACTOR = ActorSpec(
+    name="pry-scholarship-grants-finder",
+    title="Pry Scholarship & Grants Finder",
+    description=(
+        "Aggregate scholarship, grant and funding opportunities from education funding "
+        "portals: amounts, deadlines, eligibility and application links - "
+        "normalized for counseling platforms and search products."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="deadline_within_days",
+            title="Deadline within (days)",
+            type="integer",
+            description="Only emit opportunities closing within this window.",
+            minimum=1,
+            maximum=365,
+            default=90,
+            section_caption="Filter settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="opportunity-extracted",
+            title="Opportunity extracted",
+            description="One scholarship or grant extracted.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=2048,
+    uses_browser=False,
+)
+
+COURSE_CATALOG_ACTOR = ActorSpec(
+    name="pry-course-catalog-extractor",
+    title="Pry Course Catalog Extractor",
+    description=(
+        "Extract online course catalogs: titles, instructors, prices, "
+        "ratings, durations and syllabi outlines from any course platform "
+        "- market research for edtech and aggregation products."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="include_curriculum",
+            title="Include curriculum outline",
+            type="boolean",
+            description="Extract module/lesson lists when present.",
+            default=False,
+            section_caption="Extract settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="course-extracted",
+            title="Course extracted",
+            description="One course listing normalized into the dataset.",
+            price_usd=0.003,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+WEATHER_COLLECTOR_ACTOR = ActorSpec(
+    name="pry-weather-data-collector",
+    title="Pry Weather Data Collector",
+    description=(
+        "Collect weather observations and forecasts from any forecast page "
+        "- temperature, precipitation and condition signals normalized "
+        "into flat rows for analytics and alerting pipelines."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="location_label",
+            title="Location label",
+            type="string",
+            description="Tag every row with this location identifier.",
+            default="",
+            section_caption="Collection settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="observation-collected",
+            title="Observation collected",
+            description="One weather observation collected.",
+            price_usd=0.001,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=1024,
+    uses_browser=False,
+)
+
+AIR_QUALITY_ACTOR = ActorSpec(
+    name="pry-air-quality-monitor",
+    title="Pry Air Quality Monitor",
+    description=(
+        "Monitor air-quality indices and pollutant readings from public "
+        "monitoring pages - AQI, PM2.5/PM10 and trend direction for "
+        "health, insurance and smart-city datasets."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="aqi_threshold",
+            title="AQI alert threshold",
+            type="integer",
+            description="Emit an alert item when AQI exceeds this value.",
+            minimum=0,
+            maximum=500,
+            default=100,
+            section_caption="Alert settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="reading-collected",
+            title="Reading collected",
+            description="One air-quality reading collected.",
+            price_usd=0.001,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=1024,
+    uses_browser=False,
+)
+
+ELECTRICITY_PRICE_ACTOR = ActorSpec(
+    name="pry-electricity-price-watch",
+    title="Pry Electricity Price Watch",
+    description=(
+        "Track electricity tariff and spot-price publications from utility "
+        "and exchange pages - day-ahead prices normalized per MWh for "
+        "energy analysts and cost modelers."
+    ),
+    version="1.0",
+    processor="price",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="unit",
+            title="Price unit",
+            type="string",
+            description="Normalization unit for captured prices.",
+            editor="select",
+            enum=["EUR/MWh", "USD/MWh", "c/kWh"],
+            default="EUR/MWh",
+            section_caption="Price settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="tariff-captured",
+            title="Tariff captured",
+            description="One electricity price point captured.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=1024,
+    uses_browser=False,
+)
+
+PRESS_RELEASE_ACTOR = ActorSpec(
+    name="pry-press-release-monitor",
+    title="Pry Press Release Monitor",
+    description=(
+        "Monitor company and wire-service press releases: headlines, "
+        "datelines and full announcement text - PR intelligence and media "
+        "monitoring without manual source checking."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="keyword_filter",
+            title="Keyword filter",
+            type="string",
+            description="Only emit releases matching this keyword.",
+            default="",
+            section_caption="Monitor settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="release-extracted",
+            title="Release extracted",
+            description="One press release extracted.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=2048,
+    uses_browser=False,
+)
+
+ARXIV_PAPER_WATCH_ACTOR = ActorSpec(
+    name="pry-research-paper-watch",
+    title="Pry Research Paper Watch",
+    description=(
+        "Watch academic preprint and journal listing pages for new papers "
+        "by topic: titles, authors, abstracts and PDF links - literature "
+        "surveillance for R&D and AI labs."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="topic_keywords",
+            title="Topic keywords",
+            type="array",
+            item_type="string",
+            editor="stringList",
+            description="Only emit papers matching these topic keywords.",
+            prefill=["LLM", "reinforcement learning"],
+            section_caption="Topic settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="paper-detected",
+            title="Paper detected",
+            description="One new paper detected and emitted.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=2048,
+    uses_browser=False,
+)
+
+ALL_PRESETS.update(
+    {
+        spec.name: spec
+        for spec in (
+            SCHOLARSHIP_FINDER_ACTOR,
+            COURSE_CATALOG_ACTOR,
+            WEATHER_COLLECTOR_ACTOR,
+            AIR_QUALITY_ACTOR,
+            ELECTRICITY_PRICE_ACTOR,
+            PRESS_RELEASE_ACTOR,
+            ARXIV_PAPER_WATCH_ACTOR,
+        )
+    }
+)

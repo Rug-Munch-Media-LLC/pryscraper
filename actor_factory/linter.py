@@ -118,7 +118,9 @@ def lint_actor(spec: ActorSpec) -> list[str]:
             t for t in re.findall(r"[a-z]+", primary.name.replace("-", " ")) if t not in _verbs
         }
         haystack = (spec.title + " " + spec.description).lower()
-        missing = [t for t in sorted(tokens) if t not in haystack]
+        # substring match so plurals ("opportunities") satisfy singular
+        # event nouns ("opportunity")
+        missing = [t for t in sorted(tokens) if t not in haystack and t[:-1] not in haystack]
         if missing:
             findings.append(
                 f"congruency: primary event domain noun(s) {missing} absent "
