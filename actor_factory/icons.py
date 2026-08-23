@@ -226,16 +226,31 @@ def render_icon(spec: Any) -> str:
 
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" '
-        'width="256" height="256" role="img" aria-label="' + spec.title.replace('"', "") + '">\n'
+        'width="256" height="256" role="img" aria-label="'
+        + spec.title.replace("&", "&amp;").replace('"', "").replace("<", "&lt;")
+        + '">\n'
         "<defs>\n"
         f'<linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%" '
         f'gradientTransform="rotate({rotation} 0.5 0.5)">\n'
-        f'<stop offset="0%" stop-color="hsl({h1},72%,42%)"/>\n'
-        f'<stop offset="100%" stop-color="hsl({h2},72%,30%)"/>\n'
+        f'<stop offset="0%" stop-color="hsl({h1},74%,46%)"/>\n'
+        f'<stop offset="55%" stop-color="hsl({h1},70%,38%)"/>\n'
+        f'<stop offset="100%" stop-color="hsl({h2},72%,26%)"/>\n'
+        "</linearGradient>\n"
+        '<filter id="ds" x="-20%" y="-20%" width="140%" height="140%">\n'
+        '<feDropShadow dx="0" dy="5" stdDeviation="7" '
+        'flood-color="rgba(0,0,0,0.35)"/>\n'
+        "</filter>\n"
+        '<linearGradient id="gloss" x1="0%" y1="0%" x2="0%" y2="100%">\n'
+        '<stop offset="0%" stop-color="rgba(255,255,255,0.22)"/>\n'
+        '<stop offset="45%" stop-color="rgba(255,255,255,0.05)"/>\n'
+        '<stop offset="100%" stop-color="rgba(255,255,255,0)"/>\n'
         "</linearGradient>\n</defs>\n"
         '<rect width="256" height="256" rx="52" fill="url(#bg)"/>\n'
+        '<path d="M0 0 H256 V128 C170 158 86 158 0 128 Z" '
+        'fill="url(#gloss)"/>\n'
         '<rect x="10" y="10" width="236" height="236" rx="44" '
-        'fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="3"/>\n'
-        f"<g>{glyph}</g>\n"
+        'fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="3"/>\n'
+        f'<circle cx="212" cy="44" r="9" fill="hsl({h1},95%,72%)"/>\n'
+        f'<g filter="url(#ds)">{glyph}</g>\n'
         "</svg>\n"
     )
