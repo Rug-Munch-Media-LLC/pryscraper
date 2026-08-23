@@ -55,3 +55,126 @@ def test_rate_limiter_get_stats_shape() -> None:
     assert "total_blocked" in stats
     assert "default_rpm" in stats
     assert stats["default_rpm"] == 120
+
+
+# ---------------------------------------------------------------------------
+# Redis backend (fail-open availability, fail-closed correctness)
+# ---------------------------------------------------------------------------
+
+
+class _FakePipeline:
+    def __init__(self, store: dict, key: str, fail: bool = False) -> None:
+        self._store = store
+        self._key = key
+        self._fail = fail
+        self._ops: list[tuple[str, tuple]] = []
+
+    def incr(self, key: str, amount: int = 1):
+        self._ops.append(("incr", (key, amount)))
+        return self
+
+    def ttl(self, key: str):
+        self._ops.append(("ttl", (key,)))
+        return self
+
+    def execute(self) -> list:
+        if self._fail:
+            raise ConnectionError("redis down mid-pipeline")
+        results = []
+        for op, args in self._ops:
+            if op == "incr":
+                key, amount = args
+                self._store[key] = self._store.get(key, 0) + amount
+                results.append(self._store[key])
+            elif op == "ttl":
+                results.append(60)  # pretend key always has TTL
+        return results
+
+
+class _FakeRedis:
+    """Minimal redis double: pipeline INCR/TTL + EXPIRE + PING."""
+
+    def __init__(self) -> None:
+        self.store: dict[str, int] = {}
+        self.fail = False
+
+    def ping(self) -> bool:
+        if self.fail:
+            raise ConnectionError("redis down")
+        return True
+
+    def pipeline(self):
+        # last key used is tracked via incr calls; simple single-key pipe
+        return _FakePipeProxy(self)
+
+    def expire(self, key: str, seconds: int) -> bool:
+        return True
+
+
+class _FakePipeProxy:
+    """Routes pipeline() to a per-call pipeline bound on first incr."""
+
+    def __init__(self, client: _FakeRedis) -> None:
+        self._client = client
+        self._inner: _FakePipeline | None = None
+
+    def incr(self, key: str, amount: int = 1):
+        if self._inner is None:
+            self._inner = _FakePipeline(self._client.store, key, fail=self._client.fail)
+        return self._inner.incr(key, amount)
+
+    def ttl(self, key: str):
+        assert self._inner is not None
+        return self._inner.ttl(key)
+
+    def execute(self) -> list:
+        assert self._inner is not None
+        return self._inner.execute()
+
+
+def test_redis_backend_shared_counter_limits_across_instances() -> None:
+    fake = _FakeRedis()
+    rl_a = RateLimiter(default_rpm=3, burst=100, redis_url="redis://test")
+    rl_b = RateLimiter(default_rpm=3, burst=100, redis_url="redis://test")
+    rl_a._redis = fake  # inject double, skip real connection
+    rl_b._redis = fake
+
+    results = [rl_b.check("9.9.9.9")[0] for _ in range(5)]
+    # Shared window of 3 across BOTH limiter instances (multi-replica sim).
+    assert results == [True, True, True, False, False]
+    assert rl_b.backend == "redis"
+
+
+def test_redis_stats_shape_and_remaining() -> None:
+    fake = _FakeRedis()
+    rl = RateLimiter(default_rpm=5, burst=100, redis_url="redis://test")
+    rl._redis = fake
+    allowed, stats = rl.check("8.8.8.8")
+    assert allowed is True
+    assert stats["limit"] == 5
+    assert stats["remaining"] == 4
+    assert "window_reset" in stats
+
+
+def test_redis_failure_falls_back_to_memory() -> None:
+    rl = RateLimiter(default_rpm=60, burst=10, redis_url="redis://test")
+    broken = _FakeRedis()
+    broken.fail = True
+    rl._redis = broken
+    allowed, stats = rl.check("7.7.7.7")
+    assert allowed is True  # degraded, not down
+    assert rl.backend == "memory"
+    assert stats["total"] == 1  # memory token-bucket stats shape
+
+
+def test_no_redis_url_uses_memory() -> None:
+    rl = RateLimiter(default_rpm=60, burst=10)
+    allowed, _ = rl.check("6.6.6.6")
+    assert allowed is True
+    assert rl.backend == "memory"
+
+
+def test_get_stats_reports_backend() -> None:
+    rl = RateLimiter(default_rpm=60, burst=10)
+    rl.check("5.5.5.5")
+    assert rl.get_stats()["backend"] == "memory"

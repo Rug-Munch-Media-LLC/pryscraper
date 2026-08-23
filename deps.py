@@ -28,7 +28,11 @@ automator = PryAutomator()
 parser = DocumentParser()
 extractor = SchemaExtractor()
 cache = ResponseCache(capacity=1000)
-ratelimiter = RateLimiter(default_rpm=settings.rate_limit_rpm, burst=200)
+# Redis-backed when settings.redis_url is reachable; per-process token bucket
+# otherwise (see ratelimit.py — backend failures degrade, never block).
+ratelimiter = RateLimiter(
+    default_rpm=settings.rate_limit_rpm, burst=200, redis_url=settings.redis_url
+)
 queue = JobQueue()
 advanced = PryAdvanced(cache=cache)
 user_ratelimiter = user_ratelimiter

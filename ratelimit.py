@@ -1,32 +1,142 @@
 """Pry — token-bucket rate limiter per IP.
-Prevents abuse while keeping the service responsive."""
+
+Two backends behind one interface:
+
+- **Redis** (default when ``redis_url`` is provided and reachable): fixed
+  60-second window counters shared across all replicas. Required for correct
+  limiting when running more than one instance.
+- **In-memory** (fallback): per-process token bucket. Used when no Redis URL
+  is configured, or when Redis errors — a limiter must never take the API
+  down, so backend failures degrade to per-process limiting with a logged
+  warning and a 30s retry cooldown before the next reconnect attempt.
+"""
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
+import logging
 import time
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+_REDIS_RETRY_SECONDS = 30.0
 
 
 class RateLimiter:
-    """Token-bucket rate limiter with per-IP tracking.
+    """Token-bucket (memory) / fixed-window (Redis) rate limiter per IP.
 
-    Default: 60 requests/minute per IP, burstable to 100.
+    Default: 60 requests/minute per IP, burstable to 100 (memory backend).
     """
 
-    def __init__(self, default_rpm: int = 60, burst: int = 100):
+    def __init__(
+        self,
+        default_rpm: int = 60,
+        burst: int = 100,
+        redis_url: str | None = None,
+    ):
         self.default_rpm = default_rpm
         self.burst = burst
         self._buckets: dict[str, dict] = {}
         self._cleanup_interval = 300  # 5 min cleanup
         self._last_cleanup = time.time()
 
+        # Redis backend state (lazy connect + failure cooldown).
+        self._redis_url = redis_url or ""
+        self._redis: Any = None
+        self._redis_failed_at = 0.0
+        self.backend = "memory"
+
+    # ── Redis backend ────────────────────────────────────────────────────────
+
+    def _get_redis(self) -> Any:
+        """Return a pinged Redis client, or None (with cooldown after failure)."""
+        if self._redis is not None:
+            return self._redis
+        if not self._redis_url:
+            return None
+        now = time.time()
+        if now - self._redis_failed_at < _REDIS_RETRY_SECONDS:
+            return None
+        try:
+            import redis as redis_py
+
+            client = redis_py.Redis.from_url(
+                self._redis_url,
+                socket_connect_timeout=0.25,
+                socket_timeout=0.25,
+                decode_responses=True,
+            )
+            client.ping()
+            self._redis = client
+            self.backend = "redis"
+            logger.info("rate_limiter_redis_connected", extra={"url": self._redis_url})
+            return client
+        except Exception as e:  # noqa: BLE001 — any backend error must degrade, not raise
+            self._redis_failed_at = now
+            logger.warning(
+                "rate_limiter_redis_unavailable_falling_back_to_memory",
+                extra={"error": str(e)[:160]},
+            )
+            return None
+
+    def _check_redis(self, ip: str, rate: int) -> tuple[bool, dict] | None:
+        """Fixed-window check in Redis. Returns None to signal fallback."""
+        client = self._get_redis()
+        if client is None:
+            return None
+        self.backend = "redis"
+        try:
+            window = int(time.time()) // 60
+            key = f"pry:rl:{ip}:{window}"
+            pipe = client.pipeline()
+            pipe.incr(key)
+            pipe.ttl(key)
+            count, ttl = pipe.execute()
+            if int(ttl) < 0:
+                client.expire(key, 60)
+                ttl = 60
+            count = int(count)
+            allowed = count <= rate
+            stats: dict[str, Any] = {
+                "remaining": max(0, rate - count),
+                "limit": rate,
+                "total": count,
+                "window_reset": int((window + 1) * 60),
+            }
+            if not allowed:
+                stats["retry_after"] = float(max(1, int(ttl)))
+            return allowed, stats
+        except Exception as e:  # noqa: BLE001 — same availability rule mid-flight
+            # Backend broke mid-flight: drop the connection, cool down, fall
+            # back to memory so the API stays available.
+            self._redis = None
+            self._redis_failed_at = time.time()
+            self.backend = "memory"
+            logger.warning(
+                "rate_limiter_redis_error_falling_back_to_memory",
+                extra={"error": str(e)[:160]},
+            )
+            return None
+
+    # ── Public interface ─────────────────────────────────────────────────────
+
     def check(self, ip: str, rpm: int | None = None) -> tuple[bool, dict]:
         """Check if request is allowed. Returns (allowed, stats)."""
-        now = time.time()
         rate = rpm or self.default_rpm
+
+        redis_result = self._check_redis(ip, rate)
+        if redis_result is not None:
+            return redis_result
+
+        return self._check_memory(ip, rate)
+
+    def _check_memory(self, ip: str, rate: int) -> tuple[bool, dict]:
+        """Original per-process token bucket."""
+        now = time.time()
 
         # Periodic cleanup
         if now - self._last_cleanup > self._cleanup_interval:
@@ -82,6 +192,7 @@ class RateLimiter:
         total_blocked = sum(b["blocked"] for b in self._buckets.values())
         total_requests = sum(b["total"] for b in self._buckets.values())
         return {
+            "backend": self.backend,
             "active_ips": total_active,
             "total_requests": total_requests,
             "total_blocked": total_blocked,

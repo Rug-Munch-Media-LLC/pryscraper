@@ -8,6 +8,7 @@ Self-hosted, free, better than Firecrawl."""
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
+import os
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
@@ -225,6 +226,31 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Startup: validate deps. Shutdown: cleanup clients."""
     logger.info("pry_startup", version="3.0.0")
     setup_tracing()
+
+    # x402 route-classification audit (fail-closed gate).
+    # PRY_X402_AUDIT: strict (default) = raise on unclassified routes;
+    # warn = log critical but boot; off = skip entirely.
+    from x402_middleware import audit_route_classification
+
+    _audit_mode = os.getenv("PRY_X402_AUDIT", "strict").strip().lower()
+    if _audit_mode != "off":
+        _unclassified = audit_route_classification(app)
+        if _unclassified:
+            if _audit_mode == "warn":
+                logger.critical(
+                    "x402_audit_unclassified_routes",
+                    extra={"count": len(_unclassified), "paths": _unclassified[:20]},
+                )
+            else:
+                raise RuntimeError(
+                    "x402 route classification audit failed — every route must be "
+                    f"explicitly free or paid. Unclassified ({len(_unclassified)}): "
+                    + ", ".join(_unclassified[:20])
+                    + (" …" if len(_unclassified) > 20 else "")
+                )
+        else:
+            logger.info("x402_audit_clean")
+
     if not settings.api_key:
         logger.warning(
             "pry_api_key_unset",
@@ -295,30 +321,9 @@ app.add_middleware(
 )
 
 # Gate paid endpoints behind x402 payments. Free endpoints are always public.
-app.add_middleware(
-    X402Middleware,
-    free_paths=[
-        "/health",
-        "/live",
-        "/ready",
-        "/docs",
-        "/openapi.json",
-        "/dashboard",
-        "/v1/config",
-        "/v1/ai/mcp-config",
-        "/v1/x402/pricing",
-        "/v1/x402/payment",
-        "/v1/x402/verify",
-        "/v1/x402/require-payment",
-        "/v1/x402/pay",
-        "/v1/x402/batch-payment",
-        "/v1/x402/batch-verify",
-        "/mcp",
-        "/mcp/health",
-        "/mcp/sse",
-        "/mcp/messages/*",
-    ],
-)
+# Classification lives in x402_middleware (DEFAULT_FREE_PATHS / PAID_ENDPOINTS)
+# and is audited at startup by the lifespan hook below — fail-closed.
+app.add_middleware(X402Middleware)
 
 
 def add_error_handlers(app: FastAPI) -> None:

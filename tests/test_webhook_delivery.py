@@ -17,7 +17,7 @@ import httpx
 import pytest
 import respx
 
-from webhook_delivery import WebhookDelivery
+from webhook_delivery import WebhookDelivery, WebhookSecretNotConfigured
 
 
 @pytest.fixture
@@ -253,12 +253,18 @@ def test_init_empty_secret(tmp_path: Path):
         patch("webhook_delivery.settings.webhook_secret", ""),
     ):
         w = WebhookDelivery()
-        assert w.signing_secret == ""  # empty key allowed, just no verification
+        assert w.signing_secret == ""  # empty key allowed at init, but see below
+        assert w.secret_configured is False
 
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_deliver_empty_secret_still_signs(tmp_path: Path):
+async def test_deliver_empty_secret_refused(tmp_path: Path):
+    """FAIL-CLOSED: no signing secret => delivery refused, nothing sent.
+
+    An HMAC with an empty key is forgeable by anyone, so delivering a
+    'signed' webhook would give receivers false integrity guarantees.
+    """
     with (
         patch("webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks3"),
         patch("webhook_delivery.settings.webhook_secret", ""),
@@ -267,4 +273,23 @@ async def test_deliver_empty_secret_still_signs(tmp_path: Path):
         route = respx.post("http://hook.example.com")
         route.mock(return_value=httpx.Response(200, json={"ok": True}))
         result = await w.deliver("http://hook.example.com", {"event": "test"})
-        assert result["success"] is True
+        assert result["success"] is False
+        assert result.get("refused") is True
+        assert "secret" in result["error"].lower()
+        assert route.call_count == 0  # nothing left the process unsigned
+
+
+def test_sign_payload_empty_secret_raises(tmp_path: Path):
+    with (
+        patch("webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks4"),
+        patch("webhook_delivery.settings.webhook_secret", ""),
+    ):
+        w = WebhookDelivery()
+        with pytest.raises(WebhookSecretNotConfigured):
+            w.sign_payload({"event": "test"})
+
+
+def test_secret_configured_property(tmp_path: Path):
+    with patch("webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks5"):
+        configured = WebhookDelivery(signing_secret="real-secret")
+        assert configured.secret_configured is True

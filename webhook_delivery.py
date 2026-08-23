@@ -26,6 +26,15 @@ logger = logging.getLogger(__name__)
 WEBHOOK_DIR = PRY_DATA_DIR / "webhooks"
 
 
+class WebhookSecretNotConfigured(RuntimeError):
+    """Raised when signing is attempted without a configured secret.
+
+    An HMAC computed with an empty key is forgeable by anyone, so delivering
+    a 'signed' webhook with no secret would give receivers false integrity
+    guarantees. Delivery is refused instead (fail-closed).
+    """
+
+
 class WebhookDelivery:
     """Deliver webhooks reliably with retries and HMAC signing."""
 
@@ -34,19 +43,23 @@ class WebhookDelivery:
         # Secret resolution order: explicit arg → PRY_WEBHOOK_SECRET env →
         # settings.webhook_secret (which reads PRY_WEBHOOK_SECRET /
         # pry/webhook_secret in gopass — see settings.py). An empty secret
-        # means webhook signatures cannot be verified; operators must
-        # configure a real secret for deployments that verify webhooks.
+        # means signatures cannot be produced; deliver() refuses to send.
         self.signing_secret = (
             signing_secret or os.getenv("PRY_WEBHOOK_SECRET") or settings.webhook_secret
         )
         if not self.signing_secret:
             logger.warning(
-                "webhook_secret_empty — webhook signatures are UNVERIFIABLE. "
-                "Set PRY_WEBHOOK_SECRET (or gopass pry/webhook_secret) in production."
+                "webhook_secret_empty — webhook delivery will be REFUSED "
+                "(fail-closed). Set PRY_WEBHOOK_SECRET (or gopass "
+                "pry/webhook_secret) in production."
             )
         self.delivery_log = WEBHOOK_DIR / "deliveries.jsonl"
         self.dead_letter = WEBHOOK_DIR / "dead_letter.jsonl"
         self._load_log()
+
+    @property
+    def secret_configured(self) -> bool:
+        return bool(self.signing_secret)
 
     def _load_log(self) -> None:
         self.log: list[dict] = []
@@ -59,6 +72,11 @@ class WebhookDelivery:
                 pass
 
     def sign_payload(self, payload: dict) -> str:
+        if not self.signing_secret:
+            raise WebhookSecretNotConfigured(
+                "webhook signing secret is not configured — refusing to produce "
+                "a forgeable signature. Set PRY_WEBHOOK_SECRET."
+            )
         body = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         return hmac.new(self.signing_secret.encode(), body.encode(), hashlib.sha256).hexdigest()
 
@@ -70,10 +88,21 @@ class WebhookDelivery:
         max_retries: int = 3,
         retry_delay: float = 5.0,
     ) -> dict[str, Any]:
-        """Deliver a webhook with retries."""
+        """Deliver a webhook with retries.
+
+        Fail-closed: when no signing secret is configured the delivery is
+        refused up front (nothing is sent unsigned).
+        """
         from client import get_client
 
-        signature = self.sign_payload(payload)
+        try:
+            signature = self.sign_payload(payload)
+        except WebhookSecretNotConfigured as e:
+            logger.error(
+                "webhook_delivery_refused_unsigned",
+                extra={"url": url, "event": event_type},
+            )
+            return {"success": False, "error": str(e), "refused": True}
         headers = {
             "Content-Type": "application/json",
             "X-Pry-Event": event_type,

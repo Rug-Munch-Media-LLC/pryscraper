@@ -23,7 +23,7 @@ router = APIRouter(tags=["Execute"])
 
 
 @router.post("/v1/run", tags=["Execute"], summary="Execute a Pryfile")
-async def run_pryfile(path: str = Body("pry.yml")) -> dict[str, Any]:
+async def run_pryfile(path: str = Body("pry.yml", embed=True)) -> dict[str, Any]:
     from pryfile import Pryfile
 
     resolved = _safe_pryfile_path(path)
