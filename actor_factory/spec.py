@@ -1,0 +1,253 @@
+"""Pry — Apify Actor Factory: specification types.
+
+Encodes Apify's actor.json v1 specification (docs.apify.com/actors/
+development/actor-definition/actor-json) and the pay-per-event monetization
+model (docs.apify.com/actors/publishing/monetize/pay-per-event) as typed
+Python objects. The generator turns these into deployable `.actor` packages.
+
+Spec rules enforced here (verified against Apify docs 2026-08-23):
+- ``actorSpecification`` is always 1.
+- ``version`` MUST be ``[Number].[Number]`` (e.g. "1.0") - NOT semver.
+- ``dockerfile`` is lowercase; defaults to ./Dockerfile search path.
+- Input schemas are JSON-Schema objects with ``schemaVersion: 1`` and
+  platform ``editor`` hints per field.
+- PPE pricing: custom events are charged via Actor.charge(); the synthetic
+  events apify-actor-start / apify-default-dataset-item are auto-charged by
+  the platform and must NEVER be charged manually.
+
+Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
+Licensed under MIT. See LICENSE.
+"""
+
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from typing import Any
+
+VERSION_RE = re.compile(r"^\d+\.\d+$")
+
+VALID_EDITORS = {
+    "string",
+    "textfield",
+    "select",
+    "boolean",
+    "integer",
+    "float",
+    "stringList",
+    "requestListSources",
+    "keyValue",
+    "dateInterval",
+    "hidden",
+}
+
+SYNTHETIC_EVENTS = {"apify-actor-start", "apify-default-dataset-item"}
+
+EVENT_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+
+
+def _validate_version(version: str) -> str:
+    if not VERSION_RE.match(version):
+        raise ValueError(
+            f"version '{version}' violates Apify spec: must be [Number].[Number], e.g. '1.0'"
+        )
+    return version
+
+
+@dataclass(frozen=True)
+class InputField:
+    """One property of an actor's input schema."""
+
+    name: str
+    title: str
+    type: str = "string"
+    description: str = ""
+    editor: str | None = None
+    prefill: Any = None
+    default: Any = None
+    required: bool = False
+    enum: list[str] | None = None
+    enum_titles: list[str] | None = None
+    minimum: int | float | None = None
+    maximum: int | float | None = None
+    section_caption: str | None = None
+    item_type: str | None = None  # for arrays of strings
+
+    def to_schema(self) -> dict[str, Any]:
+        if self.editor is not None and self.editor not in VALID_EDITORS:
+            raise ValueError(f"field '{self.name}': editor '{self.editor}' not in Apify editor set")
+        prop: dict[str, Any] = {
+            "title": self.title,
+            "type": self.type,
+            "description": self.description,
+        }
+        if self.section_caption:
+            prop["sectionCaption"] = self.section_caption
+        if self.editor:
+            prop["editor"] = self.editor
+        if self.default is not None:
+            prop["default"] = self.default
+        if self.prefill is not None:
+            prop["prefill"] = self.prefill
+        if self.enum is not None:
+            prop["enum"] = self.enum
+        if self.enum_titles is not None:
+            prop["enumTitles"] = self.enum_titles
+        if self.minimum is not None:
+            prop["minimum"] = self.minimum
+        if self.maximum is not None:
+            prop["maximum"] = self.maximum
+        if self.type == "array" and self.item_type:
+            prop["items"] = {"type": self.item_type}
+        return prop
+
+
+@dataclass(frozen=True)
+class PricingEvent:
+    """A custom pay-per-event chargeable action.
+
+    Names must be lowercase-kebab and NOT collide with Apify's synthetic
+    events (those are billed automatically by the platform).
+    """
+
+    name: str
+    title: str
+    description: str
+    price_usd: float
+
+    def __post_init__(self) -> None:
+        if not EVENT_NAME_RE.match(self.name):
+            raise ValueError(f"event '{self.name}': use lowercase kebab-case (a-z, 0-9, dashes)")
+        if self.name in SYNTHETIC_EVENTS:
+            raise ValueError(
+                f"event '{self.name}' is a platform synthetic event - it is "
+                "auto-charged and must never be defined or charged manually"
+            )
+        if self.price_usd <= 0:
+            raise ValueError(f"event '{self.name}': price must be positive")
+
+
+@dataclass(frozen=True)
+class ActorSpec:
+    """Complete specification for a generated Apify actor."""
+
+    name: str
+    title: str
+    description: str
+    version: str = "1.0"
+    category: str = "SCRAPER"
+    inputs: tuple[InputField, ...] = ()
+    pricing_events: tuple[PricingEvent, ...] = ()
+    min_memory_mbytes: int = 512
+    max_memory_mbytes: int = 4096
+    build_tag: str = "latest"
+    uses_browser: bool = True  # Chromium in image => higher memory floor
+
+    def __post_init__(self) -> None:
+        _validate_version(self.version)
+        if not re.match(r"^[a-z0-9][a-z0-9-]*$", self.name):
+            raise ValueError(f"name '{self.name}': lowercase alphanumerics and dashes only")
+        names = [f.name for f in self.inputs]
+        if len(names) != len(set(names)):
+            raise ValueError("duplicate input field names")
+        event_names = [e.name for e in self.pricing_events]
+        if len(event_names) != len(set(event_names)):
+            raise ValueError("duplicate pricing event names")
+        if self.min_memory_mbytes > self.max_memory_mbytes:
+            raise ValueError("minMemoryMbytes exceeds maxMemoryMbytes")
+        if self.uses_browser and self.min_memory_mbytes < 512:
+            # Docs: browser-based scraping needs more memory; keep users from
+            # under-provisioning into OOM.
+            raise ValueError("browser actors need minMemoryMbytes >= 512")
+
+    def primary_event(self) -> PricingEvent:
+        """The event best representing core value (first defined)."""
+        if not self.pricing_events:
+            raise ValueError(f"actor '{self.name}' has no pricing events")
+        return self.pricing_events[0]
+
+    def to_actor_json(self) -> dict[str, Any]:
+        """Render the spec-compliant actor.json object."""
+        return {
+            "actorSpecification": 1,
+            "name": self.name,
+            "title": self.title,
+            "description": self.description,
+            "version": self.version,
+            "buildTag": self.build_tag,
+            "meta": {"templateId": "pry-actor-factory"},
+            "dockerfile": "./Dockerfile",
+            "minMemoryMbytes": self.min_memory_mbytes,
+            "maxMemoryMbytes": self.max_memory_mbytes,
+            "input": self._input_schema(),
+            "output": self._output_schema(),
+        }
+
+    def _input_schema(self) -> dict[str, Any]:
+        properties: dict[str, Any] = {}
+        required: list[str] = []
+        current_section: str | None = None
+        for f in self.inputs:
+            prop = f.to_schema()
+            if f.section_caption and f.section_caption != current_section:
+                current_section = f.section_caption
+            properties[f.name] = prop
+            if f.required:
+                required.append(f.name)
+        schema = {
+            "title": f"Input schema for {self.title}",
+            "description": self.description,
+            "type": "object",
+            "schemaVersion": 1,
+            "properties": properties,
+        }
+        if required:
+            schema["required"] = required
+        return schema
+
+    def _output_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "schemaVersion": 1,
+            "properties": {
+                "url": {"title": "URL", "type": "string", "description": "Source URL"},
+                "status": {
+                    "title": "Status",
+                    "type": "string",
+                    "description": "ok | error",
+                    "editor": "select",
+                    "enum": ["ok", "error"],
+                },
+                "content": {
+                    "title": "Content",
+                    "type": "string",
+                    "description": "Extracted content (markdown/text/html per outputFormat)",
+                },
+                "method": {
+                    "title": "Method",
+                    "type": "string",
+                    "description": "Pry fallback tier that produced this result",
+                },
+                "error": {
+                    "title": "Error",
+                    "type": "string",
+                    "description": "Error detail when status=error",
+                },
+                "scraped_at": {
+                    "title": "Scraped at",
+                    "type": "string",
+                    "description": "ISO-8601 UTC timestamp",
+                },
+                "metadata": {
+                    "title": "Metadata",
+                    "type": "object",
+                    "description": "Domain, content length, timing",
+                },
+            },
+        }

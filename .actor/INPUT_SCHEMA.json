@@ -1,0 +1,37 @@
+{
+	"title": "Input schema for Pry Universal Scraper",
+	"description": "Scrape any website to clean markdown with a 12-tier adaptive anti-bot bypass (Cloudflare, DataDome, Akamai). Pay per page scraped; blocked pages escalate automatically.",
+	"type": "object",
+	"schemaVersion": 1,
+	"properties": {
+		"urls": {
+			"title": "Target URLs",
+			"type": "array",
+			"description": "One or more https:// URLs to process.",
+			"editor": "requestListSources",
+			"prefill": [
+				{
+					"url": "https://example.com"
+				}
+			]
+		},
+		"output_format": {
+			"title": "Output format",
+			"type": "string",
+			"description": "Content format pushed to the dataset.",
+			"sectionCaption": "Scraping settings",
+			"editor": "select",
+			"default": "markdown",
+			"enum": ["markdown", "text", "html"]
+		},
+		"timeout": {
+			"title": "Timeout (seconds)",
+			"type": "integer",
+			"description": "Per-URL timeout.",
+			"default": 30,
+			"minimum": 5,
+			"maximum": 120
+		}
+	},
+	"required": ["urls"]
+}

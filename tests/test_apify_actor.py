@@ -18,6 +18,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from actor_factory.presets import SCRAPER_ACTOR
 from apify_actor import _extract_links, scrape_url
 
 REPO = Path(__file__).resolve().parents[1]
@@ -108,40 +109,47 @@ class TestActorPackaging:
         return json.loads((REPO / ".actor" / "actor.json").read_text())
 
     def test_actor_json_valid_and_buildable(self) -> None:
+        """Factory-generated spec (Apify docs 2026-08-23): lowercase
+        'dockerfile', [N].[N] version, referenced file must exist."""
         spec = self._actor_spec()
         assert spec["actorSpecification"] == 1
         assert spec["name"]
-        assert spec["version"]
-        # dockerFile must point at a file that EXISTS (it was missing once -
-        # the actor could not build on the platform at all).
-        dockerfile = REPO / ".actor" / spec["dockerFile"].lstrip("./")
-        assert dockerfile.exists(), f"referenced Dockerfile missing: {spec['dockerFile']}"
+        import re
+
+        assert re.match(r"^\d+\.\d+$", spec["version"]), (
+            f"version '{spec['version']}' violates Apify [N].[N] rule"
+        )
+        dockerfile = REPO / ".actor" / spec["dockerfile"].lstrip("./")
+        assert dockerfile.exists(), f"referenced Dockerfile missing: {spec['dockerfile']}'"
+        assert spec["meta"]["templateId"] == "pry-actor-factory"
+        assert spec["name"] == SCRAPER_ACTOR.name
 
     def test_input_schema_contract(self) -> None:
-        props = self._actor_spec()["input"]["schema"]["properties"]
+        props = self._actor_spec()["input"]["properties"]
         assert props["urls"]["type"] == "array"
         assert "output_format" in props
-        assert set(props["output_format"]["enum"]) == {"markdown", "html", "text"}
+        assert set(props["output_format"]["enum"]) == {"markdown", "text", "html"}
+        # standalone INPUT_SCHEMA.json stays in lockstep with the embedded one
+        standalone = json.loads((REPO / ".actor" / "INPUT_SCHEMA.json").read_text())
+        assert standalone["properties"] == props
 
     def test_output_schema_covers_emitted_fields(self) -> None:
-        out = self._actor_spec()["output"]["schema"]["items"]
-        declared = set(out["properties"])
+        out = self._actor_spec()["output"]["properties"]
+        declared = set(out)
         emitted = {
             "url",
             "status",
-            "method",
-            "scraped_at",
-            "elapsed_seconds",
             "content",
-            "raw_html",
-            "metadata",
+            "method",
             "error",
+            "scraped_at",
+            "metadata",
         }
         missing = emitted - declared
-        assert not missing, f"scrape_url emits fields absent from output schema: {missing}"
+        assert not missing, f"runner emits fields absent from output schema: {missing}"
 
     def test_dockerfile_installs_lock_and_sdk(self) -> None:
-        dockerfile = (REPO / ".actor" / "Dockerfile.apify").read_text()
+        dockerfile = (REPO / ".actor" / "Dockerfile").read_text()
         assert "requirements.lock" in dockerfile  # pinned installs
         assert "apify-sdk" in dockerfile
         assert "playwright install chromium" in dockerfile

@@ -46,13 +46,33 @@ jobs:
           print(f"OK: actor '{spec['name']}' v{spec['version']} packaging valid")
           PY
 
-      - name: Adapter unit tests
+      - name: Factory + adapter tests (all three layers)
         run: |
           python3 -m venv .venv
           source .venv/bin/activate
-          pip install --disable-pip-version-check -q pytest pytest-asyncio \
-            && pip install -q -r requirements.lock || true
-          python -m pytest tests/test_apify_actor.py tests/test_apify_schema.py -q
+          pip install --disable-pip-version-check -q pytest pytest-asyncio
+          pip install -q -r requirements.lock || true
+          python -m pytest tests/test_actor_factory.py tests/test_apify_actor.py tests/test_apify_schema.py -q
+
+      - name: Regenerated flagship matches committed .actor/
+        run: |
+          source .venv/bin/activate
+          python - << 'PY'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, ".")
+          from actor_factory.presets import SCRAPER_ACTOR
+          from actor_factory.generator import generate_actor, validate_generated
+          g = generate_actor(SCRAPER_ACTOR, Path("."))
+          problems = validate_generated(g.files)
+          assert not problems, problems
+          # committed files must equal factory output (lockstep check)
+          for name, path in g.files.items():
+              committed = Path(".actor") / name if not name.startswith("src/") else Path(name)
+              if committed.exists():
+                  assert committed.read_text() == path.read_text(), f"drift in {name}"
+          print("flagship actor in lockstep with factory")
+          PY
 
   build:
     needs: validate
