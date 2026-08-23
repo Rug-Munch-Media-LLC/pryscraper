@@ -57,6 +57,7 @@ async def main() -> None:
         config=ActorRunConfig(
             primary_event="{primary_event}",
             default_output_format="{output_format}",
+            {processor_line}
         ),
         actor_module=None,  # resolved lazily so tests can inject a mock
     )
@@ -156,9 +157,36 @@ def generate_actor(spec: ActorSpec, out_dir: Path) -> GeneratedActor:
             title=spec.title,
             primary_event=spec.primary_event().name,
             output_format=_default_output_format(spec),
+            processor_line=(
+                f'processor_name="{spec.processor}",' if spec.processor else "processor_name=None,"
+            ),
         )
     )
     files["src/main.py"] = main_py
+
+    # per-actor CHANGELOG (docs: displayed in Console Information tab)
+    changelog = actor_dir / "CHANGELOG.md"
+    changelog.write_text(
+        f"# Changelog\n\n## {spec.version}\n\n- Initial release via Pry Actor Factory.\n"
+    )
+    files["CHANGELOG.md"] = changelog
+
+    # dataset schema (storages.dataset) - congruency with output contract
+    dataset_schema = actor_dir / "dataset_schema.json"
+    dataset_schema.write_text(
+        json.dumps(
+            {
+                "title": f"{spec.title} results",
+                "description": "One item per processed URL.",
+                "type": "object",
+                "schemaVersion": 1,
+                "fields": {},
+            },
+            indent=4,
+        )
+        + "\n"
+    )
+    files["dataset_schema.json"] = dataset_schema
 
     return GeneratedActor(out_dir=out_dir, files=files)
 

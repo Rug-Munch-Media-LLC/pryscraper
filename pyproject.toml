@@ -325,6 +325,11 @@ extend-ignore = ["N815", "A002", "RUF006"]
 "templates/**" = ["T201"]
 "scripts/**" = ["T201"]
 
+# ultimate_scraper.py: three intentional blind-except cleanup handlers
+# (telemetry record, undetected driver quit, playwright browser close)
+# log at debug with exc_info and must never raise into the scrape loop.
+"ultimate_scraper.py" = ["BLE001"]
+
 # BLE001 (blind except Exception) is enforced. Pre-existing sites are
 # marked with `# noqa: BLE001`; new code must use specific exception
 # types (e.g. httpx.HTTPError, json.JSONDecodeError, OSError).

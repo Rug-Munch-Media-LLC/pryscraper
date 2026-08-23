@@ -62,6 +62,7 @@ class ActorRunConfig:
     primary_event: str
     default_output_format: str = "markdown"
     max_items: int = 10_000  # hard runaway cap independent of user limits
+    processor_name: str | None = None  # actor_factory.processors registry key
 
 
 @dataclass
@@ -163,13 +164,22 @@ class PPEScraperRunner:
             actor.on("aborting", self.on_aborting)
             raw_input = await actor.get_input() or {}
             urls = self._normalize_urls(raw_input)
+            # max_pages is a user-facing runaway cap (input schema), applied
+            # on top of the factory's hard internal limit.
+            max_pages = raw_input.get("max_pages")
+            if isinstance(max_pages, int) and max_pages > 0:
+                urls = urls[:max_pages]
             options = {k: v for k, v in raw_input.items() if k not in ("urls", "max_pages")}
             output_format = raw_input.get("output_format", self.config.default_output_format)
             options.setdefault("output_format", output_format)
 
+            state: dict[str, Any] = {}
             for url in urls[: self.config.max_items]:
                 try:
                     item = await self.process_url(url, options)
+                    processor = self._processor()
+                    if processor is not None:
+                        item = processor(url, item, options, state)
                 except Exception as e:  # noqa: BLE001 - bad targets must not kill runs
                     logger.debug("process_url_failed", extra={"url": url, "error": str(e)[:80]})
                     item = {
@@ -186,6 +196,14 @@ class PPEScraperRunner:
                     )
                     break
         return self.stats
+
+    def _processor(self) -> Any:
+        """Resolve the preset's dataset-item processor, if any."""
+        if not self.config.processor_name:
+            return None
+        from actor_factory.processors import PROCESSORS
+
+        return PROCESSORS.get(self.config.processor_name)
 
     @staticmethod
     def _normalize_urls(raw_input: dict[str, Any]) -> list[str]:

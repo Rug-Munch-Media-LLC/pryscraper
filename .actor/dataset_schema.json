@@ -1,0 +1,7 @@
+{
+	"title": "Pry Universal Scraper results",
+	"description": "One item per processed URL.",
+	"type": "object",
+	"schemaVersion": 1,
+	"fields": {}
+}

@@ -148,6 +148,7 @@ class ActorSpec:
     max_memory_mbytes: int = 4096
     build_tag: str = "latest"
     uses_browser: bool = True  # Chromium in image => higher memory floor
+    processor: str | None = None  # actor_factory.processors registry key
 
     def __post_init__(self) -> None:
         _validate_version(self.version)
@@ -165,6 +166,17 @@ class ActorSpec:
             # Docs: browser-based scraping needs more memory; keep users from
             # under-provisioning into OOM.
             raise ValueError("browser actors need minMemoryMbytes >= 512")
+        known = {
+            "corpus",
+            "seo",
+            "leads",
+            "news",
+            "price",
+        }
+        if self.processor is not None and self.processor not in known:
+            raise ValueError(
+                f"processor '{self.processor}' not in factory registry {sorted(known)}"
+            )
 
     def primary_event(self) -> PricingEvent:
         """The event best representing core value (first defined)."""

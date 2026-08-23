@@ -291,6 +291,7 @@ LLM_CORPUS_ACTOR = ActorSpec(
         "or your vector store."
     ),
     version="1.0",
+    processor="corpus",
     inputs=(
         URLS_FIELD,
         MAX_PAGES_FIELD,
@@ -334,6 +335,7 @@ SEO_AUDITOR_ACTOR = ActorSpec(
         "structured dataset."
     ),
     version="1.0",
+    processor="seo",
     inputs=(
         URLS_FIELD,
         MAX_PAGES_FIELD,
@@ -376,6 +378,7 @@ LEAD_HARVESTER_ACTOR = ActorSpec(
         "protected sites."
     ),
     version="1.0",
+    processor="leads",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -416,6 +419,7 @@ NEWS_MONITOR_ACTOR = ActorSpec(
         "articles only). Emits new articles since the last run."
     ),
     version="1.0",
+    processor="news",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -459,6 +463,7 @@ PRICE_WATCHER_ACTOR = ActorSpec(
         "as fallback, and SimHash change detection between runs."
     ),
     version="1.0",
+    processor="price",
     inputs=(
         URLS_FIELD,
         InputField(

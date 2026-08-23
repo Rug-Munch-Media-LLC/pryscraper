@@ -24,6 +24,7 @@ async def main() -> None:
         config=ActorRunConfig(
             primary_event="page-scraped",
             default_output_format="markdown",
+            processor_name=None,
         ),
         actor_module=None,  # resolved lazily so tests can inject a mock
     )

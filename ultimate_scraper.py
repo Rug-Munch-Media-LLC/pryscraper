@@ -316,7 +316,7 @@ class UltimateScraper:
                 # tier failure — abort the whole chain instead of falling through
                 # to other tiers that would hit the same unsafe target.
                 raise
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.debug("tier_exception", extra={"tier": tier_name, "error": str(e)[:50]})
                 html = None
 
@@ -398,7 +398,7 @@ class UltimateScraper:
 
             pm = ProxyManager()
             return pm.get_proxy_url()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.debug("proxy_resolve_failed", extra={"error": str(e)[:80]})
         env_url = os.getenv("PRY_PROXY_URL") or os.getenv("PROXY_URL")
         return env_url or None
@@ -409,7 +409,7 @@ class UltimateScraper:
             from proxy_manager import ProxyManager
 
             return ProxyManager().get_recommendation(last_error)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.debug("proxy_recommend_failed", extra={"error": str(e)[:80]})
             return None
 
@@ -514,7 +514,7 @@ class UltimateScraper:
             )
             if content and len(content) > 100:
                 return content
-        except Exception:  # noqa: BLE001, S110 - fallback: try the next extractor
+        except Exception:  # noqa: S110 - fallback: try the next extractor
             pass
         try:
             from readability import Document
@@ -525,7 +525,7 @@ class UltimateScraper:
                 from markdownify import markdownify
 
                 return markdownify(content, heading_arrows=False, strip=["script", "style"])  # type: ignore[call-arg]  # markdownify supports heading_arrows at runtime
-        except Exception:  # noqa: BLE001, S110 - fallback: strip tags as last resort
+        except Exception:  # noqa: S110 - fallback: strip tags as last resort
             pass
         # Last resort: strip HTML tags
         text = re.sub(r"<[^>]+>", " ", html)
@@ -575,7 +575,7 @@ class UltimateScraper:
             resp = scraper.get(url, timeout=30, headers={"User-Agent": self._rotate_ua()})
             if resp.status_code == 200:
                 return resp.text
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.debug("cloudscraper_failed", extra={"error": str(e)[:50]})
         return None
 
@@ -635,7 +635,7 @@ class UltimateScraper:
                             logger.debug("undetected_quit_failed", exc_info=True)
 
             return await asyncio.to_thread(_do_fetch)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.debug("undetected_failed", extra={"error": str(e)[:50]})
         return None
 
@@ -703,7 +703,7 @@ class UltimateScraper:
             )
             if result.get("success") and result.get("status_code", 0) < 400:
                 return result.get("text", "")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.debug("tls_fingerprint_failed", extra={"error": str(e)[:50]})
         return None
 
@@ -721,7 +721,7 @@ class UltimateScraper:
             )
             if result.get("success"):
                 return result.get("content", "")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.debug("camoufox_failed", extra={"error": str(e)[:50]})
         return None
 
