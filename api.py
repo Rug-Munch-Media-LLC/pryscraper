@@ -172,6 +172,7 @@ try:
     _BIDDING_DATA_ROUTER: Any | None = bidding_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _BIDDING_DATA_ROUTER = None
+from routers.api_keys import router as api_keys_router
 from routers.monitoring import router as monitoring_router
 from routers.parsing import router as parsing_router
 from routers.pipeline import router as pipeline_router
@@ -498,6 +499,7 @@ app.include_router(system_router)
 app.include_router(training_router)
 app.include_router(transform_router)
 app.include_router(streams_router)
+app.include_router(api_keys_router)
 app.include_router(vision_router)
 app.include_router(webhooks_router)
 app.include_router(x402_router)

@@ -129,7 +129,7 @@ if _HAS_SA:
             String(64), ForeignKey("monitors.monitor_id"), index=True, nullable=False
         )
         ts = Column(DateTime, default=_now, index=True)
-        status = Column(String(16), default="success")  # success|changed|error
+        status = Column(String(16), default="success", nullable=False)  # success|changed|error
         diff = Column(JSON, default=dict)
         error = Column(Text, default="")
 
@@ -141,7 +141,7 @@ if _HAS_SA:
         service = Column(String(64), index=True, nullable=False)
         username = Column(String(256), nullable=False)
         email = Column(String(256), default="")
-        status = Column(String(16), default="active")  # active|cooldown|disabled
+        status = Column(String(16), default="active", nullable=False)  # active|cooldown|disabled
         used_count = Column(Integer, default=0)
         last_used_at = Column(DateTime, nullable=True)
         created_at = Column(DateTime, default=_now)
@@ -153,7 +153,7 @@ if _HAS_SA:
         session_id = Column(String(64), unique=True, index=True, nullable=False)
         cookies = Column(JSON, default=list)
         local_storage = Column(JSON, default=dict)
-        user_agent = Column(String(512), default="")
+        user_agent = Column(String(512), default="", nullable=False)
         proxy = Column(String(256), default="")
         created_at = Column(DateTime, default=_now)
         expires_at = Column(DateTime, nullable=True)
@@ -279,13 +279,13 @@ if _HAS_SA:
         user_id = Column(String(64), unique=True, index=True, nullable=False)
         email = Column(String(256), unique=True, index=True, nullable=False)
         password_hash = Column(String(256), nullable=False)
-        tier = Column(String(32), default="FREE")  # FREE, PRO, ENTERPRISE
-        role = Column(String(32), default="USER")  # USER, ADMIN
-        wallet = Column(String(128), default="")
-        is_active = Column(Boolean, default=True, index=True)
-        is_verified = Column(Boolean, default=False)
-        created_at = Column(DateTime, default=_now)
-        updated_at = Column(DateTime, default=_now, onupdate=_now)
+        tier = Column(String(32), default="FREE", nullable=False)  # FREE, PRO, ENTERPRISE
+        role = Column(String(32), default="USER", nullable=False)  # USER, ADMIN
+        wallet = Column(String(128), default="", nullable=False)
+        is_active = Column(Boolean, default=True, index=True, nullable=False)
+        is_verified = Column(Boolean, default=False, nullable=False)
+        created_at = Column(DateTime, default=_now, nullable=False)
+        updated_at = Column(DateTime, default=_now, onupdate=_now, nullable=False)
         last_login_at = Column(DateTime, nullable=True)
 
     class APIKey(Base):
@@ -294,32 +294,49 @@ if _HAS_SA:
         key_id = Column(String(64), unique=True, index=True, nullable=False)
         key_hash = Column(String(128), unique=True, index=True, nullable=False)
         key_prefix = Column(String(16), nullable=False)  # pry_abc123...
-        user_id = Column(String(64), ForeignKey("users.user_id"), index=True, nullable=False)
-        name = Column(String(128), default="")
+        user_id = Column(
+            String(64),
+            ForeignKey("users.user_id", ondelete="CASCADE"),
+            index=True,
+            nullable=False,
+        )
+        name = Column(String(128), default="", nullable=False)
         scopes = Column(JSON, default=list)  # ["scrape", "crawl", "x402", "admin"]
-        rate_limit_rpm = Column(Integer, default=120)
-        quota_monthly = Column(Integer, default=10000)
-        is_active = Column(Boolean, default=True, index=True)
+        rate_limit_rpm = Column(Integer, default=120, nullable=False)
+        quota_monthly = Column(Integer, default=10000, nullable=False)
+        is_active = Column(Boolean, default=True, index=True, nullable=False)
         expires_at = Column(DateTime, nullable=True)
         last_used_at = Column(DateTime, nullable=True)
-        created_at = Column(DateTime, default=_now)
+        created_at = Column(DateTime, default=_now, nullable=False)
 
     class Usage(Base):
         __tablename__ = "usage"
         id = Column(Integer, primary_key=True)
-        user_id = Column(String(64), ForeignKey("users.user_id"), index=True, nullable=False)
-        api_key_id = Column(String(64), ForeignKey("api_keys.key_id"), index=True, nullable=True)
+        user_id = Column(
+            String(64),
+            ForeignKey("users.user_id", ondelete="CASCADE"),
+            index=True,
+            nullable=False,
+        )
+        api_key_id = Column(
+            String(64),
+            ForeignKey("api_keys.key_id", ondelete="SET NULL"),
+            index=True,
+            nullable=True,
+        )
         operation = Column(String(64), index=True, nullable=False)  # scrape, crawl, extract, etc.
-        endpoint = Column(String(128), default="")
-        status = Column(String(16), default="success")  # success, error, rate_limited
-        duration_ms = Column(Integer, default=0)
-        bytes_in = Column(Integer, default=0)
-        bytes_out = Column(Integer, default=0)
-        cost_usd = Column(Float, default=0.0)
-        ip = Column(String(64), default="")
-        user_agent = Column(String(512), default="")
-        error_message = Column(Text, default="")
-        created_at = Column(DateTime, default=_now, index=True)
+        endpoint = Column(String(128), default="", nullable=False)
+        status = Column(
+            String(16), default="success", nullable=False
+        )  # success, error, rate_limited
+        duration_ms = Column(Integer, default=0, nullable=False)
+        bytes_in = Column(Integer, default=0, nullable=False)
+        bytes_out = Column(Integer, default=0, nullable=False)
+        cost_usd = Column(Float, default=0.0, nullable=False)
+        ip = Column(String(64), default="", nullable=False)
+        user_agent = Column(String(512), default="", nullable=False)
+        error_message = Column(Text, default="", nullable=False)
+        created_at = Column(DateTime, default=_now, index=True, nullable=False)
         Index("ix_usage_user_created", user_id, created_at.desc())
         Index("ix_usage_operation_created", operation, created_at.desc())
 
@@ -327,25 +344,54 @@ if _HAS_SA:
         __tablename__ = "scrape_jobs"
         id = Column(Integer, primary_key=True)
         job_id = Column(String(64), unique=True, index=True, nullable=False)
-        user_id = Column(String(64), ForeignKey("users.user_id"), index=True, nullable=False)
-        api_key_id = Column(String(64), ForeignKey("api_keys.key_id"), index=True, nullable=True)
+        user_id = Column(
+            String(64),
+            ForeignKey("users.user_id", ondelete="CASCADE"),
+            index=True,
+            nullable=False,
+        )
+        api_key_id = Column(
+            String(64),
+            ForeignKey("api_keys.key_id", ondelete="SET NULL"),
+            index=True,
+            nullable=True,
+        )
         operation = Column(String(64), nullable=False)  # scrape, crawl, batch, extract, etc.
         status = Column(
-            String(32), default="pending"
+            String(32), default="pending", nullable=False
         )  # pending, running, completed, failed, cancelled
-        input_data = Column(JSON, default=dict)  # URLs, options, schema, etc.
-        result_data = Column(JSON, default=dict)  # scraped content, metadata, errors
-        progress = Column(Float, default=0.0)  # 0.0 to 1.0
-        total_urls = Column(Integer, default=0)
-        completed_urls = Column(Integer, default=0)
-        failed_urls = Column(Integer, default=0)
-        error_message = Column(Text, default="")
+        input_data = Column(JSON, default=dict, nullable=False)  # URLs, options, schema
+        result_data = Column(JSON, default=dict, nullable=False)  # content, metadata, errors
+        progress = Column(Float, default=0.0, nullable=False)  # 0.0 to 1.0
+        total_urls = Column(Integer, default=0, nullable=False)
+        completed_urls = Column(Integer, default=0, nullable=False)
+        failed_urls = Column(Integer, default=0, nullable=False)
+        error_message = Column(Text, default="", nullable=False)
         started_at = Column(DateTime, nullable=True)
         completed_at = Column(DateTime, nullable=True)
-        created_at = Column(DateTime, default=_now, index=True)
+        created_at = Column(DateTime, default=_now, index=True, nullable=False)
+        updated_at = Column(DateTime, default=_now, onupdate=_now, nullable=False)
+        Index("ix_scrape_jobs_user_status", user_id, status)
+        Index("ix_scrape_jobs_created", created_at.desc())
+
+    # ── Billing (prepaid balances for API-key customers) ──
+    class Balance(Base):
+        __tablename__ = "balances"
+        user_id = Column(String(64), ForeignKey("users.user_id"), primary_key=True)
+        balance_usd = Column(Float, default=0.0, nullable=False)
+        low_balance_threshold_usd = Column(Float, default=5.0, nullable=False)
         updated_at = Column(DateTime, default=_now, onupdate=_now)
-        Index("ix_scrape_job_user_status", user_id, status)
-        Index("ix_scrape_job_created", created_at.desc())
+
+    class LedgerEntry(Base):
+        __tablename__ = "ledger_entries"
+        id = Column(Integer, primary_key=True)
+        user_id = Column(String(64), ForeignKey("users.user_id"), index=True, nullable=False)
+        delta_usd = Column(Float, nullable=False)  # +credit / -debit
+        reason = Column(String(32), nullable=False)  # deposit, grant, usage, refund
+        reference = Column(String(128), default="")  # payment_id / tx_hash / key_id
+        balance_after = Column(Float, nullable=False)
+        created_at = Column(DateTime, default=_now, index=True)
+        Index("ix_ledger_user_created", user_id, created_at.desc())
 
 else:  # pragma: no cover
     Base = None  # type: ignore

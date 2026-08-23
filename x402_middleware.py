@@ -459,6 +459,12 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/capabilities",
         "/v1/ai/mcp-config",
         "/v1/ai/gpt-manifest",
+        # API-key management (operator surface; auth-gated separately)
+        "/v1/keys",
+        "/v1/keys/{key_id}",
+        "/v1/keys/{key_id}/balance",
+        "/v1/keys/{key_id}/credit",
+        "/v1/keys/{key_id}/ledger",
         # Job / session management (control plane, not data plane)
         "/v1/job/{job_id}",
         "/v1/jobs",

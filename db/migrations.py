@@ -45,7 +45,14 @@ def run_migrations() -> None:
         return
     try:
         cfg = Config("alembic.ini")
-        cfg.set_main_option("sqlalchemy.url", _resolve_database_url())
+        # Force a SYNC driver (see alembic/env.py _to_sync_url) — asyncpg URLs
+        # crash the synchronous migration runner with MissingGreenlet.
+        cfg.set_main_option(
+            "sqlalchemy.url",
+            _resolve_database_url()
+            .replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+            .replace("sqlite+aiosqlite://", "sqlite"),
+        )
         command.upgrade(cfg, "head")
         logger.info("migrations_completed")
     except Exception:
