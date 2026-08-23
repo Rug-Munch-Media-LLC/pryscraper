@@ -53,13 +53,44 @@ def get_db() -> Engine:
 
 DATABASE_URL_ENV = "PRY_DATABASE_URL"
 DEFAULT_SQLITE_URL = f"sqlite:///{DEFAULT_DB_PATH}"
+DEFAULT_PG_URL = "postgresql://pry:pry@localhost:5432/pry"
+
+# Environment profiles and their default backends:
+#
+# | PRY_ENVIRONMENT | default backend | overrides                          |
+# |-----------------|-----------------|------------------------------------|
+# | dev (default)   | embedded SQLite | PRY_DATABASE_URL                   |
+# | staging / prod  | Postgres        | PRY_DATABASE_URL, or               |
+# |                 |                 | PRY_ALLOW_SQLITE_PROD=1 (escape    |
+# |                 |                 | hatch, logs a warning)             |
+#
+# Rationale: silently running a production deployment on embedded SQLite
+# risks data loss the moment a second replica appears. Prod/staging must
+# choose Postgres *deliberately*.
+
+
+def _profile() -> str:
+    """Resolve the deployment profile from PRY_ENVIRONMENT."""
+    env = os.getenv("PRY_ENVIRONMENT", "dev").strip().lower()
+    return "prod" if env in ("prod", "production") else ("staging" if env == "staging" else "dev")
 
 
 def _resolve_database_url() -> str:
-    """Resolve the database URL. Default: SQLite at PRY_DATA_DIR/pry.db."""
+    """Resolve the database URL per the environment matrix above."""
     url = os.getenv(DATABASE_URL_ENV)
     if url:
         return url
+
+    if _profile() in ("prod", "staging"):
+        if os.getenv("PRY_ALLOW_SQLITE_PROD", "").strip().lower() in ("1", "true", "yes"):
+            logger.warning(
+                "sqlite_in_production_allowed",
+                extra={"profile": _profile(), "url": str(DEFAULT_DB_PATH)},
+            )
+            return DEFAULT_SQLITE_URL
+        logger.info("database_default_postgres", extra={"profile": _profile()})
+        return DEFAULT_PG_URL
+
     return DEFAULT_SQLITE_URL
 
 
@@ -67,13 +98,10 @@ def _resolve_async_database_url() -> str:
     """Resolve the async database URL.
 
     Converts ``postgresql://...`` to ``postgresql+asyncpg://...`` so the
-    same ``PRY_DATABASE_URL`` env var works for both sync and async uses.
-    SQLite stays as ``sqlite+aiosqlite://...``.
+    same resolution works for both sync and async uses. SQLite stays as
+    ``sqlite+aiosqlite://...``.
     """
-    url = os.getenv(DATABASE_URL_ENV)
-    if not url:
-        # SQLite async: use aiosqlite driver
-        return f"sqlite+aiosqlite:///{DEFAULT_DB_PATH}"
+    url = _resolve_database_url()
     if url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
     elif url.startswith("postgresql+psycopg2://"):

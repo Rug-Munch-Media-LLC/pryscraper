@@ -278,3 +278,64 @@ def test_models_have_unique_constraints(temp_data_dir):
     # Same for actors.actor_id
     actors_idx = inspector.get_indexes("actors")
     assert any("actor_id" in i.get("column_names", []) and i.get("unique") for i in actors_idx)
+
+
+# ---------------------------------------------------------------------------
+# Environment-profile database resolution (audit win #18)
+# ---------------------------------------------------------------------------
+
+
+class TestDatabaseProfileResolution:
+    """PRY_ENVIRONMENT drives the default backend; explicit URL always wins."""
+
+    def _resolve(self, monkeypatch: pytest.MonkeyPatch) -> str:
+        from db.session import _resolve_database_url
+
+        return _resolve_database_url()
+
+    def test_dev_defaults_to_sqlite(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PRY_DATABASE_URL", raising=False)
+        monkeypatch.setenv("PRY_ENVIRONMENT", "dev")
+        assert self._resolve(monkeypatch).startswith("sqlite:///")
+
+    def test_missing_profile_defaults_to_dev(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PRY_DATABASE_URL", raising=False)
+        monkeypatch.delenv("PRY_ENVIRONMENT", raising=False)
+        assert self._resolve(monkeypatch).startswith("sqlite:///")
+
+    @pytest.mark.parametrize("profile", ["prod", "production", "staging"])
+    def test_prod_staging_default_postgres(
+        self, monkeypatch: pytest.MonkeyPatch, profile: str
+    ) -> None:
+        monkeypatch.delenv("PRY_DATABASE_URL", raising=False)
+        monkeypatch.setenv("PRY_ENVIRONMENT", profile)
+        monkeypatch.delenv("PRY_ALLOW_SQLITE_PROD", raising=False)
+        assert self._resolve(monkeypatch).startswith("postgresql://")
+
+    def test_explicit_url_beats_profile(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PRY_DATABASE_URL", "postgresql://x:y@db.example:5432/z")
+        monkeypatch.setenv("PRY_ENVIRONMENT", "prod")
+        assert self._resolve(monkeypatch) == "postgresql://x:y@db.example:5432/z"
+
+    def test_sqlite_escape_hatch_in_prod_warns(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        import logging
+
+        monkeypatch.delenv("PRY_DATABASE_URL", raising=False)
+        monkeypatch.setenv("PRY_ENVIRONMENT", "prod")
+        monkeypatch.setenv("PRY_ALLOW_SQLITE_PROD", "1")
+        with caplog.at_level(logging.WARNING, logger="db.session"):
+            url = self._resolve(monkeypatch)
+        assert url.startswith("sqlite:///")
+        assert any(r.message == "sqlite_in_production_allowed" for r in caplog.records)
+
+    def test_async_resolution_converts_postgres_driver(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from db.session import _resolve_async_database_url
+
+        monkeypatch.delenv("PRY_DATABASE_URL", raising=False)
+        monkeypatch.setenv("PRY_ENVIRONMENT", "prod")
+        monkeypatch.delenv("PRY_ALLOW_SQLITE_PROD", raising=False)
+        assert _resolve_async_database_url().startswith("postgresql+asyncpg://")

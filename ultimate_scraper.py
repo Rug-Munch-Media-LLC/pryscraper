@@ -21,7 +21,7 @@ from typing import Any, ClassVar
 from urllib.parse import quote, urlparse
 
 from errors import InvalidRequestError
-from observability import SCRAPE_LATENCY
+from observability import SCRAPE_LATENCY, span
 from resilience import registry
 from retry import RetryConfig, async_retry
 from url_guard import safe_get, validate_url
@@ -172,7 +172,24 @@ class UltimateScraper:
 
     async def scrape(self, url: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
         """Scrape any URL with automatic bypass strategy selection.
-        Will try up to 10 strategies until one succeeds."""
+
+        Thin public entry: emits the ``scrape.request`` parent span (with
+        final method/success attributes) around ``_scrape_with_fallbacks``,
+        which tries up to 10 strategies until one succeeds.
+        """
+        with span("scrape.request", {"http.url": url}) as request_span:
+            result = await self._scrape_with_fallbacks(url, options)
+            if request_span is not None and isinstance(result, dict):
+                request_span.set_attribute("pry.method", str(result.get("method", "")))
+                request_span.set_attribute("pry.success", result.get("status") == "success")
+                if isinstance(result.get("attempts"), list):
+                    request_span.set_attribute("pry.attempts", len(result["attempts"]))
+            return result
+
+    async def _scrape_with_fallbacks(
+        self, url: str, options: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Fallback-chain implementation (tier order, block detection, retries)."""
         opts = options or {}
         errors: list[str] = []
         try:
@@ -285,12 +302,15 @@ class UltimateScraper:
             start = time.time()
             try:
                 retry_cfg = self._RETRY_CONFIGS.get(tier_name, self._DEFAULT_RETRY)
-                if tier_name == "premium_proxy":
-                    html = await async_retry(tier_fn, url, proxy_url, opts, config=retry_cfg)
-                else:
-                    html = await async_retry(
-                        tier_fn, url, opts, proxy_url=proxy_url, config=retry_cfg
-                    )
+                # Child span per tier attempt — the trace shows exactly which
+                # bypass strategies a target needed and what each cost.
+                with span("scrape.tier", {"pry.tier": tier_name, "http.url": url}):
+                    if tier_name == "premium_proxy":
+                        html = await async_retry(tier_fn, url, proxy_url, opts, config=retry_cfg)
+                    else:
+                        html = await async_retry(
+                            tier_fn, url, opts, proxy_url=proxy_url, config=retry_cfg
+                        )
             except InvalidRequestError:
                 # SSRF rejection (e.g. redirect to a private/metadata IP) is not a
                 # tier failure — abort the whole chain instead of falling through
@@ -461,7 +481,7 @@ class UltimateScraper:
                 duration_ms=round((time.time() - start) * 1000, 2),
                 error="; ".join(errors[-5:]) if (errors and not success) else None,
             )
-        except Exception:  # noqa: BLE001 - telemetry must never break scraping
+        except Exception:
             logger.debug("fallback_telemetry_record_failed", exc_info=True)
 
     def _is_valid(self, html: str | None) -> bool:
@@ -611,7 +631,7 @@ class UltimateScraper:
                     if driver is not None:
                         try:
                             driver.quit()
-                        except Exception:  # noqa: BLE001 - cleanup must not mask the original error
+                        except Exception:
                             logger.debug("undetected_quit_failed", exc_info=True)
 
             return await asyncio.to_thread(_do_fetch)
@@ -662,7 +682,7 @@ class UltimateScraper:
                     # failed attempt.
                     try:
                         await browser.close()
-                    except Exception:  # noqa: BLE001 - cleanup must not mask the original error
+                    except Exception:
                         logger.debug("playwright_close_failed", exc_info=True)
         except OSError as e:
             logger.debug("playwright_failed", extra={"error": str(e)[:50]})

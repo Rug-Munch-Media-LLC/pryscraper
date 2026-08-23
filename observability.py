@@ -11,7 +11,10 @@ import logging
 import os
 import time
 from contextlib import contextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +128,55 @@ def setup_tracing(service_name: str = "pry") -> None:
         trace.set_tracer_provider(provider)
     except Exception as e:  # noqa: BLE001
         logger.warning("tracing_init_failed", extra={"error": str(e)[:80]})
+
+
+_TRACER: Any = None
+
+
+def get_tracer(name: str = "pry") -> Any:
+    """Return a tracer, or None when OTel is unavailable.
+
+    Callers must treat None as 'tracing disabled' — see ``span()`` for the
+    contextmanager that handles both cases.
+    """
+    global _TRACER
+    if not _has_otel:
+        return None
+    if _TRACER is None:
+        try:
+            _TRACER = trace.get_tracer(name)
+        except Exception:  # noqa: BLE001 — tracing must never break scraping
+            _TRACER = None
+    return _TRACER
+
+
+@contextmanager
+def span(name: str, attributes: dict[str, Any] | None = None) -> Iterator[Any]:
+    """Start a span when tracing is active; no-op context otherwise.
+
+    Usage:
+        with span("scrape.tier", {"tier": name}):
+            ...
+    Exceptions propagate unchanged; they are recorded on the span (status +
+    exception event) before re-raise so downstream exporters see failures.
+    """
+    tracer = get_tracer()
+    if tracer is None:
+        yield None
+        return
+    with tracer.start_as_current_span(name) as otel_span:
+        if attributes:
+            for key, value in attributes.items():
+                if value is not None:
+                    otel_span.set_attribute(key, value)
+        try:
+            yield otel_span
+        except Exception as exc:
+            otel_span.record_exception(exc)
+            from opentelemetry.trace import Status, StatusCode
+
+            otel_span.set_status(Status(StatusCode.ERROR, str(exc)[:120]))
+            raise
 
 
 @contextmanager

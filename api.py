@@ -192,13 +192,13 @@ from routers.share import router as share_router
 from routers.signup import router as signup_router
 from routers.sports_data import router as sports_data_router
 from routers.stats import router as stats_router
+from routers.streams import router as streams_router
 from routers.structure import router as structure_router
 from routers.system import router as system_router
 from routers.templates import router as templates_router
 from routers.training import router as training_router
 from routers.transform import router as transform_router
 from routers.travel import router as travel_router
-from routers.untagged import router as untagged_router
 from routers.vision import router as vision_router
 from routers.webhooks import router as webhooks_router
 from routers.x402 import router as x402_router
@@ -497,7 +497,7 @@ app.include_router(structure_router)
 app.include_router(system_router)
 app.include_router(training_router)
 app.include_router(transform_router)
-app.include_router(untagged_router)
+app.include_router(streams_router)
 app.include_router(vision_router)
 app.include_router(webhooks_router)
 app.include_router(x402_router)

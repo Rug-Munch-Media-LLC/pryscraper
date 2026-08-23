@@ -1,0 +1,80 @@
+# Pry — Prometheus alert rules (SLO burn-rate + service health).
+#
+# SLOs (initial targets, tune after a month of data):
+#   * Availability: 99.5% of non-4xx requests succeed (2xx/3xx/404-exempt)
+#   * Scrape success: >= 90% of completed scrapes return status=success
+#   * Latency: p95 request duration < 5s (scraping is inherently slow;
+#     the budget is on the API envelope, not the target fetch)
+#
+# Burn-rate alerts follow the multi-window pattern (fast + slow window)
+# so pages fire on real budget consumption, not blips.
+
+groups:
+  - name: pry-slo-availability
+    interval: 30s
+    rules:
+      - record: pry:slo_availability_5m
+        expr: |
+          sum(rate(pry_requests_total{status!~"4.."}[5m]))
+          /
+          sum(rate(pry_requests_total[5m]))
+      - alert: PryAvailabilityErrorBudgetBurnFast
+        expr: |
+          (1 - pry:slo_availability_5m) > 14 * 0.005
+          and (1 - (sum(rate(pry_requests_total{status!~"4.."}[1h])) / sum(rate(pry_requests_total[1h])))) > 14 * 0.005
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pry availability burning error budget >14x (fast window)"
+          description: "5m and 1h availability both below 93% — page immediately."
+
+      - alert: PryAvailabilityErrorBudgetBurnSlow
+        expr: |
+          (1 - (sum(rate(pry_requests_total{status!~"4.."}[6h])) / sum(rate(pry_requests_total[6h])))) > 6 * 0.005
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pry availability burning error budget >6x (slow window)"
+
+  - name: pry-scrape-success
+    interval: 60s
+    rules:
+      - alert: PryScrapeSuccessRateLow
+        expr: |
+          sum(rate(pry_scrapes_total{status="success"}[15m]))
+          /
+          clamp_min(sum(rate(pry_scrapes_total[15m])), 0.001) < 0.90
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Scrape success rate below 90% for 15m"
+          description: "Check upstream block rates / proxy pool health via /v1/admin/dashboard."
+
+  - name: pry-latency
+    interval: 60s
+    rules:
+      - alert: PryP95LatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(pry_request_duration_seconds_bucket[10m]))) > 5
+        for: 20m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 request latency above 5s for 20m"
+
+  - name: pry-payment-gate
+    interval: 60s
+    rules:
+      # Any occurrence means a paid route lost its pricing entry — revenue
+      # leak risk caught by the fail-closed gate before it leaked.
+      - alert: PryPaymentGateMisconfigured
+        expr: increase(pry_x402_gate_misconfigured_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "x402 gate misconfiguration detected"
+          description: "A PAID_ENDPOINTS prefix is missing its X402_PRICING entry. Requests are being refused (fail-closed). Add pricing or fix the prefix."

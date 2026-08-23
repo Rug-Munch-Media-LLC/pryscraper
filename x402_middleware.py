@@ -31,6 +31,19 @@ from x402 import PAYMENT_VALIDITY_SECONDS, X402_PRICING, X402Handler, validate_c
 
 logger = logging.getLogger(__name__)
 
+# Fail-closed gate firings (paid prefix without pricing). Prometheus-optional:
+# the middleware must work without the metrics client installed.
+X402_GATE_MISCONFIGURED: Any | None
+try:
+    from prometheus_client import Counter as _PcCounter
+
+    X402_GATE_MISCONFIGURED = _PcCounter(
+        "pry_x402_gate_misconfigured_total",
+        "Requests refused because a paid endpoint lacked its pricing entry",
+    )
+except ImportError:  # optional dependency
+    X402_GATE_MISCONFIGURED = None
+
 # Path prefix -> x402 operation. ``path.startswith(prefix)`` gates the
 # endpoint, so a bare prefix (e.g. "/v1/capture") covers every sub-route.
 # Every operation here MUST exist in X402_PRICING or the gate is skipped.
@@ -792,6 +805,8 @@ class X402Middleware:
                 "x402_gate_misconfigured",
                 extra={"operation": operation, "path": path},
             )
+            if X402_GATE_MISCONFIGURED is not None:
+                X402_GATE_MISCONFIGURED.inc()
             body = json.dumps(
                 {
                     "error": "payment_gate_misconfigured",

@@ -60,9 +60,29 @@ except ImportError:  # pragma: no cover
     logger = logging.getLogger(__name__)
 
 
+def _route_table_root(app: Any) -> Any:
+    """Walk the ASGI middleware chain until a node exposing ``.routes``.
+
+    ``PryHttpMiddleware.app`` points at the NEXT middleware layer (e.g.
+    X402Middleware), which has no route table. Checking path existence
+    against that layer silently returned False for every request, which
+    routed ALL traffic through the unknown-path pass-through — disabling
+    rate limiting, request logging, and Prometheus metrics in production.
+    """
+    node: Any = app
+    for _ in range(10):
+        if node is None:
+            return None
+        if hasattr(node, "routes"):
+            return node
+        node = getattr(node, "app", None)
+    return None
+
+
 def _path_exists(path: str, app) -> bool:
     """Check if a path matches any registered route."""
-    routes = getattr(app, "routes", [])
+    root = _route_table_root(app)
+    routes = getattr(root, "routes", []) or []
 
     for route in routes:
         if isinstance(route, StarletteMount):
@@ -273,7 +293,22 @@ class PryHttpMiddleware:
         # Check if route exists — pass through unknown paths to 404 handler
         _app = getattr(self, "app", None)
         if _app and not _path_exists(path, _app):
-            await _app(scope, receive, send)
+            # Still count unmatched requests (scanner noise included) under a
+            # fixed label — otherwise 404 traffic is invisible to monitoring.
+            passthrough_status = 200
+
+            async def passthrough_send(message: dict[str, Any]) -> None:
+                nonlocal passthrough_status
+                if message["type"] == "http.response.start":
+                    passthrough_status = message.get("status", 200)
+                await send(message)
+
+            await _app(scope, receive, passthrough_send)
+            if REQUEST_COUNT and REQUEST_LATENCY:
+                REQUEST_COUNT.labels(
+                    method=method, endpoint="unmatched", status=str(passthrough_status)
+                ).inc()
+                REQUEST_LATENCY.labels(endpoint="unmatched").observe(time.time() - start)
             return
 
         # Rate limiting: use user rate limiter if API key present, else IP-based
@@ -378,8 +413,18 @@ class PryHttpMiddleware:
 
         elapsed = time.time() - start
         if REQUEST_COUNT and REQUEST_LATENCY:
-            REQUEST_COUNT.labels(method=method, endpoint=path, status=str(response_status)).inc()
-            REQUEST_LATENCY.labels(endpoint=path).observe(elapsed)
+            # Route TEMPLATE as the label (e.g. /v1/job/{job_id}), never the
+            # raw path — raw paths give every unique URL its own Prometheus
+            # series and explode cardinality. Unmatched routes (404s from
+            # scanners hitting random paths) bucket under a fixed label.
+            route = scope.get("route")
+            endpoint = getattr(route, "path", None)
+            if not endpoint:
+                endpoint = "unmatched" if response_status == 404 else path
+            REQUEST_COUNT.labels(
+                method=method, endpoint=endpoint, status=str(response_status)
+            ).inc()
+            REQUEST_LATENCY.labels(endpoint=endpoint).observe(elapsed)
         logger.info(
             "request_end",
             extra={
