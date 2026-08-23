@@ -7,6 +7,9 @@
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 import pytest
 
 from actor_factory.economics import (
@@ -183,3 +186,71 @@ class TestMonthlyProjection:
         month = monthly_projection(price_per_item_usd=0.004, profile=profile, runs_per_day=10)
         assert month["runs"] == 300
         assert month["profit_usd"] == round(one_run["profit_usd"] * 300, 2)
+
+
+# ── Store README quality (actor-readme best practices) ──────────────────────
+
+
+class TestStoreReadmeQuality:
+    @staticmethod
+    def _generate(spec):
+        from actor_factory.generator import generate_actor
+
+        return generate_actor(spec, Path(tempfile.mkdtemp()))
+
+    def test_readme_meets_300_word_minimum(self) -> None:
+        """Docs: 'aim for at least 300 words'."""
+        for name, spec in sorted(ALL_PRESETS.items()):
+            readme = self._generate(spec).read("README.md")
+            assert len(readme.split()) >= 300, f"{name}: {len(readme.split())} words"
+
+    def test_readme_has_required_store_sections(self) -> None:
+        for name, spec in sorted(ALL_PRESETS.items()):
+            readme = self._generate(spec).read("README.md")
+            for section in (
+                "## What can this Actor do?",
+                "## Tutorial",
+                "## How much will it cost",
+                "## Input reference",
+                "## Output reference",
+                "## FAQ",
+                "## Support",
+            ):
+                assert section in readme, f"{name}: missing {section}"
+
+    def test_readme_shows_cost_expectation_with_real_numbers(self) -> None:
+        """SEO-optimized cost heading + concrete example calculation."""
+        readme = self._generate(SCRAPER_ACTOR).read("README.md")
+        assert "$0.0040" in readme
+        assert "apify-actor-start" in readme
+        assert "spending limit" in readme
+
+    def test_readme_json_output_example_present(self) -> None:
+        import json
+
+        readme = self._generate(SCRAPER_ACTOR).read("README.md")
+        json_block = readme.split("```json")[1].split("```")[0]
+        parsed = json.loads(json_block)
+        assert parsed["status"] == "ok"
+        assert "content" in parsed
+
+    def test_no_extra_h1_in_readme_body(self) -> None:
+        """Store renders the actor name as H1 - body uses H2/H3 only."""
+        for name, spec in sorted(ALL_PRESETS.items()):
+            readme = self._generate(spec).read("README.md")
+            h1s = [ln for ln in readme.split("\n") if ln.startswith("# ")]
+            assert len(h1s) <= 1, f"{name}: {h1s}"
+
+    def test_linter_flags_thin_readme(self) -> None:
+        """The lint layer must catch what the generator guarantees."""
+        from actor_factory.linter import lint_generated
+
+        g = self._generate(SCRAPER_ACTOR)
+        assert lint_generated(g.files) == []
+        # simulate a thin README via a modified file map
+        import tempfile
+
+        thin_path = Path(tempfile.mkdtemp()) / "README.md"
+        thin_path.write_text("# Thin\n\nNot much here.\n")
+        findings = lint_generated({**g.files, "README.md": thin_path})
+        assert any("too thin" in f for f in findings)

@@ -479,7 +479,7 @@ ignore = ["DEP002", "DEP003"]
 fail-under = 40
 ignore-init-method = true
 ignore-init-module = true
-exclude = ["tests/*", "setup.py", "browser-extension/*", "shopify-app/*"]
+exclude = ["tests/*", "setup.py", "browser-extension/*", "shopify-app/*", "mutants/*"]
 
 # mutmut 3.x — core parsing/extraction scope per AI Test Oracle Policy
 [tool.mutmut]

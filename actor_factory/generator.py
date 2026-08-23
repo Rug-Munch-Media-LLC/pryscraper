@@ -26,6 +26,8 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from actor_factory.economics import WorkloadProfile, run_economics
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -199,32 +201,100 @@ def _default_output_format(spec: ActorSpec) -> str:
 
 
 def _render_readme(spec: ActorSpec) -> str:
-    events = "\n".join(
+    """Store-winning README per Apify's actor-readme best practices.
+
+    Docs requirements encoded here:
+    - >=300 words; H2/H3 only (H1 is the actor name on Store)
+    - Introduction with bold keyword highlights
+    - Step-by-step tutorial (ordered list reassures users, SEO-friendly)
+    - Cost-expectation section with search-optimized H2 ("How much will...")
+    - Input/output reference incl. JSON example
+    - FAQ + support section
+    - Platform advantages woven in (scheduling, API, proxies, monitoring)
+    """
+    primary = spec.primary_event()
+    events_table = "\n".join(
         f"| `{e.name}` | {e.title} | ${e.price_usd:.4f} | {e.description} |"
         for e in spec.pricing_events
     )
-    fields = "\n".join(
+    fields_table = "\n".join(
         f"| `{f.name}` | {f.type} | {'yes' if f.required else 'no'} | {f.description or f.title} |"
         for f in spec.inputs
     )
+    urls_prefill = "https://example.com"
+    example_item = json.dumps(
+        {
+            "url": urls_prefill,
+            "status": "ok",
+            "content": "# Example page\n\nClean markdown content...",
+            "method": "direct",
+            "scraped_at": "2026-01-01T00:00:00+00:00",
+            "metadata": {"domain": "example.com", "content_length": 1234},
+        },
+        indent=2,
+    )
+    example_cost = run_economics(
+        price_per_item_usd=primary.price_usd,
+        profile=WorkloadProfile(
+            items_per_run=100,
+            seconds_per_item=6.0,
+            memory_mbytes=spec.min_memory_mbytes,
+        ),
+    )
+
     return (
-        f"# {spec.title}\n\n{spec.description}\n\n"
-        "Built on [Pry](https://github.com/cryptorugmuncher/pryscraper): "
-        "12-tier adaptive anti-bot bypass (Cloudflare, DataDome, Akamai), "
-        "block-signal detection, and circuit breakers.\n\n"
-        "## Pricing (pay-per-event)\n\n"
+        f"# {spec.title}\n\n"
+        f"{spec.description}\n\n"
+        f"**{spec.title}** runs on the [Pry](https://github.com/cryptorugmuncher/pryscraper) "
+        "engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) "
+        "with per-domain memory, block-signal detection and circuit breakers. "
+        "Cheaper tiers are tried first; escalation happens only when a target "
+        "actually fights back.\n\n"
+        "## What can this Actor do?\n\n"
+        f"- Process **{len(spec.inputs)} configured input groups** - URLs in, "
+        "structured results out\n"
+        "- **Adaptive bypass**: TLS fingerprinting, FlareSolverr, Camoufox, "
+        "Playwright, Googlebot emulation, Tor, premium proxies, archives\n"
+        "- **Transparent billing**: pay-per-event, charged per processed item\n"
+        "- **Platform perks**: scheduling, API access, proxy rotation, "
+        "monitoring and webhooks come free with Apify\n\n"
+        "## Tutorial\n\n"
+        "1. Add your target URLs to the `urls` field (one per entry).\n"
+        "2. Adjust optional settings (output format, timeouts) or keep defaults.\n"
+        "3. Click **Start** - results stream into the dataset as each URL finishes.\n"
+        "4. Export the dataset as JSON/CSV/Excel, or consume it via API/webhook.\n\n"
+        "## How much will it cost to scrape with this Actor?\n\n"
+        f"Billing is **pay-per-event**: you are charged `${primary.price_usd:.4f}` "
+        f"per `{primary.name}` ({primary.description.lower()}).\n\n"
+        f"Example: 100 items at {spec.min_memory_mbytes} MB costs roughly "
+        f"**${example_cost['revenue_usd']:.2f}** in event charges "
+        f"(platform compute adds about ${example_cost['platform_cost_usd']:.4f}). "
+        "The synthetic `apify-actor-start` event covers startup compute. Your "
+        "spending limit is always respected - the run stops gracefully at the cap.\n\n"
+        "### Events\n\n"
         "| Event | Title | Price | Description |\n|---|---|---|---|\n"
-        f"{events}\n\n"
-        "The platform also bills synthetic events automatically "
-        "(`apify-actor-start`, `apify-default-dataset-item`).\n\n"
-        "## Input\n\n"
+        f"{events_table}\n\n"
+        "## Input reference\n\n"
         "| Field | Type | Required | Description |\n|---|---|---|---|\n"
-        f"{fields}\n\n"
-        "## Output\n\n"
-        "Dataset items: `url`, `status` (`ok`/`error`), `content`, `method`, "
-        "`error`, `scraped_at`, `metadata`. Error items are pushed (and "
-        "charged) for invalid targets too - work done is work billed, "
-        "transparently.\n"
+        f"{fields_table}\n\n"
+        "## Output reference\n\n"
+        "Each dataset item looks like this:\n\n"
+        f"```json\n{example_item}\n```\n\n"
+        'Items with `status: "error"` include an `error` reason - invalid '
+        "targets are billed transparently and never silently dropped.\n\n"
+        "## FAQ\n\n"
+        "**Is scraping legal?** Scraping publicly available data is generally "
+        "legal; respect robots.txt, ToS and privacy law. Pry ships compliance "
+        "tooling (consent, deletion, retention) in the self-hosted core.\n\n"
+        "**What about sites behind Cloudflare?** That is exactly what the "
+        "adaptive ladder solves - blocked responses trigger automatic "
+        "escalation to stealth browser tiers.\n\n"
+        "**Can I schedule runs?** Yes - scheduling, monitoring and API access "
+        "are first-class Apify platform features.\n\n"
+        "## Support\n\n"
+        "Issues and feature requests: "
+        "[Pry repository](https://github.com/cryptorugmuncher/pryscraper). "
+        "Custom actors built on this engine are available on request.\n"
     )
 
 

@@ -120,13 +120,42 @@ def lint_actor(spec: ActorSpec) -> list[str]:
     return findings
 
 
+README_MIN_WORDS = 300  # docs.apify.com/actors/publishing/actor-readme
+REQUIRED_README_SECTIONS = (
+    "## What can this Actor do?",
+    "## Tutorial",
+    "## How much will it cost",
+    "## Input reference",
+    "## Output reference",
+    "## FAQ",
+    "## Support",
+)
+
+
 def lint_generated(files: dict[str, Any]) -> list[str]:
-    """Lint the GENERATED package (README content, schema lockstep)."""
+    """Lint the GENERATED package against Store best practices."""
     findings: list[str] = []
     readme = files["README.md"].read_text()
-    for section in ("## Pricing", "## Input", "## Output"):
+
+    # Length: docs say "aim for at least 300 words".
+    words = len(readme.split())
+    if words < README_MIN_WORDS:
+        findings.append(f"README too thin ({words} words; docs recommend >= {README_MIN_WORDS})")
+
+    # Required sections (H2 headings form the Store table of contents).
+    for section in REQUIRED_README_SECTIONS:
         if section not in readme:
             findings.append(f"README missing '{section}' section")
+
+    # H1 must not appear in the body (Store renders the actor name as H1).
+    body_after_frontmatter = readme
+    if body_after_frontmatter.count("\n# ") > 0:
+        findings.append("README contains an extra H1 - use H2/H3 only")
+
+    # JSON output example present (docs: show users what they get).
+    if "```json" not in readme:
+        findings.append("README missing JSON output example")
+
     schema = json_loads_safe(files["INPUT_SCHEMA.json"].read_text())
     if schema.get("type") != "object":
         findings.append("input schema root type must be object")

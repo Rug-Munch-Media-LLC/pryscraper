@@ -17,6 +17,7 @@ if config.config_file_name is not None:
 # crashes with MissingGreenlet (the reason entrypoint migrations were
 # disabled in docker-compose). psycopg2 is present in requirements.lock.
 def _to_sync_url(url: str) -> str:
+    """Convert async driver URLs to sync equivalents for Alembic."""
     return url.replace("postgresql+asyncpg://", "postgresql+psycopg2://").replace(
         "sqlite+aiosqlite://", "sqlite"
     )
@@ -39,6 +40,7 @@ _ALEMBIC_CONFIGURE = {
 
 
 def run_migrations_offline() -> None:
+    """Run migrations in offline mode (SQL emitted, no DB connection)."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -53,6 +55,7 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    """Run migrations against the live database connection."""
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
