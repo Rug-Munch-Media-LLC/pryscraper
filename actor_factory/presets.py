@@ -2114,3 +2114,301 @@ ALL_PRESETS.update(
         )
     }
 )
+
+
+# ── Gap-filler batch 4: unconsidered niches (sweep #3 + capability map) ──────
+
+CVE_ADVISORY_ACTOR = ActorSpec(
+    name="pry-cve-advisory-watch",
+    title="Pry CVE Advisory Watch",
+    description=(
+        "Watch security advisory sources for new CVEs affecting your stack "
+        "- severity, affected versions and remediation links in one feed. "
+        "Vulnerability surveillance for engineering and compliance teams."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="min_severity",
+            title="Minimum severity",
+            type="string",
+            description="Only emit advisories at or above this severity.",
+            editor="select",
+            enum=["low", "medium", "high", "critical"],
+            default="high",
+            section_caption="Filter settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="advisory-detected",
+            title="Advisory detected",
+            description="One new security advisory detected.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=1024,
+    uses_browser=False,
+)
+
+TOS_POLICY_WATCH_ACTOR = ActorSpec(
+    name="pry-terms-policy-watch",
+    title="Pry Terms & Policy Watch",
+    description=(
+        "Monitor Terms of Service and Privacy Policy pages for silent "
+        "changes - diff-aware emit-on-change semantics so legal and "
+        "compliance teams catch rewrites the day they happen."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="section_filter",
+            title="Section keywords",
+            type="array",
+            item_type="string",
+            editor="stringList",
+            description="Only emit changes touching these sections.",
+            prefill=["arbitration", "data sharing", "liability"],
+            section_caption="Watch settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="policy-checked",
+            title="Policy checked",
+            description="One ToS/privacy page checked for changes.",
+            price_usd=0.001,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=1024,
+    uses_browser=False,
+)
+
+FORUM_MINER_ACTOR = ActorSpec(
+    name="pry-forum-discussion-miner",
+    title="Pry Forum Discussion Miner",
+    description=(
+        "Mine forum threads and discussion boards: titles, authors, reply "
+        "counts and top posts across public communities - voice-of-customer "
+        "and pain-point research at scale."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="min_replies",
+            title="Min replies",
+            type="integer",
+            description="Only keep threads with at least this many replies.",
+            minimum=0,
+            default=3,
+            section_caption="Filter settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="thread-extracted",
+            title="Thread extracted",
+            description="One forum thread extracted.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+CHANGELOG_TRACKER_ACTOR = ActorSpec(
+    name="pry-changelog-tracker",
+    title="Pry Changelog Tracker",
+    description=(
+        "Track competitor product changelogs and release notes pages - "
+        "new features, fixes and pricing-page edits detected between runs "
+        "so product teams never miss a competitor move."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="emit_unchanged",
+            title="Emit unchanged runs",
+            type="boolean",
+            description="Push a no-change item for continuous tracking history.",
+            default=False,
+            section_caption="Track settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="changelog-scanned",
+            title="Changelog scanned",
+            description="One changelog source scanned for updates.",
+            price_usd=0.001,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=1024,
+    uses_browser=False,
+)
+
+DOCS_DIFF_ACTOR = ActorSpec(
+    name="pry-api-docs-diff",
+    title="Pry API Docs Diff",
+    description=(
+        "Watch public API documentation pages for endpoint changes - new "
+        "routes, renamed fields, deprecation notices - so integrations "
+        "break before your customers notice, not after."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="watch_paths",
+            title="Docs paths",
+            type="array",
+            item_type="string",
+            editor="stringList",
+            description="Doc URL paths to monitor.",
+            prefill=["/reference", "/changelog"],
+            section_caption="Watch settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="docs-scanned",
+            title="Docs scanned",
+            description="One documentation source scanned.",
+            price_usd=0.001,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=1024,
+    uses_browser=False,
+)
+
+STATUS_PAGE_ACTOR = ActorSpec(
+    name="pry-status-page-aggregator",
+    title="Pry Status Page Aggregator",
+    description=(
+        "Aggregate vendor status pages into one incident feed: ongoing "
+        "incidents, maintenance windows and resolution history across "
+        "every service your operations depend on."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="active_only",
+            title="Active incidents only",
+            type="boolean",
+            description="Drop resolved incidents from the dataset.",
+            default=True,
+            section_caption="Feed settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="status-checked",
+            title="Status checked",
+            description="One status page checked.",
+            price_usd=0.001,
+        ),
+    ),
+    min_memory_mbytes=256,
+    max_memory_mbytes=1024,
+    uses_browser=False,
+)
+
+MENU_EXTRACTOR_ACTOR = ActorSpec(
+    name="pry-restaurant-menu-extractor",
+    title="Pry Restaurant Menu Extractor",
+    description=(
+        "Extract restaurant menus from public pages: items, descriptions, "
+        "prices and sections - normalized data for food delivery, nutrition "
+        "and local discovery products."
+    ),
+    version="1.0",
+    processor="price",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="currency_hint",
+            title="Currency hint",
+            type="string",
+            description="Expected ISO currency code.",
+            default="USD",
+            section_caption="Extract settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="menu-extracted",
+            title="Menu extracted",
+            description="One restaurant menu extracted.",
+            price_usd=0.003,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+RECIPE_MINER_ACTOR = ActorSpec(
+    name="pry-recipe-miner",
+    title="Pry Recipe Miner",
+    description=(
+        "Mine recipe sites for structured cooking data: ingredients, "
+        "steps, prep/cook times and nutrition claims - content pipelines "
+        "for meal-planning and grocery products."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="include_nutrition",
+            title="Include nutrition claims",
+            type="boolean",
+            description="Capture nutrition facts when present.",
+            default=True,
+            section_caption="Extract settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="recipe-extracted",
+            title="Recipe extracted",
+            description="One recipe extracted to the dataset.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+ALL_PRESETS.update(
+    {
+        spec.name: spec
+        for spec in (
+            CVE_ADVISORY_ACTOR,
+            TOS_POLICY_WATCH_ACTOR,
+            FORUM_MINER_ACTOR,
+            CHANGELOG_TRACKER_ACTOR,
+            DOCS_DIFF_ACTOR,
+            STATUS_PAGE_ACTOR,
+            MENU_EXTRACTOR_ACTOR,
+            RECIPE_MINER_ACTOR,
+        )
+    }
+)

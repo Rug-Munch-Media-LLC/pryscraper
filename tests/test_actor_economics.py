@@ -304,8 +304,8 @@ class TestMarketDrivenPresets:
 
 class TestPortfolioScale:
     def test_full_catalog_all_store_ready(self) -> None:
-        """The full catalog: 52 actors, zero lint findings."""
-        assert len(ALL_PRESETS) == 52
+        """The full catalog: 60 actors, zero lint findings."""
+        assert len(ALL_PRESETS) == 60
         for name, spec in sorted(ALL_PRESETS.items()):
             assert lint_actor(spec) == [], name
 
@@ -400,7 +400,7 @@ class TestIconStandards:
 
         return render_icon(spec)
 
-    def test_all_52_icons_distinct(self) -> None:
+    def test_all_icons_distinct(self) -> None:
         icons = {self._icon_for(spec) for spec in ALL_PRESETS.values()}
         assert len(icons) == len(ALL_PRESETS), "icon collision across presets"
 
