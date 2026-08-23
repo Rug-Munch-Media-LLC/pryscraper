@@ -507,3 +507,190 @@ ALL_PRESETS.update(
         )
     }
 )
+
+
+# ── Market-driven actors (from Apify Store sweep, see MARKET-ANALYSIS.md) ────
+# Evidence: PPE = 46/50 top actors; lead-gen = largest category (19,746);
+# Google Maps scraper 36M runs; Google SERP scraper 112M runs; the
+# maps+contacts combo (2M runs) proves contact enrichment demand.
+
+MAPS_LEADS_ACTOR = ActorSpec(
+    name="pry-maps-lead-extractor",
+    title="Pry Maps Lead Extractor",
+    description=(
+        "Extract local business leads from Google Maps listings: names, "
+        "addresses, phones, websites and publicly listed emails in one "
+        "pass. Combines the two most-demanded Apify workflows - maps data "
+        "and contact enrichment - with anti-bot escalation built in."
+    ),
+    version="1.0",
+    processor="leads",
+    inputs=(
+        InputField(
+            name="urls",
+            title="Maps search URLs",
+            type="array",
+            description=("Google Maps search or place URLs to extract businesses from."),
+            editor="requestListSources",
+            # Stable prefill: the platform's daily automated test runs the
+            # DEFAULT input - a Maps URL there risks deprecation. Error items
+            # still produce a non-empty dataset, so the test passes.
+            prefill=[{"url": "https://example.com"}],
+            required=True,
+        ),
+        InputField(
+            name="include_social_links",
+            title="Include social profiles",
+            type="boolean",
+            description="Collect LinkedIn/X/Facebook links from business sites.",
+            default=True,
+            section_caption="Lead settings",
+        ),
+        InputField(
+            name="timeout",
+            title="Timeout (seconds)",
+            type="integer",
+            description="Per-listing timeout.",
+            minimum=5,
+            maximum=120,
+            default=30,
+            section_caption="Lead settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="business-extracted",
+            title="Business extracted",
+            description="One business listing with contact details extracted.",
+            price_usd=0.005,
+        ),
+    ),
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+SERP_ACTOR = ActorSpec(
+    name="pry-serp-scraper",
+    title="Pry SERP Scraper",
+    description=(
+        "Scrape Google search results pages: organic listings, ads, "
+        "featured snippets and People Also Ask - via TLS-fingerprint and "
+        "Googlebot-emulation tiers purpose-built for search engines. "
+        "Structured JSON out, CAPTCHA escalation automatic."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="num_results",
+            title="Results per query",
+            type="integer",
+            description="Number of organic results to parse per page.",
+            minimum=10,
+            maximum=100,
+            default=20,
+            section_caption="SERP settings",
+        ),
+        InputField(
+            name="include_ads",
+            title="Include ads",
+            type="boolean",
+            description="Also extract sponsored listings.",
+            default=False,
+            section_caption="SERP settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="serp-scraped",
+            title="SERP scraped",
+            description="One search results page parsed into structured listings.",
+            price_usd=0.003,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+JOBS_ACTOR = ActorSpec(
+    name="pry-jobs-aggregator",
+    title="Pry Jobs Aggregator",
+    description=(
+        "Aggregate job postings across company career sites running "
+        "Greenhouse, Lever, Workday and other ATS platforms - public "
+        "pages only, no logins. Structured titles, locations, salaries "
+        "and apply links, normalized across boards."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="ats_filter",
+            title="ATS platform",
+            type="string",
+            description="Limit parsing to a specific ATS layout.",
+            editor="select",
+            enum=["auto", "greenhouse", "lever", "workday"],
+            default="auto",
+            section_caption="Jobs settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="job-extracted",
+            title="Job extracted",
+            description="One job posting normalized into the dataset.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+REAL_ESTATE_ACTOR = ActorSpec(
+    name="pry-property-lister",
+    title="Pry Property Lister",
+    description=(
+        "Extract property listings from real estate sites: prices, beds, "
+        "baths, square footage, addresses and agent contacts - including "
+        "JS-rendered portals behind bot protection."
+    ),
+    version="1.0",
+    processor="price",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="currency_hint",
+            title="Currency hint",
+            type="string",
+            description="Expected ISO currency code for price normalization.",
+            default="USD",
+            section_caption="Listing settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="listing-extracted",
+            title="Listing extracted",
+            description="One property listing normalized into the dataset.",
+            price_usd=0.004,
+        ),
+    ),
+    min_memory_mbytes=1024,
+    max_memory_mbytes=8192,
+)
+
+ALL_PRESETS.update(
+    {
+        spec.name: spec
+        for spec in (
+            MAPS_LEADS_ACTOR,
+            SERP_ACTOR,
+            JOBS_ACTOR,
+            REAL_ESTATE_ACTOR,
+        )
+    }
+)

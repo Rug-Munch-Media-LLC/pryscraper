@@ -254,3 +254,43 @@ class TestStoreReadmeQuality:
         thin_path.write_text("# Thin\n\nNot much here.\n")
         findings = lint_generated({**g.files, "README.md": thin_path})
         assert any("too thin" in f for f in findings)
+
+
+class TestMarketDrivenPresets:
+    """Actors built from the Apify Store sweep (MARKET-ANALYSIS.md)."""
+
+    def test_fourteen_presets_all_store_ready(self) -> None:
+        assert len(ALL_PRESETS) == 14
+        for name, spec in sorted(ALL_PRESETS.items()):
+            assert lint_actor(spec) == [], name
+
+    def test_maps_actor_uses_stable_prefill(self) -> None:
+        """Google Maps URLs would flake the daily platform test."""
+        spec = ALL_PRESETS["pry-maps-lead-extractor"]
+        urls = next(f for f in spec.inputs if f.name == "urls")
+        for entry in urls.prefill:
+            url = entry.get("url", "")
+            assert "google.com/maps" not in url
+
+    def test_serp_actor_exists_with_competitive_price(self) -> None:
+        spec = ALL_PRESETS["pry-serp-scraper"]
+        # Market anchor: google-search-scraper has 112M runs.
+        assert spec.primary_event().price_usd <= 0.005
+
+    def test_new_actors_profitable_at_realistic_loads(self) -> None:
+        from actor_factory.economics import WorkloadProfile, run_economics
+
+        loads = {
+            "pry-maps-lead-extractor": (0.005, 1024, 12),
+            "pry-serp-scraper": (0.003, 512, 6),
+            "pry-jobs-aggregator": (0.002, 512, 6),
+            "pry-property-lister": (0.004, 1024, 10),
+        }
+        for name, (price, mem, secs) in loads.items():
+            result = run_economics(
+                price_per_item_usd=price,
+                profile=WorkloadProfile(
+                    items_per_run=100, seconds_per_item=secs, memory_mbytes=mem
+                ),
+            )
+            assert result["margin"] >= 0.4, f"{name}: {result}"
