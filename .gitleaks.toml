@@ -17,6 +17,11 @@ id = "internal-hostname"
 description = "Internal server hostnames and IPs (pattern classes only - do not enumerate real names here)"
 regex = '''([a-z0-9-]+\.rugmunch\.io|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9])\.[0-9]+\.[0-9]+)'''
 tags = ["rmi", "infrastructure"]
+[rules.allowlist]
+description = "Public fleet infrastructure (git forge is intentionally public)"
+regexes = [
+  '''git\.rugmunch\.io''',
+]
 
 [[rules]]
 id = "jupiter-api-key"
