@@ -259,10 +259,16 @@ class TestStoreReadmeQuality:
 class TestMarketDrivenPresets:
     """Actors built from the Apify Store sweep (MARKET-ANALYSIS.md)."""
 
-    def test_fourteen_presets_all_store_ready(self) -> None:
-        assert len(ALL_PRESETS) == 14
-        for name, spec in sorted(ALL_PRESETS.items()):
-            assert lint_actor(spec) == [], name
+    def test_market_batch_store_ready(self) -> None:
+        """The original market-driven batch (superseded by the 30 gate)."""
+        assert len(ALL_PRESETS) >= 14
+        for key in (
+            "pry-maps-lead-extractor",
+            "pry-serp-scraper",
+            "pry-jobs-aggregator",
+            "pry-property-lister",
+        ):
+            assert lint_actor(ALL_PRESETS[key]) == [], key
 
     def test_maps_actor_uses_stable_prefill(self) -> None:
         """Google Maps URLs would flake the daily platform test."""
@@ -294,3 +300,22 @@ class TestMarketDrivenPresets:
                 ),
             )
             assert result["margin"] >= 0.4, f"{name}: {result}"
+
+
+class TestPortfolioScale:
+    def test_thirty_presets_all_store_ready(self) -> None:
+        """The full catalog: 30 actors, zero lint findings."""
+        assert len(ALL_PRESETS) == 30
+        for name, spec in sorted(ALL_PRESETS.items()):
+            assert lint_actor(spec) == [], name
+
+    def test_names_globally_unique(self) -> None:
+        names = [s.name for s in ALL_PRESETS.values()]
+        assert len(names) == len(set(names))
+
+    def test_every_preset_declares_processor_or_generic(self) -> None:
+        from actor_factory.processors import PROCESSORS
+
+        for name, spec in ALL_PRESETS.items():
+            if spec.processor is not None:
+                assert spec.processor in PROCESSORS, name

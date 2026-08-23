@@ -51,24 +51,50 @@ Patterns:
 | REAL_ESTATE | 4,204 | JS-rendered portals = bypass value |
 | NEWS | 3,108 | RSS+full-text monitoring underserved |
 
-## Our portfolio mapped to demand
+## Our portfolio mapped to demand (30 actors)
 
+**Core scraping (market-proven):**
 | Pry preset | Market evidence | Price/event |
 |---|---|---|
 | pry-serp-scraper | google-search-scraper 112M runs | $0.003 |
 | pry-maps-lead-extractor | maps scraper 36M + contacts combo 2M | $0.005 |
 | pry-lead-harvester | lead-gen = largest category | $0.005 |
 | pry-llm-corpus-builder | content-crawler 40M funnel | $0.004 |
-| pry-jobs-aggregator | linkedin/indeed jobs 1.9–3.4M | $0.002 |
-| pry-property-lister | zillow 4.1M / airbnb 875K | $0.004 |
-| pry-news-feed-monitor | news category 3,108 actors | $0.002 |
 | pry-universal-scraper | web-scraper 181M funnel | $0.004 |
+| pry-site-crawler | crawlee-class demand | $0.003 |
 | pry-screenshot-capture | visual capture niche | $0.005 |
-| pry-change-monitor | monitoring recurring-revenue pattern | $0.001+$0.002 |
-| pry-seo-site-auditor | SEO agencies recurring need | $0.003 |
 | pry-document-parser | PDF/OCR steady demand | $0.006 |
 
-All margins verified ≥53% at realistic load (`tests/test_actor_economics.py`).
+**Vertical monitors (recurring-revenue pattern):**
+| Pry preset | Domain route | Price/event |
+|---|---|---|
+| pry-change-monitor | watch/diff engine | $0.001+$0.002 |
+| pry-news-feed-monitor | news domain | $0.002 |
+| pry-price-watcher | marketplace domain | $0.004 |
+| pry-jobs-aggregator | jobs domain | $0.002 |
+| pry-property-lister | real-estate domain | $0.004 |
+| pry-hotel-rate-watch | travel domain | $0.004 |
+| pry-flight-price-watch | travel domain | $0.004 |
+| pry-inventory-alert | e-commerce domain | $0.002 |
+| pry-deal-radar | e-commerce domain | $0.002 |
+| pry-review-aggregator | marketplace reviews | $0.003 |
+
+**Compliance & intel (defensible, underserved):**
+| Pry preset | Domain route | Price/event |
+|---|---|---|
+| pry-sec-filings-watch | legal domain | $0.003 |
+| pry-court-docket-monitor | legal domain | $0.003 |
+| pry-sanctions-screener | compliance | $0.003 |
+| pry-tender-procurement-monitor | gov-data domain | $0.002 |
+| pry-crypto-listing-monitor | crypto domain | $0.002 |
+| pry-token-safety-scanner | crypto security | $0.004 |
+| pry-serp-rank-tracker | attention-seo domain | $0.002 |
+| pry-ad-intel-monitor | attention/ad-intel module | $0.002 |
+| pry-local-directory-extractor | local-business domain | $0.003 |
+| pry-provider-finder | healthcare domain | $0.004 |
+| pry-clinical-trials-watch | healthcare/trials | $0.003 |
+
+All margins verified >=40% at realistic loads (`tests/test_actor_economics.py`).
 
 ## Daily-test survival rule
 

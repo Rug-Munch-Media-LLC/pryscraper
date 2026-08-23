@@ -694,3 +694,581 @@ ALL_PRESETS.update(
         )
     }
 )
+
+
+# ── Portfolio expansion to 30 (each maps to an existing Pry domain) ──────────
+
+CRYPTO_LISTING_ACTOR = ActorSpec(
+    name="pry-crypto-listing-monitor",
+    title="Pry Crypto Listing Monitor",
+    description=(
+        "Monitor crypto news and exchange pages for new token listing "
+        "announcements. Early listing signals are a proven trading edge; "
+        "this actor watches your sources through anti-bot escalation and "
+        "emits structured announcement items."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="keywords",
+            title="Signal keywords",
+            type="array",
+            item_type="string",
+            editor="stringList",
+            description="Flag items whose content matches any keyword (lists, delist, futures).",
+            prefill=["listing", "delist", "futures", "spot"],
+            section_caption="Signal settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="signal-checked",
+            title="Signal checked",
+            description="One source page scanned for listing signals.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+RUGPULL_ACTOR = ActorSpec(
+    name="pry-token-safety-scanner",
+    title="Pry Token Safety Scanner",
+    description=(
+        "Screen token pages for rug-pull and honeypot risk signals using "
+        "Pry's crypto security checks: contract flags, liquidity signals "
+        "and risk scores compiled into one dataset per token."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="risk_threshold",
+            title="Risk threshold",
+            type="string",
+            description="Maximum acceptable risk level before flagging.",
+            editor="select",
+            enum=["low", "medium", "high"],
+            default="medium",
+            section_caption="Scan settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="token-scanned",
+            title="Token scanned",
+            description="One token screened for safety signals.",
+            price_usd=0.004,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+SEC_FILINGS_ACTOR = ActorSpec(
+    name="pry-sec-filings-watch",
+    title="Pry SEC Filings Watch",
+    description=(
+        "Watch SEC EDGAR for new filings by company, form type or CIK - "
+        "10-K, 10-Q, 8-K, S-1 and more. Public records monitoring with "
+        "structured emit-on-change semantics for compliance and intel teams."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="form_types",
+            title="Form types",
+            type="array",
+            item_type="string",
+            editor="stringList",
+            description="Filter to specific filing forms.",
+            prefill=["10-K", "10-Q", "8-K"],
+            section_caption="Filing settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="filing-detected",
+            title="Filing detected",
+            description="One new filing detected and emitted.",
+            price_usd=0.003,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+SANCTIONS_ACTOR = ActorSpec(
+    name="pry-sanctions-screener",
+    title="Pry Sanctions Screener",
+    description=(
+        "Screen entity names against public sanctions and watchlist lists "
+        "sources (OFAC SDN, EU consolidated lists). Compliance-grade "
+        "monitoring with match evidence in every dataset item."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="match_sensitivity",
+            title="Match sensitivity",
+            type="string",
+            description="Fuzzy-match strictness for name screening.",
+            editor="select",
+            enum=["exact", "fuzzy"],
+            default="fuzzy",
+            section_caption="Screening settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="entity-screened",
+            title="Entity screened",
+            description="One entity screened against public sanctions sources.",
+            price_usd=0.003,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+COURT_DOCKET_ACTOR = ActorSpec(
+    name="pry-court-docket-monitor",
+    title="Pry Court Docket Monitor",
+    description=(
+        "Monitor public court dockets for new cases, motions and rulings "
+        "by party or jurisdiction. Litigation intelligence without manual "
+        "PACER trawling."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="party_filter",
+            title="Party name filter",
+            type="string",
+            description="Only emit docket entries matching this party.",
+            default="",
+            section_caption="Docket settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="docket-updated",
+            title="Docket updated",
+            description="One monitored docket checked; changes emitted.",
+            price_usd=0.003,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+HOTEL_RATE_ACTOR = ActorSpec(
+    name="pry-hotel-rate-watch",
+    title="Pry Hotel Rate Watch",
+    description=(
+        "Track hotel room rates across booking sites - including "
+        "JS-rendered portals behind bot walls. Rate parity checks, "
+        "date-range comparisons and drop alerts in one dataset."
+    ),
+    version="1.0",
+    processor="price",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="currency_hint",
+            title="Currency hint",
+            type="string",
+            description="Expected ISO currency code.",
+            default="USD",
+            section_caption="Rate settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="rate-captured",
+            title="Rate captured",
+            description="One hotel rate captured and normalized.",
+            price_usd=0.004,
+        ),
+    ),
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+FLIGHT_PRICE_ACTOR = ActorSpec(
+    name="pry-flight-price-watch",
+    title="Pry Flight Price Watch",
+    description=(
+        "Watch flight fares on any route across OTAs and airline sites "
+        "without GDS fees. JS-rendered results handled by stealth browser "
+        "tiers; normalized price points per observation."
+    ),
+    version="1.0",
+    processor="price",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="cabin_class",
+            title="Cabin class",
+            type="string",
+            description="Economy, business or first.",
+            editor="select",
+            enum=["economy", "business", "first"],
+            default="economy",
+            section_caption="Route settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="fare-captured",
+            title="Fare captured",
+            description="One fare observation captured and normalized.",
+            price_usd=0.004,
+        ),
+    ),
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+REVIEW_AGGREGATOR_ACTOR = ActorSpec(
+    name="pry-review-aggregator",
+    title="Pry Review Aggregator",
+    description=(
+        "Aggregate product reviews from storefronts and review platforms "
+        "- ratings, text, dates and reviewer metadata - normalized into "
+        "one analysis-ready dataset."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="min_rating",
+            title="Min rating filter",
+            type="integer",
+            description="Only keep reviews at or above this rating (0 keeps all).",
+            minimum=0,
+            maximum=5,
+            default=0,
+            section_caption="Review settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="review-collected",
+            title="Review collected",
+            description="One review collected into the dataset.",
+            price_usd=0.003,
+        ),
+    ),
+    min_memory_mbytes=1024,
+    max_memory_mbytes=8192,
+)
+
+INVENTORY_ALERT_ACTOR = ActorSpec(
+    name="pry-inventory-alert",
+    title="Pry Inventory Alert",
+    description=(
+        "Watch product availability on any storefront: in-stock/out-of-stock "
+        "state, price-at-checkout and restock timing - JS-rendered shops "
+        "included."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="check_interval_hint",
+            title="Suggested interval (minutes)",
+            type="integer",
+            description="Hint for scheduling cadence when paired with Apify schedules.",
+            minimum=5,
+            maximum=1440,
+            default=60,
+            section_caption="Watch settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="stock-checked",
+            title="Stock checked",
+            description="One product availability check.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+DEAL_RADAR_ACTOR = ActorSpec(
+    name="pry-deal-radar",
+    title="Pry Deal Radar",
+    description=(
+        "Surface deals, coupons and discounts across retail sites - "
+        "price-drop detection against prior observations with percentage "
+        "math done for you."
+    ),
+    version="1.0",
+    processor="price",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="drop_threshold_pct",
+            title="Drop alert threshold (%)",
+            type="integer",
+            description="Emit only drops larger than this percent.",
+            minimum=1,
+            maximum=90,
+            default=10,
+            section_caption="Deal settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="deal-scanned",
+            title="Deal scanned",
+            description="One offer page scanned for discounts.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+SERP_RANK_TRACKER_ACTOR = ActorSpec(
+    name="pry-serp-rank-tracker",
+    title="Pry SERP Rank Tracker",
+    description=(
+        "Daily keyword rank tracking on Google: position, URL and SERP "
+        "feature presence per keyword, with history-friendly flat rows. "
+        "TLS-fingerprint and Googlebot tiers keep tracking alive."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="depth",
+            title="Results depth",
+            type="integer",
+            description="How deep into results to search for your domain.",
+            minimum=10,
+            maximum=100,
+            default=50,
+            section_caption="Tracking settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="rank-checked",
+            title="Rank checked",
+            description="One keyword tracked on one engine.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+AD_INTEL_ACTOR = ActorSpec(
+    name="pry-ad-intel-monitor",
+    title="Pry Ad Intel Monitor",
+    description=(
+        "Monitor competitor advertising: detect active ad placements and "
+        "landing-page changes across the web with block-signal aware "
+        "escalation for protected publisher sites."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="detect_networks",
+            title="Detect ad networks",
+            type="boolean",
+            description="Identify which ad networks a page runs.",
+            default=True,
+            section_caption="Intel settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="placement-scanned",
+            title="Placement scanned",
+            description="One page scanned for ad placements.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+LOCAL_DIRECTORY_ACTOR = ActorSpec(
+    name="pry-local-directory-extractor",
+    title="Pry Local Directory Extractor",
+    description=(
+        "Extract business listings from local directories and yellow-page "
+        "style sites: names, categories, addresses, phones and websites - "
+        "the dataset feeds directly into outreach tooling."
+    ),
+    version="1.0",
+    processor="leads",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="category_filter",
+            title="Category filter",
+            type="string",
+            description="Only keep listings matching this category keyword.",
+            default="",
+            section_caption="Extract settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="listing-extracted",
+            title="Listing extracted",
+            description="One directory listing extracted.",
+            price_usd=0.003,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+PROVIDER_FINDER_ACTOR = ActorSpec(
+    name="pry-provider-finder",
+    title="Pry Healthcare Provider Finder",
+    description=(
+        "Find healthcare providers on public directories: names, "
+        "specialties, locations, accepting-patient status and contact "
+        "details - normalized for care-navigation products."
+    ),
+    version="1.0",
+    processor="leads",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="specialty",
+            title="Specialty filter",
+            type="string",
+            description="Only keep providers matching this specialty.",
+            default="",
+            section_caption="Search settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="provider-extracted",
+            title="Provider extracted",
+            description="One provider profile extracted.",
+            price_usd=0.004,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+TRIALS_WATCH_ACTOR = ActorSpec(
+    name="pry-clinical-trials-watch",
+    title="Pry Clinical Trials Watch",
+    description=(
+        "Monitor clinical trial registries for new studies by condition, "
+        "phase or sponsor. Structured trial metadata for pharma intel and "
+        "recruitment platforms."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="phase_filter",
+            title="Phase filter",
+            type="string",
+            description="Limit to a trial phase.",
+            editor="select",
+            enum=["any", "phase-1", "phase-2", "phase-3", "phase-4"],
+            default="any",
+            section_caption="Trial settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="trial-detected",
+            title="Trial detected",
+            description="One trial posting detected and emitted.",
+            price_usd=0.003,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+TENDER_MONITOR_ACTOR = ActorSpec(
+    name="pry-tender-procurement-monitor",
+    title="Pry Tender & Procurement Monitor",
+    description=(
+        "Watch government and enterprise procurement portals for new "
+        "tenders, RFPs and awards matching your categories - public "
+        "records monitoring with deadline fields normalized."
+    ),
+    version="1.0",
+    processor="news",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="category_keywords",
+            title="Category keywords",
+            type="array",
+            item_type="string",
+            editor="stringList",
+            description="Flag tenders matching these keywords.",
+            prefill=["construction", "software", "consulting"],
+            section_caption="Tender settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="tender-scanned",
+            title="Tender scanned",
+            description="One procurement portal page scanned.",
+            price_usd=0.002,
+        ),
+    ),
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+ALL_PRESETS.update(
+    {
+        spec.name: spec
+        for spec in (
+            CRYPTO_LISTING_ACTOR,
+            RUGPULL_ACTOR,
+            SEC_FILINGS_ACTOR,
+            SANCTIONS_ACTOR,
+            COURT_DOCKET_ACTOR,
+            HOTEL_RATE_ACTOR,
+            FLIGHT_PRICE_ACTOR,
+            REVIEW_AGGREGATOR_ACTOR,
+            INVENTORY_ALERT_ACTOR,
+            DEAL_RADAR_ACTOR,
+            SERP_RANK_TRACKER_ACTOR,
+            AD_INTEL_ACTOR,
+            LOCAL_DIRECTORY_ACTOR,
+            PROVIDER_FINDER_ACTOR,
+            TRIALS_WATCH_ACTOR,
+            TENDER_MONITOR_ACTOR,
+        )
+    }
+)
