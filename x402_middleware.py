@@ -53,6 +53,9 @@ PAID_ENDPOINTS = {
     # be listed before the broad /v1/scrape gate.
     "/v1/scrape/methods": "scrape_methods",
     "/v1/scrape": "scrape",
+    # Specific prefixes MUST precede their broad parents (first match wins).
+    # /v1/crawl/adaptive was previously shadowed by /v1/crawl below.
+    "/v1/crawl/adaptive": "crawl",
     "/v1/crawl": "crawl",
     "/v1/extract/css": "extract",
     "/v1/extract/llm": "llm_call",
@@ -64,7 +67,6 @@ PAID_ENDPOINTS = {
     # Previously ungated (free) — now paid:
     "/v1/ultimate-scrape": "scrape",
     "/v1/batch": "bulk_crawl",
-    "/v1/crawl/adaptive": "crawl",
     "/v1/map": "crawl",
     "/v1/capture": "browser_automation",
     "/v1/graphql": "graphql_query",

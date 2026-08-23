@@ -223,3 +223,24 @@ class TestConstruction:
         mw = X402Middleware(app=Any, free_paths=["/only"], free_prefixes=["/pre/"])
         assert mw.free_paths == frozenset({"/only"})
         assert mw.free_prefixes == ("/pre/",)
+
+
+class TestPrefixOrderingInvariant:
+    """No PAID_ENDPOINTS prefix may be shadowed by an earlier broader one.
+
+    First-match-wins means a broad prefix listed before a more specific one
+    silently hijacks the specific route's operation. Harmless only while the
+    ops are identical — a landmine the moment anyone gives the specific
+    route its own price (e.g. adaptive crawling).
+    """
+
+    def test_no_prefix_shadows_a_later_more_specific_prefix(self) -> None:
+        entries = list(PAID_ENDPOINTS.items())
+        violations = []
+        for i, (broad, _op_broad) in enumerate(entries):
+            for specific, _op_specific in entries[i + 1 :]:
+                if specific != broad and specific.startswith(broad):
+                    violations.append(f"{broad} (earlier) shadows {specific}")
+        assert not violations, (
+            "Reorder PAID_ENDPOINTS so specific prefixes come first: " + "; ".join(violations)
+        )

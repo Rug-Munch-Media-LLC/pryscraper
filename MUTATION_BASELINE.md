@@ -37,7 +37,24 @@ pytest_add_cli_args_test_selection = ["tests/test_parser.py", "tests/test_extrac
   sandbox; zero mutation value for the scoped modules
 - mutmut 3.7.0 (newer than other repos — config keys compatible)
 
-## Update log
+### 2026-08-23 (2) - quality.py campaign (audit win #6 continuation)
+- Survivors: 279 -> **41** (-85%); "no tests" mutants 185 -> 0 (every mutant
+  now executes against real assertions). +53 tests in tests/test_quality_mutation.py.
+- Remaining 41 are dominated by EQUIVALENT-class mutants: compute_completeness
+  and both _compute_*_completeness helpers accept a `schema` parameter they
+  never read, so every `schema -> None / omitted` mutant is behaviourally
+  identical. RECOMMENDATION: either wire schema into the helpers or drop the
+  parameter (API-breaking; needs deprecation notice) - tracked as follow-up.
+- Golden masters for the fetch stacks also landed this session (win #11
+  Phase 0): tests/test_fetch_golden_masters.py pins result contracts, tier
+  attempt order, delegation enrichment and feed/sitemap parsing shapes.
+
+### Cumulative session totals (2026-08-23)
+- dedup.py: 39 -> 4 survivors (all proven equivalent)
+- quality.py: 279 -> 41 survivors (majority equivalent-class)
+- x402 gate: prefix-shadowing landmine fixed (/v1/crawl vs /v1/crawl/adaptive)
+  + generalized ordering invariant test added.
+
 
 ### 2026-08-23 - dedup.py driven to equivalence-limited (audit win #6)
 - Survivors: 39 -> **4**, all four PROVEN equivalent:
