@@ -161,6 +161,13 @@ def generate_actor(spec: ActorSpec, out_dir: Path) -> GeneratedActor:
     )
     files["src/main.py"] = main_py
 
+    # icon.svg (Console Display-information logo, ready to upload)
+    from actor_factory.icons import render_icon
+
+    icon = actor_dir / "icon.svg"
+    icon.write_text(render_icon(spec))
+    files["icon.svg"] = icon
+
     # per-actor CHANGELOG (docs: displayed in Console Information tab)
     changelog = actor_dir / "CHANGELOG.md"
     changelog.write_text(
@@ -237,9 +244,31 @@ def _render_readme(spec: ActorSpec) -> str:
         ),
     )
 
+    # SEO keywords derived from the actor's own vocabulary (docs: keywords
+    # belong in headings/paragraphs; search terms like "scrape X", "X data",
+    # "X API" are the highest-intent patterns).
+    kw_source = (spec.name + " " + spec.title).lower().replace("-", " ")
+    base_words = [w for w in kw_source.split() if len(w) > 3][:4]
+    keywords = ", ".join(
+        [
+            f"{w} scraper"
+            if i == 0
+            else f"{w} API"
+            if i == 1
+            else f"extract {w} data"
+            if i == 2
+            else f"{w} monitoring"
+            for i, w in enumerate(base_words)
+        ]
+    )
+
     return (
         f"# {spec.title}\n\n"
         f"{spec.description}\n\n"
+        f"> Looking to **{base_words[0] if base_words else 'scrape'} data at scale**, "
+        f"need a reliable **{keywords.split(', ')[0]}**, or want "
+        f"**{keywords.split(', ')[-1]}** without infrastructure headaches? "
+        "This actor handles it on Apify's managed runtime.\n\n"
         f"**{spec.title}** runs on the [Pry](https://github.com/cryptorugmuncher/pryscraper) "
         "engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) "
         "with per-domain memory, block-signal detection and circuit breakers. "
@@ -340,6 +369,11 @@ def validate_generated(files: dict[str, Path]) -> list[str]:
     main_src = files["src/main.py"].read_text()
     if "PPEScraperRunner" not in main_src:
         problems.append("main.py not wired to PPEScraperRunner")
+    icon = files.get("icon.svg")
+    if icon is None or not icon.exists():
+        problems.append("icon.svg missing (Console logo upload requires it)")
+    elif 'viewBox="0 0 256 256"' not in icon.read_text():
+        problems.append("icon.svg missing 256x256 viewBox")
     return problems
 
 

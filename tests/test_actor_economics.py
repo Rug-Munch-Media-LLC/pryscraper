@@ -389,3 +389,47 @@ class TestWinnerPatterns:
         stats = await runner.run()
         assert len(actor.pushes) == 3
         assert stats.pushed_ok == 3
+
+
+class TestIconStandards:
+    """Every actor ships a distinct, valid, category-colored icon."""
+
+    @staticmethod
+    def _icon_for(spec):
+        from actor_factory.icons import render_icon
+
+        return render_icon(spec)
+
+    def test_all_52_icons_distinct(self) -> None:
+        icons = {self._icon_for(spec) for spec in ALL_PRESETS.values()}
+        assert len(icons) == len(ALL_PRESETS), "icon collision across presets"
+
+    def test_icon_is_valid_svg_with_viewbox(self) -> None:
+        import xml.etree.ElementTree as ET
+
+        for name, spec in sorted(ALL_PRESETS.items())[:10]:
+            svg = self._icon_for(spec)
+            root = ET.fromstring(svg)  # noqa: S314 - our own generated svg
+            assert root.get("viewBox") == "0 0 256 256", name
+            assert root.get("width") == "256"
+
+    def test_category_colors_applied(self) -> None:
+        from actor_factory.icons import _category_for
+
+        assert _category_for(ALL_PRESETS["pry-serp-scraper"]) == "SEO"
+        assert _category_for(ALL_PRESETS["pry-maps-lead-extractor"]) == "LEAD_GENERATION"
+        assert _category_for(ALL_PRESETS["pry-token-safety-scanner"]) == "CRYPTO"
+        assert _category_for(ALL_PRESETS["pry-gdpr-cookie-checker"]) == "COMPLIANCE"
+
+    def test_glyph_selection_by_concept(self) -> None:
+        from actor_factory.icons import _pick_glyph
+
+        assert _pick_glyph(ALL_PRESETS["pry-screenshot-capture"]) == "camera"
+        assert _pick_glyph(ALL_PRESETS["pry-site-crawler"]) == "web"
+        assert _pick_glyph(ALL_PRESETS["pry-change-monitor"]) == "pulse"
+
+    def test_generated_package_contains_icon(self) -> None:
+        from actor_factory.generator import generate_actor
+
+        g = generate_actor(SCRAPER_ACTOR, Path(tempfile.mkdtemp()))
+        assert (g.files["icon.svg"]).exists()
