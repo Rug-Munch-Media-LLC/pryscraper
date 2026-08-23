@@ -76,8 +76,26 @@ _GLYPHS: dict[str, str] = {
     "scan": '<rect x="60" y="60" width="136" height="136" rx="20" fill="none" stroke="#fff" stroke-width="10"/><line x1="128" y1="88" x2="128" y2="128" stroke="#fff" stroke-width="12" stroke-linecap="round"/><circle cx="128" cy="158" r="9" fill="#fff"/>',
     # graduation cap (education/scholarship)
     "edu": '<path d="M128 68 L208 104 L128 140 L48 104 Z" fill="#fff"/><path d="M88 122 L88 160 C88 174 168 174 168 160 L168 122" fill="none" stroke="#fff" stroke-width="10"/><line x1="196" y1="112" x2="196" y2="164" stroke="#fff" stroke-width="8" stroke-linecap="round"/>',
+    # chat (forums/discussions)
+    "chat": '<path d="M64 72 L192 72 C202 72 208 80 208 90 L208 146 C208 156 202 164 192 164 L140 164 L104 196 L104 164 L64 164 C54 164 48 156 48 146 L48 90 C48 80 54 72 64 72 Z" fill="#fff"/><g fill="{bg}"><circle cx="96" cy="118" r="9"/><circle cx="128" cy="118" r="9"/><circle cx="160" cy="118" r="9"/></g>',
     # chart (economics/analytics)
     "chart": '<rect x="72" y="128" width="26" height="60" fill="#fff"/><rect x="115" y="100" width="26" height="88" fill="#fff"/><rect x="158" y="72" width="26" height="116" fill="#fff"/>',
+    # database (data collection)
+    "database": '<ellipse cx="128" cy="84" rx="56" ry="20" fill="#fff"/><path d="M72 84 L72 172 C72 186 184 186 184 172 L184 84" fill="none" stroke="#fff" stroke-width="10"/><path d="M72 128 C72 142 184 142 184 128" fill="none" stroke="#fff" stroke-width="8"/>',
+    # lock (compliance/security)
+    "lock": '<rect x="84" y="120" width="88" height="72" rx="12" fill="#fff"/><path d="M100 120 L100 96 C100 76 156 76 156 96 L156 120" fill="none" stroke="#fff" stroke-width="12"/><circle cx="128" cy="150" r="10" fill="{bg}"/>',
+    # eye (intel/discovery)
+    "eye": '<path d="M48 128 C80 84 176 84 208 128 C176 172 80 172 48 128 Z" fill="#fff"/><circle cx="128" cy="128" r="24" fill="{bg}"/><circle cx="128" cy="128" r="11" fill="#fff"/>',
+    # bell (alerts/releases)
+    "bell": '<path d="M128 56 C96 56 84 84 84 112 L84 148 L68 168 L188 168 L172 148 L172 112 C172 84 160 56 128 56 Z" fill="#fff"/><circle cx="128" cy="182" r="12" fill="#fff"/>',
+    # funnel (filtering/deals)
+    "funnel": '<path d="M60 72 L196 72 L148 136 L148 184 L108 200 L108 136 Z" fill="#fff"/>',
+    # layers (stack/multi-source)
+    "layers": '<path d="M128 52 L204 92 L128 132 L52 92 Z" fill="#fff"/><path d="M60 124 L128 158 L196 124" fill="none" stroke="#fff" stroke-width="11" stroke-linejoin="round"/><path d="M60 156 L128 190 L196 156" fill="none" stroke="#fff" stroke-width="11" stroke-linejoin="round"/>',
+    # clock (scheduling/history)
+    "clock": '<circle cx="128" cy="128" r="62" fill="#fff"/><line x1="128" y1="88" x2="128" y2="130" stroke="{bg}" stroke-width="11" stroke-linecap="round"/><line x1="128" y1="130" x2="158" y2="146" stroke="{bg}" stroke-width="11" stroke-linecap="round"/>',
+    # pin (maps/local)
+    "pin": '<path d="M128 52 C94 52 70 78 70 110 C70 152 128 204 128 204 C128 204 186 152 186 110 C186 78 162 52 128 52 Z" fill="#fff"/><circle cx="128" cy="108" r="22" fill="{bg}"/>',
 }
 
 
@@ -170,6 +188,36 @@ def _pick_glyph(spec: Any) -> str:
         ("broken", "scan"),
         ("universal", "search"),
         ("scraper", "search"),
+        ("cve", "scan"),
+        ("advisory", "bell"),
+        ("release", "bell"),
+        ("changelog", "bell"),
+        ("terms", "shield"),
+        ("policy", "shield"),
+        ("forum", "chat"),
+        ("discussion", "chat"),
+        ("docs", "document"),
+        ("status", "pulse"),
+        ("uptime", "pulse"),
+        ("stock", "tag"),
+        ("menu", "document"),
+        ("recipe", "document"),
+        ("catalog", "layers"),
+        ("aggregator", "layers"),
+        ("multi", "layers"),
+        ("history", "clock"),
+        ("schedule", "clock"),
+        ("interval", "clock"),
+        ("local", "pin"),
+        ("near", "pin"),
+        ("collect", "database"),
+        ("archive", "database"),
+        ("dataset", "database"),
+        ("discovery", "eye"),
+        ("intel", "eye"),
+        ("radar", "eye"),
+        ("finder", "eye"),
+        ("watcher", "eye"),
     ]
     for needle, glyph in rules:
         if needle in haystack and glyph in _GLYPHS:
@@ -251,6 +299,10 @@ def render_icon(spec: Any) -> str:
         '<rect x="10" y="10" width="236" height="236" rx="44" '
         'fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="3"/>\n'
         f'<circle cx="212" cy="44" r="9" fill="hsl({h1},95%,72%)"/>\n'
+        '<g opacity="0.08">\n'
+        '<path d="M0 256 L256 210 L256 224 L0 256 Z" fill="#fff"/>\n'
+        '<path d="M0 236 L256 190 L256 197 L0 245 Z" fill="#fff"/>\n'
+        "</g>\n"
         f'<g filter="url(#ds)">{glyph}</g>\n'
         "</svg>\n"
     )
