@@ -351,6 +351,27 @@ disable_error_code = [
 
 [[tool.mypy.overrides]]
 module = [
+    # Strict-typed core (audit win #7 ratchet). These modules pass
+    # `mypy --strict` today; regressions fail CI. Add modules here as
+    # they are cleaned up — never remove without an ADR.
+    "block_detection",
+    "dedup",
+    "errors",
+    "extraction",
+    "freshness",
+    "parser",
+    "paths",
+    "quality",
+    "ratelimit",
+    "resilience",
+    "retry",
+    "sessions",
+    "url_guard",
+]
+strict = true
+
+[[tool.mypy.overrides]]
+module = [
     "trafilatura",
     "trafilatura.*",
     "readability",
@@ -458,4 +479,4 @@ exclude = ["tests/*", "setup.py", "browser-extension/*", "shopify-app/*"]
 # mutmut 3.x — core parsing/extraction scope per AI Test Oracle Policy
 [tool.mutmut]
 source_paths = ["parser.py", "extraction.py", "extractor.py", "dedup.py", "quality.py"]
-pytest_add_cli_args_test_selection = ["tests/test_parser.py", "tests/test_extractor.py", "tests/test_quality.py", "tests/test_pry_mcp_quality.py", "tests/test_dedup.py", "--deselect", "tests/test_pry_mcp_quality.py::TestRegistryConsistency"]
+pytest_add_cli_args_test_selection = ["tests/test_parser.py", "tests/test_extractor.py", "tests/test_quality.py", "tests/test_pry_mcp_quality.py", "tests/test_dedup.py", "tests/test_dedup_mutation.py", "--deselect", "tests/test_pry_mcp_quality.py::TestRegistryConsistency"]

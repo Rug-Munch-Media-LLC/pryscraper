@@ -40,7 +40,7 @@ class RateLimiter:
     ):
         self.default_rpm = default_rpm
         self.burst = burst
-        self._buckets: dict[str, dict] = {}
+        self._buckets: dict[str, dict[str, Any]] = {}
         self._cleanup_interval = 300  # 5 min cleanup
         self._last_cleanup = time.time()
 
@@ -83,7 +83,7 @@ class RateLimiter:
             )
             return None
 
-    def _check_redis(self, ip: str, rate: int) -> tuple[bool, dict] | None:
+    def _check_redis(self, ip: str, rate: int) -> tuple[bool, dict[str, Any]] | None:
         """Fixed-window check in Redis. Returns None to signal fallback."""
         client = self._get_redis()
         if client is None:
@@ -124,7 +124,7 @@ class RateLimiter:
 
     # ── Public interface ─────────────────────────────────────────────────────
 
-    def check(self, ip: str, rpm: int | None = None) -> tuple[bool, dict]:
+    def check(self, ip: str, rpm: int | None = None) -> tuple[bool, dict[str, Any]]:
         """Check if request is allowed. Returns (allowed, stats)."""
         rate = rpm or self.default_rpm
 
@@ -134,7 +134,7 @@ class RateLimiter:
 
         return self._check_memory(ip, rate)
 
-    def _check_memory(self, ip: str, rate: int) -> tuple[bool, dict]:
+    def _check_memory(self, ip: str, rate: int) -> tuple[bool, dict[str, Any]]:
         """Original per-process token bucket."""
         now = time.time()
 
@@ -178,7 +178,7 @@ class RateLimiter:
                 "blocked": bucket["blocked"],
             }
 
-    def _cleanup(self):
+    def _cleanup(self) -> None:
         """Remove stale buckets older than 1 hour."""
         now = time.time()
         stale = [ip for ip, b in self._buckets.items() if now - b["last_refill"] > 3600]
@@ -186,7 +186,7 @@ class RateLimiter:
             del self._buckets[ip]
         self._last_cleanup = now
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Get global rate limiter statistics."""
         total_active = len(self._buckets)
         total_blocked = sum(b["blocked"] for b in self._buckets.values())
