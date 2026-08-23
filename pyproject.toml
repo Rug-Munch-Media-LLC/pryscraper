@@ -462,7 +462,7 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 74  # measured 75.0% whole-repo 2026-08-23; ratchet: 74 -> 76 -> 78 -> 80
+fail_under = 75  # measured 76.0% whole-repo 2026-08-23; ratchet: 75 -> 77 -> 79 -> 81
 precision = 1
 show_missing = true
 exclude_lines = [

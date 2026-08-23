@@ -114,7 +114,11 @@ density (supply) against demand signal (top-actor runs). Raw data:
 | dark web (.onion) | ~none via Tor | unique | **our moat** (built-in Tor tier) |
 | keyword rank | 12,036 | crowded but huge | covered w/ differentiation |
 
-15 gap-filler presets built from this table (portfolio now 45): broken-links
+Gap-filler batches built from this table plus unconsidered-niche sweeps:
+batch 2 (15 actors) and batch 4 (8 actors: cve-advisory-watch,
+terms-policy-watch, forum-discussion-miner, changelog-tracker,
+api-docs-diff, status-page-aggregator, restaurant-menu-extractor,
+recipe-miner). Portfolio now **60 store-ready actors**. broken-links
 auditor, ssl-cert monitor, wayback diff, podcast feed miner, newsletter
 archive miner, accessibility scanner, outbound-link harvester, onion site
 monitor (Tor moat), gdpr cookie checker, social card auditor, sitemap diff,

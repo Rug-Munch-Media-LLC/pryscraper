@@ -177,13 +177,13 @@ jobs:
           uv venv --python 3.11 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Test with coverage
-        # Coverage floor: 74% (matches pyproject.toml [tool.coverage.report] fail_under;
-        # measured 75.0% whole-repo 2026-08-23 — ratchet upward in successive PRs)
+        # Coverage floor: 75% (matches pyproject.toml [tool.coverage.report] fail_under;
+        # measured 76.0% whole-repo 2026-08-23 — ratchet upward in successive PRs)
         # `--cov=.` measures the whole repo (no `pryscraper` module exists — the
         # package is `pry` with top-level modules api/scraper/etc.). Omit list
         # comes from pyproject [tool.coverage.run]. Tests MUST pass — blocks the
         # pipeline on failure or insufficient coverage.
-        run: source .venv/bin/activate && pytest tests/ -x -q --tb=short --cov=. --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=74 -m "not integration"
+        run: source .venv/bin/activate && pytest tests/ -x -q --tb=short --cov=. --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=75 -m "not integration"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
