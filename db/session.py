@@ -158,7 +158,11 @@ def get_session() -> Session:
     Use `with db_session() as s:` or the `session_scope()` context manager
     for automatic cleanup and commit/rollback handling.
     """
-    if _SessionLocal is None:
+    # Guard BOTH cached handles: tests (and hot reconfig) reset the engine
+    # via the documented ``db._engine = None`` pattern. If only _engine is
+    # cleared, a stale _SessionLocal would keep handing out sessions bound
+    # to the dead engine (deleted tmp sqlite -> "no such table" errors).
+    if _SessionLocal is None or _engine is None:
         get_engine()
     assert _SessionLocal is not None
     return _SessionLocal()

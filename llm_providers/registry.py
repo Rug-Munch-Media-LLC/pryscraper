@@ -347,6 +347,9 @@ class LLMRegistry:
         # In-memory spend accounting (callers can read LLM cost without disk).
         cost_tracker.record(response)
         # NEW: track in-app LLM usage as referral revenue
+        # Best-effort by design: analytics/revenue tracking must NEVER fail
+        # the primary LLM call (a missing table / DB outage here used to
+        # propagate as "All LLM providers failed").
         try:
             from pry.commerce.referrals import ReferralTracker
 
@@ -356,6 +359,8 @@ class LLMRegistry:
             self._referral_tracker.track_in_app_usage(response.provider, response.cost_usd * 0.05)
         except ImportError:
             pass
+        except Exception as e:  # noqa: BLE001 - metering must not break serving
+            logger.debug("llm_referral_track_failed", extra={"error": str(e)[:160]})
         # Persist daily
         today = datetime.now(UTC).strftime("%Y-%m-%d")
         path = USAGE_DIR / f"usage_{today}.jsonl"
