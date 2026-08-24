@@ -27,9 +27,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import food_data
-import food_data.grocery as grocery
-import food_data.restaurants as restaurants
+import datasets.food_data as food_data
+import datasets.food_data.grocery as grocery
+import datasets.food_data.restaurants as restaurants
 import routers.food_data as food_router_mod
 from pry.core.errors import PryError
 from routers.food_data import router as food_router

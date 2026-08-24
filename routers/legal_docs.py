@@ -41,7 +41,7 @@ def _legal_module(module_name: str) -> Any:
     module has not landed yet so callers can degrade gracefully.
     """
     try:
-        return importlib.import_module(f"legal_docs.{module_name}")
+        return importlib.import_module(f"datasets.legal_docs.{module_name}")
     except ImportError:
         logger.warning("legal_docs_module_unavailable", extra={"module_name": module_name})
         return None

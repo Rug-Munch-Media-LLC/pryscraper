@@ -18,9 +18,9 @@ from typing import Any
 
 import pytest
 
-import sports_data.arbitrage as arbitrage
-import sports_data.ev as ev
-import sports_data.line_movement as line_movement
+import datasets.sports_data.arbitrage as arbitrage
+import datasets.sports_data.ev as ev
+import datasets.sports_data.line_movement as line_movement
 
 # ── Fixtures ───────────────────────────────────────────────────────────
 

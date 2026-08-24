@@ -24,11 +24,11 @@ import respx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import ip_data.company_registry as company_registry
-import ip_data.patents as patents
-import ip_data.trademarks as trademarks
+import datasets.ip_data.company_registry as company_registry
+import datasets.ip_data.patents as patents
+import datasets.ip_data.trademarks as trademarks
 import routers.ip_data as ip_router_mod
-from ip_data import search_patents
+from datasets.ip_data import search_patents
 from routers.ip_data import router as ip_router
 
 GP_QUERY = "https://patents.google.com/xhr/query"

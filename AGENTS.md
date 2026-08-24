@@ -73,7 +73,7 @@ make clean         # remove build artifacts
 ```
 
 ## Architecture
-See [ARCHITECTURE.md](ARCHITECTURE.md). Update it when components change.
+See [ARCHITECTURE.md](docs/ops/ARCHITECTURE.md). Update it when components change.
 
 ## Plan
 [PLAN.md](PLAN.md) shows current sprint. Update weekly.

@@ -41,7 +41,7 @@ def _bidding_module(module_name: str) -> Any:
     module has not landed yet so callers can degrade gracefully.
     """
     try:
-        return importlib.import_module(f"bidding_data.{module_name}")
+        return importlib.import_module(f"datasets.bidding_data.{module_name}")
     except ImportError:
         logger.warning("bidding_module_unavailable", extra={"module_name": module_name})
         return None

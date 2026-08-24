@@ -26,9 +26,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import bidding_data
-import bidding_data.contracts as contracts
-import bidding_data.grants as grants
+import datasets.bidding_data as bidding_data
+import datasets.bidding_data.contracts as contracts
+import datasets.bidding_data.grants as grants
 import routers.bidding_data as bidding_router_mod
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig

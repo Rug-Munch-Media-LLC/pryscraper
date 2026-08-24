@@ -26,9 +26,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import news_data
-import news_data.headlines as headlines
-import news_data.sentiment as sentiment
+import datasets.news_data as news_data
+import datasets.news_data.headlines as headlines
+import datasets.news_data.sentiment as sentiment
 import routers.news_data as news_router_mod
 from pry.core.errors import PryError
 from routers.news_data import router as news_router

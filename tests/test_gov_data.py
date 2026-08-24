@@ -25,9 +25,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import gov_data
-import gov_data.procurement as procurement
-import gov_data.recalls as recalls
+import datasets.gov_data as gov_data
+import datasets.gov_data.procurement as procurement
+import datasets.gov_data.recalls as recalls
 import routers.gov_data as gov_router_mod
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig

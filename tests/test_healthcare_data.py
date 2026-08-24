@@ -27,10 +27,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import healthcare_data
-import healthcare_data.clinical_trials as clinical_trials
-import healthcare_data.drug_pricing as drug_pricing
-import healthcare_data.insurance as insurance
+import datasets.healthcare_data as healthcare_data
+import datasets.healthcare_data.clinical_trials as clinical_trials
+import datasets.healthcare_data.drug_pricing as drug_pricing
+import datasets.healthcare_data.insurance as insurance
 import routers.healthcare_data as health_router_mod
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig

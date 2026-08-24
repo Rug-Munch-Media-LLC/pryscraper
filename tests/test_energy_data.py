@@ -24,8 +24,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import energy_data
-import energy_data.lmp as lmp
+import datasets.energy_data as energy_data
+import datasets.energy_data.lmp as lmp
 import routers.energy_data as energy_router_mod
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig

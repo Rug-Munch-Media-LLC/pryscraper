@@ -26,12 +26,12 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import climate_data
-import climate_data.agri as agri
-import climate_data.weather as weather
-import research_data
-import research_data.academic as academic
-import research_data.domain as domain
+import datasets.climate_data as climate_data
+import datasets.climate_data.agri as agri
+import datasets.climate_data.weather as weather
+import datasets.research_data as research_data
+import datasets.research_data.academic as academic
+import datasets.research_data.domain as domain
 import routers.climate_data as climate_router_mod
 import routers.research_data as research_router_mod
 from pry.core.errors import PryError

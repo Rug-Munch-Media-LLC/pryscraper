@@ -27,11 +27,11 @@ from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
 import routers.travel as travel_router_mod
-import travel.flights as flights
-import travel.hotels as hotels
+import datasets.travel.flights as flights
+import datasets.travel.hotels as hotels
 from pry.core.errors import PryError
 from routers.travel import router as travel_router
-from travel.flights import _build_tfs, _extract_af_callbacks, _find_flight_options
+from datasets.travel.flights import _build_tfs, _extract_af_callbacks, _find_flight_options
 
 _FLIGHTS_URL = "https://www.google.com/travel/flights/"
 _HOTELS_GOOGLE_URL = "https://www.google.com/travel/hotels"
@@ -222,7 +222,7 @@ def test_build_tfs_one_way_structure() -> None:
 
 
 def test_valid_date() -> None:
-    from travel.flights import _valid_date
+    from datasets.travel.flights import _valid_date
 
     assert _valid_date("2026-09-15") is True
     assert _valid_date("2026-13-01") is False
@@ -231,7 +231,7 @@ def test_valid_date() -> None:
 
 
 def test_normalize_code() -> None:
-    from travel.flights import _normalize_code
+    from datasets.travel.flights import _normalize_code
 
     assert _normalize_code("jfk") == "JFK"
     assert _normalize_code("CDG") == "CDG"
@@ -241,7 +241,7 @@ def test_normalize_code() -> None:
 
 
 def test_date_range_bounded() -> None:
-    from travel.flights import _date_range
+    from datasets.travel.flights import _date_range
 
     days = _date_range("2026-09-01", "2026-09-03")
     assert days == ["2026-09-01", "2026-09-02", "2026-09-03"]
@@ -335,7 +335,7 @@ def test_find_flight_options_empty() -> None:
 
 
 def test_extract_duration_from_string() -> None:
-    from travel.flights import _extract_duration
+    from datasets.travel.flights import _extract_duration
 
     assert _extract_duration({"duration_text": "7 hr 25 min"}) == 445
     assert _extract_duration({"duration_text": "2h 05m"}) == 125
@@ -343,7 +343,7 @@ def test_extract_duration_from_string() -> None:
 
 
 def test_extract_stops_variants() -> None:
-    from travel.flights import _extract_stops
+    from datasets.travel.flights import _extract_stops
 
     assert _extract_stops({"stops": 1}) == 1
     assert _extract_stops({"stops_label": "Nonstop"}) == 0
@@ -687,7 +687,7 @@ def _client(app: FastAPI) -> TestClient:
 
 def test_router_importable() -> None:
     import routers.travel
-    import travel
+    import datasets.travel as travel
 
     assert hasattr(travel, "search_flights")
     assert hasattr(travel, "cheapest_date_grid")

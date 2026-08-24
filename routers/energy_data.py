@@ -43,7 +43,7 @@ def _energy_module(module_name: str) -> Any:
     a module has not landed yet so callers can degrade gracefully.
     """
     try:
-        return importlib.import_module(f"energy_data.{module_name}")
+        return importlib.import_module(f"datasets.energy_data.{module_name}")
     except ImportError:
         logger.warning("energy_data_module_unavailable", extra={"module_name": module_name})
         return None

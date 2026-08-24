@@ -16,7 +16,7 @@
 
 **12-tier anti-bot bypass** · Cloudflare, DataDome, Akamai · **Pay-per-call API** via USDC · **Runs as an Apify Actor** · MCP-native for AI agents
 
-[`Quickstart`](#quickstart) · [`Paid API (x402)`](#paid-api-x402) · [`Self-host`](#docker) · [`Apify Actor`](#run-it-as-an-apify-actor) · [`FAQ`](FAQ.md) · [`Deployment`](DEPLOYMENT.md)
+[`Quickstart`](#quickstart) · [`Paid API (x402)`](#paid-api-x402) · [`Self-host`](#docker) · [`Apify Actor`](#run-it-as-an-apify-actor) · [`FAQ`](docs/ops/FAQ.md) · [`Deployment`](docs/ops/DEPLOYMENT.md)
 
 </div>
 
@@ -168,8 +168,8 @@ print(result["data"]["markdown"])
 ## Deployment
 
 Production checklist, environment matrix, scaling notes, and backup guidance
-live in [DEPLOYMENT.md](DEPLOYMENT.md). Common questions are answered in
-[FAQ.md](FAQ.md).
+live in [DEPLOYMENT.md](docs/ops/DEPLOYMENT.md). Common questions are answered in
+[FAQ.md](docs/ops/FAQ.md).
 
 ## Development
 

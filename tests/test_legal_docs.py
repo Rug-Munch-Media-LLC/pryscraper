@@ -27,10 +27,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import legal_docs
-import legal_docs.dockets as dockets
-import legal_docs.sanctions as sanctions
-import legal_docs.sec_filings as sec_filings
+import datasets.legal_docs as legal_docs
+import datasets.legal_docs.dockets as dockets
+import datasets.legal_docs.sanctions as sanctions
+import datasets.legal_docs.sec_filings as sec_filings
 import routers.legal_docs as legal_router_mod
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig

@@ -33,10 +33,10 @@ import httpx
 import pytest
 import respx
 
-import sports_data.alt_lines as alt_lines
-import sports_data.halves as halves
-import sports_data.parlays as parlays
-import sports_data.props as props
+import datasets.sports_data.alt_lines as alt_lines
+import datasets.sports_data.halves as halves
+import datasets.sports_data.parlays as parlays
+import datasets.sports_data.props as props
 from pry.engine.retry import RetryConfig
 
 _ODDS_NBA = "https://api.the-odds-api.com/v4/sports/basketball_nba"

@@ -42,7 +42,7 @@ def _appstore_module(module_name: str) -> Any:
     a module has not landed yet so callers can degrade gracefully.
     """
     try:
-        return importlib.import_module(f"app_store_data.{module_name}")
+        return importlib.import_module(f"datasets.app_store_data.{module_name}")
     except ImportError:
         logger.warning("appstore_module_unavailable", extra={"module_name": module_name})
         return None

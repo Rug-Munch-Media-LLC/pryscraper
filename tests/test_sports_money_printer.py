@@ -35,11 +35,11 @@ import respx
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-import sports_data
-import sports_data.alerts as alerts
-import sports_data.betting_percentages as betting
-import sports_data.historical as historical
-import sports_data.sharp_consensus as sharp
+import datasets.sports_data as sports_data
+import datasets.sports_data.alerts as alerts
+import datasets.sports_data.betting_percentages as betting
+import datasets.sports_data.historical as historical
+import datasets.sports_data.sharp_consensus as sharp
 
 _HIST_NBA = "https://api.the-odds-api.com/v4/historical/sports/basketball_nba/odds"
 

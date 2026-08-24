@@ -21,8 +21,8 @@ from typing import Any
 import pytest
 
 from pry.core.settings import PrySettings, settings
-from sports_data import cache as cache_mod
-from sports_data.cache import TokenBucketRateLimiter, TTLCache
+from datasets.sports_data import cache as cache_mod
+from datasets.sports_data.cache import TokenBucketRateLimiter, TTLCache
 
 
 class FakeClock:
@@ -321,13 +321,13 @@ def test_singletons_wired_to_settings() -> None:
 def test_cache_module_is_self_contained() -> None:
     """cache.py must never import sibling sports_data modules."""
     src = Path(cache_mod.__file__).read_text(encoding="utf-8")
-    assert "import sports_data" not in src
-    assert "from sports_data" not in src
+    assert "import datasets.sports_data" not in src
+    assert "from datasets.sports_data" not in src
 
 
 def test_sports_package_re_exports_cache_helpers() -> None:
     """The package __init__ dynamic loop must surface the cache helpers."""
-    import sports_data
+    import datasets.sports_data as sports_data
 
     # getattr(..., None): mypy cannot see the package's runtime re-export
     # loop, and B009 only permits getattr when a default is supplied.

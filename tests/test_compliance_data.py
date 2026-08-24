@@ -26,8 +26,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import compliance_data
-import compliance_data.enforcement as enforcement
+import datasets.compliance_data as compliance_data
+import datasets.compliance_data.enforcement as enforcement
 import routers.compliance_data as compliance_router_mod
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig

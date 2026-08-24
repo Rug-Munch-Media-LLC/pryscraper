@@ -25,8 +25,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import app_store_data.apple as apple
-import app_store_data.google_play as google_play
+import datasets.app_store_data.apple as apple
+import datasets.app_store_data.google_play as google_play
 import routers.app_store_data as appstore_router_mod
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig

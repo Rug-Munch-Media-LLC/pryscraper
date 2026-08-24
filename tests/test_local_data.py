@@ -20,9 +20,9 @@ import httpx
 import pytest
 import respx
 
-import local_data as _local_data_pkg
-import local_data.places as _places
-import local_data.reviews as _reviews
+import datasets.local_data as _local_data_pkg
+import datasets.local_data.places as _places
+import datasets.local_data.reviews as _reviews
 import pry.api.client as _client_module
 import routers.local_data as _router_module
 from pry.core.errors import PryError

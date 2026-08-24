@@ -41,7 +41,7 @@ def _travel_module(module_name: str) -> Any:
     a module has not landed yet so callers can degrade gracefully.
     """
     try:
-        return importlib.import_module(f"travel.{module_name}")
+        return importlib.import_module(f"datasets.travel.{module_name}")
     except ImportError:
         logger.warning("travel_module_unavailable", extra={"module_name": module_name})
         return None

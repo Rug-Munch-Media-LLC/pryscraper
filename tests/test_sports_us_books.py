@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import aiohttp
 import pytest
 
-import sports_data.us_books as us
+import datasets.sports_data.us_books as us
 
 # ── Payload fixtures ────────────────────────────────────────────────────
 
@@ -522,7 +522,7 @@ class TestTransport:
     async def test_proxy_success_returns_parsed_json(self) -> None:
         with (
             patch(
-                "sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
+                "datasets.sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
             ),
             patch("aiohttp.ClientSession", _fake_aiohttp_session(status=200, text='{"ok": 1}')),
         ):
@@ -535,7 +535,7 @@ class TestTransport:
     async def test_geo_block_403_degrades_to_none(self) -> None:
         with (
             patch(
-                "sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
+                "datasets.sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
             ),
             patch("aiohttp.ClientSession", _fake_aiohttp_session(status=403, text="forbidden")),
         ):
@@ -549,7 +549,7 @@ class TestTransport:
         body = "<html>Checking your browser before accessing this site...</html>"
         with (
             patch(
-                "sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
+                "datasets.sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
             ),
             patch("aiohttp.ClientSession", _fake_aiohttp_session(status=200, text=body)),
         ):
@@ -562,7 +562,7 @@ class TestTransport:
     async def test_transport_error_never_raises(self) -> None:
         with (
             patch(
-                "sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
+                "datasets.sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
             ),
             patch(
                 "aiohttp.ClientSession",
@@ -578,7 +578,7 @@ class TestTransport:
     async def test_malformed_json_never_raises(self) -> None:
         with (
             patch(
-                "sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
+                "datasets.sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
             ),
             patch("aiohttp.ClientSession", _fake_aiohttp_session(status=200, text="not json {{{")),
         ):
@@ -603,7 +603,7 @@ class TestFetchers:
     @staticmethod
     def _patch_transport(payload: Any):
         return patch(
-            "sports_data.us_books._fetch_json_via_proxy", new=AsyncMock(return_value=payload)
+            "datasets.sports_data.us_books._fetch_json_via_proxy", new=AsyncMock(return_value=payload)
         )
 
     @pytest.mark.anyio
@@ -676,7 +676,7 @@ class TestFetchers:
                 return _pointsbet_payload()
             return _generic_events_payload()
 
-        with patch("sports_data.us_books._fetch_json_via_proxy", side_effect=by_url):
+        with patch("datasets.sports_data.us_books._fetch_json_via_proxy", side_effect=by_url):
             records = await us.fetch_us_odds("nba", limit=50)
         assert len(records) >= 3
         books = {record["book"] for record in records}
@@ -690,7 +690,7 @@ class TestFetchers:
         async def by_url(url: str, referer: str) -> Any:
             return _generic_events_payload()
 
-        with patch("sports_data.us_books._fetch_json_via_proxy", side_effect=by_url):
+        with patch("datasets.sports_data.us_books._fetch_json_via_proxy", side_effect=by_url):
             records = await us.fetch_us_odds("nba", limit=2)
         assert len(records) == 2
 
@@ -711,7 +711,7 @@ class TestFetchers:
         async def boom(url: str, referer: str) -> Any:
             raise RuntimeError("unexpected")
 
-        with patch("sports_data.us_books._fetch_json_via_proxy", side_effect=boom):
+        with patch("datasets.sports_data.us_books._fetch_json_via_proxy", side_effect=boom):
             records = await us.fetch_us_odds("nba")
         assert records == []
 
@@ -724,7 +724,7 @@ class TestHealthTracking:
         async def by_url(url: str, referer: str) -> Any:
             return _dk_eventgroup_payload()
 
-        with patch("sports_data.us_books._fetch_json_via_proxy", side_effect=by_url):
+        with patch("datasets.sports_data.us_books._fetch_json_via_proxy", side_effect=by_url):
             await us.fetch_draftkings("nba")
         status = us.book_status()["draftkings"]["availability"]
         assert status["reachable"] is True
@@ -733,7 +733,7 @@ class TestHealthTracking:
 
     @pytest.mark.anyio
     async def test_failure_marks_blocked(self) -> None:
-        with patch("sports_data.us_books._fetch_json_via_proxy", new=AsyncMock(return_value=None)):
+        with patch("datasets.sports_data.us_books._fetch_json_via_proxy", new=AsyncMock(return_value=None)):
             await us.fetch_caesars("nba")
         status = us.book_status()["caesars"]["availability"]
         assert status["blocked"] is True

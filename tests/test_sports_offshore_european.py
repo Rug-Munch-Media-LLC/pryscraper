@@ -27,9 +27,9 @@ import httpx
 import pytest
 import respx
 
-import sports_data.european as european
-import sports_data.offshore as offshore
-import sports_data.sources as sources
+import datasets.sports_data.european as european
+import datasets.sports_data.offshore as offshore
+import datasets.sports_data.sources as sources
 from pry.engine import webshare_proxy
 from pry.engine.retry import RetryConfig
 

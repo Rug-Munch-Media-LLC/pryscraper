@@ -175,5 +175,5 @@ over sweeping refactors.
 
 ## Further Reading
 
-- `ARCHITECTURE.md` — module layout, data flow, deployment
+- `docs/ops/ARCHITECTURE.md` — module layout, data flow, deployment
 - `README.md` — getting started guide

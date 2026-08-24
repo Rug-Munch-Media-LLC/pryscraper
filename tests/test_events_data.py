@@ -26,8 +26,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import events_data
-import events_data.tickets as tickets
+import datasets.events_data as events_data
+import datasets.events_data.tickets as tickets
 import routers.events_data as events_router_mod
 from pry.core.errors import PryError
 from routers.events_data import router as events_router

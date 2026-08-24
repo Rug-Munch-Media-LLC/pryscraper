@@ -28,9 +28,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import commerce_data
-import commerce_data.marketplaces as marketplaces
-import commerce_data.social as social
+import datasets.commerce_data as commerce_data
+import datasets.commerce_data.marketplaces as marketplaces
+import datasets.commerce_data.social as social
 import routers.commerce_data as commerce_router_mod
 from pry.core.errors import PryError
 from routers.commerce_data import router as commerce_router

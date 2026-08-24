@@ -25,8 +25,8 @@ import httpx
 import pytest
 import respx
 
-import sports_data
-import sports_data.books as books
+import datasets.sports_data as sports_data
+import datasets.sports_data.books as books
 
 _DK_URL = "https://sportsbook.draftkings.com/leagues/nba"
 _BETMGM_URL = "https://sports.betmgm.com/sports/nba"

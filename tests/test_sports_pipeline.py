@@ -29,10 +29,10 @@ from typing import Any
 
 import pytest
 
-import sports_data
-import sports_data.books as books
-import sports_data.odds as odds
-import sports_data.sources as sources
+import datasets.sports_data as sports_data
+import datasets.sports_data.books as books
+import datasets.sports_data.odds as odds
+import datasets.sports_data.sources as sources
 
 _DK_URL = "https://sportsbook.draftkings.com/leagues/nba"
 _ESPN_RECORD = {

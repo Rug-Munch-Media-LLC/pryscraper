@@ -25,8 +25,8 @@ import httpx
 import pytest
 import respx
 
-import commerce_data
-import commerce_data.marketplaces as marketplaces
+import datasets.commerce_data as commerce_data
+import datasets.commerce_data.marketplaces as marketplaces
 import marketplace.retail as retail
 
 RETAIL_SCHEMA_KEYS = {

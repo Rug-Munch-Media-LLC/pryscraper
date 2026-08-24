@@ -22,9 +22,9 @@ from typing import Any
 
 import pytest
 
-import sports_data.clv as clv
-import sports_data.exports as exports
-import sports_data.projections as projections
+import datasets.sports_data.clv as clv
+import datasets.sports_data.exports as exports
+import datasets.sports_data.projections as projections
 
 # ── Shared fixtures / builders ─────────────────────────────────────────
 

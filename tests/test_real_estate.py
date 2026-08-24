@@ -28,10 +28,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import real_estate
+import datasets.real_estate as real_estate
 import routers.real_estate as real_estate_router_mod
 from pry.core.errors import PryError
-from real_estate import listings, property_records
+from datasets.real_estate import listings, property_records
 from routers.real_estate import router as real_estate_router
 
 
@@ -837,7 +837,7 @@ def _client(app: FastAPI) -> TestClient:
 
 
 def test_router_importable() -> None:
-    import real_estate as re_pkg
+    import datasets.real_estate as re_pkg
     import routers.real_estate as re_router
 
     assert re_pkg.__all__ == ["get_listing", "get_property", "search_listings"]
