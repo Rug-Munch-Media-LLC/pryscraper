@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from pry.api.api import app
+from pry.core.settings import settings
 
 
 @pytest.fixture
@@ -19,7 +20,7 @@ def client() -> TestClient:
 
 
 def test_get_or_key_from_env(monkeypatch) -> None:
-    monkeypatch.setattr("api.settings.openrouter_api_key", "sk-test-key-123")
+    monkeypatch.setattr(settings, "openrouter_api_key", "sk-test-key-123")
     from routers.vision import _get_or_key
 
     key = _get_or_key()
@@ -27,7 +28,7 @@ def test_get_or_key_from_env(monkeypatch) -> None:
 
 
 def test_get_or_key_empty_when_not_set(monkeypatch) -> None:
-    monkeypatch.setattr("api.settings.openrouter_api_key", "")
+    monkeypatch.setattr(settings, "openrouter_api_key", "")
     monkeypatch.setattr("os.path.isfile", lambda p: False)
     from routers.vision import _get_or_key
 
@@ -45,7 +46,7 @@ def test_vision_models_fallback_list() -> None:
 @pytest.mark.asyncio
 async def test_api_key_required_when_set(client: TestClient, monkeypatch) -> None:
     """Protected endpoints require a valid Bearer PRY_API_KEY."""
-    monkeypatch.setattr("api.settings.api_key", "secret-pry-key")
+    monkeypatch.setattr(settings, "api_key", "secret-pry-key")
     # Disable x402 payment gating so we can test auth in isolation.
     with patch(
         "pry.misc.x402_middleware.X402Middleware.__call__",

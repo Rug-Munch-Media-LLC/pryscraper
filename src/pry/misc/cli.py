@@ -25,10 +25,7 @@ import json
 import os
 import sys
 
-try:
-    import click
-except ImportError:
-    click = None  # type: ignore[assignment]
+import click
 
 # Color support
 NC = "\033[0m"

@@ -18,6 +18,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from pry.core.settings import settings
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -123,7 +125,7 @@ def client() -> Iterator[TestClient]:
 @pytest.fixture
 def client_auth(client: TestClient, monkeypatch) -> TestClient:
     """TestClient with PRY_API_KEY set (auth required)."""
-    monkeypatch.setattr("api.settings.api_key", "test-api-key")
+    monkeypatch.setattr(settings, "api_key", "test-api-key")
     return client
 
 

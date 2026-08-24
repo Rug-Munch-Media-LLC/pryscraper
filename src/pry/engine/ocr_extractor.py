@@ -48,6 +48,8 @@ class ImageOCR:
 
     def extract_from_bytes(self, image_bytes: bytes, config: str = "") -> dict[str, Any]:
         """Extract text from image bytes."""
+        Image: Any = None
+        pytesseract: Any = None
         if not _has_tesseract:
             return {
                 "success": False,

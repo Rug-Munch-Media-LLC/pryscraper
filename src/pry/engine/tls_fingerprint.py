@@ -25,6 +25,7 @@ _REDIRECT_STATUS = frozenset({301, 302, 303, 307, 308})
 _MAX_REDIRECTS = 10
 
 # Check if curl_cffi is available
+AsyncSession: Any = None
 try:
     from curl_cffi.requests import AsyncSession
 

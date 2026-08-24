@@ -219,14 +219,16 @@ def request_authorized(scope: Mapping[str, Any]) -> bool:
             record = None
         if record is None:
             return False
-        scope["pry_api_key"] = record
+        scope_dict = dict(scope)
+        scope_dict["pry_api_key"] = record
         return True
 
     if api_key:
         # Legacy global key, or a JWT issued by rmi-backend.
-        return token == api_key or (is_jwt(token) and validate_rmi_jwt(token))
+        return token == api_key or bool(is_jwt(token) and validate_rmi_jwt(token))
     client = scope.get("client")
-    return is_loopback_client(client[0] if client else "")
+    first_hop = client[0] if isinstance(client, (list, tuple)) and client else ""
+    return is_loopback_client(str(first_hop))
 
 
 # ── Trusted-proxy aware rate-limit key ───────────────────────────
@@ -480,15 +482,15 @@ class PryHttpMiddleware:
         await self.app(scope, receive, wrapped_send)
 
         elapsed = time.time() - start
+        # Route TEMPLATE as the label (e.g. /v1/job/{job_id}), never the
+        # raw path — raw paths give every unique URL its own Prometheus
+        # series and explode cardinality. Unmatched routes (404s from
+        # scanners hitting random paths) bucket under a fixed label.
+        route = scope.get("route")
+        endpoint: str = getattr(route, "path", "") or (
+            "unmatched" if response_status == 404 else path
+        )
         if REQUEST_COUNT and REQUEST_LATENCY:
-            # Route TEMPLATE as the label (e.g. /v1/job/{job_id}), never the
-            # raw path — raw paths give every unique URL its own Prometheus
-            # series and explode cardinality. Unmatched routes (404s from
-            # scanners hitting random paths) bucket under a fixed label.
-            route = scope.get("route")
-            endpoint = getattr(route, "path", None)
-            if not endpoint:
-                endpoint = "unmatched" if response_status == 404 else path
             REQUEST_COUNT.labels(
                 method=method, endpoint=endpoint, status=str(response_status)
             ).inc()

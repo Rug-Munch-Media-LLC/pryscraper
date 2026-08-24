@@ -125,10 +125,10 @@ class CookieWarmer:
                 storage_cookies = await context.cookies()
                 cookies = [
                     {
-                        "name": c["name"],
-                        "value": c["value"],
-                        "domain": c["domain"],
-                        "path": c["path"],
+                        "name": str(c.get("name", "")),
+                        "value": str(c.get("value", "")),
+                        "domain": str(c.get("domain", "")),
+                        "path": str(c.get("path", "/")),
                         "expires": c.get("expires", -1),
                         "httpOnly": c.get("httpOnly", False),
                         "secure": c.get("secure", False),

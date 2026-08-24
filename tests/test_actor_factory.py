@@ -99,7 +99,7 @@ class TestGeneration:
         g = generate_actor(SCRAPER_ACTOR, tmp_path)
         spec = json.loads(g.read("actor.json"))
         assert spec["actorSpecification"] == 1
-        assert spec["version"] == "1.0"
+        assert spec["version"] == "1.1"
         assert spec["dockerfile"] == "./Dockerfile"
         assert spec["minMemoryMbytes"] <= spec["maxMemoryMbytes"]
         assert spec["input"]["schemaVersion"] == 1

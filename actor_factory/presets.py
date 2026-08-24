@@ -87,7 +87,7 @@ SCRAPER_ACTOR = ActorSpec(
         "anti-bot bypass (Cloudflare, DataDome, Akamai). Pay per page "
         "scraped; blocked pages escalate automatically."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         OUTPUT_FORMAT_FIELD,
@@ -120,7 +120,7 @@ CRAWLER_ACTOR = ActorSpec(
         "Crawl entire sites into LLM-ready markdown. Follows same-domain "
         "links with runaway caps and per-domain adaptive bypass memory."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         MAX_PAGES_FIELD,
@@ -155,7 +155,7 @@ SCREENSHOT_ACTOR = ActorSpec(
         "Full-page screenshots of any URL, including sites behind "
         "anti-bot systems, via stealth browser tiers."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -195,7 +195,7 @@ MONITOR_ACTOR = ActorSpec(
         "detection. Schedule it; get dataset entries only for pages that "
         "actually changed."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -242,7 +242,7 @@ DOC_PARSER_ACTOR = ActorSpec(
     description=(
         "Parse PDFs, DOCX and images behind URLs into clean text/markdown with OCR fallback."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -327,7 +327,7 @@ LLM_CORPUS_ACTOR = ActorSpec(
         "datasets. The dataset drops straight into LangChain, LlamaIndex "
         "or your vector store."
     ),
-    version="1.0",
+    version="1.1",
     processor="corpus",
     inputs=(
         URLS_FIELD,
@@ -371,7 +371,7 @@ SEO_AUDITOR_ACTOR = ActorSpec(
         "tags, response codes and content freshness signals in one "
         "structured dataset."
     ),
-    version="1.0",
+    version="1.1",
     processor="seo",
     inputs=(
         URLS_FIELD,
@@ -414,7 +414,7 @@ LEAD_HARVESTER_ACTOR = ActorSpec(
         "pages and footers across a domain, with anti-bot escalation for "
         "protected sites."
     ),
-    version="1.0",
+    version="1.1",
     processor="leads",
     inputs=(
         URLS_FIELD,
@@ -455,7 +455,7 @@ NEWS_MONITOR_ACTOR = ActorSpec(
         "full-article extraction behind paywalls' bot defenses (public "
         "articles only). Emits new articles since the last run."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -499,7 +499,7 @@ PRICE_WATCHER_ACTOR = ActorSpec(
         "schema.org/Product structured data first, heuristic extraction "
         "as fallback, and SimHash change detection between runs."
     ),
-    version="1.0",
+    version="1.1",
     processor="price",
     inputs=(
         URLS_FIELD,
@@ -560,7 +560,7 @@ MAPS_LEADS_ACTOR = ActorSpec(
         "pass. Combines the two most-demanded Apify workflows - maps data "
         "and contact enrichment - with anti-bot escalation built in."
     ),
-    version="1.0",
+    version="1.1",
     processor="leads",
     inputs=(
         InputField(
@@ -615,7 +615,7 @@ SERP_ACTOR = ActorSpec(
         "Googlebot-emulation tiers purpose-built for search engines. "
         "Structured JSON out, CAPTCHA escalation automatic."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -658,7 +658,7 @@ JOBS_ACTOR = ActorSpec(
         "pages only, no logins. Structured titles, locations, salaries "
         "and apply links, normalized across boards."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -694,7 +694,7 @@ REAL_ESTATE_ACTOR = ActorSpec(
         "baths, square footage, addresses and agent contacts - including "
         "JS-rendered portals behind bot protection."
     ),
-    version="1.0",
+    version="1.1",
     processor="price",
     inputs=(
         URLS_FIELD,
@@ -744,7 +744,7 @@ CRYPTO_LISTING_ACTOR = ActorSpec(
         "this actor watches your sources through anti-bot escalation and "
         "emits structured announcement items."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -779,7 +779,7 @@ RUGPULL_ACTOR = ActorSpec(
         "Pry's crypto security checks: contract flags, liquidity signals "
         "and risk scores compiled into one dataset per token."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -813,7 +813,7 @@ SEC_FILINGS_ACTOR = ActorSpec(
         "10-K, 10-Q, 8-K, S-1 and more. Public records monitoring with "
         "structured emit-on-change semantics for compliance and intel teams."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -848,7 +848,7 @@ SANCTIONS_ACTOR = ActorSpec(
         "sources (OFAC SDN, EU consolidated lists). Compliance-grade "
         "monitoring with match evidence in every dataset item."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -882,7 +882,7 @@ COURT_DOCKET_ACTOR = ActorSpec(
         "by party or jurisdiction. Litigation intelligence without manual "
         "PACER trawling."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -915,7 +915,7 @@ HOTEL_RATE_ACTOR = ActorSpec(
         "JS-rendered portals behind bot walls. Rate parity checks, "
         "date-range comparisons and drop alerts in one dataset."
     ),
-    version="1.0",
+    version="1.1",
     processor="price",
     inputs=(
         URLS_FIELD,
@@ -949,7 +949,7 @@ FLIGHT_PRICE_ACTOR = ActorSpec(
         "without GDS fees. JS-rendered results handled by stealth browser "
         "tiers; normalized price points per observation."
     ),
-    version="1.0",
+    version="1.1",
     processor="price",
     inputs=(
         URLS_FIELD,
@@ -984,7 +984,7 @@ REVIEW_AGGREGATOR_ACTOR = ActorSpec(
         "- ratings, text, dates and reviewer metadata - normalized into "
         "one analysis-ready dataset."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         MAX_PAGES_FIELD,
@@ -1020,7 +1020,7 @@ INVENTORY_ALERT_ACTOR = ActorSpec(
         "state, price-at-checkout and restock timing - JS-rendered shops "
         "included."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -1055,7 +1055,7 @@ DEAL_RADAR_ACTOR = ActorSpec(
         "price-drop detection against prior observations with percentage "
         "math done for you."
     ),
-    version="1.0",
+    version="1.1",
     processor="price",
     inputs=(
         URLS_FIELD,
@@ -1091,7 +1091,7 @@ SERP_RANK_TRACKER_ACTOR = ActorSpec(
         "feature presence per keyword, with history-friendly flat rows. "
         "TLS-fingerprint and Googlebot tiers keep tracking alive."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -1125,7 +1125,7 @@ AD_INTEL_ACTOR = ActorSpec(
         "landing-page changes across the web with block-signal aware "
         "escalation for protected publisher sites."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         MAX_PAGES_FIELD,
@@ -1159,7 +1159,7 @@ LOCAL_DIRECTORY_ACTOR = ActorSpec(
         "style sites: names, categories, addresses, phones and websites - "
         "the dataset feeds directly into outreach tooling."
     ),
-    version="1.0",
+    version="1.1",
     processor="leads",
     inputs=(
         URLS_FIELD,
@@ -1193,7 +1193,7 @@ PROVIDER_FINDER_ACTOR = ActorSpec(
         "specialties, locations, accepting-patient status and contact "
         "details - normalized for care-navigation products."
     ),
-    version="1.0",
+    version="1.1",
     processor="leads",
     inputs=(
         URLS_FIELD,
@@ -1227,7 +1227,7 @@ TRIALS_WATCH_ACTOR = ActorSpec(
         "phase or sponsor. Structured trial metadata for pharma intel and "
         "recruitment platforms."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -1262,7 +1262,7 @@ TENDER_MONITOR_ACTOR = ActorSpec(
         "tenders, RFPs and awards matching your categories - public "
         "records monitoring with deadline fields normalized."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -1325,7 +1325,7 @@ BROKEN_LINKS_ACTOR = ActorSpec(
         "with HTTP status, source page and anchor text. Site-health audits "
         "that used to need desktop tooling now run on a schedule."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         MAX_PAGES_FIELD,
@@ -1359,7 +1359,7 @@ SSL_MONITOR_ACTOR = ActorSpec(
         "countdowns, issuer changes and handshake failures - caught by "
         "connection-level probes before browsers scare your visitors."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -1394,7 +1394,7 @@ WAYBACK_DIFF_ACTOR = ActorSpec(
         "emit a structured diff: what changed, when it changed and how "
         "similar the versions are (SimHash similarity score included)."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -1429,7 +1429,7 @@ PODCAST_MINER_ACTOR = ActorSpec(
         "descriptions, durations, publish dates and audio URLs - perfect "
         "for media monitoring and transcript pipeline feeds."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -1465,7 +1465,7 @@ NEWSLETTER_MINER_ACTOR = ActorSpec(
         "structured datasets - issues, subjects, senders and body content "
         "for competitive content intelligence."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -1501,7 +1501,7 @@ A11Y_SCANNER_ACTOR = ActorSpec(
         "titles and language declarations - prioritized issue lists per "
         "crawl."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         MAX_PAGES_FIELD,
@@ -1535,7 +1535,7 @@ BACKLINK_HARVESTER_ACTOR = ActorSpec(
         "domains a site links to, how often, and from where - prospecting "
         "data for SEO outreach and partnership research."
     ),
-    version="1.0",
+    version="1.1",
     processor="backlinks",
     inputs=(
         URLS_FIELD,
@@ -1571,7 +1571,7 @@ ONION_MONITOR_ACTOR = ActorSpec(
         "and dark-web mention tracking. Pry ships Tor as a first-class "
         "tier; almost no competitor can reach these sources at all."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -1604,7 +1604,7 @@ GDPR_COOKIE_ACTOR = ActorSpec(
         "consent-management platforms - compliance evidence collection "
         "for audits across hundreds of properties at once."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         MAX_PAGES_FIELD,
@@ -1639,7 +1639,7 @@ META_TAG_AUDITOR_ACTOR = ActorSpec(
         "site: missing og:title/og:image, thin descriptions and canonical "
         "conflicts - fix link previews before your next campaign."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         MAX_PAGES_FIELD,
@@ -1674,7 +1674,7 @@ SITEMAP_DIFF_ACTOR = ActorSpec(
         "lastmod shifts - the fastest way to catch competitor site launches "
         "and content strategy moves."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -1708,7 +1708,7 @@ TECH_STACK_ACTOR = ActorSpec(
         "CMS, hosting signals - enriched with contact discovery for sales "
         "prospecting by stack."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -1741,7 +1741,7 @@ CONTACT_FORM_FINDER_ACTOR = ActorSpec(
         "prospect sites - the first step of automated outreach done "
         "respectfully: know exactly where to reach a business."
     ),
-    version="1.0",
+    version="1.1",
     processor="leads",
     inputs=(
         URLS_FIELD,
@@ -1776,7 +1776,7 @@ BLOG_EXTRACTOR_ACTOR = ActorSpec(
         "and full markdown bodies - content-gap analysis and editorial "
         "research in one dataset."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -1810,7 +1810,7 @@ EVENT_LISTINGS_ACTOR = ActorSpec(
         "sites: names, dates, venues, organizers and registration links - "
         "normalized for calendar and intel products."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -1873,7 +1873,7 @@ SCHOLARSHIP_FINDER_ACTOR = ActorSpec(
         "portals: amounts, deadlines, eligibility and application links - "
         "normalized for counseling platforms and search products."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -1910,7 +1910,7 @@ COURSE_CATALOG_ACTOR = ActorSpec(
         "ratings, durations and syllabi outlines from any course platform "
         "- market research for edtech and aggregation products."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         MAX_PAGES_FIELD,
@@ -1944,7 +1944,7 @@ WEATHER_COLLECTOR_ACTOR = ActorSpec(
         "- temperature, precipitation and condition signals normalized "
         "into flat rows for analytics and alerting pipelines."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -1978,7 +1978,7 @@ AIR_QUALITY_ACTOR = ActorSpec(
         "monitoring pages - AQI, PM2.5/PM10 and trend direction for "
         "health, insurance and smart-city datasets."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -2014,7 +2014,7 @@ ELECTRICITY_PRICE_ACTOR = ActorSpec(
         "and exchange pages - day-ahead prices normalized per MWh for "
         "energy analysts and cost modelers."
     ),
-    version="1.0",
+    version="1.1",
     processor="price",
     inputs=(
         URLS_FIELD,
@@ -2050,7 +2050,7 @@ PRESS_RELEASE_ACTOR = ActorSpec(
         "datelines and full announcement text - PR intelligence and media "
         "monitoring without manual source checking."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -2085,7 +2085,7 @@ ARXIV_PAPER_WATCH_ACTOR = ActorSpec(
         "by topic: titles, authors, abstracts and PDF links - literature "
         "surveillance for R&D and AI labs."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -2139,7 +2139,7 @@ CVE_ADVISORY_ACTOR = ActorSpec(
         "- severity, affected versions and remediation links in one feed. "
         "Vulnerability surveillance for engineering and compliance teams."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -2175,7 +2175,7 @@ TOS_POLICY_WATCH_ACTOR = ActorSpec(
         "changes - diff-aware emit-on-change semantics so legal and "
         "compliance teams catch rewrites the day they happen."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -2211,7 +2211,7 @@ FORUM_MINER_ACTOR = ActorSpec(
         "counts and top posts across public communities - voice-of-customer "
         "and pain-point research at scale."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -2246,7 +2246,7 @@ CHANGELOG_TRACKER_ACTOR = ActorSpec(
         "new features, fixes and pricing-page edits detected between runs "
         "so product teams never miss a competitor move."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -2280,7 +2280,7 @@ DOCS_DIFF_ACTOR = ActorSpec(
         "routes, renamed fields, deprecation notices - so integrations "
         "break before your customers notice, not after."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -2317,7 +2317,7 @@ STATUS_PAGE_ACTOR = ActorSpec(
         "incidents, maintenance windows and resolution history across "
         "every service your operations depend on."
     ),
-    version="1.0",
+    version="1.1",
     processor="news",
     inputs=(
         URLS_FIELD,
@@ -2351,7 +2351,7 @@ MENU_EXTRACTOR_ACTOR = ActorSpec(
         "prices and sections - normalized data for food delivery, nutrition "
         "and local discovery products."
     ),
-    version="1.0",
+    version="1.1",
     processor="price",
     inputs=(
         URLS_FIELD,
@@ -2385,7 +2385,7 @@ RECIPE_MINER_ACTOR = ActorSpec(
         "steps, prep/cook times and nutrition claims - content pipelines "
         "for meal-planning and grocery products."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         MAX_PAGES_FIELD,
@@ -2439,7 +2439,7 @@ PRODUCT_DATA_ACTOR = ActorSpec(
         "already embed. Feed price intelligence, catalog syncs and "
         "competitor monitoring."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -2473,7 +2473,7 @@ ECOMMERCE_CRAWLER_ACTOR = ActorSpec(
         "market research, dropshipping feeds and competitor price "
         "tracking across Shopify, WooCommerce and custom platforms."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         MAX_PAGES_FIELD,
@@ -2507,7 +2507,7 @@ KNOWLEDGE_BASE_MINER_ACTOR = ActorSpec(
         "using FAQPage and HowTo structured data - training data for "
         "support chatbots, AI agents and self-service knowledge bases."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         MAX_PAGES_FIELD,
@@ -2542,7 +2542,7 @@ LOCAL_BUSINESS_AUDITOR_ACTOR = ActorSpec(
         "schema.org JSON-LD - validate your own markup or prospect "
         "businesses with missing or broken local SEO schema."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -2591,7 +2591,7 @@ APP_STORE_REVIEWS_ACTOR = ActorSpec(
         "iTunes API - user sentiment, ratings and feature requests for "
         "competitor analysis, product research and support triage."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -2624,7 +2624,7 @@ GITHUB_RELEASE_MONITOR_ACTOR = ActorSpec(
         "entries via the public GitHub API - track competitors, "
         "dependencies and open-source projects without watching manually."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -2657,7 +2657,7 @@ NPM_PACKAGE_STATS_ACTOR = ActorSpec(
         "npm registry - track adoption curves, compare packages and power "
         "devtools marketing analytics."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(URLS_FIELD,),
     pricing_events=(
         PricingEvent(
@@ -2680,7 +2680,7 @@ PYPI_PACKAGE_STATS_ACTOR = ActorSpec(
         "from the public PyPI JSON API - supply-chain monitoring, "
         "dependency audits and ecosystem research."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(URLS_FIELD,),
     pricing_events=(
         PricingEvent(
@@ -2703,7 +2703,7 @@ HN_NEWS_MONITOR_ACTOR = ActorSpec(
         "mentions via the public Algolia HN API - brand tracking, launch "
         "feedback and market-signal detection for founders."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -2736,7 +2736,7 @@ YOUTUBE_RSS_MONITOR_ACTOR = ActorSpec(
         "video titles, links and publish dates for competitor tracking "
         "and content calendars, no API key required."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(URLS_FIELD,),
     pricing_events=(
         PricingEvent(
@@ -2759,7 +2759,7 @@ RSS_FEED_MONITOR_ACTOR = ActorSpec(
         "podcasts, changelogs and press pages delivered as structured "
         "items with change detection between runs."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(URLS_FIELD,),
     pricing_events=(
         PricingEvent(
@@ -2782,7 +2782,7 @@ RDAP_DOMAIN_WATCH_ACTOR = ActorSpec(
         "expiry dates, status flags and nameservers for portfolio "
         "management, expiry sniping and brand protection."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(URLS_FIELD,),
     pricing_events=(
         PricingEvent(
@@ -2805,7 +2805,7 @@ ARXIV_PAPER_MONITOR_ACTOR = ActorSpec(
         "public arXiv API - research tracking for AI labs, analysts and "
         "R&D teams without manual searches."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(URLS_FIELD,),
     pricing_events=(
         PricingEvent(
@@ -2828,7 +2828,7 @@ JSON_API_MONITOR_ACTOR = ActorSpec(
         "and field-level drift - uptime plus content assertions for your "
         "own APIs or third-party integrations you depend on."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -2861,7 +2861,7 @@ PDF_INVOICE_EXTRACTOR_ACTOR = ActorSpec(
         "number, dates and totals into clean structured rows for "
         "bookkeeping automation and accounts-payable pipelines."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(URLS_FIELD,),
     pricing_events=(
         PricingEvent(
@@ -2884,7 +2884,7 @@ STARTUP_FUNDING_MONITOR_ACTOR = ActorSpec(
         "investors and amounts for sales prospecting, VC research and "
         "market intelligence."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(
         URLS_FIELD,
         MAX_PAGES_FIELD,
@@ -2910,7 +2910,7 @@ PODCAST_REVIEW_MINER_ACTOR = ActorSpec(
         "feeds - audience sentiment and episode feedback for shows, "
         "networks and advertiser research."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(URLS_FIELD,),
     pricing_events=(
         PricingEvent(
@@ -2933,7 +2933,7 @@ FX_RATE_MONITOR_ACTOR = ActorSpec(
         "daily currency snapshots and drift alerts for finance teams, "
         "e-commerce pricing and invoicing."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(URLS_FIELD,),
     pricing_events=(
         PricingEvent(
@@ -2956,7 +2956,7 @@ CRYPTO_MARKET_MONITOR_ACTOR = ActorSpec(
         "market APIs - scheduled snapshots for portfolios, dashboards "
         "and alerting without exchange API keys."
     ),
-    version="1.0",
+    version="1.1",
     inputs=(URLS_FIELD,),
     pricing_events=(
         PricingEvent(

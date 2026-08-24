@@ -32,12 +32,9 @@ import os
 import sys
 from typing import Any
 
-try:
-    import structlog
+import structlog
 
-    _HAS_STRUCTLOG = True
-except ImportError:  # pragma: no cover
-    _HAS_STRUCTLOG = False
+_HAS_STRUCTLOG = True
 
 
 # ── Configuration constants ──

@@ -16,8 +16,9 @@ import importlib
 import json
 import os
 
-import paths
 import pytest
+
+import pry.core.paths as paths
 
 
 @pytest.fixture

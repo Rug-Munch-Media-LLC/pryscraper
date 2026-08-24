@@ -20,13 +20,15 @@ import time
 from typing import Any, ClassVar
 from urllib.parse import quote, urlparse
 
+# SystemRandom: crypto-grade entropy so stealth jitter is not predictable.
+import httpx
+
 from pry.core.errors import InvalidRequestError
 from pry.core.observability import SCRAPE_LATENCY, span
 from pry.engine.resilience import registry
 from pry.engine.retry import RetryConfig, async_retry
 from pry.engine.url_guard import safe_get, validate_url
 
-# SystemRandom: crypto-grade entropy so stealth jitter is not predictable.
 _RNG = random.SystemRandom()
 
 logger = logging.getLogger(__name__)
@@ -37,21 +39,22 @@ _has_undetected = importlib.util.find_spec("undetected_chromedriver") is not Non
 _has_playwright = importlib.util.find_spec("playwright") is not None
 _has_tor = importlib.util.find_spec("aiohttp_socks") is not None
 
+async_playwright: Any = None
 if _has_playwright:
     from playwright.async_api import async_playwright
 
+TLSScraper: Any = None
+_has_tls = True
 try:
     from pry.engine.tls_fingerprint import TLSScraper
-
-    _has_tls = True
-except ImportError:
+except ImportError:  # pragma: no cover - optional dependency
     _has_tls = False
 
+CamoufoxBrowser: Any = None
+_has_camoufox = True
 try:
     from pry.engine.camoufox_integration import CamoufoxBrowser
-
-    _has_camoufox = True
-except ImportError:
+except ImportError:  # pragma: no cover - optional dependency
     _has_camoufox = False
 
 _stealth_engine: StealthEngine | None
@@ -536,7 +539,6 @@ class UltimateScraper:
         self, url: str, opts: dict[str, Any], proxy_url: str | None = None
     ) -> str | None:
         try:
-            import httpx
 
             async with httpx.AsyncClient(timeout=30, proxy=proxy_url) as c:
                 r = await safe_get(c, url, headers=self._build_headers(url))
@@ -551,7 +553,6 @@ class UltimateScraper:
     ) -> str | None:
         """Fetch via the configured premium residential/datacenter proxy."""
         try:
-            import httpx
 
             async with httpx.AsyncClient(timeout=45, proxy=proxy_url) as c:
                 r = await safe_get(c, url, headers=self._build_headers(url))
@@ -587,7 +588,6 @@ class UltimateScraper:
         if not settings.flaresolverr_url:
             return None
         try:
-            import httpx
 
             payload = {"cmd": "request.get", "url": url, "maxTimeout": 60000}
             async with httpx.AsyncClient(timeout=60) as c:
@@ -729,7 +729,6 @@ class UltimateScraper:
         self, url: str, opts: dict[str, Any], proxy_url: str | None = None
     ) -> str | None:
         try:
-            import httpx
 
             headers = self._build_headers(url)
             headers["User-Agent"] = (
@@ -748,7 +747,6 @@ class UltimateScraper:
     ) -> str | None:
         """Fetch from Wayback Machine CDX API for latest snapshot."""
         try:
-            import httpx
 
             # URL-encode the target before embedding it in the CDX query param
             # and the archive path. An unencoded query string (e.g. ?a=1&b=2)
@@ -774,7 +772,6 @@ class UltimateScraper:
         self, url: str, opts: dict[str, Any], proxy_url: str | None = None
     ) -> str | None:
         try:
-            import httpx
 
             # Same encoding requirement as the archive tier: an unencoded
             # query string would be parsed as extra params of the cache URL.
@@ -794,6 +791,8 @@ class UltimateScraper:
         """Fetch via Tor SOCKS5 proxy."""
         if not _has_tor:
             return None
+        aiohttp: Any = None
+        ProxyConnector: Any = None  # noqa: N806 - class binding mirrors import
         try:
             import aiohttp
             from aiohttp_socks import ProxyConnector

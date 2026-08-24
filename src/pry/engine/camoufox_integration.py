@@ -26,6 +26,7 @@ _RNG = random.SystemRandom()
 logger = logging.getLogger(__name__)
 
 # Check for camoufox
+AsyncCamoufox: Any = None
 try:
     from camoufox import AsyncCamoufox
 

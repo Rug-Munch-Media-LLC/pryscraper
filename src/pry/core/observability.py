@@ -13,43 +13,45 @@ import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import (
+    ConsoleSpanExporter,
+    SimpleSpanProcessor,
+    SpanExporter,
+    SpanProcessor,  # type: ignore[attr-defined]
+)
+
+# Prometheus + OpenTelemetry are hard runtime dependencies
+# (see ACTOR_RUNTIME_PACKAGES in actor_factory.publish).
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
 logger = logging.getLogger(__name__)
 
-# Try to import Prometheus
-try:
-    from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+_has_prometheus = True
+_has_otel = True
 
-    _has_prometheus = True
-except ImportError:
-    _has_prometheus = False
-
-# Try to import OpenTelemetry
+# OTLP exporter is an optional extra; guarded at the use site.
 try:
-    from opentelemetry import trace
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import (
-        ConsoleSpanExporter,
-        SimpleSpanProcessor,
-        SpanExporter,
-        SpanProcessor,
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import (  # noqa: F401
+        OTLPSpanExporter,
     )
+    from opentelemetry.sdk.trace.export.batch import BatchSpanProcessor  # noqa: F401
 
-    # OTLP exporter is optional (install opentelemetry-exporter-otlp-proto-http)
-    try:
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
-        _has_otlp = True
-    except ImportError:
-        _has_otlp = False
-
-    _has_otel = True
+    _has_otlp = True
 except ImportError:
-    _has_otel = False
     _has_otlp = False
+
+_has_otel = True
 
 
 # Metrics
@@ -117,6 +119,11 @@ def setup_tracing(service_name: str = "pry") -> None:
         exporter: SpanExporter
         processor: SpanProcessor
         if otlp_endpoint and _has_otlp:
+            from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+                OTLPSpanExporter,
+            )
+            from opentelemetry.sdk.trace.export.batch import BatchSpanProcessor
+
             exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
             processor = BatchSpanProcessor(exporter)
             logger.info("tracing_otlp", extra={"endpoint": otlp_endpoint})

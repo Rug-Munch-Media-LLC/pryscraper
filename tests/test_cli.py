@@ -10,10 +10,10 @@ import tempfile
 from unittest.mock import patch
 
 import httpx
-import pry.core.cli as cli
 import pytest
 import respx
 
+import pry.misc.cli as cli
 from pry.misc.cli import (
     BOLD,
     GREEN,

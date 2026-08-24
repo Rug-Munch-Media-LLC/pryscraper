@@ -26,8 +26,9 @@ import importlib
 import os
 import uuid
 
-import paths
 import pytest
+
+import pry.core.paths as paths
 
 pytestmark = pytest.mark.integration
 

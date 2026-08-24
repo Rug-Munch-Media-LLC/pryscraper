@@ -84,13 +84,20 @@ jobs:
 
   publish:
     needs: build
-    if: github.ref == 'refs/heads/main' && env.APIFY_TOKEN != ''
+    # PUBLISH LOCKED until org launch: manual dispatch ONLY - never fires on
+    # push, even with the secret configured. To arm: run this workflow via
+    # the Actions UI (or `forgejo workflow dispatch`) after the Apify org
+    # exists and scripts/apify-push-all.py --org has been validated.
+    if: github.event_name == 'workflow_dispatch'
+    env:
+      APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Publish to Apify
-        env:
-          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+        if: env.APIFY_TOKEN != ''
         run: |
-          pip install --disable-pip-version-check -q apify-cli
-          apify push --token "$APIFY_TOKEN"
+          # CLI v1.x removed `push --token`; auth resolves from the APIFY_TOKEN
+          # env var (same resolution order as actor_factory/publish.py).
+          npx --yes apify-cli info   # fail-fast auth probe
+          npx --yes apify-cli push --force

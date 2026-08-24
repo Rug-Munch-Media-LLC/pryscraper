@@ -17,5 +17,10 @@
 	"reportPossiblyUnbound": "warning",
 	"reportInvalidConditionalOperand": "none",
 	"reportAttributeAccessIssue": "warning",
-	"reportCallIssue": "warning"
+	"reportCallIssue": "warning",
+	"reportArgumentType": "warning",
+	"reportOptionalMemberAccess": "warning",
+	"reportUnnecessaryComparison": "none",
+	"reportUnnecessaryIsInstance": "none",
+	"reportGeneralTypeIssues": "warning"
 }

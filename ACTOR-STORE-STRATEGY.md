@@ -50,11 +50,43 @@ platform costs); this doc covers the *where to play* decisions.
 | Trustworthiness | Limited permissions; memory limits declared |
 | Congruency | Linter checks domain-noun alignment across title/description/events |
 
-## Launch sequence
+## Launch sequence (PUBLISH LOCKED — nothing live until org exists)
 
-1. `APIFY_TOKEN` secret → CI publishes all 10 presets.
-2. Enable PPE events in Console per preset (names/prices from presets.py).
-3. Monitor Console > Insights > Analytics: revenue/cost/profit per actor;
-   kill or reprice anything trending negative within the first week.
-4. Iterate: store search terms in titles ("scraper", "crawler", "monitor",
-   "LLM", "SEO") are already baked into preset names/titles.
+> **Status:** catalog is 79 presets @ v1.1, all store-standard packaging,
+> lint-clean, tests green. NOTHING is on the Apify platform except the
+> review actor `pry-recipe-miner` (build 1.0.27). Publishing is armed but
+> locked: CI publish job runs on manual dispatch only
+> (`.forgejo/workflows/apify-actor.yml`), and batch push waits for the org.
+
+### Pre-flight (one-time, when the Apify org is created)
+
+1. **Org + token**: user creates the Apify org; verify `apify info` sees it.
+2. **Secret**: set `APIFY_TOKEN` in Forgejo repo secrets (CI publish job).
+3. **Dry-run the batch**: `python scripts/apify-push-all.py --org <slug> --dry-run`
+   → staging + validation only, zero uploads.
+4. **Smoke push**: `--only pry-recipe-miner` first; confirm build succeeds
+   under the org (`<slug>~pry-recipe-miner`).
+
+### Store-listing checklist (per actor, before flipping to public)
+
+| Item | Where | Done when |
+|---|---|---|
+| Title + description | actor.json / README | Linter-clean, search terms baked in ("scraper", "crawler", "monitor", "LLM", "SEO") |
+| Logo/icon | .actor/ icon assets | Rendered glyph present (icon system: commit 8eef1ad) |
+| Categories | Console listing form | Primary category matches processor family |
+| Monetization | Console → Monetization | PPE events enabled per preset (names/prices from presets.py); synthetic `apify-actor-start` kept |
+| Sample output | input schema prefill | Example run finishes <5 min with non-empty dataset (linter-enforced) |
+| Permissions | actor.json | Limited permissions + memory limits declared |
+| README | generated | Pricing table + FAQ rendered (human-voice pass) |
+| Publish button | Console | Actor visible in Store after publish |
+
+### Batch rollout
+
+5. **Batch push**: `python scripts/apify-push-all.py --org <slug>` (supports
+   `--only`, `--resume`, results.json incremental resume). Wave order:
+   flagship 10 niches first (table above), then remaining presets.
+6. **Enable PPE** in Console per preset as each lands.
+7. **Monitor** Console > Insights > Analytics: revenue/cost/profit per
+   actor; kill or reprice anything trending negative within the first week.
+8. **Iterate**: niche FAQs and description polish are already in (human-
+   voice pass); revisit pricing monthly against economics.py margins.

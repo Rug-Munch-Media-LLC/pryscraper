@@ -270,6 +270,7 @@ def export_training_dataset(
         export_records.append(export_record)
 
     # Write export file
+    export_path: Any = None
     if format == "jsonl":
         export_path = dataset_dir / f"dataset_{dataset_id}.jsonl"
         try:
