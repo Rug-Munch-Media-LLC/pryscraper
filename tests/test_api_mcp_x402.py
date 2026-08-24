@@ -208,7 +208,7 @@ class TestMCPSSE:
                     python_bin,
                     "-m",
                     "uvicorn",
-                    "api:app",
+                    "pry.api.api:app",
                     "--host",
                     "127.0.0.1",
                     "--port",
