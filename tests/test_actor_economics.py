@@ -221,7 +221,7 @@ class TestStoreReadmeQuality:
     def test_readme_shows_cost_expectation_with_real_numbers(self) -> None:
         """SEO-optimized cost heading + concrete example calculation."""
         readme = self._generate(SCRAPER_ACTOR).read("README.md")
-        assert "$0.0040" in readme
+        assert "$0.0030" in readme
         assert "apify-actor-start" in readme
         assert "spending limit" in readme
 
@@ -366,7 +366,7 @@ class TestWinnerPatterns:
         g = generate_actor(SCRAPER_ACTOR, Path(tempfile.mkdtemp()))
         readme = g.read("README.md")
         assert "per 1,000 items" in readme
-        assert "$4.00 per 1,000 items" in readme  # 0.004 * 1000
+        assert "$3.00 per 1,000 items" in readme  # 0.003 * 1000
 
     @pytest.mark.asyncio
     async def test_runner_honors_max_items_input(self) -> None:
