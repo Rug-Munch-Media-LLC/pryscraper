@@ -169,7 +169,226 @@ def process_seo(
     return item
 
 
-# ── lead harvester ───────────────────────────────────────────────────────────
+# ── generic page auditor (accessibility / gdpr / social-cards / ad-intel) ────
+
+_SCRIPT_SRC_RE = re.compile(r"""<script[^>]+src=["']([^"']+)["']""", re.I)
+_AD_NETWORK_MARKERS = {
+    "google adsense": "adsbygoogle",
+    "google ad manager": "googletagmanager.com/gtm",
+    "meta audience": "connect.facebook.net",
+    "amazon associates": "amazon-adsystem",
+    "taboola": "taboola",
+    "outbrain": "outbrain",
+    "criteo": "criteo",
+    "media.net": "media.net",
+}
+_CHECK_IDS = ("accessibility", "compliance", "social_cards", "ad_intel", "links")
+
+
+def _audit_findings(html: str, url: str, options: dict[str, Any]) -> list[dict[str, Any]]:
+    """Run enabled checks; each finding: {check, status(ok|warn|fail), detail}."""
+    findings: list[dict[str, Any]] = []
+    lower = html.lower()
+
+    if options.get("check_accessibility", True):
+        imgs = re.findall(r"<img\b[^>]*>", html, re.I)
+        _alt_re = re.compile(r"""alt=["'][^"']*["']""", re.I)
+        missing_alt = sum(1 for tag in imgs if not _alt_re.search(tag))
+        findings.append(
+            {
+                "check": "images_alt_text",
+                "status": "ok"
+                if not imgs or missing_alt == 0
+                else ("warn" if missing_alt < len(imgs) else "fail"),
+                "detail": f"{missing_alt}/{len(imgs)} images missing alt text",
+            }
+        )
+        if not re.search(r"<html[^>]+lang=", html, re.I):
+            findings.append(
+                {
+                    "check": "html_lang",
+                    "status": "warn",
+                    "detail": "<html> element has no lang attribute",
+                }
+            )
+
+    if options.get("check_compliance", True):
+        banner = any(
+            k in lower for k in ("cookiebot", "onetrust", "cookie-consent", "cookieconsent")
+        )
+        findings.append(
+            {
+                "check": "cookie_consent_mechanism",
+                "status": "ok" if banner else "warn",
+                "detail": "consent platform detected"
+                if banner
+                else "no known consent platform found",
+            }
+        )
+        privacy_linked = "/privacy" in lower or "/datenschutz" in lower
+        findings.append(
+            {
+                "check": "privacy_policy_link",
+                "status": "ok" if privacy_linked else "fail",
+                "detail": "privacy policy link found"
+                if privacy_linked
+                else "no /privacy link on page",
+            }
+        )
+
+    if options.get("check_social_cards", True):
+        og_titles = len(re.findall(r"""property=["']og:title["']""", html, re.I))
+        og_images = len(re.findall(r"""property=["']og:image["']""", html, re.I))
+        findings.append(
+            {
+                "check": "open_graph_tags",
+                "status": "ok" if og_titles and og_images else "fail",
+                "detail": f"og:title x{og_titles}, og:image x{og_images}",
+            }
+        )
+
+    if options.get("check_ad_intel", False):
+        networks = sorted(
+            {label for label, marker in _AD_NETWORK_MARKERS.items() if marker in lower}
+        )
+        findings.append(
+            {
+                "check": "ad_networks",
+                "status": "ok",
+                "detail": ", ".join(networks) if networks else "no known ad network scripts",
+            }
+        )
+
+    if options.get("check_links", True):
+        anchors = re.findall(r"""<a\b[^>]+href=["']([^"']+)["']""", html, re.I)
+        internal = sum(1 for a in anchors if a.startswith("#") or urljoin(url, a).startswith(url))
+        findings.append(
+            {
+                "check": "link_inventory",
+                "status": "ok",
+                "detail": f"{len(anchors)} links ({internal} internal)",
+            }
+        )
+    return findings
+
+
+def process_audit(
+    url: str, result: dict[str, Any], options: dict[str, Any], state: dict[str, Any]
+) -> dict[str, Any]:
+    """Compliance/quality audit: severity-ranked findings instead of raw HTML."""
+    item = _base_item(url, result)
+    if item["status"] != "ok":
+        return item
+    html = _raw_html(result) or item["content"] or ""
+    findings = _audit_findings(html, url, options)
+    failed = sum(1 for f in findings if f["status"] == "fail")
+    warned = sum(1 for f in findings if f["status"] == "warn")
+    item.pop("content", None)
+    item["audit"] = {
+        "score": max(0, 100 - failed * 25 - warned * 10),
+        "findings": findings,
+        "failed": failed,
+        "warnings": warned,
+    }
+    return item
+
+
+# ── change monitor (diff-by-simhash against prior runs) ──────────────────────
+
+
+def process_monitor(
+    url: str, result: dict[str, Any], options: dict[str, Any], state: dict[str, Any]
+) -> dict[str, Any]:
+    """Baseline + change detection: stable hash of visible content; emits
+    `changed` only when the fingerprint differs from the previous run."""
+    item = _base_item(url, result)
+    if item["status"] != "ok":
+        return item
+    content = item["content"] or ""
+    threshold = int(options.get("change_threshold", 3) or 3)
+    fingerprint = _simhash64(content)
+    seen: dict[str, int] = state.setdefault("fingerprints", {})
+    previous = seen.get(url)
+    changed: bool | None
+    if previous is None:
+        changed = None  # baseline run - nothing to compare yet
+        detail = "baseline captured"
+    elif previous == fingerprint:
+        changed = False
+        detail = "unchanged since previous capture"
+    else:
+        distance = bin(previous ^ fingerprint).count("1")
+        changed = distance > threshold
+        detail = f"simhash distance {distance} (threshold {threshold})"
+    seen[url] = fingerprint
+    include_unchanged = bool(options.get("include_unchanged", False))
+    if changed is False and not include_unchanged:
+        item["status"] = "skipped"
+        item["error"] = "unchanged"
+        item.pop("content", None)
+    item.pop("content", None)
+    item["monitor"] = {
+        "fingerprint": str(fingerprint),
+        "changed": changed,
+        "detail": detail,
+    }
+    return item
+
+
+# ── structured-data extractor (schema.org JSON-LD) ──────────────────────────
+
+_JSONLD_RE = re.compile(
+    r"""<script[^>]+type=["']application/ld\+json["'][^>]*>(.*?)</script>""",
+    re.I | re.S,
+)
+
+
+def _jsonld_objects(html: str) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for m in _JSONLD_RE.finditer(html):
+        try:
+            data = json.loads(m.group(1).strip())
+        except json.JSONDecodeError:
+            continue
+        candidates = data.get("@graph", [data]) if isinstance(data, dict) else data
+        for obj in candidates if isinstance(candidates, list) else [candidates]:
+            if isinstance(obj, dict) and obj.get("@type"):
+                out.append(obj)
+    return out
+
+
+def process_extract(
+    url: str, result: dict[str, Any], options: dict[str, Any], state: dict[str, Any]
+) -> dict[str, Any]:
+    """Pull schema.org JSON-LD entities (Recipe, Product, Review, Event,
+    Course, JobPosting...) into clean per-item fields. Falls back to a
+    metadata-only item when the page embeds no structured data."""
+    item = _base_item(url, result)
+    if item["status"] != "ok":
+        return item
+    html = _raw_html(result) or ""
+    wanted = options.get("types")  # e.g. ["Recipe"] - None means any
+    entities: list[dict[str, Any]] = []
+    for obj in _jsonld_objects(html):
+        types = obj.get("@type")
+        types = types if isinstance(types, list) else [types]
+        if wanted and not any(t in wanted for t in types):
+            continue
+        flat = {
+            k: v
+            for k, v in obj.items()
+            if isinstance(v, (str, int, float, bool)) and k != "@context"
+        }
+        entities.append({"type": ",".join(str(t) for t in types), "fields": flat})
+    if not entities:
+        item["status"] = "skipped"
+        item["error"] = "no matching structured data on page"
+        item.pop("content", None)
+        return item
+    item.pop("content", None)
+    item["extracted"] = {"entities": entities[:10]}
+    return item
+
 
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 _PHONE_RE = re.compile(r"(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}")
@@ -318,6 +537,9 @@ PROCESSORS: dict[str, ProcessorFn] = {
     "leads": process_leads,
     "news": process_news,
     "price": process_price,
+    "audit": process_audit,
+    "monitor": process_monitor,
+    "extract": process_extract,
 }
 
 

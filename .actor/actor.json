@@ -26,6 +26,11 @@
 					{
 						"url": "https://example.com"
 					}
+				],
+				"example": [
+					{
+						"url": "https://example.com"
+					}
 				]
 			},
 			"output_format": {
@@ -35,7 +40,8 @@
 				"sectionCaption": "Scraping settings",
 				"editor": "select",
 				"default": "markdown",
-				"enum": ["markdown", "text", "html"]
+				"enum": ["markdown", "text", "html"],
+				"example": "markdown"
 			},
 			"timeout": {
 				"title": "Timeout (seconds)",
@@ -43,52 +49,36 @@
 				"description": "Per-URL timeout.",
 				"default": 30,
 				"minimum": 5,
-				"maximum": 120
+				"maximum": 120,
+				"example": 30
+			},
+			"max_items": {
+				"title": "Max items (cost cap)",
+				"type": "integer",
+				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+				"sectionCaption": "Advanced",
+				"default": 25,
+				"minimum": 1,
+				"example": 25
+			},
+			"proxy_configuration": {
+				"title": "Proxy configuration",
+				"type": "object",
+				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+				"sectionCaption": "Advanced",
+				"editor": "hidden",
+				"prefill": {
+					"useApifyProxy": true
+				},
+				"example": {
+					"useApifyProxy": true
+				}
 			}
 		},
 		"required": ["urls"]
 	},
-	"output": {
-		"type": "object",
-		"schemaVersion": 1,
-		"properties": {
-			"url": {
-				"title": "URL",
-				"type": "string",
-				"description": "Source URL"
-			},
-			"status": {
-				"title": "Status",
-				"type": "string",
-				"description": "ok | error",
-				"editor": "select",
-				"enum": ["ok", "error"]
-			},
-			"content": {
-				"title": "Content",
-				"type": "string",
-				"description": "Extracted content (markdown/text/html per outputFormat)"
-			},
-			"method": {
-				"title": "Method",
-				"type": "string",
-				"description": "Pry fallback tier that produced this result"
-			},
-			"error": {
-				"title": "Error",
-				"type": "string",
-				"description": "Error detail when status=error"
-			},
-			"scraped_at": {
-				"title": "Scraped at",
-				"type": "string",
-				"description": "ISO-8601 UTC timestamp"
-			},
-			"metadata": {
-				"title": "Metadata",
-				"type": "object",
-				"description": "Domain, content length, timing"
-			}
-		}
+	"output": "./output_schema.json",
+	"storages": {
+		"dataset": "./dataset_schema.json"
 	}
 }

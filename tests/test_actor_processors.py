@@ -241,3 +241,107 @@ class TestBacklinksProcessor:
         )
         item = process_backlinks("http://mysite.com/x", {"status": "ok", "raw_html": html}, {}, {})
         assert item["outbound_domains"] == ["other.com", "third.io"]
+
+
+class TestAuditProcessor:
+    def test_accessibility_findings_ranked(self) -> None:
+        from actor_factory.processors import process_audit
+
+        html = '<html><body><img src="a.png"><img src="b.png" alt="b"><p>hello</p></body></html>'
+        item = process_audit("http://e.com", _ok_result(html), {}, {})
+        audit = item["audit"]
+        assert audit["failed"] + audit["warnings"] >= 1
+        checks = {f["check"]: f for f in audit["findings"]}
+        assert checks["images_alt_text"]["status"] == "warn"  # 1 of 2 missing
+        assert 0 <= audit["score"] <= 100
+        assert "content" not in item  # raw HTML never shipped to dataset
+
+    def test_gdpr_fail_without_privacy_link(self) -> None:
+        from actor_factory.processors import process_audit
+
+        html = "<html><head><script src='https://x.cookiebot.com/s.js'></script></head><body>hi</body></html>"
+        item = process_audit("http://e.com", _ok_result(html), {"check_accessibility": False}, {})
+        checks = {f["check"]: f for f in item["audit"]["findings"]}
+        assert checks["cookie_consent_mechanism"]["status"] == "ok"
+        assert checks["privacy_policy_link"]["status"] == "fail"
+
+    def test_error_item_passes_through(self) -> None:
+        from actor_factory.processors import process_audit
+
+        item = process_audit("http://e.com", {"status": "error", "error": "boom"}, {}, {})
+        assert item["status"] == "error"
+        assert "audit" not in item
+
+
+class TestMonitorProcessor:
+    def test_baseline_then_change_detection(self) -> None:
+        from actor_factory.processors import process_monitor
+
+        state: dict = {}
+        first = process_monitor("http://e.com", _ok_result("v1 content"), {}, state)
+        assert first["monitor"]["changed"] is None  # baseline run
+        assert first["monitor"]["detail"] == "baseline captured"
+
+        same = process_monitor("http://e.com", _ok_result("v1 content"), {}, state)
+        assert same["status"] == "skipped"  # unchanged suppressed by default
+        assert same["monitor"]["changed"] is False
+
+        opts = {"include_unchanged": True}
+        kept = process_monitor("http://e.com", _ok_result("v1 content"), opts, state)
+        assert kept["status"] == "ok"
+
+        diff = process_monitor(
+            "http://e.com",
+            _ok_result("v2 page", content="y" * 600),
+            {},
+            state,
+        )
+        assert diff["monitor"]["changed"] is True
+
+
+class TestExtractProcessor:
+    def test_jsonld_recipe_extracted(self) -> None:
+        import json as _json
+
+        from actor_factory.processors import process_extract
+
+        recipe = _json.dumps(
+            {
+                "@context": "https://schema.org",
+                "@type": "Recipe",
+                "name": "Pancakes",
+                "recipeYield": "4",
+                "prepTime": "PT10M",
+            }
+        )
+        html = f'<html><head><script type="application/ld+json">{recipe}</script></head><body>x</body></html>'
+        item = process_extract("http://e.com", _ok_result(html), {"types": ["Recipe"]}, {})
+        entities = item["extracted"]["entities"]
+        assert entities[0]["type"] == "Recipe"
+        assert entities[0]["fields"]["name"] == "Pancakes"
+        assert entities[0]["fields"]["prepTime"] == "PT10M"
+
+    def test_no_structured_data_skips_honestly(self) -> None:
+        from actor_factory.processors import process_extract
+
+        item = process_extract("http://e.com", _ok_result("<p>plain</p>"), {}, {})
+        assert item["status"] == "skipped"
+        assert "structured data" in item["error"]
+
+    def test_type_filter_excludes_other_entities(self) -> None:
+        import json as _json
+
+        from actor_factory.processors import process_extract
+
+        data = _json.dumps({"@type": "Product", "name": "Widget"})
+        html = f'<script type="application/ld+json">{data}</script>'
+        item = process_extract("http://e.com", _ok_result(html), {"types": ["Recipe"]}, {})
+        assert item["status"] == "skipped"
+
+
+class TestProcessorRegistryNew:
+    def test_new_processors_registered(self) -> None:
+        from actor_factory.processors import get_processor
+
+        for name in ("audit", "monitor", "extract"):
+            assert callable(get_processor(name))

@@ -134,8 +134,24 @@ class TestActorPackaging:
         assert standalone["properties"] == props
 
     def test_output_schema_covers_emitted_fields(self) -> None:
-        out = self._actor_spec()["output"]["properties"]
-        declared = set(out)
+        """Apify contract: actor.json 'output' points at output_schema.json;
+        that file holds link definitions (actorOutputSchemaVersion/title/
+        properties[].template). Field-level coverage of what the runner
+        emits lives in the DATASET schema."""
+        spec = self._actor_spec()
+        assert spec["output"] == "./output_schema.json"
+        out = json.loads((REPO / ".actor" / "output_schema.json").read_text())
+        assert out["actorOutputSchemaVersion"] == 1
+        assert out["title"]
+        props = out["properties"]
+        assert "results" in props, "output must link the default dataset"
+        assert props["results"]["type"] == "string"
+        assert "{{links.apiDefaultDatasetUrl}}" in props["results"]["template"]
+
+    def test_dataset_schema_covers_emitted_fields(self) -> None:
+        dataset = json.loads((REPO / ".actor" / "dataset_schema.json").read_text())
+        assert dataset["actorSpecification"] == 1
+        declared = set(dataset["fields"]["properties"])
         emitted = {
             "url",
             "status",
@@ -146,13 +162,19 @@ class TestActorPackaging:
             "metadata",
         }
         missing = emitted - declared
-        assert not missing, f"runner emits fields absent from output schema: {missing}"
+        assert not missing, f"runner emits fields absent from dataset schema: {missing}"
+        views = dataset["views"]
+        assert "overview" in views, "Console Output tab needs an overview view"
+        assert views["overview"]["display"]["component"] == "table"
 
     def test_dockerfile_installs_lock_and_sdk(self) -> None:
         dockerfile = (REPO / ".actor" / "Dockerfile").read_text()
         assert "requirements.lock" in dockerfile  # pinned installs
-        assert "apify-sdk" in dockerfile
-        assert "playwright install chromium" in dockerfile
+        assert "apify>=2.7" in dockerfile
+        # official Apify pattern: playwright base image ships browsers -
+        # running `playwright install` in builds is slow and fragile
+        assert "actor-python-playwright" in dockerfile
+        assert "playwright install" not in dockerfile
 
     def test_entry_point_imports_without_sdk(self) -> None:
         """apify_actor.py imports cleanly WITHOUT apify-sdk installed

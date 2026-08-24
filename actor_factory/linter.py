@@ -168,6 +168,45 @@ def lint_generated(files: dict[str, Any]) -> list[str]:
     schema = json_loads_safe(files["INPUT_SCHEMA.json"].read_text())
     if schema.get("type") != "object":
         findings.append("input schema root type must be object")
+
+    # ── Store-publication hard requirements (platform-verified 2026-08-24) ──
+
+    # Output schema file: REQUIRED for Apify Store publication; actor.json
+    # must reference it by path (file-reference form matches the platform
+    # validator's oneOf - embedded objects were rejected in live testing).
+    if "output_schema.json" not in files:
+        findings.append("missing output_schema.json (required for Store)")
+    else:
+        out = json_loads_safe(files["output_schema.json"].read_text())
+        if out.get("actorOutputSchemaVersion") != 1:
+            findings.append("output_schema.json missing actorOutputSchemaVersion: 1")
+        props = out.get("properties") or {}
+        if not any("{{links." in str(p.get("template", "")) for p in props.values()):
+            findings.append("output schema properties lack {{links.*}} templates")
+    actor_json = json_loads_safe(files["actor.json"].read_text())
+    if actor_json.get("output") != "./output_schema.json":
+        findings.append('actor.json output must be "./output_schema.json"')
+
+    # Dataset schema: Console Output tab needs fields + an overview view.
+    ds = json_loads_safe(files["dataset_schema.json"].read_text())
+    if ds.get("actorSpecification") != 1:
+        findings.append("dataset_schema.json missing actorSpecification: 1")
+    if not (ds.get("fields") or {}).get("properties"):
+        findings.append("dataset_schema.json has no field definitions")
+    if "overview" not in (ds.get("views") or {}):
+        findings.append("dataset_schema.json missing 'overview' view")
+
+    # Dockerfile: playwright base image ships browsers; the plain python
+    # image + `playwright install` pattern failed on the platform builder.
+    dockerfile = files["Dockerfile"].read_text()
+    if "actor-python-playwright" not in dockerfile:
+        findings.append("Dockerfile must use apify/actor-python-playwright base image")
+    if "playwright install" in dockerfile:
+        findings.append("Dockerfile runs playwright install (base image already ships browsers)")
+    if "apify-sdk" in dockerfile:
+        findings.append(
+            'Dockerfile installs nonexistent package "apify-sdk" (PyPI name is "apify")'
+        )
     return findings
 
 

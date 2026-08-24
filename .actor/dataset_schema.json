@@ -1,7 +1,47 @@
 {
-	"title": "Pry Universal Scraper results",
-	"description": "One item per processed URL.",
-	"type": "object",
-	"schemaVersion": 1,
-	"fields": {}
+	"actorSpecification": 1,
+	"fields": {
+		"type": "object",
+		"properties": {
+			"url": {
+				"type": "string",
+				"title": "URL"
+			},
+			"status": {
+				"type": "string",
+				"title": "Status"
+			},
+			"content": {
+				"type": "string",
+				"title": "Content"
+			},
+			"method": {
+				"type": "string",
+				"title": "Method"
+			},
+			"error": {
+				"type": "string",
+				"title": "Error"
+			},
+			"scraped_at": {
+				"type": "string",
+				"title": "Scraped at"
+			},
+			"metadata": {
+				"type": "object",
+				"title": "Metadata"
+			}
+		}
+	},
+	"views": {
+		"overview": {
+			"title": "Overview",
+			"transformation": {
+				"fields": ["url", "status", "method", "scraped_at"]
+			},
+			"display": {
+				"component": "table"
+			}
+		}
+	}
 }

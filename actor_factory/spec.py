@@ -106,6 +106,12 @@ class InputField:
             prop["maximum"] = self.maximum
         if self.type == "array" and self.item_type:
             prop["items"] = {"type": self.item_type}
+        # Store sample runs are generated from `example` values (Apify docs:
+        # input-schema specification). Fall back to prefill/default so every
+        # published actor ships a working sample without per-spec boilerplate.
+        example = self.prefill if self.prefill is not None else self.default
+        if example is not None:
+            prop["example"] = example
         return prop
 
 
@@ -236,7 +242,8 @@ class ActorSpec:
             "minMemoryMbytes": self.min_memory_mbytes,
             "maxMemoryMbytes": self.max_memory_mbytes,
             "input": self._input_schema(),
-            "output": self._output_schema(),
+            "output": "./output_schema.json",
+            "storages": {"dataset": "./dataset_schema.json"},
         }
 
     def _input_schema(self) -> dict[str, Any]:
@@ -259,42 +266,62 @@ class ActorSpec:
         return schema
 
     def _output_schema(self) -> dict[str, Any]:
+        """Apify output schema FILE content (.actor/output_schema.json).
+
+        Contract per Apify docs (actors/development/actor-definition/output-schema)
+        and the official apify/actor-schemas-example reference: top level carries
+        actorOutputSchemaVersion + title; properties entries are output LINK
+        definitions ({type, title, description, template}). Templates interpolate
+        run context variables like {{links.apiDefaultDatasetUrl}}. An output
+        schema is REQUIRED for Apify Store publication. Referenced from
+        actor.json as "output": "./output_schema.json" (path form - mirrors
+        the platform-validated reference example).
+        """
         return {
-            "type": "object",
-            "schemaVersion": 1,
+            "actorOutputSchemaVersion": 1,
+            "title": f"Output of {self.title}",
             "properties": {
-                "url": {"title": "URL", "type": "string", "description": "Source URL"},
-                "status": {
-                    "title": "Status",
+                "results": {
                     "type": "string",
-                    "description": "ok | error",
-                    "editor": "select",
-                    "enum": ["ok", "error"],
+                    "title": "Results",
+                    "description": (
+                        "One item per processed URL: url, status, content, "
+                        "method tier, scraped_at, metadata."
+                    ),
+                    "template": "{{links.apiDefaultDatasetUrl}}/items",
                 },
-                "content": {
-                    "title": "Content",
-                    "type": "string",
-                    "description": "Extracted content (markdown/text/html per outputFormat)",
-                },
-                "method": {
-                    "title": "Method",
-                    "type": "string",
-                    "description": "Pry fallback tier that produced this result",
-                },
-                "error": {
-                    "title": "Error",
-                    "type": "string",
-                    "description": "Error detail when status=error",
-                },
-                "scraped_at": {
-                    "title": "Scraped at",
-                    "type": "string",
-                    "description": "ISO-8601 UTC timestamp",
-                },
-                "metadata": {
-                    "title": "Metadata",
-                    "type": "object",
-                    "description": "Domain, content length, timing",
+            },
+        }
+
+    def _dataset_schema(self) -> dict[str, Any]:
+        """Apify dataset schema for the default dataset (storages.dataset).
+
+        Contract per Apify docs (storage/dataset-schema): actorSpecification 1,
+        optional JSON-Schema ``fields`` describing one dataset item, and
+        required ``views`` controlling Console Output-tab rendering.
+        """
+        item_properties: dict[str, Any] = {
+            "url": {"type": "string", "title": "URL"},
+            "status": {"type": "string", "title": "Status"},
+            "content": {"type": "string", "title": "Content"},
+            "method": {"type": "string", "title": "Method"},
+            "error": {"type": "string", "title": "Error"},
+            "scraped_at": {"type": "string", "title": "Scraped at"},
+            "metadata": {"type": "object", "title": "Metadata"},
+        }
+        return {
+            "actorSpecification": 1,
+            "fields": {
+                "type": "object",
+                "properties": item_properties,
+            },
+            "views": {
+                "overview": {
+                    "title": "Overview",
+                    "transformation": {
+                        "fields": ["url", "status", "method", "scraped_at"],
+                    },
+                    "display": {"component": "table"},
                 },
             },
         }

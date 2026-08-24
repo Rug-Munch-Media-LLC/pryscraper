@@ -231,6 +231,7 @@ MONITOR_ACTOR = ActorSpec(
             price_usd=0.002,
         ),
     ),
+    processor="monitor",
     min_memory_mbytes=512,
     max_memory_mbytes=2048,
 )
@@ -1006,6 +1007,7 @@ REVIEW_AGGREGATOR_ACTOR = ActorSpec(
             price_usd=0.003,
         ),
     ),
+    processor="extract",
     min_memory_mbytes=1024,
     max_memory_mbytes=8192,
 )
@@ -1040,6 +1042,7 @@ INVENTORY_ALERT_ACTOR = ActorSpec(
             price_usd=0.002,
         ),
     ),
+    processor="monitor",
     min_memory_mbytes=512,
     max_memory_mbytes=4096,
 )
@@ -1143,6 +1146,7 @@ AD_INTEL_ACTOR = ActorSpec(
             price_usd=0.002,
         ),
     ),
+    processor="audit",
     min_memory_mbytes=512,
     max_memory_mbytes=4096,
 )
@@ -1342,6 +1346,7 @@ BROKEN_LINKS_ACTOR = ActorSpec(
             price_usd=0.002,
         ),
     ),
+    processor="audit",
     min_memory_mbytes=512,
     max_memory_mbytes=4096,
 )
@@ -1411,6 +1416,7 @@ WAYBACK_DIFF_ACTOR = ActorSpec(
             price_usd=0.003,
         ),
     ),
+    processor="monitor",
     min_memory_mbytes=512,
     max_memory_mbytes=2048,
 )
@@ -1516,6 +1522,7 @@ A11Y_SCANNER_ACTOR = ActorSpec(
             price_usd=0.002,
         ),
     ),
+    processor="audit",
     min_memory_mbytes=512,
     max_memory_mbytes=4096,
 )
@@ -1618,6 +1625,7 @@ GDPR_COOKIE_ACTOR = ActorSpec(
             price_usd=0.001,
         ),
     ),
+    processor="audit",
     min_memory_mbytes=256,
     max_memory_mbytes=2048,
     uses_browser=False,
@@ -1652,6 +1660,7 @@ META_TAG_AUDITOR_ACTOR = ActorSpec(
             price_usd=0.001,
         ),
     ),
+    processor="audit",
     min_memory_mbytes=256,
     max_memory_mbytes=2048,
     uses_browser=False,
@@ -1685,6 +1694,7 @@ SITEMAP_DIFF_ACTOR = ActorSpec(
             price_usd=0.001,
         ),
     ),
+    processor="monitor",
     min_memory_mbytes=256,
     max_memory_mbytes=1024,
     uses_browser=False,
@@ -1921,6 +1931,7 @@ COURSE_CATALOG_ACTOR = ActorSpec(
             price_usd=0.003,
         ),
     ),
+    processor="extract",
     min_memory_mbytes=512,
     max_memory_mbytes=4096,
 )
@@ -1953,6 +1964,7 @@ WEATHER_COLLECTOR_ACTOR = ActorSpec(
             price_usd=0.001,
         ),
     ),
+    processor="monitor",
     min_memory_mbytes=256,
     max_memory_mbytes=1024,
     uses_browser=False,
@@ -1988,6 +2000,7 @@ AIR_QUALITY_ACTOR = ActorSpec(
             price_usd=0.001,
         ),
     ),
+    processor="monitor",
     min_memory_mbytes=256,
     max_memory_mbytes=1024,
     uses_browser=False,
@@ -2393,6 +2406,7 @@ RECIPE_MINER_ACTOR = ActorSpec(
             price_usd=0.002,
         ),
     ),
+    processor="extract",
     min_memory_mbytes=512,
     max_memory_mbytes=4096,
 )

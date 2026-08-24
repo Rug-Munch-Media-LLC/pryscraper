@@ -125,7 +125,7 @@ class TestGeneration:
         dockerfile = g.read("Dockerfile")
         assert "FROM apify/actor-python" in dockerfile
         assert "requirements.lock" in dockerfile
-        assert "apify-sdk" in dockerfile
+        assert "apify>=2.7" in dockerfile
 
 
 # ── Layer 3: PPE runtime against a mocked Actor ──────────────────────────────
