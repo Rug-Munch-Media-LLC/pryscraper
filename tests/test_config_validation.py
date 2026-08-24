@@ -15,8 +15,8 @@ from types import SimpleNamespace
 
 import pytest
 
-import config_validation
-from config_validation import (
+from pry.core import config_validation
+from pry.core.config_validation import (
     ERROR_PREFIX,
     WARNING_PREFIX,
     has_errors,

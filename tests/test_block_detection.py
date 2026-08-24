@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from block_detection import BlockSignal, classify_response, detect_block
+from pry.engine.block_detection import BlockSignal, classify_response, detect_block
 
 # ── Fixture HTML snippets ──────────────────────────────────────────────────
 

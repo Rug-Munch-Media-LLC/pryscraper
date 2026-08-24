@@ -18,7 +18,7 @@ from pathlib import Path
 import httpx
 from fastapi.testclient import TestClient
 
-from api import app
+from pry.api.api import app
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 

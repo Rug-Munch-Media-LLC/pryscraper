@@ -22,7 +22,8 @@ from pathlib import Path
 import pytest
 from hypothesis import HealthCheck, given, settings, strategies as st
 
-from stealth_engine import StealthEngine
+import pry.engine.stealth_engine as stealth_engine
+from pry.engine.stealth_engine import StealthEngine
 
 _NOISE_RE = re.compile(r"const noise = ([0-9.eE+-]+);")
 
@@ -142,7 +143,6 @@ def test_save_scripts_writes_all_files(
     _seed: int, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """save_scripts must write all six files, all non-empty, every draw."""
-    import stealth_engine
 
     monkeypatch.setattr(stealth_engine, "SCRIPTS_DIR", tmp_path)
     StealthEngine().save_scripts()

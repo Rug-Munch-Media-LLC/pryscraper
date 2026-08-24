@@ -20,7 +20,7 @@ from typing import Any
 
 import pytest
 
-from settings import PrySettings, settings
+from pry.core.settings import PrySettings, settings
 from sports_data import cache as cache_mod
 from sports_data.cache import TokenBucketRateLimiter, TTLCache
 

@@ -26,14 +26,14 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from mcp_sse import mcp_post_message, mcp_sse_endpoint
+from pry.api.mcp_sse import mcp_post_message, mcp_sse_endpoint
+from pry.core.settings import settings
 from pry_mcp import MCP_PROTOCOL_VERSION, SERVER_VERSION, make_fallback_server, register_all
 from pry_mcp.fallback_server import combined_tool_executor
 from pry_mcp.notifications import (
     register_mcp_notification_observer,
     unregister_mcp_notification_observer,
 )
-from settings import settings
 
 # Same CORS allow-list the main app uses; the MCP sub-app is mounted under the
 # same origin(s) and must accept the same browser clients.

@@ -26,7 +26,7 @@ from typing import Any
 
 from fastapi import APIRouter, Query
 
-from errors import ExternalServiceError, NotFoundError
+from pry.core.errors import ExternalServiceError, NotFoundError
 
 logger = logging.getLogger(__name__)
 

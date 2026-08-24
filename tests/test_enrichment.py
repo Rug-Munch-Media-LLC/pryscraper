@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for data enrichment pipeline."""
 
-from enrichment import (
+from pry.api.enrichment import (
     TECH_PATTERNS,
     detect_tech_stack,
     extract_company_info,

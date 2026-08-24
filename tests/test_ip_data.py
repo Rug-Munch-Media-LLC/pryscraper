@@ -529,7 +529,7 @@ def ip_app() -> FastAPI:
     from fastapi import Request
     from fastapi.responses import JSONResponse
 
-    from errors import PryError
+    from pry.core.errors import PryError
 
     app = FastAPI()
 

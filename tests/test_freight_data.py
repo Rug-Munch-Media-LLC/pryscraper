@@ -29,8 +29,8 @@ from fastapi.testclient import TestClient
 import freight_data
 import freight_data.rates as rates
 import routers.freight_data as freight_router_mod
-from errors import PryError
-from retry import RetryConfig
+from pry.core.errors import PryError
+from pry.engine.retry import RetryConfig
 from routers.freight_data import router as freight_router
 
 _FBX_PAGE = "https://www.freightos.com/enterprise/terminal/freightos-baltic-index-global-container-pricing-index/"

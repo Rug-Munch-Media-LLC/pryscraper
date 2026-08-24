@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-import fallback_telemetry
+from pry.engine import fallback_telemetry
 from routers.diagnostics import router as diagnostics_router
 
 

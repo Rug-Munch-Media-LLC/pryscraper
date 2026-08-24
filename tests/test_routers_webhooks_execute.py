@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient
 from httpx import Response
 
 import routers.webhooks as webhooks_module
-from errors import InvalidRequestError, PryError
+from pry.core.errors import InvalidRequestError, PryError
 from routers.execute import _safe_pryfile_path, router as execute_router
 from routers.webhooks import router as webhooks_router
 
@@ -57,8 +57,8 @@ class TestWebhookTestEndpoint:
     def test_delivery_success_with_secret(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr("webhook_delivery.WEBHOOK_DIR", tmp_path / "wh")
-        monkeypatch.setattr("webhook_delivery.settings.webhook_secret", "secret-1")
+        monkeypatch.setattr("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "wh")
+        monkeypatch.setattr("pry.api.webhook_delivery.settings.webhook_secret", "secret-1")
         respx.post("http://hook.example.com").mock(return_value=Response(200, json={"ok": True}))
         a = FastAPI()
         a.include_router(webhooks_router)
@@ -77,8 +77,8 @@ class TestWebhookTestEndpoint:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Fail-closed contract surfaced through the HTTP boundary."""
-        monkeypatch.setattr("webhook_delivery.WEBHOOK_DIR", tmp_path / "wh2")
-        monkeypatch.setattr("webhook_delivery.settings.webhook_secret", "")
+        monkeypatch.setattr("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "wh2")
+        monkeypatch.setattr("pry.api.webhook_delivery.settings.webhook_secret", "")
         a = FastAPI()
         a.include_router(webhooks_router)
         client = TestClient(a, raise_server_exceptions=False)
@@ -95,8 +95,8 @@ class TestWebhookTestEndpoint:
 
 class TestDeadLetterEndpoint:
     def test_empty_queue(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("webhook_delivery.WEBHOOK_DIR", tmp_path / "wh3")
-        monkeypatch.setattr("webhook_delivery.settings.webhook_secret", "s")
+        monkeypatch.setattr("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "wh3")
+        monkeypatch.setattr("pry.api.webhook_delivery.settings.webhook_secret", "s")
         a = FastAPI()
         a.include_router(webhooks_router)
         client = TestClient(a, raise_server_exceptions=False)
@@ -154,7 +154,7 @@ class TestRunPryfileEndpoint:
             async def run_all(self, scraper: object) -> list[dict[str, int]]:
                 return [{"job": "a", "status": 200}]
 
-        import pryfile as pryfile_module
+        import pry.misc.pryfile as pryfile_module
 
         monkeypatch.setattr(pryfile_module, "Pryfile", _FakePryfile)
         a = FastAPI()

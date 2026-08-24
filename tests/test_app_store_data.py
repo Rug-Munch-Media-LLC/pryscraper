@@ -28,8 +28,8 @@ from fastapi.testclient import TestClient
 import app_store_data.apple as apple
 import app_store_data.google_play as google_play
 import routers.app_store_data as appstore_router_mod
-from errors import PryError
-from retry import RetryConfig
+from pry.core.errors import PryError
+from pry.engine.retry import RetryConfig
 from routers.app_store_data import router as appstore_router
 
 _APPLE_SEARCH = "https://itunes.apple.com/search"

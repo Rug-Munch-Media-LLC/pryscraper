@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from errors import NotFoundError
+from pry.core.errors import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ async def classify_license_endpoint(text: str = Body(...)) -> dict[str, Any]:
     Returns license type (CC0, CC-BY, MIT, Apache, GPL, Proprietary, Fair Use),
     tier (permissive/copyleft/restrictive/conditional), and confidence.
     """
-    from training_data import classify_license
+    from pry.misc.training_data import classify_license
 
     result = classify_license(text)
     return {"success": True, "data": result}
@@ -50,7 +50,7 @@ async def clean_content(
     Removes emails, phones, SSNs, credit cards, IPs, and (optionally) names.
     Also strips copyright notices and near-verbatim copyright content.
     """
-    from training_data import strip_copyright_verbatim, strip_pii
+    from pry.misc.training_data import strip_copyright_verbatim, strip_pii
 
     cleaned, pii_stats = strip_pii(text, preserve_names=not strip_names)
     copyright_stats = {"blocks_removed": 0, "total_chars_removed": 0}
@@ -94,7 +94,7 @@ async def export_dataset(
     - License classification
     - Compliance report generation
     """
-    from training_data import export_training_dataset
+    from pry.misc.training_data import export_training_dataset
 
     result = export_training_dataset(
         records=records,
@@ -116,7 +116,7 @@ async def compliance_report(dataset_id: str) -> dict[str, Any]:
     Report includes: data provenance, PII/copyright removal stats,
     license classification, and legal recommendations.
     """
-    from training_data import generate_compliance_report
+    from pry.misc.training_data import generate_compliance_report
 
     result = generate_compliance_report(dataset_id)
     if "error" in result:

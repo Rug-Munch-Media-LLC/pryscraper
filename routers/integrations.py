@@ -13,8 +13,8 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from deps import scraper
-from errors import InvalidRequestError, ScrapeError
+from pry.core.deps import scraper
+from pry.core.errors import InvalidRequestError, ScrapeError
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ async def send_to_destination(
     - airtable: {"base_id": "...", "table_name": "Table 1", "api_key": "..."}
     - email: {"recipient": "user@example.com", "subject": "Data Export"}
     """
-    from destinations import SUPPORTED_DESTINATIONS, dispatch
+    from pry.commerce.destinations import SUPPORTED_DESTINATIONS, dispatch
 
     if destination not in SUPPORTED_DESTINATIONS:
         raise InvalidRequestError(
@@ -112,7 +112,7 @@ async def scrape_and_send(
     Combines /v1/scrape + /v1/destination/send into a single call.
     Perfect for non-technical users who just want data in their tools.
     """
-    from destinations import SUPPORTED_DESTINATIONS, dispatch
+    from pry.commerce.destinations import SUPPORTED_DESTINATIONS, dispatch
 
     if destination not in SUPPORTED_DESTINATIONS:
         raise InvalidRequestError(

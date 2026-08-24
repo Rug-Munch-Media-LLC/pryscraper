@@ -30,8 +30,8 @@ import routers.supply_data as supply_router_mod
 import supply_data
 import supply_data.firmographics as firmographics
 import supply_data.imports as imports_mod
-from errors import PryError
-from retry import RetryConfig
+from pry.core.errors import PryError
+from pry.engine.retry import RetryConfig
 from routers.supply_data import router as supply_router
 
 _IMPORTS = "http://imports.test/v1/records"

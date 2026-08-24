@@ -29,8 +29,8 @@ import gov_data
 import gov_data.procurement as procurement
 import gov_data.recalls as recalls
 import routers.gov_data as gov_router_mod
-from errors import PryError
-from retry import RetryConfig
+from pry.core.errors import PryError
+from pry.engine.retry import RetryConfig
 from routers.gov_data import router as gov_router
 
 _SAM = "https://api.sam.gov/opportunities/v2/search"

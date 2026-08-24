@@ -5,7 +5,11 @@
 # Licensed under MIT. See LICENSE.
 """Tests for markdown generation strategies."""
 
-from markdown_gen import BM25ContentFilter, DefaultMarkdownGenerator, PruningContentFilter
+from pry.engine.markdown_gen import (
+    BM25ContentFilter,
+    DefaultMarkdownGenerator,
+    PruningContentFilter,
+)
 
 
 def test_pruning_filter_removes_boilerplate() -> None:

@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for white-label agency dashboard."""
 
-from agency import (
+from pry.commerce.agency import (
     check_client_quota,
     create_agency,
     create_client,

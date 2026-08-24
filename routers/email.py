@@ -33,7 +33,7 @@ async def scrape_email(
 
     Extracts: order numbers, amounts, tracking numbers, dates, addresses.
     """
-    from email_scraper import extract_email_data
+    from pry.engine.email_scraper import extract_email_data
 
     result = extract_email_data(subject, body, sender)
     return {"success": True, "data": result}
@@ -53,7 +53,7 @@ async def fetch_gmail(
 
     Extracts order confirmations, invoices, receipts, shipping notifications.
     """
-    from email_scraper import fetch_gmail_emails
+    from pry.engine.email_scraper import fetch_gmail_emails
 
     result = await fetch_gmail_emails(access_token, max_results, query, since_days)
     return {"success": result.get("success", False), "data": result}
@@ -75,7 +75,7 @@ async def fetch_outlook(
 
     Extracts order confirmations, invoices, receipts, shipping notifications.
     """
-    from email_scraper import fetch_outlook_emails
+    from pry.engine.email_scraper import fetch_outlook_emails
 
     result = await fetch_outlook_emails(access_token, max_results, query, since_days)
     return {"success": result.get("success", False), "data": result}

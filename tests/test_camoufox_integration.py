@@ -17,8 +17,8 @@ import sys
 import types
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import camoufox_integration
-from camoufox_integration import CamoufoxBrowser
+from pry.engine import camoufox_integration
+from pry.engine.camoufox_integration import CamoufoxBrowser
 
 # ── Profile catalog / launch-arg construction ───────────────────
 
@@ -87,7 +87,7 @@ async def test_fetch_builds_launch_args_from_profile() -> None:
     with (
         patch.object(camoufox_integration, "_has_camoufox", True),
         patch(
-            "camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls
+            "pry.engine.camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls
         ) as mock_camoufox,
     ):
         result = await CamoufoxBrowser(default_profile="chrome_windows").fetch(
@@ -111,7 +111,7 @@ async def test_fetch_adds_proxy_to_launch_args() -> None:
     with (
         patch.object(camoufox_integration, "_has_camoufox", True),
         patch(
-            "camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls
+            "pry.engine.camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls
         ) as mock_camoufox,
     ):
         result = await CamoufoxBrowser(default_profile="firefox_linux").fetch(
@@ -129,7 +129,7 @@ async def test_fetch_unknown_profile_falls_back_to_chrome_windows() -> None:
     with (
         patch.object(camoufox_integration, "_has_camoufox", True),
         patch(
-            "camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls
+            "pry.engine.camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls
         ) as mock_camoufox,
     ):
         result = await CamoufoxBrowser().fetch("https://example.com", profile="does-not-exist")
@@ -148,7 +148,7 @@ async def test_fetch_injects_cookies_before_goto() -> None:
 
     with (
         patch.object(camoufox_integration, "_has_camoufox", True),
-        patch("camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls),
+        patch("pry.engine.camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls),
     ):
         await CamoufoxBrowser().fetch("https://example.com", cookies=cookies)
 
@@ -161,7 +161,7 @@ async def test_fetch_uses_wait_selector_when_provided() -> None:
 
     with (
         patch.object(camoufox_integration, "_has_camoufox", True),
-        patch("camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls),
+        patch("pry.engine.camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls),
     ):
         await CamoufoxBrowser().fetch(
             "https://example.com", wait_selector="#content", wait_time=5000
@@ -177,7 +177,7 @@ async def test_fetch_uses_wait_timeout_when_no_selector() -> None:
 
     with (
         patch.object(camoufox_integration, "_has_camoufox", True),
-        patch("camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls),
+        patch("pry.engine.camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls),
     ):
         await CamoufoxBrowser().fetch("https://example.com", wait_time=2500)
 
@@ -191,7 +191,7 @@ async def test_fetch_exception_returns_error_dict() -> None:
 
     with (
         patch.object(camoufox_integration, "_has_camoufox", True),
-        patch("camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls),
+        patch("pry.engine.camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls),
     ):
         result = await CamoufoxBrowser().fetch("https://example.com")
 
@@ -209,7 +209,7 @@ async def test_fetch_rejects_private_url_before_navigation() -> None:
 
     with (
         patch.object(camoufox_integration, "_has_camoufox", True),
-        patch("camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls),
+        patch("pry.engine.camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls),
     ):
         result = await CamoufoxBrowser().fetch("http://169.254.169.254/latest/meta-data/")
 
@@ -225,7 +225,7 @@ async def test_fetch_installs_ssrf_route_guard() -> None:
 
     with (
         patch.object(camoufox_integration, "_has_camoufox", True),
-        patch("camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls),
+        patch("pry.engine.camoufox_integration.AsyncCamoufox", create=True, return_value=mock_cls),
     ):
         result = await CamoufoxBrowser().fetch("https://example.com")
 
@@ -308,7 +308,7 @@ async def test_fetch_with_stealth_scrolls_and_returns_content() -> None:
     fake_mod = _fake_camoufox_module(second)
     with (
         patch.object(camoufox_integration, "_has_camoufox", True),
-        patch("camoufox_integration.AsyncCamoufox", create=True, return_value=first),
+        patch("pry.engine.camoufox_integration.AsyncCamoufox", create=True, return_value=first),
         patch.dict(sys.modules, {"camoufox": fake_mod}),
     ):
         result = await CamoufoxBrowser(default_profile="chrome_mac").fetch_with_stealth(
@@ -332,7 +332,7 @@ async def test_fetch_with_stealth_without_human_behavior_keeps_first_content() -
 
     with (
         patch.object(camoufox_integration, "_has_camoufox", True),
-        patch("camoufox_integration.AsyncCamoufox", create=True, return_value=first),
+        patch("pry.engine.camoufox_integration.AsyncCamoufox", create=True, return_value=first),
     ):
         result = await CamoufoxBrowser().fetch_with_stealth("https://example.com")
 

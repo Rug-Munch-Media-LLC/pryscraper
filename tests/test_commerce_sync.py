@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for commerce platform sync."""
 
-from commerce_sync import sync_to_shopify, sync_to_woocommerce
+from pry.commerce.commerce_sync import sync_to_shopify, sync_to_woocommerce
 
 
 def test_sync_woocommerce_no_creds() -> None:

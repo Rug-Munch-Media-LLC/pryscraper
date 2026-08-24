@@ -50,8 +50,8 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from paths import PRY_DATA_DIR
-from retry import RetryConfig, async_retry
+from pry.core.paths import PRY_DATA_DIR
+from pry.engine.retry import RetryConfig, async_retry
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable

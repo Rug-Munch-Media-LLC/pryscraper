@@ -7,7 +7,7 @@ import contextlib
 
 import pytest
 
-from automator import BrowserSession, PryAutomator
+from pry.actors.automator import BrowserSession, PryAutomator
 
 
 @pytest.fixture

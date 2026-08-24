@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from scraping_methods import (
+from pry.engine.scraping_methods import (
     METHODS,
     PersistentSession,
     discover_feed,
@@ -394,8 +394,8 @@ async def test_session_cookies_snapshot() -> None:
 async def test_fetch_rendered_playwright_html() -> None:
     fake_pw = _fake_playwright(page_content="<html>rendered</html>")
     with (
-        patch("scraping_methods._HAS_PLAYWRIGHT", True),
-        patch("scraping_methods.async_playwright", fake_pw),
+        patch("pry.engine.scraping_methods._HAS_PLAYWRIGHT", True),
+        patch("pry.engine.scraping_methods.async_playwright", fake_pw),
     ):
         html = await fetch_rendered("https://example.com/spa")
     assert html == "<html>rendered</html>"
@@ -407,8 +407,8 @@ async def test_fetch_rendered_collect_json() -> None:
         json_responses=[FakeResponse('{"odds":[1,2]}', "application/json")],
     )
     with (
-        patch("scraping_methods._HAS_PLAYWRIGHT", True),
-        patch("scraping_methods.async_playwright", fake_pw),
+        patch("pry.engine.scraping_methods._HAS_PLAYWRIGHT", True),
+        patch("pry.engine.scraping_methods.async_playwright", fake_pw),
     ):
         result = await fetch_rendered("https://example.com/spa", collect_json=True)
     assert result is not None
@@ -418,8 +418,8 @@ async def test_fetch_rendered_collect_json() -> None:
 async def test_fetch_rendered_selector_wait() -> None:
     fake_pw = _fake_playwright(page_content="<html>loaded</html>")
     with (
-        patch("scraping_methods._HAS_PLAYWRIGHT", True),
-        patch("scraping_methods.async_playwright", fake_pw),
+        patch("pry.engine.scraping_methods._HAS_PLAYWRIGHT", True),
+        patch("pry.engine.scraping_methods.async_playwright", fake_pw),
     ):
         html = await fetch_rendered("https://example.com/spa", selector="#content")
     assert html == "<html>loaded</html>"
@@ -428,8 +428,8 @@ async def test_fetch_rendered_selector_wait() -> None:
 async def test_fetch_rendered_never_raises_on_launch_failure() -> None:
     fake_pw = _fake_playwright(launch_error=OSError("no browser binary"))
     with (
-        patch("scraping_methods._HAS_PLAYWRIGHT", True),
-        patch("scraping_methods.async_playwright", fake_pw),
+        patch("pry.engine.scraping_methods._HAS_PLAYWRIGHT", True),
+        patch("pry.engine.scraping_methods.async_playwright", fake_pw),
     ):
         result = await fetch_rendered("https://example.com/spa")
     assert result is None
@@ -437,9 +437,9 @@ async def test_fetch_rendered_never_raises_on_launch_failure() -> None:
 
 async def test_fetch_rendered_missing_browser_returns_none() -> None:
     with (
-        patch("scraping_methods._HAS_PLAYWRIGHT", False),
-        patch("scraping_methods._HAS_CAMOUFOX", False),
-        patch("scraping_methods._HAS_CAMOUFOX_INTEGRATION", False),
+        patch("pry.engine.scraping_methods._HAS_PLAYWRIGHT", False),
+        patch("pry.engine.scraping_methods._HAS_CAMOUFOX", False),
+        patch("pry.engine.scraping_methods._HAS_CAMOUFOX_INTEGRATION", False),
     ):
         assert await fetch_rendered("https://example.com/spa") is None
 
@@ -451,8 +451,8 @@ async def test_fetch_rendered_camoufox_package() -> None:
     cm.__aenter__ = AsyncMock(return_value=fake)
     cm.__aexit__ = AsyncMock(return_value=False)
     with (
-        patch("scraping_methods._HAS_CAMOUFOX", True),
-        patch("scraping_methods.AsyncCamoufox", MagicMock(return_value=cm)),
+        patch("pry.engine.scraping_methods._HAS_CAMOUFOX", True),
+        patch("pry.engine.scraping_methods.AsyncCamoufox", MagicMock(return_value=cm)),
     ):
         html = await fetch_rendered("https://example.com/spa", prefer="camoufox")
     assert html == "<html>camoufox</html>"
@@ -464,9 +464,9 @@ async def test_fetch_rendered_camoufox_wrapper_fallback() -> None:
         return_value={"success": True, "content": "<html>wrapper</html>"}
     )
     with (
-        patch("scraping_methods._HAS_CAMOUFOX", False),
-        patch("scraping_methods._HAS_CAMOUFOX_INTEGRATION", True),
-        patch("scraping_methods.CamoufoxBrowser", MagicMock(return_value=fake_browser)),
+        patch("pry.engine.scraping_methods._HAS_CAMOUFOX", False),
+        patch("pry.engine.scraping_methods._HAS_CAMOUFOX_INTEGRATION", True),
+        patch("pry.engine.scraping_methods.CamoufoxBrowser", MagicMock(return_value=fake_browser)),
     ):
         html = await fetch_rendered("https://example.com/spa", prefer="camoufox")
     assert html == "<html>wrapper</html>"
@@ -481,7 +481,7 @@ async def test_fetch_rendered_invalid_url_returns_none() -> None:
 
 def test_parse_rss_feed() -> None:
     fake = httpx.Response(200, text=RSS_FIXTURE)
-    with patch("scraping_methods._sync_get", return_value=fake):
+    with patch("pry.engine.scraping_methods._sync_get", return_value=fake):
         entries = parse_feed("https://example.com/feed.xml")
     assert len(entries) == 3
     assert entries[0] == {
@@ -502,7 +502,7 @@ def test_parse_rss_feed() -> None:
 
 def test_parse_atom_feed() -> None:
     fake = httpx.Response(200, text=ATOM_FIXTURE)
-    with patch("scraping_methods._sync_get", return_value=fake):
+    with patch("pry.engine.scraping_methods._sync_get", return_value=fake):
         entries = parse_feed("https://example.com/atom.xml")
     assert len(entries) == 2
     assert entries[0] == {
@@ -518,18 +518,18 @@ def test_parse_atom_feed() -> None:
 
 def test_parse_feed_non_feed_xml_returns_empty() -> None:
     fake = httpx.Response(200, text="<html><body>not a feed</body></html>")
-    with patch("scraping_methods._sync_get", return_value=fake):
+    with patch("pry.engine.scraping_methods._sync_get", return_value=fake):
         assert parse_feed("https://example.com/feed.xml") == []
 
 
 def test_parse_feed_malformed_xml_returns_empty() -> None:
     fake = httpx.Response(200, text="<rss><channel>unclosed")
-    with patch("scraping_methods._sync_get", return_value=fake):
+    with patch("pry.engine.scraping_methods._sync_get", return_value=fake):
         assert parse_feed("https://example.com/feed.xml") == []
 
 
 def test_parse_feed_fetch_failure_returns_empty() -> None:
-    with patch("scraping_methods._sync_get", return_value=None):
+    with patch("pry.engine.scraping_methods._sync_get", return_value=None):
         assert parse_feed("https://example.com/feed.xml") == []
 
 
@@ -567,7 +567,7 @@ def test_discover_feed_returns_none_when_missing() -> None:
 
 def test_parse_sitemap_urlset() -> None:
     fake = httpx.Response(200, text=SITEMAP_URLSET_FIXTURE)
-    with patch("scraping_methods._sync_get", return_value=fake) as mock_get:
+    with patch("pry.engine.scraping_methods._sync_get", return_value=fake) as mock_get:
         urls = parse_sitemap("https://example.com/sitemap.xml")
     assert urls == [
         "https://example.com/",
@@ -581,7 +581,7 @@ def test_parse_sitemap_index_recurses() -> None:
     index = httpx.Response(200, text=SITEMAP_INDEX_FIXTURE)
     posts = httpx.Response(200, text=SITEMAP_URLSET_FIXTURE)
     pages = httpx.Response(200, text=SITEMAP_PAGES_FIXTURE)
-    with patch("scraping_methods._sync_get", side_effect=[index, posts, pages]) as mock_get:
+    with patch("pry.engine.scraping_methods._sync_get", side_effect=[index, posts, pages]) as mock_get:
         urls = parse_sitemap("https://example.com/sitemap.xml")
     assert mock_get.call_count == 3
     assert "https://example.com/about" in urls
@@ -597,7 +597,7 @@ def test_parse_sitemap_self_reference_terminates() -> None:
             "<sitemap><loc>https://example.com/sitemap.xml</loc></sitemap></sitemapindex>"
         ),
     )
-    with patch("scraping_methods._sync_get", return_value=self_index) as mock_get:
+    with patch("pry.engine.scraping_methods._sync_get", return_value=self_index) as mock_get:
         urls = parse_sitemap("https://example.com/sitemap.xml")
     assert urls == []
     assert mock_get.call_count == 1
@@ -605,12 +605,12 @@ def test_parse_sitemap_self_reference_terminates() -> None:
 
 def test_parse_sitemap_bad_xml_returns_empty() -> None:
     fake = httpx.Response(200, text="not xml at all")
-    with patch("scraping_methods._sync_get", return_value=fake):
+    with patch("pry.engine.scraping_methods._sync_get", return_value=fake):
         assert parse_sitemap("https://example.com/sitemap.xml") == []
 
 
 def test_parse_sitemap_fetch_failure_returns_empty() -> None:
-    with patch("scraping_methods._sync_get", return_value=None):
+    with patch("pry.engine.scraping_methods._sync_get", return_value=None):
         assert parse_sitemap("https://example.com/sitemap.xml") == []
 
 
@@ -621,7 +621,7 @@ def test_parse_sitemap_invalid_input_no_network() -> None:
 
 def test_discover_sitemap_via_robots() -> None:
     fake = httpx.Response(200, text=ROBOTS_TXT)
-    with patch("scraping_methods._sync_get", return_value=fake) as mock_get:
+    with patch("pry.engine.scraping_methods._sync_get", return_value=fake) as mock_get:
         found = discover_sitemap("https://example.com")
     assert found == "https://example.com/sitemap.xml"
     assert mock_get.call_count == 1
@@ -630,12 +630,12 @@ def test_discover_sitemap_via_robots() -> None:
 
 def test_discover_sitemap_robots_without_sitemap_line_falls_back() -> None:
     fake = httpx.Response(200, text="User-agent: *\nDisallow: /private\n")
-    with patch("scraping_methods._sync_get", return_value=fake):
+    with patch("pry.engine.scraping_methods._sync_get", return_value=fake):
         assert discover_sitemap("example.com") == "https://example.com/sitemap.xml"
 
 
 def test_discover_sitemap_robots_unreachable_falls_back() -> None:
-    with patch("scraping_methods._sync_get", return_value=None):
+    with patch("pry.engine.scraping_methods._sync_get", return_value=None):
         assert discover_sitemap("https://example.com") == "https://example.com/sitemap.xml"
 
 
@@ -671,7 +671,7 @@ def test_discover_graphql_empty_page() -> None:
 
 def test_query_graphql_posts_query() -> None:
     fake = httpx.Response(200, json={"data": {"__typename": "Query"}})
-    with patch("scraping_methods._sync_post", return_value=fake) as mock_post:
+    with patch("pry.engine.scraping_methods._sync_post", return_value=fake) as mock_post:
         result = query_graphql("https://example.com/graphql", "{ __typename }", {"v": 1})
     assert result == {"data": {"__typename": "Query"}}
     assert mock_post.call_args.args == ("https://example.com/graphql",)
@@ -683,20 +683,20 @@ def test_query_graphql_posts_query() -> None:
 
 def test_query_graphql_default_variables() -> None:
     fake = httpx.Response(200, json={"data": None})
-    with patch("scraping_methods._sync_post", return_value=fake) as mock_post:
+    with patch("pry.engine.scraping_methods._sync_post", return_value=fake) as mock_post:
         result = query_graphql("https://example.com/graphql", "query Q { ping }")
     assert result == {"data": None}
     assert mock_post.call_args.kwargs["json_body"]["variables"] == {}
 
 
 def test_query_graphql_failures_return_none() -> None:
-    with patch("scraping_methods._sync_post", return_value=None):
+    with patch("pry.engine.scraping_methods._sync_post", return_value=None):
         assert query_graphql("https://example.com/graphql", "{ __typename }") is None
     fake = httpx.Response(200, text="not json")
-    with patch("scraping_methods._sync_post", return_value=fake):
+    with patch("pry.engine.scraping_methods._sync_post", return_value=fake):
         assert query_graphql("https://example.com/graphql", "{ __typename }") is None
     fake_list = httpx.Response(200, json=[1, 2])
-    with patch("scraping_methods._sync_post", return_value=fake_list):
+    with patch("pry.engine.scraping_methods._sync_post", return_value=fake_list):
         assert query_graphql("https://example.com/graphql", "{ __typename }") is None
 
 
@@ -714,7 +714,7 @@ def test_paginated_fetch_collects_until_empty() -> None:
     page1 = httpx.Response(200, json=[{"id": 1}, {"id": 2}])
     page2 = httpx.Response(200, json=[{"id": 3}])
     page3 = httpx.Response(200, json=[])
-    with patch("scraping_methods._sync_get", side_effect=[page1, page2, page3]) as mock_get:
+    with patch("pry.engine.scraping_methods._sync_get", side_effect=[page1, page2, page3]) as mock_get:
         results = paginated_fetch(
             "https://example.com/api/items",
             page_param="offset_page",
@@ -732,14 +732,14 @@ def test_paginated_fetch_unwraps_dict_payloads() -> None:
     page1 = httpx.Response(200, json={"results": [{"id": "a"}]})
     page2 = httpx.Response(200, json={"data": [{"id": "b"}]})
     page3 = httpx.Response(200, json={"items": []})
-    with patch("scraping_methods._sync_get", side_effect=[page1, page2, page3]):
+    with patch("pry.engine.scraping_methods._sync_get", side_effect=[page1, page2, page3]):
         results = paginated_fetch("https://example.com/api/items", per_page_delay=0)
     assert results == [{"id": "a"}, {"id": "b"}]
 
 
 def test_paginated_fetch_respects_max_pages() -> None:
     page = httpx.Response(200, json=[{"id": 1}])
-    with patch("scraping_methods._sync_get", return_value=page) as mock_get:
+    with patch("pry.engine.scraping_methods._sync_get", return_value=page) as mock_get:
         results = paginated_fetch("https://example.com/api/items", max_pages=2, per_page_delay=0)
     assert results == [{"id": 1}, {"id": 1}]
     assert mock_get.call_count == 2
@@ -748,14 +748,14 @@ def test_paginated_fetch_respects_max_pages() -> None:
 def test_paginated_fetch_bad_json_page_stops() -> None:
     page1 = httpx.Response(200, json=[{"id": 1}])
     page2 = httpx.Response(200, text="<html>oops</html>")
-    with patch("scraping_methods._sync_get", side_effect=[page1, page2]) as mock_get:
+    with patch("pry.engine.scraping_methods._sync_get", side_effect=[page1, page2]) as mock_get:
         results = paginated_fetch("https://example.com/api/items", per_page_delay=0)
     assert results == [{"id": 1}]
     assert mock_get.call_count == 2
 
 
 def test_paginated_fetch_never_raises_on_failure() -> None:
-    with patch("scraping_methods._sync_get", return_value=None):
+    with patch("pry.engine.scraping_methods._sync_get", return_value=None):
         assert paginated_fetch("https://example.com/api/items", per_page_delay=0) == []
 
 

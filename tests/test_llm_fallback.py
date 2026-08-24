@@ -27,7 +27,7 @@ import pytest
 async def test_compliance_llm_fallback_merges_into_tos_result():
     """When tos_result confidence is low, the LLM result should be merged in
     with the llm_enhanced flag set to True."""
-    from compliance import run_compliance_check
+    from pry.compliance.compliance import run_compliance_check
 
     fake_llm = AsyncMock(
         return_value={
@@ -41,7 +41,7 @@ async def test_compliance_llm_fallback_merges_into_tos_result():
         }
     )
 
-    with patch("llm_features.llm_compliance_analyze", fake_llm):
+    with patch("pry.api.llm_features.llm_compliance_analyze", fake_llm):
         result = await run_compliance_check("https://example.com/")
 
     # The LLM should have been called
@@ -57,11 +57,11 @@ async def test_compliance_llm_fallback_merges_into_tos_result():
 @pytest.mark.asyncio
 async def test_compliance_llm_fallback_preserves_result_on_error():
     """If the LLM call raises, the regex result should be preserved (no crash)."""
-    from compliance import run_compliance_check
+    from pry.compliance.compliance import run_compliance_check
 
     fake_llm = AsyncMock(side_effect=RuntimeError("LLM down"))
 
-    with patch("llm_features.llm_compliance_analyze", fake_llm):
+    with patch("pry.api.llm_features.llm_compliance_analyze", fake_llm):
         # Should not raise
         result = await run_compliance_check("https://example.com/")
 
@@ -77,7 +77,7 @@ async def test_compliance_llm_fallback_preserves_result_on_error():
 async def test_seo_llm_enhancement_fills_empty_critical_fields():
     """When the regex pass leaves title/meta_description/h1 empty, the LLM
     should be invoked and its suggestions should fill the gaps."""
-    from seo_monitor import analyze_seo
+    from pry.actors.seo_monitor import analyze_seo
 
     fake_llm = AsyncMock(
         return_value={
@@ -91,17 +91,17 @@ async def test_seo_llm_enhancement_fills_empty_critical_fields():
 
     # Patch the regex helpers to return empty
     with (
-        patch("seo_monitor._get_title", return_value=""),
-        patch("seo_monitor._get_meta_content", return_value=""),
-        patch("seo_monitor._get_headings", return_value=[]),
-        patch("seo_monitor._count_words", return_value=100),
-        patch("seo_monitor._has_schema", return_value=False),
-        patch("seo_monitor._get_hreflangs", return_value=[]),
-        patch("seo_monitor._get_charset", return_value="utf-8"),
-        patch("seo_monitor._get_attr", return_value=""),
-        patch("seo_monitor._count_links", return_value=0),
-        patch("llm_features.llm_seo_analyze", fake_llm),
-        patch("client.get_client") as mock_get_client,
+        patch("pry.actors.seo_monitor._get_title", return_value=""),
+        patch("pry.actors.seo_monitor._get_meta_content", return_value=""),
+        patch("pry.actors.seo_monitor._get_headings", return_value=[]),
+        patch("pry.actors.seo_monitor._count_words", return_value=100),
+        patch("pry.actors.seo_monitor._has_schema", return_value=False),
+        patch("pry.actors.seo_monitor._get_hreflangs", return_value=[]),
+        patch("pry.actors.seo_monitor._get_charset", return_value="utf-8"),
+        patch("pry.actors.seo_monitor._get_attr", return_value=""),
+        patch("pry.actors.seo_monitor._count_links", return_value=0),
+        patch("pry.api.llm_features.llm_seo_analyze", fake_llm),
+        patch("pry.api.client.get_client") as mock_get_client,
     ):
         # Mock the HTTP client to return a fake HTML response
         mock_resp = MagicMock()
@@ -127,11 +127,11 @@ async def test_seo_llm_enhancement_fills_empty_critical_fields():
 @pytest.mark.asyncio
 async def test_reconciliation_llm_enhance_function_exists():
     """llm_enhance_reconciliation should be a callable that returns a dict."""
-    from reconciliation import llm_enhance_reconciliation
+    from pry.commerce.reconciliation import llm_enhance_reconciliation
 
     fake_llm = AsyncMock(return_value={"is_same_entity": True})
 
-    with patch("llm_features.llm_entity_reconcile", fake_llm):
+    with patch("pry.api.llm_features.llm_entity_reconcile", fake_llm):
         result = await llm_enhance_reconciliation(
             [
                 {"id": "1", "name": "Acme Widget", "confidence": 0.3, "group_id": "g1"},
@@ -150,11 +150,11 @@ async def test_reconciliation_llm_enhance_function_exists():
 @pytest.mark.asyncio
 async def test_reconciliation_llm_enhance_handles_no_low_confidence():
     """If all entities are high-confidence, the LLM should not be called."""
-    from reconciliation import llm_enhance_reconciliation
+    from pry.commerce.reconciliation import llm_enhance_reconciliation
 
     fake_llm = AsyncMock(return_value={"is_same_entity": True})
 
-    with patch("llm_features.llm_entity_reconcile", fake_llm):
+    with patch("pry.api.llm_features.llm_entity_reconcile", fake_llm):
         result = await llm_enhance_reconciliation(
             [
                 {"id": "1", "name": "A", "confidence": 0.9},
@@ -170,11 +170,11 @@ async def test_reconciliation_llm_enhance_handles_no_low_confidence():
 @pytest.mark.asyncio
 async def test_reconciliation_llm_enhance_handles_llm_error():
     """If the LLM call raises, return a degraded result without crashing."""
-    from reconciliation import llm_enhance_reconciliation
+    from pry.commerce.reconciliation import llm_enhance_reconciliation
 
     fake_llm = AsyncMock(side_effect=ConnectionError("timeout"))
 
-    with patch("llm_features.llm_entity_reconcile", fake_llm):
+    with patch("pry.api.llm_features.llm_entity_reconcile", fake_llm):
         result = await llm_enhance_reconciliation(
             [
                 {"id": "1", "name": "A", "confidence": 0.3, "group_id": "g1"},

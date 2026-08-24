@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-import resilience
-from retry import (
+from pry.engine import resilience
+from pry.engine.retry import (
     BackoffStrategy,
     Jitter,
     RetryConfig,

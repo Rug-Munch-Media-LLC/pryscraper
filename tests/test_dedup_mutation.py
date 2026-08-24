@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import hashlib
 
-from dedup import Deduplicator, SimHash
+from pry.engine.dedup import Deduplicator, SimHash
 
 
 def _md5_int(token: str) -> int:
@@ -173,7 +173,7 @@ class TestDiffSeverityBoundaries:
         real._hashes = {"anchor": h1}
         # diff() computes hashes from text; to force exact distances we patch
         # SimHash.hash for the duration of the call.
-        import dedup as dedup_module
+        import pry.engine.dedup as dedup_module
 
         original_hash = dedup_module.SimHash.hash
 

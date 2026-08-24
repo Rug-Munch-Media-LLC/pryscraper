@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from errors import InvalidRequestError
+from pry.core.errors import InvalidRequestError
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ async def sync_commerce(
 
     Products are imported as drafts for review before publishing.
     """
-    from commerce_sync import sync_to_shopify, sync_to_woocommerce
+    from pry.commerce.commerce_sync import sync_to_shopify, sync_to_woocommerce
 
     if platform == "woocommerce":
         result = await sync_to_woocommerce(

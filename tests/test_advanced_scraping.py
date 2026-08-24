@@ -5,10 +5,10 @@
 # Licensed under MIT. See LICENSE.
 """Tests for advanced scraping features (TLS fingerprinting, GraphQL, Schema.org, WebSocket)."""
 
-from graphql_discovery import GraphQLDiscovery
-from schema_extraction import SchemaExtractor
-from tls_fingerprint import BROWSER_FINGERPRINTS, TLSScraper
-from websocket_scraper import WebSocketScraper
+from pry.engine.graphql_discovery import GraphQLDiscovery
+from pry.engine.schema_extraction import SchemaExtractor
+from pry.engine.tls_fingerprint import BROWSER_FINGERPRINTS, TLSScraper
+from pry.engine.websocket_scraper import WebSocketScraper
 
 
 def test_tls_browser_fingerprints() -> None:

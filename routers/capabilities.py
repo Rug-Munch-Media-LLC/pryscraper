@@ -31,6 +31,6 @@ router = APIRouter(tags=["Capabilities"])
 @router.get("/v1/capabilities", summary="Detect deployment capabilities")
 def get_capabilities() -> dict[str, Any]:
     """Return a structured report of what this deployment actually supports."""
-    from capabilities import detect_capabilities
+    from pry.api.capabilities import detect_capabilities
 
     return {"success": True, "data": detect_capabilities()}

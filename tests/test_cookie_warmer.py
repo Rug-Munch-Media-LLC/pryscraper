@@ -19,8 +19,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-import cookie_warmer
-from cookie_warmer import WARMING_PAGES, CookieWarmer
+from pry.engine import cookie_warmer
+from pry.engine.cookie_warmer import WARMING_PAGES, CookieWarmer
 
 # ── Domain → warming page scheduling ────────────────────────────
 

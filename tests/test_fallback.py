@@ -19,7 +19,7 @@ from typing import Any
 
 import pytest
 
-from fallback import (
+from pry.engine.fallback import (
     BlockedError,
     fallback_status,
     fetch_with_fallback,

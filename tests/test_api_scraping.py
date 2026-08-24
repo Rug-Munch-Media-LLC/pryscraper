@@ -17,14 +17,14 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from api import app
+from pry.api.api import app
 
 
 @pytest.fixture(autouse=True)
 def bypass_x402_middleware() -> Iterator[None]:
     """Disable x402 payment gating so scraping endpoints can be tested."""
     with patch(
-        "x402_middleware.X402Middleware.__call__",
+        "pry.misc.x402_middleware.X402Middleware.__call__",
         lambda self, scope, receive, send: self.app(scope, receive, send),
     ):
         yield
@@ -33,7 +33,7 @@ def bypass_x402_middleware() -> Iterator[None]:
 @pytest.fixture(autouse=True)
 def clear_response_cache() -> None:
     """Clear the shared response cache so tests don't see each other's data."""
-    from deps import cache as response_cache
+    from pry.core.deps import cache as response_cache
 
     response_cache.clear()
 

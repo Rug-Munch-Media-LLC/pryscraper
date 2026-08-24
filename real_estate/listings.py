@@ -64,7 +64,7 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
-from retry import RetryConfig, async_retry
+from pry.engine.retry import RetryConfig, async_retry
 
 logger = logging.getLogger(__name__)
 

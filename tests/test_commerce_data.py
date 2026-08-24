@@ -32,7 +32,7 @@ import commerce_data
 import commerce_data.marketplaces as marketplaces
 import commerce_data.social as social
 import routers.commerce_data as commerce_router_mod
-from errors import PryError
+from pry.core.errors import PryError
 from routers.commerce_data import router as commerce_router
 
 _EBAY_FIND_URL = "https://svcs.ebay.com/services/search/FindingService/v1"

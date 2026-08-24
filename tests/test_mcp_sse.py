@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from mcp_sse import (
+from pry.api.mcp_sse import (
     MCP_SSE_SESSIONS,
     MCP_SSE_TASKS,
     SESSION_TTL_SECONDS,
@@ -77,7 +77,7 @@ def test_cleanup_session():
 def test_cleanup_session_with_observer():
     observer = MagicMock()
     _get_or_create_queue("sid_obs")
-    with patch("mcp_sse.unregister_mcp_notification_observer") as mock_unreg:
+    with patch("pry.api.mcp_sse.unregister_mcp_notification_observer") as mock_unreg:
         _cleanup_session("sid_obs", observer)
         mock_unreg.assert_called_once_with(observer)
 
@@ -89,7 +89,7 @@ def test_session_ttl_constant():
 @pytest.mark.asyncio
 async def test_keepalive_loop_cancelled():
     """Keepalive loop exits cleanly on cancel."""
-    from mcp_sse import _get_or_create_queue, _keepalive_loop
+    from pry.api.mcp_sse import _get_or_create_queue, _keepalive_loop
 
     _get_or_create_queue("sid_ka")
     task = asyncio.create_task(_keepalive_loop("sid_ka"))
@@ -104,7 +104,7 @@ async def test_mcp_sse_endpoint():
     """SSE endpoint produces a StreamingResponse."""
     from fastapi import Request
 
-    from mcp_sse import mcp_sse_endpoint
+    from pry.api.mcp_sse import mcp_sse_endpoint
 
     mock_handler = MagicMock()
     mock_handler.handle_request = AsyncMock(return_value={"jsonrpc": "2.0", "result": "ok"})

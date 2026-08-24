@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for data quality SLA dashboard."""
 
-from quality import (
+from pry.engine.quality import (
     compute_completeness,
     compute_freshness,
     compute_null_rate,

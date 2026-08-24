@@ -39,7 +39,7 @@ async def quality_check(
 
     Use this to validate data BEFORE sending to downstream systems.
     """
-    from quality import run_quality_check
+    from pry.engine.quality import run_quality_check
 
     # Convert string type names to actual types
     type_map: dict[str, type] = {
@@ -71,7 +71,7 @@ async def quality_check(
 )
 async def quality_stats() -> dict[str, Any]:
     """Get aggregate quality statistics across all checked URLs."""
-    from quality import QUALITY_DIR
+    from pry.engine.quality import QUALITY_DIR
 
     stats: list[dict[str, Any]] = []
     for path in sorted(QUALITY_DIR.glob("*.json"), key=os.path.getmtime, reverse=True)[:50]:

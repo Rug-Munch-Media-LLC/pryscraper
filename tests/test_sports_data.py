@@ -31,8 +31,8 @@ import sports_data
 import sports_data.odds as odds
 import sports_data.scores as scores
 import sports_data.stats as stats
-from errors import PryError
-from retry import RetryConfig
+from pry.core.errors import PryError
+from pry.engine.retry import RetryConfig
 from routers.sports_data import router as sports_router
 
 _ODDS_NBA = "https://api.the-odds-api.com/v4/sports/basketball_nba"

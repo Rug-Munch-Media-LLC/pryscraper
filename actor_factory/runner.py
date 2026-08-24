@@ -105,7 +105,7 @@ class PPEScraperRunner:
         Default implementation drives Pry's UltimateScraper directly.
         Override for specialised actors (screenshots, monitors, ...).
         """
-        from ultimate_scraper import UltimateScraper
+        from pry.engine.ultimate_scraper import UltimateScraper
 
         scraper = getattr(self, "_scraper", None)
         if scraper is None:

@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from api import app
+from pry.api.api import app
 
 
 @pytest.fixture
@@ -48,14 +48,14 @@ async def test_api_key_required_when_set(client: TestClient, monkeypatch) -> Non
     monkeypatch.setattr("api.settings.api_key", "secret-pry-key")
     # Disable x402 payment gating so we can test auth in isolation.
     with patch(
-        "x402_middleware.X402Middleware.__call__",
+        "pry.misc.x402_middleware.X402Middleware.__call__",
         lambda self, scope, receive, send: self.app(scope, receive, send),
     ):
         resp = client.post("/v1/scrape", json={"url": "https://example.com"})
     assert resp.status_code == 401
 
     with patch(
-        "x402_middleware.X402Middleware.__call__",
+        "pry.misc.x402_middleware.X402Middleware.__call__",
         lambda self, scope, receive, send: self.app(scope, receive, send),
     ):
         resp = client.post(
@@ -66,7 +66,7 @@ async def test_api_key_required_when_set(client: TestClient, monkeypatch) -> Non
     assert resp.status_code == 401
 
     with patch(
-        "x402_middleware.X402Middleware.__call__",
+        "pry.misc.x402_middleware.X402Middleware.__call__",
         lambda self, scope, receive, send: self.app(scope, receive, send),
     ):
         resp = client.post(

@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 import pytest
 
-from extractor import SchemaExtractor
+from pry.engine.extractor import SchemaExtractor
 
 
 @pytest.fixture

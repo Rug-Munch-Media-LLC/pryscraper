@@ -9,7 +9,7 @@ from collections.abc import Iterator
 
 import pytest
 
-from referrals import PROVIDER_CATALOG, ReferralTracker
+from pry.commerce.referrals import PROVIDER_CATALOG, ReferralTracker
 from x402 import X402_PRICING, X402Handler
 
 

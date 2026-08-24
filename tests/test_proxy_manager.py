@@ -10,13 +10,13 @@ import time
 
 import pytest
 
-from proxy_manager import (
+from pry.engine.proxy_manager import (
     FREE_PROXY_SOURCES,
     PREMIUM_PROXY_PROVIDERS,
     ProxyConfig,
     ProxyManager,
 )
-from webshare_proxy import WEBSHARE_PROXY_LIST_ENV, clear_cache
+from pry.engine.webshare_proxy import WEBSHARE_PROXY_LIST_ENV, clear_cache
 
 _WS_SAMPLE = (
     "http://user:pass@10.0.0.1:8080 http://user:pass@10.0.0.2:8080 http://user:pass@10.0.0.3:8080"

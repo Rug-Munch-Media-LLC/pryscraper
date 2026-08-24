@@ -29,7 +29,7 @@ def require_sensitive_config_auth(request: Request) -> None:
     set, a valid Bearer credential is required from any source; without a key,
     only loopback clients may change proxy/tor egress configuration.
     """
-    from api import request_authorized
+    from pry.api.api import request_authorized
 
     if not request_authorized(request.scope):
         raise HTTPException(
@@ -41,7 +41,7 @@ def require_sensitive_config_auth(request: Request) -> None:
 @router.get("/v1/proxy/providers", tags=["Proxy"], summary="List all available proxy providers")
 async def list_proxy_providers() -> dict[str, Any]:
     """List free + premium proxy providers with affiliate details."""
-    from proxy_manager import ProxyManager
+    from pry.engine.proxy_manager import ProxyManager
 
     return {"success": True, "data": ProxyManager().list_providers()}
 
@@ -55,7 +55,7 @@ async def proxy_signup(provider: str = Body(...)) -> dict[str, Any]:
     Records a click for revenue tracking. The user can then sign up at that URL
     and come back to configure credentials.
     """
-    from proxy_manager import ProxyManager
+    from pry.engine.proxy_manager import ProxyManager
 
     pm = ProxyManager()
     url = pm.get_signup_link(provider)
@@ -75,7 +75,7 @@ async def list_proxy_referrals() -> dict[str, Any]:
 
     The full connection metadata (host, port, auth) lives in /v1/proxy/providers.
     """
-    from proxy_manager import ProxyManager
+    from pry.engine.proxy_manager import ProxyManager
 
     pm = ProxyManager()
     return {
@@ -92,7 +92,7 @@ async def list_proxy_referrals() -> dict[str, Any]:
 )
 async def get_proxy_referral(tag: str) -> dict[str, Any]:
     """Return the affiliate info for a single proxy provider by tag."""
-    from proxy_manager import ProxyManager
+    from pry.engine.proxy_manager import ProxyManager
 
     pm = ProxyManager()
     info = pm.get_proxy_referral(tag)
@@ -118,7 +118,7 @@ async def proxy_configure(
 
     After signing up via /v1/proxy/signup, the user provides their credentials here.
     """
-    from proxy_manager import ProxyManager
+    from pry.engine.proxy_manager import ProxyManager
 
     pm = ProxyManager()
     creds = {"username": username, "password": password, "api_key": api_key, "proxy_url": proxy_url}
@@ -130,7 +130,7 @@ async def proxy_configure(
 @router.get("/v1/proxy/test", tags=["Proxy"], summary="Test the active proxy")
 async def proxy_test() -> dict[str, Any]:
     """Test the currently configured proxy and return its public IP."""
-    from proxy_manager import ProxyManager
+    from pry.engine.proxy_manager import ProxyManager
 
     pm = ProxyManager()
     proxy_url = pm.get_proxy_url()
@@ -147,7 +147,7 @@ async def proxy_pool() -> dict[str, Any]:
     Loaded from the WEBSHARE_PROXY_LIST env var or, best-effort, from
     the secrets manager (path via PRY_WEBSHARE_GOPASS_PATH). Cached per process.
     """
-    from proxy_manager import ProxyManager
+    from pry.engine.proxy_manager import ProxyManager
 
     pm = ProxyManager()
     return {"success": True, "data": pm.webshare_pool_info()}
@@ -159,7 +159,7 @@ async def proxy_status() -> dict[str, Any]:
 
     Credential fields (username/password/api_key) are redacted to "***".
     """
-    from proxy_manager import ProxyManager
+    from pry.engine.proxy_manager import ProxyManager
 
     pm = ProxyManager()
     active_config = dict(pm.active_config.__dict__)
@@ -182,7 +182,7 @@ async def proxy_status() -> dict[str, Any]:
 async def proxy_recommend(last_error: str = Body("")) -> dict[str, Any]:
     """After a scrape fails with anti-bot detection, get a recommendation
     for which premium proxy provider to sign up with."""
-    from proxy_manager import ProxyManager
+    from pry.engine.proxy_manager import ProxyManager
 
     pm = ProxyManager()
     rec = pm.get_recommendation(last_error)
@@ -192,7 +192,7 @@ async def proxy_recommend(last_error: str = Body("")) -> dict[str, Any]:
 @router.get("/v1/proxy/clicks", tags=["Proxy"], summary="Get recent proxy referral clicks")
 async def proxy_clicks(days_back: int = 30) -> dict[str, Any]:
     """Get recent proxy referral clicks for revenue tracking."""
-    from proxy_manager import ProxyManager
+    from pry.engine.proxy_manager import ProxyManager
 
     pm = ProxyManager()
     clicks = pm.get_recent_clicks(days_back=days_back)

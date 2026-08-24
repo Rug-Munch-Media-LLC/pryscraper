@@ -12,7 +12,7 @@ import logging
 
 import pytest
 
-import logging_config
+from pry.core import logging_config
 
 
 @pytest.fixture(autouse=True)

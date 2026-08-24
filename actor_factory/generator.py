@@ -47,7 +47,7 @@ import sys
 from pathlib import Path
 
 # Make the repo root importable when running from a source checkout.
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
@@ -88,9 +88,7 @@ RUN pip install --no-cache-dir --disable-pip-version-check -r requirements.lock 
     && pip install --no-cache-dir --disable-pip-version-check "apify>=2.7"
 
 COPY actor_factory/ actor_factory/
-COPY ultimate_scraper.py scraper.py scraping_methods.py proxy_manager.py \\
-     resilience.py block_detection.py url_guard.py errors.py observability.py \\
-     settings.py logging_config.py ./
+COPY src/pry/ src/pry/
 COPY src/main.py src/main.py
 
 CMD ["python", "src/main.py"]

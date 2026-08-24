@@ -30,8 +30,8 @@ from typing import Any
 
 from fastapi import APIRouter, Query
 
-from deps import queue
-from errors import ExternalServiceError, InvalidRequestError, NotFoundError
+from pry.core.deps import queue
+from pry.core.errors import ExternalServiceError, InvalidRequestError, NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ async def get_job(job_id: str) -> dict[str, Any]:
     description="List all jobs defined in a Pryfile with their current status and configuration.",
 )
 async def list_jobs(path: str = "pry.yml") -> dict[str, Any]:
-    from pryfile import Pryfile
+    from pry.misc.pryfile import Pryfile
 
     resolved = _safe_pryfile_path(path)
     pf = Pryfile(resolved)

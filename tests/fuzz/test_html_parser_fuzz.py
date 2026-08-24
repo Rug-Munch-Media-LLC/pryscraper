@@ -15,7 +15,7 @@ from hypothesis import HealthCheck, given, settings, strategies as st
 def test_schema_extraction_never_crashes(html: str) -> None:
     """SchemaExtractor should never crash, regardless of HTML input."""
     try:
-        from schema_extraction import SchemaExtractor
+        from pry.engine.schema_extraction import SchemaExtractor
 
         extractor = SchemaExtractor()
         extractor.extract_jsonld(html)
@@ -37,7 +37,7 @@ def test_schema_extraction_never_crashes(html: str) -> None:
 def test_network_extractors_never_crash(html: str) -> None:
     """Network-level HTML extraction functions should handle any input."""
     try:
-        from network import (
+        from pry.engine.network import (
             extract_api_calls_from_html,
             extract_json_ld,
             extract_nextjs_props,
@@ -65,7 +65,7 @@ def test_network_extractors_never_crash(html: str) -> None:
 def test_jsoncss_extraction_never_crashes(html: str) -> None:
     """JsonCssExtractionStrategy should handle any HTML gracefully."""
     try:
-        from extraction import JsonCssExtractionStrategy
+        from pry.engine.extraction import JsonCssExtractionStrategy
 
         strategy = JsonCssExtractionStrategy({"name": "fuzz", "base_selector": "", "fields": []})
         strategy.extract(html)
@@ -92,8 +92,8 @@ def test_url_parser_never_crashes(url: str) -> None:
     """
     import contextlib
 
-    from errors import InvalidRequestError
-    from url_guard import validate_url
+    from pry.core.errors import InvalidRequestError
+    from pry.engine.url_guard import validate_url
 
     # safe rejection — the documented contract; anything else propagates
     with contextlib.suppress(InvalidRequestError):

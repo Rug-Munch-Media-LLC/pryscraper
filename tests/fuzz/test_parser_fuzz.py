@@ -21,7 +21,7 @@ import json
 import pytest
 from hypothesis import HealthCheck, given, settings, strategies as st
 
-from parser import DocumentParser
+from pry.engine.parser import DocumentParser
 
 
 def _allowed_exception(e: BaseException) -> bool:

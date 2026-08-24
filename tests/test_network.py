@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for network capture utilities."""
 
-from network import (
+from pry.engine.network import (
     extract_api_calls_from_html,
     extract_graphql_queries,
     extract_json_ld,

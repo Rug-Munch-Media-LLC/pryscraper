@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for human-in-the-loop review workflow."""
 
-from review import (
+from pry.actors.review import (
     REVIEW_STATUS,
     approve_review,
     get_review_queue,

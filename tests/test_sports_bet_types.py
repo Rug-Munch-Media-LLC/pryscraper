@@ -37,7 +37,7 @@ import sports_data.alt_lines as alt_lines
 import sports_data.halves as halves
 import sports_data.parlays as parlays
 import sports_data.props as props
-from retry import RetryConfig
+from pry.engine.retry import RetryConfig
 
 _ODDS_NBA = "https://api.the-odds-api.com/v4/sports/basketball_nba"
 _ODDS_NFL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl"

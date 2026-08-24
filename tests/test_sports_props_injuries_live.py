@@ -26,7 +26,7 @@ import respx
 import sports_data.injuries as injuries
 import sports_data.live as live
 import sports_data.props as props
-from retry import RetryConfig
+from pry.engine.retry import RetryConfig
 
 _ODDS_NBA = "https://api.the-odds-api.com/v4/sports/basketball_nba"
 _SCORE_NBA = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"

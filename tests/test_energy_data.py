@@ -27,8 +27,8 @@ from fastapi.testclient import TestClient
 import energy_data
 import energy_data.lmp as lmp
 import routers.energy_data as energy_router_mod
-from errors import PryError
-from retry import RetryConfig
+from pry.core.errors import PryError
+from pry.engine.retry import RetryConfig
 from routers.energy_data import router as energy_router
 
 _NYISO = "https://mis.nyiso.com/public/csv/damlbmp"

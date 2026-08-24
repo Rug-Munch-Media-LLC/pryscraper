@@ -9,9 +9,9 @@ from collections.abc import Iterator
 
 import pytest
 
-import webshare_proxy
-from proxy_manager import ProxyManager
-from webshare_proxy import (
+from pry.engine import webshare_proxy
+from pry.engine.proxy_manager import ProxyManager
+from pry.engine.webshare_proxy import (
     WEBSHARE_PROXY_LIST_ENV,
     clear_cache,
     load_webshare_proxies,

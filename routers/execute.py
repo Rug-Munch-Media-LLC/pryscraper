@@ -14,8 +14,8 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from deps import scraper
-from errors import InvalidRequestError
+from pry.core.deps import scraper
+from pry.core.errors import InvalidRequestError
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ router = APIRouter(tags=["Execute"])
 
 @router.post("/v1/run", tags=["Execute"], summary="Execute a Pryfile")
 async def run_pryfile(path: str = Body("pry.yml", embed=True)) -> dict[str, Any]:
-    from pryfile import Pryfile
+    from pry.misc.pryfile import Pryfile
 
     resolved = _safe_pryfile_path(path)
     pf = Pryfile(resolved)

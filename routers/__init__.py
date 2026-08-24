@@ -9,7 +9,7 @@ Pattern for each router file:
 
     from fastapi import APIRouter, Body, Query
     from typing import Any
-    from errors import NotFoundError  # if needed
+    from pry.core.errors import NotFoundError  # if needed
 
     router = APIRouter(tags=["Auth"])
 

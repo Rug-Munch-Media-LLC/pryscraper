@@ -7,7 +7,7 @@
 
 import asyncio
 
-from adaptive import AdaptiveCrawler
+from pry.engine.adaptive import AdaptiveCrawler
 
 
 def test_adaptive_init() -> None:

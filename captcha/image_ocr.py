@@ -27,7 +27,7 @@ from typing import Any
 
 from captcha.base import CaptchaProvider
 from captcha.registry import register
-from settings import settings
+from pry.core.settings import settings
 
 logger = logging.getLogger(__name__)
 

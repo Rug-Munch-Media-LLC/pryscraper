@@ -33,7 +33,7 @@ from typing import Any
 
 from fastapi import APIRouter, Query
 
-from errors import ExternalServiceError, InvalidRequestError
+from pry.core.errors import ExternalServiceError, InvalidRequestError
 
 logger = logging.getLogger(__name__)
 

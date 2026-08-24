@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for Pry SDK classes."""
 
-from pry_sdk import PryCrawl, PryCrawlSync
+from pry.api.pry_sdk import PryCrawl, PryCrawlSync
 
 
 def test_prycrawl_init() -> None:

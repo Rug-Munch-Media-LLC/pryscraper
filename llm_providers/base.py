@@ -75,7 +75,7 @@ class ReferralConfig:
 
     def __post_init__(self):
         if not self.referral_links:
-            from referrals import PROVIDER_CATALOG
+            from pry.commerce.referrals import PROVIDER_CATALOG
 
             for _category, providers in PROVIDER_CATALOG.items():
                 for p in providers:
@@ -417,7 +417,7 @@ async def _stream_openai_compatible(
     opens with exponential backoff. Non-transient errors (401/400/...) propagate
     immediately so the registry can fall through to another provider.
     """
-    from client import get_client  # lazy import avoids import cycles
+    from pry.api.client import get_client  # lazy import avoids import cycles
 
     client = await get_client()
     url = f"{base_url.rstrip('/')}/chat/completions"

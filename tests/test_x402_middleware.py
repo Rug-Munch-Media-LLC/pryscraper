@@ -8,7 +8,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from x402_middleware import X402Middleware, _caller_key_from_scope
+from pry.misc.x402_middleware import X402Middleware, _caller_key_from_scope
 
 
 @pytest.fixture

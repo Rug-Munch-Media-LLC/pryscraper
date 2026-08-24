@@ -21,7 +21,7 @@ def test_vision_no_input():
 
 def test_vision_with_url():
     with (
-        patch("deps.automator.run_steps", new_callable=AsyncMock) as mock_r,
+        patch("pry.core.deps.automator.run_steps", new_callable=AsyncMock) as mock_r,
         patch("routers.vision._call_vision_api", new_callable=AsyncMock) as mock_api,
     ):
         mock_r.return_value = {"steps": [{"action": "screenshot", "screenshot": "b64data"}]}

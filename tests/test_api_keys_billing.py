@@ -20,9 +20,9 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import api_keys_service as svc
-import billing_service as billing
-import middleware as mw_module
+import pry.api.api_keys_service as svc
+import pry.commerce.billing_service as billing
+import pry.core.middleware as mw_module
 
 if TYPE_CHECKING:
     from pathlib import Path

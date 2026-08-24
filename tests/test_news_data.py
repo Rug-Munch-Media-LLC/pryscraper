@@ -30,7 +30,7 @@ import news_data
 import news_data.headlines as headlines
 import news_data.sentiment as sentiment
 import routers.news_data as news_router_mod
-from errors import PryError
+from pry.core.errors import PryError
 from routers.news_data import router as news_router
 
 _GDELT_URL = "https://api.gdeltproject.org/api/v2/doc/doc"

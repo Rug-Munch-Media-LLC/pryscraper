@@ -28,7 +28,7 @@ async def webhook_test_route(
     payload: dict[str, Any] | None = Body(None),
 ) -> dict[str, Any]:
     """Test webhook delivery to a URL with HMAC signing."""
-    from webhook_delivery import WebhookDelivery
+    from pry.api.webhook_delivery import WebhookDelivery
 
     w = WebhookDelivery()
     return await w.deliver(url, payload or {"test": True, "timestamp": "now"}, "test.event")
@@ -41,7 +41,7 @@ async def webhook_test_route(
 )
 async def get_dead_letter() -> dict[str, Any]:
     """Get the dead letter queue of failed webhook deliveries."""
-    from webhook_delivery import WebhookDelivery
+    from pry.api.webhook_delivery import WebhookDelivery
 
     w = WebhookDelivery()
     return {"success": True, "data": w.retry_dead_letter()}

@@ -14,7 +14,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Request
 
-from errors import InvalidRequestError
+from pry.core.errors import InvalidRequestError
 
 logger = logging.getLogger(__name__)
 

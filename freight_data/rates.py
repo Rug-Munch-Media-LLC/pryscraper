@@ -68,7 +68,7 @@ from typing import Any
 import httpx
 from lxml import etree, html as lxml_html
 
-from retry import RetryConfig, async_retry
+from pry.engine.retry import RetryConfig, async_retry
 
 logger = logging.getLogger(__name__)
 

@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
-from deps import automator, cache, ratelimiter
+from pry.core.deps import automator, cache, ratelimiter
 
 logger = logging.getLogger(__name__)
 

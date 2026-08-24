@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 # ``solve_captcha(html)`` callable is also supported for compatibility.
 solve_captcha: Any | None
 try:
-    from captcha_solver import solve_captcha  # type: ignore[import-not-found]
+    from pry.engine.captcha_solver import solve_captcha  # type: ignore[import-not-found]
 except ImportError:
     solve_captcha = None
 

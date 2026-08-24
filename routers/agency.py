@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from errors import NotFoundError
+from pry.core.errors import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ async def create_agency_endpoint(
     - Usage analytics and quota management
     - API key management for each client
     """
-    from agency import create_agency
+    from pry.commerce.agency import create_agency
 
     result = create_agency(name, owner_email, custom_domain, brand_color, logo_url)
     return {"success": result["success"], "data": result}
@@ -45,7 +45,7 @@ async def create_agency_endpoint(
 @router.get("/v1/agency/{agency_id}", tags=["Agency"], summary="Get agency profile")
 async def get_agency_endpoint(agency_id: str) -> dict[str, Any]:
     """Get agency profile details."""
-    from agency import get_agency
+    from pry.commerce.agency import get_agency
 
     result = get_agency(agency_id)
     if not result:
@@ -62,7 +62,7 @@ async def update_branding(
     custom_domain: str | None = Body(None),
 ) -> dict[str, Any]:
     """Update white-label branding for an agency."""
-    from agency import update_agency_branding
+    from pry.commerce.agency import update_agency_branding
 
     result = update_agency_branding(agency_id, name, brand_color, logo_url, custom_domain)
     return {"success": result["success"], "data": result}
@@ -81,7 +81,7 @@ async def create_client_endpoint(
 
     Each client gets their own API key and usage quota.
     """
-    from agency import create_client
+    from pry.commerce.agency import create_client
 
     result = create_client(agency_id, client_name, client_email, monthly_quota)
     return {"success": result["success"], "data": result}
@@ -90,7 +90,7 @@ async def create_client_endpoint(
 @router.get("/v1/agency/{agency_id}/clients", tags=["Agency"], summary="List agency clients")
 async def list_clients_endpoint(agency_id: str) -> dict[str, Any]:
     """List all clients under an agency."""
-    from agency import list_clients
+    from pry.commerce.agency import list_clients
 
     clients = list_clients(agency_id)
     return {"success": True, "data": {"clients": clients, "total": len(clients)}}
@@ -101,7 +101,7 @@ async def list_clients_endpoint(agency_id: str) -> dict[str, Any]:
 )
 async def get_analytics(agency_id: str) -> dict[str, Any]:
     """Get aggregate usage analytics for an agency."""
-    from agency import get_agency_analytics
+    from pry.commerce.agency import get_agency_analytics
 
     result = get_agency_analytics(agency_id)
     return {"success": True, "data": result}
@@ -110,7 +110,7 @@ async def get_analytics(agency_id: str) -> dict[str, Any]:
 @router.get("/v1/client/{client_id}/quota", tags=["Agency"], summary="Check client quota usage")
 async def check_quota(client_id: str) -> dict[str, Any]:
     """Check a client's current quota usage and remaining capacity."""
-    from agency import check_client_quota
+    from pry.commerce.agency import check_client_quota
 
     result = check_client_quota(client_id)
     return {"success": result["success"], "data": result}

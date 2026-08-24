@@ -8,9 +8,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import resilience
-import ultimate_scraper
-from resilience import CircuitBreaker, CircuitState, DomainTierMemory, ResilienceRegistry
+from pry.engine import resilience, ultimate_scraper
+from pry.engine.resilience import CircuitBreaker, CircuitState, DomainTierMemory, ResilienceRegistry
 
 
 def _valid_html(text: str) -> str:

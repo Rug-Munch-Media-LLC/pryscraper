@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for email inbox scraping."""
 
-from email_scraper import (
+from pry.engine.email_scraper import (
     _classify_email,
     extract_email_data,
 )

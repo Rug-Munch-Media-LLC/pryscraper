@@ -15,7 +15,7 @@ client = TestClient(app, raise_server_exceptions=False)
 
 
 def test_export_json():
-    with patch("deps.scraper.scrape", new_callable=AsyncMock) as m:
+    with patch("pry.core.deps.scraper.scrape", new_callable=AsyncMock) as m:
         m.return_value = {"status": "ok", "content": "data", "title": "page"}
         r = client.post(
             "/v1/export?format=json",
@@ -27,7 +27,7 @@ def test_export_json():
 
 
 def test_export_csv():
-    with patch("deps.scraper.scrape", new_callable=AsyncMock) as m:
+    with patch("pry.core.deps.scraper.scrape", new_callable=AsyncMock) as m:
         m.return_value = {"status": "ok", "content": "data", "title": "page"}
         r = client.post(
             "/v1/export?format=csv",
@@ -38,7 +38,7 @@ def test_export_csv():
 
 
 def test_export_rss():
-    with patch("deps.scraper.scrape", new_callable=AsyncMock) as m:
+    with patch("pry.core.deps.scraper.scrape", new_callable=AsyncMock) as m:
         m.return_value = {"status": "ok", "content": "data", "title": "page"}
         r = client.post(
             "/v1/export?format=rss",
@@ -50,7 +50,7 @@ def test_export_rss():
 
 
 def test_export_txt():
-    with patch("deps.scraper.scrape", new_callable=AsyncMock) as m:
+    with patch("pry.core.deps.scraper.scrape", new_callable=AsyncMock) as m:
         m.return_value = {"status": "ok", "content": "data", "title": "page"}
         r = client.post(
             "/v1/export", content='"http://x.com"', headers={"Content-Type": "application/json"}
@@ -59,7 +59,7 @@ def test_export_txt():
 
 
 def test_export_scrape_failure():
-    with patch("deps.scraper.scrape", new_callable=AsyncMock) as m:
+    with patch("pry.core.deps.scraper.scrape", new_callable=AsyncMock) as m:
         m.return_value = {"status": "error", "error": "fail"}
         r = client.post(
             "/v1/export?format=json",

@@ -136,7 +136,7 @@ def _pry_disable_secrets_gopass() -> None:
 
 @pytest.fixture(autouse=True)
 def pry_test_auth(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
-    import settings as _settings_mod
+    import pry.core.settings as _settings_mod
 
     original = _settings_mod.settings.api_key
     _settings_mod.settings.api_key = ""
@@ -148,7 +148,7 @@ def pry_test_auth(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None
 def client() -> Generator[TestClient, None, None]:
     from fastapi.testclient import TestClient
 
-    from api import app
+    from pry.api.api import app
 
     with TestClient(app) as c:
         yield c

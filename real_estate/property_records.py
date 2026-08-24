@@ -60,10 +60,11 @@ from typing import Any
 
 import httpx
 
+from pry.engine.retry import RetryConfig, async_retry
+
 # Shared robots.txt / HTTP helpers live in listings.py (same package, same
 # policy) — re-exported here so property records and listings stay in sync.
 from real_estate.listings import _robots_allowed, _sleep_for_robots
-from retry import RetryConfig, async_retry
 
 logger = logging.getLogger(__name__)
 

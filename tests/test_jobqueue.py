@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 import pytest
 
-from jobqueue import JobQueue
+from pry.core.jobqueue import JobQueue
 
 
 @pytest.mark.asyncio

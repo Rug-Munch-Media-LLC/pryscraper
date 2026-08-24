@@ -29,7 +29,7 @@ async def get_referral_catalog(category: str = "") -> dict[str, Any]:
     60+ providers across categories: LLM, hosting, domains, CDN, email,
     monitoring, proxies, voice, media, devtools, search, CAPTCHA.
     """
-    from referrals import ReferralTracker
+    from pry.commerce.referrals import ReferralTracker
 
     return {"success": True, "data": ReferralTracker().get_catalog(category)}
 
@@ -39,7 +39,7 @@ async def get_referral_catalog(category: str = "") -> dict[str, Any]:
 )
 async def get_referral_stats(days_back: int = 30) -> dict[str, Any]:
     """Get referral tracking statistics for the last N days."""
-    from referrals import ReferralTracker
+    from pry.commerce.referrals import ReferralTracker
 
     return {"success": True, "data": ReferralTracker().get_stats(days_back)}
 
@@ -51,7 +51,7 @@ async def record_referral_click(
     user_id: str = Body(""),
 ) -> dict[str, Any]:
     """Record when a user clicks a referral link. Returns tracking ID."""
-    from referrals import PROVIDER_CATALOG, ReferralTracker
+    from pry.commerce.referrals import PROVIDER_CATALOG, ReferralTracker
 
     url = ""
     for _cat, providers in PROVIDER_CATALOG.items():
@@ -74,7 +74,7 @@ async def record_referral_conversion(
     notes: str = Body(""),
 ) -> dict[str, Any]:
     """Record that a referral click resulted in a conversion."""
-    from referrals import ReferralTracker
+    from pry.commerce.referrals import ReferralTracker
 
     success = ReferralTracker().record_conversion(click_id, revenue_usd, notes)
     return {"success": success}

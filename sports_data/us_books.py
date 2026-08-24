@@ -85,12 +85,12 @@ except ImportError:  # pragma: no cover - parallel build guard
     _resolve_sports = None  # type: ignore[assignment]
 
 try:
-    from tor_fallback import fetch_via_tor
+    from pry.engine.tor_fallback import fetch_via_tor
 except ImportError:  # pragma: no cover - optional dependency
     fetch_via_tor = None  # type: ignore[assignment]
 
 try:
-    from webshare_proxy import next_webshare_proxy
+    from pry.engine.webshare_proxy import next_webshare_proxy
 except ImportError:  # pragma: no cover - optional dependency
     next_webshare_proxy = None  # type: ignore[assignment]
 

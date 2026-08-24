@@ -15,7 +15,7 @@ client = TestClient(app, raise_server_exceptions=False)
 
 
 def test_tls_impersonate_unavailable():
-    with patch("tls_fingerprint.TLSScraper") as mock_scraper:
+    with patch("pry.engine.tls_fingerprint.TLSScraper") as mock_scraper:
         inst = MagicMock()
         inst.is_available.return_value = False
         mock_scraper.return_value = inst
@@ -26,7 +26,7 @@ def test_tls_impersonate_unavailable():
 
 
 def test_tls_impersonate_success():
-    with patch("tls_fingerprint.TLSScraper") as mock_scraper:
+    with patch("pry.engine.tls_fingerprint.TLSScraper") as mock_scraper:
         inst = MagicMock()
         inst.is_available.return_value = True
         inst.fetch = AsyncMock(
@@ -42,7 +42,7 @@ def test_tls_impersonate_success():
 
 
 def test_tls_rotate_unavailable():
-    with patch("tls_fingerprint.TLSScraper") as mock_scraper:
+    with patch("pry.engine.tls_fingerprint.TLSScraper") as mock_scraper:
         inst = MagicMock()
         inst.is_available.return_value = False
         mock_scraper.return_value = inst
@@ -51,7 +51,7 @@ def test_tls_rotate_unavailable():
 
 
 def test_tls_rotate_success():
-    with patch("tls_fingerprint.TLSScraper") as mock_scraper:
+    with patch("pry.engine.tls_fingerprint.TLSScraper") as mock_scraper:
         inst = MagicMock()
         inst.is_available.return_value = True
         inst.rotate = AsyncMock(

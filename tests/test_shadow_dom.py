@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for shadow DOM flattening."""
 
-from shadow_dom import ShadowDOMProcessor, flatten_shadow_dom, has_shadow_dom
+from pry.engine.shadow_dom import ShadowDOMProcessor, flatten_shadow_dom, has_shadow_dom
 
 
 def test_has_shadow_dom_detected() -> None:

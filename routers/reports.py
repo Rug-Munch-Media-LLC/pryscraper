@@ -14,7 +14,7 @@ from typing import Any
 from fastapi import APIRouter, Body
 from fastapi.responses import HTMLResponse
 
-from errors import InvalidRequestError, NotFoundError
+from pry.core.errors import InvalidRequestError, NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ async def generate_report_endpoint(
 
     Branding (optional): {"agency_name": "...", "brand_color": "#hex", "logo_url": "..."}
     """
-    from reports import generate_report
+    from pry.commerce.reports import generate_report
 
     result = generate_report(report_type, data, branding, output_format)
     if "error" in result:
@@ -53,7 +53,7 @@ async def generate_report_endpoint(
 @router.get("/v1/reports", tags=["Reports"], summary="List generated reports")
 async def list_reports_endpoint() -> dict[str, Any]:
     """List all previously generated reports."""
-    from reports import list_reports
+    from pry.commerce.reports import list_reports
 
     reports = list_reports()
     return {"success": True, "data": {"reports": reports, "total": len(reports)}}
@@ -62,7 +62,7 @@ async def list_reports_endpoint() -> dict[str, Any]:
 @router.get("/v1/report/{report_id}", tags=["Reports"], summary="Get a generated report")
 async def get_report(report_id: str) -> Any:
     """Get the HTML content of a generated report."""
-    from reports import REPORTS_DIR
+    from pry.commerce.reports import REPORTS_DIR
 
     for path in REPORTS_DIR.glob(f"{report_id}_*.html"):
         return HTMLResponse(content=path.read_text())

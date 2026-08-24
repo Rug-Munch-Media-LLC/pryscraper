@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from user_ratelimit import TIER_LIMITS, UserBucket, UserRateLimiter
+from pry.core.user_ratelimit import TIER_LIMITS, UserBucket, UserRateLimiter
 
 
 @pytest.fixture

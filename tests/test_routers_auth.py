@@ -58,7 +58,7 @@ def test_request_owner_bearer_apikey():
 
 
 def test_store_credentials():
-    with patch("auth_connector.store_credential") as mock_store:
+    with patch("pry.api.auth_connector.store_credential") as mock_store:
         mock_store.return_value = {"success": True, "id": "cred-1"}
         r = client.post(
             "/v1/auth/credentials",
@@ -73,28 +73,28 @@ def test_store_credentials():
 
 
 def test_list_credentials():
-    with patch("auth_connector.list_credentials") as mock_list:
+    with patch("pry.api.auth_connector.list_credentials") as mock_list:
         mock_list.return_value = [{"id": "cred-1", "name": "test", "type": "password"}]
         r = client.get("/v1/auth/credentials")
         assert r.status_code in (200, 422, 500)
 
 
 def test_delete_credentials():
-    with patch("auth_connector.delete_credential") as mock_del:
+    with patch("pry.api.auth_connector.delete_credential") as mock_del:
         mock_del.return_value = True
         r = client.delete("/v1/auth/credentials/cred-123")
         assert r.status_code in (200, 422, 500)
 
 
 def test_delete_credentials_not_found():
-    with patch("auth_connector.delete_credential") as mock_del:
+    with patch("pry.api.auth_connector.delete_credential") as mock_del:
         mock_del.return_value = False
         r = client.delete("/v1/auth/credentials/nonexistent")
         assert r.status_code in (404, 422, 500)
 
 
 def test_generate_sso():
-    with patch("auth_connector.generate_sso_script", new_callable=AsyncMock) as sso:
+    with patch("pry.api.auth_connector.generate_sso_script", new_callable=AsyncMock) as sso:
         sso.return_value = {"success": True, "script": "await page.goto(...)"}
         r = client.post(
             "/v1/auth/sso",
@@ -112,7 +112,7 @@ def test_generate_sso():
 
 
 def test_generate_sso_default_tenant():
-    with patch("auth_connector.generate_sso_script", new_callable=AsyncMock) as sso:
+    with patch("pry.api.auth_connector.generate_sso_script", new_callable=AsyncMock) as sso:
         sso.return_value = {"success": True}
         r = client.post(
             "/v1/auth/sso",
@@ -127,7 +127,7 @@ def test_generate_sso_default_tenant():
 
 
 def test_solve_captcha_image():
-    with patch("auth_connector.solve_captcha", new_callable=AsyncMock) as cap:
+    with patch("pry.api.auth_connector.solve_captcha", new_callable=AsyncMock) as cap:
         cap.return_value = {"success": True, "token": "captcha-token"}
         r = client.post(
             "/v1/auth/captcha",
@@ -141,7 +141,7 @@ def test_solve_captcha_image():
 
 
 def test_solve_captcha_recaptcha():
-    with patch("auth_connector.solve_captcha", new_callable=AsyncMock) as cap:
+    with patch("pry.api.auth_connector.solve_captcha", new_callable=AsyncMock) as cap:
         cap.return_value = {"success": True, "token": "recaptcha-token"}
         r = client.post(
             "/v1/auth/captcha",
@@ -155,7 +155,7 @@ def test_solve_captcha_recaptcha():
 
 
 def test_check_session():
-    with patch("auth_connector.check_session_health") as check:
+    with patch("pry.api.auth_connector.check_session_health") as check:
         check.return_value = {
             "valid": True,
             "age_hours": 2,

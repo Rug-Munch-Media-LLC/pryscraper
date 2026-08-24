@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for white-label report generation."""
 
-from reports import generate_report, list_reports
+from pry.commerce.reports import generate_report, list_reports
 
 
 def test_generate_competitive_report() -> None:

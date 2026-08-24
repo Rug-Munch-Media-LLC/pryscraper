@@ -16,6 +16,7 @@ import importlib
 import json
 import os
 
+import paths
 import pytest
 
 
@@ -26,7 +27,6 @@ def temp_data_dir(monkeypatch, tmp_path):
     monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/test.db")
     # Force re-import of paths and db
     import db
-    import paths
 
     importlib.reload(paths)
     importlib.reload(db)

@@ -29,7 +29,7 @@ async def cost_dashboard() -> dict[str, Any]:
     - Cache efficiency metrics
     - Smart schedule recommendations
     """
-    from costing import get_cost_dashboard
+    from pry.commerce.costing import get_cost_dashboard
 
     return {"success": True, "data": get_cost_dashboard()}
 
@@ -40,7 +40,7 @@ async def cost_usage(
     month: int | None = None,
 ) -> dict[str, Any]:
     """Get detailed usage breakdown for a specific month."""
-    from costing import get_monthly_usage
+    from pry.commerce.costing import get_monthly_usage
 
     return {"success": True, "data": get_monthly_usage(year, month)}
 
@@ -56,7 +56,7 @@ async def record_usage_endpoint(
     Operations: scrape_direct, scrape_flaresolverr, scrape_playwright,
     crawl_page, llm_call, vision_call, extraction_css, bandwidth_mb
     """
-    from costing import record_usage
+    from pry.commerce.costing import record_usage
 
     result = record_usage(operation, metadata, quantity)
     return {"success": True, "data": result}
@@ -65,7 +65,7 @@ async def record_usage_endpoint(
 @router.post("/v1/costing/costs", tags=["Costing"], summary="Update per-operation cost table")
 async def update_costs(costs: dict[str, float] = Body(...)) -> dict[str, Any]:
     """Update the per-operation cost table with custom prices."""
-    from costing import update_cost_table
+    from pry.commerce.costing import update_cost_table
 
     result = await update_cost_table(costs)
     return {"success": result["success"], "data": result}

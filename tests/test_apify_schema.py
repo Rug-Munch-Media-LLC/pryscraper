@@ -5,7 +5,7 @@
 # Licensed under MIT.
 """Tests for the Apify schema builder."""
 
-from apify_schema import ApifySchemaBuilder
+from pry.actors.apify_schema import ApifySchemaBuilder
 
 
 def test_input_schema_basic() -> None:

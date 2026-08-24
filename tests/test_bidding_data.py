@@ -30,8 +30,8 @@ import bidding_data
 import bidding_data.contracts as contracts
 import bidding_data.grants as grants
 import routers.bidding_data as bidding_router_mod
-from errors import PryError
-from retry import RetryConfig
+from pry.core.errors import PryError
+from pry.engine.retry import RetryConfig
 from routers.bidding_data import router as bidding_router
 
 _SAM = "https://api.sam.gov/opportunities/v2/search"

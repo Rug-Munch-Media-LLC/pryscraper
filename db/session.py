@@ -30,7 +30,7 @@ except ImportError:  # pragma: no cover
     pass
 
 from db.models import _HAS_SA, Base
-from paths import PRY_DATA_DIR
+from pry.core.paths import PRY_DATA_DIR
 
 if TYPE_CHECKING:
     import sqlite3

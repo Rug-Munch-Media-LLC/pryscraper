@@ -51,7 +51,7 @@ from __future__ import annotations
 import logging
 import os
 
-from paths import PRY_DATA_DIR
+from pry.core.paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ def _env_flag(name: str) -> bool:
 # recomputes the secrets-backed values — tests patch secrets_backend.get_secret
 # and reload the package to assert the new values.
 try:
-    from secrets_backend import get_secret as _gs
+    from pry.api.secrets_backend import get_secret as _gs
 
     X402_WALLET: str = _gs("x402_wallet") or os.getenv("PRY_X402_WALLET", "pry-default-wallet")
     X402_FACILITATOR_URL: str = _gs("x402_facilitator") or os.getenv(

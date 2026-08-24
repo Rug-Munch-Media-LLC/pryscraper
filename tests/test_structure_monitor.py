@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from structure_monitor import (
+from pry.actors.structure_monitor import (
     check_selectors,
     get_structure_history,
     monitor_page_structure,
@@ -33,8 +33,8 @@ def _fresh_db(monkeypatch):
     """
     from sqlalchemy import create_engine
 
-    import client as client_module
     import db as db_module
+    import pry.api.client as client_module
 
     monkeypatch.setenv("PRY_DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("PRY_DATA_DIR", "/tmp")
@@ -87,7 +87,7 @@ async def test_monitor_page_structure_creates_history(temp_db):
     mock_client.get.return_value.is_success = True
     mock_client.get.return_value.text = "<html><body><h1>Title</h1></body></html>"
 
-    with patch("structure_monitor.get_client", return_value=mock_client):
+    with patch("pry.actors.structure_monitor.get_client", return_value=mock_client):
         result = await monitor_page_structure(
             "https://example.com",
             [{"name": "title", "selector": "h1", "type": "css"}],
@@ -105,7 +105,7 @@ async def test_get_structure_history_with_data(temp_db):
     mock_client.get.return_value.is_success = True
     mock_client.get.return_value.text = "<html><body><h1>Title</h1></body></html>"
 
-    with patch("structure_monitor.get_client", return_value=mock_client):
+    with patch("pry.actors.structure_monitor.get_client", return_value=mock_client):
         await monitor_page_structure(
             "https://example.com",
             [{"name": "title", "selector": "h1", "type": "css"}],
@@ -123,7 +123,7 @@ async def test_monitor_page_structure_with_template_id(temp_db):
     mock_client.get.return_value.is_success = True
     mock_client.get.return_value.text = "<html><body><h1>Title</h1></body></html>"
 
-    with patch("structure_monitor.get_client", return_value=mock_client):
+    with patch("pry.actors.structure_monitor.get_client", return_value=mock_client):
         result = await monitor_page_structure(
             "https://example.com",
             [{"name": "title", "selector": "h1", "type": "css"}],
@@ -145,7 +145,7 @@ async def test_monitor_page_structure_detects_change(temp_db):
     mock_client.get.return_value.is_success = True
     mock_client.get.return_value.text = "<html><body><h1>Title</h1></body></html>"
 
-    with patch("structure_monitor.get_client", return_value=mock_client):
+    with patch("pry.actors.structure_monitor.get_client", return_value=mock_client):
         await monitor_page_structure(
             "https://example.com",
             [{"name": "title", "selector": "h1", "type": "css"}],
@@ -153,7 +153,7 @@ async def test_monitor_page_structure_detects_change(temp_db):
 
     mock_client.get.return_value.text = "<html><body><h1>New Title</h1></body></html>"
 
-    with patch("structure_monitor.get_client", return_value=mock_client):
+    with patch("pry.actors.structure_monitor.get_client", return_value=mock_client):
         result = await monitor_page_structure(
             "https://example.com",
             [{"name": "title", "selector": "h2", "type": "css"}],
@@ -168,7 +168,7 @@ async def test_structure_page_http_error(temp_db):
     mock_client.get.return_value.is_success = False
     mock_client.get.return_value.status_code = 404
 
-    with patch("structure_monitor.get_client", return_value=mock_client):
+    with patch("pry.actors.structure_monitor.get_client", return_value=mock_client):
         result = await monitor_page_structure(
             "https://example.com/404",
             [{"name": "title", "selector": "h1", "type": "css"}],

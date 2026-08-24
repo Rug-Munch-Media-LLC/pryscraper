@@ -32,7 +32,11 @@ async def freshness_check(
     Uses content fingerprinting (SHA256) to detect changes.
     If no content is provided, does a quick HEAD check instead.
     """
-    from freshness import check_content_changed, quick_health_check, record_check_result
+    from pry.commerce.freshness import (
+        check_content_changed,
+        quick_health_check,
+        record_check_result,
+    )
 
     if content:
         result = await check_content_changed(url, content)
@@ -58,7 +62,7 @@ async def freshness_frequency(
     Volatile pages (frequent changes) get shorter intervals.
     Stable pages get longer intervals to save costs.
     """
-    from freshness import calculate_adaptive_frequency
+    from pry.commerce.freshness import calculate_adaptive_frequency
 
     result = calculate_adaptive_frequency(url, base_interval_minutes=base_interval)
     return {"success": True, "data": result}
@@ -73,6 +77,6 @@ async def freshness_dashboard() -> dict[str, Any]:
     Shows all tracked URLs, their last check time, age, and whether
     they're stale (not checked in 24h).
     """
-    from freshness import get_staleness_dashboard
+    from pry.commerce.freshness import get_staleness_dashboard
 
     return {"success": True, "data": get_staleness_dashboard()}

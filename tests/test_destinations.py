@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from destinations import (
+from pry.commerce.destinations import (
     _data_to_rows,
     dispatch,
     write_to_email,
@@ -22,7 +22,7 @@ async def test_dispatch_unknown():
 
 @pytest.mark.asyncio
 async def test_dispatch_slack():
-    with patch("destinations.write_to_slack", new_callable=AsyncMock) as m:
+    with patch("pry.commerce.destinations.write_to_slack", new_callable=AsyncMock) as m:
         m.return_value = {"sent": True, "channel": "general"}
         result = await dispatch("slack", {"text": "hello"}, {"webhook_url": "http://hook"})
         assert result is not None
@@ -30,7 +30,7 @@ async def test_dispatch_slack():
 
 @pytest.mark.asyncio
 async def test_dispatch_slack_csv():
-    with patch("destinations.write_to_slack_csv", new_callable=AsyncMock) as m:
+    with patch("pry.commerce.destinations.write_to_slack_csv", new_callable=AsyncMock) as m:
         m.return_value = {"sent": True}
         result = await dispatch("slack_csv", {"data": [{"a": 1}]}, {"webhook_url": "http://hook"})
         assert result is not None
@@ -38,7 +38,7 @@ async def test_dispatch_slack_csv():
 
 @pytest.mark.asyncio
 async def test_dispatch_email():
-    with patch("destinations.write_to_email", new_callable=AsyncMock) as m:
+    with patch("pry.commerce.destinations.write_to_email", new_callable=AsyncMock) as m:
         m.return_value = {"sent": True}
         result = await dispatch("email", {"to": "a@b.com", "subject": "test", "body": "hello"}, {})
         assert result is not None
@@ -46,7 +46,7 @@ async def test_dispatch_email():
 
 @pytest.mark.asyncio
 async def test_dispatch_airtable():
-    with patch("destinations.write_to_airtable", new_callable=AsyncMock) as m:
+    with patch("pry.commerce.destinations.write_to_airtable", new_callable=AsyncMock) as m:
         m.return_value = {"created": 1}
         result = await dispatch(
             "airtable", {"records": [{"fields": {"a": 1}}], "base_id": "abc", "table": "xyz"}, {}
@@ -56,7 +56,7 @@ async def test_dispatch_airtable():
 
 @pytest.mark.asyncio
 async def test_dispatch_googlesheets():
-    with patch("destinations.write_to_googlesheets", new_callable=AsyncMock) as m:
+    with patch("pry.commerce.destinations.write_to_googlesheets", new_callable=AsyncMock) as m:
         m.return_value = {"updated": True}
         result = await dispatch(
             "googlesheets", {"data": [["a", "b"]], "sheet_id": "abc", "range": "A1"}, {}
@@ -82,7 +82,7 @@ def test_data_to_rows_empty():
 
 @pytest.mark.asyncio
 async def test_write_to_email_no_smtp():
-    with patch("destinations._send_smtp", new_callable=AsyncMock) as m:
+    with patch("pry.commerce.destinations._send_smtp", new_callable=AsyncMock) as m:
         m.return_value = {"sent": True}
         result = await write_to_email(
             recipient="a@b.com",

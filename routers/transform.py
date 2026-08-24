@@ -14,9 +14,9 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from deps import scraper
-from errors import InvalidRequestError, ScrapeError
-from pryextras import TransformEngine
+from pry.core.deps import scraper
+from pry.core.errors import InvalidRequestError, ScrapeError
+from pry.misc.pryextras import TransformEngine
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ async def data_pipeline(data: dict[str, Any] = Body(...)) -> dict[str, Any]:
     content = result.get("content", "")
     title = result.get("title", url)
     if transform == "sql":
-        from pryextras import TransformEngine
+        from pry.misc.pryextras import TransformEngine
 
         te = TransformEngine()
         output = te.to_sql({"url": url, "title": title, "content": content[:50000]})

@@ -373,7 +373,7 @@ def _get_scraper() -> Any:
     """Return Pry's scraper, instantiating it lazily on first use."""
     instance = _scraper_state.get("instance")
     if instance is None:
-        from scraper import PryScraper
+        from pry.engine.scraper import PryScraper
 
         instance = PryScraper()
         _scraper_state["instance"] = instance

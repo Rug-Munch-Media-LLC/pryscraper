@@ -6,7 +6,7 @@
 """Tests for production infrastructure (db, observability)."""
 
 from db import _has_sqlalchemy, get_db
-from observability import track_llm_call, track_request, track_scrape
+from pry.core.observability import track_llm_call, track_request, track_scrape
 
 
 def test_observability_track_request() -> None:

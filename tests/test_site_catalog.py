@@ -20,7 +20,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-from errors import PryError
+from pry.core.errors import PryError
 from routers.site_catalog import router as site_catalog_router
 from site_catalog import (
     ANTI_BOT_LEVELS,

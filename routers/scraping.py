@@ -29,13 +29,13 @@ import httpx
 from fastapi import APIRouter, Body
 from pydantic import BaseModel
 
-from client import get_client
-from deps import cache, extractor, queue, scraper
-from errors import ExternalServiceError, InvalidRequestError, PryError, ScrapeError
-from observability import track_scrape
-from scraper import BlockDetector
-from settings import settings
-from url_guard import safe_get, validate_url
+from pry.api.client import get_client
+from pry.core.deps import cache, extractor, queue, scraper
+from pry.core.errors import ExternalServiceError, InvalidRequestError, PryError, ScrapeError
+from pry.core.observability import track_scrape
+from pry.core.settings import settings
+from pry.engine.scraper import BlockDetector
+from pry.engine.url_guard import safe_get, validate_url
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +213,7 @@ async def detect_lazy_content(
     """
     # SSRF gate: the fallback raw-HTML fetch below also uses this URL.
     validate_url(url)
-    from lazy_load import (
+    from pry.engine.lazy_load import (
         detect_lazy_loading,
         generate_load_more_script,
         generate_scroll_script,

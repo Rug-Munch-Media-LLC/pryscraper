@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for block detector."""
 
-from scraper import BlockDetector
+from pry.engine.scraper import BlockDetector
 
 
 def test_block_detector_cloudflare() -> None:

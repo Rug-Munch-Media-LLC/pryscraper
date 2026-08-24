@@ -32,7 +32,7 @@ async def record_intel_snapshot(
     Snapshots are stored with timestamps and used for trend analysis,
     anomaly detection, and report generation.
     """
-    from intelligence import record_snapshot
+    from pry.api.intelligence import record_snapshot
 
     result = record_snapshot(competitor_id, competitor_name, url, fields)
     return {"success": True, "data": result}
@@ -47,7 +47,7 @@ async def get_intel_snapshots(
     since_hours: int | None = None,
 ) -> dict[str, Any]:
     """Get historical snapshots for a competitor."""
-    from intelligence import get_snapshots
+    from pry.api.intelligence import get_snapshots
 
     snapshots = get_snapshots(competitor_id, limit, since_hours)
     return {
@@ -67,7 +67,11 @@ async def analyze_field(
 
     Returns statistics, z-score analysis, and anomaly detection.
     """
-    from intelligence import compute_field_statistics, detect_anomalies_numeric, get_snapshots
+    from pry.api.intelligence import (
+        compute_field_statistics,
+        detect_anomalies_numeric,
+        get_snapshots,
+    )
 
     snapshots = get_snapshots(competitor_id, limit=100)
     stats = compute_field_statistics(snapshots, field)
@@ -104,7 +108,7 @@ async def generate_report(
     Analyzes changes over the specified period and returns a structured report
     with a natural-language summary.
     """
-    from intelligence import generate_weekly_report
+    from pry.api.intelligence import generate_weekly_report
 
     report = generate_weekly_report(competitors, days_back)
     return {"success": True, "data": report}

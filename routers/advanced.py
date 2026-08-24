@@ -15,8 +15,8 @@ from typing import Any
 import httpx
 from fastapi import APIRouter, Body
 
-from client import get_client
-from url_guard import validate_url
+from pry.api.client import get_client
+from pry.engine.url_guard import validate_url
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ async def tls_impersonate(
 ) -> dict[str, Any]:
     """Fetch a URL while impersonating a real browser's TLS fingerprint.
     Bypasses JA3/JA4 fingerprinting that blocks 80%+ of bot traffic."""
-    from tls_fingerprint import TLSScraper
+    from pry.engine.tls_fingerprint import TLSScraper
 
     validate_url(url)
     s = TLSScraper()
@@ -55,7 +55,7 @@ async def tls_rotate(
     proxy: str = Body(""),
 ) -> dict[str, Any]:
     """Try multiple browser fingerprints until one succeeds (anti-fingerprint rotation)."""
-    from tls_fingerprint import TLSScraper
+    from pry.engine.tls_fingerprint import TLSScraper
 
     validate_url(url)
     s = TLSScraper()
@@ -80,7 +80,7 @@ async def camoufox_fetch(
     This is more effective than Playwright for sites with advanced
     fingerprinting (DataDome, PerimeterX, advanced Cloudflare).
     """
-    from camoufox_integration import CamoufoxBrowser
+    from pry.engine.camoufox_integration import CamoufoxBrowser
 
     validate_url(url)
     b = CamoufoxBrowser()
@@ -98,7 +98,7 @@ async def camoufox_fetch(
 )
 async def graphql_discover(base_url: str = Body(...)) -> dict[str, Any]:
     """Auto-discover GraphQL endpoints for a website."""
-    from graphql_discovery import GraphQLDiscovery
+    from pry.engine.graphql_discovery import GraphQLDiscovery
 
     validate_url(base_url)
     g = GraphQLDiscovery()
@@ -111,7 +111,7 @@ async def graphql_discover(base_url: str = Body(...)) -> dict[str, Any]:
 )
 async def graphql_introspect(endpoint: str = Body(...)) -> dict[str, Any]:
     """Run GraphQL introspection query against a discovered endpoint."""
-    from graphql_discovery import GraphQLDiscovery
+    from pry.engine.graphql_discovery import GraphQLDiscovery
 
     validate_url(endpoint)
     g = GraphQLDiscovery()
@@ -126,7 +126,7 @@ async def graphql_query(
     variables: dict[str, Any] | None = Body(None),
 ) -> dict[str, Any]:
     """Execute a GraphQL query against a discovered endpoint."""
-    from graphql_discovery import GraphQLDiscovery
+    from pry.engine.graphql_discovery import GraphQLDiscovery
 
     validate_url(endpoint)
     g = GraphQLDiscovery()
@@ -143,7 +143,7 @@ async def schema_extract(url: str = Body(...)) -> dict[str, Any]:
     """Extract Schema.org/JSON-LD/Microdata/RDFa structured data from a URL.
     Most modern sites embed structured data — extract it directly instead of
     scraping HTML. 100x faster and more accurate."""
-    from schema_extraction import SchemaExtractor
+    from pry.engine.schema_extraction import SchemaExtractor
 
     validate_url(url)
     client = await get_client()
@@ -161,7 +161,7 @@ async def schema_extract(url: str = Body(...)) -> dict[str, Any]:
 async def schema_extract_html(html: str = Body(...)) -> dict[str, Any]:
     """Extract Schema.org/JSON-LD/Microdata/RDFa from a raw HTML string.
     Useful when you've already fetched the page and want to extract structured data."""
-    from schema_extraction import SchemaExtractor
+    from pry.engine.schema_extraction import SchemaExtractor
 
     e = SchemaExtractor()
     result = e.extract_all(html)
@@ -181,7 +181,7 @@ async def ws_scrape(
 ) -> dict[str, Any]:
     """Connect to a WebSocket and capture the data stream.
     Useful for SPAs and real-time apps that load data via WebSocket."""
-    from websocket_scraper import WebSocketScraper
+    from pry.engine.websocket_scraper import WebSocketScraper
 
     s = WebSocketScraper(max_messages=max_messages, timeout=timeout)
     result = await s.scrape_websocket(url, message_filter=message_filter)
@@ -200,7 +200,7 @@ async def sse_scrape(
     event_filter: str = Body(""),
 ) -> dict[str, Any]:
     """Connect to a Server-Sent Events endpoint and capture events."""
-    from websocket_scraper import WebSocketScraper
+    from pry.engine.websocket_scraper import WebSocketScraper
 
     s = WebSocketScraper(timeout=timeout)
     result = await s.scrape_sse(url, event_filter=event_filter, max_events=max_events)
@@ -218,7 +218,7 @@ async def warm_cookies(
 ) -> dict[str, Any]:
     """Pre-age cookies for a domain to bypass anti-bot detection.
     Visits legitimate pages first to build realistic browsing history."""
-    from cookie_warmer import CookieWarmer
+    from pry.engine.cookie_warmer import CookieWarmer
 
     w = CookieWarmer()
     result = await w.warm_for_site(target_domain, pages_to_visit=pages_to_visit)
@@ -231,7 +231,7 @@ async def warm_cookies(
     summary="List all warmed cookie sessions",
 )
 async def list_cookie_sessions() -> dict[str, Any]:
-    from cookie_warmer import CookieWarmer
+    from pry.engine.cookie_warmer import CookieWarmer
 
     w = CookieWarmer()
     return {"success": True, "data": w.list_sessions()}
@@ -247,7 +247,7 @@ async def extract_pdf(
     method: str = Body("pdfplumber"),
 ) -> dict[str, Any]:
     """Download a PDF and extract structured tables and text."""
-    from pdf_extractor import PDFTableExtractor
+    from pry.engine.pdf_extractor import PDFTableExtractor
 
     validate_url(pdf_url)
     client = await get_client()
@@ -275,7 +275,7 @@ async def ocr_extract(
     image_base64: str = Body(""),
 ) -> dict[str, Any]:
     """Extract text from an image via URL or base64."""
-    from ocr_extractor import ImageOCR
+    from pry.engine.ocr_extractor import ImageOCR
 
     o = ImageOCR()
     if image_url:
@@ -299,7 +299,7 @@ async def check_duplicate(
     threshold: float = Body(0.85),
 ) -> dict[str, Any]:
     """Check if text is a near-duplicate of recently seen content using SimHash."""
-    from dedup import SimHash
+    from pry.engine.dedup import SimHash
 
     h = SimHash.hash(text)
     return {
@@ -319,7 +319,7 @@ async def check_duplicate(
 )
 async def get_behavior_simulation(action: str = "mouse") -> dict[str, Any]:
     """Generate realistic human behavior patterns (mouse path, scroll, typing, etc.)"""
-    from behavioral_biometrics import behavior
+    from pry.engine.behavioral_biometrics import behavior
 
     if action == "mouse":
         path = behavior.mouse_path((0, 0), (800, 600))

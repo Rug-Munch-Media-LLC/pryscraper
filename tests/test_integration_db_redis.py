@@ -26,6 +26,7 @@ import importlib
 import os
 import uuid
 
+import paths
 import pytest
 
 pytestmark = pytest.mark.integration
@@ -79,7 +80,6 @@ def postgres_engine():
         pytest.skip("Postgres not reachable with PRY_DATABASE_URL")
 
     import db
-    import paths
 
     old_db_url = os.environ.get("PRY_DATABASE_URL")
     os.environ["PRY_DATABASE_URL"] = _sync_database_url()
@@ -200,7 +200,7 @@ async def test_jobqueue_persists_jobs_in_redis(redis_client) -> None:
     """
     import json
 
-    from jobqueue import JobQueue
+    from pry.core.jobqueue import JobQueue
 
     redis = await redis_client()
 
@@ -233,7 +233,7 @@ async def test_jobqueue_complete_updates_redis(redis_client) -> None:
     """complete_job() must update the Redis-persisted job, not just memory."""
     import json
 
-    from jobqueue import JobQueue
+    from pry.core.jobqueue import JobQueue
 
     redis = await redis_client()
 

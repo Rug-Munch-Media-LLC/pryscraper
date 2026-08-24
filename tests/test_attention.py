@@ -27,10 +27,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import client as _client_module
+import pry.api.client as _client_module
 import routers.attention as attention_router_mod
 from attention import ad_intel, serp, trends
-from errors import PryError
+from pry.core.errors import PryError
 from routers.attention import router as attention_router
 
 

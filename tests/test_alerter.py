@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for multi-channel alerting."""
 
-from alerter import (
+from pry.actors.alerter import (
     _send_discord,
     _send_slack,
     _send_teams,

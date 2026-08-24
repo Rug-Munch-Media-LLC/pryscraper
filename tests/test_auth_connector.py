@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for enterprise SSO / auth connector."""
 
-from auth_connector import (
+from pry.api.auth_connector import (
     SSO_PROVIDERS,
     delete_credential,
     list_credentials,

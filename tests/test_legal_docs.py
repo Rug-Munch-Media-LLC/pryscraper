@@ -32,8 +32,8 @@ import legal_docs.dockets as dockets
 import legal_docs.sanctions as sanctions
 import legal_docs.sec_filings as sec_filings
 import routers.legal_docs as legal_router_mod
-from errors import PryError
-from retry import RetryConfig
+from pry.core.errors import PryError
+from pry.engine.retry import RetryConfig
 from routers.legal_docs import router as legal_router
 
 if TYPE_CHECKING:

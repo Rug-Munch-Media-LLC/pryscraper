@@ -16,10 +16,10 @@ import httpx
 import pydantic
 from fastapi import APIRouter, Body
 
-from client import get_client
-from deps import scraper
-from errors import ScrapeError
-from url_guard import safe_get, validate_url
+from pry.api.client import get_client
+from pry.core.deps import scraper
+from pry.core.errors import ScrapeError
+from pry.engine.url_guard import safe_get, validate_url
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ async def ultimate_scrape(
 
     Returns the first successful result with the method used.
     """
-    from ultimate_scraper import UltimateScraper
+    from pry.engine.ultimate_scraper import UltimateScraper
 
     # SSRF gate before the 10-tier fetch chain.
     validate_url(url)
@@ -73,7 +73,7 @@ async def capture_network(
     """
     # SSRF gate: the fallback raw-HTML fetch below also uses this URL.
     validate_url(url)
-    from network import (
+    from pry.engine.network import (
         extract_api_calls_from_html,
         extract_graphql_queries,
         extract_json_ld,
@@ -127,7 +127,7 @@ async def adaptive_crawl(
     - Respects max_pages and max_depth limits
     - Ideal for targeted data collection (pricing, docs, products)
     """
-    from adaptive import AdaptiveCrawler
+    from pry.engine.adaptive import AdaptiveCrawler
 
     crawler = AdaptiveCrawler(
         max_pages=max_pages,

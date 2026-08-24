@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 import time
 
-from cache import ResponseCache
+from pry.core.cache import ResponseCache
 
 
 def test_cache_set_and_get() -> None:

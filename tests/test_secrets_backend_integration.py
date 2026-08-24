@@ -8,6 +8,8 @@
 import os
 from unittest.mock import patch
 
+import x402
+
 
 def test_settings_pulls_from_secrets_backend() -> None:
     """PrySettings should populate sensitive fields from secrets_backend.get_secret
@@ -27,10 +29,10 @@ def test_settings_pulls_from_secrets_backend() -> None:
 
     with (
         patch.dict(os.environ, env, clear=True),
-        patch("secrets_backend.get_secret", side_effect=fake_get_secret),
+        patch("pry.api.secrets_backend.get_secret", side_effect=fake_get_secret),
     ):
         # Re-import fresh
-        from settings import PrySettings
+        from pry.core.settings import PrySettings
 
         s = PrySettings()
         # Sensitive field was empty in env, secrets_backend provided it
@@ -56,12 +58,11 @@ def test_x402_constants_come_from_secrets_backend() -> None:
 
     with (
         patch.dict(os.environ, env, clear=True),
-        patch("secrets_backend.get_secret", side_effect=fake_get_secret),
+        patch("pry.api.secrets_backend.get_secret", side_effect=fake_get_secret),
     ):
         # Force re-import of x402 constants
         import importlib
 
-        import x402
 
         importlib.reload(x402)
         assert fake_wallet == x402.X402_WALLET
@@ -83,9 +84,9 @@ def test_settings_does_not_override_set_env() -> None:
 
     with (
         patch.dict(os.environ, env, clear=True),
-        patch("secrets_backend.get_secret", side_effect=fake_get_secret),
+        patch("pry.api.secrets_backend.get_secret", side_effect=fake_get_secret),
     ):
-        from settings import PrySettings
+        from pry.core.settings import PrySettings
 
         s = PrySettings()
         # Env wins over secrets_backend

@@ -31,7 +31,7 @@ import food_data
 import food_data.grocery as grocery
 import food_data.restaurants as restaurants
 import routers.food_data as food_router_mod
-from errors import PryError
+from pry.core.errors import PryError
 from routers.food_data import router as food_router
 
 _KROGER_OAUTH_URL = "https://api.kroger.com/v1/connect/oauth2/token"

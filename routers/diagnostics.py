@@ -19,7 +19,7 @@ from typing import Any
 
 from fastapi import APIRouter
 
-import fallback_telemetry
+from pry.engine import fallback_telemetry
 
 router = APIRouter(tags=["Diagnostics"])
 

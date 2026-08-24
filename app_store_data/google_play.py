@@ -69,7 +69,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from retry import RetryConfig, async_retry
+from pry.engine.retry import RetryConfig, async_retry
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

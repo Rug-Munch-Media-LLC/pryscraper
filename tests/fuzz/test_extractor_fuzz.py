@@ -16,7 +16,7 @@ path requires a reachable Ollama endpoint and is out of scope for fuzzing.
 import pytest
 from hypothesis import HealthCheck, given, settings, strategies as st
 
-from extractor import SchemaExtractor
+from pry.engine.extractor import SchemaExtractor
 
 
 def _assert_well_formed(result: object) -> None:

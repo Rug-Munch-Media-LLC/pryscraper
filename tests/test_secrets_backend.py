@@ -11,8 +11,8 @@ import importlib
 import os
 from unittest.mock import patch
 
-import secrets_backend
-from secrets_backend import (
+from pry.api import secrets_backend
+from pry.api.secrets_backend import (
     BACKEND_AUTO,
     _normalize_name,
     backend_info,
@@ -56,7 +56,7 @@ def test_get_secret_falls_back_to_env_when_gopass_misses(monkeypatch):
     monkeypatch.setenv("PRY_SECRET_BACKEND", "gopass")
     monkeypatch.setenv("PRY_FALLBACK_TEST", "env-fallback")
     # gopass lookup will fail (entry doesn't exist), then we check env
-    with patch("secrets_backend._get_from_gopass", return_value=None):
+    with patch("pry.api.secrets_backend._get_from_gopass", return_value=None):
         value = get_secret("fallback_test")
     assert value == "env-fallback"
 

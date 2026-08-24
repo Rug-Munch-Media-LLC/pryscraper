@@ -15,8 +15,8 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from deps import scraper
-from errors import ScrapeError
+from pry.core.deps import scraper
+from pry.core.errors import ScrapeError
 
 logger = logging.getLogger(__name__)
 

@@ -21,9 +21,8 @@ from typing import TYPE_CHECKING, Any
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import x402_middleware
-from x402 import X402_PRICING
-from x402_middleware import (
+from pry.misc import x402_middleware
+from pry.misc.x402_middleware import (
     DEFAULT_FREE_PATHS,
     DEFAULT_FREE_PREFIXES,
     PAID_ENDPOINTS,
@@ -34,6 +33,7 @@ from x402_middleware import (
     iter_app_route_paths,
     resolve_operation,
 )
+from x402 import X402_PRICING
 
 if TYPE_CHECKING:
     import pytest
@@ -167,7 +167,7 @@ class TestRuntimeGate:
 class TestStartupAudit:
     def test_real_app_fully_classified(self) -> None:
         """Every route on the production app must be explicitly free or paid."""
-        from api import app as real_app
+        from pry.api.api import app as real_app
 
         unclassified = audit_route_classification(real_app)
         assert unclassified == [], (

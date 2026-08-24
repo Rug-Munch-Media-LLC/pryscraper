@@ -55,7 +55,7 @@ from urllib.parse import quote
 
 import httpx
 
-from retry import RetryConfig, async_retry
+from pry.engine.retry import RetryConfig, async_retry
 
 logger = logging.getLogger(__name__)
 

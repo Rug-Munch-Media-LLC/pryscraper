@@ -14,7 +14,7 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from pryextras import BatchProcessor
+from pry.misc.pryextras import BatchProcessor
 
 logger = logging.getLogger(__name__)
 

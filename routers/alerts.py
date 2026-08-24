@@ -36,7 +36,7 @@ async def send_alert_endpoint(
     - sms: {"phone": "+1234567890", "twilio_sid": "...", "twilio_token": "...", "twilio_from": "..."}
     - email: {"recipient": "user@example.com", "smtp_host": "...", "smtp_user": "..."}
     """
-    from alerter import send_alert
+    from pry.actors.alerter import send_alert
 
     result = await send_alert(channel, title, message, config, severity)
     return {"success": result["success"], "data": result}

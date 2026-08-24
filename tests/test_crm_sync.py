@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for CRM reverse ETL."""
 
-from crm_sync import (
+from pry.commerce.crm_sync import (
     _map_to_hubspot,
     _map_to_salesforce,
     sync_to_close,

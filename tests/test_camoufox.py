@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for Camoufox integration."""
 
-from camoufox_integration import CamoufoxBrowser
+from pry.engine.camoufox_integration import CamoufoxBrowser
 
 
 def test_camoufox_profiles() -> None:

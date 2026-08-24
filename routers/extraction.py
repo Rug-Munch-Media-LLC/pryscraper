@@ -16,11 +16,11 @@ from urllib.parse import urljoin, urlparse
 import httpx
 from fastapi import APIRouter, Body
 
-from client import get_client
-from deps import advanced, scraper
-from errors import InvalidRequestError, ScrapeError
-from extraction import JsonCssExtractionStrategy, extract_with_chunking
-from extractor import SchemaExtractor
+from pry.api.client import get_client
+from pry.core.deps import advanced, scraper
+from pry.core.errors import InvalidRequestError, ScrapeError
+from pry.engine.extraction import JsonCssExtractionStrategy, extract_with_chunking
+from pry.engine.extractor import SchemaExtractor
 
 logger = logging.getLogger(__name__)
 

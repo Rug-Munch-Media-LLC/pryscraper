@@ -59,7 +59,8 @@ from typing import Any
 import httpx
 
 import sports_data.sources as sources
-from retry import RetryConfig, async_retry
+from pry.engine.retry import RetryConfig, async_retry
+from pry.engine.webshare_proxy import next_webshare_proxy
 from sports_data.sources import (
     _as_text,
     _classes,
@@ -71,7 +72,6 @@ from sports_data.sources import (
     _parse_betonline_html,
     _to_float,
 )
-from webshare_proxy import next_webshare_proxy
 
 # Guarded import: sports_data.odds is extended by a parallel agent; this
 # module is imported by the package during init, so degrade gracefully if

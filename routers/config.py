@@ -14,7 +14,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
-from settings import settings
+from pry.core.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ def require_sensitive_config_auth(request: Request) -> None:
     set, a valid Bearer credential is required from any source; without a key,
     only loopback clients may change proxy/tor egress configuration.
     """
-    from api import request_authorized
+    from pry.api.api import request_authorized
 
     if not request_authorized(request.scope):
         raise HTTPException(

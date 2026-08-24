@@ -1,6 +1,6 @@
 """Tests for dedup.py — SimHash fingerprinting, dedup, clustering, diffing."""
 
-from dedup import Deduplicator, SimHash
+from pry.engine.dedup import Deduplicator, SimHash
 
 
 class TestSimHashHash:

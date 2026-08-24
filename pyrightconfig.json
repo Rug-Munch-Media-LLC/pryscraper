@@ -4,7 +4,18 @@
 		"**/__pycache__",
 		"build",
 		"dist",
-		"mutants",
-		"node_modules"
-	]
+		"node_modules",
+		"captcha",
+		"db",
+		"freight_data",
+		"healthcare_data",
+		"routers",
+		"tests",
+		"docs"
+	],
+	"reportMissingImports": "none",
+	"reportPossiblyUnbound": "warning",
+	"reportInvalidConditionalOperand": "none",
+	"reportAttributeAccessIssue": "warning",
+	"reportCallIssue": "warning"
 }

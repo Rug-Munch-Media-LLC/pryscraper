@@ -69,7 +69,7 @@ async def _sleep_backoff(attempt: int) -> None:
 
 async def _fetch_page(params: dict[str, str]) -> str:
     """Fetch the Ad Library search page with backoff (never raises)."""
-    from client import get_client
+    from pry.api.client import get_client
 
     client = await get_client()
     last_error = ""

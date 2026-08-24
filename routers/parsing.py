@@ -15,9 +15,9 @@ import httpx
 from fastapi import APIRouter, Body
 from pydantic import BaseModel
 
-from client import get_client
-from deps import parser, scraper
-from errors import ExternalServiceError, PryError, ScrapeError
+from pry.api.client import get_client
+from pry.core.deps import parser, scraper
+from pry.core.errors import ExternalServiceError, PryError, ScrapeError
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,11 @@ async def generate_markdown(
     - fit: Prune boilerplate (nav, ads, footers)
     - bm25: Filter by BM25 relevance to query (requires query param)
     """
-    from markdown_gen import BM25ContentFilter, DefaultMarkdownGenerator, PruningContentFilter
+    from pry.engine.markdown_gen import (
+        BM25ContentFilter,
+        DefaultMarkdownGenerator,
+        PruningContentFilter,
+    )
 
     result = await scraper.scrape(url, {"bypass_cloudflare": True})
     if result.get("status") != "ok":
@@ -95,7 +99,7 @@ async def extract_shadow_dom(
     Useful for modern web apps built with Lit, web components, or
     frameworks that use Shadow DOM encapsulation.
     """
-    from shadow_dom import ShadowDOMProcessor, has_shadow_dom
+    from pry.engine.shadow_dom import ShadowDOMProcessor, has_shadow_dom
 
     result = await scraper.scrape(url, {"bypass_cloudflare": True, "js_render": True})
     if result.get("status") != "ok":

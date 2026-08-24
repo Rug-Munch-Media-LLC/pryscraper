@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 # The app import triggers loading x402 module which may try network calls
 # We'll patch at function level instead
-from api import app
+from pry.api.api import app
 
 client = TestClient(app)
 

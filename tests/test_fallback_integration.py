@@ -8,10 +8,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import resilience
-import ultimate_scraper
-from resilience import ResilienceRegistry
-from retry import Jitter, RetryConfig, async_retry
+from pry.engine import resilience, ultimate_scraper
+from pry.engine.resilience import ResilienceRegistry
+from pry.engine.retry import Jitter, RetryConfig, async_retry
 
 
 def _valid_html(text: str = "content") -> str:
@@ -260,13 +259,13 @@ class TestRetrySettings:
     """Retry module integration with settings."""
 
     def test_retry_config_from_settings(self) -> None:
-        from settings import PrySettings
+        from pry.core.settings import PrySettings
 
         settings = PrySettings()
         assert settings.retry_backoff == "exponential"
 
     def test_api_dict_includes_backoff(self) -> None:
-        from settings import PrySettings
+        from pry.core.settings import PrySettings
 
         settings = PrySettings()
         api_dict = settings.to_api_dict()

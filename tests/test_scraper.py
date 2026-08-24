@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 import pytest
 
-from scraper import PryScraper
+from pry.engine.scraper import PryScraper
 
 
 @pytest.mark.asyncio

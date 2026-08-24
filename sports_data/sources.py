@@ -62,7 +62,7 @@ from urllib.parse import urlparse
 import httpx
 from lxml import html as _lxml_html
 
-from retry import RetryConfig, async_retry
+from pry.engine.retry import RetryConfig, async_retry
 
 # Guarded import: sports_data.odds is extended by a parallel agent; this
 # module is imported by the package during init, so degrade gracefully if

@@ -17,7 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from stealth_engine import StealthEngine
+import pry.engine.stealth_engine as stealth_engine
+from pry.engine.stealth_engine import StealthEngine
 
 
 def _noise_value(script: str) -> float:
@@ -178,7 +179,6 @@ def test_human_type_script_variable_delays() -> None:
 
 
 def test_save_scripts_writes_all_six_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import stealth_engine
 
     monkeypatch.setattr(stealth_engine, "SCRIPTS_DIR", tmp_path)
     StealthEngine().save_scripts()

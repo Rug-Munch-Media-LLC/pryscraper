@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from deps import automator, cache, ratelimiter
+from pry.core.deps import automator, cache, ratelimiter
 
 logger = logging.getLogger(__name__)
 

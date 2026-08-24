@@ -10,10 +10,11 @@ import tempfile
 from unittest.mock import patch
 
 import httpx
+import pry.core.cli as cli
 import pytest
 import respx
 
-from cli import (
+from pry.misc.cli import (
     BOLD,
     GREEN,
     NC,
@@ -429,7 +430,7 @@ def test_cmd_migrate(mock_print):
 @patch("builtins.print")
 def test_cmd_completions(mock_print):
     """Shell completions prints argcomplete setup instructions (no subprocess)."""
-    import cli as cli_mod
+    import pry.misc.cli as cli_mod
 
     cli_mod.cmd_completions("bash")
     assert mock_print.called
@@ -438,7 +439,7 @@ def test_cmd_completions(mock_print):
 @patch("builtins.print")
 def test_cmd_completions_unknown_shell(mock_print):
     """Unknown shells print a friendly message, not an error."""
-    import cli as cli_mod
+    import pry.misc.cli as cli_mod
 
     cli_mod.cmd_completions("powershell")
     assert mock_print.called
@@ -449,13 +450,12 @@ def test_cmd_completions_unknown_shell(mock_print):
 
 @pytest.mark.skipif("click" not in dir(), reason="click not installed")
 def test_cli_group():
-    from cli import main
+    from pry.misc.cli import main
 
     assert main is not None
 
 
 def test_main_imports():
-    import cli
 
     assert cli.__doc__ is not None
     assert hasattr(cli, "main")

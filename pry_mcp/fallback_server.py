@@ -516,7 +516,7 @@ def make_fallback_server(
             """Generate resource contents without external I/O."""
             if uri == "pry://catalog":
                 try:
-                    from template_engine import list_templates
+                    from pry.commerce.template_engine import list_templates
 
                     templates = list_templates()
                     categories: dict[str, list[str]] = {}
@@ -554,7 +554,7 @@ def make_fallback_server(
                     return json.dumps({"error": f"Could not load x402 pricing: {e}"})
             if uri == "pry://referrals":
                 try:
-                    from referrals import ReferralTracker
+                    from pry.commerce.referrals import ReferralTracker
 
                     return json.dumps(ReferralTracker().get_catalog(), indent=2)  # type: ignore[no-untyped-call]
                 except (json.JSONDecodeError, ValueError) as e:
@@ -750,7 +750,7 @@ def make_fallback_server(
                 values = ["10", "20", "50", "100"]
             elif ref_type == "ref/tool" and arg_name == "template_id":
                 try:
-                    from template_engine import list_templates
+                    from pry.commerce.template_engine import list_templates
 
                     templates = list_templates()
                     values = [

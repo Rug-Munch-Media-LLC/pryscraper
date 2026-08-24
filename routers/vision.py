@@ -17,11 +17,11 @@ from typing import Any
 import httpx
 from fastapi import APIRouter, Body
 
-from client import get_client
-from deps import automator
-from errors import ExternalServiceError, InvalidRequestError, PryError, ScrapeError
-from resilience import registry
-from settings import settings
+from pry.api.client import get_client
+from pry.core.deps import automator
+from pry.core.errors import ExternalServiceError, InvalidRequestError, PryError, ScrapeError
+from pry.core.settings import settings
+from pry.engine.resilience import registry
 
 logger = logging.getLogger(__name__)
 

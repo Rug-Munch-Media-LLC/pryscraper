@@ -14,7 +14,7 @@ import httpx
 import pytest
 import respx
 
-from ultimate_scraper import UltimateScraper
+from pry.engine.ultimate_scraper import UltimateScraper
 
 _VALID_HTML = "<html><body>" + "x" * 600 + "</body></html>"
 _VALID_HTML_2 = "<html><body>" + "y" * 600 + "</body></html>"
@@ -25,10 +25,10 @@ _VALID_HTML_3 = "<html><body>" + "z" * 600 + "</body></html>"
 def scraper() -> UltimateScraper:
     """Return a scraper with a clean registry mock so test pollution is impossible."""
     with (
-        patch("ultimate_scraper.registry.reorder_for_domain", side_effect=lambda _d, c: c),
-        patch("ultimate_scraper.registry.is_service_allowed", return_value=True),
-        patch("ultimate_scraper.registry.record_domain_tier_result"),
-        patch("ultimate_scraper.registry.record_service_result"),
+        patch("pry.engine.ultimate_scraper.registry.reorder_for_domain", side_effect=lambda _d, c: c),
+        patch("pry.engine.ultimate_scraper.registry.is_service_allowed", return_value=True),
+        patch("pry.engine.ultimate_scraper.registry.record_domain_tier_result"),
+        patch("pry.engine.ultimate_scraper.registry.record_service_result"),
     ):
         yield UltimateScraper()
 
@@ -248,7 +248,7 @@ async def test_scrape_tier_exception_handled(scraper: UltimateScraper):
 
 
 def test_record_telemetry_noop(scraper: UltimateScraper):
-    with patch("ultimate_scraper._HAS_FALLBACK_TELEMETRY", False):
+    with patch("pry.engine.ultimate_scraper._HAS_FALLBACK_TELEMETRY", False):
         scraper._record_telemetry("example.com", ["direct"], [], "direct", True, 0.0, [])
 
 
@@ -329,7 +329,7 @@ async def test_tier_premium_proxy_error(scraper: UltimateScraper):
 
 @pytest.mark.asyncio
 async def test_tier_cloudscraper_missing_dep(scraper: UltimateScraper):
-    with patch("ultimate_scraper._has_cloudscraper", False):
+    with patch("pry.engine.ultimate_scraper._has_cloudscraper", False):
         result = await scraper._tier_cloudscraper("http://example.com", {})
         assert result is None
 
@@ -341,7 +341,7 @@ async def test_tier_cloudscraper_success(scraper: UltimateScraper):
     mock_scraper.get.return_value.text = "<html>cloud</html>"
 
     with (
-        patch("ultimate_scraper._has_cloudscraper", True),
+        patch("pry.engine.ultimate_scraper._has_cloudscraper", True),
         patch("cloudscraper.create_scraper", return_value=mock_scraper),
     ):
         result = await scraper._tier_cloudscraper("http://example.com", {})
@@ -351,7 +351,7 @@ async def test_tier_cloudscraper_success(scraper: UltimateScraper):
 @pytest.mark.asyncio
 async def test_tier_cloudscraper_error(scraper: UltimateScraper):
     with (
-        patch("ultimate_scraper._has_cloudscraper", True),
+        patch("pry.engine.ultimate_scraper._has_cloudscraper", True),
         patch("cloudscraper.create_scraper", side_effect=RuntimeError("no cloudscraper")),
     ):
         result = await scraper._tier_cloudscraper("http://example.com", {})
@@ -366,7 +366,7 @@ async def test_tier_cloudscraper_error(scraper: UltimateScraper):
 @respx.mock
 @pytest.mark.asyncio
 async def test_tier_flaresolverr_no_url(scraper: UltimateScraper):
-    with patch("settings.settings.flaresolverr_url", ""):
+    with patch("pry.engine.settings.settings.flaresolverr_url", ""):
         result = await scraper._tier_flaresolverr("http://example.com", {})
         assert result is None
 
@@ -379,7 +379,7 @@ async def test_tier_flaresolverr_success(scraper: UltimateScraper):
             200, json={"solution": {"status": 200, "response": "<html>flare</html>"}}
         )
     )
-    with patch("settings.settings.flaresolverr_url", "http://flaresolverr:8191/v1"):
+    with patch("pry.engine.settings.settings.flaresolverr_url", "http://flaresolverr:8191/v1"):
         result = await scraper._tier_flaresolverr("http://example.com", {})
         assert result == "<html>flare</html>"
 
@@ -390,7 +390,7 @@ async def test_tier_flaresolverr_not_200(scraper: UltimateScraper):
     respx.post("http://flaresolverr:8191/v1").mock(
         return_value=httpx.Response(200, json={"solution": {"status": 503, "response": "down"}})
     )
-    with patch("settings.settings.flaresolverr_url", "http://flaresolverr:8191/v1"):
+    with patch("pry.engine.settings.settings.flaresolverr_url", "http://flaresolverr:8191/v1"):
         result = await scraper._tier_flaresolverr("http://example.com", {})
         assert result is None
         result = await scraper._tier_flaresolverr("http://example.com", {})
@@ -404,7 +404,7 @@ async def test_tier_flaresolverr_not_200(scraper: UltimateScraper):
 
 @pytest.mark.asyncio
 async def test_tier_undetected_missing_dep(scraper: UltimateScraper):
-    with patch("ultimate_scraper._has_undetected", False):
+    with patch("pry.engine.ultimate_scraper._has_undetected", False):
         result = await scraper._tier_undetected("http://example.com", {})
         assert result is None
 
@@ -417,7 +417,7 @@ async def test_tier_undetected_success(scraper: UltimateScraper):
     mock_uc.Chrome.return_value = mock_driver
 
     with (
-        patch("ultimate_scraper._has_undetected", True),
+        patch("pry.engine.ultimate_scraper._has_undetected", True),
         patch.dict(sys.modules, {"undetected_chromedriver": mock_uc}),
         patch("time.sleep"),
     ):
@@ -431,7 +431,7 @@ async def test_tier_undetected_error(scraper: UltimateScraper):
     mock_uc.Chrome.side_effect = RuntimeError("driver fail")
 
     with (
-        patch("ultimate_scraper._has_undetected", True),
+        patch("pry.engine.ultimate_scraper._has_undetected", True),
         patch.dict(sys.modules, {"undetected_chromedriver": mock_uc}),
     ):
         result = await scraper._tier_undetected("http://example.com", {})
@@ -445,7 +445,7 @@ async def test_tier_undetected_error(scraper: UltimateScraper):
 
 @pytest.mark.asyncio
 async def test_tier_playwright_missing_dep(scraper: UltimateScraper):
-    with patch("ultimate_scraper._has_playwright", False):
+    with patch("pry.engine.ultimate_scraper._has_playwright", False):
         result = await scraper._tier_playwright("http://example.com", {})
         assert result is None
 
@@ -453,8 +453,8 @@ async def test_tier_playwright_missing_dep(scraper: UltimateScraper):
 @pytest.mark.asyncio
 async def test_tier_playwright_oserror(scraper: UltimateScraper):
     with (
-        patch("ultimate_scraper._has_playwright", True),
-        patch("ultimate_scraper.async_playwright", side_effect=OSError("no playwright")),
+        patch("pry.engine.ultimate_scraper._has_playwright", True),
+        patch("pry.engine.ultimate_scraper.async_playwright", side_effect=OSError("no playwright")),
     ):
         result = await scraper._tier_playwright("http://example.com", {})
         assert result is None
@@ -641,7 +641,7 @@ async def test_tier_google_cache_error(scraper: UltimateScraper):
 
 @pytest.mark.asyncio
 async def test_tier_tor_missing_dep(scraper: UltimateScraper):
-    with patch("ultimate_scraper._has_tor", False):
+    with patch("pry.engine.ultimate_scraper._has_tor", False):
         result = await scraper._tier_tor("http://example.com", {})
         assert result is None
 

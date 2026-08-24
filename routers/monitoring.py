@@ -14,7 +14,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from errors import NotFoundError
+from pry.core.errors import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ async def create_monitor_endpoint(
         webhook: URL to notify on meaningful changes
         use_llm: Use LLM for change judging (slower but smarter)
     """
-    from monitor import create_monitor
+    from pry.actors.monitor import create_monitor
 
     monitor = await create_monitor(name, url, schedule_cron, goal, webhook, use_llm)
     return {"success": True, "data": monitor}
@@ -51,7 +51,7 @@ async def run_monitor_endpoint(
     monitor_id: str = Body(...),
 ) -> dict[str, Any]:
     """Execute a monitor check immediately (outside of schedule)."""
-    from monitor import run_monitor
+    from pry.actors.monitor import run_monitor
 
     result = await run_monitor(monitor_id)
     if "error" in result:
@@ -62,7 +62,7 @@ async def run_monitor_endpoint(
 @router.get("/v1/monitors", tags=["Monitoring"], summary="List all monitors")
 async def list_monitors_endpoint() -> dict[str, Any]:
     """List all registered monitors."""
-    from monitor import list_monitors
+    from pry.actors.monitor import list_monitors
 
     monitors = await list_monitors()
     return {"success": True, "data": {"monitors": monitors, "total": len(monitors)}}
@@ -71,7 +71,7 @@ async def list_monitors_endpoint() -> dict[str, Any]:
 @router.delete("/v1/monitor/{monitor_id}", tags=["Monitoring"], summary="Delete a monitor")
 async def delete_monitor_endpoint(monitor_id: str) -> dict[str, Any]:
     """Delete a monitor and its snapshots."""
-    from monitor import delete_monitor
+    from pry.actors.monitor import delete_monitor
 
     success = await delete_monitor(monitor_id)
     if not success:
@@ -84,7 +84,7 @@ async def run_due_monitors() -> dict[str, Any]:
     """Check all monitors and run any that are due based on their cron schedule."""
     import croniter
 
-    from monitor import list_monitors, run_monitor
+    from pry.actors.monitor import list_monitors, run_monitor
 
     monitors = await list_monitors()
     now = datetime.now(UTC)

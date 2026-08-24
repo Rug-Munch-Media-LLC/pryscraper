@@ -144,122 +144,22 @@ scrape = [
 ]
 
 [project.scripts]
-pry = "cli:main"
+pry = "pry.core.cli:main"
 # MCP stdio entry points — runnable via `uvx pryscraper-mcp`, `pipx install pryscraper`,
 # or directly as `pry-mcp` / `pryscraper-mcp`. Backed by the click command that boots
 # the MCP server over stdio (same path as `pry mcp serve` / `python -m mcp_production`).
 # MCP registry identity (server.json): io.rugmunch/pry
-pry-mcp = "cli:mcp_serve"
+pry-mcp = "pry.core.cli:mcp_serve"
 # Alias matching the publishable PyPI name (`uvx pryscraper-mcp` resolves a binary of
 # the same name as the package).
-pryscraper-mcp = "cli:mcp_serve"
+pryscraper-mcp = "pry.core.cli:mcp_serve"
 
-# The project uses a flat layout: top-level modules (api, cli, scraper, …) plus
-# sub-packages (pry_mcp, x402, routers, …). Both must ship in the wheel or the
-# console scripts (`pry`, `pry-mcp`, `pryscraper-mcp`) fail with
-# ModuleNotFoundError after install. py-modules lists every top-level module
-# explicitly (setuptools has no glob for py-modules); packages.find includes
-# every runtime package (tests/ is excluded by the `include` list).
-[tool.setuptools]
-py-modules = [
-    "actor_marketplace",
-    "adaptive",
-    "advanced",
-    "agency",
-    "ai_plugin",
-    "alerter",
-    "api",
-    "apify_actor",
-    "apify_schema",
-    "auth_connector",
-    "automator",
-    "behavioral_biometrics",
-    "block_detection",
-    "cache",
-    "camoufox_integration",
-    "capabilities",
-    "captcha_solver",
-    "cli",
-    "client",
-    "commerce_sync",
-    "compliance",
-    "config_validation",
-    "cookie_warmer",
-    "costing",
-    "crm_sync",
-    "databus_bridge",
-    "db",
-    "dedup",
-    "deps",
-    "destinations",
-    "email_scraper",
-    "enrichment",
-    "errors",
-    "extraction",
-    "extractor",
-    "fallback",
-    "fallback_telemetry",
-    "freshness",
-    "gdpr",
-    "graphql_discovery",
-    "intelligence",
-    "jobqueue",
-    "jwt_auth",
-    "lazy_load",
-    "llm_features",
-    "logging_config",
-    "markdown_gen",
-    "mcp_production",
-    "mcp_sse",
-    "middleware",
-    "monitor",
-    "network",
-    "observability",
-    "ocr_extractor",
-    "parser",
-    "paths",
-    "pdf_extractor",
-    "pipeline",
-    "pipelines",
-    "proxy_manager",
-    "proxy_referrals",
-    "pry_sdk",
-    "pryextras",
-    "pryfile",
-    "quality",
-    "ratelimit",
-    "reconciliation",
-    "referrals",
-    "reports",
-    "resilience",
-    "retry",
-    "review",
-    "schema_extraction",
-    "scraper",
-    "scraping_methods",
-    "secrets_backend",
-    "seo_monitor",
-    "sessions",
-    "settings",
-    "shadow_dom",
-    "shopify_oauth",
-    "signup_automation",
-    "stealth_engine",
-    "structure_monitor",
-    "template_engine",
-    "tls_fingerprint",
-    "tor_fallback",
-    "training_data",
-    "ultimate_scraper",
-    "url_guard",
-    "webhook_delivery",
-    "webshare_proxy",
-    "websocket_scraper",
-    "x402",
-    "x402_middleware",
-]
+# src-layout: all runtime modules live under src/pry/<domain>/. packages.find
+# ships the whole pry package tree; legacy sub-packages (x402, routers) remain
+# until folded in.
 
 [tool.setuptools.packages.find]
+where = ["src"]
 include = [
     "pry*",
     "x402*",
@@ -321,14 +221,17 @@ extend-ignore = ["N815", "A002", "RUF006"]
 # T201 (print) is banned in library code — use structlog/logging.
 # Legitimate stdout output lives only in the CLI and standalone
 # validation scripts; anything else must log, not print.
-"cli.py" = ["T201"]
+"src/pry/core/cli.py" = ["T201"]
+"src/pry/misc/cli.py" = ["T201"]
 "templates/**" = ["T201"]
 "scripts/**" = ["T201"]
 
 # ultimate_scraper.py: three intentional blind-except cleanup handlers
 # (telemetry record, undetected driver quit, playwright browser close)
 # log at debug with exc_info and must never raise into the scrape loop.
-"ultimate_scraper.py" = ["BLE001"]
+"src/pry/engine/ultimate_scraper.py" = ["BLE001"]
+"src/pry/engine/scraping_methods.py" = ["BLE001"]
+"src/pry/api/capabilities.py" = ["BLE001"]
 
 # BLE001 (blind except Exception) is enforced. Pre-existing sites are
 # marked with `# noqa: BLE001`; new code must use specific exception

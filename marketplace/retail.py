@@ -737,7 +737,7 @@ def _parse_search_page(store_key: str, html_text: str, limit: int) -> list[dict[
 def _next_proxy() -> str | None:
     """Next Webshare residential proxy (``WEBSHARE_PROXY_LIST``), or None."""
     try:
-        from webshare_proxy import next_webshare_proxy
+        from pry.engine.webshare_proxy import next_webshare_proxy
 
         return next_webshare_proxy()
     except Exception:  # noqa: BLE001 - proxy pool is best-effort

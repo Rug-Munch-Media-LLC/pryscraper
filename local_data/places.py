@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 
 import httpx
 
-from client import get_client
+from pry.api.client import get_client
 
 logger = logging.getLogger(__name__)
 

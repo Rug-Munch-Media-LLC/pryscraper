@@ -34,7 +34,7 @@ from db.models import (
     StructureSnapshot,
 )
 from db.session import session_scope
-from paths import PRY_DATA_DIR
+from pry.core.paths import PRY_DATA_DIR
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

@@ -30,8 +30,8 @@ import respx
 import sports_data.european as european
 import sports_data.offshore as offshore
 import sports_data.sources as sources
-import webshare_proxy
-from retry import RetryConfig
+from pry.engine import webshare_proxy
+from pry.engine.retry import RetryConfig
 
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)

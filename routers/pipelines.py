@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from errors import InvalidRequestError, NotFoundError
+from pry.core.errors import InvalidRequestError, NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ async def list_step_types() -> dict[str, Any]:
     Each step type includes: name, icon, description, required inputs with types,
     and expected outputs. A UI renders these as drag-and-drop blocks.
     """
-    from pipelines import STEP_TYPES
+    from pry.commerce.pipelines import STEP_TYPES
 
     return {"success": True, "data": {"step_types": STEP_TYPES, "total": len(STEP_TYPES)}}
 
@@ -37,7 +37,7 @@ async def list_step_types() -> dict[str, Any]:
 @router.post("/v1/pipelines/validate", tags=["Pipelines"], summary="Validate a pipeline definition")
 async def validate_pipeline_endpoint(pipeline: dict[str, Any] = Body(...)) -> dict[str, Any]:
     """Validate a pipeline definition for correctness."""
-    from pipelines import validate_pipeline
+    from pry.commerce.pipelines import validate_pipeline
 
     errors = validate_pipeline(pipeline)
     return {"success": len(errors) == 0, "data": {"valid": len(errors) == 0, "errors": errors}}
@@ -64,7 +64,7 @@ async def run_pipeline_endpoint(
         ]
     }
     """
-    from pipelines import run_pipeline, validate_pipeline
+    from pry.commerce.pipelines import run_pipeline, validate_pipeline
 
     errors = validate_pipeline(pipeline)
     if errors:
@@ -76,7 +76,7 @@ async def run_pipeline_endpoint(
 @router.post("/v1/pipelines/save", tags=["Pipelines"], summary="Save a pipeline definition")
 async def save_pipeline_endpoint(pipeline: dict[str, Any] = Body(...)) -> dict[str, Any]:
     """Save a pipeline definition for later use."""
-    from pipelines import save_pipeline
+    from pry.commerce.pipelines import save_pipeline
 
     result = save_pipeline(pipeline)
     return {"success": result["success"], "data": result}
@@ -85,7 +85,7 @@ async def save_pipeline_endpoint(pipeline: dict[str, Any] = Body(...)) -> dict[s
 @router.get("/v1/pipelines", tags=["Pipelines"], summary="List saved pipelines")
 async def list_pipelines_endpoint() -> dict[str, Any]:
     """List all saved pipeline definitions."""
-    from pipelines import list_pipelines
+    from pry.commerce.pipelines import list_pipelines
 
     pipelines = list_pipelines()
     return {"success": True, "data": {"pipelines": pipelines, "total": len(pipelines)}}
@@ -94,7 +94,7 @@ async def list_pipelines_endpoint() -> dict[str, Any]:
 @router.get("/v1/pipelines/{pipeline_id}", tags=["Pipelines"], summary="Get a saved pipeline")
 async def get_pipeline_endpoint(pipeline_id: str) -> dict[str, Any]:
     """Get a saved pipeline definition by ID."""
-    from pipelines import get_pipeline
+    from pry.commerce.pipelines import get_pipeline
 
     result = get_pipeline(pipeline_id)
     if not result:
@@ -105,7 +105,7 @@ async def get_pipeline_endpoint(pipeline_id: str) -> dict[str, Any]:
 @router.delete("/v1/pipelines/{pipeline_id}", tags=["Pipelines"], summary="Delete a saved pipeline")
 async def delete_pipeline_endpoint(pipeline_id: str) -> dict[str, Any]:
     """Delete a saved pipeline definition."""
-    from pipelines import delete_pipeline
+    from pry.commerce.pipelines import delete_pipeline
 
     success = delete_pipeline(pipeline_id)
     if not success:

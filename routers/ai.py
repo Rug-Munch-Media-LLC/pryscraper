@@ -25,7 +25,7 @@ async def get_gpt_manifest() -> JSONResponse:
     Add this to your GPT configuration in ChatGPT to give it
     web scraping capabilities through Pry.
     """
-    from ai_plugin import get_gpt_action_manifest
+    from pry.api.ai_plugin import get_gpt_action_manifest
 
     return JSONResponse(content=get_gpt_action_manifest())
 
@@ -37,6 +37,6 @@ async def get_mcp_config() -> JSONResponse:
     Add this to your AI tool's MCP configuration file to let
     Claude and Cursor scrape the web through Pry.
     """
-    from ai_plugin import get_mcp_server_config
+    from pry.api.ai_plugin import get_mcp_server_config
 
     return JSONResponse(content={"success": True, "data": get_mcp_server_config()})

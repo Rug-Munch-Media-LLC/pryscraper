@@ -108,11 +108,11 @@ def _mock_all_deps() -> Iterator[None]:
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     """TestClient with x402 middleware bypassed (it would require payment)."""
-    from api import app
+    from pry.api.api import app
 
     with (
         patch(
-            "x402_middleware.X402Middleware.__call__",
+            "pry.misc.x402_middleware.X402Middleware.__call__",
             lambda self, scope, receive, send: self.app(scope, receive, send),
         ),
         TestClient(app) as c,

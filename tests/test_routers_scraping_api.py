@@ -20,7 +20,7 @@ def test_ultimate_scrape_success():
     mock_s.scrape = AsyncMock(
         return_value={"status": "ok", "method": "direct", "content": "<html>OK</html>"}
     )
-    with patch("ultimate_scraper.UltimateScraper", return_value=mock_s):
+    with patch("pry.engine.ultimate_scraper.UltimateScraper", return_value=mock_s):
         r = client.post("/v1/ultimate-scrape", json={"url": "http://example.com"})
         assert r.status_code == 200, f"Got {r.status_code}: {r.text[:200]}"
         assert r.json().get("success") is True
@@ -29,7 +29,7 @@ def test_ultimate_scrape_success():
 def test_ultimate_scrape_failure():
     mock_s = MagicMock()
     mock_s.scrape = AsyncMock(return_value={"status": "error", "error": "all_tiers_failed"})
-    with patch("ultimate_scraper.UltimateScraper", return_value=mock_s):
+    with patch("pry.engine.ultimate_scraper.UltimateScraper", return_value=mock_s):
         r = client.post("/v1/ultimate-scrape", json={"url": "http://example.com"})
         assert r.status_code in (400, 422, 500), f"Got {r.status_code}: {r.text[:200]}"
 

@@ -32,8 +32,8 @@ import healthcare_data.clinical_trials as clinical_trials
 import healthcare_data.drug_pricing as drug_pricing
 import healthcare_data.insurance as insurance
 import routers.healthcare_data as health_router_mod
-from errors import PryError
-from retry import RetryConfig
+from pry.core.errors import PryError
+from pry.engine.retry import RetryConfig
 from routers.healthcare_data import router as health_router
 
 _TRIALS = "https://clinicaltrials.gov/api/v2/studies"

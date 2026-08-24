@@ -57,8 +57,8 @@ from urllib.parse import quote, urlparse
 import httpx
 from lxml import html as lxml_html
 
-from client import get_client
 from local_data.places import _extract_blobs, _iter_values, _place_url
+from pry.api.client import get_client
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

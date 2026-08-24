@@ -24,7 +24,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from ultimate_scraper import UltimateScraper
+from pry.engine.ultimate_scraper import UltimateScraper
 
 LONG = "<html><body>" + ("lorem ipsum dolor sit amet " * 40) + "</body></html>"
 
@@ -38,12 +38,12 @@ def _patch_registry() -> list[Any]:
     """Deterministic registry collaborators (no adaptive reordering)."""
     return [
         patch(
-            "ultimate_scraper.registry.reorder_for_domain",
+            "pry.engine.ultimate_scraper.registry.reorder_for_domain",
             side_effect=lambda _d, chain: chain,
         ),
-        patch("ultimate_scraper.registry.is_service_allowed", return_value=True),
-        patch("ultimate_scraper.registry.record_domain_tier_result"),
-        patch("ultimate_scraper.registry.record_service_result"),
+        patch("pry.engine.ultimate_scraper.registry.is_service_allowed", return_value=True),
+        patch("pry.engine.ultimate_scraper.registry.record_domain_tier_result"),
+        patch("pry.engine.ultimate_scraper.registry.record_service_result"),
     ]
 
 
@@ -162,7 +162,7 @@ class TestPryScraperDelegation:
 
     @pytest.fixture
     def ps(self):
-        from scraper import PryScraper
+        from pry.engine.scraper import PryScraper
 
         s = PryScraper()
         s._ultimate = AsyncMock()
@@ -221,7 +221,7 @@ class TestScrapingMethodsGolden:
     </urlset>"""
 
     def test_rss_entries_exact_shape(self) -> None:
-        from scraping_methods import _rss_entries
+        from pry.engine.scraping_methods import _rss_entries
 
         entries = _rss_entries(ET.fromstring(self.RSS))  # noqa: S314 - trusted fixture
         assert entries == [
@@ -235,7 +235,7 @@ class TestScrapingMethodsGolden:
         ]
 
     def test_atom_entries_content_and_updated_fallbacks(self) -> None:
-        from scraping_methods import _atom_entries
+        from pry.engine.scraping_methods import _atom_entries
 
         entries = _atom_entries(ET.fromstring(self.ATOM))  # noqa: S314 - trusted fixture
         assert entries[0] == {
@@ -249,7 +249,7 @@ class TestScrapingMethodsGolden:
         assert entries[1]["published"] == "2026-01-02T00:00:00Z"
 
     def test_parse_feed_routes_rss_and_atom(self) -> None:
-        import scraping_methods as sm
+        import pry.engine.scraping_methods as sm
 
         with patch.object(sm, "_sync_get") as get:
             get.return_value.text = self.RSS
@@ -260,7 +260,7 @@ class TestScrapingMethodsGolden:
             assert sm.parse_feed("http://x/nope") == []
 
     def test_parse_sitemap_dedupes_and_returns_locs(self) -> None:
-        import scraping_methods as sm
+        import pry.engine.scraping_methods as sm
 
         with patch.object(sm, "_sync_get") as get:
             get.return_value.text = self.SITEMAP
@@ -268,7 +268,7 @@ class TestScrapingMethodsGolden:
         assert sorted(urls) == ["http://s.com/a", "http://s.com/b"]
 
     def test_discover_feed_resolves_relative_href(self) -> None:
-        from scraping_methods import discover_feed
+        from pry.engine.scraping_methods import discover_feed
 
         html = '<link rel="alternate" type="application/rss+xml" href="/feed.xml">'
         assert discover_feed("http://blog.example/post/1", html) == ("http://blog.example/feed.xml")

@@ -61,7 +61,7 @@ def _install(monkeypatch: pytest.MonkeyPatch, payload: dict[str, Any]) -> None:
         async def post(self, *_a: Any, **_k: Any) -> _Resp:
             return _Resp()
 
-    import client as client_module
+    import pry.api.client as client_module
 
     async def fake_get_client() -> _Client:
         return _Client()

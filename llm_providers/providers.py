@@ -38,7 +38,7 @@ class OpenAIProvider(LLMProvider):
     async def complete(
         self, prompt, system="", max_tokens=1024, temperature=0.7, model="gpt-4o-mini"
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         messages = []
@@ -94,7 +94,7 @@ class OpenAIProvider(LLMProvider):
             yield chunk
 
     async def embed(self, text, model="text-embedding-3-small"):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         resp = await client.post(
@@ -119,7 +119,7 @@ class AnthropicProvider(LLMProvider):
     async def complete(
         self, prompt, system="", max_tokens=1024, temperature=0.7, model="claude-3-haiku-20240307"
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         body = {
@@ -163,7 +163,7 @@ class GoogleProvider(LLMProvider):
     async def complete(
         self, prompt, system="", max_tokens=1024, temperature=0.7, model="gemini-1.5-flash"
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.api_key}"
@@ -189,7 +189,7 @@ class GoogleProvider(LLMProvider):
         )
 
     async def embed(self, text, model="text-embedding-004"):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:embedContent?key={self.api_key}"
@@ -212,7 +212,7 @@ class CohereProvider(LLMProvider):
     async def complete(
         self, prompt, system="", max_tokens=1024, temperature=0.7, model="command-r"
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         body = {
@@ -234,7 +234,7 @@ class CohereProvider(LLMProvider):
         return LLMResponse(text=data["text"], model=model, provider=self.name, raw=data)
 
     async def embed(self, text, model="embed-english-v3.0"):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         resp = await client.post(
@@ -259,7 +259,7 @@ class MistralProvider(LLMProvider):
     async def complete(
         self, prompt, system="", max_tokens=1024, temperature=0.7, model="open-mistral-nemo"
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         messages = []
@@ -289,7 +289,7 @@ class MistralProvider(LLMProvider):
         )
 
     async def embed(self, text, model="mistral-embed"):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         resp = await client.post(
@@ -313,7 +313,7 @@ class OllamaProvider(LLMProvider):
         self.default_model = model
 
     async def complete(self, prompt, system="", max_tokens=1024, temperature=0.7, model=""):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         model = model or self.default_model
@@ -340,7 +340,7 @@ class OllamaProvider(LLMProvider):
         )
 
     async def embed(self, text, model=""):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         model = model or "nomic-embed-text"
@@ -370,7 +370,7 @@ class OpenRouterProvider(LLMProvider):
         temperature=0.7,
         model="meta-llama/llama-3.2-3b-instruct:free",
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         messages = []
@@ -467,7 +467,7 @@ class KiloCodeProvider(LLMProvider):
         temperature=0.7,
         model="kilo-auto/free",
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         messages = []
@@ -544,7 +544,7 @@ class DeepSeekProvider(LLMProvider):
     async def complete(
         self, prompt, system="", max_tokens=1024, temperature=0.7, model="deepseek-chat"
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         messages = []
@@ -609,7 +609,7 @@ class GroqProvider(LLMProvider):
     async def complete(
         self, prompt, system="", max_tokens=1024, temperature=0.7, model="llama-3.3-70b-versatile"
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         messages = []
@@ -680,7 +680,7 @@ class KimiProvider(LLMProvider):
     async def complete(
         self, prompt, system="", max_tokens=1024, temperature=0.7, model="kimi-latest"
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         messages = []
@@ -733,7 +733,7 @@ class NvidiaProvider(LLMProvider):
         temperature=0.7,
         model="meta/llama-3.1-8b-instruct",
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         messages = []
@@ -804,7 +804,7 @@ class NousProvider(LLMProvider):
     async def complete(
         self, prompt, system="", max_tokens=1024, temperature=0.7, model="nous-hermes-3"
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         messages = []
@@ -850,7 +850,7 @@ class ZaiProvider(LLMProvider):
         self.api_key = api_key or os.getenv("ZAI_API_KEY", "")
 
     async def complete(self, prompt, system="", max_tokens=1024, temperature=0.7, model="zai-chat"):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         messages = []
@@ -898,7 +898,7 @@ class CerebrasProvider(LLMProvider):
     async def complete(
         self, prompt, system="", max_tokens=1024, temperature=0.7, model="llama3.1-8b"
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         messages = []
@@ -963,7 +963,7 @@ class MinimaxProvider(LLMProvider):
     async def complete(
         self, prompt, system="", max_tokens=1024, temperature=0.7, model="minimax-chat"
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         messages = []
@@ -1014,7 +1014,7 @@ class SiliconFlowProvider(LLMProvider):
     async def complete(
         self, prompt, system="", max_tokens=1024, temperature=0.7, model="Qwen/Qwen2.5-7B-Instruct"
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         messages = []
@@ -1068,7 +1068,7 @@ class SiliconFlowProvider(LLMProvider):
             yield chunk
 
     async def embed(self, text, model="BAAI/bge-large-en-v1.5"):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         resp = await client.post(
@@ -1098,7 +1098,7 @@ class OpenCodeZenProvider(LLMProvider):
     async def complete(
         self, prompt, system="", max_tokens=1024, temperature=0.7, model="deepseek-v4-flash-free"
     ):
-        from client import get_client
+        from pry.api.client import get_client
 
         client = await get_client()
         messages = []
@@ -1157,7 +1157,7 @@ class OpenCodeZenProvider(LLMProvider):
 
 def register_default_providers(registry: LLMRegistry) -> None:
     """Register all providers whose API keys are set in environment."""
-    from settings import settings
+    from pry.core.settings import settings
 
     # BYOK (bring your own key): one account per provider. Consumers set
     # PRY_<PROVIDER>_API_KEY (or the provider's standard env var, which each

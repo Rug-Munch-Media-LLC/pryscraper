@@ -65,7 +65,7 @@ from urllib.parse import quote
 
 import httpx
 
-from retry import RetryConfig, async_retry
+from pry.engine.retry import RetryConfig, async_retry
 
 # Guarded import: sports_data.odds is owned by a parallel agent and may not
 # exist yet when this module is first imported.

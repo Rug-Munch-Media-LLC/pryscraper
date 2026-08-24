@@ -32,7 +32,7 @@ async def compliance_check(url: str = Body(...)) -> dict[str, Any]:
 
     Returns a green/yellow/red risk score with recommendations.
     """
-    from compliance import run_compliance_check
+    from pry.compliance.compliance import run_compliance_check
 
     result = await run_compliance_check(url)
     return {"success": True, "data": result}

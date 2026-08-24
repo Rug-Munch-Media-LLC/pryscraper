@@ -20,12 +20,12 @@ import httpx
 import pytest
 import respx
 
-import client as _client_module
 import local_data as _local_data_pkg
 import local_data.places as _places
 import local_data.reviews as _reviews
+import pry.api.client as _client_module
 import routers.local_data as _router_module
-from errors import PryError
+from pry.core.errors import PryError
 
 # ── URLs under test ─────────────────────────────────────────────────────
 GOOGLE_SEARCH_URL_RE = r"https://www\.google\.com/maps/search/.*"

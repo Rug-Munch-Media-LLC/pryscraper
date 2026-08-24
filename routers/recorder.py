@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from pryextras import recorder
+from pry.misc.pryextras import recorder
 
 logger = logging.getLogger(__name__)
 

@@ -29,7 +29,7 @@ from typing import Any, NoReturn
 
 from fastapi import APIRouter, Query
 
-from errors import ExternalServiceError
+from pry.core.errors import ExternalServiceError
 
 logger = logging.getLogger(__name__)
 

@@ -242,7 +242,7 @@ def _extract_paa(root: Any) -> list[str]:
 
 async def _fetch_serp(query: str, num: int) -> str:
     """Fetch the SERP HTML with capped exponential backoff (never raises)."""
-    from client import get_client
+    from pry.api.client import get_client
 
     client = await get_client()
     params = {

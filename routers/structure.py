@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from errors import InvalidRequestError, NotFoundError
+from pry.core.errors import InvalidRequestError, NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ async def structure_check(
 
     Selectors format: [{"name": "title", "selector": "h1", "type": "css"}]
     """
-    from structure_monitor import check_selectors
+    from pry.actors.structure_monitor import check_selectors
 
     result = await check_selectors(url, selectors)
     return {"success": "error" not in result, "data": result}
@@ -57,7 +57,7 @@ async def structure_monitor(
 
     Use this as a pre-scrape health check for your templates.
     """
-    from structure_monitor import monitor_page_structure
+    from pry.actors.structure_monitor import monitor_page_structure
 
     result = await monitor_page_structure(url, selectors, template_id)
     return {"success": "error" not in result, "data": result}
@@ -76,8 +76,8 @@ async def structure_check_template(
     Extracts the template's selectors and checks each one.
     If selectors fail, the template needs updating.
     """
-    from structure_monitor import monitor_page_structure
-    from template_engine import get_template
+    from pry.actors.structure_monitor import monitor_page_structure
+    from pry.commerce.template_engine import get_template
 
     template = get_template(template_id)
     if not template:

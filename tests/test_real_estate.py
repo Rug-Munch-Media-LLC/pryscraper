@@ -30,7 +30,7 @@ from fastapi.testclient import TestClient
 
 import real_estate
 import routers.real_estate as real_estate_router_mod
-from errors import PryError
+from pry.core.errors import PryError
 from real_estate import listings, property_records
 from routers.real_estate import router as real_estate_router
 
@@ -43,7 +43,7 @@ def _hermetic_real_estate(monkeypatch: pytest.MonkeyPatch) -> Any:
     retryable failures in tests are the explicitly-registered 4xx/5xx
     responses; a zero-retry config keeps those paths instant.
     """
-    from retry import RetryConfig
+    from pry.engine.retry import RetryConfig
 
     zero = RetryConfig(
         max_retries=0,

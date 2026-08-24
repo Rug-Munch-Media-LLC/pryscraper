@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from settings import _NESTED_KEY_MAP, PrySettings
+from pry.core.settings import _NESTED_KEY_MAP, PrySettings
 
 
 @pytest.fixture

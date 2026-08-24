@@ -17,7 +17,7 @@ import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from pryextras import streams
+from pry.misc.pryextras import streams
 
 logger = logging.getLogger(__name__)
 

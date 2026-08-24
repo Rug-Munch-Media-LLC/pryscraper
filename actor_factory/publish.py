@@ -39,23 +39,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Files at repo root that the generated Dockerfile COPYs.
+# Paths (relative to repo root) that the generated Dockerfile COPYs.
+# The engine lives in src/pry/engine since the src-layout restructure.
 # Keep in sync with generator._DOCKERFILE_TEMPLATE.
-ENGINE_FILES: tuple[str, ...] = (
-    "requirements.lock",
-    "ultimate_scraper.py",
-    "scraper.py",
-    "scraping_methods.py",
-    "proxy_manager.py",
-    "resilience.py",
-    "block_detection.py",
-    "url_guard.py",
-    "errors.py",
-    "observability.py",
-    "settings.py",
-    "logging_config.py",
+ENGINE_FILES: tuple[str, ...] = ("requirements.lock",)
+ENGINE_DIRS: tuple[str, ...] = (
+    "actor_factory",
+    "src/pry",
 )
-ENGINE_DIRS: tuple[str, ...] = ("actor_factory",)
 
 PUSH_TIMEOUT_SECONDS = 300
 PUSH_RETRIES = 3

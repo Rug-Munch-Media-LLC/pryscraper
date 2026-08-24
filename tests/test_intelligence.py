@@ -11,7 +11,7 @@ from collections.abc import Iterator
 import pytest
 
 from db import Base, get_engine
-from intelligence import (
+from pry.api.intelligence import (
     compute_field_statistics,
     detect_anomalies_numeric,
     generate_alert,

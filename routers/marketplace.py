@@ -28,7 +28,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Query
 
-from errors import ExternalServiceError
+from pry.core.errors import ExternalServiceError
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ async def create_actor(
     tags: list[str] | None = Body(None),
 ) -> dict[str, Any]:
     """Create a new actor in the marketplace."""
-    from actor_marketplace import ActorMarketplace, ActorVisibility
+    from pry.commerce.actor_marketplace import ActorMarketplace, ActorVisibility
 
     m = ActorMarketplace()
     actor = m.create(
@@ -74,7 +74,7 @@ async def create_actor(
 )
 async def list_actors(visibility: str = "", tag: str = "") -> dict[str, Any]:
     """List actors. Filter by visibility (public/private) and tag."""
-    from actor_marketplace import ActorMarketplace
+    from pry.commerce.actor_marketplace import ActorMarketplace
 
     m = ActorMarketplace()
     return {"success": True, "data": m.list(visibility, tag)}
@@ -87,7 +87,7 @@ async def list_actors(visibility: str = "", tag: str = "") -> dict[str, Any]:
 )
 async def run_actor(actor_id: str, inputs: dict[str, Any] | None = Body(None)) -> dict[str, Any]:
     """Run an actor with the provided inputs."""
-    from actor_marketplace import ActorMarketplace
+    from pry.commerce.actor_marketplace import ActorMarketplace
 
     m = ActorMarketplace()
     return await m.run(actor_id, inputs or {})

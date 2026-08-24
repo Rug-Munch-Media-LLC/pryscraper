@@ -5,7 +5,11 @@
 # Licensed under MIT. See LICENSE.
 """Tests for lazy load detection."""
 
-from lazy_load import detect_lazy_loading, generate_load_more_script, generate_scroll_script
+from pry.engine.lazy_load import (
+    detect_lazy_loading,
+    generate_load_more_script,
+    generate_scroll_script,
+)
 
 
 def test_detect_lazy_images() -> None:

@@ -15,8 +15,8 @@ import pydantic
 from fastapi import APIRouter, Body
 from pydantic import BaseModel
 
-from deps import automator
-from errors import ExternalServiceError, PryError
+from pry.core.deps import automator
+from pry.core.errors import ExternalServiceError, PryError
 
 logger = logging.getLogger(__name__)
 

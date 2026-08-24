@@ -29,7 +29,7 @@ from fastapi.testclient import TestClient
 import routers.travel as travel_router_mod
 import travel.flights as flights
 import travel.hotels as hotels
-from errors import PryError
+from pry.core.errors import PryError
 from routers.travel import router as travel_router
 from travel.flights import _build_tfs, _extract_af_callbacks, _find_flight_options
 

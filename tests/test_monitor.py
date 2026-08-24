@@ -9,7 +9,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from monitor import ChangeJudger, create_monitor, delete_monitor, list_monitors, run_monitor
+from pry.actors.monitor import (
+    ChangeJudger,
+    create_monitor,
+    delete_monitor,
+    list_monitors,
+    run_monitor,
+)
 
 
 @pytest.fixture
@@ -87,7 +93,7 @@ async def test_run_monitor_with_change(temp_db):
     mock_scraper = AsyncMock()
     mock_scraper.scrape.return_value = {"content": "new content here"}
 
-    with patch("scraper.PryScraper", return_value=mock_scraper):
+    with patch("pry.engine.scraper.PryScraper", return_value=mock_scraper):
         result = await run_monitor(m["id"])
 
     assert result["monitor_id"] == m["id"]
@@ -101,7 +107,7 @@ async def test_run_monitor_no_change(temp_db):
     mock_scraper = AsyncMock()
     mock_scraper.scrape.return_value = {"content": ""}
 
-    with patch("scraper.PryScraper", return_value=mock_scraper):
+    with patch("pry.engine.scraper.PryScraper", return_value=mock_scraper):
         result = await run_monitor(m["id"])
 
     assert result["changed"] is False
@@ -120,7 +126,7 @@ async def test_run_monitor_scrape_error(temp_db):
     mock_scraper = AsyncMock()
     mock_scraper.scrape.side_effect = ValueError("connection refused")
 
-    with patch("scraper.PryScraper", return_value=mock_scraper):
+    with patch("pry.engine.scraper.PryScraper", return_value=mock_scraper):
         result = await run_monitor(m["id"])
 
     assert "error" in result

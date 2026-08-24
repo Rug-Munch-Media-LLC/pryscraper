@@ -26,7 +26,7 @@ import pytest
 import respx
 
 import sports_data.odds as odds
-from retry import RetryConfig
+from pry.engine.retry import RetryConfig
 
 _ODDS_NBA = "https://api.the-odds-api.com/v4/sports/basketball_nba"
 _ODDS_NFL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl"

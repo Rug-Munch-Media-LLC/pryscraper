@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for pipeline builder."""
 
-from pipelines import (
+from pry.commerce.pipelines import (
     STEP_TYPES,
     list_pipelines,
     run_pipeline,

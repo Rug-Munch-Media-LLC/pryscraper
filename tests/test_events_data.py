@@ -29,7 +29,7 @@ from fastapi.testclient import TestClient
 import events_data
 import events_data.tickets as tickets
 import routers.events_data as events_router_mod
-from errors import PryError
+from pry.core.errors import PryError
 from routers.events_data import router as events_router
 
 if TYPE_CHECKING:

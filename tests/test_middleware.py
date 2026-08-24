@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from starlette.routing import Mount, Route
 
-from middleware import (
+from pry.core.middleware import (
     PryHttpMiddleware,
     _is_trusted_proxy,
     _parse_trusted_proxy,
@@ -122,37 +122,37 @@ def test_is_loopback_unknown():
 
 
 def test_auth_with_key_valid_bearer():
-    with patch("middleware.settings.api_key", "test-key-123"):
+    with patch("pry.core.middleware.settings.api_key", "test-key-123"):
         scope = {"headers": [(b"authorization", b"Bearer test-key-123")], "client": ["10.0.0.1", 0]}
         assert request_authorized(scope) is True
 
 
 def test_auth_with_key_no_auth_header():
-    with patch("middleware.settings.api_key", "test-key-123"):
+    with patch("pry.core.middleware.settings.api_key", "test-key-123"):
         scope = {"headers": [], "client": ["10.0.0.1", 0]}
         assert request_authorized(scope) is False
 
 
 def test_auth_with_key_wrong_bearer():
-    with patch("middleware.settings.api_key", "test-key-123"):
+    with patch("pry.core.middleware.settings.api_key", "test-key-123"):
         scope = {"headers": [(b"authorization", b"Bearer wrong-key")], "client": ["10.0.0.1", 0]}
         assert request_authorized(scope) is False
 
 
 def test_auth_no_key_loopback():
-    with patch("middleware.settings.api_key", ""):
+    with patch("pry.core.middleware.settings.api_key", ""):
         scope = {"client": ["127.0.0.1", 0]}
         assert request_authorized(scope) is True
 
 
 def test_auth_no_key_remote():
-    with patch("middleware.settings.api_key", ""):
+    with patch("pry.core.middleware.settings.api_key", ""):
         scope = {"client": ["10.0.0.1", 0]}
         assert request_authorized(scope) is False
 
 
 def test_auth_no_key_no_client():
-    with patch("middleware.settings.api_key", ""):
+    with patch("pry.core.middleware.settings.api_key", ""):
         scope = {}
         assert request_authorized(scope) is False
 
@@ -188,33 +188,33 @@ def test_parse_trusted_proxy_empty():
 
 def test_is_trusted_proxy_in_network():
     networks = (ipaddress.ip_network("10.0.0.0/8"),)
-    with patch("middleware._TRUSTED_PROXY_NETWORKS", networks):
+    with patch("pry.core.middleware._TRUSTED_PROXY_NETWORKS", networks):
         assert _is_trusted_proxy("10.0.0.5") is True
 
 
 def test_is_trusted_proxy_not_in_network():
     networks = (ipaddress.ip_network("10.0.0.0/8"),)
-    with patch("middleware._TRUSTED_PROXY_NETWORKS", networks):
+    with patch("pry.core.middleware._TRUSTED_PROXY_NETWORKS", networks):
         assert _is_trusted_proxy("192.168.1.1") is False
 
 
 def test_is_trusted_proxy_empty():
-    with patch("middleware._TRUSTED_PROXY_NETWORKS", ()):
+    with patch("pry.core.middleware._TRUSTED_PROXY_NETWORKS", ()):
         assert _is_trusted_proxy("10.0.0.5") is False
 
 
 def test_is_trusted_proxy_empty_ip():
-    with patch("middleware._TRUSTED_PROXY_NETWORKS", ()):
+    with patch("pry.core.middleware._TRUSTED_PROXY_NETWORKS", ()):
         assert _is_trusted_proxy("") is False
 
 
 def test_is_trusted_proxy_unknown():
-    with patch("middleware._TRUSTED_PROXY_NETWORKS", ()):
+    with patch("pry.core.middleware._TRUSTED_PROXY_NETWORKS", ()):
         assert _is_trusted_proxy("unknown") is False
 
 
 def test_is_trusted_proxy_invalid_ip():
-    with patch("middleware._TRUSTED_PROXY_NETWORKS", ()):
+    with patch("pry.core.middleware._TRUSTED_PROXY_NETWORKS", ()):
         assert _is_trusted_proxy("bad-ip") is False
 
 
@@ -225,7 +225,7 @@ def test_is_trusted_proxy_invalid_ip():
 
 def test_resolve_client_ip_peer():
     scope = {"client": ["10.0.0.1", 0]}
-    with patch("middleware._is_trusted_proxy", return_value=False):
+    with patch("pry.core.middleware._is_trusted_proxy", return_value=False):
         assert _resolve_client_ip(scope) == "10.0.0.1"
 
 
@@ -236,7 +236,7 @@ def test_resolve_client_ip_loopback_xff():
 
 def test_resolve_client_ip_trusted_proxy_xff():
     scope = {"client": ["10.0.0.5", 0], "headers": [(b"x-forwarded-for", b"203.0.113.5, 10.0.0.1")]}
-    with patch("middleware._is_trusted_proxy", return_value=True):
+    with patch("pry.core.middleware._is_trusted_proxy", return_value=True):
         assert _resolve_client_ip(scope) == "203.0.113.5"
 
 
@@ -330,7 +330,7 @@ async def test_middleware_unauthorized():
     async def send(msg):
         sent_responses.append(msg)
 
-    with patch("middleware.settings.api_key", ""):
+    with patch("pry.core.middleware.settings.api_key", ""):
         scope = {
             "type": "http",
             "method": "GET",
@@ -350,7 +350,7 @@ async def test_middleware_public_path_skips_auth():
     app = AsyncMock()
     mw = PryHttpMiddleware(app)
 
-    with patch("middleware.settings.api_key", "some-key"):
+    with patch("pry.core.middleware.settings.api_key", "some-key"):
         scope = {
             "type": "http",
             "method": "GET",
@@ -368,7 +368,7 @@ async def test_middleware_unknown_path_passes_through():
     app = AsyncMock()
     mw = PryHttpMiddleware(app)
 
-    with patch("middleware.settings.api_key", ""):
+    with patch("pry.core.middleware.settings.api_key", ""):
         scope = {
             "type": "http",
             "method": "GET",
@@ -387,8 +387,8 @@ async def test_middleware_authenticated_request():
     mw = PryHttpMiddleware(app)
 
     with (
-        patch("middleware.settings.api_key", "test-key"),
-        patch("middleware._path_exists", return_value=True),
+        patch("pry.core.middleware.settings.api_key", "test-key"),
+        patch("pry.core.middleware._path_exists", return_value=True),
     ):
         scope = {
             "type": "http",
@@ -415,7 +415,7 @@ async def test_middleware_401_response_format():
     def fake_receive():
         return {}
 
-    with patch("middleware.settings.api_key", ""):
+    with patch("pry.core.middleware.settings.api_key", ""):
         scope = {
             "type": "http",
             "method": "GET",

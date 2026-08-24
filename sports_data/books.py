@@ -84,7 +84,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from retry import RetryConfig, async_retry
+from pry.engine.retry import RetryConfig, async_retry
 from sports_data.cache import TTLCache
 
 logger = logging.getLogger(__name__)
@@ -119,7 +119,7 @@ _extract_nextjs_props: Any = None
 _extract_nuxt_state: Any = None
 _extract_json_ld: Any = None
 if importlib.util.find_spec("network") is not None:
-    from network import (
+    from pry.engine.network import (
         extract_json_ld as _extract_json_ld,
         extract_nextjs_props as _extract_nextjs_props,
         extract_nuxt_state as _extract_nuxt_state,
@@ -127,7 +127,7 @@ if importlib.util.find_spec("network") is not None:
 
 _UltimateScraper: Any = None
 if importlib.util.find_spec("ultimate_scraper") is not None:
-    from ultimate_scraper import UltimateScraper as _UltimateScraper
+    from pry.engine.ultimate_scraper import UltimateScraper as _UltimateScraper
 
 _ULTIMATE: Any = None  # lazily instantiated UltimateScraper singleton
 
@@ -1707,7 +1707,7 @@ def _headers(url: str) -> dict[str, str]:
 def _geo_proxy() -> str | None:
     """Next Webshare residential proxy (``WEBSHARE_PROXY_LIST``), or None."""
     try:
-        from webshare_proxy import next_webshare_proxy
+        from pry.engine.webshare_proxy import next_webshare_proxy
 
         return next_webshare_proxy()
     except Exception:  # noqa: BLE001 - proxy pool is best-effort

@@ -17,7 +17,7 @@ from typing import Any
 from fastapi import APIRouter, Body
 from fastapi.responses import HTMLResponse
 
-from deps import scraper
+from pry.core.deps import scraper
 
 logger = logging.getLogger(__name__)
 

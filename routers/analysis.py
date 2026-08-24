@@ -18,10 +18,10 @@ from typing import Any
 import httpx
 from fastapi import APIRouter, Body
 
-from client import get_client
-from deps import advanced, scraper
-from errors import ScrapeError
-from settings import settings
+from pry.api.client import get_client
+from pry.core.deps import advanced, scraper
+from pry.core.errors import ScrapeError
+from pry.core.settings import settings
 
 logger = logging.getLogger(__name__)
 

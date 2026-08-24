@@ -3,7 +3,7 @@
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-from parser import DocumentParser
+from pry.engine.parser import DocumentParser
 
 
 def test_parse_bytes_text() -> None:

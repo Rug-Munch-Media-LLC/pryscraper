@@ -14,8 +14,8 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from deps import automator
-from errors import NotFoundError
+from pry.core.deps import automator
+from pry.core.errors import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ async def create_session(url: str = Body(...), persist: bool = True) -> dict[str
     session_id = await automator.create_session(url, persist=persist)
 
     if persist:
-        from sessions import save_session
+        from pry.engine.sessions import save_session
 
         await save_session(
             session_id=session_id,
@@ -47,7 +47,7 @@ async def destroy_session(
     save_state: bool = Body(False),
 ) -> dict[str, Any]:
     """Destroy a browser session. Optionally save state first."""
-    from sessions import delete_session, save_session
+    from pry.engine.sessions import delete_session, save_session
 
     if save_state:
         state = await automator.get_session_state(session_id)  # type: ignore[attr-defined]  # dynamic method on PryAutomator
@@ -74,7 +74,7 @@ async def destroy_session(
 )
 async def list_sessions() -> dict[str, Any]:
     """List all persistent sessions (active + saved)."""
-    from sessions import list_sessions as list_saved_sessions
+    from pry.engine.sessions import list_sessions as list_saved_sessions
 
     active = automator.list_sessions()
     saved = await list_saved_sessions()
@@ -95,7 +95,7 @@ async def save_session_state(
     session_id: str = Body(...),
 ) -> dict[str, Any]:
     """Save a session's current state (cookies, storage) to disk."""
-    from sessions import save_session as save_session_to_disk
+    from pry.engine.sessions import save_session as save_session_to_disk
 
     state = await automator.get_session_state(session_id)  # type: ignore[attr-defined]  # dynamic method on PryAutomator
     if not state:
@@ -118,7 +118,7 @@ async def save_session_state(
 @router.post("/v1/session/restore", tags=["Sessions"], summary="Restore a saved session")
 async def restore_session(session_id: str = Body(...)) -> dict[str, Any]:
     """Restore a session from disk into a browser context."""
-    from sessions import load_session
+    from pry.engine.sessions import load_session
 
     data = await load_session(session_id)
     if not data:

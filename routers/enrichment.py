@@ -36,7 +36,7 @@ async def enrich_data(
     - Social media profiles (Twitter, LinkedIn, Facebook, Instagram, GitHub, etc.)
     - Company information (email, phone, address, founded year, team size)
     """
-    from enrichment import enrich_url
+    from pry.api.enrichment import enrich_url
 
     result = await enrich_url(url)
     filtered: dict[str, Any] = {"url": url}
@@ -60,7 +60,7 @@ async def detect_tech(url: str = Body(...)) -> dict[str, Any]:
     frontend (React, Vue, Angular), CDN (Cloudflare, Fastly), analytics (GA, Hotjar),
     payments (Stripe, PayPal).
     """
-    from enrichment import enrich_url
+    from pry.api.enrichment import enrich_url
 
     result = await enrich_url(url)
     return {"success": True, "data": result.get("tech_stack", {})}

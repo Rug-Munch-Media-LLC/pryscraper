@@ -38,8 +38,8 @@ from llm_providers.base import (
     cost_tracker,
     parse_json_response,
 )
-from paths import PRY_DATA_DIR
-from retry import BackoffStrategy, Jitter, RetryConfig, async_retry
+from pry.core.paths import PRY_DATA_DIR
+from pry.engine.retry import BackoffStrategy, Jitter, RetryConfig, async_retry
 
 logger = logging.getLogger(__name__)
 
@@ -348,7 +348,7 @@ class LLMRegistry:
         cost_tracker.record(response)
         # NEW: track in-app LLM usage as referral revenue
         try:
-            from referrals import ReferralTracker
+            from pry.commerce.referrals import ReferralTracker
 
             if not hasattr(self, "_referral_tracker"):
                 self._referral_tracker = ReferralTracker()

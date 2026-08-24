@@ -34,7 +34,7 @@ import deals_data
 import deals_data.coupons as coupons
 import deals_data.drops as drops
 import routers.deals_data as deals_router_mod
-from errors import PryError
+from pry.core.errors import PryError
 from routers.deals_data import router as deals_router
 
 

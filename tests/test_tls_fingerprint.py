@@ -15,8 +15,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import tls_fingerprint
-from tls_fingerprint import BROWSER_FINGERPRINTS, TLSScraper
+from pry.engine import tls_fingerprint
+from pry.engine.tls_fingerprint import BROWSER_FINGERPRINTS, TLSScraper
 
 # ── Fingerprint catalog / config parsing ────────────────────────
 
@@ -86,7 +86,7 @@ async def test_fetch_passes_impersonate_to_session() -> None:
 
     with (
         patch.object(tls_fingerprint, "_has_curl_cffi", True),
-        patch("tls_fingerprint.AsyncSession", create=True, return_value=session) as mock_cls,
+        patch("pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session) as mock_cls,
     ):
         result = await TLSScraper(default_impersonate="firefox132").fetch(
             "https://example.com", impersonate="chrome124"
@@ -116,7 +116,7 @@ async def test_fetch_invalid_impersonate_falls_back_to_chrome() -> None:
 
     with (
         patch.object(tls_fingerprint, "_has_curl_cffi", True),
-        patch("tls_fingerprint.AsyncSession", create=True, return_value=session) as mock_cls,
+        patch("pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session) as mock_cls,
     ):
         result = await TLSScraper().fetch("https://example.com", impersonate="bad-ua")
 
@@ -137,7 +137,7 @@ async def test_fetch_merges_custom_headers() -> None:
 
     with (
         patch.object(tls_fingerprint, "_has_curl_cffi", True),
-        patch("tls_fingerprint.AsyncSession", create=True, return_value=session) as mock_cls,
+        patch("pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session) as mock_cls,
     ):
         await TLSScraper().fetch("https://example.com", headers={"X-Custom": "yes"})
 
@@ -154,7 +154,7 @@ async def test_fetch_exception_returns_error_dict() -> None:
 
     with (
         patch.object(tls_fingerprint, "_has_curl_cffi", True),
-        patch("tls_fingerprint.AsyncSession", create=True, return_value=session),
+        patch("pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session),
     ):
         result = await TLSScraper().fetch("https://example.com")
 
@@ -184,7 +184,7 @@ async def test_fetch_rejects_private_initial_url() -> None:
     session = _mock_session(200)
     with (
         patch.object(tls_fingerprint, "_has_curl_cffi", True),
-        patch("tls_fingerprint.AsyncSession", create=True, return_value=session),
+        patch("pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session),
     ):
         result = await TLSScraper().fetch("http://169.254.169.254/latest/meta-data/")
 
@@ -197,7 +197,7 @@ async def test_fetch_blocks_redirect_to_loopback() -> None:
     session = _mock_session(302, headers={"location": "http://127.0.0.1/evil"})
     with (
         patch.object(tls_fingerprint, "_has_curl_cffi", True),
-        patch("tls_fingerprint.AsyncSession", create=True, return_value=session),
+        patch("pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session),
     ):
         result = await TLSScraper().fetch("https://example.com/start")
 
@@ -211,7 +211,7 @@ async def test_fetch_blocks_redirect_to_metadata_ip() -> None:
     session = _mock_session(302, headers={"location": "http://169.254.169.254/"})
     with (
         patch.object(tls_fingerprint, "_has_curl_cffi", True),
-        patch("tls_fingerprint.AsyncSession", create=True, return_value=session),
+        patch("pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session),
     ):
         result = await TLSScraper().fetch("https://example.com/start")
 
@@ -232,7 +232,7 @@ async def test_fetch_follows_safe_redirect() -> None:
 
     with (
         patch.object(tls_fingerprint, "_has_curl_cffi", True),
-        patch("tls_fingerprint.AsyncSession", create=True, return_value=session),
+        patch("pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session),
     ):
         result = await TLSScraper().fetch("https://example.com/start")
 
@@ -245,7 +245,7 @@ async def test_fetch_does_not_follow_redirects_when_disabled() -> None:
     session = _mock_session(302, headers={"location": "https://example.com/next"})
     with (
         patch.object(tls_fingerprint, "_has_curl_cffi", True),
-        patch("tls_fingerprint.AsyncSession", create=True, return_value=session),
+        patch("pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session),
     ):
         result = await TLSScraper().fetch("https://example.com/start", follow_redirects=False)
 

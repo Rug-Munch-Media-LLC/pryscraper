@@ -495,7 +495,7 @@ SSE_LINES = [
 
 
 async def test_stream_openai_compatible_parses_sse() -> None:
-    with patch("client.get_client", return_value=FakeStreamClient([(200, SSE_LINES)])):
+    with patch("pry.api.client.get_client", return_value=FakeStreamClient([(200, SSE_LINES)])):
         chunks = [
             c
             async for c in _stream_openai_compatible(
@@ -513,7 +513,7 @@ async def test_stream_openai_compatible_parses_sse() -> None:
 
 async def test_stream_openai_compatible_retries_on_transient() -> None:
     responses = [(429, []), (200, SSE_LINES)]
-    with patch("client.get_client", return_value=FakeStreamClient(responses)):
+    with patch("pry.api.client.get_client", return_value=FakeStreamClient(responses)):
         chunks = [
             c
             async for c in _stream_openai_compatible(
@@ -532,7 +532,7 @@ async def test_stream_openai_compatible_retries_on_transient() -> None:
 
 async def test_stream_openai_compatible_raises_on_non_transient() -> None:
     with (
-        patch("client.get_client", return_value=FakeStreamClient([(401, [])])),
+        patch("pry.api.client.get_client", return_value=FakeStreamClient([(401, [])])),
         pytest.raises(httpx.HTTPStatusError),
     ):
         _ = [

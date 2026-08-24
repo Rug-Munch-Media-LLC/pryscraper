@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from errors import InvalidRequestError
+from pry.core.errors import InvalidRequestError
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,12 @@ async def sync_crm(
     - Pipedrive: person, organization, deal, lead
     - Close: lead, contact
     """
-    from crm_sync import sync_to_close, sync_to_hubspot, sync_to_pipedrive, sync_to_salesforce
+    from pry.commerce.crm_sync import (
+        sync_to_close,
+        sync_to_hubspot,
+        sync_to_pipedrive,
+        sync_to_salesforce,
+    )
 
     platform_map: dict[str, tuple[Any, tuple[str, ...]]] = {
         "salesforce": (sync_to_salesforce, ("instance_url", "access_token")),

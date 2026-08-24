@@ -20,8 +20,8 @@ import redis
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from client import get_client
-from settings import settings
+from pry.api.client import get_client
+from pry.core.settings import settings
 
 router = APIRouter(tags=["Health"])
 

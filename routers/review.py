@@ -13,8 +13,8 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
-from deps import scraper
-from errors import NotFoundError, ScrapeError
+from pry.core.deps import scraper
+from pry.core.errors import NotFoundError, ScrapeError
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ async def review_submit(
     Use this when extraction confidence is low or anomalies were detected.
     Data will be held in the review queue until approved or rejected.
     """
-    from review import submit_for_review
+    from pry.actors.review import submit_for_review
 
     result = await submit_for_review(
         data=data,
@@ -53,7 +53,7 @@ async def review_approve(
     notes: str = Body(""),
 ) -> dict[str, Any]:
     """Approve a review item, allowing data to proceed to delivery."""
-    from review import approve_review
+    from pry.actors.review import approve_review
 
     result = await approve_review(review_id, reviewer, notes)
     if "error" in result:
@@ -68,7 +68,7 @@ async def review_reject(
     notes: str = Body(""),
 ) -> dict[str, Any]:
     """Reject a review item, blocking data delivery."""
-    from review import reject_review
+    from pry.actors.review import reject_review
 
     result = await reject_review(review_id, reviewer, notes)
     if "error" in result:
@@ -79,7 +79,7 @@ async def review_reject(
 @router.get("/v1/reviews", tags=["Review"], summary="List reviews in the queue")
 async def list_reviews(status: str | None = None) -> dict[str, Any]:
     """List reviews, optionally filtered by status (pending/approved/rejected)."""
-    from review import get_review_queue
+    from pry.actors.review import get_review_queue
 
     reviews = get_review_queue(status)
     return {"success": True, "data": {"reviews": reviews, "total": len(reviews)}}
@@ -88,7 +88,7 @@ async def list_reviews(status: str | None = None) -> dict[str, Any]:
 @router.get("/v1/review/{review_id}", tags=["Review"], summary="Get review details")
 async def get_review(review_id: str) -> dict[str, Any]:
     """Get full details of a review item including the data payload."""
-    from review import get_review_detail
+    from pry.actors.review import get_review_detail
 
     result = get_review_detail(review_id)
     if not result:
@@ -115,8 +115,8 @@ async def extract_with_review(
     Low-confidence results are auto-rejected.
     Medium-confidence results go to the human review queue with Slack notification.
     """
-    from quality import run_quality_check
-    from review import auto_review_threshold
+    from pry.actors.review import auto_review_threshold
+    from pry.engine.quality import run_quality_check
 
     # Scrape
     scrape_result = await scraper.scrape(url, {"bypass_cloudflare": True})

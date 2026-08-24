@@ -43,14 +43,14 @@ def test_transform_unknown_format():
 
 
 def test_transform_pipe():
-    with patch("deps.scraper.scrape", new_callable=AsyncMock) as mock_scrape:
+    with patch("pry.core.deps.scraper.scrape", new_callable=AsyncMock) as mock_scrape:
         mock_scrape.return_value = {"status": "ok", "content": "data"}
         r = client.post("/v1/pipe", json={"url": "http://example.com", "transform": "json"})
         assert r.status_code in (200, 400, 422, 500)
 
 
 def test_transform_pipe_failure():
-    with patch("deps.scraper.scrape", new_callable=AsyncMock) as mock_scrape:
+    with patch("pry.core.deps.scraper.scrape", new_callable=AsyncMock) as mock_scrape:
         mock_scrape.return_value = {"status": "error", "error": "failed"}
         r = client.post("/v1/pipe", json={"url": "http://example.com", "transform": "csv"})
         assert r.status_code in (400, 422, 500)

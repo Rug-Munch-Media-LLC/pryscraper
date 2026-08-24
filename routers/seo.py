@@ -26,7 +26,7 @@ async def seo_analyze(url: str = Body(...)) -> dict[str, Any]:
     canonical, OG tags, Twitter cards, word count, link counts,
     schema markup, hreflang tags.
     """
-    from seo_monitor import analyze_seo
+    from pry.actors.seo_monitor import analyze_seo
 
     result = await analyze_seo(url)
     return {"success": "error" not in result, "data": result}
@@ -39,7 +39,7 @@ async def seo_track(url: str = Body(...)) -> dict[str, Any]:
     Compares current SEO elements to previous snapshot and reports
     what changed (title, description, headings, etc.).
     """
-    from seo_monitor import track_seo_changes
+    from pry.actors.seo_monitor import track_seo_changes
 
     result = await track_seo_changes(url)
     return {"success": "error" not in result, "data": result}
@@ -59,7 +59,7 @@ async def seo_keywords(
     - Frequency in body content
     - Keyword density percentage
     """
-    from seo_monitor import get_seo_keyword_insights
+    from pry.actors.seo_monitor import get_seo_keyword_insights
 
     result = await get_seo_keyword_insights(url, keywords)
     return {"success": "error" not in result, "data": result}

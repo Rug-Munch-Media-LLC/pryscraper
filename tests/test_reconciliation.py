@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for entity reconciliation."""
 
-from reconciliation import (
+from pry.commerce.reconciliation import (
     VERTICAL_SCHEMAS,
     _build_field_map,
     _normalize_record,

@@ -7,7 +7,7 @@ import json
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from errors import (
+from pry.core.errors import (
     ExternalServiceError,
     InvalidRequestError,
     NotFoundError,
@@ -170,7 +170,7 @@ class TestErrorHandlers:
         async def test_generic():
             raise PryError("Generic failure")
 
-        from api import add_error_handlers
+        from pry.api.api import add_error_handlers
 
         add_error_handlers(a)
         return a

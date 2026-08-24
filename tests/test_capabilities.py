@@ -28,9 +28,9 @@ from typing import TYPE_CHECKING
 import pytest
 from fastapi.testclient import TestClient
 
-import capabilities
+from pry.api import capabilities
+from pry.core.settings import settings
 from routers.capabilities import router as capabilities_router
-from settings import settings
 
 if TYPE_CHECKING:
     from pathlib import Path

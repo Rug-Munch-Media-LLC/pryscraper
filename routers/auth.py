@@ -29,8 +29,8 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Request
 
-from errors import NotFoundError  # type: ignore[import-not-found]
-from jwt_auth import is_jwt, validate_rmi_jwt
+from pry.api.jwt_auth import is_jwt, validate_rmi_jwt
+from pry.core.errors import NotFoundError  # type: ignore[import-not-found]
 
 router = APIRouter(tags=["Auth"])
 
@@ -80,7 +80,7 @@ async def store_credentials(
     Credentials are scoped to the authenticated caller and masked in the
     response (never returned in plaintext).
     """
-    from auth_connector import store_credential
+    from pry.api.auth_connector import store_credential
 
     result = store_credential(
         name,
@@ -95,7 +95,7 @@ async def store_credentials(
 @router.get("/v1/auth/credentials", summary="List stored credentials")
 async def list_credentials_endpoint(request: Request) -> dict[str, Any]:
     """List stored credentials scoped to the caller (no secrets exposed)."""
-    from auth_connector import list_credentials
+    from pry.api.auth_connector import list_credentials
 
     creds = list_credentials(owner=_request_owner(request))
     return {"success": True, "data": {"credentials": creds, "total": len(creds)}}
@@ -104,7 +104,7 @@ async def list_credentials_endpoint(request: Request) -> dict[str, Any]:
 @router.delete("/v1/auth/credentials/{credential_id}", summary="Delete stored credentials")
 async def delete_credentials_endpoint(request: Request, credential_id: str) -> dict[str, Any]:
     """Delete a stored credential (owner-scoped; 404 if not found or not owned)."""
-    from auth_connector import delete_credential
+    from pry.api.auth_connector import delete_credential
 
     success = delete_credential(credential_id, owner=_request_owner(request))
     if not success:
@@ -124,7 +124,7 @@ async def generate_sso(
 
     Supports: okta, azure_ad, google_workspace, onelogin
     """
-    from auth_connector import generate_sso_script
+    from pry.api.auth_connector import generate_sso_script
 
     result = await generate_sso_script(provider, username, password, target_url, tenant)
     return {"success": result["success"], "data": result}
@@ -144,7 +144,7 @@ async def solve_captcha_endpoint(
     - image_base64: Base64-encoded CAPTCHA image
     - site_key + page_url: For reCAPTCHA v2
     """
-    from auth_connector import solve_captcha
+    from pry.api.auth_connector import solve_captcha
 
     result = await solve_captcha(
         image_base64=image_base64,
@@ -162,7 +162,7 @@ async def check_session(session_id: str = Body(...)) -> dict[str, Any]:
 
     Reports cookie validity, session age, and whether re-auth is needed.
     """
-    from auth_connector import check_session_health
+    from pry.api.auth_connector import check_session_health
 
     result = check_session_health(session_id)
     return {"success": True, "data": result}

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from pipeline import (
+from pry.commerce.pipeline import (
     HOOK_POINTS,
     Pipeline,
     _is_async,

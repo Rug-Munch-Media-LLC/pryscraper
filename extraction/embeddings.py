@@ -31,8 +31,8 @@ def compute_embedding(text: str, model: str = "all-MiniLM-L6-v2") -> list[float]
     try:
         import anyio
 
-        from client import get_client
-        from settings import settings
+        from pry.api.client import get_client
+        from pry.core.settings import settings
 
         async def _fetch() -> list[float]:
             client = await get_client()

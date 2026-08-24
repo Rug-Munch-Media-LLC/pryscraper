@@ -18,8 +18,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+import pry.actors.apify_actor as apify_actor
 from actor_factory.presets import SCRAPER_ACTOR
-from apify_actor import _extract_links, scrape_url
+from pry.actors.apify_actor import _extract_links, scrape_url
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -180,6 +181,5 @@ class TestActorPackaging:
         """apify_actor.py imports cleanly WITHOUT apify-sdk installed
         (Actor is imported lazily inside main()) - the main suite must
         never depend on the SDK."""
-        import apify_actor
 
         assert hasattr(apify_actor, "main")

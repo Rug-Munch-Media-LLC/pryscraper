@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-import databus_bridge as db
+import pry.api.databus_bridge as db
 
 if TYPE_CHECKING:
     from pathlib import Path

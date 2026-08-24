@@ -3,7 +3,7 @@
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-from ratelimit import RateLimiter
+from pry.core.ratelimit import RateLimiter
 
 
 def test_rate_limiter_allows_first_request() -> None:

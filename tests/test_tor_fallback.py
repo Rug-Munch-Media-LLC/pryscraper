@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tor_fallback import (
+from pry.engine.tor_fallback import (
     DEFAULT_TOR_HOST,
     DEFAULT_TOR_PORT,
     DEFAULT_TOR_TIMEOUT,
@@ -45,19 +45,19 @@ def test_aiohttp_socks_is_installed():
     assert isinstance(result, bool)
 
 
-@patch("tor_fallback._aiohttp_socks_installed", return_value=True)
-@patch("tor_fallback._socks_port_reachable", return_value=True)
+@patch("pry.engine.tor_fallback._aiohttp_socks_installed", return_value=True)
+@patch("pry.engine.tor_fallback._socks_port_reachable", return_value=True)
 def test_tor_available_true(mock_reach, mock_install):
     assert tor_available() is True
 
 
-@patch("tor_fallback._aiohttp_socks_installed", return_value=False)
+@patch("pry.engine.tor_fallback._aiohttp_socks_installed", return_value=False)
 def test_tor_available_false_missing_dep(mock_install):
     assert tor_available() is False
 
 
-@patch("tor_fallback._aiohttp_socks_installed", return_value=True)
-@patch("tor_fallback._socks_port_reachable", return_value=True)
+@patch("pry.engine.tor_fallback._aiohttp_socks_installed", return_value=True)
+@patch("pry.engine.tor_fallback._socks_port_reachable", return_value=True)
 def test_tor_status_returns_info(mock_reach, mock_install):
     status = tor_status()
     assert "available" in status
@@ -77,20 +77,20 @@ def test_socks_port_reachable():
     assert isinstance(result, bool)
 
 
-@patch("tor_fallback.socket.create_connection")
+@patch("pry.engine.tor_fallback.socket.create_connection")
 def test_socks_port_reachable_true(mock_create):
     mock_create.return_value.__enter__.return_value = MagicMock()
     assert _socks_port_reachable("127.0.0.1", 9050) is True
 
 
-@patch("tor_fallback.socket.create_connection")
+@patch("pry.engine.tor_fallback.socket.create_connection")
 def test_socks_port_reachable_false(mock_create):
     mock_create.side_effect = OSError("refused")
     assert _socks_port_reachable("127.0.0.1", 9050) is False
 
 
 def test_tor_proxy_chain_from_settings():
-    from settings import settings
+    from pry.core.settings import settings
 
     original = settings.tor_enabled
     try:

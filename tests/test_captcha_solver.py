@@ -23,8 +23,8 @@ import respx
 from captcha import REGISTRY
 from captcha.image_ocr import _normalize_image, ocr_image, preprocess_image
 from captcha.token_api import solve_2captcha, solve_capsolver
-from captcha_solver import available_providers, solve_captcha
-from settings import settings
+from pry.core.settings import settings
+from pry.engine.captcha_solver import available_providers, solve_captcha
 
 EXPECTED_PROVIDERS = {"image", "recaptcha_v2", "recaptcha_v3", "hcaptcha", "turnstile"}
 

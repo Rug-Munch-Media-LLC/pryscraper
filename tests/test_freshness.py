@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for adaptive freshness scheduling."""
 
-from freshness import (
+from pry.commerce.freshness import (
     calculate_adaptive_frequency,
     check_content_changed,
     compute_content_hash,

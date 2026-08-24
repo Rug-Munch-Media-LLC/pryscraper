@@ -16,9 +16,7 @@ RUN pip install --no-cache-dir --disable-pip-version-check -r requirements.lock 
     && pip install --no-cache-dir --disable-pip-version-check "apify>=2.7"
 
 COPY actor_factory/ actor_factory/
-COPY ultimate_scraper.py scraper.py scraping_methods.py proxy_manager.py \
-     resilience.py block_detection.py url_guard.py errors.py observability.py \
-     settings.py logging_config.py ./
+COPY src/pry/ src/pry/
 COPY src/main.py src/main.py
 
 CMD ["python", "src/main.py"]

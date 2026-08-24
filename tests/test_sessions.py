@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-from sessions import (
+from pry.engine.sessions import (
     _session_path,
     cleanup_sessions,
     delete_session,
@@ -25,7 +25,7 @@ from sessions import (
 def temp_sessions_dir():
     """Use a temp dir for sessions to avoid polluting real data."""
     tmp = tempfile.mkdtemp()
-    with patch("sessions.SESSIONS_DIR", Path(tmp)):
+    with patch("pry.engine.sessions.SESSIONS_DIR", Path(tmp)):
         Path(tmp).mkdir(parents=True, exist_ok=True)
         yield tmp
     for f in Path(tmp).glob("*"):
@@ -167,7 +167,7 @@ async def test_cleanup_sessions_none_old():
 
 @pytest.mark.asyncio
 async def test_save_oserror():
-    with patch("sessions.Path.write_text") as mock_write:
+    with patch("pry.engine.sessions.Path.write_text") as mock_write:
         mock_write.side_effect = OSError("disk full")
         # Should not raise
         await save_session("fail_session", [{"name": "x"}])
@@ -177,7 +177,7 @@ async def test_save_oserror():
 async def test_load_oserror():
     path = _session_path("ioerror")
     path.write_text(json.dumps({"session_id": "ioerror"}))
-    with patch("sessions.Path.read_text") as mock_read:
+    with patch("pry.engine.sessions.Path.read_text") as mock_read:
         mock_read.side_effect = OSError("io error")
         data = await load_session("ioerror")
         assert data is None

@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for AI training data pipeline."""
 
-from training_data import (
+from pry.misc.training_data import (
     classify_license,
     export_training_dataset,
     strip_copyright_verbatim,

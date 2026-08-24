@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for cost analytics engine."""
 
-from costing import (
+from pry.commerce.costing import (
     DEFAULT_COST_TABLE,
     get_monthly_usage,
     record_usage,

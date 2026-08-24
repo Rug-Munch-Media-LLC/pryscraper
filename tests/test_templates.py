@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for scraper templates."""
 
-from template_engine import get_template, list_templates
+from pry.commerce.template_engine import get_template, list_templates
 
 
 def test_list_templates() -> None:

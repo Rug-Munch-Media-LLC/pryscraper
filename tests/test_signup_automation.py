@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, cast
 
 import httpx
 
+import pry.misc.signup_automation as signup_automation
 from signup.email_verification import (
     IMAPConfig,
     extract_verification_link,
@@ -627,7 +628,6 @@ async def test_engine_owns_and_closes_client(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_facade_reexports() -> None:
-    import signup_automation
 
     assert signup_automation.SignupAutomation is SignupAutomation
     assert signup_automation.SignupForm is not None

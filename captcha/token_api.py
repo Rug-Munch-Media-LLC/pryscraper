@@ -279,7 +279,7 @@ async def solve_token_with_fallback(
     Tries each provider in SOLVER_FALLBACK_CHAIN order. Returns the first
     successful token or None if all providers fail.
     """
-    from settings import settings
+    from pry.core.settings import settings
 
     method_map = {
         "recaptcha_v2": ("userrecaptcha", "ReCaptchaV2Task", "ReCaptchaV2Task"),

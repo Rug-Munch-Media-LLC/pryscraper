@@ -7,12 +7,12 @@
 
 import random
 
-import behavioral_biometrics
-from behavioral_biometrics import HumanBehaviorSimulator
-from cookie_warmer import WARMING_PAGES, CookieWarmer
-from dedup import Deduplicator, SimHash
-from ocr_extractor import ImageOCR
-from pdf_extractor import PDFTableExtractor
+from pry.engine import behavioral_biometrics
+from pry.engine.behavioral_biometrics import HumanBehaviorSimulator
+from pry.engine.cookie_warmer import WARMING_PAGES, CookieWarmer
+from pry.engine.dedup import Deduplicator, SimHash
+from pry.engine.ocr_extractor import ImageOCR
+from pry.engine.pdf_extractor import PDFTableExtractor
 
 
 def test_warming_pages_exist() -> None:

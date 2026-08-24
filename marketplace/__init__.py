@@ -77,7 +77,7 @@ from urllib.parse import urlsplit
 import httpx
 from lxml import html as lxml_html
 
-from client import get_client
+from pry.api.client import get_client
 
 logger = logging.getLogger(__name__)
 

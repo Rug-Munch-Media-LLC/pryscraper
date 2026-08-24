@@ -82,7 +82,7 @@ from urllib.parse import quote
 
 import httpx
 
-from retry import RetryConfig, async_retry
+from pry.engine.retry import RetryConfig, async_retry
 from sports_data.odds import _SPORT_ALIASES, _SPORTS, _resolve_sports
 
 logger = logging.getLogger(__name__)

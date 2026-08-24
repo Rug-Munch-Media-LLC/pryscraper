@@ -16,14 +16,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from llm_features import (
+from llm_providers.prompts import PROMPTS, render_prompt
+from pry.api.llm_features import (
     llm_anomaly_detect,
     llm_compliance_analyze,
     llm_entity_reconcile,
     llm_pii_detect,
     llm_seo_analyze,
 )
-from llm_providers.prompts import PROMPTS, render_prompt
 
 
 @pytest.fixture
@@ -31,7 +31,7 @@ def mock_registry() -> MagicMock:
     """Registry whose complete_json is mocked; no real LLM calls."""
     reg = MagicMock()
     reg.complete_json = AsyncMock(return_value={"ok": True})
-    with patch("llm_features.get_registry", return_value=reg):
+    with patch("pry.api.llm_features.get_registry", return_value=reg):
         yield reg
 
 

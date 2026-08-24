@@ -12,12 +12,14 @@ mcp_production.py and x402.py into sub-packages.
 
 from __future__ import annotations
 
+import pry.api.mcp_production as mcp_production
+import x402
+
 
 class TestMCPPublicSurface:
     """The mcp_production shim must expose the same public API as before."""
 
     def test_required_symbols_exist(self) -> None:
-        import mcp_production
 
         required = {
             "DEFAULT_BASE_URL",
@@ -43,7 +45,6 @@ class TestMCPPublicSurface:
         assert not missing, f"Missing public MCP symbols: {missing}"
 
     def test_tool_definitions_are_non_empty(self) -> None:
-        import mcp_production
 
         assert isinstance(mcp_production.PRY_TOOLS, list)
         assert len(mcp_production.PRY_TOOLS) > 0
@@ -55,7 +56,6 @@ class TestX402PublicSurface:
     """The x402 shim must expose the same public API as before."""
 
     def test_required_symbols_exist(self) -> None:
-        import x402
 
         required = {
             "X402Asset",
@@ -77,7 +77,6 @@ class TestX402PublicSurface:
         assert not missing, f"Missing public x402 symbols: {missing}"
 
     def test_enum_values_consistent(self) -> None:
-        import x402
 
         assert x402.X402Scheme.EXACT.value == "exact"
         assert x402.X402Network.ETHEREUM.value == "ethereum"

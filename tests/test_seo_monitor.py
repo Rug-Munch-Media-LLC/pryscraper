@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for SEO content monitor."""
 
-from seo_monitor import (
+from pry.actors.seo_monitor import (
     _count_words,
     _get_headings,
     _get_meta_from_html,

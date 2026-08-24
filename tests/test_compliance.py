@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for legal compliance engine."""
 
-from compliance import (
+from pry.compliance.compliance import (
     classify_tos,
     detect_jurisdiction,
     tag_sensitive_data,

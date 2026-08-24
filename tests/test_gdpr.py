@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for GDPR compliance portal."""
 
-from gdpr import (
+from pry.compliance.gdpr import (
     check_consent,
     get_retention_policy,
     process_deletion,

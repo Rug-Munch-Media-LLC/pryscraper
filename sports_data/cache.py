@@ -35,7 +35,7 @@ import time
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any
 
-from settings import settings
+from pry.core.settings import settings
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Hashable
