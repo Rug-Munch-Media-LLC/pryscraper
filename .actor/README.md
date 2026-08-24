@@ -48,9 +48,9 @@ Each dataset item looks like this:
 {
   "url": "https://example.com",
   "status": "ok",
-  "content": "# Example page\n\nClean markdown content...",
   "method": "direct",
   "scraped_at": "2026-01-01T00:00:00+00:00",
+  "content": "# Example page\n\nClean markdown content...",
   "metadata": {
     "domain": "example.com",
     "content_length": 1234
@@ -86,11 +86,15 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 
 ## FAQ
 
+**What exactly does Pry Universal Scraper deliver?** Scrape any website to clean markdown with a 12-tier adaptive anti-bot bypass (Cloudflare, DataDome, Akamai). Pay per page scraped; blocked pages escalate automatically. Results land in the dataset as structured items with transparent status reporting.
+
 **Is scraping legal?** Scraping publicly available data is generally legal; respect robots.txt, ToS and privacy law. Pry ships compliance tooling (consent, deletion, retention) in the self-hosted core.
 
 **What about sites behind Cloudflare?** That is exactly what the adaptive ladder solves - blocked responses trigger automatic escalation to stealth browser tiers.
 
 **Can I schedule runs?** Yes - scheduling, monitoring and API access are first-class Apify platform features. Monitors pair especially well with hourly or daily schedules.
+
+**What does the **Timeout (seconds)** option do?** Per-URL timeout. Default: `30`.
 
 ## Support
 

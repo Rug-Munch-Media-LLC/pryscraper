@@ -189,9 +189,90 @@ def generate_actor(spec: ActorSpec, out_dir: Path) -> GeneratedActor:
     return GeneratedActor(out_dir=out_dir, files=files)
 
 
+_DATA_SOURCES: dict[str, tuple[str, str, str]] = {
+    # name-substring: (source name, example URL pattern, docs URL)
+    "app-store": (
+        "Apple iTunes Search/Lookup API + customer-reviews RSS",
+        "https://itunes.apple.com/lookup?id=<APP_ID>&country=us",
+        "https://performance-partners.apple.com/search-api",
+    ),
+    "github-release": (
+        "GitHub public REST API (releases endpoint)",
+        "https://api.github.com/repos/<OWNER>/<REPO>/releases",
+        "https://docs.github.com/rest/releases/releases",
+    ),
+    "npm-package": (
+        "npm registry + downloads count APIs",
+        "https://registry.npmjs.org/<PACKAGE> | https://api.npmjs.org/downloads/point/last-month/<PACKAGE>",
+        "https://github.com/npm/registry/blob/main/docs/RESOURCES.md",
+    ),
+    "pypi-package": (
+        "PyPI JSON API",
+        "https://pypi.org/pypi/<PACKAGE>/json",
+        "https://warehouse.pypa.io/api-reference/json.html",
+    ),
+    "hacker-news": (
+        "Hacker News Algolia public search API",
+        "https://hn.algolia.com/api/v1/search?query=<KEYWORD>&tags=story",
+        "https://hn.algolia.com/api",
+    ),
+    "rdap": (
+        "RDAP bootstrap protocol (registration data access)",
+        "https://rdap.org/domain/<DOMAIN>",
+        "https://about.rdap.org",
+    ),
+    "arxiv": (
+        "arXiv public API",
+        "http://export.arxiv.org/api/query?search_query=all:<TERM>",
+        "https://info.arxiv.org/help/api",
+    ),
+    "podcast-review": (
+        "Apple Podcasts customer-review RSS feeds",
+        "https://itunes.apple.com/us/rss/customerreviews/id=<PODCAST_ID>/json",
+        "https://performance-partners.apple.com/search-api",
+    ),
+    "fx-rate": (
+        "open Exchange Rates API (free tier, no key)",
+        "https://open.er-api.com/v6/latest/USD",
+        "https://www.exchangerate-api.com/docs/free",
+    ),
+    "crypto-market": (
+        "CoinGecko public market API (free tier)",
+        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd",
+        "https://docs.coingecko.com/reference/introduction",
+    ),
+}
+
+
+def _data_source_section(spec: ActorSpec) -> str:
+    """Transparency block for API-backed Actors: exactly where the data
+    comes from. Trust signal + long-tail SEO keywords in one section."""
+    name = spec.name.lower()
+    if spec.processor != "jsondata":
+        return ""
+    for needle, (source, pattern, docs) in _DATA_SOURCES.items():
+        if needle in name:
+            return (
+                "## Data source\n\n"
+                f"This Actor reads **{source}** - a documented public API. "
+                "No scraping fragility, no anti-bot lottery: the data you "
+                "get is the data the source publishes.\n\n"
+                "**URL pattern** (paste your own targets):\n\n"
+                f"```\n{pattern}\n```\n\n"
+                f"API reference: {docs}\n\n"
+            )
+    return (
+        "## Data source\n\n"
+        "This Actor reads documented public JSON APIs. Paste any endpoint "
+        "returning JSON as a target URL - responses are parsed into clean "
+        "dataset records with honest skip-reporting for non-JSON replies.\n\n"
+    )
+
+
 def _render_faq(spec: ActorSpec) -> str:
-    """Category-aware FAQ: base platform answers plus processor-specific
-    Q&As derived from what the actor ACTUALLY does (never fabricated)."""
+    """Category-aware FAQ: base platform answers, processor-specific Q&As,
+    and per-option entries derived from the Actor's own input fields -
+    so every Actor's FAQ documents ITS actual knobs (never fabricated)."""
     faq: list[tuple[str, str]] = [
         (
             "Is scraping legal?",
@@ -308,6 +389,26 @@ def _render_faq(spec: ActorSpec) -> str:
                 "items without detectable fields are skipped and reported.",
             )
         )
+    # Identity entry: every Actor answers what IT delivers, from its own
+    # spec - guarantees per-Actor uniqueness and states the contract up front.
+    faq.insert(
+        0,
+        (
+            f"What exactly does {spec.title} deliver?",
+            f"{spec.description} Results land in the dataset as structured "
+            "items with transparent status reporting.",
+        ),
+    )
+    # Per-option entries: every non-default input knob gets an honest Q&A
+    # derived from its own description - unique per Actor by construction.
+    for f in spec.inputs:
+        if f.name in ("urls", "output_format") or not f.description:
+            continue
+        q = f"What does the **{f.title}** option do?"
+        a = f"{f.description}"
+        if f.default is not None and f.default != "":
+            a += f" Default: `{f.default}`."
+        faq.append((q, a))
     return "\n\n".join(f"**{q}** {a}" for q, a in faq) + "\n\n"
 
 
@@ -316,6 +417,223 @@ def _default_output_format(spec: ActorSpec) -> str:
         if f.name == "output_format" and isinstance(f.default, str):
             return f.default
     return "markdown"
+
+
+def _example_item(spec: ActorSpec) -> str:
+    """Processor-specific realistic dataset sample for the README.
+
+    Every Actor's Output reference must show what THIS Actor actually
+    emits - identical generic samples across a catalog read as automated
+    boilerplate and hide the real contract from buyers.
+    """
+    ts = "2026-01-01T00:00:00+00:00"
+    base = {"url": "https://example.com", "status": "ok", "method": "direct", "scraped_at": ts}
+    proc = spec.processor or ""
+    name = spec.name.lower()
+
+    if proc == "extract":
+        if "recipe" in name:
+            entity = {
+                "type": "Recipe",
+                "fields": {
+                    "name": "Best Hummus",
+                    "recipeYield": "4 servings",
+                    "totalTime": "PT15M",
+                    "recipeIngredient[0]": "1 can chickpeas",
+                },
+            }
+        elif "knowledge-base" in name or "faq" in name:
+            entity = {
+                "type": "FAQPage",
+                "fields": {
+                    "mainEntity[0].name": "How do I reset my password?",
+                    "mainEntity[0].acceptedAnswer.text": "Open Settings and choose Reset...",
+                },
+            }
+        elif "local-business" in name:
+            entity = {
+                "type": "LocalBusiness",
+                "fields": {
+                    "name": "Corner Bakery",
+                    "telephone": "+1-555-0100",
+                    "address.streetAddress": "12 Main St",
+                    "geo.latitude": 40.7128,
+                },
+            }
+        else:  # Product (e-commerce family)
+            entity = {
+                "type": "Product",
+                "fields": {
+                    "name": "Wool Runner",
+                    "brand": "Example",
+                    "offers.price": "98.00",
+                    "offers.priceCurrency": "USD",
+                    "offers.availability": "InStock",
+                },
+            }
+        item = {**base, "extracted": {"entities": [entity]}}
+    elif proc == "monitor":
+        item = {
+            **base,
+            "monitor": {
+                "fingerprint": "1100011010110100",
+                "changed": True,
+                "detail": "simhash distance 9 (threshold 3)",
+            },
+        }
+    elif proc == "audit":
+        item = {
+            **base,
+            "audit": {
+                "score": 75,
+                "failed": 1,
+                "warnings": 0,
+                "findings": [
+                    {
+                        "check": "images_alt_text",
+                        "status": "warn",
+                        "detail": "2/6 images missing alt text",
+                    },
+                    {
+                        "check": "privacy_policy_link",
+                        "status": "fail",
+                        "detail": "no /privacy link on page",
+                    },
+                ],
+            },
+        }
+    elif proc == "jsondata":
+        if "github" in name:
+            rec = {
+                "tag_name": "v2.1.0",
+                "name": "Release v2.1.0",
+                "published_at": "2026-01-01T00:00:00Z",
+                "prerelease": False,
+            }
+        elif "npm" in name or "pypi" in name:
+            rec = {
+                "name": "example-package",
+                "version": "1.4.2",
+                "description": "Example package.",
+                "downloads.last-month": "48,112",
+            }
+        elif "rdap" in name or "domain" in name:
+            rec = {
+                "ldhName": "EXAMPLE.COM",
+                "status[0]": "active",
+                "events[0].eventAction": "expiration",
+                "events[0].eventDate": "2027-01-01T00:00:00Z",
+            }
+        elif "app-store" in name or "podcast" in name:
+            rec = {
+                "id": "1234567",
+                "title": "Exactly what I needed",
+                "content": "Saved me hours every week.",
+                "rating": 5,
+            }
+        elif "fx" in name:
+            rec = {
+                "base_code": "USD",
+                "rates.EUR": 0.92,
+                "rates.GBP": 0.79,
+                "time_last_update_utc": "Mon, 01 Jan 2026 00:00:00 +0000",
+            }
+        elif "crypto-market" in name:
+            rec = {
+                "id": "bitcoin",
+                "current_price": 96000.0,
+                "market_cap": 1900000000000,
+                "total_volume": 42000000000,
+            }
+        elif "arxiv" in name:
+            rec = {
+                "title": "An Example Paper",
+                "published": "2026-01-01",
+                "summary": "We demonstrate...",
+                "id": "http://arxiv.org/abs/2601.00001v1",
+            }
+        else:  # generic API monitor / HN
+            rec = {
+                "objectID": "41000001",
+                "title": "Show HN: example",
+                "points": 128,
+                "num_comments": 44,
+            }
+        item = {**base, "data": {"records": [rec], "count": 1, "total_in_response": 25}}
+    elif proc == "invoice":
+        item = {
+            **base,
+            "invoice": {
+                "number": "INV-2026-0042",
+                "date": "2026-01-01",
+                "total": "109.00",
+                "currency": "$",
+                "vendor_hint": "ACME Corp",
+            },
+        }
+    elif proc == "tech":
+        item = {
+            **base,
+            "tech": {
+                "technologies": [
+                    {"category": "generator_meta", "name": "WordPress 6.4"},
+                    {"category": "ecommerce", "name": "Shopify"},
+                    {"category": "payments", "name": "Stripe"},
+                ],
+                "count": 3,
+                "categories": ["ecommerce", "generator_meta", "payments"],
+            },
+        }
+    elif proc == "leads":
+        item = {
+            **base,
+            "leads": {
+                "emails": ["hello@example.com", "support@example.com"],
+                "phones": ["+1 555 010 1000"],
+                "social_links": ["https://linkedin.com/company/example"],
+                "contact_form_present": True,
+            },
+        }
+    elif proc == "seo":
+        item = {
+            **base,
+            "seo": {
+                "title": "Example - Home",
+                "meta_description": "Example site description.",
+                "canonical": "https://example.com/",
+                "issues": ["missing_og_image"],
+                "images_total": 6,
+                "images_missing_alt": 2,
+            },
+        }
+    elif proc == "news":
+        item = {
+            **base,
+            "news": {
+                "headline": "Example raises Series B",
+                "published": ts,
+                "summary": "Example Corp announced...",
+                "links": ["https://example.com/post"],
+            },
+        }
+    elif proc == "price":
+        item = {
+            **base,
+            "price": {
+                "amount": 98.00,
+                "currency": "USD",
+                "availability": "InStock",
+                "source": "jsonld",
+            },
+        }
+    else:  # raw capture (universal/crawler/screenshot/document-parser/...)
+        item = {
+            **base,
+            "content": "# Example page\n\nClean markdown content...",
+            "metadata": {"domain": "example.com", "content_length": 1234},
+        }
+
+    return json.dumps(item, indent=2)
 
 
 def _render_readme(spec: ActorSpec) -> str:
@@ -339,18 +657,7 @@ def _render_readme(spec: ActorSpec) -> str:
         f"| `{f.name}` | {f.type} | {'yes' if f.required else 'no'} | {f.description or f.title} |"
         for f in spec.inputs
     )
-    urls_prefill = "https://example.com"
-    example_item = json.dumps(
-        {
-            "url": urls_prefill,
-            "status": "ok",
-            "content": "# Example page\n\nClean markdown content...",
-            "method": "direct",
-            "scraped_at": "2026-01-01T00:00:00+00:00",
-            "metadata": {"domain": "example.com", "content_length": 1234},
-        },
-        indent=2,
-    )
+    example_item = _example_item(spec)
     example_cost = run_economics(
         price_per_item_usd=primary.price_usd,
         profile=WorkloadProfile(
@@ -424,7 +731,8 @@ def _render_readme(spec: ActorSpec) -> str:
         f"```json\n{example_item}\n```\n\n"
         'Items with `status: "error"` include an `error` reason - invalid '
         "targets are billed transparently and never silently dropped.\n\n"
-        "## How can I use this data?\n\n"
+        + _data_source_section(spec)
+        + "## How can I use this data?\n\n"
         f"- **Market research** - track {primary.name.replace('-', ' ')} "
         "trends across competitors\n"
         "- **Alerting** - pair with Apify schedules + webhooks for "
