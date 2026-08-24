@@ -270,29 +270,49 @@ def _data_source_section(spec: ActorSpec) -> str:
 
 
 def _render_faq(spec: ActorSpec) -> str:
-    """Category-aware FAQ: base platform answers, processor-specific Q&As,
-    and per-option entries derived from the Actor's own input fields -
-    so every Actor's FAQ documents ITS actual knobs (never fabricated)."""
+    """Category-aware FAQ: context-appropriate platform answers (API-backed
+    Actors don't get anti-bot questions - they don't scrape), processor
+    Q&As, and per-option entries from the Actor's own input fields."""
+    proc = spec.processor or ""
     faq: list[tuple[str, str]] = [
         (
-            "Is scraping legal?",
-            "Scraping publicly available data is generally legal; respect "
-            "robots.txt, ToS and privacy law. Pry ships compliance tooling "
-            "(consent, deletion, retention) in the self-hosted core.",
-        ),
-        (
-            "What about sites behind Cloudflare?",
-            "That is exactly what the adaptive ladder solves - blocked "
-            "responses trigger automatic escalation to stealth browser tiers.",
-        ),
-        (
-            "Can I schedule runs?",
-            "Yes - scheduling, monitoring and API access are first-class "
-            "Apify platform features. Monitors pair especially well with "
-            "hourly or daily schedules.",
+            "Is this allowed?",
+            "We stick to publicly available data and documented sources, "
+            "and we respect robots.txt, ToS and privacy law. The Pry core "
+            "even ships compliance tooling - consent handling, deletion, "
+            "retention - for self-hosters.",
         ),
     ]
-    proc = spec.processor or ""
+    if proc != "jsondata":
+        # Anti-bot escalation is irrelevant for public-API Actors; asking
+        # (and answering) it there would read like boilerplate nobody wrote.
+        faq.append(
+            (
+                "What happens when a site blocks the request?",
+                "That's what the adaptive ladder is for. Blocked responses "
+                "escalate automatically - headers first, stealth browsers "
+                "later - until something gets through or every tier reports "
+                "failure honestly.",
+            )
+        )
+    if proc == "monitor":
+        faq.append(
+            (
+                "How should I schedule this?",
+                "Hourly or daily schedules are the sweet spot. First run "
+                "captures a baseline; after that you only hear about actual "
+                "changes. Apify scheduling handles the rest.",
+            )
+        )
+    else:
+        faq.append(
+            (
+                "Can I run this on a schedule?",
+                "Absolutely - scheduling, API access and webhooks are "
+                "first-class Apify features. Set it once and the dataset "
+                "keeps itself fresh.",
+            )
+        )
     if proc == "extract":
         faq.extend(
             [
@@ -636,6 +656,76 @@ def _example_item(spec: ActorSpec) -> str:
     return json.dumps(item, indent=2)
 
 
+def _tutorial_steps(spec: ActorSpec) -> str:
+    """Processor-aware getting-started steps - generic boilerplate here is
+    the fastest way to look like nobody read their own README."""
+    proc = spec.processor or ""
+    if proc == "jsondata":
+        return (
+            "1. Paste the API endpoint(s) you want tracked into `urls` - the "
+            "README's *Data source* section shows the exact URL pattern.\n"
+            "2. Set `data_path` if the array you want lives deeper in the "
+            "payload (e.g. `data.items`).\n"
+            "3. Hit **Start** - JSON responses come back as clean dataset "
+            "records; non-JSON replies are flagged, not buried.\n"
+            "4. Schedule it or wire a webhook - exports work as "
+            "JSON/CSV/Excel or straight via API.\n\n"
+        )
+    if proc == "monitor":
+        return (
+            "1. Add the page(s) or feed(s) to watch in `urls`.\n"
+            "2. Run once - that first run captures the **baseline** fingerprint.\n"
+            "3. Schedule runs (hourly/daily both work). Changed pages land in "
+            "the dataset with a similarity detail; unchanged ones stay quiet.\n"
+            "4. Want an audit trail instead? Flip on `include_unchanged` and "
+            "every capture is kept.\n\n"
+        )
+    if proc == "audit":
+        return (
+            "1. Drop your target URLs into `urls`.\n"
+            "2. Toggle only the checks you care about - each disabled check "
+            "is compute you don't pay for.\n"
+            "3. Click **Start** - findings arrive severity-ranked with a "
+            "0-100 score per page.\n"
+            "4. Sort by score in the dataset view; worst offenders float up.\n\n"
+        )
+    if proc == "extract":
+        return (
+            "1. Point `urls` at the pages carrying the structured data "
+            "(product pages, recipe posts, FAQ centers...).\n"
+            "2. Keep defaults or narrow the entity types to extract.\n"
+            "3. Click **Start** - entities stream in as typed, flattened "
+            "records; pages without matching data report as skipped.\n"
+            "4. Export via dataset UI, API, or webhook.\n\n"
+        )
+    if proc == "invoice":
+        return (
+            "1. Add links to the invoice PDFs in `urls`.\n"
+            "2. Click **Start** - the engine parses each document and pulls "
+            "vendor hints, invoice numbers, dates and totals.\n"
+            "3. Review the dataset; documents without detectable fields are "
+            "listed with reasons rather than guessed values.\n"
+            "4. Export to CSV/Excel for your bookkeeping flow.\n\n"
+        )
+    if proc == "tech":
+        return (
+            "1. Add the sites you want profiled to `urls`.\n"
+            "2. Leave header inspection on unless you only want HTML signals.\n"
+            "3. Click **Start** - technologies arrive categorized (CMS, "
+            "e-commerce, analytics, payments...) with counts.\n"
+            "4. Chain it: feed results into leads tooling for stack-based "
+            "prospecting.\n\n"
+        )
+    return (
+        "1. Add your target URLs to the `urls` field (one per entry).\n"
+        "2. Adjust optional settings or keep the defaults - they're tuned "
+        "for the common case.\n"
+        "3. Click **Start** - results stream into the dataset as each URL "
+        "finishes.\n"
+        "4. Export as JSON/CSV/Excel, or consume via API/webhook.\n\n"
+    )
+
+
 def _render_readme(spec: ActorSpec) -> str:
     """Store-winning README per Apify's actor-readme best practices.
 
@@ -706,11 +796,8 @@ def _render_readme(spec: ActorSpec) -> str:
         "- **Platform perks**: scheduling, API access, proxy rotation, "
         "monitoring and webhooks come free with Apify\n\n"
         "## Tutorial\n\n"
-        "1. Add your target URLs to the `urls` field (one per entry).\n"
-        "2. Adjust optional settings (output format, timeouts) or keep defaults.\n"
-        "3. Click **Start** - results stream into the dataset as each URL finishes.\n"
-        "4. Export the dataset as JSON/CSV/Excel, or consume it via API/webhook.\n\n"
-        "## How much will it cost to scrape with this Actor?\n\n"
+        + _tutorial_steps(spec)
+        + "## How much will it cost to scrape with this Actor?\n\n"
         f"Billing is **pay-per-event**: you are charged `${primary.price_usd:.4f}` "
         f"per `{primary.name}` ({primary.description.lower()}) - that is "
         f"**${primary.price_usd * 1000:.2f} per 1,000 items**, with no "

@@ -16,21 +16,21 @@ Scrape any website to clean markdown with a 12-tier adaptive anti-bot bypass (Cl
 ## Tutorial
 
 1. Add your target URLs to the `urls` field (one per entry).
-2. Adjust optional settings (output format, timeouts) or keep defaults.
+2. Adjust optional settings or keep the defaults - they're tuned for the common case.
 3. Click **Start** - results stream into the dataset as each URL finishes.
-4. Export the dataset as JSON/CSV/Excel, or consume it via API/webhook.
+4. Export as JSON/CSV/Excel, or consume via API/webhook.
 
 ## How much will it cost to scrape with this Actor?
 
-Billing is **pay-per-event**: you are charged `$0.0040` per `page-scraped` (one url scraped through the fallback chain.) - that is **$4.00 per 1,000 items**, with no subscription and no minimum.
+Billing is **pay-per-event**: you are charged `$0.0030` per `page-scraped` (one url scraped through the fallback chain.) - that is **$3.00 per 1,000 items**, with no subscription and no minimum.
 
-Example: 100 items at 512 MB costs roughly **$0.40** in event charges (platform compute adds about $0.0333). The synthetic `apify-actor-start` event covers startup compute. Your spending limit is always respected - the run stops gracefully at the cap.
+Example: 100 items at 512 MB costs roughly **$0.30** in event charges (platform compute adds about $0.0333). The synthetic `apify-actor-start` event covers startup compute. Your spending limit is always respected - the run stops gracefully at the cap.
 
 ### Events
 
 | Event | Title | Price | Description |
 |---|---|---|---|
-| `page-scraped` | Page scraped | $0.0040 | One URL scraped through the fallback chain. |
+| `page-scraped` | Page scraped | $0.0030 | One URL scraped through the fallback chain. |
 
 ## Input reference
 
@@ -88,11 +88,11 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 
 **What exactly does Pry Universal Scraper deliver?** Scrape any website to clean markdown with a 12-tier adaptive anti-bot bypass (Cloudflare, DataDome, Akamai). Pay per page scraped; blocked pages escalate automatically. Results land in the dataset as structured items with transparent status reporting.
 
-**Is scraping legal?** Scraping publicly available data is generally legal; respect robots.txt, ToS and privacy law. Pry ships compliance tooling (consent, deletion, retention) in the self-hosted core.
+**Is this allowed?** We stick to publicly available data and documented sources, and we respect robots.txt, ToS and privacy law. The Pry core even ships compliance tooling - consent handling, deletion, retention - for self-hosters.
 
-**What about sites behind Cloudflare?** That is exactly what the adaptive ladder solves - blocked responses trigger automatic escalation to stealth browser tiers.
+**What happens when a site blocks the request?** That's what the adaptive ladder is for. Blocked responses escalate automatically - headers first, stealth browsers later - until something gets through or every tier reports failure honestly.
 
-**Can I schedule runs?** Yes - scheduling, monitoring and API access are first-class Apify platform features. Monitors pair especially well with hourly or daily schedules.
+**Can I run this on a schedule?** Absolutely - scheduling, API access and webhooks are first-class Apify features. Set it once and the dataset keeps itself fresh.
 
 **What does the **Timeout (seconds)** option do?** Per-URL timeout. Default: `30`.
 
