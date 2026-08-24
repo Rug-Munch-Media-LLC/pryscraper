@@ -21,7 +21,9 @@ try:
     from PIL import Image
 
     _has_tesseract = True
-except ImportError:
+except ImportError:  # pragma: no cover - optional OCR extra
+    pytesseract = None  # type: ignore[assignment]
+    Image = None  # type: ignore[assignment]
     _has_tesseract = False
 
 
@@ -48,8 +50,6 @@ class ImageOCR:
 
     def extract_from_bytes(self, image_bytes: bytes, config: str = "") -> dict[str, Any]:
         """Extract text from image bytes."""
-        Image: Any = None
-        pytesseract: Any = None
         if not _has_tesseract:
             return {
                 "success": False,

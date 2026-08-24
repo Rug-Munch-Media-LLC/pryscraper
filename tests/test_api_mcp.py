@@ -60,7 +60,7 @@ def mock_mcp_server() -> Iterator[None]:
 
     # The MCP server is lazily created inside api._get_mcp_server().
     # We patch the function to return our mock.
-    patcher = patch("api._get_mcp_server", return_value=mock_server)
+    patcher = patch("pry.api.api._get_mcp_server", return_value=mock_server)
     patcher.start()
     yield
     patcher.stop()

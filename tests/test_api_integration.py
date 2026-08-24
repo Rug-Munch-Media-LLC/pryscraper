@@ -97,7 +97,7 @@ def _mock_all_deps() -> Iterator[None]:
     )
 
     with patch.multiple(
-        "deps",
+        "pry.core.deps",
         scraper=scraper_mock,
         extractor=extractor_mock,
         parser=parser_mock,

@@ -234,7 +234,7 @@ def test_cleanup_removes_stale_buckets(limiter: UserRateLimiter):
 @pytest.mark.asyncio
 async def test_record_usage_database_write(limiter: UserRateLimiter):
     """record_usage should write a Usage record to the DB."""
-    with patch("user_ratelimit.async_session_scope") as mock_scope:
+    with patch("pry.core.user_ratelimit.async_session_scope") as mock_scope:
         mock_session = AsyncMock()
         mock_session.__aenter__.return_value = mock_session
         mock_scope.return_value = mock_session
@@ -262,7 +262,7 @@ async def test_record_usage_database_write(limiter: UserRateLimiter):
 @pytest.mark.asyncio
 async def test_record_usage_does_not_raise_on_db_failure(limiter: UserRateLimiter):
     """record_usage should never raise — errors are swallowed."""
-    with patch("user_ratelimit.async_session_scope", side_effect=RuntimeError("DB down")):
+    with patch("pry.core.user_ratelimit.async_session_scope", side_effect=RuntimeError("DB down")):
         # Should not raise
         await limiter.record_usage(
             api_key_id="key1",
