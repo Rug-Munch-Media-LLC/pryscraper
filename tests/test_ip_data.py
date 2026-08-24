@@ -142,7 +142,7 @@ def _assert_company_schema(entry: dict[str, Any]) -> None:
 
 
 def test_package_importable() -> None:
-    import ip_data
+    import datasets.ip_data as ip_data
     import routers.ip_data  # noqa: F401
 
     assert callable(ip_data.search_patents)

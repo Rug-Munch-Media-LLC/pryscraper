@@ -29,7 +29,7 @@ from fastapi.testclient import TestClient
 
 import pry.api.client as _client_module
 import routers.attention as attention_router_mod
-from attention import ad_intel, serp, trends
+from datasets.attention import ad_intel, serp, trends
 from pry.core.errors import PryError
 from routers.attention import router as attention_router
 
@@ -503,7 +503,7 @@ def _client(app: FastAPI) -> TestClient:
 
 
 def test_router_importable() -> None:
-    import attention
+    import datasets.attention as attention
     import routers.attention
 
     assert hasattr(attention, "__version__")

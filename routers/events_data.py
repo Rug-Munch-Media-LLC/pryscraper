@@ -44,7 +44,7 @@ def _events_module() -> Any:
     has not landed yet so callers can degrade gracefully.
     """
     try:
-        return importlib.import_module("events_data.tickets")
+        return importlib.import_module("datasets.events_data.tickets")
     except ImportError:
         logger.warning("events_data_module_unavailable")
         return None

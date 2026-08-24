@@ -44,7 +44,7 @@ def _news_module() -> Any:
     has not landed yet so callers can degrade gracefully.
     """
     try:
-        return importlib.import_module("news_data")
+        return importlib.import_module("datasets.news_data")
     except ImportError:
         logger.warning("news_data_module_unavailable")
         return None

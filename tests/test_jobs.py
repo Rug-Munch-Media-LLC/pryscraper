@@ -21,8 +21,8 @@ import respx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import jobs.ats as ats
-import jobs.salary as salary
+import datasets.jobs.ats as ats
+import datasets.jobs.salary as salary
 
 # ── Fixtures ───────────────────────────────────────────────────────────
 

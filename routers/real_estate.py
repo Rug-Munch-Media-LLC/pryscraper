@@ -40,7 +40,7 @@ def _real_estate_module() -> Any:
     it has not landed yet so callers can degrade gracefully.
     """
     try:
-        return importlib.import_module("real_estate")
+        return importlib.import_module("datasets.real_estate")
     except ImportError:
         logger.warning("real_estate_module_unavailable")
         return None

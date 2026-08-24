@@ -39,7 +39,7 @@ def _attention_module(module_name: str) -> Any:
     a module has not landed yet so callers can degrade gracefully.
     """
     try:
-        return importlib.import_module(f"attention.{module_name}")
+        return importlib.import_module(f"datasets.attention.{module_name}")
     except ImportError:
         logger.warning("attention_module_unavailable", extra={"module_name": module_name})
         return None

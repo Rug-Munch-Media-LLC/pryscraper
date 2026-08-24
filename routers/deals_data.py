@@ -43,7 +43,7 @@ def _coupons_module() -> Any:
     has not landed yet so callers can degrade gracefully.
     """
     try:
-        return importlib.import_module("deals_data.coupons")
+        return importlib.import_module("datasets.deals_data.coupons")
     except ImportError:
         logger.warning("deals_coupons_module_unavailable")
         return None
@@ -52,7 +52,7 @@ def _coupons_module() -> Any:
 def _drops_module() -> Any:
     """Import the ``deals_data.drops`` module with a guarded ImportError."""
     try:
-        return importlib.import_module("deals_data.drops")
+        return importlib.import_module("datasets.deals_data.drops")
     except ImportError:
         logger.warning("deals_drops_module_unavailable")
         return None

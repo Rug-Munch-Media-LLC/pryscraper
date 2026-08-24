@@ -100,7 +100,7 @@ def _marketplace_module(module_name: str) -> Any:
     module has not landed yet so callers can degrade gracefully.
     """
     try:
-        return importlib.import_module(f"marketplace.{module_name}")
+        return importlib.import_module(f"datasets.marketplace.{module_name}")
     except ImportError:
         # NOTE: ``extra`` must not use stdlib LogRecord-reserved keys (e.g.
         # "module"), which raise KeyError on plain stdlib loggers.
