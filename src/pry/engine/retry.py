@@ -20,7 +20,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, TypeVar
 
-from pry.engine.resilience import registry as resilience_registry
+from pry.engine import resilience as _resilience_mod
 
 # SystemRandom: crypto-grade entropy for backoff jitter.
 _RNG = random.SystemRandom()
@@ -171,7 +171,7 @@ async def async_retry(
 
     for attempt in range(total_attempts):
         # If a circuit breaker is configured and open, skip immediately.
-        if cfg.circuit_breaker and not resilience_registry.is_service_allowed(cfg.circuit_breaker):
+        if cfg.circuit_breaker and not _resilience_mod.registry.is_service_allowed(cfg.circuit_breaker):
             logger.debug(
                 "retry_circuit_open",
                 extra={
@@ -190,14 +190,14 @@ async def async_retry(
             result = await fn(*args, **kwargs)
             # Record success to the circuit breaker.
             if cfg.circuit_breaker:
-                resilience_registry.record_service_result(cfg.circuit_breaker, True)
+                _resilience_mod.registry.record_service_result(cfg.circuit_breaker, True)
             return result
         except Exception as e:
             last_exc = e
 
             # Record failure to the circuit breaker.
             if cfg.circuit_breaker:
-                resilience_registry.record_service_result(cfg.circuit_breaker, False)
+                _resilience_mod.registry.record_service_result(cfg.circuit_breaker, False)
 
             # Check if this exception type is retryable.
             if cfg.retryable_exceptions is not None and not isinstance(e, cfg.retryable_exceptions):

@@ -366,7 +366,7 @@ async def test_tier_cloudscraper_error(scraper: UltimateScraper):
 @respx.mock
 @pytest.mark.asyncio
 async def test_tier_flaresolverr_no_url(scraper: UltimateScraper):
-    with patch("pry.engine.settings.settings.flaresolverr_url", ""):
+    with patch("pry.core.settings.settings.flaresolverr_url", ""):
         result = await scraper._tier_flaresolverr("http://example.com", {})
         assert result is None
 
@@ -379,7 +379,7 @@ async def test_tier_flaresolverr_success(scraper: UltimateScraper):
             200, json={"solution": {"status": 200, "response": "<html>flare</html>"}}
         )
     )
-    with patch("pry.engine.settings.settings.flaresolverr_url", "http://flaresolverr:8191/v1"):
+    with patch("pry.core.settings.settings.flaresolverr_url", "http://flaresolverr:8191/v1"):
         result = await scraper._tier_flaresolverr("http://example.com", {})
         assert result == "<html>flare</html>"
 
@@ -390,7 +390,7 @@ async def test_tier_flaresolverr_not_200(scraper: UltimateScraper):
     respx.post("http://flaresolverr:8191/v1").mock(
         return_value=httpx.Response(200, json={"solution": {"status": 503, "response": "down"}})
     )
-    with patch("pry.engine.settings.settings.flaresolverr_url", "http://flaresolverr:8191/v1"):
+    with patch("pry.core.settings.settings.flaresolverr_url", "http://flaresolverr:8191/v1"):
         result = await scraper._tier_flaresolverr("http://example.com", {})
         assert result is None
         result = await scraper._tier_flaresolverr("http://example.com", {})

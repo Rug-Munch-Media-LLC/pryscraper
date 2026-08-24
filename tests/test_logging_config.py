@@ -84,29 +84,13 @@ def test_get_logger_returns_logger():
     assert callable(log.info)
 
 
-def test_setup_logging_without_structlog_falls_back(monkeypatch):
-    """If structlog isn't available, setup_logging should still work."""
-    import builtins
-
-    real_import = builtins.__import__
-
-    def fake_import(name, *args, **kwargs):
-        if name == "structlog" or name.startswith("structlog."):
-            raise ImportError("simulated missing structlog")
-        return real_import(name, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, "__import__", fake_import)
-    # Force a fresh import
-    import importlib
-
-    importlib.reload(logging_config)
-    try:
-        logging_config.setup_logging()
-        # basicConfig should have been called
-        assert logging.getLogger().handlers
-    finally:
-        # Restore structlog
-        importlib.reload(logging_config)
+def test_setup_logging_is_idempotent():
+    """structlog is a hard dependency (src-layout migration); setup_logging
+    must be safely callable repeatedly without duplicating handlers."""
+    logging_config.setup_logging()
+    handler_count = len(logging.getLogger().handlers)
+    logging_config.setup_logging()
+    assert len(logging.getLogger().handlers) <= handler_count
 
 
 def test_default_level_is_info(monkeypatch):

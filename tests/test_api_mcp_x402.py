@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import base64
 import json
-import shutil
 import socket
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -199,7 +199,10 @@ class TestMCPSSE:
         Returns ``(proc, base_url, port)``. The caller must terminate the
         process in a ``finally`` block.
         """
-        python_bin = shutil.which("python3") or "python3"
+        # sys.executable (not PATH lookup): the spawned server needs the SAME
+        # interpreter env as pytest — a bare `python3` from PATH may lack the
+        # venv's packages (pry, uvicorn) depending on how the suite was invoked.
+        python_bin = sys.executable
         last_poll: int | None = None
         for _ in range(max_attempts):
             port = _find_free_port()

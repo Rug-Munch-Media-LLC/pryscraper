@@ -50,7 +50,7 @@ MOD_AIOHTTP_SOCKS = "aiohttp_socks"
 MOD_PYTESSERACT = "pytesseract"
 
 # Directory holding the stealth JS payloads shipped with Pry.
-STEALTH_SCRIPTS_DIR = Path(__file__).resolve().parent / "stealth_scripts"
+STEALTH_SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "engine" / "stealth_scripts"
 
 # Playwright cache directory entry prefixes that identify installed browsers
 # (e.g. ``chromium-1234``, ``firefox-1420``, ``webkit-2020``).

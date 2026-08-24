@@ -118,7 +118,7 @@ _UA_POOL = [
 _extract_nextjs_props: Any = None
 _extract_nuxt_state: Any = None
 _extract_json_ld: Any = None
-if importlib.util.find_spec("network") is not None:
+if importlib.util.find_spec("pry.engine.network") is not None:
     from pry.engine.network import (
         extract_json_ld as _extract_json_ld,
         extract_nextjs_props as _extract_nextjs_props,
@@ -126,7 +126,7 @@ if importlib.util.find_spec("network") is not None:
     )
 
 _UltimateScraper: Any = None
-if importlib.util.find_spec("ultimate_scraper") is not None:
+if importlib.util.find_spec("pry.engine.ultimate_scraper") is not None:
     from pry.engine.ultimate_scraper import UltimateScraper as _UltimateScraper
 
 _ULTIMATE: Any = None  # lazily instantiated UltimateScraper singleton

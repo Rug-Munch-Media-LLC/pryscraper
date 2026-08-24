@@ -38,7 +38,7 @@ import os
 import re
 import time
 import uuid
-from collections.abc import Mapping
+from collections.abc import Mapping, MutableMapping
 from datetime import UTC, datetime
 from typing import Any, cast
 
@@ -193,7 +193,7 @@ def is_loopback_client(ip: str) -> bool:
     )
 
 
-def request_authorized(scope: Mapping[str, Any]) -> bool:
+def request_authorized(scope: MutableMapping[str, Any]) -> bool:
     """Apply the fail-closed auth policy to an ASGI request scope.
 
     * key configured -> valid Bearer PRY_API_KEY or rmi JWT required
@@ -219,8 +219,11 @@ def request_authorized(scope: Mapping[str, Any]) -> bool:
             record = None
         if record is None:
             return False
-        scope_dict = dict(scope)
-        scope_dict["pry_api_key"] = record
+        # Bind the authenticated key identity INTO the live scope so
+        # downstream metering/billing (scope["pry_api_key"]) sees it.
+        # ASGI scope is a mutable dict; a local copy here would be discarded
+        # and usage would never be recorded (regression from src-layout move).
+        scope["pry_api_key"] = record
         return True
 
     if api_key:
