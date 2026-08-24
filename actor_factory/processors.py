@@ -337,8 +337,11 @@ def process_monitor(
 
 # ── structured-data extractor (schema.org JSON-LD) ──────────────────────────
 
+# Matches quoted AND unquoted attribute forms - Yoast SEO (#1 WordPress
+# plugin) emits <script type=application/ld+json class=...> unquoted,
+# which is valid HTML5. Found via live back-testing.
 _JSONLD_RE = re.compile(
-    r"""<script[^>]+type=["']application/ld\+json["'][^>]*>(.*?)</script>""",
+    r"""<script[^>]+type=["']?application/ld\+json["']?[^>]*>(.*?)</script>""",
     re.I | re.S,
 )
 
@@ -452,8 +455,10 @@ def process_news(
 
 # ── price watcher ────────────────────────────────────────────────────────────
 
+# Same unquoted-attribute tolerance as the extractor regex above (Yoast).
 _JSONLD_RE = re.compile(
-    r"<script[^>]+type=[\"']application/ld\+json[\"'][^>]*>(.*?)</script>", re.I | re.S
+    r"""<script[^>]+type=["']?application/ld\+json["']?[^>]*>(.*?)</script>""",
+    re.I | re.S,
 )
 
 

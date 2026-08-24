@@ -410,3 +410,24 @@ class TestNewCatalogEntries:
 
         dupes = [t for t, c in Counter(s.title for s in ALL_PRESETS.values()).items() if c > 1]
         assert not dupes, dupes
+
+
+class TestJsonLdUnquotedAttributes:
+    def test_yoast_style_unquoted_type_attribute(self) -> None:
+        """Regression: Yoast emits <script type=application/ld+json ...>
+        unquoted (valid HTML5). Found via live back-testing against
+        loveandlemons.com - millions of WP sites affected."""
+        import json as _json
+
+        from actor_factory.processors import process_extract
+
+        data = _json.dumps(
+            {
+                "@context": "https://schema.org",
+                "@graph": [{"@type": "Recipe", "name": "Hummus"}],
+            }
+        )
+        html = f"<script type=application/ld+json class=yoast-schema-graph>{data}</script>"
+        item = process_extract("http://e.com", _ok_result(html), {"types": ["Recipe"]}, {})
+        assert item["status"] == "ok"
+        assert item["extracted"]["entities"][0]["fields"]["name"] == "Hummus"
