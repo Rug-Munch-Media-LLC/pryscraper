@@ -1709,7 +1709,6 @@ TECH_STACK_ACTOR = ActorSpec(
         "prospecting by stack."
     ),
     version="1.0",
-    processor="leads",
     inputs=(
         URLS_FIELD,
         InputField(
@@ -1729,6 +1728,7 @@ TECH_STACK_ACTOR = ActorSpec(
             price_usd=0.003,
         ),
     ),
+    processor="tech",
     min_memory_mbytes=512,
     max_memory_mbytes=2048,
 )
@@ -2423,6 +2423,158 @@ ALL_PRESETS.update(
             STATUS_PAGE_ACTOR,
             MENU_EXTRACTOR_ACTOR,
             RECIPE_MINER_ACTOR,
+        )
+    }
+)
+
+# ── batch 19: high-demand data verticals (e-commerce, AI support, local SEO) ─
+
+PRODUCT_DATA_ACTOR = ActorSpec(
+    name="pry-product-data-extractor",
+    title="Pry Product Data Extractor",
+    description=(
+        "Extract structured product data from any e-commerce page: name, "
+        "price, currency, availability, brand and images - powered by "
+        "schema.org JSON-LD that Shopify, WooCommerce and Magento stores "
+        "already embed. Feed price intelligence, catalog syncs and "
+        "competitor monitoring."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="include_variants",
+            title="Include variant offers",
+            type="boolean",
+            description="Capture multiple offers when a product has variants.",
+            default=True,
+            section_caption="Extract settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="product-extracted",
+            title="Product extracted",
+            description="One product extracted to the dataset.",
+            price_usd=0.002,
+        ),
+    ),
+    processor="extract",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+ECOMMERCE_CRAWLER_ACTOR = ActorSpec(
+    name="pry-ecommerce-catalog-crawler",
+    title="Pry E-commerce Catalog Crawler",
+    description=(
+        "Crawl an entire online store and extract every product with "
+        "prices, availability and categories - full catalog exports for "
+        "market research, dropshipping feeds and competitor price "
+        "tracking across Shopify, WooCommerce and custom platforms."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="category_filter",
+            title="Category URL contains",
+            type="string",
+            description="Only crawl product URLs matching this path fragment.",
+            default="",
+            section_caption="Crawl scope",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="product-extracted",
+            title="Product extracted",
+            description="One product extracted to the dataset.",
+            price_usd=0.002,
+        ),
+    ),
+    processor="extract",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+KNOWLEDGE_BASE_MINER_ACTOR = ActorSpec(
+    name="pry-knowledge-base-miner",
+    title="Pry Knowledge Base Miner",
+    description=(
+        "Turn help centers and FAQ pages into clean question-answer pairs "
+        "using FAQPage and HowTo structured data - training data for "
+        "support chatbots, AI agents and self-service knowledge bases."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+        InputField(
+            name="min_answer_chars",
+            title="Minimum answer length",
+            type="integer",
+            description="Skip answers shorter than this many characters.",
+            default=80,
+            section_caption="Extract settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="faq-pair-extracted",
+            title="FAQ pair extracted",
+            description="One question-answer pair extracted to the dataset.",
+            price_usd=0.002,
+        ),
+    ),
+    processor="extract",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+LOCAL_BUSINESS_AUDITOR_ACTOR = ActorSpec(
+    name="pry-local-business-schema-auditor",
+    title="Pry Local Business Schema Auditor",
+    description=(
+        "Audit LocalBusiness structured data on any business website: "
+        "name, address, phone, opening hours and geo coordinates as "
+        "schema.org JSON-LD - validate your own markup or prospect "
+        "businesses with missing or broken local SEO schema."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="require_geo",
+            title="Require geo coordinates",
+            type="boolean",
+            description="Flag listings missing latitude/longitude.",
+            default=True,
+            section_caption="Audit rules",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="business-audited",
+            title="Business audited",
+            description="One business listing audited.",
+            price_usd=0.002,
+        ),
+    ),
+    processor="extract",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+ALL_PRESETS.update(
+    {
+        spec.name: spec
+        for spec in (
+            PRODUCT_DATA_ACTOR,
+            ECOMMERCE_CRAWLER_ACTOR,
+            KNOWLEDGE_BASE_MINER_ACTOR,
+            LOCAL_BUSINESS_AUDITOR_ACTOR,
         )
     }
 )

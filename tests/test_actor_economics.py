@@ -304,8 +304,8 @@ class TestMarketDrivenPresets:
 
 class TestPortfolioScale:
     def test_full_catalog_all_store_ready(self) -> None:
-        """The full catalog: 60 actors, zero lint findings."""
-        assert len(ALL_PRESETS) == 60
+        """The full catalog: every actor store-ready, zero lint findings."""
+        assert len(ALL_PRESETS) >= 60
         for name, spec in sorted(ALL_PRESETS.items()):
             assert lint_actor(spec) == [], name
 

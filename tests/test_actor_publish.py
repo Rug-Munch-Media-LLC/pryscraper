@@ -115,9 +115,9 @@ class TestStageActor:
                 publish._actor_lock_contents(repo_lock)
 
     def test_every_preset_stages_clean(self, tmp_path: Path) -> None:
-        """Full-catalog gate: all 60 presets produce valid staged packages."""
+        """Full-catalog gate: every preset produces a valid staged package."""
         staged = [stage_actor(spec, REPO, tmp_path) for spec in sorted_specs()]
-        assert len(staged) == len(ALL_PRESETS) == 60
+        assert len(staged) == len(ALL_PRESETS) == 64
         for stage in staged:
             assert (stage / ".actor" / "actor.json").is_file()
 

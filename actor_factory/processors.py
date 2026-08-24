@@ -530,6 +530,71 @@ def process_backlinks(
     return item
 
 
+# ── technology stack detector (HTML signature matching) ─────────────────────
+
+_TECH_SIGNATURES: tuple[tuple[str, str, str], ...] = (
+    # (category, name, html marker - lowercase)
+    ("cms", "WordPress", "wp-content"),
+    ("cms", "Drupal", "/sites/default/files"),
+    ("cms", "Wix", "wix.com"),
+    ("cms", "Squarespace", "squarespace"),
+    ("ecommerce", "Shopify", "cdn.shopify.com"),
+    ("ecommerce", "WooCommerce", "woocommerce"),
+    ("ecommerce", "Magento", "magento"),
+    ("framework", "Next.js", "/_next/"),
+    ("framework", "Nuxt", "/_nuxt/"),
+    ("framework", "React", "data-reactroot"),
+    ("framework", "Vue.js", "data-v-app"),
+    ("framework", "Angular", "ng-version"),
+    ("js_lib", "jQuery", "jquery"),
+    ("analytics", "Google Analytics", "google-analytics.com"),
+    ("analytics", "Google Analytics 4", "gtag/js"),
+    ("analytics", "Plausible", "plausible.io"),
+    ("analytics", "Matomo", "matomo"),
+    ("tag_manager", "Google Tag Manager", "googletagmanager.com/gtm"),
+    ("tag_manager", "Segment", "cdn.segment.com"),
+    ("marketing", "HubSpot", "hs-scripts.com"),
+    ("marketing", "Mailchimp", "chimpstatic.com"),
+    ("support", "Intercom", "intercom"),
+    ("support", "Zendesk", "zendesk"),
+    ("support", "Crisp", "crisp.chat"),
+    ("payments", "Stripe", "js.stripe.com"),
+    ("payments", "PayPal", "paypal.com/sdk"),
+    ("hosting_cdn", "Cloudflare", "cloudflare"),
+    ("hosting_cdn", "Vercel", "vercel.app"),
+    ("hosting_cdn", "Netlify", "netlify"),
+)
+
+
+def process_tech(
+    url: str, result: dict[str, Any], options: dict[str, Any], state: dict[str, Any]
+) -> dict[str, Any]:
+    """Detect website technologies from HTML signatures (Wappalyzer-style,
+    signature-based only - no fingerprinting of visitors)."""
+    item = _base_item(url, result)
+    if item["status"] != "ok":
+        return item
+    html = (_raw_html(result) or item["content"] or "").lower()
+    found: list[dict[str, str]] = []
+    for category, name, marker in _TECH_SIGNATURES:
+        if marker in html:
+            found.append({"category": category, "name": name})
+    generator_m = re.search(
+        r"""<meta[^>]+name=["']generator["'][^>]+content=["']([^"']+)["']""",
+        _raw_html(result) or "",
+        re.I,
+    )
+    if generator_m:
+        found.insert(0, {"category": "generator_meta", "name": generator_m.group(1)[:80]})
+    item.pop("content", None)
+    item["tech"] = {
+        "technologies": found,
+        "count": len(found),
+        "categories": sorted({t["category"] for t in found}),
+    }
+    return item
+
+
 PROCESSORS: dict[str, ProcessorFn] = {
     "corpus": process_corpus,
     "backlinks": process_backlinks,
@@ -537,6 +602,7 @@ PROCESSORS: dict[str, ProcessorFn] = {
     "leads": process_leads,
     "news": process_news,
     "price": process_price,
+    "tech": process_tech,
     "audit": process_audit,
     "monitor": process_monitor,
     "extract": process_extract,

@@ -345,3 +345,68 @@ class TestProcessorRegistryNew:
 
         for name in ("audit", "monitor", "extract"):
             assert callable(get_processor(name))
+
+
+class TestTechProcessor:
+    def test_signatures_detected_and_content_suppressed(self) -> None:
+        from actor_factory.processors import process_tech
+
+        html = (
+            "<html><head>"
+            '<meta name="generator" content="WordPress 6.4">'
+            '<script src="https://cdn.shopify.com/s.js"></script>'
+            '<script src="https://js.stripe.com/v3"></script>'
+            "</head><body>shop</body></html>"
+        )
+        item = process_tech("http://e.com", _ok_result(html), {}, {})
+        tech = item["tech"]
+        names = {t["name"] for t in tech["technologies"]}
+        # generator meta keeps its full versioned string; signature hits
+        # match canonical names
+        assert "WordPress 6.4" in names
+        assert any(t["category"] == "generator_meta" for t in tech["technologies"])
+        assert "Shopify" in names
+        assert "Stripe" in names
+        assert tech["count"] == len(tech["technologies"]) >= 3
+        assert "ecommerce" in tech["categories"]
+        assert "content" not in item
+
+    def test_clean_page_reports_empty_honestly(self) -> None:
+        from actor_factory.processors import process_tech
+
+        item = process_tech("http://e.com", _ok_result("<p>plain</p>"), {}, {})
+        assert item["tech"]["count"] == 0
+        assert item["tech"]["technologies"] == []
+
+    def test_error_item_passthrough(self) -> None:
+        from actor_factory.processors import process_tech
+
+        item = process_tech("http://e.com", {"status": "error", "error": "x"}, {}, {})
+        assert item["status"] == "error"
+        assert "tech" not in item
+
+
+class TestNewCatalogEntries:
+    def test_four_new_presets_wired_and_priced(self) -> None:
+        from actor_factory.presets import ALL_PRESETS
+
+        expected = {
+            "pry-product-data-extractor": "extract",
+            "pry-ecommerce-catalog-crawler": "extract",
+            "pry-knowledge-base-miner": "extract",
+            "pry-local-business-schema-auditor": "extract",
+            "pry-tech-stack-detector": "tech",
+        }
+        for name, proc in expected.items():
+            spec = ALL_PRESETS[name]
+            assert spec.processor == proc, name
+            assert len(spec.description) >= 80, name
+            assert spec.pricing_events, name
+
+    def test_catalog_has_no_duplicate_titles(self) -> None:
+        from collections import Counter
+
+        from actor_factory.presets import ALL_PRESETS
+
+        dupes = [t for t, c in Counter(s.title for s in ALL_PRESETS.values()).items() if c > 1]
+        assert not dupes, dupes

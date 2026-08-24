@@ -189,6 +189,102 @@ def generate_actor(spec: ActorSpec, out_dir: Path) -> GeneratedActor:
     return GeneratedActor(out_dir=out_dir, files=files)
 
 
+def _render_faq(spec: ActorSpec) -> str:
+    """Category-aware FAQ: base platform answers plus processor-specific
+    Q&As derived from what the actor ACTUALLY does (never fabricated)."""
+    faq: list[tuple[str, str]] = [
+        (
+            "Is scraping legal?",
+            "Scraping publicly available data is generally legal; respect "
+            "robots.txt, ToS and privacy law. Pry ships compliance tooling "
+            "(consent, deletion, retention) in the self-hosted core.",
+        ),
+        (
+            "What about sites behind Cloudflare?",
+            "That is exactly what the adaptive ladder solves - blocked "
+            "responses trigger automatic escalation to stealth browser tiers.",
+        ),
+        (
+            "Can I schedule runs?",
+            "Yes - scheduling, monitoring and API access are first-class "
+            "Apify platform features. Monitors pair especially well with "
+            "hourly or daily schedules.",
+        ),
+    ]
+    proc = spec.processor or ""
+    if proc == "extract":
+        faq.extend(
+            [
+                (
+                    "Which sites does this work on?",
+                    "Any site embedding schema.org structured data (JSON-LD) - "
+                    "that includes Shopify, WooCommerce, Magento and most modern "
+                    "platforms. Pages without matching structured data are "
+                    "skipped and reported honestly rather than guessed at.",
+                ),
+                (
+                    "What happens with pages that have no structured data?",
+                    "They appear in the dataset with status 'skipped' and a "
+                    "clear reason - you always know exactly what was extracted "
+                    "versus what was not found.",
+                ),
+            ]
+        )
+    if proc == "monitor":
+        faq.extend(
+            [
+                (
+                    "How does change detection work?",
+                    "Each capture computes a stable content fingerprint; the "
+                    "next run compares against it and reports changed/unchanged "
+                    "with a similarity detail. The first run is always a baseline.",
+                ),
+                (
+                    "Will I get an item every run even when nothing changed?",
+                    "By default unchanged pages are suppressed so your dataset "
+                    "only holds signal. Set include_unchanged to keep every "
+                    "capture for audit trails.",
+                ),
+            ]
+        )
+    if proc == "audit":
+        faq.extend(
+            [
+                (
+                    "What does the audit score mean?",
+                    "A 0-100 weighted summary: each failed check costs 25 "
+                    "points, each warning 10. Individual findings always ship "
+                    "alongside the score so nothing is hidden behind a number.",
+                ),
+                (
+                    "Can I disable checks I don't need?",
+                    "Yes - every check is toggleable via the input options, so "
+                    "you pay only for the signals you care about.",
+                ),
+            ]
+        )
+    if proc == "tech":
+        faq.append(
+            (
+                "How are technologies detected?",
+                "Signature-based matching against HTML markers (script sources, "
+                "meta tags, DOM attributes) across CMS, e-commerce, framework, "
+                "analytics, payments and hosting categories - no visitor-side "
+                "fingerprinting involved.",
+            )
+        )
+    if proc == "leads":
+        faq.append(
+            (
+                "Are the emails verified?",
+                "Addresses are extracted and de-duplicated from page content "
+                "and mailto links; deliverability verification is best done "
+                "downstream with a dedicated verifier API.",
+            )
+        )
+    return "\n\n".join(f"**{q}** {a}" for q, a in faq) + "\n\n"
+
+
 def _default_output_format(spec: ActorSpec) -> str:
     for f in spec.inputs:
         if f.name == "output_format" and isinstance(f.default, str):
@@ -327,16 +423,7 @@ def _render_readme(spec: ActorSpec) -> str:
         "```\n\n"
         "Integrations: Zapier, Make, n8n, Airbyte and webhooks are "
         "first-class on the Apify platform.\n\n"
-        "## FAQ\n\n"
-        "**Is scraping legal?** Scraping publicly available data is generally "
-        "legal; respect robots.txt, ToS and privacy law. Pry ships compliance "
-        "tooling (consent, deletion, retention) in the self-hosted core.\n\n"
-        "**What about sites behind Cloudflare?** That is exactly what the "
-        "adaptive ladder solves - blocked responses trigger automatic "
-        "escalation to stealth browser tiers.\n\n"
-        "**Can I schedule runs?** Yes - scheduling, monitoring and API access "
-        "are first-class Apify platform features.\n\n"
-        "## Support\n\n"
+        "## FAQ\n\n" + _render_faq(spec) + "## Support\n\n"
         "Issues and feature requests: "
         "[Pry repository](https://github.com/cryptorugmuncher/pryscraper). "
         "Custom actors built on this engine are available on request.\n"

@@ -90,7 +90,7 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 
 **What about sites behind Cloudflare?** That is exactly what the adaptive ladder solves - blocked responses trigger automatic escalation to stealth browser tiers.
 
-**Can I schedule runs?** Yes - scheduling, monitoring and API access are first-class Apify platform features.
+**Can I schedule runs?** Yes - scheduling, monitoring and API access are first-class Apify platform features. Monitors pair especially well with hourly or daily schedules.
 
 ## Support
 
