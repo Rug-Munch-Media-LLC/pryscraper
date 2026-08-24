@@ -265,7 +265,7 @@ def run_batch(
     only: list[str] | None = None,
     dry_run: bool = False,
     resume: bool = False,
-    push_fn: Callable[[Path], tuple[bool, str]] | None = None,
+    push_fn: Callable[[Path, str | None], tuple[bool, str]] | None = None,
     actor_id_prefix: str | None = None,
     delay_seconds: float = INTER_PUSH_DELAY_SECONDS,
 ) -> Iterator[PushResult]:
