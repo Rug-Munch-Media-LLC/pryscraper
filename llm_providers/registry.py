@@ -365,6 +365,7 @@ class LLMRegistry:
         today = datetime.now(UTC).strftime("%Y-%m-%d")
         path = USAGE_DIR / f"usage_{today}.jsonl"
         try:
+            path.parent.mkdir(parents=True, exist_ok=True)
             with open(path, "a") as f:
                 f.write(
                     json.dumps(
