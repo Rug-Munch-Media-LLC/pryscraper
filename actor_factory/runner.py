@@ -28,10 +28,13 @@ Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Protocol
+
+from actor_factory.abuse_guard import AbuseGuard
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +181,22 @@ class PPEScraperRunner:
             options.setdefault("output_format", output_format)
 
             state: dict[str, Any] = {}
+            guard = AbuseGuard(
+                skip_counts_as_failure=self.config.processor_name != "monitor",
+            )
             for url in urls[: self.config.max_items]:
+                if guard.tripped:
+                    if guard.should_abort:
+                        honeypot = guard.honeypot_record()
+                        await actor.push_data(honeypot)
+                        logger.error(
+                            "abuse_guard_abort",
+                            extra={"reason": guard.trip_reason, "total_seen": guard.total_seen},
+                        )
+                        self.stats.pushed_error += 1
+                        break
+                    await asyncio.sleep(guard.delay)
+                    guard.escalate_throttle()
                 try:
                     item = await self.process_url(url, options)
                     processor = self._processor()
@@ -192,6 +210,7 @@ class PPEScraperRunner:
                         "error": f"processing_failed: {str(e)[:120]}",
                         "scraped_at": datetime.now(UTC).isoformat(),
                     }
+                guard.record(item.get("status", "error"), url)
                 keep_going = await self.push_and_charge(actor, item)
                 if not keep_going:
                     logger.warning(
