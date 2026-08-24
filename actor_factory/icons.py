@@ -38,6 +38,8 @@ CATEGORY_COLORS: dict[str, tuple[int, int]] = {
     "TRAVEL": (190, 170),  # cyan
     "HEALTHCARE": (172, 152),  # teal
     "AI": (285, 265),  # purple
+    "DEVTOOLS": (200, 220),  # azure for API/devtool data Actors
+    "FINANCE": (160, 140),  # mint-green for markets/money flows
 }
 
 # Glyph library: simple white-on-color SVG paths keyed by concept.
@@ -78,8 +80,18 @@ _GLYPHS: dict[str, str] = {
     "edu": '<path d="M128 68 L208 104 L128 140 L48 104 Z" fill="#fff"/><path d="M88 122 L88 160 C88 174 168 174 168 160 L168 122" fill="none" stroke="#fff" stroke-width="10"/><line x1="196" y1="112" x2="196" y2="164" stroke="#fff" stroke-width="8" stroke-linecap="round"/>',
     # chat (forums/discussions)
     "chat": '<path d="M64 72 L192 72 C202 72 208 80 208 90 L208 146 C208 156 202 164 192 164 L140 164 L104 196 L104 164 L64 164 C54 164 48 156 48 146 L48 90 C48 80 54 72 64 72 Z" fill="#fff"/><g fill="{bg}"><circle cx="96" cy="118" r="9"/><circle cx="128" cy="118" r="9"/><circle cx="160" cy="118" r="9"/></g>',
+    # api braces (JSON APIs / devtools data)
+    "api": '<text x="76" y="160" font-family="monospace" font-size="96" font-weight="bold" fill="#fff" text-anchor="middle">{</text><text x="180" y="160" font-family="monospace" font-size="96" font-weight="bold" fill="#fff" text-anchor="middle">}</text><circle cx="128" cy="128" r="12" fill="{bg}"/>',
+    # receipt/invoice (accounting extraction)
+    "invoice": '<path d="M76 52 L180 52 L180 204 L164 192 L148 204 L132 192 L116 204 L100 192 L84 204 L76 196 Z" fill="#fff"/><line x1="94" y1="88" x2="162" y2="88" stroke="{bg}" stroke-width="9" stroke-linecap="round"/><line x1="94" y1="116" x2="162" y2="116" stroke="{bg}" stroke-width="9" stroke-linecap="round"/><line x1="94" y1="144" x2="138" y2="144" stroke="{bg}" stroke-width="9" stroke-linecap="round"/><line x1="94" y1="170" x2="162" y2="170" stroke="{bg}" stroke-width="11" stroke-linecap="round"/>',
+    # git branch (release/repo monitoring)
+    "branch": '<circle cx="92" cy="76" r="18" fill="#fff"/><circle cx="92" cy="180" r="18" fill="#fff"/><circle cx="176" cy="104" r="18" fill="#fff"/><path d="M92 94 L92 162" stroke="#fff" stroke-width="11"/><path d="M92 108 C120 108 150 112 172 122" stroke="#fff" stroke-width="11" fill="none"/>',
+    # package box (npm/pypi stats)
+    "package": '<path d="M128 56 L200 92 L200 168 L128 204 L56 168 L56 92 Z" fill="#fff"/><path d="M56 92 L128 128 L200 92 M128 128 L128 204" stroke="{bg}" stroke-width="10" fill="none"/>',
+    # chart-up (fx/crypto markets)
+    "chart": '<polyline points="60,176 104,132 136,152 196,84" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/><path d="M164 84 L196 84 L196 116" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>',
     # chart (economics/analytics)
-    "chart": '<rect x="72" y="128" width="26" height="60" fill="#fff"/><rect x="115" y="100" width="26" height="88" fill="#fff"/><rect x="158" y="72" width="26" height="116" fill="#fff"/>',
+    "bars": '<rect x="72" y="128" width="26" height="60" fill="#fff"/><rect x="115" y="100" width="26" height="88" fill="#fff"/><rect x="158" y="72" width="26" height="116" fill="#fff"/>',
     # database (data collection)
     "database": '<ellipse cx="128" cy="84" rx="56" ry="20" fill="#fff"/><path d="M72 84 L72 172 C72 186 184 186 184 172 L184 84" fill="none" stroke="#fff" stroke-width="10"/><path d="M72 128 C72 142 184 142 184 128" fill="none" stroke="#fff" stroke-width="8"/>',
     # lock (compliance/security)
@@ -218,6 +230,25 @@ def _pick_glyph(spec: Any) -> str:
         ("radar", "eye"),
         ("finder", "eye"),
         ("watcher", "eye"),
+        ("github", "branch"),
+        ("release", "branch"),
+        ("arxiv", "document"),
+        ("paper", "document"),
+        ("npm", "package"),
+        ("pypi", "package"),
+        ("package", "package"),
+        ("app-store", "chat"),
+        ("podcast", "rss"),
+        ("rss", "rss"),
+        ("feed", "rss"),
+        ("rdap", "globe"),
+        ("domain", "globe"),
+        ("fx", "chart"),
+        ("rate-monitor", "chart"),
+        ("crypto-market", "chart"),
+        ("json", "api"),
+        ("api-monitor", "api"),
+        ("invoice", "invoice"),
     ]
     for needle, glyph in rules:
         if needle in haystack and glyph in _GLYPHS:
@@ -258,6 +289,15 @@ def _category_for(spec: Any) -> str:
         ("crawler", "CRAWLER"),
         ("monitor", "MONITOR"),
         ("watch", "MONITOR"),
+        ("github", "DEVTOOLS"),
+        ("npm", "DEVTOOLS"),
+        ("pypi", "DEVTOOLS"),
+        ("arxiv", "DEVTOOLS"),
+        ("json", "DEVTOOLS"),
+        ("release", "DEVTOOLS"),
+        ("fx", "FINANCE"),
+        ("crypto-market", "FINANCE"),
+        ("invoice", "FINANCE"),
     ):
         if key in name:
             return color

@@ -431,3 +431,95 @@ class TestJsonLdUnquotedAttributes:
         item = process_extract("http://e.com", _ok_result(html), {"types": ["Recipe"]}, {})
         assert item["status"] == "ok"
         assert item["extracted"]["entities"][0]["fields"]["name"] == "Hummus"
+
+
+class TestJsonDataProcessor:
+    def test_parses_json_payload_with_data_path(self) -> None:
+        from actor_factory.processors import process_jsondata
+
+        body = '{"ok":true,"items":[{"name":"a","v":1},{"name":"b","v":2}]}'
+        item = process_jsondata("http://api", _ok_result(body), {"data_path": "items"}, {})
+        assert item["status"] == "ok"
+        recs = item["data"]["records"]
+        assert len(recs) == 2
+        assert recs[0]["name"] == "a"
+        assert item["data"]["count"] == 2
+
+    def test_non_json_skips_honestly(self) -> None:
+        from actor_factory.processors import process_jsondata
+
+        item = process_jsondata("http://x", _ok_result("<html>hi</html>"), {}, {})
+        assert item["status"] == "skipped"
+        assert "not JSON" in item["error"]
+
+    def test_invalid_json_reports_reason(self) -> None:
+        from actor_factory.processors import process_jsondata
+
+        item = process_jsondata("http://x", _ok_result("{broken"), {}, {})
+        assert item["status"] == "skipped"
+        assert "invalid JSON" in item["error"]
+
+    def test_missing_data_path_yields_empty_records(self) -> None:
+        from actor_factory.processors import process_jsondata
+
+        item = process_jsondata(
+            "http://api", _ok_result('{"other": []}'), {"data_path": "nope.here"}, {}
+        )
+        assert item["data"]["records"] == []
+
+    def test_max_items_caps_output(self) -> None:
+        from actor_factory.processors import process_jsondata
+
+        body = "[" + ",".join(f'{{"i":{n}}}' for n in range(100)) + "]"
+        item = process_jsondata("http://api", _ok_result(body), {"max_items": 5}, {})
+        assert item["data"]["count"] == 5
+        assert item["data"]["total_in_response"] == 100
+
+
+class TestInvoiceProcessor:
+    def test_extracts_number_date_total(self) -> None:
+        from actor_factory.processors import process_invoice
+
+        text = (
+            "ACME Corp\nInvoice No: INV-2026-0042\nInvoice Date: 2026-08-24\n"
+            "Subtotal: 90.00\nGrand Total: $109.00\nThanks!"
+        )
+        item = process_invoice("file:///inv.pdf", _ok_result("pdf", content=text), {}, {})
+        inv = item["invoice"]
+        assert inv["number"] == "INV-2026-0042"
+        assert inv["date"] == "2026-08-24"
+        assert inv["total"] == "109.00"
+        assert inv["currency"] == "$"
+
+    def test_no_invoice_fields_skips_honestly(self) -> None:
+        from actor_factory.processors import process_invoice
+
+        item = process_invoice("file:///x.pdf", _ok_result("pdf", content="random text"), {}, {})
+        assert item["status"] == "skipped"
+
+
+class TestNewCatalogBatch20:
+    def test_fifteen_api_backed_presets_wired(self) -> None:
+        from actor_factory.presets import ALL_PRESETS
+
+        expected = {
+            "pry-app-store-review-miner": "jsondata",
+            "pry-github-release-monitor": "jsondata",
+            "pry-npm-package-stats": "jsondata",
+            "pry-pypi-package-stats": "jsondata",
+            "pry-hacker-news-monitor": "jsondata",
+            "pry-youtube-rss-monitor": "monitor",
+            "pry-rss-feed-monitor": "monitor",
+            "pry-rdap-domain-watch": "jsondata",
+            "pry-arxiv-paper-monitor": "jsondata",
+            "pry-json-api-monitor": "jsondata",
+            "pry-pdf-invoice-extractor": "invoice",
+            "pry-startup-funding-monitor": "news",
+            "pry-podcast-review-miner": "jsondata",
+            "pry-fx-rate-monitor": "jsondata",
+            "pry-crypto-market-monitor": "jsondata",
+        }
+        for name, proc in expected.items():
+            spec = ALL_PRESETS[name]
+            assert spec.processor == proc, name
+            assert len(spec.description) >= 80, name

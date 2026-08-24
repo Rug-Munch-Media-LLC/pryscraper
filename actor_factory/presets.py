@@ -2578,3 +2578,418 @@ ALL_PRESETS.update(
         )
     }
 )
+
+# ── batch 20: public-API-backed lineup (highest reliability tier) ────────────
+# These Actors hit documented public JSON APIs / feeds - results they promise
+# are results they deliver, no anti-bot lottery.
+
+APP_STORE_REVIEWS_ACTOR = ActorSpec(
+    name="pry-app-store-review-miner",
+    title="Pry App Store Review Miner",
+    description=(
+        "Mine Apple App Store reviews and app metadata via Apple's public "
+        "iTunes API - user sentiment, ratings and feature requests for "
+        "competitor analysis, product research and support triage."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="country_store",
+            title="App Store country",
+            type="string",
+            description="ISO store code for reviews feed (e.g. us, gb, de).",
+            default="us",
+            section_caption="Source settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="review-mined",
+            title="Review mined",
+            description="One review or metadata record extracted.",
+            price_usd=0.001,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+GITHUB_RELEASE_MONITOR_ACTOR = ActorSpec(
+    name="pry-github-release-monitor",
+    title="Pry GitHub Release Monitor",
+    description=(
+        "Monitor GitHub repositories for new releases, tags and changelog "
+        "entries via the public GitHub API - track competitors, "
+        "dependencies and open-source projects without watching manually."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="include_prereleases",
+            title="Include pre-releases",
+            type="boolean",
+            description="Keep draft/pre-release entries in the dataset.",
+            default=False,
+            section_caption="Monitor settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="release-checked",
+            title="Release checked",
+            description="One repository release feed checked.",
+            price_usd=0.001,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+NPM_PACKAGE_STATS_ACTOR = ActorSpec(
+    name="pry-npm-package-stats",
+    title="Pry npm Package Stats",
+    description=(
+        "Pull npm package metadata and download statistics pulled from the public "
+        "npm registry - track adoption curves, compare packages and power "
+        "devtools marketing analytics."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="package-stats-pulled",
+            title="Package stats pulled",
+            description="One package stats record extracted.",
+            price_usd=0.001,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+PYPI_PACKAGE_STATS_ACTOR = ActorSpec(
+    name="pry-pypi-package-stats",
+    title="Pry PyPI Package Stats",
+    description=(
+        "Extract Python package metadata, releases and dependency info pulled "
+        "from the public PyPI JSON API - supply-chain monitoring, "
+        "dependency audits and ecosystem research."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="package-stats-pulled",
+            title="Package stats pulled",
+            description="One package stats record extracted.",
+            price_usd=0.001,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+HN_NEWS_MONITOR_ACTOR = ActorSpec(
+    name="pry-hacker-news-monitor",
+    title="Pry Hacker News Monitor",
+    description=(
+        "Search and monitor Hacker News stories, comments and keyword "
+        "mentions via the public Algolia HN API - brand tracking, launch "
+        "feedback and market-signal detection for founders."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="min_points",
+            title="Minimum points",
+            type="integer",
+            description="Only keep stories with at least this many points.",
+            default=10,
+            section_caption="Filter settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="hn-page-scanned",
+            title="HN page scanned",
+            description="One search result page scanned.",
+            price_usd=0.001,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+YOUTUBE_RSS_MONITOR_ACTOR = ActorSpec(
+    name="pry-youtube-rss-monitor",
+    title="Pry YouTube Channel Monitor",
+    description=(
+        "Monitor YouTube channels through their public RSS feeds - new "
+        "video titles, links and publish dates for competitor tracking "
+        "and content calendars, no API key required."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="channel-checked",
+            title="Channel checked",
+            description="One channel feed checked for new videos.",
+            price_usd=0.001,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+RSS_FEED_MONITOR_ACTOR = ActorSpec(
+    name="pry-rss-feed-monitor",
+    title="Pry RSS Feed Monitor",
+    description=(
+        "Watch any RSS or Atom feed for new entries - newsrooms, blogs, "
+        "podcasts, changelogs and press pages delivered as structured "
+        "items with change detection between runs."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="feed-checked",
+            title="Feed checked",
+            description="One feed checked for new entries.",
+            price_usd=0.001,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+RDAP_DOMAIN_WATCH_ACTOR = ActorSpec(
+    name="pry-rdap-domain-watch",
+    title="Pry RDAP Domain Watch",
+    description=(
+        "Track domain registration data via the public RDAP protocol - "
+        "expiry dates, status flags and nameservers for portfolio "
+        "management, expiry sniping and brand protection."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="domain-checked",
+            title="Domain checked",
+            description="One domain's RDAP record pulled.",
+            price_usd=0.001,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+ARXIV_PAPER_MONITOR_ACTOR = ActorSpec(
+    name="pry-arxiv-paper-monitor",
+    title="Pry arXiv Paper Monitor",
+    description=(
+        "Monitor arXiv for new papers by category or author via the "
+        "public arXiv API - research tracking for AI labs, analysts and "
+        "R&D teams without manual searches."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="papers-scanned",
+            title="Papers scanned",
+            description="One arXiv query page scanned.",
+            price_usd=0.001,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+JSON_API_MONITOR_ACTOR = ActorSpec(
+    name="pry-json-api-monitor",
+    title="Pry JSON API Monitor",
+    description=(
+        "Monitor any JSON API endpoint for availability, payload changes "
+        "and field-level drift - uptime plus content assertions for your "
+        "own APIs or third-party integrations you depend on."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="data_path",
+            title="Data path",
+            type="string",
+            description="Dot-path to the array of interest (e.g. data.items).",
+            default="",
+            section_caption="Parse settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="endpoint-checked",
+            title="Endpoint checked",
+            description="One API endpoint checked.",
+            price_usd=0.001,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+PDF_INVOICE_EXTRACTOR_ACTOR = ActorSpec(
+    name="pry-pdf-invoice-extractor",
+    title="Pry PDF Invoice Extractor",
+    description=(
+        "Extract accounting fields from invoice PDFs - vendor, invoice "
+        "number, dates and totals into clean structured rows for "
+        "bookkeeping automation and accounts-payable pipelines."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="invoice-extracted",
+            title="Invoice extracted",
+            description="One invoice extracted to the dataset.",
+            price_usd=0.002,
+        ),
+    ),
+    processor="invoice",
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+STARTUP_FUNDING_MONITOR_ACTOR = ActorSpec(
+    name="pry-startup-funding-monitor",
+    title="Pry Startup Funding Monitor",
+    description=(
+        "Track funding announcements across tech news sources - rounds, "
+        "investors and amounts for sales prospecting, VC research and "
+        "market intelligence."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        MAX_PAGES_FIELD,
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="funding-news-scanned",
+            title="Funding news scanned",
+            description="One funding article scanned.",
+            price_usd=0.001,
+        ),
+    ),
+    processor="news",
+    min_memory_mbytes=512,
+    max_memory_mbytes=4096,
+)
+
+PODCAST_REVIEW_MINER_ACTOR = ActorSpec(
+    name="pry-podcast-review-miner",
+    title="Pry Podcast Review Miner",
+    description=(
+        "Mine podcast reviews and ratings from Apple Podcasts public "
+        "feeds - audience sentiment and episode feedback for shows, "
+        "networks and advertiser research."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="review-mined",
+            title="Review mined",
+            description="One review extracted.",
+            price_usd=0.001,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+FX_RATE_MONITOR_ACTOR = ActorSpec(
+    name="pry-fx-rate-monitor",
+    title="Pry FX Rate Monitor",
+    description=(
+        "Monitor foreign-exchange rates pulled via free public rate APIs - "
+        "daily currency snapshots and drift alerts for finance teams, "
+        "e-commerce pricing and invoicing."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="rates-pulled",
+            title="Rates pulled",
+            description="One rates snapshot pulled.",
+            price_usd=0.001,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+CRYPTO_MARKET_MONITOR_ACTOR = ActorSpec(
+    name="pry-crypto-market-monitor",
+    title="Pry Crypto Market Monitor",
+    description=(
+        "Pull crypto market caps, prices and volume shifts pulled from public "
+        "market APIs - scheduled snapshots for portfolios, dashboards "
+        "and alerting without exchange API keys."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="market-pulled",
+            title="Market snapshot pulled",
+            description="One market snapshot pulled.",
+            price_usd=0.001,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+ALL_PRESETS.update(
+    {
+        spec.name: spec
+        for spec in (
+            APP_STORE_REVIEWS_ACTOR,
+            GITHUB_RELEASE_MONITOR_ACTOR,
+            NPM_PACKAGE_STATS_ACTOR,
+            PYPI_PACKAGE_STATS_ACTOR,
+            HN_NEWS_MONITOR_ACTOR,
+            YOUTUBE_RSS_MONITOR_ACTOR,
+            RSS_FEED_MONITOR_ACTOR,
+            RDAP_DOMAIN_WATCH_ACTOR,
+            ARXIV_PAPER_MONITOR_ACTOR,
+            JSON_API_MONITOR_ACTOR,
+            PDF_INVOICE_EXTRACTOR_ACTOR,
+            STARTUP_FUNDING_MONITOR_ACTOR,
+            PODCAST_REVIEW_MINER_ACTOR,
+            FX_RATE_MONITOR_ACTOR,
+            CRYPTO_MARKET_MONITOR_ACTOR,
+        )
+    }
+)

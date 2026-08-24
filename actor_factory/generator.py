@@ -282,6 +282,32 @@ def _render_faq(spec: ActorSpec) -> str:
                 "downstream with a dedicated verifier API.",
             )
         )
+    if proc == "jsondata":
+        faq.extend(
+            [
+                (
+                    "How reliable is this data source?",
+                    "This Actor reads a documented public API or feed - the same "
+                    "data you would get querying it yourself, without scraping "
+                    "fragility. No anti-bot lottery, no silent breakage.",
+                ),
+                (
+                    "The response is not JSON - what happened?",
+                    "Items arrive with status 'skipped' and the parse error in "
+                    "the error field, so you can see exactly which URLs need "
+                    "attention instead of guessing from empty results.",
+                ),
+            ]
+        )
+    if proc == "invoice":
+        faq.append(
+            (
+                "Which invoice layouts are supported?",
+                "Text-based invoices with standard fields (invoice number, "
+                "dates, totals). Scanned image-only PDFs need OCR first; "
+                "items without detectable fields are skipped and reported.",
+            )
+        )
     return "\n\n".join(f"**{q}** {a}" for q, a in faq) + "\n\n"
 
 
