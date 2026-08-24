@@ -523,3 +523,31 @@ class TestNewCatalogBatch20:
             spec = ALL_PRESETS[name]
             assert spec.processor == proc, name
             assert len(spec.description) >= 80, name
+
+
+class TestCatalogBatch21:
+    def test_fifteen_prediction_defi_gov_actors_wired(self) -> None:
+        from actor_factory.presets import ALL_PRESETS
+
+        expected = {
+            "pry-prediction-market-monitor": "jsondata",
+            "pry-sports-odds-best-line": "jsondata",
+            "pry-token-unlock-monitor": "jsondata",
+            "pry-defi-yield-monitor": "jsondata",
+            "pry-chain-tvl-monitor": "jsondata",
+            "pry-stablecoin-flow-monitor": "jsondata",
+            "pry-whale-transfer-monitor": "jsondata",
+            "pry-gas-fee-monitor": "jsondata",
+            "pry-usaspending-contracts": "jsondata",
+            "pry-fda-recall-monitor": "jsondata",
+            "pry-uspto-patent-monitor": "jsondata",
+            "pry-earthquake-alert-monitor": "jsondata",
+            "pry-space-launch-monitor": "jsondata",
+            "pry-steam-game-stats": "jsondata",
+            "pry-producthunt-launch-monitor": "monitor",
+        }
+        for name, proc in expected.items():
+            spec = ALL_PRESETS[name]
+            assert spec.processor == proc, name
+            assert len(spec.description) >= 80, name
+            assert spec.pricing_events, name

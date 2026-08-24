@@ -2993,3 +2993,386 @@ ALL_PRESETS.update(
         )
     }
 )
+
+# ── batch 21: prediction markets, DeFi rails, public-data goldmines ─────────
+# Every Actor reads a documented public API/feed - the reliability tier
+# buyers can verify, priced at the T1 band ($0.50/1k).
+
+PREDICTION_MARKET_ACTOR = ActorSpec(
+    name="pry-prediction-market-monitor",
+    title="Pry Prediction Market Monitor",
+    description=(
+        "Pull prediction market contract snapshots on Polymarket and Kalshi via "
+        "their public Gamma/API endpoints - pulled prices, volumes and resolution "
+        "status for elections, crypto, sports and macro events as clean "
+        "structured rows."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="market-snapshot-pulled",
+            title="Market snapshot pulled",
+            description="One prediction-market snapshot pulled.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+SPORTS_BEST_LINE_ACTOR = ActorSpec(
+    name="pry-sports-odds-best-line",
+    title="Pry Sports Odds Best-Line Finder",
+    description=(
+        "Pull live sportsbook odds feeds (Bovada-style public JSON) and "
+        "compare prices across books - best available line, hold and "
+        "vig for any market, delivered as normalized comparison rows."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="sport_slug",
+            title="Sport slug",
+            type="string",
+            description="Sport path segment in the feed URL (e.g. basketball/nba).",
+            default="",
+            section_caption="Feed settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="line-compared",
+            title="Line compared",
+            description="One odds feed compared.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+TOKEN_UNLOCK_MONITOR_ACTOR = ActorSpec(
+    name="pry-token-unlock-monitor",
+    title="Pry Token Unlock Monitor",
+    description=(
+        "Monitor token unlock and vesting schedules from public tokenomics "
+        "endpoints - upcoming supply shocks, cliff dates and circulating "
+        "supply changes for traders and treasury teams."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="unlock-checked",
+            title="Unlock schedule checked",
+            description="One unlock schedule checked.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+DEFI_YIELD_MONITOR_ACTOR = ActorSpec(
+    name="pry-defi-yield-monitor",
+    title="Pry DeFi Yield Monitor",
+    description=(
+        "DeFi lending and LP pool yields pulled from public DefiLlama "
+        "endpoints - APYs, TVL and pool metadata across chains for yield "
+        "farmers, treasuries and dashboards."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="pools-pulled",
+            title="Yield pools pulled",
+            description="One yield pool feed pulled.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+CHAIN_TVL_MONITOR_ACTOR = ActorSpec(
+    name="pry-chain-tvl-monitor",
+    title="Pry Chain TVL Monitor",
+    description=(
+        "Total value locked per chain and protocol pulled from public "
+        "DefiLlama endpoints - chain dominance trends, protocol flows and "
+        "historical TVL for analysts and researchers."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="tvl-pulled",
+            title="TVL pulled",
+            description="One TVL snapshot pulled.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+STABLECOIN_FLOW_ACTOR = ActorSpec(
+    name="pry-stablecoin-flow-monitor",
+    title="Pry Stablecoin Flow Monitor",
+    description=(
+        "Stablecoin market caps, chains and flow shifts pulled from public "
+        "public pegged-asset endpoints - mint/burn signals and depeg "
+        "watch for risk teams and traders."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="flows-pulled",
+            title="Stablecoin flows pulled",
+            description="One stablecoin flow snapshot pulled.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+WHALE_TRANSFER_ACTOR = ActorSpec(
+    name="pry-whale-transfer-monitor",
+    title="Pry Whale Transfer Monitor",
+    description=(
+        "Watch large on-chain transfers via public blockchain explorer "
+        "APIs - whale movements for BTC/ETH and major tokens delivered "
+        "as structured alerts-ready records."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="transfers-scanned",
+            title="Transfers scanned",
+            description="One transfer page scanned.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+GAS_FEE_MONITOR_ACTOR = ActorSpec(
+    name="pry-gas-fee-monitor",
+    title="Pry Gas Fee Monitor",
+    description=(
+        "Ethereum gas prices pulled via public oracle endpoints - base "
+        "fee tiers and historical context for wallet apps, bridges and "
+        "cost-aware automation."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="gas-pulled",
+            title="Gas snapshot pulled",
+            description="One gas snapshot pulled.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+USASPENDING_CONTRACTS_ACTOR = ActorSpec(
+    name="pry-usaspending-contracts",
+    title="Pry USAspending Contract Tracker",
+    description=(
+        "Federal contract awards searched via the public USAspending API - "
+        "awardee, agency, amount and dates for gov-contract prospecting, "
+        "journalism and market research."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="contracts-searched",
+            title="Contracts searched",
+            description="One award search executed.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+FDA_RECALL_MONITOR_ACTOR = ActorSpec(
+    name="pry-fda-recall-monitor",
+    title="Pry FDA Recall Monitor",
+    description=(
+        "Monitor food, drug and device recalls via the public openFDA "
+        "API - classification, affected products and dates for compliance "
+        "teams, retailers and consumer safety trackers."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="recalls-scanned",
+            title="Recalls scanned",
+            description="One recall feed scanned.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+USPTO_PATENT_MONITOR_ACTOR = ActorSpec(
+    name="pry-uspto-patent-monitor",
+    title="Pry USPTO Patent Monitor",
+    description=(
+        "Track new patent applications and grants via the public "
+        "PatentsView API - competitor IP activity, technology landscapes "
+        "and inventor networks for R&D and legal teams."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="patents-scanned",
+            title="Patents scanned",
+            description="One patent search executed.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+EARTHQUAKE_ALERT_ACTOR = ActorSpec(
+    name="pry-earthquake-alert-monitor",
+    title="Pry Earthquake Alert Monitor",
+    description=(
+        "Monitor seismic events via the public USGS GeoJSON feeds - "
+        "magnitude, location and depth with threshold filtering for news "
+        "rooms, insurers and emergency tooling."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="seismic-scanned",
+            title="Seismic feed scanned",
+            description="One seismic feed scanned.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+SPACE_LAUNCH_MONITOR_ACTOR = ActorSpec(
+    name="pry-space-launch-monitor",
+    title="Pry Space Launch Monitor",
+    description=(
+        "Track upcoming rocket launches via the public Launch Library 2 "
+        "API - providers, payloads, pads and windows for space industry "
+        "watchers, newsrooms and calendar apps."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="launches-scanned",
+            title="Launches scanned",
+            description="One launch feed scanned.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+STEAM_GAME_STATS_ACTOR = ActorSpec(
+    name="pry-steam-game-stats",
+    title="Pry Steam Game Stats",
+    description=(
+        "Game details, pricing and player counts pulled from Steam's "
+        "public store API - release data, genres and concurrent-player "
+        "context for market research and gaming analytics."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="game-stats-pulled",
+            title="Game stats pulled",
+            description="One game stats record pulled.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="jsondata",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+PRODUCTHUNT_LAUNCH_MONITOR_ACTOR = ActorSpec(
+    name="pry-producthunt-launch-monitor",
+    title="Pry Product Hunt Launch Monitor",
+    description=(
+        "Monitor Product Hunt launches via its public RSS/Atom feeds - "
+        "new products, taglines and vote context for competitive intel, "
+        "launch tracking and maker research."
+    ),
+    version="1.0",
+    inputs=(URLS_FIELD,),
+    pricing_events=(
+        PricingEvent(
+            name="launches-scanned",
+            title="Launches scanned",
+            description="One launch feed scanned.",
+            price_usd=0.0005,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+ALL_PRESETS.update(
+    {
+        spec.name: spec
+        for spec in (
+            PREDICTION_MARKET_ACTOR,
+            SPORTS_BEST_LINE_ACTOR,
+            TOKEN_UNLOCK_MONITOR_ACTOR,
+            DEFI_YIELD_MONITOR_ACTOR,
+            CHAIN_TVL_MONITOR_ACTOR,
+            STABLECOIN_FLOW_ACTOR,
+            WHALE_TRANSFER_ACTOR,
+            GAS_FEE_MONITOR_ACTOR,
+            USASPENDING_CONTRACTS_ACTOR,
+            FDA_RECALL_MONITOR_ACTOR,
+            USPTO_PATENT_MONITOR_ACTOR,
+            EARTHQUAKE_ALERT_ACTOR,
+            SPACE_LAUNCH_MONITOR_ACTOR,
+            STEAM_GAME_STATS_ACTOR,
+            PRODUCTHUNT_LAUNCH_MONITOR_ACTOR,
+        )
+    }
+)
