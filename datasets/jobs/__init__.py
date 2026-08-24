@@ -19,7 +19,7 @@ Public API (all functions are ``async`` and *never raise* — they return
 For convenience this package re-exports the public functions so callers
 can ``from jobs import list_jobs, get_salary``::
 
-    from jobs import list_jobs, search_jobs, get_job, get_salary
+    from datasets.jobs import list_jobs, search_jobs, get_job, get_salary
 
     jobs = await list_jobs("stripe", board="greenhouse", limit=10)
     band = await get_salary("google")

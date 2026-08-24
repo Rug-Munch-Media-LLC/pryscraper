@@ -1161,7 +1161,7 @@ async def _get_odds(
             )
     records = core_records + supplemental
     if wanted is not None and len({record.get("source") for record in records}) > 1:
-        from sports_data import sources as _odds_sources
+        from datasets.sports_data import sources as _odds_sources
 
         records = _odds_sources.merge_odds(records)
     query = (event_query or "").strip().lower()
@@ -1199,7 +1199,7 @@ async def _supplementary_records(
     requested; it is imported lazily because that module can land from a
     parallel edit.
     """
-    from sports_data import sources as _odds_sources
+    from datasets.sports_data import sources as _odds_sources
 
     jobs: list[tuple[str, Any]] = []
     if "oddsportal" in wanted and _odds_sources.source_supports("oddsportal", slug):
@@ -1246,7 +1246,7 @@ async def _books_odds_for_sport(
     per-book identity stays in ``book`` / ``book_id``.
     """
     try:
-        from sports_data import books as _books
+        from datasets.sports_data import books as _books
     except Exception:  # noqa: BLE001 - guarded parallel import
         logger.warning("sports_books_module_unavailable", extra={"sport": slug})
         return []
@@ -1399,7 +1399,7 @@ async def _get_odds_multi(
     limit: int,
     sources: str | None,
 ) -> list[dict[str, Any]]:
-    from sports_data import sources as _odds_sources
+    from datasets.sports_data import sources as _odds_sources
 
     if not event_id or not str(event_id).strip():
         return []
