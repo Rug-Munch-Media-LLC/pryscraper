@@ -31,6 +31,7 @@ import logging
 import os
 import shutil
 import socket
+import sys
 from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlsplit
@@ -76,7 +77,13 @@ def _module_import_state(name: str) -> Literal["ok", "broken", "missing"]:
         importlib.import_module(name)
         return "ok"
     except Exception as e:
-        logger.debug("module_import_failed", extra={"module": name, "error": str(e)[:100]})
+        # NB: "module" is a reserved LogRecord attribute in stdlib logging —
+        # extra={"module": ...} raises KeyError there. Use a safe key.
+        logger.debug("module_import_failed", extra={"import_target": name, "error": str(e)[:100]})
+        # A failed import caches a partially-initialized module in
+        # sys.modules; evict it so later legitimate imports retry cleanly
+        # instead of inheriting the broken half-state.
+        sys.modules.pop(name, None)
     try:
         return "broken" if importlib.util.find_spec(name) is not None else "missing"
     except Exception:
