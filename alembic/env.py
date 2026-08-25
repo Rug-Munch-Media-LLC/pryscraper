@@ -1,10 +1,18 @@
 import os
+import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from db import Base, _resolve_database_url
+
+# Make `pry` importable regardless of how alembic is invoked (installed
+# package, bare checkout, CI subprocess). src-layout means a plain
+# `python -m alembic` from the repo root cannot see the package otherwise.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+from pry.core.db import Base, _resolve_database_url
 
 config = context.config
 

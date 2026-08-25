@@ -273,7 +273,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await obj.close()
     # Dispose DB engine/session pools (graceful shutdown).
     with suppress(Exception):
-        from db import dispose_engines
+        from pry.core.db import dispose_engines
 
         dispose_engines()
 

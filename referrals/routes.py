@@ -14,7 +14,7 @@ from typing import Any
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
-from db import ReferralClick, ReferralConversion, ReferralInAppUsage, session_scope
+from pry.core.db import ReferralClick, ReferralConversion, ReferralInAppUsage, session_scope
 from referrals.catalog import PROVIDER_CATALOG
 
 logger = logging.getLogger(__name__)

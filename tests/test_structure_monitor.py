@@ -33,8 +33,8 @@ def _fresh_db(monkeypatch):
     """
     from sqlalchemy import create_engine
 
-    import db as db_module
     import pry.api.client as client_module
+    import pry.core.db as db_module
 
     monkeypatch.setenv("PRY_DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("PRY_DATA_DIR", "/tmp")
@@ -43,7 +43,7 @@ def _fresh_db(monkeypatch):
     )
     db_module._SessionLocal = None
     # Recreate tables on the new engine.
-    from db import Base
+    from pry.core.db import Base
 
     Base.metadata.create_all(db_module._engine)
     client_module.http_client = None
@@ -55,7 +55,7 @@ def _fresh_db(monkeypatch):
 
 @pytest.fixture
 def temp_db(monkeypatch, tmp_path):
-    import db as db_module
+    import pry.core.db as db_module
 
     db_path = tmp_path / "test.db"
     monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{db_path}")

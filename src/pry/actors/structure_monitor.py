@@ -15,8 +15,8 @@ from typing import Any
 import httpx
 from lxml import html as lxml_html
 
-from db import StructureSnapshot, session_scope
 from pry.api.client import get_client
+from pry.core.db import StructureSnapshot, session_scope
 
 logger = logging.getLogger(__name__)
 

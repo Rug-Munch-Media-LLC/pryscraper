@@ -29,7 +29,7 @@ try:
 except ImportError:  # pragma: no cover
     pass
 
-from db.models import _HAS_SA, Base
+from pry.core.db.models import _HAS_SA, Base
 from pry.core.paths import PRY_DATA_DIR
 
 if TYPE_CHECKING:

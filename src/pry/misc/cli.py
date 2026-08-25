@@ -192,7 +192,7 @@ def cmd_screenshot(url, output=None, timeout=30):
 
 def cmd_migrate():
     """Run pending database migrations (alembic upgrade head)."""
-    from db import run_migrations
+    from pry.core.db import run_migrations
 
     run_migrations()
     print(f"{GREEN}✓{NC} Migrations up to date")

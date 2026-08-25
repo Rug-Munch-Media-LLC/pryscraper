@@ -80,7 +80,7 @@ def postgres_engine():
     if not _database_reachable():
         pytest.skip("Postgres not reachable with PRY_DATABASE_URL")
 
-    import db
+    import pry.core.db as db
 
     old_db_url = os.environ.get("PRY_DATABASE_URL")
     os.environ["PRY_DATABASE_URL"] = _sync_database_url()
@@ -111,7 +111,7 @@ def test_session_scope_postgres_roundtrip(postgres_engine) -> None:
     """
     from sqlalchemy import select
 
-    from db.models import Account
+    from pry.core.db.models import Account
 
     account_id = f"it-{uuid.uuid4().hex[:16]}"
     service = "integration-test"
@@ -147,7 +147,7 @@ def test_session_scope_rolls_back_on_error(postgres_engine) -> None:
     """session_scope() must roll back when the body raises — nothing persists."""
     from sqlalchemy import select
 
-    from db.models import Account
+    from pry.core.db.models import Account
 
     account_id = f"it-rollback-{uuid.uuid4().hex[:16]}"
 

@@ -17,7 +17,7 @@ from x402 import X402_PRICING, X402Handler
 def _referral_db(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Use in-memory SQLite for all referral tests."""
     monkeypatch.setenv("PRY_DATABASE_URL", "sqlite://")
-    import db as _db
+    import pry.core.db as _db
 
     _db._engine = None
     _db._SessionLocal = None
@@ -60,7 +60,7 @@ def test_provider_format() -> None:
 
 def test_referral_click() -> None:
     """Record a click and verify it exists in the database."""
-    from db import ReferralClick, session_scope
+    from pry.core.db import ReferralClick, session_scope
 
     rt = ReferralTracker()
     click_id = rt.record_click(
@@ -77,7 +77,7 @@ def test_referral_click() -> None:
 
 def test_referral_conversion() -> None:
     """Record a click, convert it, and verify both tables."""
-    from db import ReferralClick, ReferralConversion, session_scope
+    from pry.core.db import ReferralClick, ReferralConversion, session_scope
 
     rt = ReferralTracker()
     click_id = rt.record_click("anthropic", "https://console.anthropic.com/?ref=pry")
@@ -130,7 +130,7 @@ def test_referral_stats_empty() -> None:
 
 def test_referral_in_app_usage() -> None:
     """Track in-app usage revenue and verify in database."""
-    from db import ReferralInAppUsage, session_scope
+    from pry.core.db import ReferralInAppUsage, session_scope
 
     rt = ReferralTracker()
     rt.track_in_app_usage("openai", 15.0)

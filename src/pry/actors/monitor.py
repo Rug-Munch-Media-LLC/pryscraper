@@ -17,7 +17,7 @@ from typing import Any
 
 import httpx
 
-from db import Monitor, MonitorRun, session_scope
+from pry.core.db import Monitor, MonitorRun, session_scope
 
 logger = logging.getLogger(__name__)
 

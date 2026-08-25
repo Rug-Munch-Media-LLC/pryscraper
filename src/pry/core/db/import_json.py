@@ -19,7 +19,7 @@ import json
 import logging
 from typing import TYPE_CHECKING, Any
 
-from db.models import (
+from pry.core.db.models import (
     Account,
     Actor,
     Agency,
@@ -33,7 +33,7 @@ from db.models import (
     ReferralInAppUsage,
     StructureSnapshot,
 )
-from db.session import session_scope
+from pry.core.db.session import session_scope
 from pry.core.paths import PRY_DATA_DIR
 
 if TYPE_CHECKING:

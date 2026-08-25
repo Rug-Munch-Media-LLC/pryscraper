@@ -19,7 +19,7 @@ from typing import Any
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from db import Usage, async_session_scope
+from pry.core.db import Usage, async_session_scope
 
 logger = logging.getLogger(__name__)
 

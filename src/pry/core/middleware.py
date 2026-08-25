@@ -102,8 +102,8 @@ def _flush_usage() -> int:
         return 0
     batch, _usage_queue[:] = _usage_queue[:], []
     try:
-        from db import models as _models
-        from db.session import get_session
+        from pry.core.db import models as _models
+        from pry.core.db.session import get_session
 
         with get_session() as session:
             for item in batch:

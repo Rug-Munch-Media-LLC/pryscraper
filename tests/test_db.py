@@ -27,7 +27,7 @@ def temp_data_dir(monkeypatch, tmp_path):
     monkeypatch.setenv("PRY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/test.db")
     # Force re-import of paths and db
-    import db
+    import pry.core.db as db
 
     importlib.reload(paths)
     importlib.reload(db)
@@ -41,7 +41,7 @@ def temp_data_dir(monkeypatch, tmp_path):
 
 
 def test_get_engine_creates_db_file(temp_data_dir):
-    import db
+    import pry.core.db as db
 
     eng = db.get_engine()
     assert eng is not None
@@ -52,7 +52,7 @@ def test_get_engine_creates_db_file(temp_data_dir):
 def test_all_tables_created(temp_data_dir):
     from sqlalchemy import inspect
 
-    import db
+    import pry.core.db as db
 
     db.get_engine()
     inspector = inspect(db.get_engine())
@@ -79,7 +79,7 @@ def test_all_tables_created(temp_data_dir):
 
 
 def test_session_scope_commits_on_success(temp_data_dir):
-    import db
+    import pry.core.db as db
 
     with db.session_scope() as s:
         s.add(
@@ -101,7 +101,7 @@ def test_session_scope_commits_on_success(temp_data_dir):
 
 
 def test_session_scope_rolls_back_on_error(temp_data_dir):
-    import db
+    import pry.core.db as db
 
     try:
         with db.session_scope() as s:
@@ -159,7 +159,7 @@ def test_import_json_stores_reads_existing_data(temp_data_dir):
         )
     )
 
-    import db
+    import pry.core.db as db
 
     counts = db.import_json_stores(data_dir=temp_data_dir)
     assert counts.get("intel") == 2
@@ -185,7 +185,7 @@ def test_import_json_stores_reads_existing_data(temp_data_dir):
 
 
 def test_db_health_returns_dict(temp_data_dir):
-    import db
+    import pry.core.db as db
 
     health = db.db_health()
     assert isinstance(health, dict)
@@ -200,7 +200,7 @@ def test_alembic_migration_current_works(temp_data_dir, monkeypatch):
     import subprocess
     import sys
 
-    import db
+    import pry.core.db as db
 
     monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{temp_data_dir}/migration-test.db")
     importlib.reload(db)
@@ -224,7 +224,7 @@ def test_alembic_migration_upgrade_head_creates_tables(temp_data_dir, monkeypatc
 
     from sqlalchemy import inspect
 
-    import db
+    import pry.core.db as db
 
     monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{temp_data_dir}/migration-test.db")
     importlib.reload(db)
@@ -269,7 +269,7 @@ def test_models_have_unique_constraints(temp_data_dir):
     so that re-importing the same data is idempotent (or at least detectable)."""
     from sqlalchemy import inspect
 
-    import db
+    import pry.core.db as db
 
     db.get_engine()
     inspector = inspect(db.get_engine())
@@ -290,7 +290,7 @@ class TestDatabaseProfileResolution:
     """PRY_ENVIRONMENT drives the default backend; explicit URL always wins."""
 
     def _resolve(self, monkeypatch: pytest.MonkeyPatch) -> str:
-        from db.session import _resolve_database_url
+        from pry.core.db.session import _resolve_database_url
 
         return _resolve_database_url()
 
@@ -334,7 +334,7 @@ class TestDatabaseProfileResolution:
     def test_async_resolution_converts_postgres_driver(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from db.session import _resolve_async_database_url
+        from pry.core.db.session import _resolve_async_database_url
 
         monkeypatch.delenv("PRY_DATABASE_URL", raising=False)
         monkeypatch.setenv("PRY_ENVIRONMENT", "prod")

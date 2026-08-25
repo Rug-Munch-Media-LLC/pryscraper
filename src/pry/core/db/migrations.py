@@ -18,8 +18,8 @@ from typing import Any
 with suppress(ImportError):  # pragma: no cover
     from sqlalchemy.exc import OperationalError, ProgrammingError, SQLAlchemyError
 
-from db.models import _HAS_SA
-from db.session import (
+from pry.core.db.models import _HAS_SA
+from pry.core.db.session import (
     _resolve_async_database_url,
     _resolve_database_url,
     get_async_engine,

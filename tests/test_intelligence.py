@@ -10,7 +10,6 @@ from collections.abc import Iterator
 
 import pytest
 
-from db import Base, get_engine
 from pry.api.intelligence import (
     compute_field_statistics,
     detect_anomalies_numeric,
@@ -19,13 +18,14 @@ from pry.api.intelligence import (
     get_snapshots,
     record_snapshot,
 )
+from pry.core.db import Base, get_engine
 
 
 @pytest.fixture(autouse=True)
 def _intel_db(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Use in-memory SQLite for each test."""
     monkeypatch.setenv("PRY_DATABASE_URL", "sqlite://")
-    import db as db_module
+    import pry.core.db as db_module
 
     db_module._engine = None
     db_module._SessionLocal = None

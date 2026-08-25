@@ -36,15 +36,15 @@ def db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     engine recreation against the temp database.
     """
     monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/test.db")
-    import db as db_pkg
-    import db.session as session_mod
+    import pry.core.db as db_pkg
+    import pry.core.db.session as session_mod
 
     monkeypatch.setattr(db_pkg, "_engine", None, raising=False)
     monkeypatch.setattr(session_mod, "_engine", None, raising=False)
 
     from sqlalchemy import create_engine
 
-    from db import models as models_mod
+    from pry.core.db import models as models_mod
 
     engine = create_engine(f"sqlite:///{tmp_path}/test.db")
     models_mod.Base.metadata.create_all(engine)
@@ -181,8 +181,8 @@ class TestMiddlewareWiring:
 
     @staticmethod
     def _usage_rows() -> list[dict[str, Any]]:
-        from db import models as _models
-        from db.session import get_session
+        from pry.core.db import models as _models
+        from pry.core.db.session import get_session
 
         with get_session() as session:
             return [

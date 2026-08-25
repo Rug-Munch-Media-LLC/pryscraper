@@ -20,7 +20,7 @@ from pry.actors.monitor import (
 
 @pytest.fixture
 def temp_db(monkeypatch, tmp_path):
-    import db as db_module
+    import pry.core.db as db_module
 
     db_path = tmp_path / "test.db"
     monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{db_path}")

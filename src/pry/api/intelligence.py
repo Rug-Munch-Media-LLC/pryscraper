@@ -15,7 +15,7 @@ from typing import Any
 from sqlalchemy import desc
 from sqlalchemy.exc import SQLAlchemyError
 
-from db import IntelSnapshot, session_scope
+from pry.core.db import IntelSnapshot, session_scope
 
 logger = logging.getLogger(__name__)
 

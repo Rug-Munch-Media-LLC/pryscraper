@@ -19,8 +19,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from db import models as _models
-from db.session import get_session
+from pry.core.db import models as _models
+from pry.core.db.session import get_session
 
 logger = logging.getLogger(__name__)
 

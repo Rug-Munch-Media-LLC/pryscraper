@@ -25,8 +25,8 @@ import secrets
 from datetime import UTC, datetime
 from typing import Any
 
-from db import models as _models
-from db.session import get_session
+from pry.core.db import models as _models
+from pry.core.db.session import get_session
 
 PRIMARY_USER_ID = "primary"
 KEY_PREFIX_TAG = "pry"

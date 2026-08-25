@@ -5,7 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Tests for production infrastructure (db, observability)."""
 
-from db import _has_sqlalchemy, get_db
+from pry.core.db import _has_sqlalchemy, get_db
 from pry.core.observability import track_llm_call, track_request, track_scrape
 
 
