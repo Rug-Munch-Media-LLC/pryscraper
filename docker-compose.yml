@@ -60,13 +60,16 @@ services:
       - MIN_QUALITY=20
       - RATE_LIMIT_RPM=120
       # Database & Redis
-      - PRY_DATABASE_URL=postgresql+asyncpg://pry:pry@postgres:5432/pry
+      # SYNC driver URL (psycopg2): db/session.get_engine() builds the sync
+      # engine from this value verbatim; an asyncpg URL here crashed every
+      # sync DB call with MissingGreenlet (key issuance, metering, billing).
+      # Async consumers convert to +asyncpg themselves (_resolve_async_database_url).
+      - PRY_DATABASE_URL=postgresql://pry:pry@postgres:5432/pry
       - PRY_REDIS_URL=redis://redis:6379/0
-      # alembic/env.py connects synchronously and crashes on the asyncpg URL
-      # (MissingGreenlet), so entrypoint migrations are disabled. Schema was
-      # stamped at head (0003) on 2026-08-21 via a sync psycopg2 URL from the
-      # host. Remove this once env.py supports async URLs. See audit P0-1.
-      - PRY_SKIP_MIGRATIONS=1
+      # Entrypoint migrations RE-ENABLED: they only crashed because env.py
+      # got the asyncpg URL above. With the sync URL alembic connects fine;
+      # schema is stamped at head so first run is a no-op. See audit P0-1.
+      - PRY_SKIP_MIGRATIONS=0
     healthcheck:
       # TCP-connect probe: FlareSolverr's single event loop queues behind
       # long scrape tasks, so HTTP health checks time out under load even
@@ -242,11 +245,15 @@ services:
       - LOG_LEVEL=info
       - CAPTCHA_SOLVER=none
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8191/health"]
-      interval: 30s
+      # TCP-connect probe (same rationale as flaresolverr-pry): the single
+      # event loop queues behind long scrape tasks, so an HTTP /health curl
+      # times out under load and falsely marks the service unhealthy — which
+      # also blocks pry via depends_on: service_healthy.
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost', 8191), timeout=5); s.close()"]
+      interval: 20s
       timeout: 10s
-      retries: 3
-      start_period: 10s
+      retries: 5
+      start_period: 45s
     deploy:
       resources:
         limits:
