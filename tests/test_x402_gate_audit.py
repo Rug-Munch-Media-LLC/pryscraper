@@ -149,7 +149,9 @@ class TestRuntimeGate:
         """THE money-leak regression test: paid prefix + missing pricing entry
         must return 500, never silently serve the endpoint free."""
         reduced = {k: v for k, v in X402_PRICING.items() if k != "scrape"}
-        monkeypatch.setattr(x402_middleware, "X402_PRICING", reduced)
+        # Patch the AUTHORITATIVE table (config module) — classification reads
+        # X402_PRICING through that namespace since the E41 module split.
+        monkeypatch.setattr(x402_middleware.config, "X402_PRICING", reduced)
         client = TestClient(_make_app(), raise_server_exceptions=False)
         r = client.get("/v1/scrape")
         assert r.status_code == 500
