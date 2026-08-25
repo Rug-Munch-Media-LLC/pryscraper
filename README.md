@@ -61,16 +61,20 @@ every 402 response carries a payment request; attach proof of payment and
 the same request succeeds.
 
 ```bash
+# Hosted instance (no setup):
+BASE=https://api.pryscraper.com
+# Self-hosting? Point BASE at your instance instead, e.g. http://localhost:8005
+
 # 1. Discover the price
-curl http://localhost:8005/v1/x402/pricing | jq '.operations.scrape'
+curl $BASE/v1/x402/pricing | jq '.operations.scrape'
 
 # 2. First call returns 402 + payment challenge
-curl -i http://localhost:8005/v1/scrape -X POST \
+curl -i $BASE/v1/scrape -X POST \
      -H 'Content-Type: application/json' -d '{"url":"https://example.com"}'
 
 # 3. Pay the challenge with any x402 client (EIP-3009 transferWithAuthorization),
 #    then retry with the payment header:
-curl http://localhost:8005/v1/scrape -X POST \
+curl $BASE/v1/scrape -X POST \
      -H 'Content-Type: application/json' \
      -H 'X-PAYMENT: <signed-payment-payload>' \
      -d '{"url":"https://example.com"}'

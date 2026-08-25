@@ -68,7 +68,9 @@ docker compose up -d
 
 ## API Reference
 
-Base URL: `http://localhost:8005` (configurable via `PRY_URL` env var)
+Base URL: `http://localhost:8005` for a self-hosted instance (configurable
+via `PRY_URL` env var). The hosted instance lives at
+`https://api.pryscraper.com`.
 
 ### Authentication
 
