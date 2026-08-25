@@ -55,6 +55,28 @@ async def x402_health() -> dict[str, Any]:
     }
 
 
+# Engine -> MCP tool binding for the x402 catalog: every actor processor
+# maps to the MCP tool exposing the same capability. Actors with
+# processor=None run the raw scrape/crawl/screenshot engines directly.
+ENGINE_TOOLS: dict[str | None, str] = {
+    None: "pry_scrape",
+    "scrape": "pry_scrape",
+    "crawl": "pry_crawl",
+    "extract": "pry_extract",
+    "monitor": "pry_monitor",
+    "news": "pry_news",
+    "jsondata": "pry_all_sources",
+    "leads": "pry_places_search",
+    "price": "pry_flights_grid",
+    "audit": "pry_domain",
+    "seo": "pry_trends",
+    "tech": "pry_enrich",
+    "invoice": "pry_parse_document",
+    "corpus": "pry_crawl",
+    "backlinks": "pry_domain",
+}
+
+
 @router.get("/v1/x402/pricing", tags=["x402"], summary="Get x402 pricing for all paid operations")
 async def x402_pricing() -> dict[str, Any]:
     """Get the price list for pay-per-scrape operations."""
@@ -83,23 +105,6 @@ async def x402_catalog() -> dict[str, Any]:
     # engine -> MCP tool mapping: core engines are 1:1; domain routers
     # carry their own tool names. Actors with processor=None run the raw
     # scrape/crawl/screenshot engines directly.
-    ENGINE_TOOLS: dict[str | None, str] = {
-        None: "pry_scrape",
-        "scrape": "pry_scrape",
-        "crawl": "pry_crawl",
-        "extract": "pry_extract",
-        "monitor": "pry_monitor",
-        "news": "pry_news",
-        "jsondata": "pry_all_sources",
-        "leads": "pry_places_search",
-        "price": "pry_flights_grid",
-        "audit": "pry_domain",
-        "seo": "pry_trends",
-        "tech": "pry_enrich",
-        "invoice": "pry_parse_document",
-        "corpus": "pry_crawl",
-        "backlinks": "pry_domain",
-    }
 
     try:
         from actor_factory.presets import ALL_PRESETS
