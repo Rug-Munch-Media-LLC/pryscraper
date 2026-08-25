@@ -25,9 +25,9 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-from captcha.base import CaptchaProvider
-from captcha.registry import register
 from pry.core.settings import settings
+from pry.engine.captcha.base import CaptchaProvider
+from pry.engine.captcha.registry import register
 
 logger = logging.getLogger(__name__)
 

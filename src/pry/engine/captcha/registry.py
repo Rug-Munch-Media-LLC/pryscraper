@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from captcha.base import CaptchaProvider
+    from pry.engine.captcha.base import CaptchaProvider
 
 #: Mapping of ``captcha_type`` -> provider instance.
 REGISTRY: dict[str, CaptchaProvider] = {}

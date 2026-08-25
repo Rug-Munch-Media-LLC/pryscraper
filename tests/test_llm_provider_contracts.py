@@ -16,8 +16,8 @@ from typing import Any
 
 import pytest
 
-from llm_providers.base import LLMResponse
-from llm_providers.providers import (
+from pry.intelligence.llm.base import LLMResponse
+from pry.intelligence.llm.providers import (
     AnthropicProvider,
     CerebrasProvider,
     CohereProvider,

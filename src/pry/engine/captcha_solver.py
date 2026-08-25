@@ -34,8 +34,8 @@ import logging
 
 import httpx
 
-from captcha import REGISTRY
 from pry.core.settings import settings
+from pry.engine.captcha import REGISTRY
 
 logger = logging.getLogger(__name__)
 

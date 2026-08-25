@@ -16,7 +16,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from llm_providers.prompts import PROMPTS, render_prompt
 from pry.api.llm_features import (
     llm_anomaly_detect,
     llm_compliance_analyze,
@@ -24,6 +23,7 @@ from pry.api.llm_features import (
     llm_pii_detect,
     llm_seo_analyze,
 )
+from pry.intelligence.llm.prompts import PROMPTS, render_prompt
 
 
 @pytest.fixture

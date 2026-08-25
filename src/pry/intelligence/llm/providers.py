@@ -11,7 +11,7 @@ import logging
 import os
 from typing import TYPE_CHECKING, Any
 
-from llm_providers.base import (
+from pry.intelligence.llm.base import (
     LLM_TIMEOUT_SECONDS,
     LLMProvider,
     LLMResponse,
@@ -21,7 +21,7 @@ from llm_providers.base import (
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-    from llm_providers.registry import LLMRegistry
+    from pry.intelligence.llm.registry import LLMRegistry
 
 logger = logging.getLogger(__name__)
 

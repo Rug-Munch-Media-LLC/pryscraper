@@ -16,8 +16,8 @@ import json
 import logging
 from typing import Any
 
-from llm_providers.prompts import PROMPTS, render_prompt
-from llm_providers.registry import get_registry
+from pry.intelligence.llm.prompts import PROMPTS, render_prompt
+from pry.intelligence.llm.registry import get_registry
 
 logger = logging.getLogger(__name__)
 

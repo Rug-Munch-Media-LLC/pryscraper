@@ -27,7 +27,9 @@ from typing import Any
 
 import httpx
 
-from llm_providers.base import (
+from pry.core.paths import PRY_DATA_DIR
+from pry.engine.retry import BackoffStrategy, Jitter, RetryConfig, async_retry
+from pry.intelligence.llm.base import (
     TRANSIENT_HTTP_STATUSES,
     LLMError,
     LLMProvider,
@@ -38,8 +40,6 @@ from llm_providers.base import (
     cost_tracker,
     parse_json_response,
 )
-from pry.core.paths import PRY_DATA_DIR
-from pry.engine.retry import BackoffStrategy, Jitter, RetryConfig, async_retry
 
 logger = logging.getLogger(__name__)
 
@@ -422,7 +422,7 @@ def get_registry() -> LLMRegistry:
     if _registry is None:
         _registry = LLMRegistry()
         # Register providers lazily (only if API keys are set)
-        from llm_providers.providers import register_default_providers
+        from pry.intelligence.llm.providers import register_default_providers
 
         register_default_providers(_registry)
         # Apply configured provider priority order (PRY_LLM_PROVIDER_ORDER)

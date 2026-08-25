@@ -20,10 +20,10 @@ import httpx
 import pytest
 import respx
 
-from captcha import REGISTRY
-from captcha.image_ocr import _normalize_image, ocr_image, preprocess_image
-from captcha.token_api import solve_2captcha, solve_capsolver
 from pry.core.settings import settings
+from pry.engine.captcha import REGISTRY
+from pry.engine.captcha.image_ocr import _normalize_image, ocr_image, preprocess_image
+from pry.engine.captcha.token_api import solve_2captcha, solve_capsolver
 from pry.engine.captcha_solver import available_providers, solve_captcha
 
 EXPECTED_PROVIDERS = {"image", "recaptcha_v2", "recaptcha_v3", "hcaptcha", "turnstile"}
@@ -321,7 +321,7 @@ async def test_solve_token_with_fallback_2captcha_first(monkeypatch) -> None:
             params={"key": "2cap-key", "action": "get", "id": "123", "json": 1}
         )
     ).mock(return_value=httpx.Response(200, json={"status": 1, "request": "TOKEN_2CAPTCHA"}))
-    from captcha.token_api import solve_token_with_fallback
+    from pry.engine.captcha.token_api import solve_token_with_fallback
 
     token = await solve_token_with_fallback("recaptcha_v2", sitekey="sk", url="https://x.test")
     assert token == "TOKEN_2CAPTCHA"
@@ -341,7 +341,7 @@ async def test_solve_token_with_fallback_falls_to_capsolver(monkeypatch) -> None
             200, json={"status": "ready", "solution": {"gRecaptchaResponse": "CAPS_TOKEN"}}
         )
     )
-    from captcha.token_api import solve_token_with_fallback
+    from pry.engine.captcha.token_api import solve_token_with_fallback
 
     token = await solve_token_with_fallback("recaptcha_v2", sitekey="sk", url="https://x.test")
     assert token == "CAPS_TOKEN"
@@ -352,7 +352,7 @@ async def test_solve_token_with_fallback_all_fail_returns_none(monkeypatch) -> N
     """Should return None when all providers have no keys."""
     monkeypatch.setattr(settings, "captcha_2captcha_api_key", "")
     monkeypatch.setattr(settings, "captcha_capsolver_api_key", "")
-    from captcha.token_api import solve_token_with_fallback
+    from pry.engine.captcha.token_api import solve_token_with_fallback
 
     token = await solve_token_with_fallback("recaptcha_v2", sitekey="sk", url="https://x.test")
     assert token is None
@@ -361,7 +361,7 @@ async def test_solve_token_with_fallback_all_fail_returns_none(monkeypatch) -> N
 @pytest.mark.asyncio
 async def test_solve_token_with_fallback_unknown_type_returns_none() -> None:
     """Should return None for unknown captcha types."""
-    from captcha.token_api import solve_token_with_fallback
+    from pry.engine.captcha.token_api import solve_token_with_fallback
 
     token = await solve_token_with_fallback("unknown_type", sitekey="sk", url="https://x.test")
     assert token is None
@@ -371,7 +371,7 @@ async def test_solve_token_with_fallback_unknown_type_returns_none() -> None:
 @pytest.mark.asyncio
 async def test_solve_deathbycaptcha_success(monkeypatch) -> None:
     """DeathByCaptcha should return a token on success."""
-    from captcha.token_api import solve_deathbycaptcha
+    from pry.engine.captcha.token_api import solve_deathbycaptcha
 
     respx.post("https://api.deathbycaptcha.com/api/captcha").mock(
         return_value=httpx.Response(200, json={"status": 1, "text": "DBC_TOKEN"})
@@ -383,7 +383,7 @@ async def test_solve_deathbycaptcha_success(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_solve_deathbycaptcha_missing_creds() -> None:
     """Should return None when username/password are empty."""
-    from captcha.token_api import solve_deathbycaptcha
+    from pry.engine.captcha.token_api import solve_deathbycaptcha
 
     token = await solve_deathbycaptcha("", "", sitekey="sk", url="https://x.test")
     assert token is None
@@ -393,7 +393,7 @@ async def test_solve_deathbycaptcha_missing_creds() -> None:
 @pytest.mark.asyncio
 async def test_solve_nextcaptcha_success(monkeypatch) -> None:
     """NextCaptcha should return a token on success."""
-    from captcha.token_api import solve_nextcaptcha
+    from pry.engine.captcha.token_api import solve_nextcaptcha
 
     respx.post("https://api.nextcaptcha.com/v1/createTask").mock(
         return_value=httpx.Response(200, json={"errorId": 0, "taskId": "nc1"})
@@ -410,7 +410,7 @@ async def test_solve_nextcaptcha_success(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_solve_nextcaptcha_missing_key() -> None:
     """Should return None when API key is empty."""
-    from captcha.token_api import solve_nextcaptcha
+    from pry.engine.captcha.token_api import solve_nextcaptcha
 
     token = await solve_nextcaptcha("", "ReCaptchaV2Task", sitekey="sk", url="https://x.test")
     assert token is None

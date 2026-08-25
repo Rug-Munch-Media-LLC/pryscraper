@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from llm_providers.base import (
+from pry.intelligence.llm.base import (
     LLMCostTracker,
     LLMError,
     LLMProvider,
@@ -30,7 +30,7 @@ from llm_providers.base import (
     parse_json_response,
     strip_fences,
 )
-from llm_providers.registry import LLMRegistry, _provider_order_from_env
+from pry.intelligence.llm.registry import LLMRegistry, _provider_order_from_env
 
 # ── Test doubles ──────────────────────────────────────────────────
 
@@ -79,7 +79,7 @@ def _http_error(status: int) -> httpx.HTTPStatusError:
 @pytest.fixture(autouse=True)
 def _llm_hermetic(tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
     """Isolate usage persistence + referral writes; reset the cost tracker."""
-    monkeypatch.setattr("llm_providers.registry.USAGE_DIR", tmp_path)
+    monkeypatch.setattr("pry.intelligence.llm.registry.USAGE_DIR", tmp_path)
     monkeypatch.setattr("referrals.ReferralTracker", MagicMock)
     cost_tracker.reset()
     yield
@@ -433,8 +433,8 @@ def test_provider_order_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_get_registry_respects_env_order(monkeypatch: pytest.MonkeyPatch) -> None:
     # Only "ollama" registers with no API keys set; openai is filtered out.
     monkeypatch.setenv("PRY_LLM_PROVIDER_ORDER", "openai,ollama")
-    with patch("llm_providers.registry._registry", None):
-        from llm_providers.registry import get_registry
+    with patch("pry.intelligence.llm.registry._registry", None):
+        from pry.intelligence.llm.registry import get_registry
 
         reg = get_registry()
     assert reg.fallback_chain == ["ollama"]

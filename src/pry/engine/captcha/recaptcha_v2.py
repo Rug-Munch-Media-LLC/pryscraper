@@ -15,9 +15,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from captcha.base import CaptchaProvider
-from captcha.registry import register
-from captcha.token_api import solve_token_with_fallback
+from pry.engine.captcha.base import CaptchaProvider
+from pry.engine.captcha.registry import register
+from pry.engine.captcha.token_api import solve_token_with_fallback
 
 
 class RecaptchaV2Provider(CaptchaProvider):
