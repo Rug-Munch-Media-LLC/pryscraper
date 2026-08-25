@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -203,6 +204,19 @@ class TestMCPSSE:
         # interpreter env as pytest — a bare `python3` from PATH may lack the
         # venv's packages (pry, uvicorn) depending on how the suite was invoked.
         python_bin = sys.executable
+        # Hermetic imports: pytest's pythonpath ini only patches THIS
+        # process' sys.path; a subprocess inherits os.environ, not sys.path.
+        # Without this, bare checkouts (no editable install) can't import pry.
+        env = {
+            **os.environ,
+            "PYTHONPATH": os.pathsep.join(
+                [
+                    str(REPO_ROOT / "src"),
+                    str(REPO_ROOT),
+                    os.environ.get("PYTHONPATH", ""),
+                ]
+            ).rstrip(os.pathsep),
+        }
         last_poll: int | None = None
         for _ in range(max_attempts):
             port = _find_free_port()
@@ -223,6 +237,7 @@ class TestMCPSSE:
                 cwd=str(REPO_ROOT),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                env=env,
             )
             try:
                 base_url = f"http://127.0.0.1:{port}"

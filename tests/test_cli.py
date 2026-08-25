@@ -422,7 +422,7 @@ def test_cmd_screenshot_to_file(mock_print):
 @patch("builtins.print")
 def test_cmd_migrate(mock_print):
     """cmd_migrate delegates to db.run_migrations."""
-    with patch("db.run_migrations") as mock_migrations:
+    with patch("pry.core.db.run_migrations") as mock_migrations:
         cmd_migrate()
     mock_migrations.assert_called_once()
 

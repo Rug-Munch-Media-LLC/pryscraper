@@ -48,21 +48,37 @@ X402_PAYMENT_HEADER_MAX_BYTES = 12_000
 def _compact_payment_required_header(body: dict[str, Any], max_bytes: int) -> str:
     """Return a base64 PAYMENT-REQUIRED payload that fits ``max_bytes``.
 
-    Trims the least-priority accepts (tail of the canonical table order:
-    Base stablecoins first, native tokens last) until the encoded payload
-    fits. Always keeps at least one accept so the challenge stays valid for
-    spec-compliant clients.
+    Pass 1 keeps ONE accept per network family (stablecoin preferred, e.g.
+    USDC on solana:mainnet) — every chain stays payable-from-the-header,
+    which is a documented agent-facing contract (see
+    test_paid_endpoint_solana_tron_challenge_structure). 26 accepts shrink
+    to ~8. Pass 2 drops networks from the tail only if still over budget.
+    Always keeps at least one accept so the challenge stays valid for
+    spec-compliant clients. The JSON body is never modified — it carries
+    the full acceptance surface.
     """
     encoded = _encode_payment_required_body(body)
     if len(encoded.encode()) <= max_bytes:
         return encoded
     accepts = body.get("accepts") or []
-    trimmed = dict(body)
-    kept = list(accepts)
+    by_network: dict[str, dict[str, Any]] = {}
+    ordered_networks: list[str] = []
+    for a in accepts:
+        net = a.get("network", "")
+        if net not in by_network:
+            by_network[net] = a
+            ordered_networks.append(net)
+        elif a.get("asset") in ("USDC", "USDT") and by_network[net].get("asset") not in (
+            "USDC",
+            "USDT",
+        ):
+            by_network[net] = a
+    kept = [by_network[k] for k in ordered_networks]
+    trimmed = {**body, "accepts": kept}
+    encoded = _encode_payment_required_body(trimmed)
     while kept and len(encoded.encode()) > max_bytes:
         kept = kept[:-1]
-        trial = {**trimmed, "accepts": kept}
-        encoded = _encode_payment_required_body(trial)
+        encoded = _encode_payment_required_body({**trimmed, "accepts": kept})
     if not kept:
         # Never emit an empty accepts array — fall back to the first entry.
         kept = accepts[:1]
