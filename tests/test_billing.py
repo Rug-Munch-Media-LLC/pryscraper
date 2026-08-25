@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from typing import TYPE_CHECKING
 
-from billing import TIERS, BillingEnforcer, Tier, get_tier
+from pry.commerce.billing import TIERS, BillingEnforcer, Tier, get_tier
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -121,7 +121,7 @@ def test_unlimited_quota_always_allowed() -> None:
 
 
 def test_monthly_quota_rolls_over(monkeypatch: pytest.MonkeyPatch) -> None:
-    import billing.enforcer as enforcer_mod
+    import pry.commerce.billing.enforcer as enforcer_mod
 
     tier = Tier(
         name="trial",
@@ -151,7 +151,7 @@ def test_check_request_resolves_tier_when_omitted() -> None:
 
 # ── Rate limiting ──────────────────────────────────────────────────
 def test_rate_limit_enforced_with_fake_clock(monkeypatch: pytest.MonkeyPatch) -> None:
-    import billing.enforcer as enforcer_mod
+    import pry.commerce.billing.enforcer as enforcer_mod
 
     clock = {"now": 1000.0}
     monkeypatch.setattr(enforcer_mod.time, "monotonic", lambda: clock["now"])
@@ -219,7 +219,7 @@ def test_thread_safe_counters() -> None:
 
 # ── Boundedness + persistence ──────────────────────────────────────
 def test_bounded_tracked_keys(monkeypatch: pytest.MonkeyPatch) -> None:
-    import billing.enforcer as enforcer_mod
+    import pry.commerce.billing.enforcer as enforcer_mod
 
     tier = Tier(
         name="trial",

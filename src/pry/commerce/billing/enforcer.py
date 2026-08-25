@@ -38,7 +38,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Final
 
-from billing.tiers import DEFAULT_TIER, TIERS, Tier, get_tier
+from pry.commerce.billing.tiers import DEFAULT_TIER, TIERS, Tier, get_tier
 
 logger = logging.getLogger(__name__)
 

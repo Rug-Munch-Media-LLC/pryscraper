@@ -27,7 +27,7 @@ import respx
 
 import datasets.commerce_data as commerce_data
 import datasets.commerce_data.marketplaces as marketplaces
-import marketplace.retail as retail
+import pry.commerce.marketplace.retail as retail
 
 RETAIL_SCHEMA_KEYS = {
     "store",

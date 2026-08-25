@@ -14,8 +14,8 @@ Public surface:
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
-from signup.engine import SignupAutomation, generate_password
-from signup.form_detection import SignupField, SignupForm, detect_signup_form
+from pry.commerce.signup.engine import SignupAutomation, generate_password
+from pry.commerce.signup.form_detection import SignupField, SignupForm, detect_signup_form
 
 __all__ = [
     "SignupAutomation",

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, cast
 import httpx
 
 import pry.misc.signup_automation as signup_automation
-from signup.email_verification import (
+from pry.commerce.signup.email_verification import (
     IMAPConfig,
     extract_verification_link,
     fetch_temp_mail,
@@ -22,8 +22,8 @@ from signup.email_verification import (
     poll_imap_for_verification,
     verify_email,
 )
-from signup.engine import SignupAutomation, generate_password
-from signup.form_detection import classify_role, detect_signup_form
+from pry.commerce.signup.engine import SignupAutomation, generate_password
+from pry.commerce.signup.form_detection import classify_role, detect_signup_form
 
 if TYPE_CHECKING:
     import pytest
@@ -376,7 +376,9 @@ def test_imap_config_from_env_none(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_poll_imap_for_verification_finds_link(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeIMAP("imap.example.com", 993)
     fake.messages = {1: make_message("Verify now: https://example.com/confirm?token=abc")}
-    monkeypatch.setattr("signup.email_verification.imaplib.IMAP4_SSL", lambda host, port: fake)
+    monkeypatch.setattr(
+        "pry.commerce.signup.email_verification.imaplib.IMAP4_SSL", lambda host, port: fake
+    )
 
     config = IMAPConfig(host="imap.example.com", user="user", password="secret")
     result = poll_imap_for_verification(config, from_email="user@example.com")
@@ -387,7 +389,9 @@ def test_poll_imap_for_verification_finds_link(monkeypatch: pytest.MonkeyPatch) 
 
 def test_poll_imap_for_verification_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeIMAP("imap.example.com", 993)
-    monkeypatch.setattr("signup.email_verification.imaplib.IMAP4_SSL", lambda host, port: fake)
+    monkeypatch.setattr(
+        "pry.commerce.signup.email_verification.imaplib.IMAP4_SSL", lambda host, port: fake
+    )
 
     config = IMAPConfig(host="imap.example.com", user="user", password="secret")
     result = poll_imap_for_verification(config)
@@ -399,7 +403,7 @@ def test_poll_imap_for_verification_connect_error(monkeypatch: pytest.MonkeyPatc
     def _boom(host: str, port: int) -> FakeIMAP:
         raise OSError("connection refused")
 
-    monkeypatch.setattr("signup.email_verification.imaplib.IMAP4_SSL", _boom)
+    monkeypatch.setattr("pry.commerce.signup.email_verification.imaplib.IMAP4_SSL", _boom)
     config = IMAPConfig(host="imap.example.com", user="user", password="secret")
     result = poll_imap_for_verification(config)
     assert result["success"] is False
@@ -409,7 +413,9 @@ def test_poll_imap_for_verification_connect_error(monkeypatch: pytest.MonkeyPatc
 async def test_verify_email_imap_path(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = FakeIMAP("imap.example.com", 993)
     fake.messages = {1: make_message("Confirm: https://example.com/confirm?token=abc")}
-    monkeypatch.setattr("signup.email_verification.imaplib.IMAP4_SSL", lambda host, port: fake)
+    monkeypatch.setattr(
+        "pry.commerce.signup.email_verification.imaplib.IMAP4_SSL", lambda host, port: fake
+    )
     monkeypatch.setenv("SIGNUP_IMAP_HOST", "imap.example.com")
     monkeypatch.setenv("SIGNUP_IMAP_USER", "user")
     monkeypatch.setenv("SIGNUP_IMAP_PASSWORD", "secret")
@@ -470,7 +476,7 @@ async def test_register_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
             "code": None,
         }
 
-    monkeypatch.setattr("signup.engine.verify_email", fake_verify)
+    monkeypatch.setattr("pry.commerce.signup.engine.verify_email", fake_verify)
     client = make_engine_client()
     engine = SignupAutomation(client=client)  # type: ignore[arg-type]
 
@@ -529,7 +535,7 @@ async def test_register_verification_skipped(monkeypatch: pytest.MonkeyPatch) ->
             "code": None,
         }
 
-    monkeypatch.setattr("signup.engine.verify_email", fake_verify)
+    monkeypatch.setattr("pry.commerce.signup.engine.verify_email", fake_verify)
     client = make_engine_client()
     engine = SignupAutomation(client=client)  # type: ignore[arg-type]
     result = await engine.register("https://example.com/signup", {}, "a@b.com")
@@ -539,7 +545,7 @@ async def test_register_verification_skipped(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_captcha_solver_import_guarded() -> None:
-    import signup.engine as engine_module
+    import pry.commerce.signup.engine as engine_module
 
     # The guard never crashes on import: solve_captcha is either the repo's
     # real solver (callable) or None when captcha_solver is unavailable.
@@ -548,7 +554,7 @@ def test_captcha_solver_import_guarded() -> None:
 
 async def test_engine_captcha_solved_with_simple_solver(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "signup.engine.solve_captcha",
+        "pry.commerce.signup.engine.solve_captcha",
         lambda html: "tok-from-solver",
     )
     page = SIGNUP_PAGE_HTML.replace(
@@ -575,7 +581,7 @@ async def test_engine_captcha_solver_raises_is_skipped(monkeypatch: pytest.Monke
     def _broken_solver(html: str) -> str:
         raise RuntimeError("solver down")
 
-    monkeypatch.setattr("signup.engine.solve_captcha", _broken_solver)
+    monkeypatch.setattr("pry.commerce.signup.engine.solve_captcha", _broken_solver)
     page = SIGNUP_PAGE_HTML.replace("</form>", '<div class="h-captcha"></div></form>')
     client = FakeClient(
         responses={
@@ -614,7 +620,9 @@ async def test_engine_owns_and_closes_client(monkeypatch: pytest.MonkeyPatch) ->
         async def aclose(self) -> None:
             self.closed = True
 
-    monkeypatch.setattr("signup.engine.httpx.AsyncClient", lambda **kwargs: OwnedClient())
+    monkeypatch.setattr(
+        "pry.commerce.signup.engine.httpx.AsyncClient", lambda **kwargs: OwnedClient()
+    )
     engine = SignupAutomation()  # no client injected → engine creates its own
     result = await engine.register("https://example.com/signup", {}, "a@b.com")
     assert isinstance(result, dict)
@@ -635,7 +643,7 @@ def test_facade_reexports() -> None:
 
 
 def test_signup_package_exports() -> None:
-    import signup
+    import pry.commerce.signup as signup
 
     assert signup.SignupAutomation is SignupAutomation
     assert signup.detect_signup_form is detect_signup_form
@@ -672,7 +680,7 @@ def test_router_endpoint_success(monkeypatch: pytest.MonkeyPatch) -> None:
                 "session_cookies": {},
             }
 
-    monkeypatch.setattr("signup.engine.SignupAutomation", FakeEngine)
+    monkeypatch.setattr("pry.commerce.signup.engine.SignupAutomation", FakeEngine)
     app = FastAPI()
     app.include_router(router)
     client = TestClient(app)
@@ -724,7 +732,7 @@ def test_router_supports_minimal_body(monkeypatch: pytest.MonkeyPatch) -> None:
         ) -> dict[str, object]:
             return {"success": True, "url": url, "email": email, "profile": profile, "status": 201}
 
-    monkeypatch.setattr("signup.engine.SignupAutomation", FakeEngine)
+    monkeypatch.setattr("pry.commerce.signup.engine.SignupAutomation", FakeEngine)
     app = FastAPI()
     app.include_router(router)
     client = TestClient(app)

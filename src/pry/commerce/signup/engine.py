@@ -26,11 +26,11 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from signup.email_verification import follow_verification_link, verify_email
-from signup.form_detection import detect_signup_form
+from pry.commerce.signup.email_verification import follow_verification_link, verify_email
+from pry.commerce.signup.form_detection import detect_signup_form
 
 if TYPE_CHECKING:
-    from signup.form_detection import SignupField, SignupForm
+    from pry.commerce.signup.form_detection import SignupField, SignupForm
 
 # Optional CAPTCHA solver. Not a hard dependency: when unavailable the engine
 # simply skips CAPTCHA solving (the submit may still succeed). This repo ships

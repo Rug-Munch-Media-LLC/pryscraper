@@ -62,8 +62,8 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from billing.enforcer import BillingEnforcer
-from billing.tiers import TIERS, get_tier
+from pry.commerce.billing.enforcer import BillingEnforcer
+from pry.commerce.billing.tiers import TIERS, get_tier
 from pry.payments.x402 import (
     X402_DEFAULT_ASSET,
     X402_DEFAULT_NETWORK,

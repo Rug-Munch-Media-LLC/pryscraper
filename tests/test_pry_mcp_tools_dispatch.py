@@ -155,7 +155,7 @@ class TestCallCryptoTool:
 
 class TestCallMarketplaceTool:
     async def test_missing_module_returns_not_available(self) -> None:
-        with _patch_module("marketplace.amazon", None):
+        with _patch_module("pry.commerce.marketplace.amazon", None):
             result = await mcp_tools.call_marketplace_tool(
                 "pry_amazon_product", {"asin": "B08N5WRWNW"}
             )
@@ -166,7 +166,7 @@ class TestCallMarketplaceTool:
         assert "pry_amazon_product" in text
 
     async def test_tiktok_missing_returns_not_available(self) -> None:
-        with _patch_module("marketplace.tiktok_shop", None):
+        with _patch_module("pry.commerce.marketplace.tiktok_shop", None):
             result = await mcp_tools.call_marketplace_tool("pry_tiktok_trending", {"limit": 5})
         assert result is not None
         assert result["isError"] is False
@@ -182,7 +182,7 @@ class TestCallMarketplaceTool:
         fake = _fake_module(
             get_product=AsyncMock(return_value={"asin": "B08N5WRWNW", "price": 9.99})
         )
-        with _patch_module("marketplace.amazon", fake):
+        with _patch_module("pry.commerce.marketplace.amazon", fake):
             result = await mcp_tools.call_marketplace_tool(
                 "pry_amazon_product", {"asin": "B08N5WRWNW"}
             )

@@ -72,7 +72,7 @@ from urllib.parse import quote
 
 import httpx
 
-from marketplace import retail as _retail_sources
+from pry.commerce.marketplace import retail as _retail_sources
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

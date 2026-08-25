@@ -140,18 +140,26 @@ _DOMAIN_TOOLS: dict[str, tuple[str, tuple[str, ...], dict[str, Any]]] = {
         ("whois_lookup",),
         {"domain": "example.com", "include_tech": True},
     ),
-    "pry_amazon_product": ("marketplace.amazon", ("get_product",), {"asin": "B08N5WRWNW"}),
+    "pry_amazon_product": (
+        "pry.commerce.marketplace.amazon",
+        ("get_product",),
+        {"asin": "B08N5WRWNW"},
+    ),
     "pry_amazon_search": (
-        "marketplace.amazon",
+        "pry.commerce.marketplace.amazon",
         ("search_products",),
         {"query": "wireless keyboard", "limit": 5},
     ),
     "pry_walmart_product": (
-        "marketplace.walmart",
+        "pry.commerce.marketplace.walmart",
         ("get_product",),
         {"product_id": "4JH7P89H7X5P"},
     ),
-    "pry_tiktok_trending": ("marketplace.tiktok_shop", ("get_trending",), {"limit": 5}),
+    "pry_tiktok_trending": (
+        "pry.commerce.marketplace.tiktok_shop",
+        ("get_trending",),
+        {"limit": 5},
+    ),
     "pry_legal_dockets": (
         "legal_docs.dockets",
         ("search_dockets",),

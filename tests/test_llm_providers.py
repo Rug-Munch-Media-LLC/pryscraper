@@ -80,7 +80,7 @@ def _http_error(status: int) -> httpx.HTTPStatusError:
 def _llm_hermetic(tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
     """Isolate usage persistence + referral writes; reset the cost tracker."""
     monkeypatch.setattr("pry.intelligence.llm.registry.USAGE_DIR", tmp_path)
-    monkeypatch.setattr("referrals.ReferralTracker", MagicMock)
+    monkeypatch.setattr("pry.commerce.referrals.ReferralTracker", MagicMock)
     cost_tracker.reset()
     yield
     cost_tracker.reset()

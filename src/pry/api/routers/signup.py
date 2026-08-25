@@ -55,7 +55,7 @@ class SignupRequest(BaseModel):
 )
 async def signup(request: SignupRequest) -> dict[str, Any]:
     """Register an account at ``request.url`` and return the outcome."""
-    from signup.engine import SignupAutomation
+    from pry.commerce.signup.engine import SignupAutomation
 
     engine = SignupAutomation()
     try:

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from billing import (
+from pry.commerce.billing import (
     activate_subscription,
     create_subscription_invoice,
     reset_subscription_state,
@@ -72,7 +72,7 @@ def _clean_billing_state(
     monkeypatch: pytest.MonkeyPatch,
 ) -> Generator[None, None, None]:
     """Reset module registries + env so tests are isolated from each other."""
-    import billing.subscription as subs_mod
+    import pry.commerce.billing.subscription as subs_mod
 
     subs_mod._INVOICES.clear()
     subs_mod._SUBSCRIPTIONS.clear()
@@ -92,7 +92,7 @@ def _clean_billing_state(
 
 
 def _freeze_clock(monkeypatch: pytest.MonkeyPatch, value: datetime) -> None:
-    import billing.subscription as subs_mod
+    import pry.commerce.billing.subscription as subs_mod
 
     monkeypatch.setattr(subs_mod, "_now", lambda: value)
 
@@ -117,7 +117,7 @@ def test_create_invoice_x402_multiple_months() -> None:
 
 
 def test_create_invoice_x402_reuses_scheme_build(monkeypatch: pytest.MonkeyPatch) -> None:
-    import billing.subscription as subs_mod
+    import pry.commerce.billing.subscription as subs_mod
 
     captured: dict[str, Any] = {}
 
@@ -151,7 +151,7 @@ def test_create_invoice_x402_reuses_scheme_build(monkeypatch: pytest.MonkeyPatch
 
 # ── Invoice creation: btcpay fallback ─────────────────────────────────────
 def test_create_invoice_btcpay(monkeypatch: pytest.MonkeyPatch) -> None:
-    import billing.subscription as subs_mod
+    import pry.commerce.billing.subscription as subs_mod
 
     monkeypatch.setenv("PRY_BTCPAY_URL", "https://btcpayserver.example.com")
     monkeypatch.setenv("PRY_BTCPAY_API_KEY", "test-token")
@@ -210,7 +210,7 @@ def test_verify_unpaid_x402() -> None:
 
 
 def test_verify_paid_x402(monkeypatch: pytest.MonkeyPatch) -> None:
-    import billing.subscription as subs_mod
+    import pry.commerce.billing.subscription as subs_mod
 
     invoice = create_subscription_invoice("pro", "sk_pro_1")
     submit_subscription_payment(invoice["invoice_id"], "0xdeadbeef")
@@ -225,7 +225,7 @@ def test_verify_paid_x402(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_verify_rejected_x402(monkeypatch: pytest.MonkeyPatch) -> None:
-    import billing.subscription as subs_mod
+    import pry.commerce.billing.subscription as subs_mod
 
     invoice = create_subscription_invoice("pro", "sk_pro_1")
     submit_subscription_payment(invoice["invoice_id"], "0xdeadbeef")
@@ -248,7 +248,7 @@ def test_verify_expired_x402(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_verify_paid_but_expired_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
-    import billing.subscription as subs_mod
+    import pry.commerce.billing.subscription as subs_mod
 
     monkeypatch.setenv("PRY_SUBSCRIPTION_INVOICE_TTL", "1")
     base = datetime(2026, 1, 15, 12, 0, 0, tzinfo=UTC)
@@ -285,7 +285,7 @@ def _enable_btcpay(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_verify_btcpay_settled(monkeypatch: pytest.MonkeyPatch) -> None:
-    import billing.subscription as subs_mod
+    import pry.commerce.billing.subscription as subs_mod
 
     _enable_btcpay(monkeypatch)
     monkeypatch.setattr(
@@ -312,7 +312,7 @@ def test_verify_btcpay_settled(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_verify_btcpay_unsettled(monkeypatch: pytest.MonkeyPatch) -> None:
-    import billing.subscription as subs_mod
+    import pry.commerce.billing.subscription as subs_mod
 
     _enable_btcpay(monkeypatch)
     monkeypatch.setattr(
@@ -334,7 +334,7 @@ def test_verify_btcpay_unsettled(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_verify_btcpay_settled_after_local_expiry(monkeypatch: pytest.MonkeyPatch) -> None:
     """BTCPay upstream 'Settled' is authoritative even past our local TTL."""
-    import billing.subscription as subs_mod
+    import pry.commerce.billing.subscription as subs_mod
 
     _enable_btcpay(monkeypatch)
     monkeypatch.setenv("PRY_SUBSCRIPTION_INVOICE_TTL", "1")
@@ -382,7 +382,7 @@ def test_status_unknown_key_is_free() -> None:
 
 
 def test_activate_expiry_rollover(monkeypatch: pytest.MonkeyPatch) -> None:
-    import billing.subscription as subs_mod
+    import pry.commerce.billing.subscription as subs_mod
 
     base = datetime(2026, 1, 15, 12, 0, 0, tzinfo=UTC)
     _freeze_clock(monkeypatch, base)
@@ -432,7 +432,7 @@ def test_persistence_roundtrip(tmp_path: Path) -> None:
     assert status["expires_at"] == activated["expires_at"]
 
     # Invoices survive the roundtrip too.
-    import billing.subscription as subs_mod
+    import pry.commerce.billing.subscription as subs_mod
 
     assert invoice_id in subs_mod._INVOICES  # reloaded from disk on read above
     assert verify_subscription_payment(invoice_id)["reason"] != "unknown invoice"

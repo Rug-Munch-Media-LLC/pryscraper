@@ -15,8 +15,8 @@ wiring: the API middleware constructs a :class:`BillingEnforcer` and calls
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
-from billing.enforcer import BillingEnforcer
-from billing.subscription import (
+from pry.commerce.billing.enforcer import BillingEnforcer
+from pry.commerce.billing.subscription import (
     activate_subscription,
     create_subscription_invoice,
     reset_subscription_state,
@@ -25,7 +25,7 @@ from billing.subscription import (
     subscription_status,
     verify_subscription_payment,
 )
-from billing.tiers import DEFAULT_TIER, TIER_NAMES, TIERS, Tier, get_tier
+from pry.commerce.billing.tiers import DEFAULT_TIER, TIER_NAMES, TIERS, Tier, get_tier
 
 __all__ = [
     "DEFAULT_TIER",

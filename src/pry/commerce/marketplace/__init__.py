@@ -27,7 +27,7 @@ For convenience this package also re-exports every public function with an
 unambiguous provider prefix (``amazon_get_product``, ``walmart_search_products``,
 …), which is the recommended import for the MCP / REST wiring layer::
 
-    from marketplace import amazon_get_product, walmart_get_product
+    from pry.commerce.marketplace import amazon_get_product, walmart_get_product
 
 Contracts:
 
@@ -462,21 +462,21 @@ async def _amazon_via_rainforest(url: str) -> Any:
 
 
 # ── Public re-exports (provider-prefixed — names collide across modules) ──
-from marketplace.amazon import (  # noqa: E402
+from pry.commerce.marketplace.amazon import (  # noqa: E402
     get_product as amazon_get_product,
     search_products as amazon_search_products,
 )
-from marketplace.tiktok_shop import (  # noqa: E402
+from pry.commerce.marketplace.tiktok_shop import (  # noqa: E402
     get_product as tiktok_get_product,
     get_trending as tiktok_get_trending,
 )
-from marketplace.walmart import (  # noqa: E402
+from pry.commerce.marketplace.walmart import (  # noqa: E402
     get_product as walmart_get_product,
     search_products as walmart_search_products,
 )
 
 # Submodules stay importable so consumers can use the per-provider names
-# directly: ``from marketplace.amazon import get_product``.
+# directly: ``from pry.commerce.marketplace.amazon import get_product``.
 __all__ = [
     "amazon_get_product",
     "amazon_search_products",

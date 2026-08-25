@@ -10,7 +10,7 @@ Supports x402 (HTTP 402) pay-per-scrape protocol for monetization.
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
-from referrals.catalog import PROVIDER_CATALOG
-from referrals.routes import ReferralTracker
+from pry.commerce.referrals.catalog import PROVIDER_CATALOG
+from pry.commerce.referrals.routes import ReferralTracker
 
 __all__ = ["PROVIDER_CATALOG", "ReferralTracker"]

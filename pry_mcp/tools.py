@@ -4018,7 +4018,7 @@ async def call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[st
                 "isError": True,
             }
         try:
-            from marketplace.amazon import get_product as get_amazon_product
+            from pry.commerce.marketplace.amazon import get_product as get_amazon_product
         except ImportError:
             return _marketplace_module_unavailable(name)
         product_data = await get_amazon_product(asin)
@@ -4036,7 +4036,7 @@ async def call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[st
             }
         limit = int(arguments.get("limit", 20))
         try:
-            from marketplace.amazon import search_products as search_amazon_products
+            from pry.commerce.marketplace.amazon import search_products as search_amazon_products
         except ImportError:
             return _marketplace_module_unavailable(name)
         search_data = await search_amazon_products(query, limit=limit)
@@ -4053,7 +4053,7 @@ async def call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[st
                 "isError": True,
             }
         try:
-            from marketplace.walmart import get_product as get_walmart_product
+            from pry.commerce.marketplace.walmart import get_product as get_walmart_product
         except ImportError:
             return _marketplace_module_unavailable(name)
         product_data = await get_walmart_product(product_id)
@@ -4065,7 +4065,7 @@ async def call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[st
     if name == "pry_tiktok_trending":
         limit = int(arguments.get("limit", 50))
         try:
-            from marketplace.tiktok_shop import get_trending
+            from pry.commerce.marketplace.tiktok_shop import get_trending
         except ImportError:
             return _marketplace_module_unavailable(name)
         trending_data = await get_trending(limit=limit)

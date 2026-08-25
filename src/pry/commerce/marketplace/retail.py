@@ -84,7 +84,7 @@ from urllib.parse import quote
 
 import httpx
 
-from marketplace import (
+from pry.commerce.marketplace import (
     _find_script_json,
     _first_text,
     _http_retries,

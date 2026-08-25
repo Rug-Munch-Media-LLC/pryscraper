@@ -30,7 +30,7 @@ import logging
 import re
 from typing import Any
 
-from marketplace import (
+from pry.commerce.marketplace import (
     _amazon_via_rainforest,
     _fetch_html,
     _first_text,

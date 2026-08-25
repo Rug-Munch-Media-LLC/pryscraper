@@ -18,11 +18,11 @@ import httpx
 import pytest
 import respx
 
-import marketplace as _marketplace_pkg
 import pry.api.client as _client_module
-from marketplace import amazon, tiktok_shop, walmart
+import pry.commerce.marketplace as _marketplace_pkg
 from pry.api.webhook_delivery import WebhookDelivery
 from pry.commerce.actor_marketplace import Actor, ActorMarketplace, ActorVisibility
+from pry.commerce.marketplace import amazon, tiktok_shop, walmart
 from pry.payments.x402_middleware import PAID_ENDPOINTS, X402_PRICING
 
 
@@ -175,7 +175,7 @@ def _hermetic_marketplace(monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.delenv("PRY_TIKTOK_TRENDING_PLACEHOLDER", raising=False)
     _client_module.http_client = None
     tiktok_shop._reset_gmv_snapshots()
-    from marketplace import _clear_robots_cache
+    from pry.commerce.marketplace import _clear_robots_cache
 
     _clear_robots_cache()
     yield

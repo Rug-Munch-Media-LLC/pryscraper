@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from marketplace import (
+from pry.commerce.marketplace import (
     _fetch_html,
     _find_redux_state,
     _find_script_json,
