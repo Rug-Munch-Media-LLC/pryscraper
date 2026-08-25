@@ -639,7 +639,7 @@ async def test_get_salary_canonical_name_resolution() -> None:
 # ── Router ─────────────────────────────────────────────────────────────
 @pytest.fixture
 def jobs_client() -> TestClient:
-    from routers.jobs import router as jobs_router
+    from pry.api.routers.jobs import router as jobs_router
 
     app = FastAPI()
     app.include_router(jobs_router)

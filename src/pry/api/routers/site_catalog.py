@@ -36,7 +36,7 @@ router = APIRouter(tags=["Site Catalog"])
 def _catalog() -> Any:
     """Return a ``SiteCatalog`` instance, or None while the package is missing.
 
-    Kept import-safe: ``import routers.site_catalog`` never fails even when
+    Kept import-safe: ``import pry.api.routers.site_catalog`` never fails even when
     ``site_catalog`` has not landed yet (parallel build).
     """
     try:

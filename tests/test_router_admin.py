@@ -22,8 +22,8 @@ import respx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import routers.admin as admin_module
-from routers.admin import ADMIN_PREFIX, router as admin_router
+import pry.api.routers.admin as admin_module
+from pry.api.routers.admin import ADMIN_PREFIX, router as admin_router
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -172,7 +172,9 @@ class TestEndpoints:
                 {"amount_usd": 1.00, "ts": new_ts},
             ],
         )
-        monkeypatch.setattr("pry.commerce.costing.get_cost_dashboard", lambda: {"total_cost": 0}, raising=False)
+        monkeypatch.setattr(
+            "pry.commerce.costing.get_cost_dashboard", lambda: {"total_cost": 0}, raising=False
+        )
         r = client.get(f"{ADMIN_PREFIX}/v1/admin/profits?days=30")
         assert r.status_code == 200
         profits = r.json()["data"]
@@ -183,7 +185,9 @@ class TestEndpoints:
         self, client: TestClient, data_dir: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _write_payments(data_dir, [{"amount_usd": 2.00}])
-        monkeypatch.setattr("pry.commerce.costing.get_cost_dashboard", lambda: {"total_cost": 0}, raising=False)
+        monkeypatch.setattr(
+            "pry.commerce.costing.get_cost_dashboard", lambda: {"total_cost": 0}, raising=False
+        )
         r = client.get(f"{ADMIN_PREFIX}/v1/admin/dashboard")
         assert r.status_code == 200
         body = r.json()

@@ -24,7 +24,7 @@ import datasets.local_data as _local_data_pkg
 import datasets.local_data.places as _places
 import datasets.local_data.reviews as _reviews
 import pry.api.client as _client_module
-import routers.local_data as _router_module
+import pry.api.routers.local_data as _router_module
 from pry.core.errors import PryError
 
 # ── URLs under test ─────────────────────────────────────────────────────
@@ -188,7 +188,7 @@ def test_local_data_package_exports() -> None:
 
 
 def test_router_import_safe() -> None:
-    mod = importlib.import_module("routers.local_data")
+    mod = importlib.import_module("pry.api.routers.local_data")
     assert mod.router is not None
     assert len(mod.router.routes) == 3
 

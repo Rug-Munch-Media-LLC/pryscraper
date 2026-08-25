@@ -21,7 +21,7 @@ def client() -> TestClient:
 
 def test_get_or_key_from_env(monkeypatch) -> None:
     monkeypatch.setattr(settings, "openrouter_api_key", "sk-test-key-123")
-    from routers.vision import _get_or_key
+    from pry.api.routers.vision import _get_or_key
 
     key = _get_or_key()
     assert key == "sk-test-key-123"
@@ -30,14 +30,14 @@ def test_get_or_key_from_env(monkeypatch) -> None:
 def test_get_or_key_empty_when_not_set(monkeypatch) -> None:
     monkeypatch.setattr(settings, "openrouter_api_key", "")
     monkeypatch.setattr("os.path.isfile", lambda p: False)
-    from routers.vision import _get_or_key
+    from pry.api.routers.vision import _get_or_key
 
     key = _get_or_key()
     assert key is None
 
 
 def test_vision_models_fallback_list() -> None:
-    from routers.vision import VISION_MODELS_FALLBACK
+    from pry.api.routers.vision import VISION_MODELS_FALLBACK
 
     assert len(VISION_MODELS_FALLBACK) >= 3
     assert all("free" in m for m in VISION_MODELS_FALLBACK)

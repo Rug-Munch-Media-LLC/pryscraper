@@ -27,9 +27,9 @@ from fastapi.testclient import TestClient
 import datasets.ip_data.company_registry as company_registry
 import datasets.ip_data.patents as patents
 import datasets.ip_data.trademarks as trademarks
-import routers.ip_data as ip_router_mod
+import pry.api.routers.ip_data as ip_router_mod
 from datasets.ip_data import search_patents
-from routers.ip_data import router as ip_router
+from pry.api.routers.ip_data import router as ip_router
 
 GP_QUERY = "https://patents.google.com/xhr/query"
 GP_PAGE = "https://patents.google.com/patent/{id}/en"
@@ -143,7 +143,7 @@ def _assert_company_schema(entry: dict[str, Any]) -> None:
 
 def test_package_importable() -> None:
     import datasets.ip_data as ip_data
-    import routers.ip_data  # noqa: F401
+    import pry.api.routers.ip_data  # noqa: F401
 
     assert callable(ip_data.search_patents)
     assert hasattr(ip_router_mod, "router")

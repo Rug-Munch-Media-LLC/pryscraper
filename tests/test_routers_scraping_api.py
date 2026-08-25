@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from routers.scraping_api import router as scraping_router
+from pry.api.routers.scraping_api import router as scraping_router
 
 # Create a clean app with JUST this router (no x402 middleware)
 app = FastAPI()
@@ -39,14 +39,14 @@ def test_ultimate_scrape_invalid_url():
     assert r.status_code in (400, 422, 500), f"Got {r.status_code}: {r.text[:200]}"
 
 
-@patch("routers.scraping_api.safe_get")
+@patch("pry.api.routers.scraping_api.safe_get")
 def test_capture_network(mock_safe_get):
     mock_safe_get.return_value = {"data": "captured"}
     r = client.post("/v1/capture/network", json={"url": "http://example.com"})
     assert r.status_code in (200, 400, 422)
 
 
-@patch("routers.scraping_api.safe_get")
+@patch("pry.api.routers.scraping_api.safe_get")
 def test_crawl_adaptive(mock_safe_get):
     mock_safe_get.return_value = {"data": "crawled"}
     r = client.post("/v1/crawl/adaptive", json={"url": "http://example.com", "max_pages": 5})

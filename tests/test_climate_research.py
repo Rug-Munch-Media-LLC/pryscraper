@@ -32,12 +32,12 @@ import datasets.climate_data.weather as weather
 import datasets.research_data as research_data
 import datasets.research_data.academic as academic
 import datasets.research_data.domain as domain
-import routers.climate_data as climate_router_mod
-import routers.research_data as research_router_mod
+import pry.api.routers.climate_data as climate_router_mod
+import pry.api.routers.research_data as research_router_mod
+from pry.api.routers.climate_data import router as climate_router
+from pry.api.routers.research_data import router as research_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
-from routers.climate_data import router as climate_router
-from routers.research_data import router as research_router
 
 _POINTS = "https://api.weather.gov/points/"
 _FORECAST = "https://api.weather.gov/gridpoints/LWX/97,71/forecast"

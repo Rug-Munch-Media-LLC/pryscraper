@@ -26,10 +26,10 @@ from fastapi.testclient import TestClient
 
 import datasets.energy_data as energy_data
 import datasets.energy_data.lmp as lmp
-import routers.energy_data as energy_router_mod
+import pry.api.routers.energy_data as energy_router_mod
+from pry.api.routers.energy_data import router as energy_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
-from routers.energy_data import router as energy_router
 
 _NYISO = "https://mis.nyiso.com/public/csv/damlbmp"
 _PJM = "https://dataminer2.pjm.com/feed/da_hrl_lmps"

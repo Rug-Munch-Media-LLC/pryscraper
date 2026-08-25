@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 from fastapi import APIRouter
 
-ROUTERS_DIR = Path(__file__).resolve().parent.parent / "routers"
+ROUTERS_DIR = Path(__file__).resolve().parent.parent / "src" / "pry" / "api" / "routers"
 
 
 def _router_modules() -> list[str]:
@@ -37,9 +37,9 @@ def test_all_router_modules_discovered() -> None:
 
 @pytest.mark.parametrize("module_name", MODULES)
 def test_router_module_imports_and_registers(module_name: str) -> None:
-    mod = importlib.import_module(f"routers.{module_name}")
+    mod = importlib.import_module(f"pry.api.routers.{module_name}")
     router = getattr(mod, "router", None)
     assert isinstance(router, APIRouter), (
-        f"routers/{module_name}.py does not expose an APIRouter named `router`"
+        f"pry/api/routers/{module_name}.py does not expose an APIRouter named `router`"
     )
-    assert len(router.routes) > 0, f"routers/{module_name}.py registers zero routes"
+    assert len(router.routes) > 0, f"pry/api/routers/{module_name}.py registers zero routes"

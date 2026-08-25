@@ -28,9 +28,9 @@ from fastapi.testclient import TestClient
 
 import datasets.events_data as events_data
 import datasets.events_data.tickets as tickets
-import routers.events_data as events_router_mod
+import pry.api.routers.events_data as events_router_mod
+from pry.api.routers.events_data import router as events_router
 from pry.core.errors import PryError
-from routers.events_data import router as events_router
 
 if TYPE_CHECKING:
     from pathlib import Path

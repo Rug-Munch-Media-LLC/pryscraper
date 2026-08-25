@@ -26,13 +26,13 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import routers.supply_data as supply_router_mod
 import datasets.supply_data as supply_data
 import datasets.supply_data.firmographics as firmographics
 import datasets.supply_data.imports as imports_mod
+import pry.api.routers.supply_data as supply_router_mod
+from pry.api.routers.supply_data import router as supply_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
-from routers.supply_data import router as supply_router
 
 _IMPORTS = "http://imports.test/v1/records"
 _FIRMO = "http://firmo.test/v1/companies"

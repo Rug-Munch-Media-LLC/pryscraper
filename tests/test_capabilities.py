@@ -29,8 +29,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from pry.api import capabilities
+from pry.api.routers.capabilities import router as capabilities_router
 from pry.core.settings import settings
-from routers.capabilities import router as capabilities_router
 
 if TYPE_CHECKING:
     from pathlib import Path

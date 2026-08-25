@@ -642,7 +642,7 @@ def test_signup_package_exports() -> None:
 
 
 def test_router_import_safe_and_exposes_route() -> None:
-    from routers.signup import router
+    from pry.api.routers.signup import router
 
     paths = {getattr(route, "path", "") for route in router.routes}
     assert "/v1/signup" in paths
@@ -652,7 +652,7 @@ def test_router_endpoint_success(monkeypatch: pytest.MonkeyPatch) -> None:
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
-    from routers.signup import router
+    from pry.api.routers.signup import router
 
     class FakeEngine:
         def __init__(self, client: object = None):
@@ -696,7 +696,7 @@ def test_router_endpoint_validation() -> None:
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
-    from routers.signup import router
+    from pry.api.routers.signup import router
 
     app = FastAPI()
     app.include_router(router)
@@ -710,7 +710,7 @@ def test_router_supports_minimal_body(monkeypatch: pytest.MonkeyPatch) -> None:
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
-    from routers.signup import router
+    from pry.api.routers.signup import router
 
     class FakeEngine:
         def __init__(self, client: object = None):

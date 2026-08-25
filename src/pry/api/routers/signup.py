@@ -7,11 +7,11 @@ NOTE FOR THE LEAD: this router is intentionally NOT wired into ``api.py``.
 To enable the endpoint, add the following two lines to ``api.py`` (next to the
 other ``routers.*`` imports / includes):
 
-    from routers.signup import router as signup_router
+    from pry.api.routers.signup import router as signup_router
     ...
     app.include_router(signup_router)
 
-The module is import-safe on its own: ``import routers.signup`` works whether
+The module is import-safe on its own: ``import pry.api.routers.signup`` works whether
 or not it is wired, and the engine import happens lazily inside the handler.
 """
 

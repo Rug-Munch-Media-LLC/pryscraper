@@ -30,9 +30,9 @@ from fastapi.testclient import TestClient
 import datasets.food_data as food_data
 import datasets.food_data.grocery as grocery
 import datasets.food_data.restaurants as restaurants
-import routers.food_data as food_router_mod
+import pry.api.routers.food_data as food_router_mod
+from pry.api.routers.food_data import router as food_router
 from pry.core.errors import PryError
-from routers.food_data import router as food_router
 
 _KROGER_OAUTH_URL = "https://api.kroger.com/v1/connect/oauth2/token"
 _KROGER_PRODUCTS_URL = "https://api.kroger.com/v1/products"

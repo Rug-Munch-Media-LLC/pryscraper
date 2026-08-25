@@ -20,10 +20,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import Response
 
-import routers.webhooks as webhooks_module
+import pry.api.routers.webhooks as webhooks_module
+from pry.api.routers.execute import _safe_pryfile_path, router as execute_router
+from pry.api.routers.webhooks import router as webhooks_router
 from pry.core.errors import InvalidRequestError, PryError
-from routers.execute import _safe_pryfile_path, router as execute_router
-from routers.webhooks import router as webhooks_router
 
 if TYPE_CHECKING:
     from pathlib import Path

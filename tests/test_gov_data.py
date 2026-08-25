@@ -28,10 +28,10 @@ from fastapi.testclient import TestClient
 import datasets.gov_data as gov_data
 import datasets.gov_data.procurement as procurement
 import datasets.gov_data.recalls as recalls
-import routers.gov_data as gov_router_mod
+import pry.api.routers.gov_data as gov_router_mod
+from pry.api.routers.gov_data import router as gov_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
-from routers.gov_data import router as gov_router
 
 _SAM = "https://api.sam.gov/opportunities/v2/search"
 _GRANTS = "https://api.grants.gov/v2/search/opportunities/"

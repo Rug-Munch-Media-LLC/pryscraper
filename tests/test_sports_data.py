@@ -26,14 +26,14 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import routers.sports_data as sports_router_mod
 import datasets.sports_data as sports_data
 import datasets.sports_data.odds as odds
 import datasets.sports_data.scores as scores
 import datasets.sports_data.stats as stats
+import pry.api.routers.sports_data as sports_router_mod
+from pry.api.routers.sports_data import router as sports_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
-from routers.sports_data import router as sports_router
 
 _ODDS_NBA = "https://api.the-odds-api.com/v4/sports/basketball_nba"
 _ODDS_NFL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl"

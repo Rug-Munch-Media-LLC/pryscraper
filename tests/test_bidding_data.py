@@ -29,10 +29,10 @@ from fastapi.testclient import TestClient
 import datasets.bidding_data as bidding_data
 import datasets.bidding_data.contracts as contracts
 import datasets.bidding_data.grants as grants
-import routers.bidding_data as bidding_router_mod
+import pry.api.routers.bidding_data as bidding_router_mod
+from pry.api.routers.bidding_data import router as bidding_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
-from routers.bidding_data import router as bidding_router
 
 _SAM = "https://api.sam.gov/opportunities/v2/search"
 _TED = "https://api.ted.europa.eu/v3/notices/search"

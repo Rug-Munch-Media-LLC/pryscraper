@@ -7,15 +7,15 @@ from unittest.mock import AsyncMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from routers.analysis import router
+from pry.api.routers.analysis import router
 
 app = FastAPI()
 app.include_router(router)
 client = TestClient(app, raise_server_exceptions=False)
 
 
-@patch("routers.analysis.scraper")
-@patch("routers.analysis.get_client")
+@patch("pry.api.routers.analysis.scraper")
+@patch("pry.api.routers.analysis.get_client")
 def test_compare_identical(mock_get_client, mock_scraper):
     mock_scraper.scrape = AsyncMock(
         return_value={
@@ -38,8 +38,8 @@ def test_compare_identical(mock_get_client, mock_scraper):
         assert "diff" in data["data"]
 
 
-@patch("routers.analysis.scraper")
-@patch("routers.analysis.get_client")
+@patch("pry.api.routers.analysis.scraper")
+@patch("pry.api.routers.analysis.get_client")
 def test_compare_different(mock_get_client, mock_scraper):
     async def scrape_side_effect(url, **kw):
         if "a.com" in url:
@@ -61,9 +61,9 @@ def test_compare_different(mock_get_client, mock_scraper):
         assert r.json()["data"]["identical"] is False
 
 
-@patch("routers.analysis.scraper")
-@patch("routers.analysis.advanced")
-@patch("routers.analysis.get_client")
+@patch("pry.api.routers.analysis.scraper")
+@patch("pry.api.routers.analysis.advanced")
+@patch("pry.api.routers.analysis.get_client")
 def test_watch_page(mock_get_client, mock_advanced, mock_scraper):
     mock_scraper.scrape = AsyncMock(return_value={"status": "ok", "content": "page content here"})
     mock_advanced.track_diff = AsyncMock(
@@ -89,9 +89,9 @@ def test_watch_page(mock_get_client, mock_advanced, mock_scraper):
         assert data["data"]["status"] == "registered"
 
 
-@patch("routers.analysis.scraper")
-@patch("routers.analysis.advanced")
-@patch("routers.analysis.get_client")
+@patch("pry.api.routers.analysis.scraper")
+@patch("pry.api.routers.analysis.advanced")
+@patch("pry.api.routers.analysis.get_client")
 def test_watch_page_no_webhook(mock_get_client, mock_advanced, mock_scraper):
     mock_scraper.scrape = AsyncMock(return_value={"status": "ok", "content": "page content"})
     mock_advanced.track_diff = AsyncMock(
@@ -115,8 +115,8 @@ def test_watch_page_no_webhook(mock_get_client, mock_advanced, mock_scraper):
         assert r.json()["data"]["version"] == 2
 
 
-@patch("routers.analysis.scraper")
-@patch("routers.analysis.get_client")
+@patch("pry.api.routers.analysis.scraper")
+@patch("pry.api.routers.analysis.get_client")
 def test_watch_page_scrape_fail(mock_get_client, mock_scraper):
     mock_scraper.scrape = AsyncMock(
         return_value={
@@ -138,9 +138,9 @@ def test_watch_page_scrape_fail(mock_get_client, mock_scraper):
 
 def test_compare_scrape_fail():
     """Compare with empty scrape results returns 200 with diff."""
-    with patch("routers.analysis.scraper") as mock_scraper:
+    with patch("pry.api.routers.analysis.scraper") as mock_scraper:
         mock_scraper.scrape = AsyncMock(return_value={})
-        with patch("routers.analysis.get_client") as mock_gc:
+        with patch("pry.api.routers.analysis.get_client") as mock_gc:
             mock_gc.return_value = AsyncMock()
             r = client.post(
                 "/v1/compare",

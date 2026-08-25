@@ -155,15 +155,14 @@ pry-mcp = "pry.core.cli:mcp_serve"
 pryscraper-mcp = "pry.core.cli:mcp_serve"
 
 # src-layout: all runtime modules live under src/pry/<domain>/. packages.find
-# ships the whole pry package tree; legacy sub-packages (x402, routers) remain
-# until folded in.
+# ships the whole pry package tree; legacy sub-package x402 remains until
+# folded into pry.payments (audit move A4).
 
 [tool.setuptools.packages.find]
 where = ["src"]
 include = [
     "pry*",
     "x402*",
-    "routers*",
     "crypto_market*",
     "compliance*",
     "extraction*",

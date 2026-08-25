@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from routers.extraction import router
+from pry.api.routers.extraction import router
 
 app = FastAPI()
 app.include_router(router)
@@ -26,7 +26,7 @@ def test_extract_table():
     )
     mock_client.get.return_value.status_code = 200
 
-    with patch("routers.extraction.get_client", return_value=mock_client):
+    with patch("pry.api.routers.extraction.get_client", return_value=mock_client):
         r = client.post(
             "/v1/extract-table",
             json={

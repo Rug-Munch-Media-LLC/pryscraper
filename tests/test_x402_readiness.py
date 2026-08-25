@@ -35,7 +35,7 @@ from eth_utils import to_checksum_address
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-from routers.x402 import x402_health
+from pry.api.routers.x402 import x402_health
 from x402 import (
     FacilitatorRouter,
     SelfFacilitator,

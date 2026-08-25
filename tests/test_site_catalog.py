@@ -20,8 +20,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
+from pry.api.routers.site_catalog import router as site_catalog_router
 from pry.core.errors import PryError
-from routers.site_catalog import router as site_catalog_router
 from site_catalog import (
     ANTI_BOT_LEVELS,
     CATALOG,
@@ -194,7 +194,7 @@ def _client(app: FastAPI) -> TestClient:
 
 
 def test_router_importable() -> None:
-    from routers import site_catalog as site_catalog_mod
+    from pry.api.routers import site_catalog as site_catalog_mod
 
     assert hasattr(site_catalog_mod, "router")
     assert site_catalog_mod.router is site_catalog_router
@@ -254,6 +254,6 @@ def test_router_recommend_missing_url_422(catalog_app: FastAPI) -> None:
 def test_router_502_when_catalog_unavailable(
     catalog_app: FastAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("routers.site_catalog._catalog", lambda: None)
+    monkeypatch.setattr("pry.api.routers.site_catalog._catalog", lambda: None)
     resp = _client(catalog_app).get("/v1/coverage")
     assert resp.status_code == 502

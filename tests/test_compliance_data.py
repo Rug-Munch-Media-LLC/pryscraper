@@ -28,10 +28,10 @@ from fastapi.testclient import TestClient
 
 import datasets.compliance_data as compliance_data
 import datasets.compliance_data.enforcement as enforcement
-import routers.compliance_data as compliance_router_mod
+import pry.api.routers.compliance_data as compliance_router_mod
+from pry.api.routers.compliance_data import router as compliance_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
-from routers.compliance_data import router as compliance_router
 
 _FDA_DRUG = "https://api.fda.gov/drug/enforcement.json"
 _FDA_FOOD = "https://api.fda.gov/food/enforcement.json"

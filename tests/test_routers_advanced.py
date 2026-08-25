@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from routers.advanced import router
+from pry.api.routers.advanced import router
 
 app = FastAPI()
 app.include_router(router)
