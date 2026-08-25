@@ -9,7 +9,7 @@
 
 [![CI](https://git.rugmunch.io/RugMunchMedia/pryscraper/badges/workflows/ci.yml/badge.svg)](https://git.rugmunch.io/RugMunchMedia/pryscraper/actions)
 [![Coverage](https://img.shields.io/endpoint?url=https://codecov.io/gh/cryptorugmuncher/pryscraper/coverage.json 2>/dev/null || true)](https://github.com/cryptorugmuncher/pryscraper)
-![Tests](https://img.shields.io/badge/tests-3500%2B_passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-5100%2B_passing-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![x402](https://img.shields.io/badge/payments-x402%20%2F%20USDC-blueviolet)
@@ -79,6 +79,13 @@ curl $BASE/v1/scrape -X POST \
      -H 'X-PAYMENT: <signed-payment-payload>' \
      -d '{"url":"https://example.com"}'
 ```
+
+**Keyless by design**: a verified on-chain payment *is* the credential —
+no signup, no key exchange. Prefer quotas? API keys work alongside.
+Discover prices keylessly: [`/v1/x402/pricing`](https://api.pryscraper.com/v1/x402/pricing)
+and the full machine-readable catalog — every operation, endpoint, and all
+94 actors bound to their MCP tools — at
+[`/v1/x402/catalog`](https://api.pryscraper.com/v1/x402/catalog).
 
 **Payment guarantees** (all enforced server-side, fully test-covered):
 - EIP-3009 signer recovery — tampered amounts/recipients fail signature verification
@@ -172,15 +179,16 @@ print(result["data"]["markdown"])
 ## Deployment
 
 Production checklist, environment matrix, scaling notes, and backup guidance
-live in [DEPLOYMENT.md](docs/ops/DEPLOYMENT.md). Common questions are answered in
-[FAQ.md](docs/ops/FAQ.md).
+live in [DEPLOYMENT.md](docs/ops/DEPLOYMENT.md). The on-call incident flows
+are in [RUNBOOK.md](docs/ops/RUNBOOK.md). Common questions are answered in
+the [FAQ](docs/FAQ.md).
 
 ## Development
 
 ```bash
 pip install -e ".[dev]"
 pre-commit install
-pytest -m "not integration"        # 3,500+ tests
+pytest -m "not integration"        # 5,100+ tests
 k6 run perf/smoke.js               # performance smoke (needs local server)
 ```
 
@@ -194,4 +202,5 @@ MIT — see [LICENSE](LICENSE).
 
 ## FAQ
 
-See [docs/FAQ.md](docs/FAQ.md) for frequently asked questions.
+See the [FAQ](docs/FAQ.md) — capabilities, anti-bot tiers, x402
+payment flow, MCP setup, actor building, troubleshooting.
