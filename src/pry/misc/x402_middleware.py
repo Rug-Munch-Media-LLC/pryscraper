@@ -435,6 +435,7 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
     {
         # Infra / observability / docs
         "/health",
+        "/healthz",
         "/live",
         "/ready",
         "/docs",

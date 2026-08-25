@@ -163,7 +163,15 @@ def _path_exists(path: str, app) -> bool:
     return False
 
 
-_AUTH_PUBLIC_PATHS: set[str] = {"/health", "/live", "/ready", "/metrics", "/docs", "/openapi.json"}
+_AUTH_PUBLIC_PATHS: set[str] = {
+    "/health",
+    "/healthz",
+    "/live",
+    "/ready",
+    "/metrics",
+    "/docs",
+    "/openapi.json",
+}
 
 
 # ── Fail-closed auth policy ──
