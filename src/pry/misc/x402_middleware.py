@@ -31,10 +31,52 @@ from x402 import (
     PAYMENT_VALIDITY_SECONDS,
     X402_PRICING,
     X402Handler,
+    _encode_payment_required_body,
     validate_client_amount,
 )
 
 logger = logging.getLogger(__name__)
+
+# Cloudflare's edge rejects (502) responses carrying a single header larger
+# than ~16KB. The multi-asset PAYMENT-REQUIRED challenge (20+ accepts across
+# 7 chains) base64-encodes to ~18KB, which made EVERY paid request from the
+# public internet fail while local calls worked fine. The JSON body keeps the
+# full acceptance surface; only the header is compacted under this budget.
+X402_PAYMENT_HEADER_MAX_BYTES = 12_000
+
+
+def _compact_payment_required_header(body: dict[str, Any], max_bytes: int) -> str:
+    """Return a base64 PAYMENT-REQUIRED payload that fits ``max_bytes``.
+
+    Trims the least-priority accepts (tail of the canonical table order:
+    Base stablecoins first, native tokens last) until the encoded payload
+    fits. Always keeps at least one accept so the challenge stays valid for
+    spec-compliant clients.
+    """
+    encoded = _encode_payment_required_body(body)
+    if len(encoded.encode()) <= max_bytes:
+        return encoded
+    accepts = body.get("accepts") or []
+    trimmed = dict(body)
+    kept = list(accepts)
+    while kept and len(encoded.encode()) > max_bytes:
+        kept = kept[:-1]
+        trial = {**trimmed, "accepts": kept}
+        encoded = _encode_payment_required_body(trial)
+    if not kept:
+        # Never emit an empty accepts array — fall back to the first entry.
+        kept = accepts[:1]
+        encoded = _encode_payment_required_body({**trimmed, "accepts": kept})
+    logger.warning(
+        "x402_payment_header_compacted",
+        extra={
+            "accepts_total": len(accepts),
+            "accepts_in_header": len(kept),
+            "header_bytes": len(encoded.encode()),
+        },
+    )
+    return encoded
+
 
 # Fail-closed gate firings (paid prefix without pricing). Prometheus-optional:
 # the middleware must work without the metrics client installed.
@@ -937,11 +979,16 @@ class X402Middleware:
 
         The challenge is built in multi-asset mode so agents see the full
         canonical acceptance surface (every SUPPORTED_ASSETS network/asset
-        keyed by CAIP-2 network id) in the body and the PAYMENT-REQUIRED
-        header.
+        keyed by CAIP-2 network id) in the body. The PAYMENT-REQUIRED header
+        is compacted under X402_PAYMENT_HEADER_MAX_BYTES — Cloudflare 502s
+        any response with a larger single header, which broke every paid
+        request through the public tunnel (2026-08-25 incident).
         """
         body, x402_headers = self.handler.create_payment_required(
             operation, resource=path, multi_asset=True
+        )
+        x402_headers["PAYMENT-REQUIRED"] = _compact_payment_required_header(
+            body, X402_PAYMENT_HEADER_MAX_BYTES
         )
         body_bytes = json.dumps(body).encode()
 

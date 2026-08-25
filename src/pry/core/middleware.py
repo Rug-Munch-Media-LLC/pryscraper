@@ -236,7 +236,22 @@ def request_authorized(scope: MutableMapping[str, Any]) -> bool:
 
     if api_key:
         # Legacy global key, or a JWT issued by rmi-backend.
-        return token == api_key or bool(is_jwt(token) and validate_rmi_jwt(token))
+        if token == api_key:
+            # The operator's master key is the bootstrap admin credential:
+            # bind a full-scope identity so admin endpoints (/v1/keys
+            # issuance) work before any DB key exists. Without this, key
+            # issuance deadlocks — remote callers need an admin-scoped key,
+            # and the loopback bypass never fires through Docker's published
+            # port (ASGI peer is the bridge gateway, e.g. 172.25.0.1).
+            scope["pry_api_key"] = {
+                "key_id": "legacy-master",
+                "user_id": "operator",
+                "name": "master-key",
+                "scopes": ["admin", "scrape", "crawl", "extract", "monitor"],
+                "tier": "ENTERPRISE",
+            }
+            return True
+        return bool(is_jwt(token) and validate_rmi_jwt(token))
     client = scope.get("client")
     first_hop = client[0] if isinstance(client, (list, tuple)) and client else ""
     return is_loopback_client(str(first_hop))
