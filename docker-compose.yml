@@ -269,6 +269,53 @@ services:
     profiles:
       - tor
 
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: pry-postgres-exporter
+    restart: unless-stopped
+    init: true
+    environment:
+      - DATA_SOURCE_NAME=postgresql://pry:pry@postgres:5432/pry?sslmode=disable
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.61.0
+    container_name: pry-redis-exporter
+    restart: unless-stopped
+    init: true
+    environment:
+      - REDIS_ADDR=redis:6379
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.1"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: pry-blackbox-exporter
+    restart: unless-stopped
+    init: true
+    volumes:
+      - ./prometheus/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    command:
+      - '--config.file=/etc/blackbox_exporter/config.yml'
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.1"
+
 volumes:
   pry-data:
   pry-sessions:

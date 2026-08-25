@@ -23,16 +23,28 @@ scrape_configs:
 
   - job_name: 'postgres'
     static_configs:
-      - targets: ['postgres:5432']
+      - targets: ['postgres-exporter:9187']
 
   - job_name: 'redis'
     static_configs:
-      - targets: ['redis:6379']
+      - targets: ['redis-exporter:9121']
 
+  # FlareSolverr exposes no native /metrics — probe its health endpoint
+  # via blackbox exporter (up=1 healthy, up=0 down). Probes the DEDICATED
+  # pry instance (flaresolverr-pry), which is the one the ladder depends on.
   - job_name: 'flaresolverr'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
     static_configs:
-      - targets: ['flaresolverr:8191']
-    metrics_path: '/metrics'
+      - targets: ['http://flaresolverr-pry:8191/health']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
 
   - job_name: 'grafana'
     static_configs:
