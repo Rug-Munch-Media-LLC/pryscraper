@@ -306,6 +306,11 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# Import paths for the dual-layout repo: `pry.*` lives in src/, while the
+# routers/ package is still at the repo root (SYSTEM-AUDIT-V2 move A2 will
+# remove the "." entry). Without this, bare `pytest` collects 168 import
+# errors locally; CI only worked because it exports PYTHONPATH explicitly.
+pythonpath = ["src", "."]
 # Skip `integration` tests by default — they require live Postgres + Redis
 # (and, for /ready, a reachable Ollama endpoint). Run them explicitly with:
 #   pytest -m integration

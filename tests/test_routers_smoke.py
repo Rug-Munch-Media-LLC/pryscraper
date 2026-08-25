@@ -1,0 +1,45 @@
+"""Router smoke test — imports every routers/*.py module and asserts it
+registers a valid APIRouter carrying at least one route.
+
+Safety net for the package-migration wins (SYSTEM-AUDIT-V2-50-WINS A1-A6):
+a broken import or a module that silently loses its ``router`` attribute
+fails HERE in seconds, instead of surfacing as a runtime 500 or a route
+that quietly disappears from the OpenAPI schema.
+
+Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+"""
+
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+from __future__ import annotations
+
+import importlib
+from pathlib import Path
+
+import pytest
+from fastapi import APIRouter
+
+ROUTERS_DIR = Path(__file__).resolve().parent.parent / "routers"
+
+
+def _router_modules() -> list[str]:
+    """Every router module in routers/ (excluding the package __init__)."""
+    return sorted(p.stem for p in ROUTERS_DIR.glob("*.py") if p.stem != "__init__")
+
+
+MODULES = _router_modules()
+
+
+def test_all_router_modules_discovered() -> None:
+    """Guard against the discovery itself rotting (dir moved/renamed)."""
+    assert len(MODULES) >= 80, f"expected ~82 router modules, found {len(MODULES)}: {MODULES[:5]}…"
+
+
+@pytest.mark.parametrize("module_name", MODULES)
+def test_router_module_imports_and_registers(module_name: str) -> None:
+    mod = importlib.import_module(f"routers.{module_name}")
+    router = getattr(mod, "router", None)
+    assert isinstance(router, APIRouter), (
+        f"routers/{module_name}.py does not expose an APIRouter named `router`"
+    )
+    assert len(router.routes) > 0, f"routers/{module_name}.py registers zero routes"
