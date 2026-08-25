@@ -132,6 +132,38 @@ def _actor_lock_contents(repo_lock: Path) -> str:
     return header + "\n".join(found[p] for p in sorted(found)) + "\n"
 
 
+def scan_staged_for_secrets(stage: Path, repo_root: Path) -> tuple[bool, str]:
+    """F44 defense-in-depth: gitleaks scan of a staged actor package.
+
+    Runs before upload so a leaked credential can never reach the Apify
+    registry even if upstream scans missed it. A missing gitleaks binary
+    fails OPEN with a note (the repo CI runs the canonical scan); any
+    finding fails CLOSED.
+
+    Returns ``(clean, report)``.
+    """
+    gitleaks = shutil.which("gitleaks")
+    if gitleaks is None:
+        return True, "gitleaks not installed — staged scan skipped (CI enforces)"
+    # Deliberately NO --config: the repo .gitleaks.toml carries a broad
+    # stopword allowlist tuned for OUR source tree. Staged packages are
+    # shipped artifacts — scan them under gitleaks' strict DEFAULT rules.
+    cmd = [gitleaks, "detect", "--source", str(stage), "--no-git", "--report-format", "text"]
+    try:
+        proc = subprocess.run(  # noqa: S603 - fixed argv, paths from staging
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        return False, "gitleaks scan timed out after 120s — refusing upload"
+    if proc.returncode == 0:
+        return True, "clean"
+    report = (proc.stdout or proc.stderr or "").strip()
+    return False, f"secret scan findings:\n{report[-2000:]}"
+
+
 def stage_actor(spec: ActorSpec, repo_root: Path, staging_root: Path) -> Path:
     """Render one preset into ``staging_root/<name>/`` with engine files.
 
@@ -168,6 +200,11 @@ def stage_actor(spec: ActorSpec, repo_root: Path, staging_root: Path) -> Path:
             stage / dirname,
             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
         )
+    # F44 defense-in-depth: no staged package ships without a secret scan.
+    clean, report = scan_staged_for_secrets(stage, repo_root)
+    if not clean:
+        msg = f"{spec.name}: refusing to stage — {report}"
+        raise ValueError(msg)
     return stage
 
 

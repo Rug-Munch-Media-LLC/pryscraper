@@ -351,3 +351,36 @@ class TestRunBatch:
             )
         )
         assert out[0].ok
+
+
+# ── F44: staged-package secret scan (defense in depth) ──────────────────────
+
+
+class TestStagedSecretScan:
+    def test_clean_stage_passes(self, tmp_path: Path) -> None:
+        spec = ALL_PRESETS["pry-cve-advisory-watch"]
+        stage = stage_actor(spec, REPO, tmp_path)  # must not raise
+        assert stage.is_dir()
+
+    def test_planted_secret_blocks_staging(self, tmp_path: Path) -> None:
+        """A leaked AWS key in engine files must refuse to stage."""
+        spec = ALL_PRESETS["pry-cve-advisory-watch"]
+        # ENGINE_DIRS copies src/pry + actor_factory into the stage — plant
+        # inside a file that actually ships.
+        planted = REPO / "actor_factory" / "generator.py"
+        original = planted.read_text()
+        # ghp_ + exactly 36 alphanumerics matches gitleaks' GitHub PAT rule
+        # (the classic AKIAIOSFODNN7EXAMPLE key is excluded as a doc example)
+        token = "ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"
+        planted.write_text(original + f'\nTOKEN = "{token}"\n')
+        try:
+            with pytest.raises(ValueError, match="secret scan"):
+                stage_actor(spec, REPO, tmp_path)
+        finally:
+            planted.write_text(original)
+
+    def test_scan_helper_signature(self, tmp_path: Path) -> None:
+        """Sanity: helper returns (bool, str) even for an empty dir."""
+        clean, report = publish.scan_staged_for_secrets(tmp_path, REPO)
+        assert isinstance(clean, bool)
+        assert isinstance(report, str)
