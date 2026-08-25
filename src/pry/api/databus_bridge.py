@@ -43,6 +43,10 @@ DATABUS_URL = os.getenv(
     "PRY_DATABUS_URL",
     "http://rmi-backend:8000/api/v1/databus/ingest",
 )
+# Service-to-service auth — the backend VALIDATES this key (401 otherwise).
+# Source: same secret the backend mounts as /run/secrets/rmi_internal_key
+# (gopass rmi/infra/rmi_internal_key). Unset = deliveries will be rejected.
+DATABUS_API_KEY = os.getenv("RMI_INTERNAL_KEY", "") or os.getenv("PRY_DATABUS_API_KEY", "")
 DATABUS_ENABLED = os.getenv("PRY_DATABUS_ENABLED", "1") == "1"
 DATABUS_TIMEOUT = int(os.getenv("PRY_DATABUS_TIMEOUT", "10"))
 DATABUS_MAX_RETRIES = int(os.getenv("PRY_DATABUS_MAX_RETRIES", "3"))
@@ -243,8 +247,13 @@ async def _deliver_once(payload: dict[str, Any]) -> bool:
     through a lossless decision path.
     """
     try:
+        headers = {"Content-Type": "application/json"}
+        if DATABUS_API_KEY:
+            headers["X-RMI-Key"] = DATABUS_API_KEY
+        elif DATABUS_ENABLED:
+            logger.warning("databus_no_api_key — set RMI_INTERNAL_KEY or deliveries will 401")
         async with httpx.AsyncClient(timeout=DATABUS_TIMEOUT) as client:
-            resp = await client.post(DATABUS_URL, json=payload)
+            resp = await client.post(DATABUS_URL, json=payload, headers=headers)
             if resp.is_success:
                 logger.info(
                     "databus_published",

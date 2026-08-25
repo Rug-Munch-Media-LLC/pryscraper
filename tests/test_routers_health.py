@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
+import redis
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -92,3 +93,77 @@ def test_ready_check_fail(mock_get_client):
 
     r = client.get("/ready")
     assert r.status_code in (503, 422, 500)
+
+
+# ── Health-contract regression tests (2026-08-25) ────────────────────────
+# Incident: /health gated on FlareSolverr (optional tier-3 dep) and returned
+# 503 for 4 days while the service was fully functional. The contract now is:
+# CRITICAL deps gate (/health, /ready); OPTIONAL deps are informational only.
+
+
+@patch("routers.health.get_client")
+def test_health_stays_ok_when_all_optional_deps_down(mock_get_client):
+    """FlareSolverr AND Ollama down + redis up => 200 ok (incident regression)."""
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(side_effect=Exception("ollama down"))
+    mock_client.post = AsyncMock(side_effect=Exception("flaresolverr down"))
+    mock_get_client.return_value = mock_client
+
+    with patch("routers.health.redis.asyncio.from_url") as mock_redis:
+        mock_redis_instance = AsyncMock()
+        mock_redis_instance.ping = AsyncMock(return_value=True)
+        mock_redis_instance.close = AsyncMock()
+        mock_redis.return_value = mock_redis_instance
+
+        r = client.get("/health")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["dependencies"]["redis"] is True
+    assert body["dependencies"]["flaresolverr"] is False  # informational only
+    assert body["dependencies"]["ollama"] is False  # informational only
+
+
+@patch("routers.health.get_client")
+def test_health_degrades_when_critical_redis_down(mock_get_client):
+    """Redis down => 503 degraded, even with every optional dep up."""
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock()
+    mock_client.get.return_value.is_success = True
+    mock_client.post = AsyncMock()
+    mock_client.post.return_value.is_success = True
+    mock_get_client.return_value = mock_client
+
+    with patch("routers.health.redis.asyncio.from_url") as mock_redis:
+        mock_redis_instance = AsyncMock()
+        mock_redis_instance.ping = AsyncMock(side_effect=redis.RedisError("down"))
+        mock_redis.return_value = mock_redis_instance
+
+        r = client.get("/health")
+    assert r.status_code == 503
+    assert r.json()["status"] == "degraded"
+
+
+@patch("routers.health.get_client")
+def test_ready_ignores_optional_deps(mock_get_client):
+    """/ready must be ready when redis is up even if Ollama is unreachable."""
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(side_effect=Exception("ollama down"))
+    mock_get_client.return_value = mock_client
+
+    with patch("routers.health.redis.asyncio.from_url") as mock_redis:
+        mock_redis_instance = AsyncMock()
+        mock_redis_instance.ping = AsyncMock(return_value=True)
+        mock_redis_instance.close = AsyncMock()
+        mock_redis.return_value = mock_redis_instance
+
+        r = client.get("/ready")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ready"}
+
+
+def test_healthz_is_pure_liveness():
+    """/healthz never probes dependencies — always 200 ok."""
+    r = client.get("/healthz")
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
