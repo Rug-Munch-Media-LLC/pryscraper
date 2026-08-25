@@ -276,6 +276,7 @@ class TestKeylessX402Flow:
     def test_keyless_paid_request_gets_402_not_401(self) -> None:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+
         from pry.core.middleware import PryHttpMiddleware
         from pry.payments.x402_middleware import X402Middleware
 
@@ -290,11 +291,12 @@ class TestKeylessX402Flow:
         c = TestClient(app, raise_server_exceptions=False)
         r = c.post("/v1/scrape", json={"url": "https://example.com"})
         assert r.status_code == 402, f"expected 402 challenge, got {r.status_code}"
-        assert "payment-required" in {k.lower() for k in r.headers.keys()}
+        assert "payment-required" in {k.lower() for k in r.headers}
 
     def test_pricing_and_catalog_are_keyless(self) -> None:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+
         from pry.api.routers.x402 import router as x402_router
         from pry.core.middleware import PryHttpMiddleware
 
