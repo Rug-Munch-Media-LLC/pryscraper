@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from x402.batch import (
+from pry.payments.x402.batch import (
     _batch_lock,
     _batch_payments,
     create_batch_payment,
@@ -126,7 +126,7 @@ async def test_verify_onchain_success():
     mock = AsyncMock()
     mock.verify.return_value = {"verified": True, "reason": ""}
 
-    with patch("x402.batch.get_facilitator_router", return_value=mock):
+    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
         r2 = await verify_batch_payment(bid, "0xvalid")
         assert r2["verified"] is True
         assert r2["total_usd"] > 0
@@ -139,7 +139,7 @@ async def test_verify_onchain_failure():
     mock = AsyncMock()
     mock.verify.return_value = {"verified": False, "reason": "insufficient"}
 
-    with patch("x402.batch.get_facilitator_router", return_value=mock):
+    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
         r2 = await verify_batch_payment(bid, "0xinvalid")
         assert r2["verified"] is False
 

@@ -22,7 +22,7 @@ import string
 import pytest
 from hypothesis import HealthCheck, given, settings, strategies as st
 
-from x402.scheme import (
+from pry.payments.x402.scheme import (
     CAIP2_NETWORK_IDS,
     SUPPORTED_ASSETS,
     network_family,

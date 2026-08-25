@@ -21,9 +21,9 @@ client = TestClient(app)
 
 def _patch_x402():
     """Patch x402 functions used in router endpoints that make network calls."""
-    # X402Handler is imported inside the endpoint functions via `from x402 import X402Handler`
+    # X402Handler is imported inside the endpoint functions via `from pry.payments.x402 import X402Handler`
     return patch.multiple(
-        "x402.X402Handler",
+        "pry.payments.x402.X402Handler",
         verify_payment=AsyncMock(return_value={"verified": True, "reason": "", "settlement": None}),
         settle_payment=AsyncMock(return_value={"success": True, "tx_hash": "0xsettled"}),
         get_stats=MagicMock(return_value={"scrape": {"price_usd": 1.0}}),
@@ -36,13 +36,13 @@ def _patch_x402():
 
 
 def test_x402_health():
-    with _patch_x402(), patch("x402.facilitator.get_facilitator_router") as mock_get:
+    with _patch_x402(), patch("pry.payments.x402.facilitator.get_facilitator_router") as mock_get:
         mock_router = MagicMock()
         mock_router.readiness.return_value = {"mode": "test", "ready": True}
         mock_router.settlement_stats.return_value = {"nonces_seen": 0}
         mock_get.return_value = mock_router
 
-        with patch("x402.scheme.probe_oracle", AsyncMock(return_value=(True, "test"))):
+        with patch("pry.payments.x402.scheme.probe_oracle", AsyncMock(return_value=(True, "test"))):
             response = client.get("/v1/x402/health")
             assert response.status_code == 200
             data = response.json()

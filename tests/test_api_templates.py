@@ -18,7 +18,7 @@ from pry.api.api import app
 def bypass_x402_middleware() -> Iterator[None]:
     """Disable x402 payment gating for template execution tests."""
     with patch(
-        "pry.misc.x402_middleware.X402Middleware.__call__",
+        "pry.payments.x402_middleware.X402Middleware.__call__",
         lambda self, scope, receive, send: self.app(scope, receive, send),
     ):
         yield

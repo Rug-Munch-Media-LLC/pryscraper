@@ -8,13 +8,13 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from pry.misc.x402_middleware import (
+from pry.payments.x402 import X402Handler, _encode_payment_required_body
+from pry.payments.x402_middleware import (
     X402_PAYMENT_HEADER_MAX_BYTES,
     X402Middleware,
     _caller_key_from_scope,
     _compact_payment_required_header,
 )
-from x402 import X402Handler, _encode_payment_required_body
 
 
 @pytest.fixture

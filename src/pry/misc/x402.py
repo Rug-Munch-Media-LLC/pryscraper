@@ -13,7 +13,7 @@ names are re-exported from the package root.
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
-from x402 import (
+from pry.payments.x402 import (
     _NATIVE_ASSETS,
     ASSET_DECIMALS,
     DEFAULT_FACILITATORS,

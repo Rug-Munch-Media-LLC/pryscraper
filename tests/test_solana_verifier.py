@@ -21,9 +21,9 @@ import httpx
 import pytest
 import respx
 
-from x402 import SOLANA_USDC_MINT, network_verification_status
-from x402.facilitator import FacilitatorRouter
-from x402.solana_verifier import (
+from pry.payments.x402 import SOLANA_USDC_MINT, network_verification_status
+from pry.payments.x402.facilitator import FacilitatorRouter
+from pry.payments.x402.solana_verifier import (
     DEFAULT_SOLANA_RPC_URL,
     SPL_TOKEN_PROGRAM_ID,
     verify_solana_payment,
@@ -390,7 +390,9 @@ async def test_facilitator_routes_solana_to_rpc_verifier(monkeypatch) -> None:
             )
         )
     )
-    monkeypatch.setattr("x402.facilitator.X402_NETWORK_WALLETS", {"solana:mainnet": RECIPIENT})
+    monkeypatch.setattr(
+        "pry.payments.x402.facilitator.X402_NETWORK_WALLETS", {"solana:mainnet": RECIPIENT}
+    )
     router = FacilitatorRouter(self_hosted=True)
     result = await router.verify("pid-1", "sig-abc", "solana:mainnet", "USDC", 1.0)
     assert result["verified"] is True
@@ -402,8 +404,8 @@ async def test_facilitator_routes_solana_to_rpc_verifier(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_facilitator_solana_fails_closed_without_wallet(monkeypatch) -> None:
-    monkeypatch.setattr("x402.facilitator.X402_NETWORK_WALLETS", {})
-    monkeypatch.setattr("x402.facilitator.X402_WALLET", "pry-default-wallet")
+    monkeypatch.setattr("pry.payments.x402.facilitator.X402_NETWORK_WALLETS", {})
+    monkeypatch.setattr("pry.payments.x402.facilitator.X402_WALLET", "pry-default-wallet")
     router = FacilitatorRouter(self_hosted=True)
     result = await router.verify("pid-1", "sig-abc", "solana:mainnet", "USDC", 1.0)
     assert result["verified"] is False
@@ -421,7 +423,9 @@ async def test_facilitator_solana_underpayment_reflects_onchain(monkeypatch) -> 
             )
         )
     )
-    monkeypatch.setattr("x402.facilitator.X402_NETWORK_WALLETS", {"solana:mainnet": RECIPIENT})
+    monkeypatch.setattr(
+        "pry.payments.x402.facilitator.X402_NETWORK_WALLETS", {"solana:mainnet": RECIPIENT}
+    )
     router = FacilitatorRouter(self_hosted=True)
     result = await router.verify("pid-1", "sig-abc", "solana", "USDC", 1.0)
     assert result["verified"] is False

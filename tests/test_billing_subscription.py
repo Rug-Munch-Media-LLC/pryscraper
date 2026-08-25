@@ -21,8 +21,8 @@ from billing import (
     subscription_status,
     verify_subscription_payment,
 )
-from x402.scheme import X402Scheme
-from x402.self_facilitator import VerifyResult
+from pry.payments.x402.scheme import X402Scheme
+from pry.payments.x402.self_facilitator import VerifyResult
 
 if TYPE_CHECKING:
     from collections.abc import Generator

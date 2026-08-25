@@ -36,14 +36,14 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
 from pry.api.routers.x402 import x402_health
-from x402 import (
+from pry.payments.x402 import (
     FacilitatorRouter,
     SelfFacilitator,
     SettleErrorCode,
     X402Handler,
     set_facilitator_router,
 )
-from x402.scheme import (
+from pry.payments.x402.scheme import (
     COINGECKO_SIMPLE_PRICE_URL,
     SUPPORTED_ASSETS,
     X402_ASSET_USD_PER_UNIT,
@@ -52,7 +52,7 @@ from x402.scheme import (
     network_verification_status,
     probe_oracle,
 )
-from x402.self_facilitator import (
+from pry.payments.x402.self_facilitator import (
     CHAIN_ID_BY_NETWORK,
     build_transfer_with_authorization_digest,
 )
@@ -286,8 +286,10 @@ def test_stats_expose_verification_status_by_network() -> None:
 
 @pytest.mark.asyncio
 async def test_health_self_hosted_ready(monkeypatch, tmp_path) -> None:
-    monkeypatch.setattr("x402.facilitator.X402_WALLET", PAY_TO)
-    monkeypatch.setattr("x402.facilitator.X402_SELF_FACILITATOR_RPC", "https://rpc.invalid")
+    monkeypatch.setattr("pry.payments.x402.facilitator.X402_WALLET", PAY_TO)
+    monkeypatch.setattr(
+        "pry.payments.x402.facilitator.X402_SELF_FACILITATOR_RPC", "https://rpc.invalid"
+    )
     router = FacilitatorRouter(self_hosted=True)
     set_facilitator_router(router)
     try:
@@ -295,7 +297,7 @@ async def test_health_self_hosted_ready(monkeypatch, tmp_path) -> None:
         async def fake_probe() -> tuple[bool, str]:
             return True, "coingecko"
 
-        monkeypatch.setattr("x402.scheme.probe_oracle", fake_probe)
+        monkeypatch.setattr("pry.payments.x402.scheme.probe_oracle", fake_probe)
         body = await x402_health()
         assert body["status"] == "ok"
         assert body["facilitator"] == {
@@ -324,10 +326,10 @@ async def test_health_external_mode_and_wallet_not_configured(monkeypatch) -> No
         async def fake_probe() -> tuple[bool, str]:
             return False, "static-default"
 
-        monkeypatch.setattr("x402.scheme.probe_oracle", fake_probe)
+        monkeypatch.setattr("pry.payments.x402.scheme.probe_oracle", fake_probe)
         # Force the placeholder wallet — the ambient value may be a real
         # gopass secret in dev environments, so assert on explicit state.
-        monkeypatch.setattr("x402.facilitator.X402_WALLET", "pry-default-wallet")
+        monkeypatch.setattr("pry.payments.x402.facilitator.X402_WALLET", "pry-default-wallet")
         body = await x402_health()
         assert body["facilitator"]["mode"] == "external"
         assert body["facilitator"]["wallet_configured"] is False
@@ -335,7 +337,7 @@ async def test_health_external_mode_and_wallet_not_configured(monkeypatch) -> No
         assert body["oracle"] == {"reachable": False, "source": "static-default"}
 
         # Configured wallet → external mode ready (default facilitators exist).
-        monkeypatch.setattr("x402.facilitator.X402_WALLET", PAY_TO)
+        monkeypatch.setattr("pry.payments.x402.facilitator.X402_WALLET", PAY_TO)
         body = await x402_health()
         assert body["facilitator"]["wallet_configured"] is True
         assert body["facilitator"]["ready"] is True

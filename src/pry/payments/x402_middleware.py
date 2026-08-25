@@ -27,7 +27,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from x402 import (
+from pry.payments.x402 import (
     PAYMENT_VALIDITY_SECONDS,
     X402_PRICING,
     X402Handler,
@@ -916,7 +916,7 @@ class X402Middleware:
 
         # Check pre-verified batch payment
         if batch_id_header:
-            from x402 import is_batch_paid
+            from pry.payments.x402 import is_batch_paid
 
             if is_batch_paid(batch_id_header):
                 await self.app(scope, receive, send)

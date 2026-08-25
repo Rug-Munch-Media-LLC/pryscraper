@@ -114,7 +114,7 @@ def client() -> Iterator[TestClient]:
 
     with (
         patch(
-            "pry.misc.x402_middleware.X402Middleware.__call__",
+            "pry.payments.x402_middleware.X402Middleware.__call__",
             lambda self, scope, receive, send: self.app(scope, receive, send),
         ),
         TestClient(app) as c,

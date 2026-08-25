@@ -21,8 +21,9 @@ from typing import TYPE_CHECKING, Any
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from pry.misc import x402_middleware
-from pry.misc.x402_middleware import (
+import pry.payments.x402_middleware as x402_middleware
+from pry.payments.x402 import X402_PRICING
+from pry.payments.x402_middleware import (
     DEFAULT_FREE_PATHS,
     DEFAULT_FREE_PREFIXES,
     PAID_ENDPOINTS,
@@ -33,7 +34,6 @@ from pry.misc.x402_middleware import (
     iter_app_route_paths,
     resolve_operation,
 )
-from x402 import X402_PRICING
 
 if TYPE_CHECKING:
     import pytest

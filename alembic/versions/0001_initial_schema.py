@@ -353,7 +353,7 @@ def upgrade() -> None:
         sa.Column("payee", sa.String(128), server_default=""),
         sa.Column("operation", sa.String(64), server_default=""),
         sa.Column("ts", sa.DateTime(), index=True),
-        sa.Column("facilitator", sa.String(64), server_default="x402.org"),
+        sa.Column("facilitator", sa.String(64), server_default="pry.payments.x402.org"),
         sa.PrimaryKeyConstraint("id"),
     )
 

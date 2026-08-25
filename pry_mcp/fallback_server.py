@@ -547,7 +547,7 @@ def make_fallback_server(
                 )
             if uri == "pry://x402/pricing":
                 try:
-                    from x402 import X402Handler
+                    from pry.payments.x402 import X402Handler
 
                     return json.dumps(X402Handler().get_stats(), indent=2)
                 except (json.JSONDecodeError, ValueError) as e:

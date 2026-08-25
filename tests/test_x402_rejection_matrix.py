@@ -53,7 +53,7 @@ except ImportError:  # package vs flat layout
     )
 
 if TYPE_CHECKING:
-    from x402.self_facilitator import SelfFacilitator
+    from pry.payments.x402.self_facilitator import SelfFacilitator
 
 RPC = "https://rpc.invalid"
 
@@ -130,7 +130,7 @@ class TestRejectionMatrix:
         auth["validAfter"] = now + 3600  # future start, signed payload stale
         # Re-sign so the window change is internally consistent: only the
         # validAfter-in-future guard should fire, not the signer check.
-        from x402.self_facilitator import build_transfer_with_authorization_digest
+        from pry.payments.x402.self_facilitator import build_transfer_with_authorization_digest
 
         digest = build_transfer_with_authorization_digest(
             from_address=auth["from"],

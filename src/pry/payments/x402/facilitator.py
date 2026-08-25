@@ -24,7 +24,7 @@ from typing import Any
 
 import httpx
 
-from x402 import (
+from pry.payments.x402 import (
     EIP7702_RPC,
     EIP7702_TOKEN_ADDRESSES,
     X402_NETWORK_WALLETS,
@@ -35,7 +35,7 @@ from x402 import (
     X402_TIMEOUT_SECONDS,
     X402_WALLET,
 )
-from x402.scheme import (
+from pry.payments.x402.scheme import (
     _NATIVE_ASSETS,
     X402Scheme,
     asset_to_atomic,
@@ -44,7 +44,7 @@ from x402.scheme import (
     normalize_network_id,
     resolve_asset_entry,
 )
-from x402.self_facilitator import SelfFacilitator, VerifyResult
+from pry.payments.x402.self_facilitator import SelfFacilitator, VerifyResult
 
 logger = logging.getLogger(__name__)
 
@@ -482,7 +482,7 @@ class FacilitatorRouter:
                 "network": network_id,
             }
         try:
-            from x402.solana_verifier import verify_solana_payment
+            from pry.payments.x402.solana_verifier import verify_solana_payment
         except ImportError:
             # Module absent (older checkout) — keep the honest scaffold path.
             return self._scaffold_non_evm_verify(payment_id, tx_hash, network, asset, amount_usd)

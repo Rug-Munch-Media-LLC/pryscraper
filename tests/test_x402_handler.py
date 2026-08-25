@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from x402 import (
+from pry.payments.x402 import (
     SUPPORTED_NETWORKS,
     X402_PRICING,
     X402Handler,
@@ -93,8 +93,8 @@ def test_require_payment_legacy():
 @pytest.mark.asyncio
 async def test_handler_verify_payment():
     with (
-        patch("x402.handler.FacilitatorRouter"),
-        patch("x402.handler.get_facilitator_router") as mock_get,
+        patch("pry.payments.x402.handler.FacilitatorRouter"),
+        patch("pry.payments.x402.handler.get_facilitator_router") as mock_get,
     ):
         mock_instance = MagicMock()
         mock_instance.verify = AsyncMock(return_value={"verified": True, "reason": ""})
@@ -107,8 +107,8 @@ async def test_handler_verify_payment():
 @pytest.mark.asyncio
 async def test_handler_settle_payment():
     with (
-        patch("x402.handler.FacilitatorRouter"),
-        patch("x402.handler.get_facilitator_router") as mock_get,
+        patch("pry.payments.x402.handler.FacilitatorRouter"),
+        patch("pry.payments.x402.handler.get_facilitator_router") as mock_get,
     ):
         mock_instance = MagicMock()
         mock_instance.settle = AsyncMock(return_value={"success": True})

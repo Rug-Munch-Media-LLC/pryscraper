@@ -10,7 +10,7 @@ from collections.abc import Iterator
 import pytest
 
 from pry.commerce.referrals import PROVIDER_CATALOG, ReferralTracker
-from x402 import X402_PRICING, X402Handler
+from pry.payments.x402 import X402_PRICING, X402Handler
 
 
 @pytest.fixture(autouse=True)

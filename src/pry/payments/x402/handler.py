@@ -18,7 +18,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from x402 import (
+from pry.payments.x402 import (
     PAYMENT_VALIDITY_SECONDS,
     X402_DEFAULT_ASSET,
     X402_DEFAULT_NETWORK,
@@ -28,8 +28,8 @@ from x402 import (
     X402_SELF_FACILITATE,
     X402_WALLET,
 )
-from x402.facilitator import FacilitatorRouter, get_facilitator_router
-from x402.scheme import (
+from pry.payments.x402.facilitator import FacilitatorRouter, get_facilitator_router
+from pry.payments.x402.scheme import (
     SUPPORTED_ASSETS,
     SUPPORTED_NETWORKS,
     VERIFICATION_STATUS,

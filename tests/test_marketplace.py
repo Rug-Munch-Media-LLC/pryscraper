@@ -23,7 +23,7 @@ import pry.api.client as _client_module
 from marketplace import amazon, tiktok_shop, walmart
 from pry.api.webhook_delivery import WebhookDelivery
 from pry.commerce.actor_marketplace import Actor, ActorMarketplace, ActorVisibility
-from pry.misc.x402_middleware import PAID_ENDPOINTS, X402_PRICING
+from pry.payments.x402_middleware import PAID_ENDPOINTS, X402_PRICING
 
 
 def test_x402_pricing() -> None:

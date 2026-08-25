@@ -14,7 +14,7 @@ when tests patch ``secrets_backend.get_secret``. Domain code lives in:
 - ``x402.solana_verifier`` — Solana SPL USDC on-chain verifier (getTransaction
   jsonParsed, httpx + stdlib — no Solana SDK)
 
-The public import surface is unchanged: ``from x402 import X`` still works
+The public import surface is unchanged: ``from pry.payments.x402 import X`` still works
 (every public name is re-exported below), and ``x402.py`` remains as a thin
 re-export facade.
 

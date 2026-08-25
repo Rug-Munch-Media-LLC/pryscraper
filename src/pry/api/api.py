@@ -204,7 +204,7 @@ from pry.api.routers.vision import router as vision_router
 from pry.api.routers.webhooks import router as webhooks_router
 from pry.api.routers.x402 import router as x402_router
 from pry.core.settings import settings
-from pry.misc.x402_middleware import X402Middleware
+from pry.payments.x402_middleware import X402Middleware
 
 # Configure structured (JSON) logging for the whole process. Per
 # CONVENTIONS.md Part 5, all Pry logs must be JSON with timestamp, level,
@@ -231,7 +231,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # x402 route-classification audit (fail-closed gate).
     # PRY_X402_AUDIT: strict (default) = raise on unclassified routes;
     # warn = log critical but boot; off = skip entirely.
-    from pry.misc.x402_middleware import audit_route_classification
+    from pry.payments.x402_middleware import audit_route_classification
 
     _audit_mode = os.getenv("PRY_X402_AUDIT", "strict").strip().lower()
     if _audit_mode != "off":

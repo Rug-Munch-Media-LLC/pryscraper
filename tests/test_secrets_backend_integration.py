@@ -8,7 +8,7 @@
 import os
 from unittest.mock import patch
 
-import x402
+import pry.payments.x402 as x402
 
 
 def test_settings_pulls_from_secrets_backend() -> None:
@@ -42,7 +42,7 @@ def test_settings_pulls_from_secrets_backend() -> None:
 
 
 def test_x402_constants_come_from_secrets_backend() -> None:
-    """x402.py X402_WALLET and X402_FACILITATOR_URL should be settable
+    """pry.payments.x402.py X402_WALLET and X402_FACILITATOR_URL should be settable
     via secrets_backend.get_secret()."""
     fake_wallet = "0xABCDEF1234567890"
     fake_facilitator = "https://my-facilitator.example.com"
@@ -62,7 +62,6 @@ def test_x402_constants_come_from_secrets_backend() -> None:
     ):
         # Force re-import of x402 constants
         import importlib
-
 
         importlib.reload(x402)
         assert fake_wallet == x402.X402_WALLET

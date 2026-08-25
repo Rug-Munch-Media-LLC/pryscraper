@@ -57,7 +57,7 @@ from eth_keys import keys
 from eth_keys.datatypes import PrivateKey, Signature
 from eth_utils import keccak, to_canonical_address, to_checksum_address
 
-from x402 import (
+from pry.payments.x402 import (
     X402_DEFAULT_ASSET,
     X402_DIR,
     X402_SELF_FACILITATOR_KEY,
@@ -65,7 +65,7 @@ from x402 import (
     X402_TIMEOUT_SECONDS,
     X402_WALLET,
 )
-from x402.scheme import (
+from pry.payments.x402.scheme import (
     X402Scheme,
     get_asset_usd_price,
     normalize_network_id,

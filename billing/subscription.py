@@ -64,22 +64,22 @@ import httpx
 
 from billing.enforcer import BillingEnforcer
 from billing.tiers import TIERS, get_tier
-from x402 import (
+from pry.payments.x402 import (
     X402_DEFAULT_ASSET,
     X402_DEFAULT_NETWORK,
     X402_NETWORK_WALLETS,
     X402_WALLET,
 )
-from x402.scheme import (
+from pry.payments.x402.scheme import (
     X402Scheme,
     asset_to_atomic,
     build_payment_required,
     normalize_network_id,
 )
-from x402.self_facilitator import SelfFacilitator
+from pry.payments.x402.self_facilitator import SelfFacilitator
 
 if TYPE_CHECKING:
-    from x402.self_facilitator import VerifyResult
+    from pry.payments.x402.self_facilitator import VerifyResult
 
 logger = logging.getLogger(__name__)
 

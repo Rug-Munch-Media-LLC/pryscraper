@@ -31,8 +31,8 @@ async def x402_health() -> dict[str, Any]:
     (nonces seen, pending). All fields are probed — the facilitator wallet/RPC
     and the oracle are checked, never assumed.
     """
-    from x402 import get_facilitator_router
-    from x402.scheme import (
+    from pry.payments.x402 import get_facilitator_router
+    from pry.payments.x402.scheme import (
         SUPPORTED_ASSETS,
         SUPPORTED_NETWORKS,
         network_verification_status,
@@ -58,7 +58,7 @@ async def x402_health() -> dict[str, Any]:
 @router.get("/v1/x402/pricing", tags=["x402"], summary="Get x402 pricing for all paid operations")
 async def x402_pricing() -> dict[str, Any]:
     """Get the price list for pay-per-scrape operations."""
-    from x402 import X402Handler
+    from pry.payments.x402 import X402Handler
 
     return {"success": True, "data": X402Handler().get_stats()}
 
@@ -72,7 +72,7 @@ async def x402_payment_request(
 
     Returns payment details (wallet, amount, asset) for the client to pay.
     """
-    from x402 import create_payment_request
+    from pry.payments.x402 import create_payment_request
 
     req = create_payment_request(operation, metadata)
     return {"success": True, "data": req}
@@ -92,7 +92,7 @@ async def x402_verify_payment(
     ``amount_usd`` is validated against the SERVER-side price first and
     underpayment is rejected before any facilitator call.
     """
-    from x402 import X402_PRICING, X402Handler, validate_client_amount
+    from pry.payments.x402 import X402_PRICING, X402Handler, validate_client_amount
 
     if payment_id in X402_PRICING:
         ok, reason = validate_client_amount(payment_id, amount_usd, asset, network=network)
@@ -125,7 +125,7 @@ async def x402_require_payment(
     metadata: dict[str, Any] | None = Body(None),
 ) -> dict[str, Any]:
     """Generate a 402 Payment Required response for a paid endpoint."""
-    from x402 import require_payment_legacy
+    from pry.payments.x402 import require_payment_legacy
 
     return require_payment_legacy(operation, metadata)
 
@@ -137,7 +137,7 @@ async def x402_batch_payment(payload: dict[str, Any] = Body(...)) -> dict[str, A
     Returns a PaymentRequired body with the combined amount. After paying,
     submit the tx to POST /v1/x402/batch-verify.
     """
-    from x402 import create_batch_payment
+    from pry.payments.x402 import create_batch_payment
 
     operations = payload.get("operations", [])
     if not isinstance(operations, list):
@@ -151,7 +151,7 @@ async def x402_batch_payment(payload: dict[str, Any] = Body(...)) -> dict[str, A
 @router.post("/v1/x402/batch-verify", tags=["x402"], summary="Verify a batch x402 payment")
 async def x402_batch_verify(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     """Verify the on-chain payment for a batch and mark it paid."""
-    from x402 import verify_batch_payment
+    from pry.payments.x402 import verify_batch_payment
 
     batch_id = payload.get("batch_id", "")
     tx_hash = payload.get("tx_hash", "")
@@ -191,7 +191,7 @@ async def x402_pay(
     cannot underpay by claiming a lower amount. The returned payment_id is
     bound to the caller IP and expires after PAYMENT_VALIDITY_SECONDS.
     """
-    from x402 import X402Handler, resolve_price_usd, validate_client_amount
+    from pry.payments.x402 import X402Handler, resolve_price_usd, validate_client_amount
 
     # Never trust the client-supplied amount: reject underpayment up front.
     # ``network`` lets the canonical SUPPORTED_ASSETS table quote non-1:1

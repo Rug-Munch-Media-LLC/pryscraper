@@ -13,7 +13,7 @@ import httpx
 import pytest
 import respx
 
-from x402.facilitator import (
+from pry.payments.x402.facilitator import (
     DEFAULT_FACILITATORS,
     FacilitatorConfig,
     FacilitatorRouter,
@@ -167,7 +167,7 @@ def test_settlement_stats_defaults(router: FacilitatorRouter):
 
 @pytest.mark.asyncio
 async def test_verify_offline_always_succeeds(router: FacilitatorRouter):
-    with patch("x402.facilitator.X402_OFFLINE_MODE", True):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", True):
         result = await router.verify(
             payment_id="pay_123",
             tx_hash="0xabc",
@@ -182,7 +182,7 @@ async def test_verify_offline_always_succeeds(router: FacilitatorRouter):
 @pytest.mark.asyncio
 async def test_verify_no_facilitators():
     empty = FacilitatorRouter(facilitators=[])
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         result = await empty.verify(
             payment_id="pay_123",
             tx_hash="0xabc",
@@ -197,7 +197,7 @@ async def test_verify_no_facilitators():
 async def test_verify_self_hosted_path(router: FacilitatorRouter):
     """When no facilitator handles the network, returns needs_facilitator."""
     router.self_hosted = False
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         result = await router.verify(
             payment_id="pay_123",
             tx_hash="0xabc",
@@ -211,7 +211,7 @@ async def test_verify_self_hosted_path(router: FacilitatorRouter):
 @pytest.mark.asyncio
 async def test_verify_solana_path(router: FacilitatorRouter):
     """Solana uses the dedicated SPL verifier fallback."""
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         result = await router.verify(
             payment_id="pay_123",
             tx_hash="4a3b...",
@@ -229,7 +229,7 @@ async def test_verify_solana_path(router: FacilitatorRouter):
 
 @pytest.mark.asyncio
 async def test_settle_offline(router: FacilitatorRouter):
-    with patch("x402.facilitator.X402_OFFLINE_MODE", True):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", True):
         result = await router.settle(
             payment_id="pay_123",
             tx_hash="0xabc",
@@ -244,7 +244,7 @@ async def test_settle_offline(router: FacilitatorRouter):
 @pytest.mark.asyncio
 async def test_settle_no_client_ip(router: FacilitatorRouter):
     """Settle works without needing a client_ip."""
-    with patch("x402.facilitator.X402_OFFLINE_MODE", True):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", True):
         result = await router.settle(
             payment_id="pay_123",
             tx_hash="0xabc",
@@ -289,7 +289,7 @@ def test_is_healthy_after_many_failures(router: FacilitatorRouter):
 
 
 def test_get_router_singleton():
-    import x402.facilitator as fac
+    import pry.payments.x402.facilitator as fac
 
     fac._facilitator_router = None
     r1 = get_facilitator_router()
@@ -298,7 +298,7 @@ def test_get_router_singleton():
 
 
 def test_register_facilitator_global():
-    import x402.facilitator as fac
+    import pry.payments.x402.facilitator as fac
 
     fac._facilitator_router = None
     register_facilitator("solana", MagicMock())
@@ -329,7 +329,7 @@ def test_default_facilitators_nonempty():
 async def test_verify_via_external_facilitator(router: FacilitatorRouter):
     """Should verify via external facilitator HTTP call."""
     router.self_hosted = False
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         for f in router.facilitators:
             if f.verify_url:
                 respx.post(f.verify_url).mock(
@@ -350,7 +350,7 @@ async def test_verify_via_external_facilitator(router: FacilitatorRouter):
 async def test_verify_external_http_error(router: FacilitatorRouter):
     """Should handle HTTP 500 from external facilitator gracefully."""
     router.self_hosted = False
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         for f in router.facilitators:
             if f.verify_url:
                 respx.post(f.verify_url).mock(return_value=httpx.Response(500, text="Server Error"))
@@ -369,7 +369,7 @@ async def test_verify_external_http_error(router: FacilitatorRouter):
 async def test_verify_external_network_error(router: FacilitatorRouter):
     """Should handle network error from external facilitator."""
     router.self_hosted = False
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         for f in router.facilitators:
             if f.verify_url:
                 respx.post(f.verify_url).mock(side_effect=httpx.ConnectError("connection refused"))
@@ -388,7 +388,7 @@ async def test_verify_external_network_error(router: FacilitatorRouter):
 async def test_verify_external_invalid_json(router: FacilitatorRouter):
     """Should handle non-JSON response from external facilitator."""
     router.self_hosted = False
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         for f in router.facilitators:
             if f.verify_url:
                 respx.post(f.verify_url).mock(return_value=httpx.Response(200, text="not-json"))
@@ -412,7 +412,7 @@ async def test_verify_external_invalid_json(router: FacilitatorRouter):
 async def test_verify_solana_network(router: FacilitatorRouter):
     """Should use Solana verifier path."""
     router.self_hosted = False
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         for f in router.facilitators:
             if f.verify_url:
                 respx.post(f.verify_url).mock(
@@ -438,7 +438,7 @@ async def test_verify_solana_network(router: FacilitatorRouter):
 async def test_verify_tron_scaffold(router: FacilitatorRouter):
     """Should scaffold TRON verification (needs_facilitator)."""
     router.self_hosted = False
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         for f in router.facilitators:
             if f.verify_url:
                 respx.post(f.verify_url).mock(
@@ -507,7 +507,7 @@ def test_impl_for_exact_match(router: FacilitatorRouter):
 @pytest.mark.asyncio
 async def test_settle_via_external_facilitator(router: FacilitatorRouter):
     """Should settle via external facilitator HTTP call."""
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         router.self_hosted = False
         for f in router.facilitators:
             if f.settle_url:
@@ -529,7 +529,7 @@ async def test_settle_via_external_facilitator(router: FacilitatorRouter):
 @pytest.mark.asyncio
 async def test_settle_external_http_error(router: FacilitatorRouter):
     """Should handle HTTP error from external settle."""
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         router.self_hosted = False
         for f in router.facilitators:
             if f.settle_url:
@@ -553,7 +553,7 @@ async def test_settle_external_http_error(router: FacilitatorRouter):
 @pytest.mark.asyncio
 async def test_settle_self_hosted(router: FacilitatorRouter):
     """Should settle via self-hosted path."""
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         router.self_hosted = True
         result = await router.settle(
             payment_id="pay_123",
@@ -609,7 +609,7 @@ def test_offline_settlement_format(router: FacilitatorRouter):
 
 def test_readiness_self_hosted():
     """Self-hosted mode readiness should indicate wallet information."""
-    with patch("x402.facilitator.X402_WALLET", "0xRealWallet"):
+    with patch("pry.payments.x402.facilitator.X402_WALLET", "0xRealWallet"):
         r = FacilitatorRouter(self_hosted=True)
         status = r.readiness()
         assert status["mode"] == "self_hosted"
@@ -626,7 +626,7 @@ def test_readiness_self_hosted():
 @pytest.mark.asyncio
 async def test_settle_external_all_fail(router: FacilitatorRouter):
     """When all external facilitators fail, offline mode kicks in."""
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         router.self_hosted = False
         for f in router.facilitators:
             if f.settle_url:
@@ -645,7 +645,7 @@ async def test_settle_external_all_fail(router: FacilitatorRouter):
 @pytest.mark.asyncio
 async def test_settle_external_json_error(router: FacilitatorRouter):
     """Handle non-JSON response from external settle."""
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         router.self_hosted = False
         for f in router.facilitators:
             if f.settle_url:
@@ -669,7 +669,7 @@ async def test_settle_external_json_error(router: FacilitatorRouter):
 @pytest.mark.asyncio
 async def test_verify_eip7702_fallback(router: FacilitatorRouter):
     """EIP-7702 fallback when external facilitators fail."""
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         router.self_hosted = False
         for f in router.facilitators:
             if f.verify_url:
@@ -739,7 +739,7 @@ def test_scaffold_non_evm_verify(router: FacilitatorRouter):
 async def test_settle_self_hosted_without_impl(router: FacilitatorRouter):
     """Self-hosted settle without a registered impl uses SelfFacilitator."""
     router.self_hosted = True
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         result = await router.settle(
             payment_id="pay_123",
             tx_hash="0xabc",
@@ -758,7 +758,7 @@ async def test_settle_self_hosted_without_impl(router: FacilitatorRouter):
 @pytest.mark.asyncio
 async def test_verify_self_hosted_custom_impl(router: FacilitatorRouter):
     """Self-hosted verify with a registered custom impl."""
-    from x402.self_facilitator import VerifyResult
+    from pry.payments.x402.self_facilitator import VerifyResult
 
     router.self_hosted = True
     mock_impl = MagicMock()
@@ -773,7 +773,7 @@ async def test_verify_self_hosted_custom_impl(router: FacilitatorRouter):
         )
     )
     router.register_facilitator("solana:mainnet", mock_impl)
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         result = await router.verify(
             payment_id="pay_123",
             tx_hash="0xabc",
@@ -793,7 +793,7 @@ async def test_verify_self_hosted_custom_impl(router: FacilitatorRouter):
 async def test_verify_self_hosted_no_impl(router: FacilitatorRouter):
     """Self-hosted verify without specific impl uses SelfFacilitator."""
     router.self_hosted = True
-    with patch("x402.facilitator.X402_OFFLINE_MODE", False):
+    with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         result = await router.verify(
             payment_id="pay_123",
             tx_hash="0xabc",

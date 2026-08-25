@@ -27,7 +27,7 @@ from typing import Any, cast
 
 import httpx
 
-from x402 import (
+from pry.payments.x402 import (
     X402_DEFAULT_ASSET,
     X402_DEFAULT_NETWORK,
     X402_NETWORK_WALLETS,

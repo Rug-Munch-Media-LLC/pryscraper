@@ -13,7 +13,7 @@ mcp_production.py and x402.py into sub-packages.
 from __future__ import annotations
 
 import pry.api.mcp_production as mcp_production
-import x402
+import pry.payments.x402 as x402
 
 
 class TestMCPPublicSurface:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from x402.solana_verifier import (
+from pry.payments.x402.solana_verifier import (
     _amount_usd_value,
     _failure,
     _iter_spl_instructions,
