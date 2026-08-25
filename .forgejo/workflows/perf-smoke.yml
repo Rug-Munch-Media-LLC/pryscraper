@@ -32,11 +32,13 @@ jobs:
           python3 -m venv .venv
           source .venv/bin/activate
           pip install --disable-pip-version-check -q -r requirements.lock
+          pip install --disable-pip-version-check -q -e .
           # Keyless loopback mode (no gopass on CI): no auth needed for k6,
           # and the IP-based limiter is raised so the smoke exercises
           # endpoints, not the limiter.
           export PRY_ENVIRONMENT=dev PRY_API_KEY="" PRY_RATE_LIMIT_RPM=100000
-          nohup uvicorn api:app --host 127.0.0.1 --port 8005 &
+          # src-layout app path (post-restructure); root api.py no longer exists
+          nohup uvicorn pry.api.api:app --host 127.0.0.1 --port 8005 &
           for i in $(seq 1 30); do
             curl -sf http://127.0.0.1:8005/health && break || sleep 2
           done
