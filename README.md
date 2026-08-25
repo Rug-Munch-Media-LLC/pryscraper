@@ -191,3 +191,7 @@ commitlint, AI-test-oracle attribution checks.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## FAQ
+
+See [docs/FAQ.md](docs/FAQ.md) for frequently asked questions.
