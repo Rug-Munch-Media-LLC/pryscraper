@@ -171,6 +171,10 @@ _AUTH_PUBLIC_PATHS: set[str] = {
     "/metrics",
     "/docs",
     "/openapi.json",
+    # x402 discovery: agents must be able to price calls without a key
+    # (the 402 challenge itself is the auth for paid calls).
+    "/v1/x402/pricing",
+    "/v1/x402/catalog",
 }
 
 
@@ -213,6 +217,20 @@ def request_authorized(scope: MutableMapping[str, Any]) -> bool:
     api_key = settings.api_key
     auth = PryHttpMiddleware._get_header(scope, b"authorization")
     token = auth[7:] if auth.startswith("Bearer ") else ""
+
+    # x402 payment-verified requests: the PAYMENT is the credential. The
+    # outer X402Middleware verified on-chain settlement and marked the
+    # scope; bind a metering identity so usage/billing still record.
+    if scope.get("x402_verified"):
+        xv = scope["x402_verified"]
+        scope["pry_api_key"] = {
+            "key_id": f"x402:{xv.get('payment_id') or xv.get('batch_id', '')}",
+            "user_id": f"x402:{xv.get('caller', 'unknown')}",
+            "name": "x402-paid",
+            "scopes": ["scrape", "crawl", "extract", "monitor"],
+            "tier": "X402",
+        }
+        return True
 
     # DB-issued keys (pry_...) authenticate against the api_keys table.
     # They are valid in BOTH modes (key configured or keyless loopback) and

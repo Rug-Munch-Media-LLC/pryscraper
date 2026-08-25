@@ -63,6 +63,77 @@ async def x402_pricing() -> dict[str, Any]:
     return {"success": True, "data": X402Handler().get_stats()}
 
 
+@router.get(
+    "/v1/x402/catalog",
+    tags=["x402"],
+    summary="Full x402 catalog: operations, engines and every Apify actor preset",
+)
+async def x402_catalog() -> dict[str, Any]:
+    """Machine-readable catalog binding the three surfaces together.
+
+    Returns every paid operation (with pricing), the engine each Apify
+    actor preset runs on, and the MCP tool that exposes the same
+    capability — so agents can discover actor-equivalent MCP tools and
+    price any call without reading source.
+    """
+    from pry.payments.x402 import X402Handler
+    from pry.payments.x402_middleware import PAID_ENDPOINTS
+    from pry.payments.x402_middleware.config import X402_PRICING
+
+    # engine -> MCP tool mapping: core engines are 1:1; domain routers
+    # carry their own tool names. Actors with processor=None run the raw
+    # scrape/crawl/screenshot engines directly.
+    ENGINE_TOOLS: dict[str | None, str] = {
+        None: "pry_scrape",
+        "scrape": "pry_scrape",
+        "crawl": "pry_crawl",
+        "extract": "pry_extract",
+        "monitor": "pry_monitor",
+        "news": "pry_news",
+        "jsondata": "pry_all_sources",
+        "leads": "pry_places_search",
+        "price": "pry_flights_grid",
+        "audit": "pry_domain",
+        "seo": "pry_trends",
+        "tech": "pry_enrich",
+        "invoice": "pry_parse_document",
+        "corpus": "pry_crawl",
+        "backlinks": "pry_domain",
+    }
+
+    try:
+        from actor_factory.presets import ALL_PRESETS
+
+        actors = [
+            {
+                "actor": name,
+                "title": spec.title,
+                "engine": spec.processor or "scrape",
+                "mcp_tool": ENGINE_TOOLS.get(spec.processor, "pry_scrape"),
+                "category": str(getattr(spec.category, "value", spec.category)),
+                "uses_browser": bool(spec.uses_browser),
+            }
+            for name, spec in sorted(ALL_PRESETS.items())
+        ]
+    except Exception:  # noqa: BLE001 - catalog must serve even if factory absent
+        actors = []
+
+    return {
+        "success": True,
+        "data": {
+            "operations": {
+                op: {"price_usd": tier.get("price_usd"), "description": tier.get("description")}
+                for op, tier in sorted(X402_PRICING.items())
+            },
+            "paid_endpoints": dict(sorted(PAID_ENDPOINTS.items())),
+            "engines": {str(k): v for k, v in ENGINE_TOOLS.items()},
+            "actors": actors,
+            "actor_count": len(actors),
+            "settlement": X402Handler().get_stats().get("settlement", {}),
+        },
+    }
+
+
 @router.post("/v1/x402/payment", tags=["x402"], summary="Create a x402 payment request")
 async def x402_payment_request(
     operation: str = Body(...),

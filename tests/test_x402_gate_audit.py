@@ -246,3 +246,62 @@ class TestPrefixOrderingInvariant:
         assert not violations, (
             "Reorder PAID_ENDPOINTS so specific prefixes come first: " + "; ".join(violations)
         )
+
+
+class TestX402Catalog:
+    """The /v1/x402/catalog endpoint binds operations + engines + actors."""
+
+    def test_catalog_is_free_and_complete(self, client: TestClient) -> None:
+        r = client.get("/v1/x402/catalog")
+        assert r.status_code == 200
+        data = r.json()["data"]
+        assert data["actor_count"] >= 90, "all actor presets must be catalogued"
+        assert len(data["operations"]) >= 60
+        assert len(data["paid_endpoints"]) >= 50
+        for actor in data["actors"][:5]:
+            assert actor["mcp_tool"].startswith("pry_")
+            assert actor["engine"]
+
+    def test_every_actor_maps_to_an_mcp_tool(self, client: TestClient) -> None:
+        data = client.get("/v1/x402/catalog").json()["data"]
+        tools = {a["mcp_tool"] for a in data["actors"]}
+        unknown = {t for t in tools if not t.startswith("pry_")}
+        assert not unknown, f"non-pry tool names leaked into catalog: {unknown}"
+
+
+class TestKeylessX402Flow:
+    """x402's promise: no accounts, no API keys. A keyless agent must
+    reach the 402 challenge (auth layer is INNER to the payment gate)."""
+
+    def test_keyless_paid_request_gets_402_not_401(self) -> None:
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from pry.core.middleware import PryHttpMiddleware
+        from pry.payments.x402_middleware import X402Middleware
+
+        app = FastAPI()
+
+        @app.post("/v1/scrape")
+        async def scrape():
+            return {"ok": True}
+
+        app.add_middleware(PryHttpMiddleware)
+        app.add_middleware(X402Middleware)  # outermost
+        c = TestClient(app, raise_server_exceptions=False)
+        r = c.post("/v1/scrape", json={"url": "https://example.com"})
+        assert r.status_code == 402, f"expected 402 challenge, got {r.status_code}"
+        assert "payment-required" in {k.lower() for k in r.headers.keys()}
+
+    def test_pricing_and_catalog_are_keyless(self) -> None:
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from pry.api.routers.x402 import router as x402_router
+        from pry.core.middleware import PryHttpMiddleware
+
+        app = FastAPI()
+        app.include_router(x402_router)
+        app.add_middleware(PryHttpMiddleware)
+        c = TestClient(app)
+        for path in ("/v1/x402/pricing", "/v1/x402/catalog"):
+            r = c.get(path)
+            assert r.status_code == 200, f"{path} must be keyless-discoverable"

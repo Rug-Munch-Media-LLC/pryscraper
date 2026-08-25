@@ -193,6 +193,13 @@ class X402Middleware:
         if payment_id_header:
             self.handler.refresh()
             if self.handler.is_paid(payment_id_header, caller_key=caller_key):
+                # Payment IS the credential: mark verified so the inner
+                # auth layer accepts the request without an API key.
+                scope["x402_verified"] = {
+                    "payment_id": payment_id_header,
+                    "caller": caller_key,
+                    "operation": operation,
+                }
                 await self.app(scope, receive, send)
                 return
 
@@ -201,6 +208,11 @@ class X402Middleware:
             from pry.payments.x402 import is_batch_paid
 
             if is_batch_paid(batch_id_header):
+                scope["x402_verified"] = {
+                    "batch_id": batch_id_header,
+                    "caller": caller_key,
+                    "operation": operation,
+                }
                 await self.app(scope, receive, send)
                 return
 
@@ -257,6 +269,14 @@ class X402Middleware:
                         }
 
                         response_b64_bytes = response_b64.encode()
+
+                        # Payment IS the credential (see pre-verified path).
+                        scope["x402_verified"] = {
+                            "payment_id": payment_id,
+                            "caller": caller_key,
+                            "operation": operation,
+                            "tx_hash": tx_hash,
+                        }
 
                         async def wrapped_send(message: dict[str, Any]) -> None:
                             if message["type"] == "http.response.start":

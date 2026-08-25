@@ -47,6 +47,7 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/mcp/sse",
         # x402 payment flow itself must be free (chicken-and-egg)
         "/v1/x402/pricing",
+        "/v1/x402/catalog",
         "/v1/x402/payment",
         "/v1/x402/verify",
         "/v1/x402/require-payment",
@@ -338,5 +339,3 @@ def _caller_key_from_scope(scope: dict[str, Any]) -> str:
     if client and isinstance(client, (list, tuple)) and len(client) >= 1 and client[0]:
         return str(client[0])
     return ""
-
-

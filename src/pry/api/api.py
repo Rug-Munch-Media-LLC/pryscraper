@@ -322,9 +322,6 @@ app.add_middleware(
 )
 
 # Gate paid endpoints behind x402 payments. Free endpoints are always public.
-# Classification lives in x402_middleware (DEFAULT_FREE_PATHS / PAID_ENDPOINTS)
-# and is audited at startup by the lifespan hook below — fail-closed.
-app.add_middleware(X402Middleware)
 
 
 def add_error_handlers(app: FastAPI) -> None:
@@ -397,6 +394,14 @@ add_error_handlers(app)
 
 # Auth + rate limiting + timing middleware (see middleware.py).
 app.add_middleware(PryHttpMiddleware)
+
+# Classification lives in x402_middleware (DEFAULT_FREE_PATHS / PAID_ENDPOINTS)
+# and is audited at startup by the lifespan hook below — fail-closed.
+# ORDER MATTERS: X402Middleware is added AFTER PryHttpMiddleware so it sits
+# OUTERMOST — a keyless agent must reach the 402 challenge BEFORE the
+# API-key auth layer rejects with 401. Verified payments mark
+# scope["x402_verified"], which request_authorized accepts as the credential.
+app.add_middleware(X402Middleware)
 
 
 # ── Routers ──
