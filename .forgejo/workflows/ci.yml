@@ -344,6 +344,24 @@ jobs:
         run: |
           find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.venv/*" -not -path "*/sdks/*" -exec shellcheck -x {} +
 
+  docker-lock-drift:
+    name: docker lock drift check
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.12-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Regenerate requirements.docker.lock and fail on drift
+        run: |
+          python3 scripts/gen-docker-lock.py
+          if ! git diff --exit-code requirements.docker.lock; then
+            echo "❌ requirements.docker.lock is stale vs requirements.lock."
+            echo "   Run: python3 scripts/gen-docker-lock.py && commit the result."
+            exit 1
+          fi
+          echo "✅ requirements.docker.lock in sync with requirements.lock"
+
+
   trivy-scan:
     runs-on: docker-x64
     needs: test
