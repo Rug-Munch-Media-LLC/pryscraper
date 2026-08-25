@@ -67,8 +67,8 @@ fi
 # Set PRY_STRICT_CONFIG=1 to fail fast on [ERROR]-level issues.
 if python -c "
 import sys
-from config_validation import has_errors, validate_config
-from settings import settings
+from pry.core.config_validation import has_errors, validate_config
+from pry.core.settings import settings
 
 issues = validate_config(settings)
 for item in issues:

@@ -48,8 +48,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 # Install the fully pinned lock (reproducible builds). requirements.txt is
 # only the loose range manifest from pyproject.toml — never an install source.
-COPY requirements.lock .
-RUN pip install --no-cache-dir -r requirements.lock
+COPY requirements.docker.lock .
+# Pre-filtered runtime lock (dev/test deps + git editables removed by
+# scripts/gen-docker-lock.py; drift-checked in CI).
+RUN pip install --no-cache-dir -r requirements.docker.lock
 RUN python3 -m playwright install chromium 2>&1 | tail -1
 
 # Stage 2: Runtime
@@ -104,6 +106,8 @@ WORKDIR /app
 # domains, routers, ...). The .dockerignore excludes tests/, *.md, caches,
 # .env, and build files — this is the single source of truth for the image.
 COPY . ./
+# Install the src-layout pry package (entry points + importable pry.*)
+RUN pip install --no-cache-dir --no-deps .
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN mkdir -p /app/sessions /app/pry-data \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
@@ -127,6 +131,6 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
 STOPSIGNAL SIGTERM
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8002", \
+CMD ["uvicorn", "pry.api.api:app", "--host", "0.0.0.0", "--port", "8002", \
      "--workers", "1", "--timeout-keep-alive", "120", "--limit-concurrency", "20", \
      "--timeout-graceful-shutdown", "30"]
