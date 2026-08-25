@@ -372,6 +372,12 @@ exclude_lines = [
 
 [tool.deptry]
 ignore = ["DEP002", "DEP003"]
+# src-layout: pry is THIS package — self-imports are first-party, not
+# missing dependencies. Legacy root dirs stay out of dependency scope.
+known_first_party = ["pry", "legal_docs", "travel", "local_data", "jobs", "attention", "real_estate", "apify_actor"]
+# camelot is an optional PDF-extraction extra (import-guarded at runtime)
+per_rule_ignores = {"DEP001" = ["camelot"]}
+exclude = ["tests", "datasets", ".venv"]
 
 [tool.interrogate]
 fail-under = 40
