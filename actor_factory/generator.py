@@ -763,7 +763,6 @@ def _render_readme(spec: ActorSpec) -> str:
         f"are handled for you."
     )
 
-    md_parts = [_unique_intro]
     events_table = "\n".join(
         f"| `{e.name}` | {e.title} | ${e.price_usd:.4f} | {e.description} |"
         for e in spec.pricing_events

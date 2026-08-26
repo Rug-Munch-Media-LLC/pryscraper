@@ -89,6 +89,27 @@ class TestGeneration:
             generated = generate_actor(spec, out)
             assert validate_generated(generated.files) == [], name
 
+    def test_all_preset_field_types_are_apify_valid(self) -> None:
+        # Apify INPUT_SCHEMA supports exactly these property types; a
+        # stray "float"/"number" fails the platform build at upload time
+        # (regression: pry-change-monitor build 2026-08-26).
+        valid = {"string", "text", "integer", "boolean", "object", "array", "date-time"}
+        for name, spec in ALL_PRESETS.items():
+            for f in spec.effective_inputs():
+                assert f.type in valid, f"{name}.{f.name}: type '{f.type}'"
+
+    def test_monitor_threshold_fields_match_processor_contract(self) -> None:
+        # process_monitor() reads options["change_threshold"] as an integer
+        # SimHash bit distance; every monitor-processor preset must expose
+        # that exact field or user input is silently ignored.
+        for name, spec in ALL_PRESETS.items():
+            if spec.processor != "monitor":
+                continue
+            field_names = {f.name for f in spec.effective_inputs()}
+            assert "change_threshold" in field_names, (
+                f"{name}: monitor processor expects 'change_threshold' input"
+            )
+
     def test_generation_is_deterministic(self, tmp_path: Path) -> None:
         g1 = generate_actor(SCRAPER_ACTOR, tmp_path / "a")
         g2 = generate_actor(SCRAPER_ACTOR, tmp_path / "b")

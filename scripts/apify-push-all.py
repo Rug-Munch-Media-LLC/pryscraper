@@ -38,7 +38,6 @@ from actor_factory.publish import run_batch  # noqa: E402
 logger = logging.getLogger("apify-push-all")
 
 
-
 def _make_org_push(org: str, token: str):
     """Wrap push_actor with create-if-missing for first-time org uploads.
 
@@ -49,76 +48,80 @@ def _make_org_push(org: str, token: str):
     import json as _json
     import subprocess as _sp
 
-    from actor_factory.publish import push_actor
-
     def _push(stage, actor_id=None):
-        """API v2 deploy: ensure -> put version (SOURCE_FILES) -> build."""
+        """Ensure actor exists (API), then CLI push from staged dir.
+
+        CLI v1.x 'push <id>' cannot create and silently no-ops source
+        uploads on some updates; 'push --force --dir' from the package
+        root is the documented reliable path once the actor exists.
+        """
         store_name = stage.name.removeprefix("pry-")
         aid = f"{org}~{store_name}"
         meta = _json.loads((stage / ".actor" / "actor.json").read_text())
-        version = meta.get("version", "1.0")
-
-        import tempfile as _tf
 
         def api(method, path, payload=None):
-            # Large payloads (SOURCE_FILES) exceed argv limits -> @file form
-            cmd = ["curl", "-sfm", "300", "-X", method,
-                   "-H", f"Authorization: Bearer {token}",
-                   "-H", "Content-Type: application/json"]
+            cmd = [
+                "curl",
+                "-sfS",
+                "-m",
+                "60",
+                "-X",
+                method,
+                "-H",
+                f"Authorization: Bearer {token}",
+                "-H",
+                "Content-Type: application/json",
+            ]
             if payload is not None:
-                pf = _tf.NamedTemporaryFile("w", suffix=".json", delete=False)
-                _json.dump(payload, pf)
-                pf.close()
-                cmd += ["--data-binary", f"@{pf.name}"]
-            try:
-                return _sp.run(cmd + [f"https://api.apify.com/v2{path}"],
-                               capture_output=True, text=True)
-            finally:
-                if payload is not None:
-                    os.unlink(pf.name)
+                cmd += ["-d", _json.dumps(payload)]
+            cmd += [f"https://api.apify.com/v2{path}"]
+            r = _sp.run(cmd, capture_output=True)  # noqa: S603 - fixed argv
+            r.stdout = (r.stdout or b"").decode("utf-8", "replace")
+            r.stderr = (r.stderr or b"").decode("utf-8", "replace")
+            if r.returncode != 0:
+                print(
+                    f"[api FAIL {method} {path}]", (r.stdout or r.stderr or "")[-200:], flush=True
+                )
+            return r
 
         chk = api("GET", f"/acts/{aid}")
         if chk.returncode != 0:
-            cr = api("POST", "/acts", {
-                "name": store_name,
-                "title": meta.get("title", store_name),
-                "description": meta.get("description", ""),
-            })
+            cr = api(
+                "POST",
+                "/acts",
+                {
+                    "name": store_name,
+                    "title": meta.get("title", store_name),
+                    "description": meta.get("description", ""),
+                    "isPublic": True,
+                },
+            )
             if cr.returncode != 0:
                 return False, f"create failed: {(cr.stdout or cr.stderr)[-200:]}"
 
-        # Collect staged source files (relative paths from stage root)
-        source_files = []
-        for fpath in sorted(stage.rglob("*")):
-            if fpath.is_file() and "__pycache__" not in str(fpath):
-                rel = str(fpath.relative_to(stage))
-                try:
-                    content = fpath.read_text()
-                except UnicodeDecodeError:
-                    import base64 as _b64
-                    content = _b64.b64encode(fpath.read_bytes()).decode()
-                    rel += "|base64"
-                source_files.append({"name": rel, "content": content,
-                                     "format": "TEXT"})
-        ver_payload = {
-            "versionNumber": version,
-            "sourceType": "SOURCE_FILES",
-            "sourceFiles": source_files,
-            "buildTag": meta.get("buildTag", "latest"),
-        }
-        uv = api("PUT", f"/acts/{aid}/versions/{version}", ver_payload)
-        if uv.returncode != 0:
-            return False, f"version upload failed: {(uv.stdout or uv.stderr)[-300:]}"
-        build = api("POST", f"/acts/{aid}/builds?version={version}&wait=180")
-        build_ok = build.returncode == 0
-        detail = (build.stdout or "")[-200:] if not build_ok else "built"
+        npx_path = "npx"
 
-        # Metadata update (PUT - PATCH is 405 on this endpoint)
-        api("PUT", f"/acts/{aid}", {
-            "title": meta.get("title", store_name),
-            "description": meta.get("description", ""),
-        })
-        return build_ok, detail
+        pr = _sp.run(  # noqa: S603 - fixed argv
+            [npx_path, "--yes", "apify-cli", "push", "--force", "--dir", str(stage)],
+            capture_output=True,
+            timeout=600,
+        )
+        pr.stdout = (pr.stdout or b"").decode("utf-8", "replace")
+        pr.stderr = (pr.stderr or b"").decode("utf-8", "replace")
+        if pr.returncode != 0:
+            return False, f"cli push failed: {(pr.stdout or pr.stderr)[-300:]}"
+
+        # Metadata PUT (cli does not backfill title/description reliably)
+        mr = api(
+            "PUT",
+            f"/acts/{aid}",
+            {
+                "title": meta.get("title", store_name),
+                "description": meta.get("description", ""),
+                "isPublic": True,
+            },
+        )
+        return True, f"pushed{'' if mr.returncode == 0 else ' (meta put failed)'}"
 
     return _push
 

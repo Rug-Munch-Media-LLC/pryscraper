@@ -51,6 +51,22 @@ MAX_PAGES_FIELD = InputField(
 )
 
 
+CHANGE_THRESHOLD_FIELD = InputField(
+    name="change_threshold",
+    title="Change threshold",
+    type="integer",
+    editor="number",
+    description=(
+        "SimHash bit distance above this counts as changed "
+        "(0 = any difference, 3 default, 10+ only major rewrites)."
+    ),
+    minimum=0,
+    maximum=64,
+    default=3,
+    section_caption="Watch settings",
+)
+
+
 def _scraper_common_inputs() -> tuple[InputField, ...]:
     return (
         URLS_FIELD,
@@ -201,12 +217,15 @@ MONITOR_ACTOR = ActorSpec(
         InputField(
             name="change_threshold",
             title="Change threshold",
-            type="float",
+            type="integer",
             editor="number",
-            description="SimHash similarity below this counts as changed (0-1).",
-            minimum=0.0,
-            maximum=1.0,
-            default=0.85,
+            description=(
+                "SimHash bit distance above this counts as changed "
+                "(0 = any difference, 3 default, 10+ only major rewrites)."
+            ),
+            minimum=0,
+            maximum=64,
+            default=3,
             section_caption="Monitoring settings",
         ),
         InputField(
@@ -1023,6 +1042,7 @@ INVENTORY_ALERT_ACTOR = ActorSpec(
     ),
     version="1.1",
     inputs=(
+        CHANGE_THRESHOLD_FIELD,
         URLS_FIELD,
         InputField(
             name="check_interval_hint",
@@ -1399,14 +1419,17 @@ WAYBACK_DIFF_ACTOR = ActorSpec(
     inputs=(
         URLS_FIELD,
         InputField(
-            name="similarity_threshold",
-            title="Similarity threshold",
-            type="float",
+            name="change_threshold",
+            title="Change threshold",
+            type="integer",
             editor="number",
-            description="Below this SimHash similarity the page counts as rewritten.",
-            minimum=0.0,
-            maximum=1.0,
-            default=0.85,
+            description=(
+                "SimHash bit distance above this counts as rewritten "
+                "(0 = any difference, 3 default, 10+ only major rewrites)."
+            ),
+            minimum=0,
+            maximum=64,
+            default=3,
             section_caption="Diff settings",
         ),
     ),
@@ -1678,6 +1701,7 @@ SITEMAP_DIFF_ACTOR = ActorSpec(
     ),
     version="1.1",
     inputs=(
+        CHANGE_THRESHOLD_FIELD,
         URLS_FIELD,
         InputField(
             name="emit_all",
@@ -1948,6 +1972,7 @@ WEATHER_COLLECTOR_ACTOR = ActorSpec(
     ),
     version="1.1",
     inputs=(
+        CHANGE_THRESHOLD_FIELD,
         URLS_FIELD,
         InputField(
             name="location_label",
@@ -1982,6 +2007,7 @@ AIR_QUALITY_ACTOR = ActorSpec(
     ),
     version="1.1",
     inputs=(
+        CHANGE_THRESHOLD_FIELD,
         URLS_FIELD,
         InputField(
             name="aqi_threshold",
@@ -2739,7 +2765,10 @@ YOUTUBE_RSS_MONITOR_ACTOR = ActorSpec(
         "and content calendars, no API key required."
     ),
     version="1.1",
-    inputs=(URLS_FIELD,),
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+    ),
     pricing_events=(
         PricingEvent(
             name="channel-checked",
@@ -2762,7 +2791,10 @@ RSS_FEED_MONITOR_ACTOR = ActorSpec(
         "items with change detection between runs."
     ),
     version="1.1",
-    inputs=(URLS_FIELD,),
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+    ),
     pricing_events=(
         PricingEvent(
             name="feed-checked",
@@ -3342,7 +3374,10 @@ PRODUCTHUNT_LAUNCH_MONITOR_ACTOR = ActorSpec(
         "launch tracking and maker research."
     ),
     version="1.0",
-    inputs=(URLS_FIELD,),
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+    ),
     pricing_events=(
         PricingEvent(
             name="launches-scanned",

@@ -154,6 +154,8 @@ def scan_staged_for_secrets(stage: Path, repo_root: Path) -> tuple[bool, str]:
             cmd,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=120,
         )
     except subprocess.TimeoutExpired:
@@ -221,6 +223,8 @@ def check_auth() -> tuple[bool, str]:
         [npx, "--yes", "apify-cli", "info"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=60,
         check=False,
     )
@@ -251,6 +255,8 @@ def push_actor(stage: Path, actor_id: str | None = None) -> tuple[bool, str]:
                 argv,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=PUSH_TIMEOUT_SECONDS,
                 check=False,
             )
