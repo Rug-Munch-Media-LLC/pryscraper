@@ -421,11 +421,11 @@ class FacilitatorRouter:
             last_error = result.get("reason", last_error)
 
         # Non-EVM chains: Solana verifies on-chain via the SPL RPC verifier;
-        # TRON stays scaffolded (no TRC-20 verifier yet). [REVIEW]
+        # TRON verifies on-chain via the TRC-20 Grid verifier.
         if network_family(network) == "solana":
             return await self._verify_solana(payment_id, tx_hash, network, asset, amount_usd)
         if network_family(network) == "tron":
-            return self._scaffold_non_evm_verify(payment_id, tx_hash, network, asset, amount_usd)
+            return await self._verify_tron(payment_id, tx_hash, network, asset, amount_usd)
 
         return {"verified": False, "reason": last_error, "settlement": None}
 
@@ -498,6 +498,77 @@ class FacilitatorRouter:
             "amount_atomic": result.get("amount_raw"),
             "asset": asset,
             "mint": result.get("mint"),
+            "confirmed_at": result.get("confirmed_at"),
+            "amount_usd": result.get("amount_usd"),
+        }
+
+    async def _verify_tron(
+        self,
+        payment_id: str,
+        tx_hash: str,
+        network: str,
+        asset: str,
+        amount_usd: float,
+    ) -> dict[str, Any]:
+        """Verify a TRON TRC-20 USDT payment on-chain via the TRON Grid verifier.
+
+        Uses ``x402.tron_verifier.verify_tron_trc20_payment`` (guarded import).
+        The server TRON receiving wallet comes from ``X402_NETWORK_WALLETS``
+        (``PRY_X402_WALLET_TRON``) — a TRON address is NOT the EVM wallet, so
+        verification fails closed when it is unconfigured. The result reflects
+        real on-chain verification.
+        """
+        network_id = normalize_network_id(network)
+        if not payment_id or not tx_hash:
+            return {
+                "verified": False,
+                "reason": "needs_facilitator: missing payment_id/tx_hash in header",
+                "settlement": None,
+                "scaffolded": True,
+                "network": network_id,
+            }
+        if amount_usd is None or not math.isfinite(amount_usd) or amount_usd < 0:
+            return {
+                "verified": False,
+                "reason": "invalid (non-finite/negative) amount",
+                "settlement": None,
+                "network": network_id,
+            }
+        entry = resolve_asset_entry(network_id, asset)
+        if entry is None:
+            return {
+                "verified": False,
+                "reason": f"asset {asset!r} not in SUPPORTED_ASSETS for {network_id}",
+                "settlement": None,
+                "network": network_id,
+            }
+        recipient = (X402_NETWORK_WALLETS.get(network_id) or X402_WALLET or "").strip()
+        if not recipient or recipient == "pry-default-wallet":
+            return {
+                "verified": False,
+                "reason": (
+                    "TRON receiving wallet not configured — set "
+                    "PRY_X402_WALLET_TRON (a TRON base58 address, not the EVM wallet)"
+                ),
+                "settlement": None,
+                "network": network_id,
+            }
+        try:
+            from pry.payments.x402.tron_verifier import verify_tron_trc20_payment
+        except ImportError:
+            return self._scaffold_non_evm_verify(payment_id, tx_hash, network, asset, amount_usd)
+
+        result = await verify_tron_trc20_payment(tx_hash, recipient, amount_usd)
+        return {
+            "verified": bool(result.get("verified")),
+            "reason": result.get("reason", ""),
+            "settlement": None,
+            "network": network_id,
+            "facilitator": "tron-grid",
+            "signer": result.get("recipient") or recipient,
+            "amount_atomic": result.get("amount_raw"),
+            "asset": asset,
+            "contract": result.get("contract"),
             "confirmed_at": result.get("confirmed_at"),
             "amount_usd": result.get("amount_usd"),
         }

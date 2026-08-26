@@ -422,11 +422,8 @@ SUPPORTED_ASSETS: dict[str, dict[str, dict[str, Any]]] = {
 # Verification status per chain family — what is REAL vs scaffolded.
 # ``status`` is the machine-readable label exposed by the health + pricing
 # endpoints: "live" (EVM — EIP-7702 self-verify + facilitators; Solana —
-# SPL RPC verifier, getTransaction jsonParsed USDC transferChecked) vs
-# "scaffolded:needs_facilitator" (TRON — structure/price/asset validated
-# only; on-chain settlement verification needs a facilitator impl or a
-# TRC-20 RPC verifier). No fake security: scaffolded chains are never
-# reported as live. [REVIEW] TRON needs a real verifier.
+# SPL RPC verifier, getTransaction jsonParsed USDC transferChecked; TRON —
+# TRC-20 Grid verifier, gettransactioninfobyid USDT Transfer event).
 VERIFICATION_STATUS: dict[str, dict[str, Any]] = {
     "evm": {
         "status": "live",
@@ -441,10 +438,10 @@ VERIFICATION_STATUS: dict[str, dict[str, Any]] = {
         "note": "SPL RPC verifier — getTransaction jsonParsed USDC transferChecked to the configured Solana wallet",
     },
     "tron": {
-        "status": "scaffolded:needs_facilitator",
-        "real": False,
-        "scaffolded": True,
-        "note": "[REVIEW] scaffold only — validates header/price/asset; settlement verification needs a facilitator or TRON Grid verifier",
+        "status": "live",
+        "real": True,
+        "scaffolded": False,
+        "note": "TRC-20 Grid verifier — gettransactioninfobyid USDT Transfer event to the configured TRON wallet",
     },
 }
 
