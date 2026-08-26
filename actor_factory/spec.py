@@ -40,7 +40,7 @@ VALID_EDITORS = {
     "textfield",
     "textarea",
     "select",
-    "boolean",
+    "checkbox",
     "number",
     "json",
     "stringList",
@@ -90,7 +90,7 @@ class InputField:
 
     def _default_editor(self) -> str:
         if self.type == "boolean":
-            return "boolean"
+            return "checkbox"
         if self.type == "integer":
             return "integer"
         if self.type == "float":
@@ -107,7 +107,7 @@ class InputField:
         if self.type in ("integer", "float"):
             return "number"
         if self.type == "boolean":
-            return "boolean"
+            return "checkbox"
         if self.type == "object":
             return "json"
         if self.type == "array":
