@@ -172,6 +172,7 @@ try:
     _BIDDING_DATA_ROUTER: Any | None = bidding_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _BIDDING_DATA_ROUTER = None
+from payments.crypto.router import router as crypto_payment_router
 from pry.api.routers.api_keys import router as api_keys_router
 from pry.api.routers.monitoring import router as monitoring_router
 from pry.api.routers.parsing import router as parsing_router
@@ -202,6 +203,7 @@ from pry.api.routers.transform import router as transform_router
 from pry.api.routers.travel import router as travel_router
 from pry.api.routers.vision import router as vision_router
 from pry.api.routers.webhooks import router as webhooks_router
+from pry.api.routers.well_known import router as well_known_router
 from pry.api.routers.x402 import router as x402_router
 from pry.core.settings import settings
 from pry.payments.x402_middleware import X402Middleware
@@ -497,6 +499,7 @@ app.include_router(scraping_api_router)
 app.include_router(sessions_router)
 app.include_router(share_router)
 app.include_router(signup_router)
+app.include_router(well_known_router)
 app.include_router(sports_data_router)
 app.include_router(stats_router)
 app.include_router(structure_router)
@@ -508,6 +511,7 @@ app.include_router(api_keys_router)
 app.include_router(vision_router)
 app.include_router(webhooks_router)
 app.include_router(x402_router)
+app.include_router(crypto_payment_router)
 
 
 if __name__ == "__main__":
