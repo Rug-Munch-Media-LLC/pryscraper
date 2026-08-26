@@ -312,6 +312,8 @@ def start_run(token: str, preset_name: str, inp: dict, memory: int) -> tuple[boo
     )
     if status != 201:
         return False, f"start failed HTTP {status}: {body}"
+    if not isinstance(body, dict):
+        return False, f"unexpected non-object response: {str(body)[:120]}"
     return True, body["data"]
 
 
@@ -380,9 +382,10 @@ def main() -> int:
             inp = build_input(name)
             mem = run_memory(spec)
             ok, resp = start_run(token, name, inp, mem)
-            if ok:
-                pending.append((name, resp["id"]))
-                print(f"[START] {name} (mem={mem}, run={resp['id'][:12]})", flush=True)
+            if ok and isinstance(resp, dict):
+                run_id = str(resp.get("id", ""))
+                pending.append((name, run_id))
+                print(f"[START] {name} (mem={mem}, run={run_id[:12]})", flush=True)
             else:
                 results[name] = {"done": True, "status": "START-FAILED", "detail": str(resp)[:200]}
                 failed += 1

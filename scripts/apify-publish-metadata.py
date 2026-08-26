@@ -117,7 +117,7 @@ def main() -> int:
 
     token = _resolve_token()
     failures = 0
-    blockers: dict[str, str] = {}
+    blockers: dict[str, int] = {}
     for name in names:
         spec = ALL_PRESETS[name]
         ok, detail = publish_metadata(spec, token, org=args.org)
