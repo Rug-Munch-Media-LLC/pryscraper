@@ -120,7 +120,9 @@ class TestRunnerIntegration:
             async def get_input(self) -> dict:
                 return {"urls": [f"http://t/{i}" for i in range(total)]}
 
-            async def push_data(self, item: dict, event: str | None = None) -> FakeCharge:
+            async def push_data(
+                self, item: dict, *, charged_event_name: str | None = None
+            ) -> FakeCharge:
                 pushed.append(item)
                 return FakeCharge()
 

@@ -4,8 +4,9 @@ Implements the monetization patterns from Apify's PPE documentation
 (docs.apify.com/actors/publishing/monetize/pay-per-event) as a reusable
 runner so every factory-generated actor bills correctly:
 
-- Charge per result via ``push_data(item, event_name)`` (charge + save in
-  one platform call; error items are charged too - work done is billed).
+- Charge per result via ``push_data(item, charged_event_name=...)`` (charge
+  + save in one platform call; error items are charged too - work done is
+  billed).
 - Stop gracefully when ``event_charge_limit_reached`` is true (user
   spending limit), per docs "finish the run once charges reach the limit".
 - Register an ABORTING handler that flushes completed-but-unbilled work
@@ -44,7 +45,9 @@ class ActorLike(Protocol):
 
     async def get_input(self) -> dict[str, Any] | None: ...
 
-    async def push_data(self, item: dict[str, Any], event_name: str | None = None) -> Any: ...
+    async def push_data(
+        self, item: dict[str, Any], *, charged_event_name: str | None = None
+    ) -> Any: ...
 
     async def charge(self, event_name: str) -> Any: ...
 
@@ -136,7 +139,9 @@ class PPEScraperRunner:
 
         Returns False when the user spending limit says stop.
         """
-        charge_result = await actor.push_data(item, self.config.primary_event)
+        # SDK v4: event charging is keyword-only (positional broke at runtime:
+        # "push_data() takes 2 positional arguments but 3 were given").
+        charge_result = await actor.push_data(item, charged_event_name=self.config.primary_event)
         # push_data returns a ChargeResult when an event name is given.
         if charge_result is not None and getattr(
             charge_result, "event_charge_limit_reached", False

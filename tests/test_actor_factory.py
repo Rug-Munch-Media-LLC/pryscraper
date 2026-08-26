@@ -173,15 +173,15 @@ class FakeActor:
         return self.input_data
 
     async def push_data(
-        self, item: dict[str, Any], event_name: str | None = None
+        self, item: dict[str, Any], *, charged_event_name: str | None = None
     ) -> FakeChargeResult:
         # Platform semantics (docs): once the user spending limit is reached,
         # pushData STOPS pushing - the boundary item is not saved.
         if self.fail_after_pushes is not None and len(self.pushes) >= self.fail_after_pushes:
             return FakeChargeResult(event_charge_limit_reached=True)
         self.pushes.append(item)
-        if event_name:
-            self.charge_calls.append(event_name)
+        if charged_event_name:
+            self.charge_calls.append(charged_event_name)
         return FakeChargeResult()
 
     async def charge(self, event_name: str) -> FakeChargeResult:
