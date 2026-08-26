@@ -21,7 +21,7 @@ Covers four layers of the MCP surface:
    notifications answered with ``202``, and ``Mcp-Session-Id`` lifecycle.
 4. **Tool-count consistency** — ``PRY_TOOLS`` must stay in sync with
    ``server.json`` / ``glama.json`` / ``pulsemcp.json`` / ``llms.txt`` /
-   ``smithery.yaml`` (all currently 71).
+   ``smithery.yaml`` (all currently 73).
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ from fastapi.testclient import TestClient
 
 from pry_mcp import PRY_TOOLS, make_fallback_server, register_all
 from pry_mcp.fallback_server import combined_tool_executor
-from pry_mcp.tools import PRY_TOOL_NAMES
+from pry_mcp.tools import PRY_TOOL_NAMES, call_actor_tool
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -367,10 +367,18 @@ _REST_PROXY_TOOLS: dict[str, dict[str, Any]] = {
     "pry_scrape_methods": {},
 }
 
+# Local actor-parity tools: name -> sample arguments. Executed through
+# call_actor_tool with a mocked UltimateScraper (no network) - same code
+# path as tests/test_mcp_actor_parity.py.
+_LOCAL_ACTOR_TOOLS: dict[str, dict[str, Any]] = {
+    "pry_actor_catalog": {"domain": "monitor"},
+    "pry_actor_run": {"actor": "universal-scraper", "urls": ["https://example.com"]},
+}
+
 # Guard: the tables must cover every registered tool, or the audit is broken.
-assert set(_DOMAIN_TOOLS) | set(_REST_PROXY_TOOLS) == set(PRY_TOOL_NAMES), (
-    "round-trip tables do not cover every PRY_TOOLS entry"
-)
+assert set(_DOMAIN_TOOLS) | set(_REST_PROXY_TOOLS) | set(_LOCAL_ACTOR_TOOLS) == set(
+    PRY_TOOL_NAMES
+), "round-trip tables do not cover every PRY_TOOLS entry"
 
 _MISSING = object()
 
@@ -453,10 +461,10 @@ async def _call(srv: Any, name: str, args: dict[str, Any], req_id: int = 100) ->
 class TestToolMetadata:
     """Every PRY_TOOLS entry must meet the 2026 MCP quality bar."""
 
-    def test_tool_count_is_71(self) -> None:
-        assert len(PRY_TOOLS) == 71
-        assert len(PRY_TOOL_NAMES) == 71
-        assert len({t["name"] for t in PRY_TOOLS}) == 71
+    def test_tool_count_is_73(self) -> None:
+        assert len(PRY_TOOLS) == 73
+        assert len(PRY_TOOL_NAMES) == 73
+        assert len({t["name"] for t in PRY_TOOLS}) == 73
 
     @pytest.mark.parametrize("tool_name", sorted(PRY_TOOL_NAMES))
     def test_tools_list_metadata(self, tool_name: str) -> None:
@@ -563,6 +571,40 @@ class TestToolRoundTrips:
         assert resp["result"]["content"], f"{tool_name}: empty content"
         assert resp["result"]["isError"] is False
 
+    @pytest.mark.parametrize("tool_name", sorted(_LOCAL_ACTOR_TOOLS))
+    async def test_local_actor_tool_success(self, tool_name: str) -> None:
+        """Actor-parity tools execute locally through call_actor_tool with a
+        mocked UltimateScraper - no network, no REST proxy."""
+        import actor_factory.runner as runner_mod
+
+        class FakeScraper:
+            async def scrape(self, url: str, options: dict[str, Any]) -> dict[str, Any]:
+                return {
+                    "status": "ok",
+                    "method": "direct",
+                    "content": f"content for {url}",
+                    "raw_html": "<html>hi</html>",
+                    "scraped_at": "2026-08-26T00:00:00+00:00",
+                }
+
+        real_init = runner_mod.PPEScraperRunner.__init__
+
+        def patched(self: Any, config: Any, actor_module: Any = None) -> None:
+            real_init(self, config, actor_module)
+            self._scraper = FakeScraper()
+
+        with patch.object(runner_mod.PPEScraperRunner, "__init__", patched):
+            result = await call_actor_tool(tool_name, _LOCAL_ACTOR_TOOLS[tool_name])
+        assert result is not None, f"{tool_name}: not handled by call_actor_tool"
+        assert result.get("isError") is not True, f"{tool_name}: {result}"
+        payload = json.loads(result["content"][0]["text"])
+        if tool_name == "pry_actor_catalog":
+            assert payload["total"] > 0
+            assert any(a["actor"] == "change-monitor" for a in payload["actors"])
+        else:
+            assert payload["item_count"] == 1
+            assert payload["actor"] == "universal-scraper"
+
     @pytest.mark.parametrize("tool_name", sorted(_DOMAIN_TOOLS))
     async def test_domain_tool_missing_module_is_readable(self, tool_name: str) -> None:
         """Module absent -> readable 'not available' message, not a crash."""
@@ -654,7 +696,7 @@ class TestTransportCompliance:
         body = resp.json()
         assert body["jsonrpc"] == "2.0"
         assert body["id"] == 1
-        assert len(body["result"]["tools"]) == 71
+        assert len(body["result"]["tools"]) == 73
 
     def test_post_sse_accept_returns_event_stream(self, mcp_client: TestClient) -> None:
         resp = mcp_client.post(
@@ -807,7 +849,7 @@ def _find_tools_list(obj: Any) -> list[Any] | None:
 
 
 class TestRegistryConsistency:
-    """PRY_TOOLS must match every published registry file (currently 71)."""
+    """PRY_TOOLS must match every published registry file (currently 73)."""
 
     @pytest.mark.parametrize("fname", ["server.json", "glama.json", "pulsemcp.json"])
     def test_json_registries_match(self, fname: str) -> None:
@@ -833,4 +875,4 @@ class TestRegistryConsistency:
 
     def test_smithery_comment_matches_count(self) -> None:
         text = (REPO_ROOT / "smithery.yaml").read_text(encoding="utf-8")
-        assert "Tool count: 71" in text, "smithery.yaml tool-count comment drifted"
+        assert "Tool count: 73" in text, "smithery.yaml tool-count comment drifted"

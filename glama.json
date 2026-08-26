@@ -788,6 +788,14 @@
 		{
 			"name": "pry_grants",
 			"description": "Government grant opportunities search by keyword — agency, funding amount, eligibility, deadline"
+		},
+		{
+			"name": "pry_actor_catalog",
+			"description": "List every Pry Apify Store actor (94) with description, pricing events and per-event USD price. Store parity surface: anything runnable on Apify is discoverable here. Filter by optional 'domain' substring (e.g. 'monitor', 'crypto', 'seo')."
+		},
+		{
+			"name": "pry_actor_run",
+			"description": "Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors. Use after pry_actor_catalog: pass the actor name plus target urls; results are the same dataset items the Apify run would produce. Examples: actor='news-feed-monitor', actor='universal-scraper', actor='token-safety-scanner'."
 		}
 	],
 	"tags": [

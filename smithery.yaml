@@ -6,7 +6,7 @@
 # https://smithery.ai/docs/config
 #
 # Registry identity: io.rugmunch/pry — matches server.json, glama.json,
-# pulsemcp.json, SKILL.md and llms.txt. Tool count: 71 (see pry_mcp/tools.py
+# pulsemcp.json, SKILL.md and llms.txt. Tool count: 73 (see pry_mcp/tools.py
 # PRY_TOOLS). Smithery fetches the live tool list from tools/list at deploy
 # time; keep this file's comment count in sync with PRY_TOOLS on every release.
 

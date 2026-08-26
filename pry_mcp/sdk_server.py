@@ -15,9 +15,21 @@ Split from mcp_production.py.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pry_mcp.constants import SERVER_NAME, SERVER_VERSION
+
+if TYPE_CHECKING:
+    # Static view: real SDK types so pyright validates constructor kwargs.
+    from mcp.server.stdio import stdio_server
+    from mcp.types import (
+        ReadResourceResult,
+        Resource,
+        TextContent,
+        TextResourceContents,
+        Tool,
+    )
+    from pydantic import AnyUrl
 from pry_mcp.fallback_server import combined_tool_executor, make_fallback_server
 from pry_mcp.resources import PRY_PROMPTS, PRY_RESOURCES
 from pry_mcp.tools import PRY_TOOLS
@@ -83,7 +95,6 @@ def _create_sdk_server() -> Any:
     )
 
     # Kept runtime-importable: SDK <2 may resolve handler annotations.
-    from pydantic import AnyUrl  # noqa: TC002
 
     # The fallback server holds the execution logic (local executors,
     # domain dispatch, REST proxy fallback); the SDK server wraps it.

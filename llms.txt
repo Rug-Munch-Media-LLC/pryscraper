@@ -58,6 +58,8 @@ Pry exposes 71 MCP tools. All are self-hosted — the server is a FastAPI app mo
 ### Climate / weather & agriculture (climate_data)
 
 - [pry_weather](https://codeberg.org/cryptorugmunch/pryscraper): Current weather and short-range forecasts (NOAA NWS) for a location
+- [pry_actor_catalog](pry_mcp/tools.py): List all 94 Apify Store actors with pricing events; optional domain substring filter (e.g. 'monitor').
+- [pry_actor_run](pry_mcp/tools.py): Run any Pry Apify actor pipeline locally over URLs via the same runner+processor path as deployed actors (e.g. actor='news-feed-monitor').
 - [pry_agri](https://codeberg.org/cryptorugmunch/pryscraper): Agricultural data — crop conditions, growing-degree days, soil moisture, USDA NASS prices
 
 ### Research & academic (research_data)

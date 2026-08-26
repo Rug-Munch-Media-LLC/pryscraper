@@ -3835,6 +3835,93 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "required": ["success"],
         },
     },
+    {
+        "name": "pry_actor_catalog",
+        "description": (
+            "List every Pry Apify Store actor (94) with description, pricing "
+            "events and per-event USD price. Store parity surface: anything "
+            "runnable on Apify is discoverable here. Filter by optional "
+            "'domain' substring (e.g. 'monitor', 'crypto', 'seo')."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string",
+                    "description": "Optional case-insensitive substring filter over actor name/title.",
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "total": {"type": "integer"},
+                "actors": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "actor": {"type": "string"},
+                            "title": {"type": "string"},
+                            "description": {"type": "string"},
+                            "processor": {"type": ["string", "null"]},
+                            "uses_browser": {"type": "boolean"},
+                            "min_memory_mbytes": {"type": "integer"},
+                            "pricing_events": {"type": "array"},
+                        },
+                        "required": ["actor", "title", "pricing_events"],
+                    },
+                },
+            },
+            "required": ["total", "actors"],
+        },
+        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
+    },
+    {
+        "name": "pry_actor_run",
+        "description": (
+            "Run any Pry Apify actor's pipeline locally over URLs - same "
+            "PPEScraperRunner + processor code path as the deployed store "
+            "actors. Use after pry_actor_catalog: pass the actor name plus "
+            "target urls; results are the same dataset items the Apify run "
+            "would produce. Examples: actor='news-feed-monitor', "
+            "actor='universal-scraper', actor='token-safety-scanner'."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "actor": {
+                    "type": "string",
+                    "description": "Actor name without the pry- prefix, e.g. 'news-feed-monitor'.",
+                },
+                "urls": {
+                    "type": "array",
+                    "items": {"type": "string", "format": "uri"},
+                    "description": "Target URLs for the actor pipeline.",
+                },
+                "max_items": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "default": 25,
+                    "description": "Hard cap on processed URLs (runaway protection).",
+                },
+            },
+            "required": ["actor", "urls"],
+        },
+        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "actor": {"type": "string"},
+                "items": {"type": "array"},
+                "item_count": {"type": "integer"},
+                "equivalent_apify_charge_usd": {"type": "number"},
+            },
+            "required": ["actor", "items", "item_count"],
+        },
+    },
 ]
 
 
@@ -5383,3 +5470,151 @@ async def call_bidding_tool(name: str, arguments: dict[str, Any]) -> dict[str, A
         _new_domain_tool_kwargs,
         required_args={"pry_contracts": "query", "pry_grants": "query"},
     )
+
+
+# ── Apify actor parity layer ─────────────────────────────────────────────────
+#
+# Store parity: every Pry Apify Actor is reachable from MCP. Instead of 94
+# near-duplicate tool definitions (tool-list bloat breaks MCP clients), the
+# surface is catalog-driven: ``pry_actor_catalog`` discovers, ``pry_actor_run``
+# executes through the SAME PPEScraperRunner.process_url + PROCESSORS code
+# path the deployed actors use on the platform.
+
+
+def _actor_catalog_entries() -> list[dict[str, Any]]:
+    """Catalog rows for every preset, sorted by name for determinism."""
+    from actor_factory.presets import ALL_PRESETS
+
+    entries: list[dict[str, Any]] = []
+    for name in sorted(ALL_PRESETS):
+        spec = ALL_PRESETS[name]
+        entries.append(
+            {
+                "actor": spec.name.removeprefix("pry-"),
+                "title": spec.title,
+                "description": spec.description,
+                "processor": spec.processor,
+                "uses_browser": spec.uses_browser,
+                "min_memory_mbytes": spec.min_memory_mbytes,
+                "pricing_events": [
+                    {
+                        "event": e.name,
+                        "title": e.title,
+                        "price_usd": e.price_usd,
+                    }
+                    for e in spec.pricing_events
+                ],
+            }
+        )
+    return entries
+
+
+def _actor_tool_kwargs(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Options dict passed through to the actor pipeline (everything except
+    the runner's own control keys)."""
+    return {k: v for k, v in arguments.items() if k not in ("actor", "urls", "max_items")}
+
+
+async def call_actor_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Dispatch the Apify-parity tools (catalog + run). Returns None for
+    non-actor tools so callers fall through to other dispatchers."""
+    if name == "pry_actor_catalog":
+        domain = arguments.get("domain")
+        entries = _actor_catalog_entries()
+        if domain:
+            needle = str(domain).lower()
+            entries = [e for e in entries if needle in e["actor"] or needle in e["title"].lower()]
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({"total": len(entries), "actors": entries}, indent=2),
+                }
+            ]
+        }
+
+    if name == "pry_actor_run":
+        from actor_factory.presets import ALL_PRESETS
+        from actor_factory.processors import PROCESSORS
+        from actor_factory.runner import ActorRunConfig, PPEScraperRunner
+
+        actor = arguments.get("actor")
+        urls = arguments.get("urls") or []
+        if not actor or not isinstance(actor, str):
+            return {
+                "content": [{"type": "text", "text": "error: 'actor' is required"}],
+                "isError": True,
+            }
+        spec = ALL_PRESETS.get(f"pry-{actor}")
+        if spec is None:
+            known = ", ".join(sorted(a.removeprefix("pry-") for a in ALL_PRESETS))
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"error: unknown actor '{actor}'. Known actors: {known}",
+                    }
+                ],
+                "isError": True,
+            }
+        if not urls:
+            return {
+                "content": [{"type": "text", "text": "error: 'urls' is required"}],
+                "isError": True,
+            }
+
+        max_items = arguments.get("max_items")
+        if not isinstance(max_items, int) or max_items < 1:
+            max_items = 25
+        options = _actor_tool_kwargs(arguments)
+        options.setdefault("output_format", "markdown")
+
+        config = ActorRunConfig(
+            primary_event=spec.pricing_events[0].name if spec.pricing_events else "item",
+            processor_name=spec.processor,
+        )
+        runner = PPEScraperRunner(config)
+        processor = PROCESSORS.get(spec.processor) if spec.processor else None
+
+        items: list[dict[str, Any]] = []
+        state: dict[str, Any] = {}
+        for url in list(urls)[:max_items]:
+            try:
+                item = await runner.process_url(url, options)
+            except Exception as e:  # noqa: BLE001 - bad targets must not kill batches
+                item = {
+                    "url": url,
+                    "status": "error",
+                    "error": f"processing_failed: {str(e)[:120]}",
+                }
+            if processor is not None:
+                item = processor(url, item, options, state)
+            items.append(item)
+
+        charged = spec.pricing_events[0].price_usd * len(items) if spec.pricing_events else 0.0
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {
+                            "actor": spec.name.removeprefix("pry-"),
+                            "items": items,
+                            "item_count": len(items),
+                            "equivalent_apify_charge_usd": round(charged, 6),
+                            "note": (
+                                "Ran locally via MCP - same pipeline as the Apify "
+                                "actor; on-platform runs bill the equivalent PPE event."
+                            ),
+                        },
+                        indent=2,
+                        default=str,
+                    ),
+                }
+            ]
+        }
+
+    return None
+
+
+ACTOR_TOOL_NAMES: frozenset[str] = frozenset({"pry_actor_catalog", "pry_actor_run"})

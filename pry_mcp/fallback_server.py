@@ -187,6 +187,14 @@ async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[s
 
     started = time.monotonic()
     try:
+        # Actor-parity tools first: pure-local (catalog) or engine-backed
+        # (run) - never a REST round-trip.
+        try:
+            result = await _call_domain_tool("call_actor_tool", name, arguments)
+            if result is not None:
+                return result
+        except _ToolNotHandled:
+            pass
         try:
             result: dict[str, Any] | None = await crypto_tool_executor(name, arguments)
             if result is not None:

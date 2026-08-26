@@ -103,7 +103,9 @@
 		"pry_deals",
 		"pry_drop_alert",
 		"pry_contracts",
-		"pry_grants"
+		"pry_grants",
+		"pry_actor_catalog",
+		"pry_actor_run"
 	],
 	"tags": [
 		"scraping",
