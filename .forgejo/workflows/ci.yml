@@ -252,6 +252,62 @@ jobs:
         run: source .venv/bin/activate && pytest tests/ -m integration -q --tb=short || echo "integration tests failed (non-blocking)"
         continue-on-error: true
 
+  # T1 win #4: Integration test gate on PRs (blocking). Spins up ephemeral
+  # Postgres + Redis and runs the full integration suite. Blocks merge on
+  # failure — no more "integration tests only run nightly" blind spot.
+  integration-gate:
+    name: Integration gate (Postgres + Redis)
+    if: github.event_name == 'pull_request'
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pry
+          POSTGRES_PASSWORD: pry
+          POSTGRES_DB: pry
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pry -d pry"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Install Node.js for actions/checkout
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install uv + setup
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
+          ln -sf $HOME/.local/bin/uvx /usr/local/bin/uvx
+          uv python install 3.11
+          uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -e ".[dev]"
+      - name: Run integration tests (blocking on PR)
+        env:
+          PRY_DATABASE_URL: postgresql+asyncpg://pry:pry@postgres:5432/pry
+          PRY_REDIS_URL: redis://redis:6379/0
+        run: source .venv/bin/activate && pytest tests/ -m integration -q --tb=short --timeout=120
+
   crucible-gate:
     runs-on: docker-x64
     needs: test

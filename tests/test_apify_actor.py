@@ -73,26 +73,23 @@ class TestScrapeUrlContract:
             }
         )
         item = await scrape_url(scraper, "http://example.com/x", {})
-        assert item["url"] == "http://example.com/x"
-        assert item["status"] == "ok"
-        assert item["method"] == "direct"
-        assert item["content"] == "# Heading\n\nbody text"
-        assert item["metadata"] == {
-            "domain": "example.com",
-            "content_length": len("# Heading\n\nbody text"),
-            "method": "direct",
-        }
-        assert "scraped_at" in item
-        assert isinstance(item["elapsed_seconds"], float)
+        assert item.url == "http://example.com/x"
+        assert item.status == "ok"
+        assert item.method == "direct"
+        assert item.content == "# Heading\n\nbody text"
+        assert item.metadata.domain == "example.com"
+        assert item.metadata.content_length == len("# Heading\n\nbody text")
+        assert item.metadata.method == "direct"
+        assert item.scraped_at
+        assert isinstance(item.elapsed_seconds, float)
 
     @pytest.mark.asyncio
     async def test_error_item_has_error_not_content(self, scraper) -> None:
         scraper.scrape = AsyncMock(return_value={"status": "error", "error": "all_tiers_failed"})
         item = await scrape_url(scraper, "http://example.com/dead", {})
-        assert item["status"] == "error"
-        assert item["error"] == "all_tiers_failed"
-        assert "content" not in item
-        assert "metadata" not in item
+        assert item.status == "error"
+        assert item.error == "all_tiers_failed"
+        assert item.content == ""
 
     @pytest.mark.asyncio
     async def test_options_forwarded_to_scraper(self, scraper) -> None:
@@ -183,3 +180,177 @@ class TestActorPackaging:
         never depend on the SDK."""
 
         assert hasattr(apify_actor, "main")
+
+
+# ── T1 win #3: Pydantic input/output validation tests ────────────────────────
+
+
+class TestApifyActorInputValidation:
+    """Pydantic validation for Apify actor input — catches malformed input
+    before any scraping starts."""
+
+    def test_valid_input_from_dict(self) -> None:
+        from pry.actors.apify_actor import ApifyActorInput
+
+        inp = ApifyActorInput.model_validate(
+            {
+                "urls": ["https://example.com", "https://example.org"],
+                "max_pages": 5,
+                "timeout": 30,
+                "output_format": "markdown",
+                "crawl": True,
+            }
+        )
+        assert len(inp.urls) == 2
+        assert inp.max_pages == 5
+        assert inp.output_format == "markdown"
+        assert inp.crawl is True
+
+    def test_single_url_string_coerced_to_list(self) -> None:
+        from pry.actors.apify_actor import ApifyActorInput
+
+        inp = ApifyActorInput.model_validate({"urls": "https://example.com"})
+        assert inp.urls == ["https://example.com"]
+
+    def test_missing_urls_raises(self) -> None:
+        from pydantic import ValidationError
+
+        from pry.actors.apify_actor import ApifyActorInput
+
+        with pytest.raises(ValidationError) as exc_info:
+            ApifyActorInput.model_validate({})
+        assert "urls" in str(exc_info.value)
+
+    def test_empty_urls_raises(self) -> None:
+        from pydantic import ValidationError
+
+        from pry.actors.apify_actor import ApifyActorInput
+
+        with pytest.raises(ValidationError):
+            ApifyActorInput.model_validate({"urls": []})
+
+    def test_invalid_url_stripped(self) -> None:
+        from pry.actors.apify_actor import ApifyActorInput
+
+        inp = ApifyActorInput.model_validate(
+            {
+                "urls": ["  https://example.com  ", ""],
+            }
+        )
+        assert inp.urls == ["https://example.com"]
+
+    def test_max_pages_out_of_range_raises(self) -> None:
+        from pydantic import ValidationError
+
+        from pry.actors.apify_actor import ApifyActorInput
+
+        with pytest.raises(ValidationError):
+            ApifyActorInput.model_validate({"urls": ["https://x.com"], "max_pages": 0})
+        with pytest.raises(ValidationError):
+            ApifyActorInput.model_validate({"urls": ["https://x.com"], "max_pages": 9999})
+
+    def test_invalid_output_format_raises(self) -> None:
+        from pydantic import ValidationError
+
+        from pry.actors.apify_actor import ApifyActorInput
+
+        with pytest.raises(ValidationError):
+            ApifyActorInput.model_validate(
+                {
+                    "urls": ["https://x.com"],
+                    "output_format": "xml",
+                }
+            )
+
+    def test_timeout_out_of_range_raises(self) -> None:
+        from pydantic import ValidationError
+
+        from pry.actors.apify_actor import ApifyActorInput
+
+        with pytest.raises(ValidationError):
+            ApifyActorInput.model_validate({"urls": ["https://x.com"], "timeout": 2})
+        with pytest.raises(ValidationError):
+            ApifyActorInput.model_validate({"urls": ["https://x.com"], "timeout": 200})
+
+    def test_proxy_config_defaults(self) -> None:
+        from pry.actors.apify_actor import ApifyActorInput
+
+        inp = ApifyActorInput.model_validate({"urls": ["https://x.com"]})
+        assert inp.proxy_config.use_apify_proxies is False
+        assert inp.proxy_config.proxy_country == "US"
+
+    def test_proxy_config_custom(self) -> None:
+        from pry.actors.apify_actor import ApifyActorInput
+
+        inp = ApifyActorInput.model_validate(
+            {
+                "urls": ["https://x.com"],
+                "proxy_config": {"use_apify_proxies": True, "proxy_country": "DE"},
+            }
+        )
+        assert inp.proxy_config.use_apify_proxies is True
+        assert inp.proxy_config.proxy_country == "DE"
+
+
+class TestApifyActorOutputContract:
+    """Pydantic output schema — every emitted dataset item conforms."""
+
+    def test_success_output_shape(self) -> None:
+        from pry.actors.apify_actor import ApifyActorOutput, ApifyScrapeMetadata
+
+        out = ApifyActorOutput(
+            url="https://example.com",
+            status="ok",
+            method="direct",
+            scraped_at="2026-08-26T19:30:00+00:00",
+            elapsed_seconds=1.23,
+            content="# Hello",
+            metadata=ApifyScrapeMetadata(
+                domain="example.com",
+                content_length=7,
+                method="direct",
+            ),
+        )
+        item = out.to_dataset_item()
+        assert item["url"] == "https://example.com"
+        assert item["status"] == "ok"
+        assert item["content"] == "# Hello"
+        assert item["metadata"]["domain"] == "example.com"
+
+    def test_error_output_shape(self) -> None:
+        from pry.actors.apify_actor import ApifyActorOutput
+
+        out = ApifyActorOutput(
+            url="https://example.com",
+            status="error",
+            error="Invalid URL: blocked",
+            scraped_at="2026-08-26T19:30:00+00:00",
+        )
+        item = out.to_dataset_item()
+        assert item["status"] == "error"
+        assert "Invalid URL" in item["error"]
+
+    def test_invalid_status_raises(self) -> None:
+        from pydantic import ValidationError
+
+        from pry.actors.apify_actor import ApifyActorOutput
+
+        with pytest.raises(ValidationError):
+            ApifyActorOutput(
+                url="https://x.com",
+                status="invalid_status",
+                scraped_at="2026-08-26T19:30:00+00:00",
+            )
+
+    def test_dataset_item_excludes_none(self) -> None:
+        from pry.actors.apify_actor import ApifyActorOutput
+
+        out = ApifyActorOutput(
+            url="https://x.com",
+            status="error",
+            error="fail",
+            scraped_at="2026-08-26T19:30:00+00:00",
+        )
+        item = out.to_dataset_item()
+        # Empty content/raw_html should be excluded
+        assert "content" not in item or item.get("content") == ""
