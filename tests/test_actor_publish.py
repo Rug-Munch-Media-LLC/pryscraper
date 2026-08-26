@@ -54,7 +54,7 @@ class TestStageActor:
         spec = ALL_PRESETS["pry-cve-advisory-watch"]
         stage = stage_actor(spec, REPO, tmp_path)
         actor_json = json.loads((stage / ".actor" / "actor.json").read_text())
-        assert actor_json["name"] == spec.name
+        assert actor_json["name"] == spec.name.removeprefix("pry-")
         assert actor_json["title"] == spec.title
 
     def test_restaging_replaces_previous_output(self, tmp_path: Path) -> None:

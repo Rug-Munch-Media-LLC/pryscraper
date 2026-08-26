@@ -69,7 +69,7 @@ _GLYPHS: dict[str, str] = {
     # building (gov/tender/directory)
     "building": '<rect x="76" y="72" width="104" height="128" fill="#fff"/><rect x="60" y="56" width="136" height="18" fill="#fff"/><g fill="{bg}"><rect x="92" y="104" width="20" height="20"/><rect x="144" y="104" width="20" height="20"/><rect x="92" y="140" width="20" height="20"/><rect x="144" y="140" width="20" height="20"/></g>',
     # coin (crypto/token)
-    "coin": '<circle cx="128" cy="128" r="62" fill="#fff"/><circle cx="128" cy="128" r="46" fill="none" stroke="{bg}" stroke-width="7"/><text x="128" y="148" font-family="monospace" font-size="56" font-weight="bold" fill="{bg}" text-anchor="middle">P</text>',
+    "coin": '<circle cx="128" cy="128" r="62" fill="#fff"/><circle cx="128" cy="128" r="46" fill="none" stroke="{bg}" stroke-width="7"/><text x="128" y="148" font-family="monospace" font-size="64" font-weight="bold" fill="{bg}" text-anchor="middle">$</text>',
     # rss waves (podcast/newsletter/feed)
     "rss": '<circle cx="86" cy="170" r="16" fill="#fff"/><path d="M70 108 A58 58 0 0 1 128 166" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round"/><path d="M70 60 A108 108 0 0 1 178 168" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round"/>',
     # link (backlinks/seo)
@@ -106,6 +106,12 @@ _GLYPHS: dict[str, str] = {
     "layers": '<path d="M128 52 L204 92 L128 132 L52 92 Z" fill="#fff"/><path d="M60 124 L128 158 L196 124" fill="none" stroke="#fff" stroke-width="11" stroke-linejoin="round"/><path d="M60 156 L128 190 L196 156" fill="none" stroke="#fff" stroke-width="11" stroke-linejoin="round"/>',
     # clock (scheduling/history)
     "clock": '<circle cx="128" cy="128" r="62" fill="#fff"/><line x1="128" y1="88" x2="128" y2="130" stroke="{bg}" stroke-width="11" stroke-linecap="round"/><line x1="128" y1="130" x2="158" y2="146" stroke="{bg}" stroke-width="11" stroke-linecap="round"/>',
+    # star (reviews/ratings)
+    "star": '<path d="M128 56 L152 112 L214 118 L168 158 L180 218 L128 186 L76 218 L88 158 L42 118 L104 112 Z" fill="#fff"/>',
+    # cloud (weather/climate)
+    "cloud": '<path d="M92 176 C64 176 48 158 48 140 C48 122 62 108 80 106 C86 78 110 60 138 60 C172 60 198 86 200 118 C220 120 232 134 232 148 C232 164 218 176 202 176 Z" fill="#fff"/><line x1="96" y1="196" x2="84" y2="216" stroke="#fff" stroke-width="9" stroke-linecap="round"/><line x1="136" y1="196" x2="124" y2="216" stroke="#fff" stroke-width="9" stroke-linecap="round"/><line x1="176" y1="196" x2="164" y2="216" stroke="#fff" stroke-width="9" stroke-linecap="round"/>',
+    # rocket (launches/products)
+    "rocket": '<path d="M128 44 C160 72 172 116 160 164 L144 188 L112 188 L96 164 C84 116 96 72 128 44 Z" fill="#fff"/><circle cx="128" cy="104" r="18" fill="{bg}"/><path d="M96 164 L72 196 L100 188 M160 164 L184 196 L156 188 M116 190 L128 216 L140 190" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>',
     # pin (maps/local)
     "pin": '<path d="M128 52 C94 52 70 78 70 110 C70 152 128 204 128 204 C128 204 186 152 186 110 C186 78 162 52 128 52 Z" fill="#fff"/><circle cx="128" cy="108" r="22" fill="{bg}"/>',
 }
@@ -115,6 +121,91 @@ def _pick_glyph(spec: Any) -> str:
     """Choose a glyph concept from the actor's name/events."""
     haystack = (spec.name + " " + " ".join(e.name for e in spec.pricing_events)).lower()
     rules = [
+        ("cve", "shield"),
+        ("advisory", "shield"),
+        ("vulnerability", "shield"),
+        ("exploit", "shield"),
+        ("fda", "health"),
+        ("recall", "health"),
+        ("clinical", "health"),
+        ("trial", "health"),
+        ("docket", "scales"),
+        ("court", "scales"),
+        ("sanction", "scales"),
+        ("sec-", "scales"),
+        ("trademark", "scales"),
+        ("contract", "building"),
+        ("procurement", "building"),
+        ("usaspending", "building"),
+        ("gov", "building"),
+        ("token", "coin"),
+        ("defi", "coin"),
+        ("whale", "coin"),
+        ("gas", "coin"),
+        ("cex", "chart"),
+        ("fx", "chart"),
+        ("flight", "plane"),
+        ("airline", "plane"),
+        ("freight", "plane"),
+        ("hotel", "globe"),
+        ("travel", "globe"),
+        ("local", "pin"),
+        ("maps", "pin"),
+        ("lead", "pin"),
+        ("property", "building"),
+        ("realestate", "building"),
+        ("real-estate", "building"),
+        ("review", "star"),
+        ("rating", "star"),
+        ("app-store", "star"),
+        ("appstore", "star"),
+        ("npm", "package"),
+        ("pypi", "package"),
+        ("github", "branch"),
+        ("release", "bell"),
+        ("changelog", "branch"),
+        ("podcast", "rss"),
+        ("youtube", "rss"),
+        ("newsletter", "rss"),
+        ("rss", "rss"),
+        ("weather", "cloud"),
+        ("climate", "cloud"),
+        ("earthquake", "pulse"),
+        ("air-quality", "cloud"),
+        ("electricity", "chart"),
+        ("energy", "chart"),
+        ("invoice", "invoice"),
+        ("receipt", "invoice"),
+        ("pdf", "document"),
+        ("document", "document"),
+        ("corpus", "database"),
+        ("dataset", "database"),
+        ("wayback", "clock"),
+        ("history", "clock"),
+        ("seo", "link"),
+        ("serp", "search"),
+        ("amazon", "tag"),
+        ("walmart", "tag"),
+        ("tiktok", "tag"),
+        ("grocery", "tag"),
+        ("deal", "funnel"),
+        ("drop", "bell"),
+        ("rocket-launch", "rocket"),
+        ("producthunt", "rocket"),
+        ("launch", "rocket"),
+        ("arxiv", "edu"),
+        ("paper", "edu"),
+        ("course", "edu"),
+        ("scholar", "edu"),
+        ("forum", "chat"),
+        ("discussion", "chat"),
+        ("sentiment", "chat"),
+        ("blog", "document"),
+        ("news", "document"),
+        ("jobs", "building"),
+        ("salary", "bars"),
+        ("economics", "bars"),
+        ("stats", "bars"),
         ("screenshot", "camera"),
         ("vision", "camera"),
         ("serp", "search"),
@@ -305,9 +396,18 @@ def _category_for(spec: Any) -> str:
 
 
 def render_icon(spec: Any) -> str:
+    # Per-actor uniqueness: deterministic hue shift from the actor name so
+    # all 94 icons are visually distinct even within one category, plus an
+    # initial-monogram badge corner.
+    import hashlib as _hl
+    _h = int(_hl.sha256(spec.name.encode()).hexdigest(), 16)
+    _shift = _h % 36  # +/-18 degrees hue variation
     """Render a deterministic store-quality SVG icon for the spec."""
     category = _category_for(spec)
     h1, h2 = CATEGORY_COLORS.get(category, CATEGORY_COLORS["SCRAPER"])
+    # Per-actor uniqueness: shift hues by name-hash so all 94 are distinct
+    h1 = (h1 + _shift) % 360
+    h2 = (h2 + _shift) % 360
     glyph = _GLYPHS[_pick_glyph(spec)].replace("{bg}", f"hsl({h1},45%,38%)")
     seed = int(hashlib.md5(spec.name.encode(), usedforsecurity=False).hexdigest()[:4], 16)
     rotation = seed % 30 - 15  # subtle gradient angle variation

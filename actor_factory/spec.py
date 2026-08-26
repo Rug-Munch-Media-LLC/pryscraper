@@ -33,13 +33,16 @@ from typing import Any
 
 VERSION_RE = re.compile(r"^\d+\.\d+$")
 
+# Real Apify platform editor vocabulary (upload validation fails on
+# anything else; numeric fields accept ONLY "number"/"hidden").
 VALID_EDITORS = {
     "string",
     "textfield",
+    "textarea",
     "select",
     "boolean",
-    "integer",
-    "float",
+    "number",
+    "json",
     "stringList",
     "requestListSources",
     "keyValue",
@@ -80,6 +83,41 @@ class InputField:
     section_caption: str | None = None
     item_type: str | None = None  # for arrays of strings
 
+    def __post_init__(self) -> None:
+        # Numeric fields MUST carry editor="number" (Apify platform rule)
+        if self.editor is None and self.type in ("integer", "float"):
+            object.__setattr__(self, "editor", "number")  # frozen dataclass
+
+    def _default_editor(self) -> str:
+        if self.type == "boolean":
+            return "boolean"
+        if self.type == "integer":
+            return "integer"
+        if self.type == "float":
+            return "float"
+        if self.type == "object":
+            return "json"
+        if self.type == "array":
+            return "requestListSources" if self.name in ("urls", "requests", "start_urls") else "stringList"
+        if self.enum:
+            return "select"
+        return "textfield"
+
+    def _default_editor(self) -> str:
+        if self.type in ("integer", "float"):
+            return "number"
+        if self.type == "boolean":
+            return "boolean"
+        if self.type == "object":
+            return "json"
+        if self.type == "array":
+            return ("requestListSources"
+                    if self.name in ("urls", "requests", "start_urls")
+                    else "stringList")
+        if self.enum:
+            return "select"
+        return "textfield"
+
     def to_schema(self) -> dict[str, Any]:
         if self.editor is not None and self.editor not in VALID_EDITORS:
             raise ValueError(f"field '{self.name}': editor '{self.editor}' not in Apify editor set")
@@ -90,8 +128,9 @@ class InputField:
         }
         if self.section_caption:
             prop["sectionCaption"] = self.section_caption
-        if self.editor:
-            prop["editor"] = self.editor
+        # Apify platform REQUIRES an editor on every property — upload
+        # fails validation without one. Default by type when unset.
+        prop["editor"] = self.editor or self._default_editor()
         if self.default is not None:
             prop["default"] = self.default
         if self.prefill is not None:
@@ -232,8 +271,9 @@ class ActorSpec:
         """Render the spec-compliant actor.json object."""
         return {
             "actorSpecification": 1,
-            "name": self.name,
-            "title": self.title,
+            "name": self.name.removeprefix("pry-"),
+            # Store title = what it DOES (SEO), no brand prefix
+            "title": self.title.removeprefix("Pry ").strip(),
             "description": self.description,
             "version": self.version,
             "buildTag": self.build_tag,

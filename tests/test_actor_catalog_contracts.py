@@ -86,9 +86,10 @@ def test_inputs_well_formed(actor_name: str) -> None:
             "object",
             "float",
         }, f"{actor_name}/{f.name}: type {f.type}"
-        if f.type == "float":
-            assert f.editor == "float", (
-                f"{actor_name}/{f.name}: float input must declare editor='float'"
+        if f.type in ("integer", "float"):
+            # Apify platform: numeric fields accept ONLY number/hidden
+            assert f.editor == "number", (
+                f"{actor_name}/{f.name}: numeric input needs editor='number'"
             )
         if f.editor is not None:
             assert f.editor in VALID_EDITORS, f"{actor_name}/{f.name}: editor"
@@ -142,8 +143,10 @@ def test_package_complete(generated_cache: dict[str, Path], actor_name: str) -> 
 def test_actor_json_matches_spec(generated_cache: dict[str, Path], actor_name: str) -> None:
     spec = ALL_PRESETS[actor_name]
     doc = json.loads((generated_cache[actor_name] / ".actor" / "actor.json").read_text())
-    assert doc["name"] == actor_name
-    assert doc["title"] == spec.title
+    # Store name drops the pry- prefix (Apify-neutral naming)
+    assert doc["name"] == actor_name.removeprefix("pry-")
+    # Store title is the SEO-functional form (brand prefix stripped)
+    assert doc["title"] == spec.title.removeprefix("Pry ").strip()
     assert doc["version"] == spec.version
     assert doc["description"] == spec.description
     assert doc["minMemoryMbytes"] == spec.min_memory_mbytes

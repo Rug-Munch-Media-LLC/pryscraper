@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -35,6 +36,42 @@ sys.path.insert(0, str(REPO))
 from actor_factory.publish import run_batch  # noqa: E402
 
 logger = logging.getLogger("apify-push-all")
+
+
+
+def _make_org_push(org: str, token: str):
+    """Wrap push_actor with create-if-missing for first-time org uploads.
+
+    apify-cli v1.x cannot create an actor when an explicit ID is passed;
+    it only updates existing ones. We ensure existence via API v2 first,
+    then hand off to the normal staged push.
+    """
+    import json as _json
+    import subprocess as _sp
+
+    from actor_factory.publish import push_actor
+
+    def _push(stage, actor_id=None):
+        aid = f"{org}~{stage.name}"
+        chk = _sp.run(
+            ["curl", "-sfm", "20", "-H", f"Authorization: Bearer {token}",
+             f"https://api.apify.com/v2/acts/{aid}"],
+            capture_output=True,
+        )
+        if chk.returncode != 0:
+            create = _sp.run(
+                ["curl", "-sfm", "30", "-X", "POST",
+                 "-H", f"Authorization: Bearer {token}",
+                 "-H", "Content-Type: application/json",
+                 "-d", _json.dumps({"name": stage.name}),
+                 "https://api.apify.com/v2/acts"],
+                capture_output=True, text=True,
+            )
+            if create.returncode != 0:
+                return False, f"actor create failed: {(create.stdout or create.stderr)[-200:]}"
+        return push_actor(stage, actor_id=aid)
+
+    return _push
 
 
 def main() -> int:
@@ -74,6 +111,11 @@ def main() -> int:
             resume=args.resume,
             delay_seconds=args.delay,
             actor_id_prefix=args.org,
+            push_fn=(
+                _make_org_push(args.org, os.environ["APIFY_TOKEN"])
+                if args.org and not args.dry_run and os.environ.get("APIFY_TOKEN")
+                else None
+            ),
         ):
             count += 1
             if not result.ok:
