@@ -31,8 +31,8 @@ import datasets.healthcare_data as healthcare_data
 import datasets.healthcare_data.clinical_trials as clinical_trials
 import datasets.healthcare_data.drug_pricing as drug_pricing
 import datasets.healthcare_data.insurance as insurance
-import pry.api.routers.healthcare_data as health_router_mod
-from pry.api.routers.healthcare_data import router as health_router
+import pry.api.routers.data.healthcare_data as health_router_mod
+from pry.api.routers.data.healthcare_data import router as health_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
 

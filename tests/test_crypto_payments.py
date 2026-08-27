@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 from unittest.mock import patch
 
 import httpx
@@ -22,15 +24,21 @@ from payments.crypto import (
 )
 
 
+def _make_response(status_code: int, json_data: dict | None = None) -> httpx.Response:
+    """Create a mock httpx.Response with proper request context."""
+    request = httpx.Request("POST", "https://test.com")
+    return httpx.Response(status_code, request=request, json=json_data or {})
+
+
 class TestCoinbaseCommerceProvider:
     """Coinbase Commerce payment provider tests."""
 
     @pytest.mark.asyncio
     async def test_create_charge_success(self) -> None:
         provider = CoinbaseCommerceProvider(api_key="test_key")
-        mock_response = httpx.Response(
+        mock_response = _make_response(
             200,
-            json={
+            {
                 "data": {
                     "id": "test_charge_123",
                     "hosted_url": "https://commerce.coinbase.com/charges/test",
@@ -56,21 +64,16 @@ class TestCoinbaseCommerceProvider:
     async def test_verify_webhook(self) -> None:
         provider = CoinbaseCommerceProvider(api_key="key", webhook_secret="secret")
         payload = b'{"event": "charge:created"}'
-        # Valid signature
-        import hashlib
-        import hmac
-
         valid_sig = hmac.new(b"secret", payload, hashlib.sha256).hexdigest()
-        assert provider.verify_webhook(payload, valid_sig) is True
-        # Invalid signature
-        assert provider.verify_webhook(payload, "invalid") is False
+        assert await provider.verify_webhook(payload, valid_sig) is True
+        assert await provider.verify_webhook(payload, "invalid") is False
 
     @pytest.mark.asyncio
     async def test_check_status(self) -> None:
         provider = CoinbaseCommerceProvider(api_key="test_key")
+        request = httpx.Request("GET", "https://test.com")
         mock_response = httpx.Response(
-            200,
-            json={"data": {"timeline": [{"status": "COMPLETED"}]}},
+            200, request=request, json={"data": {"timeline": [{"status": "COMPLETED"}]}}
         )
         with patch("httpx.AsyncClient.get", return_value=mock_response):
             result = await provider.check_status("charge_123")
@@ -83,9 +86,9 @@ class TestNowPaymentsProvider:
     @pytest.mark.asyncio
     async def test_create_invoice_success(self) -> None:
         provider = NowPaymentsProvider(api_key="test_key")
-        mock_response = httpx.Response(
+        mock_response = _make_response(
             200,
-            json={
+            {
                 "id": "invoice_123",
                 "invoice_url": "https://nowpayments.io/invoice/123",
                 "pay_currency": "btc",
@@ -113,9 +116,9 @@ class TestBTCPayProvider:
     @pytest.mark.asyncio
     async def test_create_invoice_success(self) -> None:
         provider = BTCPayProvider(base_url="https://btcpay.test", api_key="key", store_id="store1")
-        mock_response = httpx.Response(
+        mock_response = _make_response(
             200,
-            json={
+            {
                 "id": "invoice_123",
                 "checkoutLink": "https://btcpay.test/i/invoice_123",
                 "status": "New",

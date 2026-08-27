@@ -28,8 +28,8 @@ from fastapi.testclient import TestClient
 
 import datasets.compliance_data as compliance_data
 import datasets.compliance_data.enforcement as enforcement
-import pry.api.routers.compliance_data as compliance_router_mod
-from pry.api.routers.compliance_data import router as compliance_router
+import pry.api.routers.integrations.compliance_data as compliance_router_mod
+from pry.api.routers.integrations.compliance_data import router as compliance_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
 

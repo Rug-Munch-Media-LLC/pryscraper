@@ -32,10 +32,10 @@ import datasets.climate_data.weather as weather
 import datasets.research_data as research_data
 import datasets.research_data.academic as academic
 import datasets.research_data.domain as domain
-import pry.api.routers.climate_data as climate_router_mod
-import pry.api.routers.research_data as research_router_mod
-from pry.api.routers.climate_data import router as climate_router
-from pry.api.routers.research_data import router as research_router
+import pry.api.routers.data.climate_data as climate_router_mod
+import pry.api.routers.data.research_data as research_router_mod
+from pry.api.routers.data.climate_data import router as climate_router
+from pry.api.routers.data.research_data import router as research_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
 

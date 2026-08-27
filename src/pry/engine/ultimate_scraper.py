@@ -86,9 +86,37 @@ try:
 except ImportError:  # pragma: no cover - optional dependency
     pass
 
+# Tiers 13-15: Advanced scraping methods
+_ai_visual: Any = None
+_has_ai_visual = True
+try:
+    from pry.engine.ai_visual_scraper import AIVisualScraper
+
+    _ai_visual = AIVisualScraper()
+except ImportError:
+    _has_ai_visual = False
+
+_mobile_scraper: Any = None
+_has_mobile = True
+try:
+    from pry.engine.mobile_app_scraper import MobileAppScraper
+
+    _mobile_scraper = MobileAppScraper()
+except ImportError:
+    _has_mobile = False
+
+_graphql_scraper: Any = None
+_has_graphql = True
+try:
+    from pry.engine.graphql_scraper_enhanced import GraphQLScraper
+
+    _graphql_scraper = GraphQLScraper()
+except ImportError:
+    _has_graphql = False
+
 
 class UltimateScraper:
-    """12-tier anti-detection scraper with automatic fallback.
+    """15-tier anti-detection scraper with automatic fallback.
 
     Tiers (tried in this order by default):
     1. Direct HTTP (smart headers, rotating UAs)
@@ -103,9 +131,12 @@ class UltimateScraper:
     10. Premium proxy retry (paid last resort, after Tor)
     11. Archive.org / Wayback Machine (cached version)
     12. Google Cache (cached version — absolute last resort)
+    13. AI Visual Scraper (screenshot + LLM vision extraction)
+    14. Mobile App API (impersonate mobile clients)
+    15. GraphQL API Discovery (find and query GraphQL endpoints)
 
     The per-domain order is adaptive: resilience.DomainTierMemory promotes
-    the domain's proven-best tier to the front and demotes/skips tiers that
+    the domain's proven-best tier to the front and demotes/skip tiers that
     have been failing, so each domain gets an intelligent, self-improving
     fallback chain.
     """
@@ -138,6 +169,9 @@ class UltimateScraper:
         "archive": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
         "google_cache": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
         "tor": RetryConfig(max_retries=1, base_delay=2.0, max_delay=10.0),
+        "ai_visual": RetryConfig(max_retries=0),
+        "mobile_app": RetryConfig(max_retries=1, base_delay=1.0, max_delay=5.0),
+        "graphql": RetryConfig(max_retries=1, base_delay=1.0, max_delay=5.0),
     }
     _DEFAULT_RETRY: ClassVar[RetryConfig] = RetryConfig(max_retries=1, base_delay=1.0)
 
@@ -273,6 +307,18 @@ class UltimateScraper:
                 ("google_cache", self._tier_google_cache),
             ]
         )
+
+        # Tier 13: AI Visual Scraper (screenshot + LLM vision)
+        if _has_ai_visual and _ai_visual and _ai_visual.is_available():
+            tier_order.append(("ai_visual", self._tier_ai_visual))
+
+        # Tier 14: Mobile App API Scraper
+        if _has_mobile and _mobile_scraper:
+            tier_order.append(("mobile_app", self._tier_mobile_app))
+
+        # Tier 15: GraphQL API Discovery
+        if _has_graphql and _graphql_scraper:
+            tier_order.append(("graphql", self._tier_graphql))
 
         # Adaptive ordering: promote the domain's proven-best tier to the
         # front and demote/skip tiers that have been failing recently. Each
@@ -539,7 +585,6 @@ class UltimateScraper:
         self, url: str, opts: dict[str, Any], proxy_url: str | None = None
     ) -> str | None:
         try:
-
             async with httpx.AsyncClient(timeout=30, proxy=proxy_url) as c:
                 r = await safe_get(c, url, headers=self._build_headers(url))
                 if r.is_success:
@@ -553,7 +598,6 @@ class UltimateScraper:
     ) -> str | None:
         """Fetch via the configured premium residential/datacenter proxy."""
         try:
-
             async with httpx.AsyncClient(timeout=45, proxy=proxy_url) as c:
                 r = await safe_get(c, url, headers=self._build_headers(url))
                 if r.is_success:
@@ -588,7 +632,6 @@ class UltimateScraper:
         if not settings.flaresolverr_url:
             return None
         try:
-
             payload = {"cmd": "request.get", "url": url, "maxTimeout": 60000}
             async with httpx.AsyncClient(timeout=60) as c:
                 r = await c.post(settings.flaresolverr_url, json=payload)
@@ -729,7 +772,6 @@ class UltimateScraper:
         self, url: str, opts: dict[str, Any], proxy_url: str | None = None
     ) -> str | None:
         try:
-
             headers = self._build_headers(url)
             headers["User-Agent"] = (
                 "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
@@ -747,7 +789,6 @@ class UltimateScraper:
     ) -> str | None:
         """Fetch from Wayback Machine CDX API for latest snapshot."""
         try:
-
             # URL-encode the target before embedding it in the CDX query param
             # and the archive path. An unencoded query string (e.g. ?a=1&b=2)
             # would corrupt the surrounding URL (the & becomes a param separator
@@ -772,7 +813,6 @@ class UltimateScraper:
         self, url: str, opts: dict[str, Any], proxy_url: str | None = None
     ) -> str | None:
         try:
-
             # Same encoding requirement as the archive tier: an unencoded
             # query string would be parsed as extra params of the cache URL.
             target = quote(url, safe="")
@@ -810,4 +850,40 @@ class UltimateScraper:
                     return await resp.text()
         except aiohttp.ClientError as e:
             logger.debug("tor_failed", extra={"error": str(e)[:50]})
+        return None
+
+    async def _tier_ai_visual(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
+        """Tier 13: AI Visual Scraper — screenshot + LLM vision extraction."""
+        if not _has_ai_visual or not _ai_visual:
+            return None
+        try:
+            return await _ai_visual.scrape(url, opts)
+        except Exception as e:
+            logger.debug("ai_visual_failed", extra={"error": str(e)[:50]})
+        return None
+
+    async def _tier_mobile_app(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
+        """Tier 14: Mobile App API — impersonate mobile clients."""
+        if not _has_mobile or not _mobile_scraper:
+            return None
+        try:
+            return await _mobile_scraper.scrape(url, opts)
+        except Exception as e:
+            logger.debug("mobile_app_failed", extra={"error": str(e)[:50]})
+        return None
+
+    async def _tier_graphql(
+        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
+    ) -> str | None:
+        """Tier 15: GraphQL API Discovery — find and query GraphQL endpoints."""
+        if not _has_graphql or not _graphql_scraper:
+            return None
+        try:
+            return await _graphql_scraper.scrape(url, opts)
+        except Exception as e:
+            logger.debug("graphql_failed", extra={"error": str(e)[:50]})
         return None

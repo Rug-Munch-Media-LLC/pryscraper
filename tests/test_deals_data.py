@@ -33,8 +33,8 @@ from fastapi.testclient import TestClient
 import datasets.deals_data as deals_data
 import datasets.deals_data.coupons as coupons
 import datasets.deals_data.drops as drops
-import pry.api.routers.deals_data as deals_router_mod
-from pry.api.routers.deals_data import router as deals_router
+import pry.api.routers.data.deals_data as deals_router_mod
+from pry.api.routers.data.deals_data import router as deals_router
 from pry.core.errors import PryError
 
 

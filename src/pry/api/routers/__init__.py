@@ -18,7 +18,7 @@ Pattern for each router file:
         ...
 
 Then in api.py:
-    from pry.api.routers.auth import router as auth_router
+    from pry.api.routers.core.auth import router as auth_router
     app.include_router(auth_router)
 
 Migration order (one router at a time, each as a separate commit):

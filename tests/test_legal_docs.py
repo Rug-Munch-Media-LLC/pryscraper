@@ -31,8 +31,8 @@ import datasets.legal_docs as legal_docs
 import datasets.legal_docs.dockets as dockets
 import datasets.legal_docs.sanctions as sanctions
 import datasets.legal_docs.sec_filings as sec_filings
-import pry.api.routers.legal_docs as legal_router_mod
-from pry.api.routers.legal_docs import router as legal_router
+import pry.api.routers.data.legal_docs as legal_router_mod
+from pry.api.routers.data.legal_docs import router as legal_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
 

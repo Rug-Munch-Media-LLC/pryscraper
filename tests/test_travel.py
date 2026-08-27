@@ -28,9 +28,9 @@ from fastapi.testclient import TestClient
 
 import datasets.travel.flights as flights
 import datasets.travel.hotels as hotels
-import pry.api.routers.travel as travel_router_mod
+import pry.api.routers.data.travel as travel_router_mod
 from datasets.travel.flights import _build_tfs, _extract_af_callbacks, _find_flight_options
-from pry.api.routers.travel import router as travel_router
+from pry.api.routers.data.travel import router as travel_router
 from pry.core.errors import PryError
 
 _FLIGHTS_URL = "https://www.google.com/travel/flights/"
@@ -687,12 +687,12 @@ def _client(app: FastAPI) -> TestClient:
 
 def test_router_importable() -> None:
     import datasets.travel as travel
-    import pry.api.routers.travel
+    import pry.api.routers.data.travel
 
     assert hasattr(travel, "search_flights")
     assert hasattr(travel, "cheapest_date_grid")
     assert hasattr(travel, "get_hotel_rates")
-    assert hasattr(pry.api.routers.travel, "router")
+    assert hasattr(pry.api.routers.data.travel, "router")
 
 
 def test_router_flights_grid_success(travel_app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> None:

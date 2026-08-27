@@ -22,8 +22,8 @@ import respx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import pry.api.routers.admin as admin_module
-from pry.api.routers.admin import ADMIN_PREFIX, router as admin_router
+import pry.api.routers.core.admin as admin_module
+from pry.api.routers.core.admin import ADMIN_PREFIX, router as admin_router
 
 if TYPE_CHECKING:
     from pathlib import Path

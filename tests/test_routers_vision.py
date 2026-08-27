@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from pry.api.routers.vision import router as vision_router
+from pry.api.routers.ai.vision import router as vision_router
 
 app = FastAPI()
 app.include_router(vision_router)
@@ -22,7 +22,7 @@ def test_vision_no_input():
 def test_vision_with_url():
     with (
         patch("pry.core.deps.automator.run_steps", new_callable=AsyncMock) as mock_r,
-        patch("pry.api.routers.vision._call_vision_api", new_callable=AsyncMock) as mock_api,
+        patch("pry.api.routers.ai.vision._call_vision_api", new_callable=AsyncMock) as mock_api,
     ):
         mock_r.return_value = {"steps": [{"action": "screenshot", "screenshot": "b64data"}]}
         mock_api.return_value = ("desc", "mock", None)
@@ -33,7 +33,7 @@ def test_vision_with_url():
 
 
 def test_vision_with_image_b64():
-    with patch("pry.api.routers.vision._call_vision_api", new_callable=AsyncMock) as mock_api:
+    with patch("pry.api.routers.ai.vision._call_vision_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = ("desc", "mock-model", None)
         r = client.post("/v1/vision", json={"question": "Describe this", "image": "iVBORw0KGgo="})
         assert r.status_code == 200, f"Got {r.status_code}: {r.text[:200]}"
@@ -46,7 +46,7 @@ def test_vision_with_file_path():
     with (
         patch("os.path.isfile", return_value=True),
         patch("builtins.open", return_value=io.BytesIO(b"\x89PNG\r\n\x1a\n")),
-        patch("pry.api.routers.vision._call_vision_api", new_callable=AsyncMock) as mock_api,
+        patch("pry.api.routers.ai.vision._call_vision_api", new_callable=AsyncMock) as mock_api,
     ):
         mock_api.return_value = ("desc", "mock", None)
         r = client.post(

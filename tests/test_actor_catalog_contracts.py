@@ -197,7 +197,7 @@ def test_processor_maps_to_known_engine(actor_name: str) -> None:
     processor here means the catalog endpoint would fall back to
     pry_scrape silently.
     """
-    from pry.api.routers.x402 import ENGINE_TOOLS
+    from pry.api.routers.commerce.x402 import ENGINE_TOOLS
 
     spec = ALL_PRESETS[actor_name]
     assert spec.processor in ENGINE_TOOLS, (

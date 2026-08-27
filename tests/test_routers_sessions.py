@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from pry.api.routers.sessions import router
+from pry.api.routers.core.sessions import router
 
 app = FastAPI()
 app.include_router(router)
@@ -15,7 +15,7 @@ client = TestClient(app, raise_server_exceptions=False)
 
 
 def test_create_session():
-    with patch("pry.api.routers.sessions.automator") as auto:
+    with patch("pry.api.routers.core.sessions.automator") as auto:
         auto.create_session = AsyncMock(return_value="session-abc")
         with patch("pry.engine.sessions.save_session", new_callable=AsyncMock):
             r = client.post(
@@ -31,7 +31,7 @@ def test_create_session():
 
 
 def test_create_session_no_persist():
-    with patch("pry.api.routers.sessions.automator") as auto:
+    with patch("pry.api.routers.core.sessions.automator") as auto:
         auto.create_session = AsyncMock(return_value="session-no-persist")
         r = client.post(
             "/v1/session/create",
@@ -46,7 +46,7 @@ def test_create_session_no_persist():
 
 
 def test_destroy_session():
-    with patch("pry.api.routers.sessions.automator") as auto:
+    with patch("pry.api.routers.core.sessions.automator") as auto:
         auto.destroy_session = AsyncMock(return_value=True)
         with patch("pry.engine.sessions.delete_session", new_callable=AsyncMock):
             r = client.post(
@@ -62,7 +62,7 @@ def test_destroy_session():
 
 
 def test_destroy_session_with_save():
-    with patch("pry.api.routers.sessions.automator") as auto:
+    with patch("pry.api.routers.core.sessions.automator") as auto:
         auto.destroy_session = AsyncMock(return_value=True)
         auto.get_session_state = AsyncMock(return_value={"cookies": [], "local_storage": {}})
         with (
@@ -80,9 +80,9 @@ def test_destroy_session_with_save():
 
 
 def test_list_sessions():
-    with patch("pry.api.routers.sessions.automator") as auto:
+    with patch("pry.api.routers.core.sessions.automator") as auto:
         auto.list_sessions = MagicMock(return_value=[{"session_id": "active-1"}])
-        with patch("pry.api.routers.sessions.list_sessions") as mock_saved:
+        with patch("pry.api.routers.core.sessions.list_sessions") as mock_saved:
             mock_saved.return_value = [{"session_id": "saved-1"}]
             r = client.get("/v1/sessions")
             assert r.status_code in (200, 422, 500)
@@ -91,7 +91,7 @@ def test_list_sessions():
 
 
 def test_save_session_state():
-    with patch("pry.api.routers.sessions.automator") as auto:
+    with patch("pry.api.routers.core.sessions.automator") as auto:
         auto.get_session_state = AsyncMock(return_value={"cookies": [], "local_storage": {}})
         with patch("pry.engine.sessions.save_session", new_callable=AsyncMock):
             r = client.post("/v1/session/save", json={"session_id": "session-abc"})
@@ -99,14 +99,14 @@ def test_save_session_state():
 
 
 def test_save_session_state_not_found():
-    with patch("pry.api.routers.sessions.automator") as auto:
+    with patch("pry.api.routers.core.sessions.automator") as auto:
         auto.get_session_state = AsyncMock(return_value=None)
         r = client.post("/v1/session/save", json={"session_id": "nonexistent"})
         assert r.status_code in (404, 422, 500)
 
 
 def test_restore_session():
-    with patch("pry.api.routers.sessions.automator") as auto:
+    with patch("pry.api.routers.core.sessions.automator") as auto:
         auto.restore_session_state = AsyncMock(return_value=True)
         with patch("pry.engine.sessions.load_session", new_callable=AsyncMock) as load:
             load.return_value = {
@@ -120,7 +120,7 @@ def test_restore_session():
 
 def test_restore_session_not_found():
     with (
-        patch("pry.api.routers.sessions.automator"),
+        patch("pry.api.routers.core.sessions.automator"),
         patch("pry.engine.sessions.load_session", new_callable=AsyncMock) as load,
     ):
         load.return_value = None

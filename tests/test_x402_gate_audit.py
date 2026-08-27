@@ -297,7 +297,7 @@ class TestKeylessX402Flow:
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
-        from pry.api.routers.x402 import router as x402_router
+        from pry.api.routers.commerce.x402 import router as x402_router
         from pry.core.middleware import PryHttpMiddleware
 
         app = FastAPI()

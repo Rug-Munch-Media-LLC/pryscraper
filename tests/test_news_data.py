@@ -29,8 +29,8 @@ from fastapi.testclient import TestClient
 import datasets.news_data as news_data
 import datasets.news_data.headlines as headlines
 import datasets.news_data.sentiment as sentiment
-import pry.api.routers.news_data as news_router_mod
-from pry.api.routers.news_data import router as news_router
+import pry.api.routers.data.news_data as news_router_mod
+from pry.api.routers.data.news_data import router as news_router
 from pry.core.errors import PryError
 
 _GDELT_URL = "https://api.gdeltproject.org/api/v2/doc/doc"

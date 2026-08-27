@@ -265,7 +265,7 @@ def _admin_prefix() -> str:
     the lifetime this classification matters for.
     """
     try:
-        from pry.api.routers.admin import ADMIN_PREFIX
+        from pry.api.routers.core.admin import ADMIN_PREFIX
 
         return ADMIN_PREFIX
     except Exception:  # noqa: BLE001  # pragma: no cover - admin router optional

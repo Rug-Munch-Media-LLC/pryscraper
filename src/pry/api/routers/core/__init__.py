@@ -1,0 +1,20 @@
+# core subpackage
+from .admin import router as admin_router
+from .api_keys import router as api_keys_router
+from .auth import router as auth_router
+from .automation import router as automation_router
+from .batch import router as batch_router
+from .capabilities import router as capabilities_router
+from .circuit_breaker import router as circuit_breaker_router
+from .config import router as config_router
+from .diagnostics import router as diagnostics_router
+from .health import router as health_router
+from .proxy import router as proxy_router
+from .quality import router as quality_router
+from .sessions import router as sessions_router
+from .share import router as share_router
+from .signup import router as signup_router
+from .stats import router as stats_router
+from .system import router as system_router
+from .templates import router as templates_router
+from .well_known import router as well_known_router

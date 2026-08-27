@@ -30,8 +30,8 @@ import datasets.sports_data as sports_data
 import datasets.sports_data.odds as odds
 import datasets.sports_data.scores as scores
 import datasets.sports_data.stats as stats
-import pry.api.routers.sports_data as sports_router_mod
-from pry.api.routers.sports_data import router as sports_router
+import pry.api.routers.data.sports_data as sports_router_mod
+from pry.api.routers.data.sports_data import router as sports_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
 

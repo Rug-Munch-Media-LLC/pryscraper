@@ -22,42 +22,42 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from pry.api.client import close_client
-from pry.api.routers.admin import router as admin_router
-from pry.api.routers.advanced import router as advanced_router
-from pry.api.routers.agency import router as agency_router
-from pry.api.routers.ai import router as ai_router
-from pry.api.routers.alerts import router as alerts_router
-from pry.api.routers.analysis import router as analysis_router
-from pry.api.routers.attention import router as attention_router
-from pry.api.routers.auth import router as auth_router
-from pry.api.routers.automation import router as automation_router
-from pry.api.routers.batch import router as batch_router
-from pry.api.routers.capabilities import router as capabilities_router
-from pry.api.routers.circuit_breaker import router as circuit_breaker_router
-from pry.api.routers.commerce import router as commerce_router
-from pry.api.routers.commerce_data import router as commerce_data_router
-from pry.api.routers.compliance import router as compliance_router
-from pry.api.routers.config import router as config_router
-from pry.api.routers.costing import router as costing_router
-from pry.api.routers.crm import router as crm_router
-from pry.api.routers.crypto_market import router as crypto_market_router
-from pry.api.routers.dashboard import router as dashboard_router
-from pry.api.routers.diagnostics import router as diagnostics_router
-from pry.api.routers.email import router as email_router
-from pry.api.routers.enrichment import router as enrichment_router
-from pry.api.routers.execute import router as execute_router
-from pry.api.routers.export import router as export_router
-from pry.api.routers.extraction import router as extraction_router
-from pry.api.routers.freshness import router as freshness_router
-from pry.api.routers.gdpr import router as gdpr_router
-from pry.api.routers.health import router as health_router
-from pry.api.routers.healthcare_data import router as healthcare_data_router
-from pry.api.routers.integrations import router as integrations_router
-from pry.api.routers.intelligence import router as intelligence_router
-from pry.api.routers.jobs import router as jobs_router
-from pry.api.routers.legal_docs import router as legal_docs_router
-from pry.api.routers.local_data import router as local_data_router
-from pry.api.routers.marketplace import router as marketplace_router
+from pry.api.routers.ai.agency import router as agency_router
+from pry.api.routers.ai.ai import router as ai_router
+from pry.api.routers.ai.analysis import router as analysis_router
+from pry.api.routers.commerce.commerce import router as commerce_router
+from pry.api.routers.commerce.commerce_data import router as commerce_data_router
+from pry.api.routers.commerce.costing import router as costing_router
+from pry.api.routers.commerce.dashboard import router as dashboard_router
+from pry.api.routers.commerce.marketplace import router as marketplace_router
+from pry.api.routers.core.admin import router as admin_router
+from pry.api.routers.core.auth import router as auth_router
+from pry.api.routers.core.automation import router as automation_router
+from pry.api.routers.core.batch import router as batch_router
+from pry.api.routers.core.capabilities import router as capabilities_router
+from pry.api.routers.core.circuit_breaker import router as circuit_breaker_router
+from pry.api.routers.core.config import router as config_router
+from pry.api.routers.core.diagnostics import router as diagnostics_router
+from pry.api.routers.core.health import router as health_router
+from pry.api.routers.data.attention import router as attention_router
+from pry.api.routers.data.crypto_market import router as crypto_market_router
+from pry.api.routers.data.enrichment import router as enrichment_router
+from pry.api.routers.data.healthcare_data import router as healthcare_data_router
+from pry.api.routers.data.intelligence import router as intelligence_router
+from pry.api.routers.data.jobs import router as jobs_router
+from pry.api.routers.data.legal_docs import router as legal_docs_router
+from pry.api.routers.data.local_data import router as local_data_router
+from pry.api.routers.integrations.alerts import router as alerts_router
+from pry.api.routers.integrations.compliance import router as compliance_router
+from pry.api.routers.integrations.email import router as email_router
+from pry.api.routers.integrations.export import router as export_router
+from pry.api.routers.integrations.gdpr import router as gdpr_router
+from pry.api.routers.integrations.integrations import router as integrations_router
+from pry.api.routers.scraping.advanced import router as advanced_router
+from pry.api.routers.scraping.execute import router as execute_router
+from pry.api.routers.scraping.extraction import router as extraction_router
+from pry.api.routers.scraping.freshness import router as freshness_router
+from pry.api.routers.user.crm import router as crm_router
 from pry.commerce.pipeline import get_pipeline
 from pry.core.deps import advanced, automator, extractor, queue, scraper
 from pry.core.errors import (
@@ -78,13 +78,13 @@ from pry_mcp.app import create_mcp_app
 # gov_data / ip_data routers land from parallel agents; import them guarded so
 # api.py keeps working (and the x402 gates stay armed) before they arrive.
 try:
-    from pry.api.routers.gov_data import router as gov_data_router
+    from pry.api.routers.data.gov_data import router as gov_data_router
 
     _GOV_DATA_ROUTER: Any | None = gov_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _GOV_DATA_ROUTER = None
 try:
-    from pry.api.routers.ip_data import router as ip_data_router
+    from pry.api.routers.data.ip_data import router as ip_data_router
 
     _IP_DATA_ROUTER: Any | None = ip_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
@@ -93,13 +93,13 @@ except ImportError:  # pragma: no cover — parallel build not landed yet
 # so api.py keeps working (and the x402 gates stay armed) if they have not
 # landed yet.
 try:
-    from pry.api.routers.climate_data import router as climate_data_router
+    from pry.api.routers.data.climate_data import router as climate_data_router
 
     _CLIMATE_DATA_ROUTER: Any | None = climate_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _CLIMATE_DATA_ROUTER = None
 try:
-    from pry.api.routers.research_data import router as research_data_router
+    from pry.api.routers.data.research_data import router as research_data_router
 
     _RESEARCH_DATA_ROUTER: Any | None = research_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
@@ -108,31 +108,31 @@ except ImportError:  # pragma: no cover — parallel build not landed yet
 # land in this tree; import them guarded so api.py keeps working (and the
 # x402 gates stay armed) if they have not landed yet.
 try:
-    from pry.api.routers.events_data import router as events_data_router
+    from pry.api.routers.data.events_data import router as events_data_router
 
     _EVENTS_DATA_ROUTER: Any | None = events_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _EVENTS_DATA_ROUTER = None
 try:
-    from pry.api.routers.freight_data import router as freight_data_router
+    from pry.api.routers.data.freight_data import router as freight_data_router
 
     _FREIGHT_DATA_ROUTER: Any | None = freight_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _FREIGHT_DATA_ROUTER = None
 try:
-    from pry.api.routers.energy_data import router as energy_data_router
+    from pry.api.routers.data.energy_data import router as energy_data_router
 
     _ENERGY_DATA_ROUTER: Any | None = energy_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _ENERGY_DATA_ROUTER = None
 try:
-    from pry.api.routers.food_data import router as food_data_router
+    from pry.api.routers.data.food_data import router as food_data_router
 
     _FOOD_DATA_ROUTER: Any | None = food_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _FOOD_DATA_ROUTER = None
 try:
-    from pry.api.routers.supply_data import router as supply_data_router
+    from pry.api.routers.data.supply_data import router as supply_data_router
 
     _SUPPLY_DATA_ROUTER: Any | None = supply_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
@@ -141,25 +141,25 @@ except ImportError:  # pragma: no cover — parallel build not landed yet
 # this tree from parallel agents; import them guarded so api.py keeps working
 # (and the x402 gates stay armed) if they have not landed yet.
 try:
-    from pry.api.routers.app_store_data import router as app_store_data_router
+    from pry.api.routers.data.app_store_data import router as app_store_data_router
 
     _APP_STORE_DATA_ROUTER: Any | None = app_store_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _APP_STORE_DATA_ROUTER = None
 try:
-    from pry.api.routers.news_data import router as news_data_router
+    from pry.api.routers.data.news_data import router as news_data_router
 
     _NEWS_DATA_ROUTER: Any | None = news_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _NEWS_DATA_ROUTER = None
 try:
-    from pry.api.routers.compliance_data import router as compliance_data_router
+    from pry.api.routers.integrations.compliance_data import router as compliance_data_router
 
     _COMPLIANCE_DATA_ROUTER: Any | None = compliance_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _COMPLIANCE_DATA_ROUTER = None
 try:
-    from pry.api.routers.deals_data import router as deals_data_router
+    from pry.api.routers.data.deals_data import router as deals_data_router
 
     _DEALS_DATA_ROUTER: Any | None = deals_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
@@ -167,44 +167,44 @@ except ImportError:  # pragma: no cover — parallel build not landed yet
 # bidding_data router lands from a parallel agent; import it guarded so
 # api.py keeps working (and the x402 gates stay armed) before it arrives.
 try:
-    from pry.api.routers.bidding_data import router as bidding_data_router
+    from pry.api.routers.data.bidding_data import router as bidding_data_router
 
     _BIDDING_DATA_ROUTER: Any | None = bidding_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _BIDDING_DATA_ROUTER = None
 from payments.crypto.router import router as crypto_payment_router
-from pry.api.routers.api_keys import router as api_keys_router
-from pry.api.routers.monitoring import router as monitoring_router
-from pry.api.routers.parsing import router as parsing_router
-from pry.api.routers.pipeline import router as pipeline_router
-from pry.api.routers.pipelines import router as pipelines_router
-from pry.api.routers.proxy import router as proxy_router
-from pry.api.routers.quality import router as quality_router
-from pry.api.routers.real_estate import router as real_estate_router
-from pry.api.routers.reconciliation import router as reconciliation_router
-from pry.api.routers.recorder import router as recorder_router
-from pry.api.routers.referrals import router as referrals_router
-from pry.api.routers.reports import router as reports_router
-from pry.api.routers.review import router as review_router
-from pry.api.routers.scraping import router as scraping_router
-from pry.api.routers.scraping_api import router as scraping_api_router
-from pry.api.routers.seo import router as seo_router
-from pry.api.routers.sessions import router as sessions_router
-from pry.api.routers.share import router as share_router
-from pry.api.routers.signup import router as signup_router
-from pry.api.routers.sports_data import router as sports_data_router
-from pry.api.routers.stats import router as stats_router
-from pry.api.routers.streams import router as streams_router
-from pry.api.routers.structure import router as structure_router
-from pry.api.routers.system import router as system_router
-from pry.api.routers.templates import router as templates_router
-from pry.api.routers.training import router as training_router
-from pry.api.routers.transform import router as transform_router
-from pry.api.routers.travel import router as travel_router
-from pry.api.routers.vision import router as vision_router
-from pry.api.routers.webhooks import router as webhooks_router
-from pry.api.routers.well_known import router as well_known_router
-from pry.api.routers.x402 import router as x402_router
+from pry.api.routers.ai.vision import router as vision_router
+from pry.api.routers.commerce.reconciliation import router as reconciliation_router
+from pry.api.routers.commerce.referrals import router as referrals_router
+from pry.api.routers.commerce.reports import router as reports_router
+from pry.api.routers.commerce.review import router as review_router
+from pry.api.routers.commerce.training import router as training_router
+from pry.api.routers.commerce.x402 import router as x402_router
+from pry.api.routers.core.api_keys import router as api_keys_router
+from pry.api.routers.core.proxy import router as proxy_router
+from pry.api.routers.core.quality import router as quality_router
+from pry.api.routers.core.sessions import router as sessions_router
+from pry.api.routers.core.share import router as share_router
+from pry.api.routers.core.signup import router as signup_router
+from pry.api.routers.core.stats import router as stats_router
+from pry.api.routers.core.system import router as system_router
+from pry.api.routers.core.templates import router as templates_router
+from pry.api.routers.core.well_known import router as well_known_router
+from pry.api.routers.data.real_estate import router as real_estate_router
+from pry.api.routers.data.sports_data import router as sports_data_router
+from pry.api.routers.data.travel import router as travel_router
+from pry.api.routers.integrations.monitoring import router as monitoring_router
+from pry.api.routers.integrations.webhooks import router as webhooks_router
+from pry.api.routers.scraping.parsing import router as parsing_router
+from pry.api.routers.scraping.pipeline import router as pipeline_router
+from pry.api.routers.scraping.pipelines import router as pipelines_router
+from pry.api.routers.scraping.recorder import router as recorder_router
+from pry.api.routers.scraping.scraping import router as scraping_router
+from pry.api.routers.scraping.scraping_api import router as scraping_api_router
+from pry.api.routers.scraping.seo import router as seo_router
+from pry.api.routers.scraping.streams import router as streams_router
+from pry.api.routers.scraping.structure import router as structure_router
+from pry.api.routers.scraping.transform import router as transform_router
 from pry.core.settings import settings
 from pry.payments.x402_middleware import X402Middleware
 

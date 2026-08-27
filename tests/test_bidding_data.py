@@ -29,8 +29,8 @@ from fastapi.testclient import TestClient
 import datasets.bidding_data as bidding_data
 import datasets.bidding_data.contracts as contracts
 import datasets.bidding_data.grants as grants
-import pry.api.routers.bidding_data as bidding_router_mod
-from pry.api.routers.bidding_data import router as bidding_router
+import pry.api.routers.data.bidding_data as bidding_router_mod
+from pry.api.routers.data.bidding_data import router as bidding_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
 

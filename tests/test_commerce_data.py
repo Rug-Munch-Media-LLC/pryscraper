@@ -31,8 +31,8 @@ from fastapi.testclient import TestClient
 import datasets.commerce_data as commerce_data
 import datasets.commerce_data.marketplaces as marketplaces
 import datasets.commerce_data.social as social
-import pry.api.routers.commerce_data as commerce_router_mod
-from pry.api.routers.commerce_data import router as commerce_router
+import pry.api.routers.commerce.commerce_data as commerce_router_mod
+from pry.api.routers.commerce.commerce_data import router as commerce_router
 from pry.core.errors import PryError
 
 _EBAY_FIND_URL = "https://svcs.ebay.com/services/search/FindingService/v1"

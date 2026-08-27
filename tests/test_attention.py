@@ -28,9 +28,9 @@ from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
 import pry.api.client as _client_module
-import pry.api.routers.attention as attention_router_mod
+import pry.api.routers.data.attention as attention_router_mod
 from datasets.attention import ad_intel, serp, trends
-from pry.api.routers.attention import router as attention_router
+from pry.api.routers.data.attention import router as attention_router
 from pry.core.errors import PryError
 
 
@@ -504,10 +504,10 @@ def _client(app: FastAPI) -> TestClient:
 
 def test_router_importable() -> None:
     import datasets.attention as attention
-    import pry.api.routers.attention
+    import pry.api.routers.data.attention
 
     assert hasattr(attention, "__version__")
-    assert hasattr(pry.api.routers.attention, "router")
+    assert hasattr(pry.api.routers.data.attention, "router")
 
 
 def test_router_serp_success(attention_app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> None:

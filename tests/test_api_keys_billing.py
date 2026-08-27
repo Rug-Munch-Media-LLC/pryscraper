@@ -194,7 +194,7 @@ class TestMiddlewareWiring:
 class TestKeysRouter:
     @staticmethod
     def _client() -> TestClient:
-        from pry.api.routers.api_keys import router
+        from pry.api.routers.core.api_keys import router
 
         a = FastAPI()
         a.include_router(router)
@@ -218,7 +218,7 @@ class TestKeysRouter:
     def test_remote_non_admin_key_gets_403(self, db) -> None:
         issued = svc.issue_key(scopes=["scrape"])  # no admin scope
         a = FastAPI()
-        from pry.api.routers.api_keys import router
+        from pry.api.routers.core.api_keys import router
 
         a.include_router(router)
         client = TestClient(a, client=("203.0.113.5", 5000), raise_server_exceptions=False)

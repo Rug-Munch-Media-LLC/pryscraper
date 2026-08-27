@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from pry.api.routers.diagnostics import router as diagnostics_router
+from pry.api.routers.core.diagnostics import router as diagnostics_router
 from pry.engine import fallback_telemetry
 
 
@@ -285,4 +285,4 @@ class TestDiagnosticsRouter:
 
     def test_router_module_imports_cleanly(self) -> None:
         # Importing the router must not raise (guards api.py wiring).
-        import pry.api.routers.diagnostics  # noqa: F401
+        import pry.api.routers.core.diagnostics  # noqa: F401

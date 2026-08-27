@@ -28,8 +28,8 @@ from fastapi.testclient import TestClient
 
 import datasets.freight_data as freight_data
 import datasets.freight_data.rates as rates
-import pry.api.routers.freight_data as freight_router_mod
-from pry.api.routers.freight_data import router as freight_router
+import pry.api.routers.data.freight_data as freight_router_mod
+from pry.api.routers.data.freight_data import router as freight_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
 

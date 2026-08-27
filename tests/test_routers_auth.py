@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from pry.api.routers.auth import _request_owner, router
+from pry.api.routers.core.auth import _request_owner, router
 
 app = FastAPI()
 app.include_router(router)
@@ -41,8 +41,8 @@ def test_request_owner_bearer_jwt():
     req.state.user_id = None
     req.headers = {"authorization": "Bearer eyJ.eyJpZCI6ICJ1c2VyLTc4OSJ9.sig"}
     with (
-        patch("pry.api.routers.auth.is_jwt", return_value=True),
-        patch("pry.api.routers.auth.validate_rmi_jwt", return_value={"id": "user-789"}),
+        patch("pry.api.routers.core.auth.is_jwt", return_value=True),
+        patch("pry.api.routers.core.auth.validate_rmi_jwt", return_value={"id": "user-789"}),
     ):
         assert _request_owner(req) == "jwt:user-789"
 
@@ -52,7 +52,7 @@ def test_request_owner_bearer_apikey():
     req.state.identity = None
     req.state.user_id = None
     req.headers = {"authorization": "Bearer my-api-key-123"}
-    with patch("pry.api.routers.auth.is_jwt", return_value=False):
+    with patch("pry.api.routers.core.auth.is_jwt", return_value=False):
         owner = _request_owner(req)
         assert owner.startswith("key:")
 

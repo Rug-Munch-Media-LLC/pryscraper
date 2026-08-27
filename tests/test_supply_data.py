@@ -29,8 +29,8 @@ from fastapi.testclient import TestClient
 import datasets.supply_data as supply_data
 import datasets.supply_data.firmographics as firmographics
 import datasets.supply_data.imports as imports_mod
-import pry.api.routers.supply_data as supply_router_mod
-from pry.api.routers.supply_data import router as supply_router
+import pry.api.routers.data.supply_data as supply_router_mod
+from pry.api.routers.data.supply_data import router as supply_router
 from pry.core.errors import PryError
 from pry.engine.retry import RetryConfig
 
