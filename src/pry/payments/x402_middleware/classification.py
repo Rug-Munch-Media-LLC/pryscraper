@@ -266,7 +266,7 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
 
 # Prefix-match free routes (wildcard semantics). Covers everything under the
 # MCP messages transport without enumerating session ids.
-DEFAULT_FREE_PREFIXES: tuple[str, ...] = ("/mcp/messages/",)
+DEFAULT_FREE_PREFIXES: tuple[str, ...] = ("/mcp/messages",)
 
 
 def _admin_prefix() -> str:
