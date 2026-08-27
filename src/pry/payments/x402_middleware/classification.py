@@ -249,6 +249,16 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/training/clean",
         "/v1/training/compliance/{dataset_id}",
         "/v1/training/export",
+        # Well-known discovery endpoints (public for AI agent discovery)
+        "/.well-known/agent.json",
+        "/.well-known/x402-bazaar.json",
+        "/.well-known/x402.json",
+        # Payment analytics dashboard (public for transparency)
+        "/v1/analytics/payments",
+        # Crypto payment endpoints (free — part of payment flow)
+        "/v1/payments/crypto/charge",
+        "/v1/payments/crypto/providers",
+        "/v1/payments/crypto/status/{charge_id}",
     }
 )
 
