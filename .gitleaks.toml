@@ -28,6 +28,13 @@ paths = [
   # CORS test fixtures intentionally use synthetic *.rugmunch.io origins to
   # exercise the wildcard matcher — not real internal hostnames.
   '''tests/test_api_integration\.py''',
+  # Public docs intentionally reference public infrastructure
+  '''README\.md''',
+  '''llms\.txt''',
+  '''registry_manifest\.json''',
+  '''src/pry/api/registry_metadata\.py''',
+  # Docusaurus documentation site
+  '''website/.*''',
 ]
 
 [[rules]]
