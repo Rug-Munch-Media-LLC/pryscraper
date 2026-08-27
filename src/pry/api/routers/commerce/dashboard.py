@@ -21,7 +21,25 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Dashboard"])
 
 
-@router.get("/dashboard", tags=["Dashboard"], summary="Pry health and performance dashboard")
+@router.get("/v1/analytics/payments", tags=["Analytics"], summary="Payment analytics dashboard")
+async def payment_analytics(days: int = 30) -> dict[str, Any]:
+    """Get payment analytics for the last N days."""
+    from payments.analytics import get_analytics
+
+    analytics = get_analytics()
+    return {
+        "success": True,
+        "data": {
+            "revenue_summary": analytics.get_revenue_summary(days),
+            "top_payers": analytics.get_top_payers(10),
+            "network_breakdown": analytics.get_network_breakdown(days),
+            "asset_breakdown": analytics.get_asset_breakdown(days),
+            "daily_revenue": analytics.get_daily_revenue(days),
+            "facilitator_performance": analytics.get_facilitator_performance(),
+        },
+    }
+
+
 async def dashboard() -> HTMLResponse:
     cache_stats = cache.stats()
     rate_stats = ratelimiter.get_stats()
