@@ -1,0 +1,24 @@
+{
+	"id": "installation",
+	"title": "Installation",
+	"description": "Docker (Recommended)",
+	"source": "@site/docs/installation.md",
+	"sourceDirName": ".",
+	"slug": "/installation",
+	"permalink": "/docs/installation",
+	"draft": false,
+	"unlisted": false,
+	"editUrl": "https://git.rugmunch.io/RugMunchMedia/pryscraper/tree/main/docs/docs/installation.md",
+	"tags": [],
+	"version": "current",
+	"frontMatter": {},
+	"sidebar": "docs",
+	"previous": {
+		"title": "Quickstart",
+		"permalink": "/docs/quickstart"
+	},
+	"next": {
+		"title": "Configuration",
+		"permalink": "/docs/configuration"
+	}
+}

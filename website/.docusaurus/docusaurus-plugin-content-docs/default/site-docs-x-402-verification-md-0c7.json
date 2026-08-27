@@ -1,0 +1,24 @@
+{
+	"id": "x402/verification",
+	"title": "Verification",
+	"description": "Coming soon.",
+	"source": "@site/docs/x402/verification.md",
+	"sourceDirName": "x402",
+	"slug": "/x402/verification",
+	"permalink": "/docs/x402/verification",
+	"draft": false,
+	"unlisted": false,
+	"editUrl": "https://git.rugmunch.io/RugMunchMedia/pryscraper/tree/main/docs/docs/x402/verification.md",
+	"tags": [],
+	"version": "current",
+	"frontMatter": {},
+	"sidebar": "docs",
+	"previous": {
+		"title": "Pricing",
+		"permalink": "/docs/x402/pricing"
+	},
+	"next": {
+		"title": "MCP Server",
+		"permalink": "/docs/mcp/overview"
+	}
+}

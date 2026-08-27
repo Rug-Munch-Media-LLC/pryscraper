@@ -1,0 +1,24 @@
+{
+	"id": "advanced/signup",
+	"title": "Signup",
+	"description": "Coming soon.",
+	"source": "@site/docs/advanced/signup.md",
+	"sourceDirName": "advanced",
+	"slug": "/advanced/signup",
+	"permalink": "/docs/advanced/signup",
+	"draft": false,
+	"unlisted": false,
+	"editUrl": "https://git.rugmunch.io/RugMunchMedia/pryscraper/tree/main/docs/docs/advanced/signup.md",
+	"tags": [],
+	"version": "current",
+	"frontMatter": {},
+	"sidebar": "docs",
+	"previous": {
+		"title": "Stealth",
+		"permalink": "/docs/advanced/stealth"
+	},
+	"next": {
+		"title": "Captcha",
+		"permalink": "/docs/advanced/captcha"
+	}
+}

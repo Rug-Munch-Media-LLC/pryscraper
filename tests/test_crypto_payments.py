@@ -14,7 +14,7 @@ from unittest.mock import patch
 import httpx
 import pytest
 
-from payments.crypto import (
+from pry.payments.crypto import (
     BTCPayProvider,
     CoinbaseCommerceProvider,
     CryptoPaymentError,

@@ -1,0 +1,24 @@
+{
+	"id": "templates/overview",
+	"title": "Templates",
+	"description": "110+ pre-built scraper templates for common websites.",
+	"source": "@site/docs/templates/overview.md",
+	"sourceDirName": "templates",
+	"slug": "/templates/overview",
+	"permalink": "/docs/templates/overview",
+	"draft": false,
+	"unlisted": false,
+	"editUrl": "https://git.rugmunch.io/RugMunchMedia/pryscraper/tree/main/docs/docs/templates/overview.md",
+	"tags": [],
+	"version": "current",
+	"frontMatter": {},
+	"sidebar": "docs",
+	"previous": {
+		"title": "Captcha",
+		"permalink": "/docs/advanced/captcha"
+	},
+	"next": {
+		"title": "Ecommerce",
+		"permalink": "/docs/templates/ecommerce"
+	}
+}

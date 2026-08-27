@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 
 logger = logging.getLogger(__name__)
 
@@ -135,43 +135,34 @@ async def agent_card() -> dict[str, Any]:
 @router.get("/.well-known/x402-bazaar.json")
 async def x402_bazaar() -> dict[str, Any]:
     """Return the x402 Bazaar listing for marketplace indexing."""
+    from pry.api.registry_metadata import get_registry_manifest
+
+    manifest = get_registry_manifest()
     return {
         "seller": {
-            "id": "pry-scraper",
-            "name": "Pry Scraping API",
-            "description": "Professional web scraping with crypto payments",
-            "website": "https://[INTERNAL]",
-            "icon": "https://[INTERNAL]/icon.png",
+            "id": manifest["name"],
+            "name": manifest["displayName"],
+            "description": manifest["description"],
+            "website": manifest["website"],
         },
         "services": [
             {
-                "id": "scrape",
-                "name": "Web Scraping",
-                "description": "Scrape any URL with 15-tier anti-detection fallback",
-                "price": {"amount": "0.001", "currency": "USD"},
-                "network": "eip155:8453",
-                "asset": "USDC",
-            },
-            {
-                "id": "crawl",
-                "name": "Website Crawling",
-                "description": "Crawl entire websites with BFS discovery",
-                "price": {"amount": "0.005", "currency": "USD"},
-                "network": "eip155:8453",
-                "asset": "USDC",
-            },
-            {
-                "id": "extract",
-                "name": "AI Extraction",
-                "description": "LLM-powered structured data extraction",
-                "price": {"amount": "0.003", "currency": "USD"},
-                "network": "eip155:8453",
-                "asset": "USDC",
-            },
+                "id": t["name"].replace("pry_", ""),
+                "name": t["name"].replace("pry_", "").replace("_", " ").title(),
+                "description": t["description"][:200],
+                "category": t["category"],
+            }
+            for t in manifest["tools"]["items"][:10]
         ],
-        "payment": {
-            "x402": True,
-            "crypto": True,
-            "providers": ["coinbase_commerce", "nowpayments", "btcpay"],
-        },
+        "payment": manifest["payment"],
     }
+
+
+@router.get("/llms.txt")
+async def llms_txt_endpoint() -> Response:
+    """Return the llms.txt file for AI agent discovery (llms.txt standard)."""
+    from fastapi.responses import PlainTextResponse
+
+    from pry.api.registry_metadata import generate_llms_txt
+
+    return PlainTextResponse(content=generate_llms_txt(), media_type="text/plain")

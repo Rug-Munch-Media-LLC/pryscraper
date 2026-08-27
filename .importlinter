@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+# Architecture boundary contracts for import-linter.
+# Ensures domains stay independent and routers stay thin.
+
+[importlinter]
+root_packages =
+    pry
+
+[importlinter:contract:1]
+name = Domain independence (no cross-domain imports)
+type = forbidden
+source_modules =
+    pry.api.routers.scraping
+    pry.api.routers.commerce
+    pry.api.routers.data
+    pry.api.routers.integrations
+    pry.api.routers.ai
+forbidden_modules =
+    pry.api.routers.scraping
+    pry.api.routers.commerce
+    pry.api.routers.data
+    pry.api.routers.integrations
+    pry.api.routers.ai
+except = pry.api.routers.{layer} may import from pry.api.routers.{layer}
+
+[importlinter:contract:2]
+name = Routers stay thin (no engine imports in routers)
+type = forbidden
+source_modules =
+    pry.api.routers
+forbidden_modules =
+    pry.engine.ultimate_scraper
+    pry.engine.stealth_engine
+    pry.engine.captcha_solver
+
+[importlinter:contract:3]
+name = Core stays pure (no API imports in core)
+type = forbidden
+source_modules =
+    pry.core
+forbidden_modules =
+    pry.api
+    pry.payments

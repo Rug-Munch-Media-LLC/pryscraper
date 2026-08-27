@@ -12,7 +12,7 @@ import os
 import tempfile
 from datetime import UTC, datetime
 
-from payments.analytics import PaymentAnalytics
+from pry.payments.analytics import PaymentAnalytics
 
 
 class TestPaymentAnalytics:

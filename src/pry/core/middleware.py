@@ -176,6 +176,11 @@ _AUTH_PUBLIC_PATHS: set[str] = {
     "/mcp/health",
     "/mcp/sse",
     "/mcp/messages",
+    # Well-known discovery endpoints (public for AI agent discovery)
+    "/.well-known/agent.json",
+    "/.well-known/x402.json",
+    "/.well-known/x402-bazaar.json",
+    "/llms.txt",
     # x402 discovery: agents must be able to price calls without a key
     # (the 402 challenge itself is the auth for paid calls).
     "/v1/x402/pricing",

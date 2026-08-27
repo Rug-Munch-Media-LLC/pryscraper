@@ -2,6 +2,7 @@
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
+import os
 from collections.abc import Iterator
 from typing import Any
 
@@ -251,8 +252,9 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/training/export",
         # Well-known discovery endpoints (public for AI agent discovery)
         "/.well-known/agent.json",
-        "/.well-known/x402-bazaar.json",
         "/.well-known/x402.json",
+        "/.well-known/x402-bazaar.json",
+        "/llms.txt",
         # Payment analytics dashboard (public for transparency)
         "/v1/analytics/payments",
         # Crypto payment endpoints (free — part of payment flow)
@@ -264,7 +266,7 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
 
 # Prefix-match free routes (wildcard semantics). Covers everything under the
 # MCP messages transport without enumerating session ids.
-DEFAULT_FREE_PREFIXES: tuple[str, ...] = ("/mcp/messages/",)
+DEFAULT_FREE_PREFIXES: tuple[str, ...] = ("/mcp/messages",)
 
 
 def _admin_prefix() -> str:
