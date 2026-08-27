@@ -21,16 +21,13 @@ tags = ["rmi", "infrastructure"]
 description = "Public fleet infrastructure (git forge is intentionally public)"
 regexes = [
   '''git\.rugmunch\.io''',
+  # Tailscale CGNAT IPs (100.64-119.x.x) are intentionally public in docs
+  '''100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9])\.[0-9]+\.[0-9]+''',
 ]
 paths = [
   # CORS test fixtures intentionally use synthetic *.rugmunch.io origins to
   # exercise the wildcard matcher — not real internal hostnames.
   '''tests/test_api_integration\.py''',
-  # Public README and llms.txt intentionally reference public infrastructure
-  '''README\.md''',
-  '''llms\.txt''',
-  '''registry_manifest\.json''',
-  '''src/pry/api/registry_metadata\.py''',
 ]
 
 [[rules]]
