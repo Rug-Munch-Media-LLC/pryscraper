@@ -171,6 +171,11 @@ _AUTH_PUBLIC_PATHS: set[str] = {
     "/metrics",
     "/docs",
     "/openapi.json",
+    # MCP sub-app is public (AI agents must discover tools without API key)
+    "/mcp",
+    "/mcp/health",
+    "/mcp/sse",
+    "/mcp/messages",
     # x402 discovery: agents must be able to price calls without a key
     # (the 402 challenge itself is the auth for paid calls).
     "/v1/x402/pricing",
@@ -378,7 +383,11 @@ class PryHttpMiddleware:
         # and a configured key must be presented from every source. The
         # route-existence check below only decides whether an *authorized*
         # request is passed to the router (which 404s unknown paths).
-        if path not in _AUTH_PUBLIC_PATHS and not request_authorized(scope):
+        # Public paths support exact match or prefix match (e.g. /mcp/*).
+        is_public = path in _AUTH_PUBLIC_PATHS or any(
+            path.startswith(p + "/") for p in _AUTH_PUBLIC_PATHS if p != "/"
+        )
+        if not is_public and not request_authorized(scope):
             body = json.dumps(
                 {
                     "type": "/errors/unauthorized",

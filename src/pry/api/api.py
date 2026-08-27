@@ -172,7 +172,7 @@ try:
     _BIDDING_DATA_ROUTER: Any | None = bidding_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _BIDDING_DATA_ROUTER = None
-from payments.crypto.router import router as crypto_payment_router
+from pry.payments.crypto.router import router as crypto_payment_router
 from pry.api.routers.ai.vision import router as vision_router
 from pry.api.routers.commerce.reconciliation import router as reconciliation_router
 from pry.api.routers.commerce.referrals import router as referrals_router

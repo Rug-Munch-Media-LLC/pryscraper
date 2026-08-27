@@ -17,7 +17,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
-from payments.crypto import CryptoPaymentError, get_crypto_router
+from pry.payments.crypto import CryptoPaymentError, get_crypto_router
 
 logger = logging.getLogger(__name__)
 

@@ -24,7 +24,7 @@ router = APIRouter(tags=["Dashboard"])
 @router.get("/v1/analytics/payments", tags=["Analytics"], summary="Payment analytics dashboard")
 async def payment_analytics(days: int = 30) -> dict[str, Any]:
     """Get payment analytics for the last N days."""
-    from payments.analytics import get_analytics
+    from pry.payments.analytics import get_analytics
 
     analytics = get_analytics()
     return {
