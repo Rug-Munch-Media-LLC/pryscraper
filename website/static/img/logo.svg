@@ -1,0 +1,39 @@
+<h1 align="center">Pry Scraping API</h1>
+
+<p align="center">
+  <strong>Pay-per-request HTTP for the multi-chain economy</strong>
+</p>
+
+<p align="center">
+  <a href="https://git.rugmunch.io/RugMunchMedia/pryscraper">GitHub</a> ·
+  <a href="https://docs.[INTERNAL]">Docs</a> ·
+  <a href="https://[INTERNAL]">Website</a>
+</p>
+
+---
+
+**Pry** is a self-hosted web scraping and browser automation platform with native x402 micropayments. It routes each request through an adaptive 15-tier fallback chain — direct HTTP, TLS fingerprinting, cloudscraper, FlareSolverr, undetected-chromedriver, Camoufox, Playwright, Googlebot emulation, Tor, premium proxies, cached copies, AI visual scraping, mobile app API, and GraphQL discovery.
+
+## Quick Start
+
+### MCP (AI Agents)
+```json
+{"mcpServers": {"pry": {"url": "http://100.104.130.92:8002/sse"}}}
+```
+
+### Docker (Self-hosted)
+```bash
+git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git
+cd pryscraper
+docker compose up -d
+```
+
+## Features
+- 15-tier anti-detection fallback
+- x402 crypto payments (7 networks)
+- 73 MCP tools
+- 110+ scraping templates
+- Self-hosted or cloud
+
+## License
+MIT

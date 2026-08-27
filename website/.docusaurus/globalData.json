@@ -1,0 +1,153 @@
+{
+	"docusaurus-plugin-content-docs": {
+		"default": {
+			"path": "/docs",
+			"versions": [
+				{
+					"name": "current",
+					"label": "Next",
+					"isLast": true,
+					"path": "/docs",
+					"mainDocId": "intro",
+					"docs": [
+						{
+							"id": "advanced/15-tier-fallback",
+							"path": "/docs/advanced/15-tier-fallback",
+							"sidebar": "docs"
+						},
+						{
+							"id": "advanced/captcha",
+							"path": "/docs/advanced/captcha",
+							"sidebar": "docs"
+						},
+						{
+							"id": "advanced/signup",
+							"path": "/docs/advanced/signup",
+							"sidebar": "docs"
+						},
+						{
+							"id": "advanced/stealth",
+							"path": "/docs/advanced/stealth",
+							"sidebar": "docs"
+						},
+						{
+							"id": "api/crawl",
+							"path": "/docs/api/crawl",
+							"sidebar": "docs"
+						},
+						{
+							"id": "api/extract",
+							"path": "/docs/api/extract",
+							"sidebar": "docs"
+						},
+						{
+							"id": "api/scrape",
+							"path": "/docs/api/scrape",
+							"sidebar": "docs"
+						},
+						{
+							"id": "api/templates",
+							"path": "/docs/api/templates",
+							"sidebar": "docs"
+						},
+						{
+							"id": "changelog",
+							"path": "/docs/changelog",
+							"sidebar": "docs"
+						},
+						{
+							"id": "configuration",
+							"path": "/docs/configuration",
+							"sidebar": "docs"
+						},
+						{
+							"id": "installation",
+							"path": "/docs/installation",
+							"sidebar": "docs"
+						},
+						{
+							"id": "intro",
+							"path": "/docs/intro",
+							"sidebar": "docs"
+						},
+						{
+							"id": "mcp/discovery",
+							"path": "/docs/mcp/discovery",
+							"sidebar": "docs"
+						},
+						{
+							"id": "mcp/overview",
+							"path": "/docs/mcp/overview",
+							"sidebar": "docs"
+						},
+						{
+							"id": "mcp/tools",
+							"path": "/docs/mcp/tools",
+							"sidebar": "docs"
+						},
+						{
+							"id": "mcp/transports",
+							"path": "/docs/mcp/transports",
+							"sidebar": "docs"
+						},
+						{
+							"id": "quickstart",
+							"path": "/docs/quickstart",
+							"sidebar": "docs"
+						},
+						{
+							"id": "templates/ecommerce",
+							"path": "/docs/templates/ecommerce",
+							"sidebar": "docs"
+						},
+						{
+							"id": "templates/jobs",
+							"path": "/docs/templates/jobs",
+							"sidebar": "docs"
+						},
+						{
+							"id": "templates/legal",
+							"path": "/docs/templates/legal",
+							"sidebar": "docs"
+						},
+						{
+							"id": "templates/overview",
+							"path": "/docs/templates/overview",
+							"sidebar": "docs"
+						},
+						{
+							"id": "x402/networks",
+							"path": "/docs/x402/networks",
+							"sidebar": "docs"
+						},
+						{
+							"id": "x402/overview",
+							"path": "/docs/x402/overview",
+							"sidebar": "docs"
+						},
+						{
+							"id": "x402/pricing",
+							"path": "/docs/x402/pricing",
+							"sidebar": "docs"
+						},
+						{
+							"id": "x402/verification",
+							"path": "/docs/x402/verification",
+							"sidebar": "docs"
+						}
+					],
+					"draftIds": [],
+					"sidebars": {
+						"docs": {
+							"link": {
+								"path": "/docs/intro",
+								"label": "intro"
+							}
+						}
+					}
+				}
+			],
+			"breadcrumbs": true
+		}
+	}
+}

@@ -1,0 +1,24 @@
+{
+	"id": "advanced/captcha",
+	"title": "Captcha",
+	"description": "Coming soon.",
+	"source": "@site/docs/advanced/captcha.md",
+	"sourceDirName": "advanced",
+	"slug": "/advanced/captcha",
+	"permalink": "/docs/advanced/captcha",
+	"draft": false,
+	"unlisted": false,
+	"editUrl": "https://git.rugmunch.io/RugMunchMedia/pryscraper/tree/main/docs/docs/advanced/captcha.md",
+	"tags": [],
+	"version": "current",
+	"frontMatter": {},
+	"sidebar": "docs",
+	"previous": {
+		"title": "Signup",
+		"permalink": "/docs/advanced/signup"
+	},
+	"next": {
+		"title": "Templates",
+		"permalink": "/docs/templates/overview"
+	}
+}

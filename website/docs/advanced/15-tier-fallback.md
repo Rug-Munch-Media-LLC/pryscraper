@@ -1,3 +1,8 @@
+---
+id: 15-tier-fallback
+title: 15-Tier Fallback Chain
+---
+
 # 15-Tier Fallback Chain
 
 Pry's scraping engine routes each request through an adaptive 15-tier fallback chain, escalating only as far as the target requires.

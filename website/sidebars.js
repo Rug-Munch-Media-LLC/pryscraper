@@ -46,5 +46,6 @@ module.exports = {
 				"templates/legal",
 			],
 		},
+		"changelog",
 	],
 };

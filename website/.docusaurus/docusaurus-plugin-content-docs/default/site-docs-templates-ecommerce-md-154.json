@@ -1,0 +1,24 @@
+{
+	"id": "templates/ecommerce",
+	"title": "Ecommerce",
+	"description": "Coming soon.",
+	"source": "@site/docs/templates/ecommerce.md",
+	"sourceDirName": "templates",
+	"slug": "/templates/ecommerce",
+	"permalink": "/docs/templates/ecommerce",
+	"draft": false,
+	"unlisted": false,
+	"editUrl": "https://git.rugmunch.io/RugMunchMedia/pryscraper/tree/main/docs/docs/templates/ecommerce.md",
+	"tags": [],
+	"version": "current",
+	"frontMatter": {},
+	"sidebar": "docs",
+	"previous": {
+		"title": "Templates",
+		"permalink": "/docs/templates/overview"
+	},
+	"next": {
+		"title": "Jobs",
+		"permalink": "/docs/templates/jobs"
+	}
+}

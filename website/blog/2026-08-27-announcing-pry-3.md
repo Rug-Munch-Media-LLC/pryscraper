@@ -1,7 +1,10 @@
 ---
 slug: announcing-pry-3
 title: Announcing Pry 3.0 — MCP-Native, Multi-Chain, Self-Hosted
-authors: [crmuncher]
+authors:
+  - name: Rug Munch Media
+    title: Engineering Team
+    url: https://rugmunch.io
 tags: [release, mcp, x402, crypto]
 ---
 

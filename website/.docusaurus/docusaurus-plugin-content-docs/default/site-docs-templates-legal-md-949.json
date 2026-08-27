@@ -1,0 +1,24 @@
+{
+	"id": "templates/legal",
+	"title": "Legal",
+	"description": "Coming soon.",
+	"source": "@site/docs/templates/legal.md",
+	"sourceDirName": "templates",
+	"slug": "/templates/legal",
+	"permalink": "/docs/templates/legal",
+	"draft": false,
+	"unlisted": false,
+	"editUrl": "https://git.rugmunch.io/RugMunchMedia/pryscraper/tree/main/docs/docs/templates/legal.md",
+	"tags": [],
+	"version": "current",
+	"frontMatter": {},
+	"sidebar": "docs",
+	"previous": {
+		"title": "Jobs",
+		"permalink": "/docs/templates/jobs"
+	},
+	"next": {
+		"title": "Changelog",
+		"permalink": "/docs/changelog"
+	}
+}

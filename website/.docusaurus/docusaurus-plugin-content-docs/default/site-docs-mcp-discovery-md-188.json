@@ -1,0 +1,24 @@
+{
+	"id": "mcp/discovery",
+	"title": "Discovery",
+	"description": "Coming soon.",
+	"source": "@site/docs/mcp/discovery.md",
+	"sourceDirName": "mcp",
+	"slug": "/mcp/discovery",
+	"permalink": "/docs/mcp/discovery",
+	"draft": false,
+	"unlisted": false,
+	"editUrl": "https://git.rugmunch.io/RugMunchMedia/pryscraper/tree/main/docs/docs/mcp/discovery.md",
+	"tags": [],
+	"version": "current",
+	"frontMatter": {},
+	"sidebar": "docs",
+	"previous": {
+		"title": "Transports",
+		"permalink": "/docs/mcp/transports"
+	},
+	"next": {
+		"title": "15-Tier Fallback Chain",
+		"permalink": "/docs/advanced/15-tier-fallback"
+	}
+}

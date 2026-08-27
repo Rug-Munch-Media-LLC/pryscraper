@@ -1,0 +1,114 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+name: Compliance
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 06:00 UTC
+  push:
+    branches: [main]
+    paths:
+      - '.gitleaks.toml'
+      - 'LICENSE'
+      - 'templates/'
+  workflow_dispatch:
+
+jobs:
+  compliance:
+    name: Fleet Compliance Check
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Install compliance tools
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl git ca-certificates && rm -rf /var/lib/apt/lists/pip3 install pip-audit safety 2>/dev/null || true
+
+      - name: Check required files
+        run: |
+          required_files=(
+            "AGENTS.md"
+            "LICENSE"
+            "CODEOWNERS"
+            "SECURITY.md"
+            ".editorconfig"
+            ".gitignore"
+            "lefthook.yml"
+            ".gitleaks.toml"
+            ".forgejo/workflows/ci.yml"
+          )
+          missing=0
+          for f in "${required_files[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "MISSING: $f"
+              missing=$((missing + 1))
+            fi
+          done
+          if [ "$missing" -gt 0 ]; then
+            echo "FAIL: $missing required file(s) missing"
+            exit 1
+          fi
+          echo "OK: all required files present"
+
+      - name: Check license headers
+        run: |
+          missing_headers=0
+          for f in $(find src -name "*.py" -type f | head -50); do
+            if ! head -5 "$f" | grep -q "SPDX-License-Identifier"; then
+              echo "MISSING LICENSE HEADER: $f"
+              missing_headers=$((missing_headers + 1))
+            fi
+          done
+          if [ "$missing_headers" -gt 0 ]; then
+            echo "WARN: $missing_headers file(s) missing license headers"
+          fi
+          echo "OK: license header check complete"
+
+      - name: Check code style
+        run: |
+          pip3 install ruff --break-system-packages 2>/dev/null || true
+          ruff check src/ --select E,W,F,I,N,UP,B,A,C4,SIM,ANN,ARG --ignore ANN || echo "WARN: style issues found"
+
+      - name: Check for TODO/FIXME/HACK
+        run: |
+          todos=$(grep -r "TODO\|FIXME\|HACK\|XXX\|TEMP" src/ --include="*.py" | wc -l)
+          echo "Found $todos TODO/FIXME/HACK comments"
+          if [ "$todos" -gt 50 ]; then
+            echo "WARN: too many TODOs — clean up tech debt"
+          fi
+
+      - name: Check import sorting
+        run: |
+          pip3 install isort --break-system-packages 2>/dev/null || true
+          isort --check-only src/ 2>/dev/null || echo "WARN: import sorting issues"
+
+      - name: Check for debug statements
+        run: |
+          debugs=$(grep -r "print(\|pdb\|breakpoint\|console.log" src/ --include="*.py" | wc -l)
+          echo "Found $debugs debug statements"
+          if [ "$debugs" -gt 10 ]; then
+            echo "WARN: too many debug statements — clean up"
+          fi
+
+      - name: Check test coverage
+        run: |
+          pip3 install pytest pytest-cov --break-system-packages 2>/dev/null || true
+          PYTHONPATH=src:. python3 -m pytest tests/ -x -q --tb=short --cov=. --cov-fail-under=70 -m "not integration" 2>/dev/null || echo "WARN: coverage below 70%"
+
+      - name: Generate compliance report
+        run: |
+          echo "=== PRYSCRAPER COMPLIANCE REPORT ==="
+          echo "Date: $(date -u)"
+          echo "Branch: $(git branch --show-current)"
+          echo "Commit: $(git rev-parse HEAD)"
+          echo "Files: $(find src -name '*.py' | wc -l) Python files"
+          echo "Tests: $(find tests -name 'test_*.py' | wc -l) test files"
+          echo "Docs: $(find docs website/docs -name '*.md' 2>/dev/null | wc -l) doc files"
+          echo "CI Workflows: $(ls .forgejo/workflows/*.yml | wc -l) workflows"
+          echo "=== END REPORT ==="

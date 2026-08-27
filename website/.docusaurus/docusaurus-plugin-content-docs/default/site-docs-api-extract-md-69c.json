@@ -1,0 +1,24 @@
+{
+	"id": "api/extract",
+	"title": "Extract API",
+	"description": "Extract structured data from URLs using CSS selectors or LLM.",
+	"source": "@site/docs/api/extract.md",
+	"sourceDirName": "api",
+	"slug": "/api/extract",
+	"permalink": "/docs/api/extract",
+	"draft": false,
+	"unlisted": false,
+	"editUrl": "https://git.rugmunch.io/RugMunchMedia/pryscraper/tree/main/docs/docs/api/extract.md",
+	"tags": [],
+	"version": "current",
+	"frontMatter": {},
+	"sidebar": "docs",
+	"previous": {
+		"title": "Crawl API",
+		"permalink": "/docs/api/crawl"
+	},
+	"next": {
+		"title": "Templates",
+		"permalink": "/docs/api/templates"
+	}
+}

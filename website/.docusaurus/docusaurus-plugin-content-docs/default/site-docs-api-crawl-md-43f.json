@@ -1,0 +1,24 @@
+{
+	"id": "api/crawl",
+	"title": "Crawl API",
+	"description": "Crawl entire websites with BFS/DFS traversal.",
+	"source": "@site/docs/api/crawl.md",
+	"sourceDirName": "api",
+	"slug": "/api/crawl",
+	"permalink": "/docs/api/crawl",
+	"draft": false,
+	"unlisted": false,
+	"editUrl": "https://git.rugmunch.io/RugMunchMedia/pryscraper/tree/main/docs/docs/api/crawl.md",
+	"tags": [],
+	"version": "current",
+	"frontMatter": {},
+	"sidebar": "docs",
+	"previous": {
+		"title": "Scrape API",
+		"permalink": "/docs/api/scrape"
+	},
+	"next": {
+		"title": "Extract API",
+		"permalink": "/docs/api/extract"
+	}
+}
