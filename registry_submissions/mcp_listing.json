@@ -1,0 +1,115 @@
+{
+  "name": "pry-scraper",
+  "displayName": "Pry Scraping API",
+  "description": "Professional web scraping with x402 crypto payments. 15-tier anti-detection fallback, AI extraction, auto-signup, CAPTCHA solving.",
+  "version": "2.0.0",
+  "author": {
+    "name": "Rug Munch Media LLC",
+    "email": "admin@rugmunch.io"
+  },
+  "license": "MIT",
+  "icon": "https://[INTERNAL]/icon.png",
+  "banner": "https://[INTERNAL]/banner.png",
+  "website": "https://[INTERNAL]",
+  "docs": "https://docs.example.com",
+  "mcp": {
+    "url": "https://[INTERNAL]/mcp",
+    "transport": [
+      "sse",
+      "stdio"
+    ]
+  },
+  "tools": [
+    {
+      "name": "scrape",
+      "description": "Scrape any URL with 15-tier fallback"
+    },
+    {
+      "name": "crawl",
+      "description": "Crawl entire websites"
+    },
+    {
+      "name": "extract",
+      "description": "AI-powered structured extraction"
+    },
+    {
+      "name": "search",
+      "description": "Search engine scraping"
+    },
+    {
+      "name": "signup",
+      "description": "Automated account registration"
+    },
+    {
+      "name": "captcha",
+      "description": "CAPTCHA solving"
+    },
+    {
+      "name": "screenshot",
+      "description": "Full-page screenshots"
+    },
+    {
+      "name": "monitor",
+      "description": "Website change monitoring"
+    },
+    {
+      "name": "enrich",
+      "description": "Data enrichment"
+    },
+    {
+      "name": "compliance",
+      "description": "Compliance checking"
+    }
+  ],
+  "payment": {
+    "x402": true,
+    "crypto": [
+      "BTC",
+      "ETH",
+      "SOL",
+      "USDC",
+      "USDT",
+      "TRX"
+    ],
+    "fiat": [
+      "USD"
+    ]
+  },
+  "pricing": {
+    "model": "pay_per_request",
+    "tiers": [
+      {
+        "name": "free",
+        "price": 0,
+        "requests_per_minute": 10
+      },
+      {
+        "name": "pro",
+        "price": 9,
+        "requests_per_minute": 60,
+        "period": "month"
+      },
+      {
+        "name": "enterprise",
+        "price": 49,
+        "requests_per_minute": 300,
+        "period": "month"
+      }
+    ]
+  },
+  "tags": [
+    "scraping",
+    "web",
+    "data",
+    "x402",
+    "crypto",
+    "ai-agents",
+    "mcp"
+  ],
+  "categories": [
+    "developer-tools",
+    "data",
+    "ai-agents"
+  ],
+  "featured": true
+}
