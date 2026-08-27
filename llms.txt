@@ -1,279 +1,492 @@
-# Pry MCP — Web Scraping, Browser Automation & Data Intelligence
+# Pry Scraping API
 
-> Pry is a self-hosted MCP server for web scraping, browser automation, and twenty-seven data domains: scrape, crawl, extract, template, monitor, comply, enrich, parse documents, screenshot, plus crypto, sports betting, marketplace, legal, real estate, jobs, travel, attention, local, healthcare, commerce long-tail, gov, IP, climate/weather + agriculture, research/academic, events, freight, energy, food, supply, app store, news, compliance, deals, and bidding/grants intelligence — all monetized via x402 pay-per-call. It bypasses Cloudflare and other anti-bot systems via a 9-tier fallback chain and needs no API keys. Install with `uvx pryscraper-mcp` or `pipx install pryscraper`.
+> Professional web scraping with x402 crypto payments. 15-tier anti-detection fallback, AI extraction, auto-signup, CAPTCHA solving.
 
-Pry exposes 71 MCP tools. All are self-hosted — the server is a FastAPI app mounted at `/mcp` (Streamable HTTP + HTTP+SSE) plus a stdio entry point (`pry-mcp`). Deploy once, then any MCP client (Claude, Cursor, Hermes, any MCP-compatible agent) can call the tools.
+## Documentation
+
+- [Full Docs](https://docs.[INTERNAL])
+- [API Reference](https://docs.[INTERNAL]/api)
+- [x402 Payments](https://docs.[INTERNAL]/x402)
+
+## MCP Server
+
+- URL: http://100.104.130.92:8002/sse
+- Transport: SSE, Streamable HTTP, stdio
+- Auth: None (public)
+- Tools: 73
+
+## Categories
+
+- actors: 2 tools
+- affiliate: 1 tools
+- agriculture: 1 tools
+- alerts: 2 tools
+- app_store: 1 tools
+- business: 2 tools
+- compliance: 1 tools
+- crypto: 3 tools
+- data: 1 tools
+- data_enrichment: 2 tools
+- data_extraction: 1 tools
+- document_processing: 1 tools
+- energy: 1 tools
+- events: 1 tools
+- government: 3 tools
+- jobs_careers: 2 tools
+- legal: 5 tools
+- local: 1 tools
+- logistics: 1 tools
+- monitoring: 1 tools
+- news_intelligence: 1 tools
+- payments: 1 tools
+- real_estate: 1 tools
+- research: 1 tools
+- retail: 4 tools
+- safety: 1 tools
+- search: 2 tools
+- social: 3 tools
+- sports_betting: 13 tools
+- trade: 1 tools
+- travel: 2 tools
+- utility: 4 tools
+- web_scraping: 6 tools
 
 ## Tools
 
-### Web scraping & browser automation
+### pry_actor_catalog
 
-- [pry_scrape](https://codeberg.org/cryptorugmunch/pryscraper): Scrape any URL to clean markdown with Cloudflare bypass
-- [pry_crawl](https://codeberg.org/cryptorugmunch/pryscraper): Crawl a website from a seed URL up to max_pages
-- [pry_extract](https://codeberg.org/cryptorugmunch/pryscraper): Extract structured JSON from a URL via CSS selectors
-- [pry_template](https://codeberg.org/cryptorugmunch/pryscraper): Execute one of 110+ pre-built scraper templates
-- [pry_search_templates](https://codeberg.org/cryptorugmunch/pryscraper): Search the template catalog by keyword or site
-- [pry_monitor](https://codeberg.org/cryptorugmunch/pryscraper): Watch a page for changes; webhook/Slack/Discord alerts
-- [pry_compliance](https://codeberg.org/cryptorugmunch/pryscraper): Score scraping legal risk (robots.txt, ToS, GDPR/CCPA)
-- [pry_enrich](https://codeberg.org/cryptorugmunch/pryscraper): Enrich a URL with company, tech-stack, social intel
-- [pry_parse_document](https://codeberg.org/cryptorugmunch/pryscraper): Parse PDF/DOCX/image into text and tables
-- [pry_screenshot](https://codeberg.org/cryptorugmunch/pryscraper): Full-page screenshot as base64 PNG
+List every Pry Apify Store actor (94) with description, pricing events and per-event USD price. Store parity surface: anything runnable on Apify is discoverable here. Filter by optional 'domain' subst
 
-### Payments & referrals
+Category: actors
 
-- [pry_x402_pricing](https://codeberg.org/cryptorugmunch/pryscraper): x402 pay-per-call pricing in USDC atomic units
-- [pry_referrals](https://codeberg.org/cryptorugmunch/pryscraper): Referral catalog — 60+ providers with affiliate IDs
+### pry_actor_run
 
-### Crypto (crypto_market)
+Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors. Use after pry_actor_catalog: pass the actor name plus target urls; resu
 
-- [pry_token_launches](https://codeberg.org/cryptorugmunch/pryscraper): Token launch and deployer activity intelligence
-- [pry_cex_listings](https://codeberg.org/cryptorugmunch/pryscraper): CEX listing/delisting announcements
-- [pry_token_security](https://codeberg.org/cryptorugmunch/pryscraper): Token security checks — honeypot, mint, LP lock
+Category: actors
 
-### Marketplace
+### pry_agri
 
-- [pry_amazon_product](https://codeberg.org/cryptorugmunch/pryscraper): Amazon product lookup by ASIN — price, stock, rating
-- [pry_amazon_search](https://codeberg.org/cryptorugmunch/pryscraper): Amazon keyword search — listings with price and ASIN
-- [pry_walmart_product](https://codeberg.org/cryptorugmunch/pryscraper): Walmart product lookup by ID — price, seller, rating
-- [pry_tiktok_trending](https://codeberg.org/cryptorugmunch/pryscraper): Trending TikTok Shop products by engagement
+Get agricultural data: crop conditions, growing-degree days, soil moisture, and commodity-relevant climate indices for a region. Use to model crop yield risk or monitor growing regions, e.g. 'what are
 
-### Sports betting (sports_data)
+Category: agriculture
 
-- [pry_odds](https://codeberg.org/cryptorugmunch/pryscraper): Live betting odds across major bookmakers (DraftKings, FanDuel, BetMGM, ESPN BET, …)
-- [pry_arbitrage](https://codeberg.org/cryptorugmunch/pryscraper): Scan sportsbook lines for guaranteed-profit arbitrage opportunities
-- [pry_plus_ev](https://codeberg.org/cryptorugmunch/pryscraper): Find positive expected-value (+EV) betting opportunities vs a sharp book
-- [pry_props](https://codeberg.org/cryptorugmunch/pryscraper): Player prop betting lines (points, rebounds, assists, yards, strikeouts, …)
-- [pry_injuries](https://codeberg.org/cryptorugmunch/pryscraper): Injury report for a sport or team (out/questionable/active)
-- [pry_live_odds](https://codeberg.org/cryptorugmunch/pryscraper): Live in-play odds (moneyline, spreads, totals as they move)
-- [pry_scores](https://codeberg.org/cryptorugmunch/pryscraper): Final or live scores from ESPN public scoreboards
-- [pry_historical_odds](https://codeberg.org/cryptorugmunch/pryscraper): Historical betting odds for past events (closing/open lines) — backtest models
-- [pry_betting_percentages](https://codeberg.org/cryptorugmunch/pryscraper): Public betting percentages (bets & money share) — spot sharp-side steam
-- [pry_sharp_consensus](https://codeberg.org/cryptorugmunch/pryscraper): Sharp consensus lines from Pinnacle/Circa/BetOnline with CLV estimates
-- [pry_alerts](https://codeberg.org/cryptorugmunch/pryscraper): Money-printer alerts — line moves, sharp steam, CLV spikes
-- [pry_books](https://codeberg.org/cryptorugmunch/pryscraper): Aggregated odds across all 112 sportsbooks (US/offshore/EU/UK/Asian), scraped directly via intelligent fallback — no paid odds API
-- [pry_book_coverage](https://codeberg.org/cryptorugmunch/pryscraper): Sportsbook coverage registry — 112 books by category, method, and geo-requirement
-- [pry_scrape_methods](https://codeberg.org/cryptorugmunch/pryscraper): Sportsbook scraping-method registry (JSON, __NEXT_DATA__, __NUXT__, __INITIAL_STATE__, HTML, browser)
-- [pry_all_sources](https://codeberg.org/cryptorugmunch/pryscraper): One event's odds from every reachable source — The Odds API + ESPN + OddsPortal + Bovada + BetOnline + 112 books
+### pry_alerts
 
-### Climate / weather & agriculture (climate_data)
+Get or manage money-printer alerts: significant line moves, sharp steam, limit-up CLV, and bettor-facing notifications you subscribe to. Use to stay on top of the market without polling, e.g. 'what al
 
-- [pry_weather](https://codeberg.org/cryptorugmunch/pryscraper): Current weather and short-range forecasts (NOAA NWS) for a location
-- [pry_actor_catalog](pry_mcp/tools.py): List all 94 Apify Store actors with pricing events; optional domain substring filter (e.g. 'monitor').
-- [pry_actor_run](pry_mcp/tools.py): Run any Pry Apify actor pipeline locally over URLs via the same runner+processor path as deployed actors (e.g. actor='news-feed-monitor').
-- [pry_agri](https://codeberg.org/cryptorugmunch/pryscraper): Agricultural data — crop conditions, growing-degree days, soil moisture, USDA NASS prices
+Category: alerts
 
-### Research & academic (research_data)
+### pry_all_sources
 
-- [pry_papers](https://codeberg.org/cryptorugmunch/pryscraper): Search academic papers and preprints (OpenAlex/Crossref) by keyword or author
-- [pry_domain](https://codeberg.org/cryptorugmunch/pryscraper): Domain intelligence report — RDAP WHOIS, SSL/TLS, hosting, tech fingerprint
+Aggregate one event's odds from every reachable source at once: The Odds API (free tier), ESPN, OddsPortal, Bovada, BetOnline, and the 112-book sportsbook registry scraped directly via intelligent fal
 
-### Events & ticketing (events_data)
+Category: sports_betting
 
-- [pry_events](https://codeberg.org/cryptorugmunch/pryscraper): Search live events (concerts, sports, theater) by keyword, location, or date
-- [pry_resale](https://codeberg.org/cryptorugmunch/pryscraper): Resale ticket pricing for an event — asking prices, counts, section ranges
+### pry_amazon_product
 
-### Freight (freight_data)
+Look up a single Amazon product by its ASIN (e.g. 'B08N5WRWNW') and return current price, title, availability, rating, and listing details from the marketplace intelligence provider. Use to check a pr
 
-- [pry_freight](https://codeberg.org/cryptorugmunch/pryscraper): Ocean container freight rates per 40ft box by route, plus FMC contracts
+Category: utility
 
-### Energy (energy_data)
+### pry_amazon_search
 
-- [pry_energy_lmp](https://codeberg.org/cryptorugmunch/pryscraper): Electricity locational marginal prices (LMP) by ISO region and date
+Search Amazon products by keyword and return matching listings — title, price, rating, and ASIN for each result (up to limit). Use to compare prices or discover products, e.g. 'search Amazon for wirel
 
-### Food & grocery (food_data)
+Category: utility
 
-- [pry_grocery](https://codeberg.org/cryptorugmunch/pryscraper): Grocery prices by item and ZIP code
-- [pry_restaurant](https://codeberg.org/cryptorugmunch/pryscraper): Restaurant menu with per-dish prices
+### pry_app_reviews
 
-### Supply chain (supply_data)
+Get recent user reviews for an app by its store identifier — the numeric App Store id or bundle id, e.g. 'com.coinbase.app' — returning rating, title, body, author, and review date for each. Use to ga
 
-- [pry_imports](https://codeberg.org/cryptorugmunch/pryscraper): U.S. customs import records for a company
-- [pry_firmographics](https://codeberg.org/cryptorugmunch/pryscraper): Company firmographics — headcount, revenue, founding, HQ, industry
+Category: social
 
-### App Store (app_store_data)
+### pry_app_search
 
-- [pry_app_search](https://codeberg.org/cryptorugmunch/pryscraper): App Store app search by keyword — name, bundle id, price, rating
-- [pry_app_reviews](https://codeberg.org/cryptorugmunch/pryscraper): App Store user reviews by app id — rating, title, body, author
+Search the Apple App Store by keyword and return matching apps — name, bundle id, price, rating, category, and store URL. Use to find apps by feature, compare pricing across categories, or feed app-ma
 
-### News & sentiment (news_data)
+Category: app_store
 
-- [pry_news](https://codeberg.org/cryptorugmunch/pryscraper): News article search by keyword — title, source, date, URL
-- [pry_sentiment](https://codeberg.org/cryptorugmunch/pryscraper): News sentiment analysis by keyword — positive/neutral/negative with confidence
+### pry_arbitrage
 
-### Compliance & regulatory (compliance_data)
+Scan sportsbook lines for guaranteed-profit arbitrage opportunities: the same event quoted at different books where the combined implied probabilities total under 100%. Use to find risk-free bets, e.g
 
-- [pry_compliance](https://codeberg.org/cryptorugmunch/pryscraper): URL legal-risk check or regulatory records search by query/agency
-- [pry_company_watch](https://codeberg.org/cryptorugmunch/pryscraper): Company regulatory watch — enforcement actions, fines, sanctions, filings
+Category: sports_betting
 
-### Deals & drops (deals_data)
+### pry_betting_percentages
 
-- [pry_deals](https://codeberg.org/cryptorugmunch/pryscraper): Deals, discounts & promotions search by keyword
-- [pry_drop_alert](https://codeberg.org/cryptorugmunch/pryscraper): Product drop / restock alert check — availability windows and price drops
+Get public betting percentages (the share of bets and the share of money on each side of a game) across bookmakers, e.g. 'how much of the money is on the Chiefs tonight?' or call with sport='nfl' to s
 
-### Bidding & grants (bidding_data)
+Category: sports_betting
 
-- [pry_contracts](https://codeberg.org/cryptorugmunch/pryscraper): Government contract opportunities & awards search by keyword
-- [pry_grants](https://codeberg.org/cryptorugmunch/pryscraper): Government grant opportunities search by keyword — funding amount, eligibility, deadline
+### pry_book_coverage
 
-### Legal (legal_docs)
+Get sportsbook coverage-registry statistics: how many of the 112 sportsbooks Pry scrapes directly, broken down by category (US, offshore, EU, UK, Asian), extraction method, and geo-requirement. Use to
 
-- [pry_legal_dockets](https://codeberg.org/cryptorugmunch/pryscraper): Search U.S. court dockets via CourtListener
-- [pry_legal_sec](https://codeberg.org/cryptorugmunch/pryscraper): Search SEC EDGAR filings by ticker and form type
-- [pry_legal_sanctions](https://codeberg.org/cryptorugmunch/pryscraper): Screen a name against the OFAC SDN sanctions list
+Category: sports_betting
 
-### Real estate
+### pry_books
 
-- [pry_realestate_search](https://codeberg.org/cryptorugmunch/pryscraper): Search real-estate listings by location and status
+Aggregate live odds for one sport/market across all 112 sportsbooks in Pry's registry (US, offshore, EU, UK, and Asian books) by scraping each book directly through Pry's intelligent fallback chain — 
 
-### Jobs
+Category: sports_betting
 
-- [pry_jobs_list](https://codeberg.org/cryptorugmunch/pryscraper): List ATS job postings (Greenhouse/Lever/Ashby/Workday)
-- [pry_jobs_salary](https://codeberg.org/cryptorugmunch/pryscraper): Salary bands for a company/role from Levels.fyi
+### pry_cex_listings
 
-### Travel
+Get recent centralized-exchange (CEX) listing and delisting signals — e.g. Binance, Coinbase, Kraken — aggregated over a configurable lookback window. Use to time research on tokens that just landed o
 
-- [pry_flights_grid](https://codeberg.org/cryptorugmunch/pryscraper): Cheapest flight per day over a date range
-- [pry_hotel_rates](https://codeberg.org/cryptorugmunch/pryscraper): Per-night hotel rates for a stay window
+Category: crypto
 
-### Attention & SEO
+### pry_company_watch
 
-- [pry_serp](https://codeberg.org/cryptorugmunch/pryscraper): Google SERP scrape — organic, AI Overview, PAA
-- [pry_trends](https://codeberg.org/cryptorugmunch/pryscraper): Google Trends interest timeline and related queries
+Return the regulatory watch record for a company — recent enforcement actions, fines, sanctions, and compliance filings — e.g. company='OpenAI' for its compliance exposure. Use for due diligence, vend
 
-### Local business
+Category: business
 
-- [pry_places_search](https://codeberg.org/cryptorugmunch/pryscraper): Google Maps local business search
-- [pry_reviews](https://codeberg.org/cryptorugmunch/pryscraper): Google Maps / Yelp review history for a place
+### pry_compliance
 
-### Government data
+Compliance intelligence in two modes: pass a URL to check whether scraping it is legally safe (robots.txt, ToS, GDPR/CCPA, PII exposure -> green/yellow/red risk score with recommendations), or pass qu
 
-- [pry_procurement](https://codeberg.org/cryptorugmunch/pryscraper): U.S. federal procurement opportunities (SAM.gov)
-- [pry_recalls](https://codeberg.org/cryptorugmunch/pryscraper): CPSC/FDA product recalls
+Category: compliance
 
-### IP data
+### pry_contracts
 
-- [pry_patents](https://codeberg.org/cryptorugmunch/pryscraper): U.S. patent search via USPTO/Google Patents
-- [pry_trademarks](https://codeberg.org/cryptorugmunch/pryscraper): U.S. trademark search via USPTO
+Search government contract opportunities and awards by keyword across public procurement feeds, returning agency, solicitation number, award value, status, and deadline for each result. Use to monitor
 
-## Capabilities
+Category: government
 
-- [Anti-bot bypass](https://codeberg.org/cryptorugmunch/pryscraper): 9-tier fallback: direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver
-- [Document parsing](https://codeberg.org/cryptorugmunch/pryscraper): PDF, DOCX, images (OCR), CSV, JSON
-- [x402 pay-per-call](https://codeberg.org/cryptorugmunch/pryscraper): USDC micro-payments across 7 CAIP-2 networks (Base, Ethereum, Arbitrum, Optimism, Polygon, Solana, TRON), multi-facilitator router
-- [MCP 2025 standards](https://codeberg.org/cryptorugmunch/pryscraper): Streamable HTTP + HTTP+SSE + stdio transports, output schemas and annotations on every tool
-- [Browser automation](https://codeberg.org/cryptorugmunch/pryscraper): Login flows, form filling, sessions
-- [Vision AI](https://codeberg.org/cryptorugmunch/pryscraper): Free OpenRouter vision models with auto-fallback
-- [Rate limiting](https://codeberg.org/cryptorugmunch/pryscraper): Per-IP token bucket (default 120 RPM)
+### pry_crawl
 
-## Install
+Crawl a website from a seed URL, discovering and scraping linked pages with BFS/DFS traversal up to max_pages. Use to collect an entire docs site, blog, or directory — e.g. call with url='https://exam
 
-- [Quickstart — README](https://codeberg.org/cryptorugmunch/pryscraper): One-command install + Claude Code / Cursor config
-- [Install command](https://codeberg.org/cryptorugmunch/pryscraper): `uvx pryscraper-mcp` or `pipx install pryscraper` then `pry-mcp`
-- [MCP registry metadata](https://codeberg.org/cryptorugmunch/pryscraper): `server.json` — name `io.rugmunch/pry`, stdio + streamable-http
-- [Smithery deploy](https://codeberg.org/cryptorugmunch/pryscraper): `smithery.yaml` for one-click MCP server hosting
+Category: web_scraping
 
-## Optional
+### pry_deals
 
-- [Feature list](https://codeberg.org/cryptorugmunch/pryscraper): Full Pry feature matrix
-- [Usage guide](https://codeberg.org/cryptorugmunch/pryscraper): CLI, SDK, and MCP usage examples
-- [Architecture](https://codeberg.org/cryptorugmunch/pryscraper): Pry architecture overview
+Search deals, discounts, and promotions by keyword across public deal feeds, returning merchant, product, price, discount percentage, and expiry for each result. Use to build deal trackers, power shop
 
-## Apify Actors (94 store-ready presets)
+Category: retail
 
-Every Apify Actor in the catalog — same hardened Pry engine, x402 or
-Apify billing. Full INPUT_SCHEMA ships with each package.
+### pry_domain
 
-- [pry-accessibility-scanner](https://apify.store/pry-accessibility-scanner): WCAG-oriented accessibility signals for every page: images missing alt text, heading hierarchy violations, missing page titles and language declarations - prioritized issue lists per crawl
-- [pry-ad-intel-monitor](https://apify.store/pry-ad-intel-monitor): Monitor competitor advertising: detect active ad placements and landing-page changes across the web with block-signal aware escalation for protected publisher sites
-- [pry-air-quality-monitor](https://apify.store/pry-air-quality-monitor): Monitor air-quality indices and pollutant readings from public monitoring pages - AQI, PM2.5/PM10 and trend direction for health, insurance and smart-city datasets
-- [pry-api-docs-diff](https://apify.store/pry-api-docs-diff): Watch public API documentation pages for endpoint changes - new routes, renamed fields, deprecation notices - so integrations break before your customers notice, not after
-- [pry-app-store-review-miner](https://apify.store/pry-app-store-review-miner): Mine Apple App Store reviews and app metadata via Apple's public iTunes API - user sentiment, ratings and feature requests for competitor analysis, product research and support triage
-- [pry-arxiv-paper-monitor](https://apify.store/pry-arxiv-paper-monitor): Monitor arXiv for new papers by category or author via the public arXiv API - research tracking for AI labs, analysts and R&D teams without manual searches
-- [pry-blog-post-extractor](https://apify.store/pry-blog-post-extractor): Extract complete blog archives: post URLs, titles, publish dates and full markdown bodies - content-gap analysis and editorial research in one dataset
-- [pry-broken-links-auditor](https://apify.store/pry-broken-links-auditor): Crawl a site and report every broken internal or external link with HTTP status, source page and anchor text. Site-health audits that used to need desktop tooling now run on a schedule
-- [pry-chain-tvl-monitor](https://apify.store/pry-chain-tvl-monitor): Total value locked per chain and protocol pulled from public DefiLlama endpoints - chain dominance trends, protocol flows and historical TVL for analysts and researchers
-- [pry-change-monitor](https://apify.store/pry-change-monitor): Watch URLs for content changes with SimHash near-duplicate detection. Schedule it; get dataset entries only for pages that actually changed
-- [pry-changelog-tracker](https://apify.store/pry-changelog-tracker): Track competitor product changelogs and release notes pages - new features, fixes and pricing-page edits detected between runs so product teams never miss a competitor move
-- [pry-clinical-trials-watch](https://apify.store/pry-clinical-trials-watch): Monitor clinical trial registries for new studies by condition, phase or sponsor. Structured trial metadata for pharma intel and recruitment platforms
-- [pry-contact-form-finder](https://apify.store/pry-contact-form-finder): Find contact forms, mailto links and submission endpoints across prospect sites - the first step of automated outreach done respectfully: know exactly where to reach a business
-- [pry-course-catalog-extractor](https://apify.store/pry-course-catalog-extractor): Extract online course catalogs: titles, instructors, prices, ratings, durations and syllabi outlines from any course platform - market research for edtech and aggregation products
-- [pry-court-docket-monitor](https://apify.store/pry-court-docket-monitor): Monitor public court dockets for new cases, motions and rulings by party or jurisdiction. Litigation intelligence without manual PACER trawling
-- [pry-crypto-listing-monitor](https://apify.store/pry-crypto-listing-monitor): Monitor crypto news and exchange pages for new token listing announcements. Early listing signals are a proven trading edge; this actor watches your sources through anti-bot escalation and emits structured announcement items
-- [pry-crypto-market-monitor](https://apify.store/pry-crypto-market-monitor): Pull crypto market caps, prices and volume shifts pulled from public market APIs - scheduled snapshots for portfolios, dashboards and alerting without exchange API keys
-- [pry-cve-advisory-watch](https://apify.store/pry-cve-advisory-watch): Watch security advisory sources for new CVEs affecting your stack - severity, affected versions and remediation links in one feed. Vulnerability surveillance for engineering and compliance teams
-- [pry-deal-radar](https://apify.store/pry-deal-radar): Surface deals, coupons and discounts across retail sites - price-drop detection against prior observations with percentage math done for you
-- [pry-defi-yield-monitor](https://apify.store/pry-defi-yield-monitor): DeFi lending and LP pool yields pulled from public DefiLlama endpoints - APYs, TVL and pool metadata across chains for yield farmers, treasuries and dashboards
-- [pry-document-parser](https://apify.store/pry-document-parser): Parse PDFs, DOCX and images behind URLs into clean text/markdown with OCR fallback
-- [pry-earthquake-alert-monitor](https://apify.store/pry-earthquake-alert-monitor): Monitor seismic events via the public USGS GeoJSON feeds - magnitude, location and depth with threshold filtering for news rooms, insurers and emergency tooling
-- [pry-ecommerce-catalog-crawler](https://apify.store/pry-ecommerce-catalog-crawler): Crawl an entire online store and extract every product with prices, availability and categories - full catalog exports for market research, dropshipping feeds and competitor price tracking across Shopify, WooCommerce and custom platforms
-- [pry-electricity-price-watch](https://apify.store/pry-electricity-price-watch): Track electricity tariff and spot-price publications from utility and exchange pages - day-ahead prices normalized per MWh for energy analysts and cost modelers
-- [pry-event-listings-aggregator](https://apify.store/pry-event-listings-aggregator): Aggregate event listings from conference, meetup and event-calenda sites: names, dates, venues, organizers and registration links - normalized for calendar and intel products
-- [pry-fda-recall-monitor](https://apify.store/pry-fda-recall-monitor): Monitor food, drug and device recalls via the public openFDA API - classification, affected products and dates for compliance teams, retailers and consumer safety trackers
-- [pry-flight-price-watch](https://apify.store/pry-flight-price-watch): Watch flight fares on any route across OTAs and airline sites without GDS fees. JS-rendered results handled by stealth browser tiers; normalized price points per observation
-- [pry-forum-discussion-miner](https://apify.store/pry-forum-discussion-miner): Mine forum threads and discussion boards: titles, authors, reply counts and top posts across public communities - voice-of-customer and pain-point research at scale
-- [pry-fx-rate-monitor](https://apify.store/pry-fx-rate-monitor): Monitor foreign-exchange rates pulled via free public rate APIs - daily currency snapshots and drift alerts for finance teams, e-commerce pricing and invoicing
-- [pry-gas-fee-monitor](https://apify.store/pry-gas-fee-monitor): Ethereum gas prices pulled via public oracle endpoints - base fee tiers and historical context for wallet apps, bridges and cost-aware automation
-- [pry-gdpr-cookie-checker](https://apify.store/pry-gdpr-cookie-checker): Check pages for cookie-consent banners, privacy-policy links and consent-management platforms - compliance evidence collection for audits across hundreds of properties at once
-- [pry-github-release-monitor](https://apify.store/pry-github-release-monitor): Monitor GitHub repositories for new releases, tags and changelog entries via the public GitHub API - track competitors, dependencies and open-source projects without watching manually
-- [pry-hacker-news-monitor](https://apify.store/pry-hacker-news-monitor): Search and monitor Hacker News stories, comments and keyword mentions via the public Algolia HN API - brand tracking, launch feedback and market-signal detection for founders
-- [pry-hotel-rate-watch](https://apify.store/pry-hotel-rate-watch): Track hotel room rates across booking sites - including JS-rendered portals behind bot walls. Rate parity checks, date-range comparisons and drop alerts in one dataset
-- [pry-inventory-alert](https://apify.store/pry-inventory-alert): Watch product availability on any storefront: in-stock/out-of-stock state, price-at-checkout and restock timing - JS-rendered shops included
-- [pry-jobs-aggregator](https://apify.store/pry-jobs-aggregator): Aggregate job postings across company career sites running Greenhouse, Lever, Workday and other ATS platforms - public pages only, no logins. Structured titles, locations, salaries and apply links, normalized across boards
-- [pry-json-api-monitor](https://apify.store/pry-json-api-monitor): Monitor any JSON API endpoint for availability, payload changes and field-level drift - uptime plus content assertions for your own APIs or third-party integrations you depend on
-- [pry-knowledge-base-miner](https://apify.store/pry-knowledge-base-miner): Turn help centers and FAQ pages into clean question-answer pairs using FAQPage and HowTo structured data - training data for support chatbots, AI agents and self-service knowledge bases
-- [pry-lead-harvester](https://apify.store/pry-lead-harvester): Harvest publicly listed business contacts from websites: emails, phone numbers and social profile links extracted from contact pages and footers across a domain, with anti-bot escalation for protected sites
-- [pry-llm-corpus-builder](https://apify.store/pry-llm-corpus-builder): Build clean, LLM-ready text corpora from any website. Crawls a domain through 12-tier anti-bot bypass and emits deduplicated markdown documents structured for RAG pipelines and fine-tuning datasets. The dataset drops straight into LangChain, LlamaIndex or your vector store
-- [pry-local-business-schema-auditor](https://apify.store/pry-local-business-schema-auditor): Audit LocalBusiness structured data on any business website: name, address, phone, opening hours and geo coordinates as schema.org JSON-LD - validate your own markup or prospect businesses with missing or broken local SEO schema
-- [pry-local-directory-extractor](https://apify.store/pry-local-directory-extractor): Extract business listings from local directories and yellow-page style sites: names, categories, addresses, phones and websites - the dataset feeds directly into outreach tooling
-- [pry-maps-lead-extractor](https://apify.store/pry-maps-lead-extractor): Extract local business leads from Google Maps listings: names, addresses, phones, websites and publicly listed emails in one pass. Combines the two most-demanded Apify workflows - maps data and contact enrichment - with anti-bot escalation built in
-- [pry-news-feed-monitor](https://apify.store/pry-news-feed-monitor): Monitor news sites and blogs through RSS/Atom discovery plus full-article extraction behind paywalls' bot defenses (public articles only). Emits new articles since the last run
-- [pry-newsletter-archive-miner](https://apify.store/pry-newsletter-archive-miner): Extract newsletter archives and email digest pages into clean structured datasets - issues, subjects, senders and body content for competitive content intelligence
-- [pry-npm-package-stats](https://apify.store/pry-npm-package-stats): Pull npm package metadata and download statistics pulled from the public npm registry - track adoption curves, compare packages and power devtools marketing analytics
-- [pry-onion-site-monitor](https://apify.store/pry-onion-site-monitor): Monitor .onion services over Tor - brand abuse, leak-site watch and dark-web mention tracking. Pry ships Tor as a first-class tier; almost no competitor can reach these sources at all
-- [pry-outbound-link-harvester](https://apify.store/pry-outbound-link-harvester): Harvest external outbound links per page across a site: which domains a site links to, how often, and from where - prospecting data for SEO outreach and partnership research
-- [pry-pdf-invoice-extractor](https://apify.store/pry-pdf-invoice-extractor): Extract accounting fields from invoice PDFs - vendor, invoice number, dates and totals into clean structured rows for bookkeeping automation and accounts-payable pipelines
-- [pry-podcast-feed-miner](https://apify.store/pry-podcast-feed-miner): Mine podcast RSS feeds into structured episode datasets: titles, descriptions, durations, publish dates and audio URLs - perfect for media monitoring and transcript pipeline feeds
-- [pry-podcast-review-miner](https://apify.store/pry-podcast-review-miner): Mine podcast reviews and ratings from Apple Podcasts public feeds - audience sentiment and episode feedback for shows, networks and advertiser research
-- [pry-prediction-market-monitor](https://apify.store/pry-prediction-market-monitor): Pull prediction market contract snapshots on Polymarket and Kalshi via their public Gamma/API endpoints - pulled prices, volumes and resolution status for elections, crypto, sports and macro events as clean structured rows
-- [pry-press-release-monitor](https://apify.store/pry-press-release-monitor): Monitor company and wire-service press releases: headlines, datelines and full announcement text - PR intelligence and media monitoring without manual source checking
-- [pry-price-watcher](https://apify.store/pry-price-watcher): Track product prices on any e-commerce site - including JavaScript-rendered storefronts behind bot protection. Uses schema.org/Product structured data first, heuristic extraction as fallback, and SimHash change detection between runs
-- [pry-product-data-extractor](https://apify.store/pry-product-data-extractor): Extract structured product data from any e-commerce page: name, price, currency, availability, brand and images - powered by schema.org JSON-LD that Shopify, WooCommerce and Magento stores already embed. Feed price intelligence, catalog syncs and competitor monitoring
-- [pry-producthunt-launch-monitor](https://apify.store/pry-producthunt-launch-monitor): Monitor Product Hunt launches via its public RSS/Atom feeds - new products, taglines and vote context for competitive intel, launch tracking and maker research
-- [pry-property-lister](https://apify.store/pry-property-lister): Extract property listings from real estate sites: prices, beds, baths, square footage, addresses and agent contacts - including JS-rendered portals behind bot protection
-- [pry-provider-finder](https://apify.store/pry-provider-finder): Find healthcare providers on public directories: names, specialties, locations, accepting-patient status and contact details - normalized for care-navigation products
-- [pry-pypi-package-stats](https://apify.store/pry-pypi-package-stats): Extract Python package metadata, releases and dependency info pulled from the public PyPI JSON API - supply-chain monitoring, dependency audits and ecosystem research
-- [pry-rdap-domain-watch](https://apify.store/pry-rdap-domain-watch): Track domain registration data via the public RDAP protocol - expiry dates, status flags and nameservers for portfolio management, expiry sniping and brand protection
-- [pry-recipe-miner](https://apify.store/pry-recipe-miner): Mine recipe sites for structured cooking data: ingredients, steps, prep/cook times and nutrition claims - content pipelines for meal-planning and grocery products
-- [pry-research-paper-watch](https://apify.store/pry-research-paper-watch): Watch academic preprint and journal listing pages for new papers by topic: titles, authors, abstracts and PDF links - literature surveillance for R&D and AI labs
-- [pry-restaurant-menu-extractor](https://apify.store/pry-restaurant-menu-extractor): Extract restaurant menus from public pages: items, descriptions, prices and sections - normalized data for food delivery, nutrition and local discovery products
-- [pry-review-aggregator](https://apify.store/pry-review-aggregator): Aggregate product reviews from storefronts and review platforms - ratings, text, dates and reviewer metadata - normalized into one analysis-ready dataset
-- [pry-rss-feed-monitor](https://apify.store/pry-rss-feed-monitor): Watch any RSS or Atom feed for new entries - newsrooms, blogs, podcasts, changelogs and press pages delivered as structured items with change detection between runs
-- [pry-sanctions-screener](https://apify.store/pry-sanctions-screener): Screen entity names against public sanctions and watchlist lists sources (OFAC SDN, EU consolidated lists). Compliance-grade monitoring with match evidence in every dataset item
-- [pry-scholarship-grants-finder](https://apify.store/pry-scholarship-grants-finder): Aggregate scholarship, grant and funding opportunities from education funding portals: amounts, deadlines, eligibility and application links - normalized for counseling platforms and search products
-- [pry-screenshot-capture](https://apify.store/pry-screenshot-capture): Full-page screenshots of any URL, including sites behind anti-bot systems, via stealth browser tiers
-- [pry-sec-filings-watch](https://apify.store/pry-sec-filings-watch): Watch SEC EDGAR for new filings by company, form type or CIK - 10-K, 10-Q, 8-K, S-1 and more. Public records monitoring with structured emit-on-change semantics for compliance and intel teams
-- [pry-seo-site-auditor](https://apify.store/pry-seo-site-auditor): Full-site SEO audit behind anti-bot walls: crawls every page and reports titles, meta descriptions, heading structure, canonical tags, response codes and content freshness signals in one structured dataset
-- [pry-serp-rank-tracker](https://apify.store/pry-serp-rank-tracker): Daily keyword rank tracking on Google: position, URL and SERP feature presence per keyword, with history-friendly flat rows. TLS-fingerprint and Googlebot tiers keep tracking alive
-- [pry-serp-scraper](https://apify.store/pry-serp-scraper): Scrape Google search results pages: organic listings, ads, featured snippets and People Also Ask - via TLS-fingerprint and Googlebot-emulation tiers purpose-built for search engines. Structured JSON out, CAPTCHA escalation automatic
-- [pry-site-crawler](https://apify.store/pry-site-crawler): Crawl entire sites into LLM-ready markdown. Follows same-domain links with runaway caps and per-domain adaptive bypass memory
-- [pry-sitemap-diff](https://apify.store/pry-sitemap-diff): Track sitemap changes between runs: new URLs, removed URLs and lastmod shifts - the fastest way to catch competitor site launches and content strategy moves
-- [pry-social-card-auditor](https://apify.store/pry-social-card-auditor): Audit Open Graph and social preview tags across every page of a site: missing og:title/og:image, thin descriptions and canonical conflicts - fix link previews before your next campaign
-- [pry-space-launch-monitor](https://apify.store/pry-space-launch-monitor): Track upcoming rocket launches via the public Launch Library 2 API - providers, payloads, pads and windows for space industry watchers, newsrooms and calendar apps
-- [pry-sports-odds-best-line](https://apify.store/pry-sports-odds-best-line): Pull live sportsbook odds feeds (Bovada-style public JSON) and compare prices across books - best available line, hold and vig for any market, delivered as normalized comparison rows
-- [pry-ssl-cert-monitor](https://apify.store/pry-ssl-cert-monitor): Watch TLS certificate health across your domains: expiry countdowns, issuer changes and handshake failures - caught by connection-level probes before browsers scare your visitors
-- [pry-stablecoin-flow-monitor](https://apify.store/pry-stablecoin-flow-monitor): Stablecoin market caps, chains and flow shifts pulled from public public pegged-asset endpoints - mint/burn signals and depeg watch for risk teams and traders
-- [pry-startup-funding-monitor](https://apify.store/pry-startup-funding-monitor): Track funding announcements across tech news sources - rounds, investors and amounts for sales prospecting, VC research and market intelligence
-- [pry-status-page-aggregator](https://apify.store/pry-status-page-aggregator): Aggregate vendor status pages into one incident feed: ongoing incidents, maintenance windows and resolution history across every service your operations depend on
-- [pry-steam-game-stats](https://apify.store/pry-steam-game-stats): Game details, pricing and player counts pulled from Steam's public store API - release data, genres and concurrent-player context for market research and gaming analytics
-- [pry-tech-stack-detector](https://apify.store/pry-tech-stack-detector): Detect the technology behind any website - frameworks, analytics, CMS, hosting signals - enriched with contact discovery for sales prospecting by stack
-- [pry-tender-procurement-monitor](https://apify.store/pry-tender-procurement-monitor): Watch government and enterprise procurement portals for new tenders, RFPs and awards matching your categories - public records monitoring with deadline fields normalized
-- [pry-terms-policy-watch](https://apify.store/pry-terms-policy-watch): Monitor Terms of Service and Privacy Policy pages for silent changes - diff-aware emit-on-change semantics so legal and compliance teams catch rewrites the day they happen
-- [pry-token-safety-scanner](https://apify.store/pry-token-safety-scanner): Screen token pages for rug-pull and honeypot risk signals using Pry's crypto security checks: contract flags, liquidity signals and risk scores compiled into one dataset per token
-- [pry-token-unlock-monitor](https://apify.store/pry-token-unlock-monitor): Monitor token unlock and vesting schedules from public tokenomics endpoints - upcoming supply shocks, cliff dates and circulating supply changes for traders and treasury teams
-- [pry-universal-scraper](https://apify.store/pry-universal-scraper): Scrape any website to clean markdown with a 12-tier adaptive anti-bot bypass (Cloudflare, DataDome, Akamai). Pay per page scraped; blocked pages escalate automatically
-- [pry-usaspending-contracts](https://apify.store/pry-usaspending-contracts): Federal contract awards searched via the public USAspending API - awardee, agency, amount and dates for gov-contract prospecting, journalism and market research
-- [pry-uspto-patent-monitor](https://apify.store/pry-uspto-patent-monitor): Track new patent applications and grants via the public PatentsView API - competitor IP activity, technology landscapes and inventor networks for R&D and legal teams
-- [pry-wayback-diff](https://apify.store/pry-wayback-diff): Compare any live page against its last archive.org snapshot and emit a structured diff: what changed, when it changed and how similar the versions are (SimHash similarity score included)
-- [pry-weather-data-collector](https://apify.store/pry-weather-data-collector): Collect weather observations and forecasts from any forecast page - temperature, precipitation and condition signals normalized into flat rows for analytics and alerting pipelines
-- [pry-whale-transfer-monitor](https://apify.store/pry-whale-transfer-monitor): Watch large on-chain transfers via public blockchain explorer APIs - whale movements for BTC/ETH and major tokens delivered as structured alerts-ready records
-- [pry-youtube-rss-monitor](https://apify.store/pry-youtube-rss-monitor): Monitor YouTube channels through their public RSS feeds - new video titles, links and publish dates for competitor tracking and content calendars, no API key required
+Get a domain intelligence report: WHOIS registration, SSL/TLS details, hosting provider, and technology fingerprint for a website. Use to enrich leads, vet domains before scraping, or map a competitor
+
+Category: data_enrichment
+
+### pry_drop_alert
+
+Check for drop alerts / limited product restock or flash-sale signals for a product, returning availability windows, price drops, and the merchant for each signal, e.g. product='RTX 5090' to track GPU
+
+Category: alerts
+
+### pry_energy_lmp
+
+Get electricity locational marginal prices (LMP) for an ISO region and date, with day-ahead / real-time splits where available. Use to model energy costs or spot volatility, e.g. 'LMP for ERCOT today'
+
+Category: energy
+
+### pry_enrich
+
+Enrich a URL with company info, tech stack detection, social profiles, and competitive intelligence. Use to build a prospect profile from their website before outreach, e.g. discover what stack a star
+
+Category: data_enrichment
+
+### pry_events
+
+Search live event listings (concerts, sports, theater) by keyword and optionally location or date, backed by Ticketmaster / SeatGeek class feeds. Use to find upcoming events for an artist or venue, e.
+
+Category: events
+
+### pry_extract
+
+Extract structured data from a URL using CSS selectors — 10x cheaper than LLM extraction — and return JSON matching your schema. Use when you need specific fields like {title, price, image, availabili
+
+Category: data_extraction
+
+### pry_firmographics
+
+Get firmographic data for a company: employee count band, revenue range, founding year, headquarters, industry, and company type. Use to segment leads or enrich CRM records, e.g. call with company='Ru
+
+Category: business
+
+### pry_flights_grid
+
+Get the cheapest flight option per day between two dates for an origin and destination pair, using Google Flights' public tfs deep-link page. Use to find the cheapest day to fly on a trip, e.g. 'what'
+
+Category: travel
+
+### pry_freight
+
+Get ocean container freight rates for a route: spot and contract rates per 40ft container across major trade lanes, plus FMC contract visibility where available. Use to model shipping costs, e.g. 'con
+
+Category: logistics
+
+### pry_grants
+
+Search government grant opportunities by keyword across public grant feeds, returning agency, opportunity number, funding amount, eligibility, and deadline for each result. Use to find open funding pr
+
+Category: government
+
+### pry_grocery
+
+Get grocery prices for a product or category, optionally filtered by ZIP code for local store pricing. Use to compare staple costs across markets, e.g. 'price of a dozen eggs in 10001', or call with q
+
+Category: retail
+
+### pry_historical_odds
+
+Get historical betting odds for past events from The Odds API history feed: the closing lines, opening lines, and best available prices for moneyline, spreads, and totals on a given date. Use to backt
+
+Category: sports_betting
+
+### pry_hotel_rates
+
+Get per-night hotel rates for a stay window from Google Hotels with a Booking.com fallback, both free and keyless page scrapes. Use to compare prices across sources for a specific property, e.g. 'what
+
+Category: travel
+
+### pry_imports
+
+Get U.S. customs import records for a company: shipment dates, commodity descriptions, suppliers, and origin countries. Use to size a competitor's supply chain or vet suppliers, e.g. call with company
+
+Category: trade
+
+### pry_injuries
+
+Get the current injury report for a sport or team: player, team, injury detail, and status (out/questionable/active). Use to adjust betting models or fantasy lineups before lock, e.g. 'who is out for 
+
+Category: sports_betting
+
+### pry_jobs_list
+
+List current job postings for a company from its applicant-tracking system (Greenhouse, Lever, Ashby, or Workday), returning normalized titles, locations, remote flags, and application URLs. Use for t
+
+Category: jobs_careers
+
+### pry_jobs_salary
+
+Get per-level salary bands (total compensation, base, stock, bonus) for a company and role from Levels.fyi's public embedded data. Use to benchmark compensation offers or market rates, e.g. 'what does
+
+Category: jobs_careers
+
+### pry_legal_dockets
+
+Search U.S. federal and state court dockets by full-text query using the free CourtListener REST API v4, returning docket titles, courts, and case numbers. Use to monitor litigation against a company,
+
+Category: legal
+
+### pry_legal_sanctions
+
+Screen a person or entity name against the OFAC Specially Designated Nationals (SDN) sanctions list, returning any matching records with their sanctions program and remarks. Use for compliance due dil
+
+Category: legal
+
+### pry_legal_sec
+
+Search SEC EDGAR filings for a public company by ticker and form type, returning filing dates, form names, and EDGAR accession numbers. Use to track regulatory filings that move markets, e.g. 'recent 
+
+Category: legal
+
+### pry_live_odds
+
+Get live in-play odds that update during games (moneyline, spreads, totals as they move). Use for live-betting research or game-flow monitoring, e.g. 'what are the live odds for the Lakers game right 
+
+Category: sports_betting
+
+### pry_monitor
+
+Create a content-change monitor that notifies via webhook, Slack, or Discord when a page changes, using AI to judge whether changes are meaningful. Use to track competitor pricing or product availabil
+
+Category: monitoring
+
+### pry_news
+
+Search news articles by keyword across public news feeds and aggregators, returning title, source, published date, and URL for each result. Use to monitor a brand, topic, or competitor in the press, e
+
+Category: news_intelligence
+
+### pry_odds
+
+Get live betting odds across major bookmakers (DraftKings, FanDuel, BetMGM, ESPN BET, ...) for one or more sports, backed by The Odds API (free tier via PRY_ODDS_API_KEY) with an ESPN scoreboard fallb
+
+Category: sports_betting
+
+### pry_papers
+
+Search academic papers and preprints (arXiv, Semantic Scholar, PubMed) by keyword, author, or topic and return titles, abstracts, and citation counts. Use for research pipelines that need scholarly gr
+
+Category: research
+
+### pry_parse_document
+
+Parse a document (PDF, DOCX, image) and extract its text and tables using pdfplumber, Tesseract OCR, and python-docx. Use to pull content from a PDF spec, a scanned brochure, or a Word file, e.g. extr
+
+Category: document_processing
+
+### pry_patents
+
+Search U.S. patents by keyword using the USPTO public data feeds, returning patent number, title, assignee, and grant date. Use for IP landscaping or freedom-to-operate checks, e.g. 'patents for block
+
+Category: legal
+
+### pry_places_search
+
+Search Google Maps for local businesses matching a query and location, returning name, rating, review count, address, and place IDs for lead generation. Use to build prospect lists for outbound sales,
+
+Category: local
+
+### pry_plus_ev
+
+Find positive expected-value (+EV) betting opportunities by comparing market odds against a sharp book's line or consensus price. Use to identify bets where the market price is better than the fair pr
+
+Category: sports_betting
+
+### pry_procurement
+
+Search U.S. federal procurement opportunities and contract awards from the public SAM.gov data feed, returning title, agency, notice type, and deadline. Use to find government business opportunities f
+
+Category: government
+
+### pry_props
+
+Get player prop betting lines (points, rebounds, assists, yards, strikeouts, ...) for a player or sport, with the market and book prices. Use to research player props before betting or building a prop
+
+Category: sports_betting
+
+### pry_realestate_search
+
+Search real-estate listings by location and status (for_sale, for_rent, sold), returning address, price, beds/baths, square footage, and listing URLs. Use for market research, comps, or lead generatio
+
+Category: real_estate
+
+### pry_recalls
+
+Search recent product recalls from the U.S. CPSC public data feed, returning product name, hazard, recall date, and remedy. Use for consumer-safety monitoring or supply-chain due diligence, e.g. 'rece
+
+Category: safety
+
+### pry_referrals
+
+Get Pry's referral catalog — 60+ providers across LLM, hosting, email, monitoring, proxies, and devtools — each link carrying our affiliate ID for revenue attribution. Use to find a revenue-share part
+
+Category: affiliate
+
+### pry_resale
+
+Get resale ticket pricing for a specific event: asking prices, ticket counts, and section-level ranges across resale marketplaces. Use with an event_id from pry_events to size demand before buying, e.
+
+Category: retail
+
+### pry_restaurant
+
+Get a restaurant's menu with prices: items, sections, and per-dish pricing for a named restaurant. Use to build cost-of-dining datasets or research competitors, e.g. call with name="Katz's Delicatesse
+
+Category: retail
+
+### pry_reviews
+
+Get the full review history for a local business place from Google Maps or Yelp, going beyond the 5-review API cap. Use to analyze customer sentiment, common complaints, or reputation before outreach,
+
+Category: social
+
+### pry_scores
+
+Get final or live scores for one or more sports on a given day from ESPN public scoreboards (free, no quota, high-frequency safe). Use to check results or power a scores widget, e.g. 'what were the NB
+
+Category: sports_betting
+
+### pry_scrape
+
+Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 9-tier fallback chain (direct -> cloudscraper -> FlareSolverr -> Play
+
+Category: web_scraping
+
+### pry_scrape_methods
+
+List the extraction methods Pry uses to scrape sportsbook odds pages directly: JSON endpoints, __NEXT_DATA__ (Next.js), __NUXT__, __INITIAL_STATE__ / _dida_config_, HTML tables, and browser rendering.
+
+Category: web_scraping
+
+### pry_screenshot
+
+Render a URL in a headless browser and return a screenshot as a base64-encoded PNG with width, height, and content type. Use for visual verification or design QA of a rendered page — e.g. screenshot h
+
+Category: web_scraping
+
+### pry_search_templates
+
+Search the 110+ pre-built scraper template catalog by keyword, category, or site name, returning matching template_ids, their categories, and descriptions. Use before pry_template to discover which te
+
+Category: web_scraping
+
+### pry_sentiment
+
+Score the sentiment of recent news about a keyword — positive / neutral / negative with a confidence score — using lightweight text analysis over the same public news feeds as pry_news. Use to gauge m
+
+Category: social
+
+### pry_serp
+
+Scrape a Google search results page for a query, returning organic results, the AI Overview text when present, and People Also Ask questions. Use for SEO rank tracking or competitor SERP analysis, e.g
+
+Category: search
+
+### pry_sharp_consensus
+
+Get the sharp consensus: the closing-line value and consensus price from sharp books (Pinnacle, Circa, BetOnline) for the biggest games. Use to identify where professional money is, e.g. 'what is the 
+
+Category: sports_betting
+
+### pry_template
+
+Execute one of 110+ pre-built scraper templates (amazon-product, walmart-product, linkedin-profile, etc.) that return site-specific structured data. Use when scraping a known site that already has a t
+
+Category: web_scraping
+
+### pry_tiktok_trending
+
+Get currently trending products on TikTok Shop, ranked by engagement and sales velocity, with price, sales count, and shop info for each result (up to limit). Use to spot viral commerce opportunities,
+
+Category: utility
+
+### pry_token_launches
+
+Discover new crypto token launches, new liquidity pairs, and trending tokens across chains (Solana, Ethereum, Base, ...) with optional age filtering. Use to find early-stage tokens before they hit mai
+
+Category: crypto
+
+### pry_token_security
+
+Run a security scan on a crypto token by chain and contract/mint address — checking for honeypots, hidden mints, ownership concentration, LP lock, and other rug-pull risk signals. Use before investing
+
+Category: crypto
+
+### pry_trademarks
+
+Search U.S. trademarks by keyword or owner using the USPTO public data feeds, returning serial number, mark text, owner, and status. Use for brand clearance before launching a product or token name, e
+
+Category: legal
+
+### pry_trends
+
+Measure Google Trends interest over time for a keyword, returning the daily interest timeline and related queries. Use to validate demand for a product, content topic, or token narrative before commit
+
+Category: search
+
+### pry_walmart_product
+
+Look up a single Walmart product by its product ID (e.g. '4JH7P89H7X5P') and return current price, title, availability, seller, and rating from the marketplace intelligence provider. Use to check a Wa
+
+Category: utility
+
+### pry_weather
+
+Get current weather and short-range forecasts for a location, built for research pipelines that need environmental context (rain, wind, temperature, AQI) alongside other data. Use to enrich scraping j
+
+Category: data
+
+### pry_x402_pricing
+
+Get current x402 pay-per-call pricing for all Pry operations, showing the cost in USDC atomic units and supported networks for each tool. Use before a paid call to display the cost to the user, e.g. '
+
+Category: payments

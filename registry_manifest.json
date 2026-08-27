@@ -1,0 +1,5668 @@
+{
+	"name": "pry-scraper",
+	"displayName": "Pry Scraping API",
+	"description": "Professional web scraping with x402 crypto payments. 15-tier anti-detection fallback, AI extraction, auto-signup, CAPTCHA solving. 73 MCP tools across web scraping, data extraction, monitoring, sports betting, legal intelligence, real estate, jobs, and more.",
+	"longDescription": "Pry is a self-hosted web scraping and browser automation platform with native x402 micropayments. It routes each request through an adaptive 15-tier fallback chain \u2014 direct HTTP, TLS fingerprint impersonation, cloudscraper, FlareSolverr, undetected-chromedriver, Camoufox, Playwright stealth, Googlebot UA, Tor, premium proxies, Archive.org, Google Cache, AI visual scraping, mobile app API, and GraphQL discovery \u2014 escalating only as far as the target requires, then remembering what worked per domain.",
+	"version": "3.0.0",
+	"author": {
+		"name": "Rug Munch Media LLC",
+		"email": "admin@rugmunch.io"
+	},
+	"license": "MIT",
+	"website": "https://[INTERNAL]",
+	"docs": "https://docs.[INTERNAL]",
+	"source": "https://git.rugmunch.io/RugMunchMedia/pryscraper",
+	"mcp": {
+		"url": "http://100.104.130.92:8002/sse",
+		"transport": ["sse", "streamable-http", "stdio"],
+		"auth": "none"
+	},
+	"tools": {
+		"count": 73,
+		"items": [
+			{
+				"name": "pry_scrape",
+				"description": "Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 9-tier fallback chain (direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver). Use when you need the text content of a page a plain HTTP request cannot fetch, e.g. a Cloudflare-protected article or a JS-heavy blog post.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"url": {
+							"type": "string",
+							"format": "uri",
+							"description": "The URL to scrape, e.g. https://example.com/article"
+						},
+						"bypass_cloudflare": {
+							"type": "boolean",
+							"default": true,
+							"description": "Use FlareSolverr + Playwright fallback for Cloudflare-protected pages"
+						},
+						"js_render": {
+							"type": "boolean",
+							"default": false,
+							"description": "Render JavaScript before extracting (slower but handles SPAs)"
+						},
+						"extract_schema": {
+							"type": "object",
+							"description": "Optional JSON schema for structured extraction, e.g. {fields: [{name, selector, type}]}"
+						}
+					},
+					"required": ["url"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"url": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"content": {
+									"type": "string",
+									"description": "Clean markdown content"
+								},
+								"links": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								},
+								"images": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								},
+								"status_code": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "web_scraping",
+				"keywords": [
+					"ai",
+					"bypass",
+					"cloudflare",
+					"data",
+					"markdown",
+					"scrape"
+				],
+				"use_cases": [
+					"Use when you need the text content of a page a plain HTTP request cannot fetch, e"
+				],
+				"longDescription": "Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 9-tier fallback chain (direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver). Use when you need the text content of a page a plain HTTP request cannot fetch, e.g. a Cloudflare-protected article or a JS-heavy blog post. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "web_scraping",
+				"capabilities": ["web_scraping"]
+			},
+			{
+				"name": "pry_crawl",
+				"description": "Crawl a website from a seed URL, discovering and scraping linked pages with BFS/DFS traversal up to max_pages. Use to collect an entire docs site, blog, or directory \u2014 e.g. call with url='https://example.com' and include_paths=['/docs/'] to harvest every page under /docs/, or crawl up to 50 blog posts with max_pages=50. Constrain with include_paths/exclude_paths to stay inside the section you want.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"url": {
+							"type": "string",
+							"format": "uri",
+							"description": "Seed URL to start crawling from, e.g. https://example.com"
+						},
+						"max_pages": {
+							"type": "integer",
+							"default": 10,
+							"minimum": 1,
+							"maximum": 10000,
+							"description": "Maximum number of pages to scrape (default: 10)"
+						},
+						"max_depth": {
+							"type": "integer",
+							"default": 2,
+							"minimum": 0,
+							"maximum": 20,
+							"description": "Maximum link depth from the seed URL (default: 2)"
+						},
+						"include_paths": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							},
+							"description": "URL path patterns to include (e.g., ['/docs/', '/blog/'])"
+						},
+						"exclude_paths": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							},
+							"description": "URL path patterns to skip (e.g., ['/cart/', '/login'])"
+						}
+					},
+					"required": ["url"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"pages": {
+									"type": "array",
+									"items": {
+										"type": "object"
+									}
+								},
+								"total_pages": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "web_scraping",
+				"keywords": ["ai", "api", "crawl", "web"],
+				"use_cases": [
+					"Use to collect an entire docs site, blog, or directory \u2014 e"
+				],
+				"longDescription": "Crawl a website from a seed URL, discovering and scraping linked pages with BFS/DFS traversal up to max_pages. Use to collect an entire docs site, blog, or directory \u2014 e.g. call with url='https://example.com' and include_paths=['/docs/'] to harvest every page under /docs/, or crawl up to 50 blog posts with max_pages=50. Constrain with include_paths/exclude_paths to stay inside the section you want. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "web_scraping",
+				"capabilities": ["web_scraping"]
+			},
+			{
+				"name": "pry_extract",
+				"description": "Extract structured data from a URL using CSS selectors \u2014 10x cheaper than LLM extraction \u2014 and return JSON matching your schema. Use when you need specific fields like {title, price, image, availability} from product listings or search results pages.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"url": {
+							"type": "string",
+							"format": "uri",
+							"description": "The URL to extract from, e.g. https://example.com/products"
+						},
+						"schema": {
+							"type": "object",
+							"description": "Extraction schema with base_selector and fields array, e.g. {name: 'product', base_selector: '.product', fields: [{name: 'price', selector: '.price', type: 'text'}]}",
+							"properties": {
+								"name": {
+									"type": "string"
+								},
+								"base_selector": {
+									"type": "string"
+								},
+								"fields": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"name": {
+												"type": "string"
+											},
+											"selector": {
+												"type": "string"
+											},
+											"type": {
+												"type": "string",
+												"enum": [
+													"text",
+													"attribute",
+													"html",
+													"nested",
+													"count",
+													"exists",
+													"regex"
+												]
+											},
+											"attribute": {
+												"type": "string"
+											},
+											"transform": {
+												"type": "string"
+											}
+										},
+										"required": ["name", "selector"]
+									}
+								}
+							},
+							"required": ["name", "fields"]
+						}
+					},
+					"required": ["url", "schema"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"items": {
+									"type": "array",
+									"items": {
+										"type": "object"
+									}
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "data_extraction",
+				"keywords": ["ai", "data", "extract", "json", "search"],
+				"use_cases": [
+					"Use when you need specific fields like {title, price, image, availability} from product listings or search results pages"
+				],
+				"longDescription": "Extract structured data from a URL using CSS selectors \u2014 10x cheaper than LLM extraction \u2014 and return JSON matching your schema. Use when you need specific fields like {title, price, image, availability} from product listings or search results pages. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "data_extraction",
+				"capabilities": ["web_scraping"]
+			},
+			{
+				"name": "pry_template",
+				"description": "Execute one of 110+ pre-built scraper templates (amazon-product, walmart-product, linkedin-profile, etc.) that return site-specific structured data. Use when scraping a known site that already has a template instead of hand-writing CSS selectors \u2014 e.g. 'amazon-product' for an Amazon product page.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"template_id": {
+							"type": "string",
+							"description": "Template ID (e.g., 'amazon-product', 'walmart-product', 'linkedin-profile') \u2014 search with pry_search_templates"
+						},
+						"url": {
+							"type": "string",
+							"format": "uri",
+							"description": "The URL the template should parse, e.g. https://www.amazon.com/dp/B08N5WRWNW"
+						}
+					},
+					"required": ["template_id", "url"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"template_id": {
+									"type": "string"
+								},
+								"url": {
+									"type": "string"
+								},
+								"status_code": {
+									"type": "integer"
+								},
+								"result": {
+									"type": "object",
+									"description": "Template-specific parsed fields (e.g. title, price, availability)"
+								}
+							}
+						},
+						"error": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "web_scraping",
+				"keywords": ["api", "data", "scrape", "template"],
+				"use_cases": [
+					"Use when scraping a known site that already has a template instead of hand-writing CSS selectors \u2014 e"
+				],
+				"longDescription": "Execute one of 110+ pre-built scraper templates (amazon-product, walmart-product, linkedin-profile, etc.) that return site-specific structured data. Use when scraping a known site that already has a template instead of hand-writing CSS selectors \u2014 e.g. 'amazon-product' for an Amazon product page. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "web_scraping",
+				"capabilities": ["templates"]
+			},
+			{
+				"name": "pry_search_templates",
+				"description": "Search the 110+ pre-built scraper template catalog by keyword, category, or site name, returning matching template_ids, their categories, and descriptions. Use before pry_template to discover which template fits a target site \u2014 e.g. call with q='walmart' to find 'walmart-product', or q='jobs' with category='careers' to list every job-board template.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"q": {
+							"type": "string",
+							"description": "Search query (e.g., 'amazon', 'jobs', 'real estate')"
+						},
+						"category": {
+							"type": "string",
+							"description": "Filter templates by category (e.g., 'ecommerce', 'jobs')"
+						}
+					},
+					"required": ["q"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"templates": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"template_id": {
+												"type": "string"
+											},
+											"category": {
+												"type": "string"
+											},
+											"description": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								},
+								"query": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "web_scraping",
+				"keywords": ["scrape", "search", "template", "templates"],
+				"use_cases": [],
+				"longDescription": "Search the 110+ pre-built scraper template catalog by keyword, category, or site name, returning matching template_ids, their categories, and descriptions. Use before pry_template to discover which template fits a target site \u2014 e.g. call with q='walmart' to find 'walmart-product', or q='jobs' with category='careers' to list every job-board template. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "web_scraping",
+				"capabilities": ["search", "templates"]
+			},
+			{
+				"name": "pry_monitor",
+				"description": "Create a content-change monitor that notifies via webhook, Slack, or Discord when a page changes, using AI to judge whether changes are meaningful. Use to track competitor pricing or product availability over time, e.g. 'notify me when this price page changes'.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"name": {
+							"type": "string",
+							"description": "Human-readable monitor name, e.g. 'Competitor pricing watch'"
+						},
+						"url": {
+							"type": "string",
+							"format": "uri",
+							"description": "The page to monitor for changes, e.g. https://example.com/pricing"
+						},
+						"schedule_cron": {
+							"type": "string",
+							"default": "0 */6 * * *",
+							"description": "Cron expression (default: every 6 hours)"
+						},
+						"webhook_url": {
+							"type": "string",
+							"format": "uri",
+							"description": "Webhook/Slack/Discord URL to notify on meaningful changes"
+						},
+						"goal": {
+							"type": "string",
+							"description": "Natural language goal for AI change judging (e.g., 'price changes matter, not descriptions')"
+						}
+					},
+					"required": ["name", "url"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"monitor_id": {
+									"type": "string"
+								},
+								"name": {
+									"type": "string"
+								},
+								"url": {
+									"type": "string"
+								},
+								"schedule_cron": {
+									"type": "string"
+								},
+								"webhook_url": {
+									"type": "string"
+								},
+								"status": {
+									"type": "string"
+								}
+							}
+						},
+						"error": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": false,
+					"destructiveHint": false,
+					"idempotentHint": false
+				},
+				"category": "monitoring",
+				"keywords": ["ai", "monitor", "web"],
+				"use_cases": [
+					"Use to track competitor pricing or product availability over time, e"
+				],
+				"longDescription": "Create a content-change monitor that notifies via webhook, Slack, or Discord when a page changes, using AI to judge whether changes are meaningful. Use to track competitor pricing or product availability over time, e.g. 'notify me when this price page changes'. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "monitoring",
+				"capabilities": ["monitoring"]
+			},
+			{
+				"name": "pry_compliance",
+				"description": "Compliance intelligence in two modes: pass a URL to check whether scraping it is legally safe (robots.txt, ToS, GDPR/CCPA, PII exposure -> green/yellow/red risk score with recommendations), or pass query/agency to search regulatory compliance records \u2014 enforcement actions, fines, sanctions, and watchlist entries, e.g. query='Binance' for its regulatory history. Use before scraping an uncertain site or when screening a company for compliance exposure.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"url": {
+							"type": "string",
+							"format": "uri",
+							"description": "The URL to run a legal compliance check on, e.g. https://example.com (legacy URL-check mode \u2014 omit when using query/agency)"
+						},
+						"query": {
+							"type": "string",
+							"description": "Regulatory compliance search query (company, entity, or topic), e.g. 'Binance' or 'crypto exchange fines'"
+						},
+						"agency": {
+							"type": "string",
+							"description": "Optional regulator / agency filter for the compliance search, e.g. 'SEC', 'FTC', 'CFTC', 'OFAC'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of compliance records to return (default: 20)"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"url": {
+									"type": "string"
+								},
+								"risk_level": {
+									"type": "string",
+									"enum": ["green", "yellow", "red"]
+								},
+								"risk_score": {
+									"type": "number"
+								},
+								"checks": {
+									"type": "array",
+									"items": {
+										"type": "object"
+									}
+								},
+								"recommendations": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								},
+								"query": {
+									"type": "string"
+								},
+								"agency": {
+									"type": "string"
+								},
+								"records": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"kind": {
+												"type": "string"
+											},
+											"title": {
+												"type": "string"
+											},
+											"agency": {
+												"type": "string"
+											},
+											"date": {
+												"type": "string"
+											},
+											"severity": {
+												"type": "string"
+											},
+											"source": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "compliance",
+				"keywords": ["ai", "api", "compliance", "search"],
+				"use_cases": [],
+				"longDescription": "Compliance intelligence in two modes: pass a URL to check whether scraping it is legally safe (robots.txt, ToS, GDPR/CCPA, PII exposure -> green/yellow/red risk score with recommendations), or pass query/agency to search regulatory compliance records \u2014 enforcement actions, fines, sanctions, and watchlist entries, e.g. query='Binance' for its regulatory history. Use before scraping an uncertain site or when screening a company for compliance exposure. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "compliance",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_enrich",
+				"description": "Enrich a URL with company info, tech stack detection, social profiles, and competitive intelligence. Use to build a prospect profile from their website before outreach, e.g. discover what stack a startup runs and find their LinkedIn.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"url": {
+							"type": "string",
+							"format": "uri",
+							"description": "The URL to enrich, e.g. https://startup.example.com"
+						}
+					},
+					"required": ["url"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"url": {
+									"type": "string"
+								},
+								"company": {
+									"type": "object"
+								},
+								"tech_stack": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								},
+								"social_profiles": {
+									"type": "object"
+								},
+								"emails": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								},
+								"intelligence": {
+									"type": "object"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "data_enrichment",
+				"keywords": ["enrich", "web"],
+				"use_cases": [
+					"Use to build a prospect profile from their website before outreach, e"
+				],
+				"longDescription": "Enrich a URL with company info, tech stack detection, social profiles, and competitive intelligence. Use to build a prospect profile from their website before outreach, e.g. discover what stack a startup runs and find their LinkedIn. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "data_enrichment",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_parse_document",
+				"description": "Parse a document (PDF, DOCX, image) and extract its text and tables using pdfplumber, Tesseract OCR, and python-docx. Use to pull content from a PDF spec, a scanned brochure, or a Word file, e.g. extract the pricing table from a vendor's PDF.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"url": {
+							"type": "string",
+							"format": "uri",
+							"description": "Direct URL to the document, e.g. https://example.com/spec.pdf"
+						}
+					},
+					"required": ["url"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"url": {
+									"type": "string"
+								},
+								"content_type": {
+									"type": "string"
+								},
+								"text": {
+									"type": "string"
+								},
+								"tables": {
+									"type": "array",
+									"items": {
+										"type": "object"
+									}
+								},
+								"pages": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "document_processing",
+				"keywords": ["document", "extract", "parse"],
+				"use_cases": [
+					"Use to pull content from a PDF spec, a scanned brochure, or a Word file, e"
+				],
+				"longDescription": "Parse a document (PDF, DOCX, image) and extract its text and tables using pdfplumber, Tesseract OCR, and python-docx. Use to pull content from a PDF spec, a scanned brochure, or a Word file, e.g. extract the pricing table from a vendor's PDF. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "document_processing",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_screenshot",
+				"description": "Render a URL in a headless browser and return a screenshot as a base64-encoded PNG with width, height, and content type. Use for visual verification or design QA of a rendered page \u2014 e.g. screenshot https://example.com/checkout with full_page=true to capture the whole checkout flow before launch. JavaScript is executed before capture so SPAs render correctly.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"url": {
+							"type": "string",
+							"format": "uri",
+							"description": "The URL to screenshot, e.g. https://example.com/checkout"
+						},
+						"full_page": {
+							"type": "boolean",
+							"default": true,
+							"description": "Capture the entire page height instead of just the viewport"
+						}
+					},
+					"required": ["url"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"url": {
+									"type": "string"
+								},
+								"image_base64": {
+									"type": "string"
+								},
+								"content_type": {
+									"type": "string"
+								},
+								"width": {
+									"type": "integer"
+								},
+								"height": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "web_scraping",
+				"keywords": ["browser", "screenshot"],
+				"use_cases": [],
+				"longDescription": "Render a URL in a headless browser and return a screenshot as a base64-encoded PNG with width, height, and content type. Use for visual verification or design QA of a rendered page \u2014 e.g. screenshot https://example.com/checkout with full_page=true to capture the whole checkout flow before launch. JavaScript is executed before capture so SPAs render correctly. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "web_scraping",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_x402_pricing",
+				"description": "Get current x402 pay-per-call pricing for all Pry operations, showing the cost in USDC atomic units and supported networks for each tool. Use before a paid call to display the cost to the user, e.g. 'how much does a pry_scrape cost?'.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"pricing": {
+									"type": "object"
+								},
+								"wallet": {
+									"type": "string"
+								},
+								"facilitator": {
+									"type": "string"
+								},
+								"supported_networks": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "payments",
+				"keywords": ["ai", "pricing", "scrape", "x402"],
+				"use_cases": [],
+				"longDescription": "Get current x402 pay-per-call pricing for all Pry operations, showing the cost in USDC atomic units and supported networks for each tool. Use before a paid call to display the cost to the user, e.g. 'how much does a pry_scrape cost?'. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "payments",
+				"capabilities": ["payments"]
+			},
+			{
+				"name": "pry_referrals",
+				"description": "Get Pry's referral catalog \u2014 60+ providers across LLM, hosting, email, monitoring, proxies, and devtools \u2014 each link carrying our affiliate ID for revenue attribution. Use to find a revenue-share partner or pick a recommended provider, e.g. 'what proxy providers do you refer?'.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"category": {
+							"type": "string",
+							"description": "Filter the catalog by category (e.g., 'proxies', 'llm', 'hosting')"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"categories": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								},
+								"providers": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"name": {
+												"type": "string"
+											},
+											"category": {
+												"type": "string"
+											},
+											"url": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "affiliate",
+				"keywords": ["ai", "monitor", "referrals"],
+				"use_cases": [
+					"Use to find a revenue-share partner or pick a recommended provider, e"
+				],
+				"longDescription": "Get Pry's referral catalog \u2014 60+ providers across LLM, hosting, email, monitoring, proxies, and devtools \u2014 each link carrying our affiliate ID for revenue attribution. Use to find a revenue-share partner or pick a recommended provider, e.g. 'what proxy providers do you refer?'. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "affiliate",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_token_launches",
+				"description": "Discover new crypto token launches, new liquidity pairs, and trending tokens across chains (Solana, Ethereum, Base, ...) with optional age filtering. Use to find early-stage tokens before they hit mainstream trackers, e.g. 'what new Solana tokens launched in the last hour?' or 'show me trending tokens on Base'.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"chain": {
+							"type": "string",
+							"default": "all",
+							"description": "Blockchain filter (e.g., 'solana', 'ethereum', 'base', 'all'). Use 'all' to search every supported chain."
+						},
+						"limit": {
+							"type": "integer",
+							"default": 50,
+							"minimum": 1,
+							"maximum": 500,
+							"description": "Maximum number of results to return (default: 50)"
+						},
+						"kind": {
+							"type": "string",
+							"enum": ["tokens", "pairs", "trending"],
+							"default": "tokens",
+							"description": "What to return: 'tokens' = newly created tokens, 'pairs' = new liquidity pairs, 'trending' = currently trending tokens"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"items": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"address": {
+												"type": "string"
+											},
+											"symbol": {
+												"type": "string"
+											},
+											"name": {
+												"type": "string"
+											},
+											"chain": {
+												"type": "string"
+											},
+											"created_at": {
+												"type": "string"
+											},
+											"liquidity_usd": {
+												"type": "number"
+											},
+											"volume_24h_usd": {
+												"type": "number"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								},
+								"chain": {
+									"type": "string"
+								},
+								"kind": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "crypto",
+				"keywords": ["ai", "crypto", "launches", "token"],
+				"use_cases": [
+					"Use to find early-stage tokens before they hit mainstream trackers, e"
+				],
+				"longDescription": "Discover new crypto token launches, new liquidity pairs, and trending tokens across chains (Solana, Ethereum, Base, ...) with optional age filtering. Use to find early-stage tokens before they hit mainstream trackers, e.g. 'what new Solana tokens launched in the last hour?' or 'show me trending tokens on Base'. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "crypto",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_cex_listings",
+				"description": "Get recent centralized-exchange (CEX) listing and delisting signals \u2014 e.g. Binance, Coinbase, Kraken \u2014 aggregated over a configurable lookback window. Use to time research on tokens that just landed on a major exchange, e.g. 'what did Coinbase list in the last 24 hours?'.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"exchanges": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							},
+							"description": "CEX names to filter by (e.g., ['binance', 'coinbase', 'kraken']). Omit or pass [] to include every tracked exchange."
+						},
+						"lookback_hours": {
+							"type": "integer",
+							"default": 24,
+							"minimum": 1,
+							"maximum": 720,
+							"description": "Look back window in hours (default: 24)"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"signals": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"token_symbol": {
+												"type": "string"
+											},
+											"token_address": {
+												"type": "string"
+											},
+											"chain": {
+												"type": "string"
+											},
+											"exchange": {
+												"type": "string"
+											},
+											"event": {
+												"type": "string"
+											},
+											"announced_at": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								},
+								"lookback_hours": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "crypto",
+				"keywords": ["cex", "listings", "search"],
+				"use_cases": [
+					"Use to time research on tokens that just landed on a major exchange, e"
+				],
+				"longDescription": "Get recent centralized-exchange (CEX) listing and delisting signals \u2014 e.g. Binance, Coinbase, Kraken \u2014 aggregated over a configurable lookback window. Use to time research on tokens that just landed on a major exchange, e.g. 'what did Coinbase list in the last 24 hours?'. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "crypto",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_amazon_product",
+				"description": "Look up a single Amazon product by its ASIN (e.g. 'B08N5WRWNW') and return current price, title, availability, rating, and listing details from the marketplace intelligence provider. Use to check a product's live price or stock, e.g. 'what does B0BLVMHNF1 cost right now?'.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"asin": {
+							"type": "string",
+							"description": "Amazon Standard Identification Number (10-character alphanumeric), e.g. 'B08N5WRWNW'"
+						}
+					},
+					"required": ["asin"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"asin": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"price": {
+									"type": "number"
+								},
+								"currency": {
+									"type": "string"
+								},
+								"availability": {
+									"type": "string"
+								},
+								"rating": {
+									"type": "number"
+								},
+								"reviews_count": {
+									"type": "integer"
+								},
+								"url": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "utility",
+				"keywords": ["ai", "amazon", "product"],
+				"use_cases": ["Use to check a product's live price or stock, e"],
+				"longDescription": "Look up a single Amazon product by its ASIN (e.g. 'B08N5WRWNW') and return current price, title, availability, rating, and listing details from the marketplace intelligence provider. Use to check a product's live price or stock, e.g. 'what does B0BLVMHNF1 cost right now?'. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "utility",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_amazon_search",
+				"description": "Search Amazon products by keyword and return matching listings \u2014 title, price, rating, and ASIN for each result (up to limit). Use to compare prices or discover products, e.g. 'search Amazon for wireless mechanical keyboards'.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Search keywords, e.g. 'wireless mechanical keyboard'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of results to return (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"items": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"asin": {
+												"type": "string"
+											},
+											"title": {
+												"type": "string"
+											},
+											"price": {
+												"type": "number"
+											},
+											"currency": {
+												"type": "string"
+											},
+											"rating": {
+												"type": "number"
+											},
+											"url": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								},
+								"query": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "utility",
+				"keywords": ["amazon", "search"],
+				"use_cases": ["Use to compare prices or discover products, e"],
+				"longDescription": "Search Amazon products by keyword and return matching listings \u2014 title, price, rating, and ASIN for each result (up to limit). Use to compare prices or discover products, e.g. 'search Amazon for wireless mechanical keyboards'. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "utility",
+				"capabilities": ["search"]
+			},
+			{
+				"name": "pry_walmart_product",
+				"description": "Look up a single Walmart product by its product ID (e.g. '4JH7P89H7X5P') and return current price, title, availability, seller, and rating from the marketplace intelligence provider. Use to check a Walmart listing's live price or stock, e.g. 'what does Walmart product 4JH7P89H7X5P cost?'.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"product_id": {
+							"type": "string",
+							"description": "Walmart product ID (alphanumeric), e.g. '4JH7P89H7X5P'"
+						}
+					},
+					"required": ["product_id"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"product_id": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"price": {
+									"type": "number"
+								},
+								"currency": {
+									"type": "string"
+								},
+								"availability": {
+									"type": "string"
+								},
+								"seller": {
+									"type": "string"
+								},
+								"rating": {
+									"type": "number"
+								},
+								"url": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "utility",
+				"keywords": ["ai", "product", "walmart"],
+				"use_cases": [
+					"Use to check a Walmart listing's live price or stock, e"
+				],
+				"longDescription": "Look up a single Walmart product by its product ID (e.g. '4JH7P89H7X5P') and return current price, title, availability, seller, and rating from the marketplace intelligence provider. Use to check a Walmart listing's live price or stock, e.g. 'what does Walmart product 4JH7P89H7X5P cost?'. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "utility",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_tiktok_trending",
+				"description": "Get currently trending products on TikTok Shop, ranked by engagement and sales velocity, with price, sales count, and shop info for each result (up to limit). Use to spot viral commerce opportunities, e.g. 'what's trending on TikTok Shop right now?'.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"limit": {
+							"type": "integer",
+							"default": 50,
+							"minimum": 1,
+							"maximum": 500,
+							"description": "Maximum number of trending items to return (default: 50)"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"items": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"product_id": {
+												"type": "string"
+											},
+											"title": {
+												"type": "string"
+											},
+											"price": {
+												"type": "number"
+											},
+											"currency": {
+												"type": "string"
+											},
+											"sales_count": {
+												"type": "integer"
+											},
+											"shop_name": {
+												"type": "string"
+											},
+											"url": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "utility",
+				"keywords": ["tiktok", "trending"],
+				"use_cases": ["Use to spot viral commerce opportunities, e"],
+				"longDescription": "Get currently trending products on TikTok Shop, ranked by engagement and sales velocity, with price, sales count, and shop info for each result (up to limit). Use to spot viral commerce opportunities, e.g. 'what's trending on TikTok Shop right now?'. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "utility",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_token_security",
+				"description": "Run a security scan on a crypto token by chain and contract/mint address \u2014 checking for honeypots, hidden mints, ownership concentration, LP lock, and other rug-pull risk signals. Use before investing in or reporting on an unfamiliar token, e.g. 'scan So11111111111111111111111111111111111111112 on solana'.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"chain": {
+							"type": "string",
+							"description": "Blockchain the token lives on (e.g., 'solana', 'ethereum', 'base')"
+						},
+						"address": {
+							"type": "string",
+							"description": "Token contract or mint address, e.g. 'So11111111111111111111111111111111111111112'"
+						}
+					},
+					"required": ["chain", "address"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"chain": {
+									"type": "string"
+								},
+								"address": {
+									"type": "string"
+								},
+								"risk_score": {
+									"type": "number"
+								},
+								"risk_level": {
+									"type": "string"
+								},
+								"findings": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"name": {
+												"type": "string"
+											},
+											"severity": {
+												"type": "string"
+											},
+											"description": {
+												"type": "string"
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "crypto",
+				"keywords": ["ai", "crypto", "security", "token"],
+				"use_cases": [],
+				"longDescription": "Run a security scan on a crypto token by chain and contract/mint address \u2014 checking for honeypots, hidden mints, ownership concentration, LP lock, and other rug-pull risk signals. Use before investing in or reporting on an unfamiliar token, e.g. 'scan So11111111111111111111111111111111111111112 on solana'. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "crypto",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_legal_dockets",
+				"description": "Search U.S. federal and state court dockets by full-text query using the free CourtListener REST API v4, returning docket titles, courts, and case numbers. Use to monitor litigation against a company, person, or trademark before it hits the news, e.g. 'what lawsuits involve OpenAI?' or 'show dockets mentioning this company name'. Results are best-effort: the free tier has no auth and degrades to an empty list on network or rate-limit failure.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Full-text docket search query, e.g. 'OpenAI copyright infringement'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of dockets to return (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"id": {
+										"type": "integer"
+									},
+									"case_name": {
+										"type": "string"
+									},
+									"court": {
+										"type": "string"
+									},
+									"docket_number": {
+										"type": "string"
+									},
+									"date_filed": {
+										"type": "string"
+									},
+									"url": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"query": {
+							"type": "string"
+						},
+						"total": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "legal",
+				"keywords": ["ai", "api", "dockets", "legal", "monitor", "search"],
+				"use_cases": [
+					"Use to monitor litigation against a company, person, or trademark before it hits the news, e"
+				],
+				"longDescription": "Search U.S. federal and state court dockets by full-text query using the free CourtListener REST API v4, returning docket titles, courts, and case numbers. Use to monitor litigation against a company, person, or trademark before it hits the news, e.g. 'what lawsuits involve OpenAI?' or 'show dockets mentioning this company name'. Results are best-effort: the free tier has no auth and degrades to an empty list on network or rate-limit failure. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "legal",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_legal_sec",
+				"description": "Search SEC EDGAR filings for a public company by ticker and form type, returning filing dates, form names, and EDGAR accession numbers. Use to track regulatory filings that move markets, e.g. 'recent 8-K filings for AAPL' or 'all 10-Q filings for TSLA this year'. Backed by the free EDGAR Full-Text Search and submissions feed; never raises and returns an empty list on failure.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"ticker": {
+							"type": "string",
+							"description": "Company ticker symbol, e.g. 'AAPL'"
+						},
+						"form_type": {
+							"type": "string",
+							"default": "8-K",
+							"description": "SEC form type to search (e.g. '8-K', '10-Q', '10-K', '4')"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of filings to return (default: 20)"
+						}
+					},
+					"required": ["ticker"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"accession_no": {
+										"type": "string"
+									},
+									"form_type": {
+										"type": "string"
+									},
+									"filing_date": {
+										"type": "string"
+									},
+									"ticker": {
+										"type": "string"
+									},
+									"url": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"ticker": {
+							"type": "string"
+						},
+						"total": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "legal",
+				"keywords": ["ai", "legal", "search", "sec"],
+				"use_cases": ["Use to track regulatory filings that move markets, e"],
+				"longDescription": "Search SEC EDGAR filings for a public company by ticker and form type, returning filing dates, form names, and EDGAR accession numbers. Use to track regulatory filings that move markets, e.g. 'recent 8-K filings for AAPL' or 'all 10-Q filings for TSLA this year'. Backed by the free EDGAR Full-Text Search and submissions feed; never raises and returns an empty list on failure. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "legal",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_legal_sanctions",
+				"description": "Screen a person or entity name against the OFAC Specially Designated Nationals (SDN) sanctions list, returning any matching records with their sanctions program and remarks. Use for compliance due diligence before onboarding a counterparty, partner, or wallet-linked entity, e.g. 'is Vladimir Potanin sanctioned?'. Backed by the free OFAC SDN XML downloads, cached in-process; returns an empty list when the name is clean or the feed is unreachable.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"name": {
+							"type": "string",
+							"description": "Person or entity name to screen, e.g. 'Vladimir Potanin'"
+						}
+					},
+					"required": ["name"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string"
+									},
+									"program": {
+										"type": "string"
+									},
+									"remarks": {
+										"type": "string"
+									},
+									"uid": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"name": {
+							"type": "string"
+						},
+						"total": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "legal",
+				"keywords": ["ai", "legal", "sanctions"],
+				"use_cases": [],
+				"longDescription": "Screen a person or entity name against the OFAC Specially Designated Nationals (SDN) sanctions list, returning any matching records with their sanctions program and remarks. Use for compliance due diligence before onboarding a counterparty, partner, or wallet-linked entity, e.g. 'is Vladimir Potanin sanctioned?'. Backed by the free OFAC SDN XML downloads, cached in-process; returns an empty list when the name is clean or the feed is unreachable. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "legal",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_realestate_search",
+				"description": "Search real-estate listings by location and status (for_sale, for_rent, sold), returning address, price, beds/baths, square footage, and listing URLs. Use for market research, comps, or lead generation, e.g. 'what's for sale in Austin, TX under $500k?'. Scrapes Zillow search pages with a Redfin GIS API fallback (both free and keyless); never raises and returns an empty list when the source is unreachable.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"location": {
+							"type": "string",
+							"description": "City or neighborhood, e.g. 'Austin, TX'"
+						},
+						"status": {
+							"type": "string",
+							"enum": ["for_sale", "for_rent", "sold"],
+							"default": "for_sale",
+							"description": "Listing status filter (default: for_sale)"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 50,
+							"description": "Maximum number of listings to return (default: 20)"
+						}
+					},
+					"required": ["location"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"zpid": {
+										"type": "string"
+									},
+									"address": {
+										"type": "string"
+									},
+									"price": {
+										"type": "number"
+									},
+									"beds": {
+										"type": "integer"
+									},
+									"baths": {
+										"type": "number"
+									},
+									"sqft": {
+										"type": "integer"
+									},
+									"status": {
+										"type": "string"
+									},
+									"url": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"location": {
+							"type": "string"
+						},
+						"total": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "real_estate",
+				"keywords": ["ai", "api", "realestate", "scrape", "search"],
+				"use_cases": [],
+				"longDescription": "Search real-estate listings by location and status (for_sale, for_rent, sold), returning address, price, beds/baths, square footage, and listing URLs. Use for market research, comps, or lead generation, e.g. 'what's for sale in Austin, TX under $500k?'. Scrapes Zillow search pages with a Redfin GIS API fallback (both free and keyless); never raises and returns an empty list when the source is unreachable. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "real_estate",
+				"capabilities": ["search"]
+			},
+			{
+				"name": "pry_jobs_list",
+				"description": "List current job postings for a company from its applicant-tracking system (Greenhouse, Lever, Ashby, or Workday), returning normalized titles, locations, remote flags, and application URLs. Use for talent-market intel or recruitment pipelines, e.g. 'what engineering roles is Stripe hiring for?'. Reads the free, public, keyless JSON boards; never raises and returns an empty list when the board is unreachable or the company slug is unknown.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"company": {
+							"type": "string",
+							"description": "Company slug on the ATS board, e.g. 'stripe'"
+						},
+						"board": {
+							"type": "string",
+							"enum": ["greenhouse", "lever", "ashby", "workday"],
+							"default": "greenhouse",
+							"description": "ATS board to query (default: greenhouse)"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 50,
+							"minimum": 1,
+							"maximum": 500,
+							"description": "Maximum number of listings to return (default: 50)"
+						}
+					},
+					"required": ["company"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"id": {
+										"type": "string"
+									},
+									"title": {
+										"type": "string"
+									},
+									"company": {
+										"type": "string"
+									},
+									"location": {
+										"type": "string"
+									},
+									"remote": {
+										"type": "boolean"
+									},
+									"url": {
+										"type": "string"
+									},
+									"posted_at": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"board": {
+							"type": "string"
+						},
+						"total": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "jobs_careers",
+				"keywords": ["ai", "jobs", "json", "list"],
+				"use_cases": [],
+				"longDescription": "List current job postings for a company from its applicant-tracking system (Greenhouse, Lever, Ashby, or Workday), returning normalized titles, locations, remote flags, and application URLs. Use for talent-market intel or recruitment pipelines, e.g. 'what engineering roles is Stripe hiring for?'. Reads the free, public, keyless JSON boards; never raises and returns an empty list when the board is unreachable or the company slug is unknown. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "jobs_careers",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_jobs_salary",
+				"description": "Get per-level salary bands (total compensation, base, stock, bonus) for a company and role from Levels.fyi's public embedded data. Use to benchmark compensation offers or market rates, e.g. 'what does Google pay software engineers at L5?'. Scrapes the free Levels.fyi page with no auth; never raises and returns an empty object when the company or role is not found.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"company": {
+							"type": "string",
+							"description": "Company slug, e.g. 'google'"
+						},
+						"role": {
+							"type": "string",
+							"default": "software_engineer",
+							"description": "Role slug, e.g. 'software_engineer', 'product_manager'"
+						}
+					},
+					"required": ["company"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"company": {
+									"type": "string"
+								},
+								"role": {
+									"type": "string"
+								},
+								"levels": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"level": {
+												"type": "string"
+											},
+											"total_comp": {
+												"type": "number"
+											},
+											"base": {
+												"type": "number"
+											},
+											"stock": {
+												"type": "number"
+											},
+											"bonus": {
+												"type": "number"
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "jobs_careers",
+				"keywords": ["ai", "data", "jobs", "salary", "scrape"],
+				"use_cases": [
+					"Use to benchmark compensation offers or market rates, e"
+				],
+				"longDescription": "Get per-level salary bands (total compensation, base, stock, bonus) for a company and role from Levels.fyi's public embedded data. Use to benchmark compensation offers or market rates, e.g. 'what does Google pay software engineers at L5?'. Scrapes the free Levels.fyi page with no auth; never raises and returns an empty object when the company or role is not found. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "jobs_careers",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_flights_grid",
+				"description": "Get the cheapest flight option per day between two dates for an origin and destination pair, using Google Flights' public tfs deep-link page. Use to find the cheapest day to fly on a trip, e.g. 'what's the cheapest day JFK\u2192CDG next month?'. Returns a per-day price grid; never raises and returns an empty grid when Google Flights blocks the scrape (embedded JSON drifts over time).",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"origin": {
+							"type": "string",
+							"description": "IATA origin code, e.g. 'JFK'"
+						},
+						"dest": {
+							"type": "string",
+							"description": "IATA destination code, e.g. 'CDG'"
+						},
+						"start_date": {
+							"type": "string",
+							"description": "First date (YYYY-MM-DD), e.g. '2026-09-01'"
+						},
+						"end_date": {
+							"type": "string",
+							"description": "Last date (YYYY-MM-DD), e.g. '2026-09-30'"
+						}
+					},
+					"required": ["origin", "dest", "start_date", "end_date"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"origin": {
+									"type": "string"
+								},
+								"dest": {
+									"type": "string"
+								},
+								"days": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"date": {
+												"type": "string"
+											},
+											"price_usd": {
+												"type": "number"
+											},
+											"airline": {
+												"type": "string"
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "travel",
+				"keywords": ["ai", "flights", "grid", "json", "scrape"],
+				"use_cases": ["Use to find the cheapest day to fly on a trip, e"],
+				"longDescription": "Get the cheapest flight option per day between two dates for an origin and destination pair, using Google Flights' public tfs deep-link page. Use to find the cheapest day to fly on a trip, e.g. 'what's the cheapest day JFK\u2192CDG next month?'. Returns a per-day price grid; never raises and returns an empty grid when Google Flights blocks the scrape (embedded JSON drifts over time). Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "travel",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_hotel_rates",
+				"description": "Get per-night hotel rates for a stay window from Google Hotels with a Booking.com fallback, both free and keyless page scrapes. Use to compare prices across sources for a specific property, e.g. 'what does the Ritz Paris cost for September 10-14?'. Returns per-night rate breakdowns; never raises and returns an empty object when neither source is reachable.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"hotel_name": {
+							"type": "string",
+							"description": "Hotel name or location query, e.g. 'Ritz Paris'"
+						},
+						"checkin": {
+							"type": "string",
+							"description": "Check-in date (YYYY-MM-DD), e.g. '2026-09-10'"
+						},
+						"checkout": {
+							"type": "string",
+							"description": "Check-out date (YYYY-MM-DD), e.g. '2026-09-14'"
+						}
+					},
+					"required": ["hotel_name", "checkin", "checkout"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"hotel": {
+									"type": "string"
+								},
+								"nights": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"date": {
+												"type": "string"
+											},
+											"price_usd": {
+												"type": "number"
+											},
+											"source": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total_usd": {
+									"type": "number"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "travel",
+				"keywords": ["ai", "hotel", "rates", "scrape"],
+				"use_cases": [
+					"Use to compare prices across sources for a specific property, e"
+				],
+				"longDescription": "Get per-night hotel rates for a stay window from Google Hotels with a Booking.com fallback, both free and keyless page scrapes. Use to compare prices across sources for a specific property, e.g. 'what does the Ritz Paris cost for September 10-14?'. Returns per-night rate breakdowns; never raises and returns an empty object when neither source is reachable. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "travel",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_serp",
+				"description": "Scrape a Google search results page for a query, returning organic results, the AI Overview text when present, and People Also Ask questions. Use for SEO rank tracking or competitor SERP analysis, e.g. 'who ranks for best wireless keyboard?'. Built on the free public Google results page; never raises and returns an error payload when Google serves a consent or CAPTCHA wall.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"q": {
+							"type": "string",
+							"description": "Search query, e.g. 'best wireless keyboard'"
+						},
+						"num": {
+							"type": "integer",
+							"default": 10,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum organic results to parse (default: 10)"
+						}
+					},
+					"required": ["q"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"query": {
+									"type": "string"
+								},
+								"organic": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"rank": {
+												"type": "integer"
+											},
+											"title": {
+												"type": "string"
+											},
+											"url": {
+												"type": "string"
+											},
+											"snippet": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"ai_overview": {
+									"type": "string"
+								},
+								"people_also_ask": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "search",
+				"keywords": ["ai", "scrape", "search", "serp"],
+				"use_cases": [],
+				"longDescription": "Scrape a Google search results page for a query, returning organic results, the AI Overview text when present, and People Also Ask questions. Use for SEO rank tracking or competitor SERP analysis, e.g. 'who ranks for best wireless keyboard?'. Built on the free public Google results page; never raises and returns an error payload when Google serves a consent or CAPTCHA wall. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "search",
+				"capabilities": ["search"]
+			},
+			{
+				"name": "pry_trends",
+				"description": "Measure Google Trends interest over time for a keyword, returning the daily interest timeline and related queries. Use to validate demand for a product, content topic, or token narrative before committing resources, e.g. 'is AI agents interest rising?'. Built on the free Trends public endpoint; never raises and returns an error payload when the endpoint is unreachable.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"keyword": {
+							"type": "string",
+							"description": "Keyword to measure, e.g. 'AI agents'"
+						},
+						"timeframe": {
+							"type": "string",
+							"default": "today 12-m",
+							"description": "Trends timeframe, e.g. 'today 12-m', 'today 3-m', 'now 7-d'"
+						}
+					},
+					"required": ["keyword"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"keyword": {
+									"type": "string"
+								},
+								"timeline": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"date": {
+												"type": "string"
+											},
+											"interest": {
+												"type": "number"
+											}
+										}
+									}
+								},
+								"related_queries": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "search",
+				"keywords": ["ai", "trends"],
+				"use_cases": [
+					"Use to validate demand for a product, content topic, or token narrative before committing resources, e"
+				],
+				"longDescription": "Measure Google Trends interest over time for a keyword, returning the daily interest timeline and related queries. Use to validate demand for a product, content topic, or token narrative before committing resources, e.g. 'is AI agents interest rising?'. Built on the free Trends public endpoint; never raises and returns an error payload when the endpoint is unreachable. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "search",
+				"capabilities": ["search"]
+			},
+			{
+				"name": "pry_places_search",
+				"description": "Search Google Maps for local businesses matching a query and location, returning name, rating, review count, address, and place IDs for lead generation. Use to build prospect lists for outbound sales, e.g. 'find coffee shops in Austin TX'. Backed by the free Google Maps public search page; never raises and returns an empty list when the page is unreachable or blocked.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Business type or keyword, e.g. 'taco'"
+						},
+						"location": {
+							"type": "string",
+							"description": "City or region, e.g. 'Austin TX'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of places to return (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"place_id": {
+										"type": "string"
+									},
+									"name": {
+										"type": "string"
+									},
+									"rating": {
+										"type": "number"
+									},
+									"reviews_count": {
+										"type": "integer"
+									},
+									"address": {
+										"type": "string"
+									},
+									"phone": {
+										"type": "string"
+									},
+									"website": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"query": {
+							"type": "string"
+						},
+						"total": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "local",
+				"keywords": ["ai", "places", "search"],
+				"use_cases": ["Use to build prospect lists for outbound sales, e"],
+				"longDescription": "Search Google Maps for local businesses matching a query and location, returning name, rating, review count, address, and place IDs for lead generation. Use to build prospect lists for outbound sales, e.g. 'find coffee shops in Austin TX'. Backed by the free Google Maps public search page; never raises and returns an empty list when the page is unreachable or blocked. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "local",
+				"capabilities": ["search"]
+			},
+			{
+				"name": "pry_reviews",
+				"description": "Get the full review history for a local business place from Google Maps or Yelp, going beyond the 5-review API cap. Use to analyze customer sentiment, common complaints, or reputation before outreach, e.g. 'what do customers say about this restaurant?'. Accepts a Google place CID/slug or a Yelp biz slug; never raises and returns an empty list when the source is unreachable.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"place_id": {
+							"type": "string",
+							"description": "Google Maps place CID/slug or Yelp biz slug"
+						},
+						"source": {
+							"type": "string",
+							"enum": ["google", "yelp"],
+							"default": "google",
+							"description": "Review source (default: google)"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of reviews to return (default: 20)"
+						}
+					},
+					"required": ["place_id"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"author": {
+										"type": "string"
+									},
+									"rating": {
+										"type": "number"
+									},
+									"date": {
+										"type": "string"
+									},
+									"text": {
+										"type": "string"
+									},
+									"source": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"place_id": {
+							"type": "string"
+						},
+						"total": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "social",
+				"keywords": ["ai", "api", "reviews"],
+				"use_cases": [
+					"Use to analyze customer sentiment, common complaints, or reputation before outreach, e"
+				],
+				"longDescription": "Get the full review history for a local business place from Google Maps or Yelp, going beyond the 5-review API cap. Use to analyze customer sentiment, common complaints, or reputation before outreach, e.g. 'what do customers say about this restaurant?'. Accepts a Google place CID/slug or a Yelp biz slug; never raises and returns an empty list when the source is unreachable. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "social",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_procurement",
+				"description": "Search U.S. federal procurement opportunities and contract awards from the public SAM.gov data feed, returning title, agency, notice type, and deadline. Use to find government business opportunities for a capability, e.g. 'what cybersecurity contracts are open?'. The gov_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Keyword search, e.g. 'cybersecurity'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum results to return (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"notice_id": {
+										"type": "string"
+									},
+									"title": {
+										"type": "string"
+									},
+									"agency": {
+										"type": "string"
+									},
+									"notice_type": {
+										"type": "string"
+									},
+									"deadline": {
+										"type": "string"
+									},
+									"url": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"query": {
+							"type": "string"
+						},
+						"total": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "government",
+				"keywords": ["ai", "data", "procurement", "search"],
+				"use_cases": [
+					"Use to find government business opportunities for a capability, e"
+				],
+				"longDescription": "Search U.S. federal procurement opportunities and contract awards from the public SAM.gov data feed, returning title, agency, notice type, and deadline. Use to find government business opportunities for a capability, e.g. 'what cybersecurity contracts are open?'. The gov_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "government",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_recalls",
+				"description": "Search recent product recalls from the U.S. CPSC public data feed, returning product name, hazard, recall date, and remedy. Use for consumer-safety monitoring or supply-chain due diligence, e.g. 'recent recalls for e-bike batteries'. The gov_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Keyword search, e.g. 'e-bike battery'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum results to return (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"recall_id": {
+										"type": "string"
+									},
+									"product": {
+										"type": "string"
+									},
+									"hazard": {
+										"type": "string"
+									},
+									"recall_date": {
+										"type": "string"
+									},
+									"remedy": {
+										"type": "string"
+									},
+									"url": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"query": {
+							"type": "string"
+						},
+						"total": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "safety",
+				"keywords": ["ai", "data", "monitor", "recalls", "search"],
+				"use_cases": [],
+				"longDescription": "Search recent product recalls from the U.S. CPSC public data feed, returning product name, hazard, recall date, and remedy. Use for consumer-safety monitoring or supply-chain due diligence, e.g. 'recent recalls for e-bike batteries'. The gov_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "safety",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_patents",
+				"description": "Search U.S. patents by keyword using the USPTO public data feeds, returning patent number, title, assignee, and grant date. Use for IP landscaping or freedom-to-operate checks, e.g. 'patents for blockchain identity'. The ip_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Keyword search, e.g. 'blockchain identity'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum results to return (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"patent_number": {
+										"type": "string"
+									},
+									"title": {
+										"type": "string"
+									},
+									"assignee": {
+										"type": "string"
+									},
+									"grant_date": {
+										"type": "string"
+									},
+									"url": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"query": {
+							"type": "string"
+						},
+						"total": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "legal",
+				"keywords": ["ai", "api", "data", "patents", "search"],
+				"use_cases": [],
+				"longDescription": "Search U.S. patents by keyword using the USPTO public data feeds, returning patent number, title, assignee, and grant date. Use for IP landscaping or freedom-to-operate checks, e.g. 'patents for blockchain identity'. The ip_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "legal",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_trademarks",
+				"description": "Search U.S. trademarks by keyword or owner using the USPTO public data feeds, returning serial number, mark text, owner, and status. Use for brand clearance before launching a product or token name, e.g. 'is RugMunch trademarked?'. The ip_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Keyword or owner search, e.g. 'RugMunch'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum results to return (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"serial_number": {
+										"type": "string"
+									},
+									"mark": {
+										"type": "string"
+									},
+									"owner": {
+										"type": "string"
+									},
+									"status": {
+										"type": "string"
+									},
+									"url": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"query": {
+							"type": "string"
+						},
+						"total": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "legal",
+				"keywords": ["ai", "data", "search", "trademarks"],
+				"use_cases": [],
+				"longDescription": "Search U.S. trademarks by keyword or owner using the USPTO public data feeds, returning serial number, mark text, owner, and status. Use for brand clearance before launching a product or token name, e.g. 'is RugMunch trademarked?'. The ip_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "legal",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_odds",
+				"description": "Get live betting odds across major bookmakers (DraftKings, FanDuel, BetMGM, ESPN BET, ...) for one or more sports, backed by The Odds API (free tier via PRY_ODDS_API_KEY) with an ESPN scoreboard fallback. Each record includes the event label, market, bookmaker, and decimal odds for home/away. Use to compare lines before placing a bet or to power an odds aggregator, e.g. 'what are the current NBA moneyline odds across books?' or call with sport='nfl' to see the full NFL slate.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sport": {
+							"type": "string",
+							"default": "all",
+							"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default: nba + nfl + epl)"
+						},
+						"market": {
+							"type": "string",
+							"default": "h2h",
+							"description": "Betting market (e.g., 'h2h' moneyline, 'spreads', 'totals'); the default feed is h2h moneyline"
+						},
+						"book": {
+							"type": "string",
+							"description": "Bookmaker name filter (e.g., 'DraftKings', 'FanDuel', 'BetMGM'); omit for every book"
+						},
+						"event_query": {
+							"type": "string",
+							"description": "Substring filter on event label, e.g. 'celtics'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of odds records (default: 20)"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"sport": {
+										"type": "string"
+									},
+									"event": {
+										"type": "string"
+									},
+									"event_id": {
+										"type": "string"
+									},
+									"market": {
+										"type": "string"
+									},
+									"bookmaker": {
+										"type": "string"
+									},
+									"home_odds": {
+										"type": "number"
+									},
+									"away_odds": {
+										"type": "number"
+									},
+									"last_update": {
+										"type": "string"
+									},
+									"source": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"sport": {
+							"type": "string"
+						},
+						"limit": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "sports_betting",
+				"keywords": ["api", "odds"],
+				"use_cases": [
+					"Use to compare lines before placing a bet or to power an odds aggregator, e"
+				],
+				"longDescription": "Get live betting odds across major bookmakers (DraftKings, FanDuel, BetMGM, ESPN BET, ...) for one or more sports, backed by The Odds API (free tier via PRY_ODDS_API_KEY) with an ESPN scoreboard fallback. Each record includes the event label, market, bookmaker, and decimal odds for home/away. Use to compare lines before placing a bet or to power an odds aggregator, e.g. 'what are the current NBA moneyline odds across books?' or call with sport='nfl' to see the full NFL slate. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "sports_betting",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_arbitrage",
+				"description": "Scan sportsbook lines for guaranteed-profit arbitrage opportunities: the same event quoted at different books where the combined implied probabilities total under 100%. Use to find risk-free bets, e.g. 'show me NFL arbitrage opportunities with at least 0.8% yield' or call with sport='all' to sweep every tracked league.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sport": {
+							"type": "string",
+							"default": "all",
+							"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
+						},
+						"min_yield_pct": {
+							"type": "number",
+							"default": 0.5,
+							"minimum": 0,
+							"maximum": 100,
+							"description": "Minimum guaranteed yield in percent to report (default: 0.5)"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"sport": {
+										"type": "string"
+									},
+									"event": {
+										"type": "string"
+									},
+									"event_id": {
+										"type": "string"
+									},
+									"yield_pct": {
+										"type": "number"
+									},
+									"legs": {
+										"type": "array",
+										"items": {
+											"type": "object"
+										}
+									}
+								}
+							}
+						},
+						"sport": {
+							"type": "string"
+						},
+						"min_yield_pct": {
+							"type": "number"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "sports_betting",
+				"keywords": ["arbitrage"],
+				"use_cases": ["Use to find risk-free bets, e"],
+				"longDescription": "Scan sportsbook lines for guaranteed-profit arbitrage opportunities: the same event quoted at different books where the combined implied probabilities total under 100%. Use to find risk-free bets, e.g. 'show me NFL arbitrage opportunities with at least 0.8% yield' or call with sport='all' to sweep every tracked league. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "sports_betting",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_plus_ev",
+				"description": "Find positive expected-value (+EV) betting opportunities by comparing market odds against a sharp book's line or consensus price. Use to identify bets where the market price is better than the fair probability implies, e.g. 'what are the best +EV bets right now?' or call with sharp_book='pinnacle' and min_ev_pct=2.0 to only see edges above 2%.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sharp_book": {
+							"type": "string",
+							"default": "pinnacle",
+							"description": "Sharp book to treat as the fair line reference (e.g., 'pinnacle', 'circa', 'betonline')"
+						},
+						"min_ev_pct": {
+							"type": "number",
+							"default": 1.0,
+							"minimum": 0,
+							"maximum": 100,
+							"description": "Minimum expected value in percent to report (default: 1.0)"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"sport": {
+										"type": "string"
+									},
+									"event": {
+										"type": "string"
+									},
+									"event_id": {
+										"type": "string"
+									},
+									"ev_pct": {
+										"type": "number"
+									},
+									"sharp_book": {
+										"type": "string"
+									},
+									"best_book": {
+										"type": "string"
+									},
+									"price": {
+										"type": "number"
+									}
+								}
+							}
+						},
+						"sharp_book": {
+							"type": "string"
+						},
+						"min_ev_pct": {
+							"type": "number"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "sports_betting",
+				"keywords": ["ai", "ev", "plus"],
+				"use_cases": [
+					"Use to identify bets where the market price is better than the fair probability implies, e"
+				],
+				"longDescription": "Find positive expected-value (+EV) betting opportunities by comparing market odds against a sharp book's line or consensus price. Use to identify bets where the market price is better than the fair probability implies, e.g. 'what are the best +EV bets right now?' or call with sharp_book='pinnacle' and min_ev_pct=2.0 to only see edges above 2%. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "sports_betting",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_props",
+				"description": "Get player prop betting lines (points, rebounds, assists, yards, strikeouts, ...) for a player or sport, with the market and book prices. Use to research player props before betting or building a props dashboard, e.g. 'what are LeBron James points props tonight?' or call with sport='nfl' and market='passing_yards' to see QB yardage props.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"player": {
+							"type": "string",
+							"description": "Player name, e.g. 'LeBron James'"
+						},
+						"sport": {
+							"type": "string",
+							"default": "all",
+							"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
+						},
+						"market": {
+							"type": "string",
+							"description": "Prop market (e.g., 'points', 'rebounds', 'passing_yards', 'strikeouts'); omit for every market"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"player": {
+										"type": "string"
+									},
+									"sport": {
+										"type": "string"
+									},
+									"event": {
+										"type": "string"
+									},
+									"market": {
+										"type": "string"
+									},
+									"bookmaker": {
+										"type": "string"
+									},
+									"line": {
+										"type": "number"
+									},
+									"over_price": {
+										"type": "number"
+									},
+									"under_price": {
+										"type": "number"
+									}
+								}
+							}
+						},
+						"player": {
+							"type": "string"
+						},
+						"sport": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "sports_betting",
+				"keywords": ["props", "search"],
+				"use_cases": [
+					"Use to research player props before betting or building a props dashboard, e"
+				],
+				"longDescription": "Get player prop betting lines (points, rebounds, assists, yards, strikeouts, ...) for a player or sport, with the market and book prices. Use to research player props before betting or building a props dashboard, e.g. 'what are LeBron James points props tonight?' or call with sport='nfl' and market='passing_yards' to see QB yardage props. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "sports_betting",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_injuries",
+				"description": "Get the current injury report for a sport or team: player, team, injury detail, and status (out/questionable/active). Use to adjust betting models or fantasy lineups before lock, e.g. 'who is out for the Celtics tonight?' or call with sport='nfl' for the full league injury report.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sport": {
+							"type": "string",
+							"default": "all",
+							"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
+						},
+						"team": {
+							"type": "string",
+							"description": "Team name to filter by (e.g., 'Celtics', 'Chiefs'); omit for every team"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"player": {
+										"type": "string"
+									},
+									"team": {
+										"type": "string"
+									},
+									"sport": {
+										"type": "string"
+									},
+									"injury": {
+										"type": "string"
+									},
+									"status": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"sport": {
+							"type": "string"
+						},
+						"team": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "sports_betting",
+				"keywords": ["ai", "injuries"],
+				"use_cases": [
+					"Use to adjust betting models or fantasy lineups before lock, e"
+				],
+				"longDescription": "Get the current injury report for a sport or team: player, team, injury detail, and status (out/questionable/active). Use to adjust betting models or fantasy lineups before lock, e.g. 'who is out for the Celtics tonight?' or call with sport='nfl' for the full league injury report. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "sports_betting",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_live_odds",
+				"description": "Get live in-play odds that update during games (moneyline, spreads, totals as they move). Use for live-betting research or game-flow monitoring, e.g. 'what are the live odds for the Lakers game right now?' or call with sport='nba' and limit=50 for the current in-play slate.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sport": {
+							"type": "string",
+							"default": "all",
+							"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of live odds records (default: 20)"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"sport": {
+										"type": "string"
+									},
+									"event": {
+										"type": "string"
+									},
+									"event_id": {
+										"type": "string"
+									},
+									"market": {
+										"type": "string"
+									},
+									"bookmaker": {
+										"type": "string"
+									},
+									"home_odds": {
+										"type": "number"
+									},
+									"away_odds": {
+										"type": "number"
+									},
+									"last_update": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"sport": {
+							"type": "string"
+						},
+						"limit": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "sports_betting",
+				"keywords": ["live", "monitor", "odds", "search"],
+				"use_cases": [],
+				"longDescription": "Get live in-play odds that update during games (moneyline, spreads, totals as they move). Use for live-betting research or game-flow monitoring, e.g. 'what are the live odds for the Lakers game right now?' or call with sport='nba' and limit=50 for the current in-play slate. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "sports_betting",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_scores",
+				"description": "Get final or live scores for one or more sports on a given day from ESPN public scoreboards (free, no quota, high-frequency safe). Use to check results or power a scores widget, e.g. 'what were the NBA scores on 20260815?' or call with sport='mlb' and date='today' for today's baseball scores.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sport": {
+							"type": "string",
+							"default": "all",
+							"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default: nba + nfl + epl)"
+						},
+						"date": {
+							"type": "string",
+							"default": "today",
+							"description": "Date: 'today' (default), YYYYMMDD, or YYYY-MM-DD"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"sport": {
+										"type": "string"
+									},
+									"home": {
+										"type": "string"
+									},
+									"away": {
+										"type": "string"
+									},
+									"home_score": {
+										"type": "string"
+									},
+									"away_score": {
+										"type": "string"
+									},
+									"status": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"sport": {
+							"type": "string"
+						},
+						"date": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "sports_betting",
+				"keywords": ["scores"],
+				"use_cases": ["Use to check results or power a scores widget, e"],
+				"longDescription": "Get final or live scores for one or more sports on a given day from ESPN public scoreboards (free, no quota, high-frequency safe). Use to check results or power a scores widget, e.g. 'what were the NBA scores on 20260815?' or call with sport='mlb' and date='today' for today's baseball scores. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "sports_betting",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_historical_odds",
+				"description": "Get historical betting odds for past events from The Odds API history feed: the closing lines, opening lines, and best available prices for moneyline, spreads, and totals on a given date. Use to backtest betting models or audit how lines moved, e.g. 'what were the closing NFL moneylines on 20260810?' or call with sport='nba' and date='2026-08-01' for that day's historical slate.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sport": {
+							"type": "string",
+							"default": "all",
+							"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default: nba + nfl + epl)"
+						},
+						"date": {
+							"type": "string",
+							"default": "today",
+							"description": "Date: 'today' (default), YYYYMMDD, or YYYY-MM-DD"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of historical records (default: 20)"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"sport": {
+										"type": "string"
+									},
+									"event": {
+										"type": "string"
+									},
+									"event_id": {
+										"type": "string"
+									},
+									"market": {
+										"type": "string"
+									},
+									"bookmaker": {
+										"type": "string"
+									},
+									"home_odds": {
+										"type": "number"
+									},
+									"away_odds": {
+										"type": "number"
+									},
+									"date": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"sport": {
+							"type": "string"
+						},
+						"date": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "sports_betting",
+				"keywords": ["ai", "api", "historical", "odds"],
+				"use_cases": [
+					"Use to backtest betting models or audit how lines moved, e"
+				],
+				"longDescription": "Get historical betting odds for past events from The Odds API history feed: the closing lines, opening lines, and best available prices for moneyline, spreads, and totals on a given date. Use to backtest betting models or audit how lines moved, e.g. 'what were the closing NFL moneylines on 20260810?' or call with sport='nba' and date='2026-08-01' for that day's historical slate. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "sports_betting",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_betting_percentages",
+				"description": "Get public betting percentages (the share of bets and the share of money on each side of a game) across bookmakers, e.g. 'how much of the money is on the Chiefs tonight?' or call with sport='nfl' to see the whole slate. Use to spot sharp-side steam and contrarian plays where the public leans one way but the line is not moving.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sport": {
+							"type": "string",
+							"default": "all",
+							"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
+						},
+						"event": {
+							"type": "string",
+							"description": "Event substring filter, e.g. 'Chiefs vs Bills'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of percentage records (default: 20)"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"sport": {
+										"type": "string"
+									},
+									"event": {
+										"type": "string"
+									},
+									"event_id": {
+										"type": "string"
+									},
+									"home_bets_pct": {
+										"type": "number"
+									},
+									"away_bets_pct": {
+										"type": "number"
+									},
+									"home_money_pct": {
+										"type": "number"
+									},
+									"away_money_pct": {
+										"type": "number"
+									},
+									"bookmaker": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"sport": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "sports_betting",
+				"keywords": ["betting", "percentages"],
+				"use_cases": [
+					"Use to spot sharp-side steam and contrarian plays where the public leans one way but the line is not moving"
+				],
+				"longDescription": "Get public betting percentages (the share of bets and the share of money on each side of a game) across bookmakers, e.g. 'how much of the money is on the Chiefs tonight?' or call with sport='nfl' to see the whole slate. Use to spot sharp-side steam and contrarian plays where the public leans one way but the line is not moving. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "sports_betting",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_sharp_consensus",
+				"description": "Get the sharp consensus: the closing-line value and consensus price from sharp books (Pinnacle, Circa, BetOnline) for the biggest games. Use to identify where professional money is, e.g. 'what is the sharp consensus on the Packers game?' or call with sport='nba' for the sharpest lines across tonight's slate.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sport": {
+							"type": "string",
+							"default": "all",
+							"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
+						},
+						"sharp_books": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							},
+							"description": "Sharp books to aggregate (e.g., ['pinnacle', 'circa']); defaults to the configured sharp list"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of consensus records (default: 20)"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"sport": {
+										"type": "string"
+									},
+									"event": {
+										"type": "string"
+									},
+									"event_id": {
+										"type": "string"
+									},
+									"consensus_price": {
+										"type": "number"
+									},
+									"clv_pct": {
+										"type": "number"
+									},
+									"books": {
+										"type": "array",
+										"items": {
+											"type": "string"
+										}
+									}
+								}
+							}
+						},
+						"sport": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "sports_betting",
+				"keywords": ["consensus", "sharp"],
+				"use_cases": ["Use to identify where professional money is, e"],
+				"longDescription": "Get the sharp consensus: the closing-line value and consensus price from sharp books (Pinnacle, Circa, BetOnline) for the biggest games. Use to identify where professional money is, e.g. 'what is the sharp consensus on the Packers game?' or call with sport='nba' for the sharpest lines across tonight's slate. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "sports_betting",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_alerts",
+				"description": "Get or manage money-printer alerts: significant line moves, sharp steam, limit-up CLV, and bettor-facing notifications you subscribe to. Use to stay on top of the market without polling, e.g. 'what alerts are active right now?' or call with alert_type='line_move' to list the biggest recent line moves across all sports.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"alert_type": {
+							"type": "string",
+							"default": "",
+							"description": "Alert category filter: 'line_move', 'steam', 'clv', 'injury', or empty for all"
+						},
+						"sport": {
+							"type": "string",
+							"default": "all",
+							"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of alerts (default: 20)"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"alert_type": {
+										"type": "string"
+									},
+									"sport": {
+										"type": "string"
+									},
+									"event": {
+										"type": "string"
+									},
+									"message": {
+										"type": "string"
+									},
+									"severity": {
+										"type": "string"
+									},
+									"created_at": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"sport": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "alerts",
+				"keywords": ["alerts"],
+				"use_cases": ["Use to stay on top of the market without polling, e"],
+				"longDescription": "Get or manage money-printer alerts: significant line moves, sharp steam, limit-up CLV, and bettor-facing notifications you subscribe to. Use to stay on top of the market without polling, e.g. 'what alerts are active right now?' or call with alert_type='line_move' to list the biggest recent line moves across all sports. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "alerts",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_books",
+				"description": "Aggregate live odds for one sport/market across all 112 sportsbooks in Pry's registry (US, offshore, EU, UK, and Asian books) by scraping each book directly through Pry's intelligent fallback chain \u2014 no paid odds API, no API keys. Use to find the best price anywhere for a slate, e.g. call with sport='nba' and market='h2h' to see every reachable book's moneyline for tonight's games, or pass market='spreads' to sweep the point-spread market across the whole registry.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sport": {
+							"type": "string",
+							"default": "nba",
+							"description": "Sport key to aggregate (e.g. 'nba', 'nfl', 'mlb', 'nhl', 'epl'); books are scraped per-sport (default: nba)"
+						},
+						"market": {
+							"type": "string",
+							"default": "h2h",
+							"description": "Betting market (e.g., 'h2h' moneyline, 'spreads', 'totals'); default is h2h moneyline"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 50,
+							"minimum": 1,
+							"maximum": 500,
+							"description": "Maximum number of odds records to return (default: 50)"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"sport": {
+										"type": "string"
+									},
+									"event": {
+										"type": "string"
+									},
+									"market": {
+										"type": "string"
+									},
+									"book": {
+										"type": "string"
+									},
+									"book_id": {
+										"type": "string"
+									},
+									"home": {
+										"type": "string"
+									},
+									"away": {
+										"type": "string"
+									},
+									"home_odds": {
+										"type": "number"
+									},
+									"away_odds": {
+										"type": "number"
+									},
+									"source": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"sport": {
+							"type": "string"
+						},
+						"market": {
+							"type": "string"
+						},
+						"limit": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "sports_betting",
+				"keywords": ["ai", "api", "books"],
+				"use_cases": ["Use to find the best price anywhere for a slate, e"],
+				"longDescription": "Aggregate live odds for one sport/market across all 112 sportsbooks in Pry's registry (US, offshore, EU, UK, and Asian books) by scraping each book directly through Pry's intelligent fallback chain \u2014 no paid odds API, no API keys. Use to find the best price anywhere for a slate, e.g. call with sport='nba' and market='h2h' to see every reachable book's moneyline for tonight's games, or pass market='spreads' to sweep the point-spread market across the whole registry. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "sports_betting",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_book_coverage",
+				"description": "Get sportsbook coverage-registry statistics: how many of the 112 sportsbooks Pry scrapes directly, broken down by category (US, offshore, EU, UK, Asian), extraction method, and geo-requirement. Use to verify the breadth of the no-paid-API odds network before relying on it, e.g. 'how many US books do you cover?' or to confirm the 112-book total and the per-category split in one call.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"total": {
+									"type": "integer"
+								},
+								"by_category": {
+									"type": "object"
+								},
+								"by_method": {
+									"type": "object"
+								},
+								"geo_required": {
+									"type": "object"
+								},
+								"categories": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								},
+								"methods": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "sports_betting",
+				"keywords": ["ai", "api", "book", "coverage", "extract", "scrape"],
+				"use_cases": [
+					"Use to verify the breadth of the no-paid-API odds network before relying on it, e"
+				],
+				"longDescription": "Get sportsbook coverage-registry statistics: how many of the 112 sportsbooks Pry scrapes directly, broken down by category (US, offshore, EU, UK, Asian), extraction method, and geo-requirement. Use to verify the breadth of the no-paid-API odds network before relying on it, e.g. 'how many US books do you cover?' or to confirm the 112-book total and the per-category split in one call. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "sports_betting",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_scrape_methods",
+				"description": "List the extraction methods Pry uses to scrape sportsbook odds pages directly: JSON endpoints, __NEXT_DATA__ (Next.js), __NUXT__, __INITIAL_STATE__ / _dida_config_, HTML tables, and browser rendering. Use to understand how each book in the 112-book registry is reached and which fallback tiers apply, e.g. 'which books need a browser?' or to audit the no-paid-API scraping layer before building on it.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"methods": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								},
+								"total": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "web_scraping",
+				"keywords": [
+					"ai",
+					"api",
+					"browser",
+					"data",
+					"extract",
+					"json",
+					"methods",
+					"scrape"
+				],
+				"use_cases": [
+					"Use to understand how each book in the 112-book registry is reached and which fallback tiers apply, e"
+				],
+				"longDescription": "List the extraction methods Pry uses to scrape sportsbook odds pages directly: JSON endpoints, __NEXT_DATA__ (Next.js), __NUXT__, __INITIAL_STATE__ / _dida_config_, HTML tables, and browser rendering. Use to understand how each book in the 112-book registry is reached and which fallback tiers apply, e.g. 'which books need a browser?' or to audit the no-paid-API scraping layer before building on it. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "web_scraping",
+				"capabilities": ["web_scraping"]
+			},
+			{
+				"name": "pry_all_sources",
+				"description": "Aggregate one event's odds from every reachable source at once: The Odds API (free tier), ESPN, OddsPortal, Bovada, BetOnline, and the 112-book sportsbook registry scraped directly via intelligent fallback \u2014 more sources than any other odds service, with no paid odds API. Use to get the complete multi-source picture for a single event, e.g. call with event_id='nba:bda33adc...' and sources='all' to compare every book and feed on one matchup; the merged result is deduped with the sharpest line winning conflicts.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"event_id": {
+							"type": "string",
+							"description": "Event id to aggregate; accepts an optional 'sport:event_id' prefix, e.g. 'nba:bda33adc...' (use get_odds to list ids)"
+						},
+						"market": {
+							"type": "string",
+							"default": "h2h",
+							"description": "Betting market (e.g., 'h2h', 'spreads', 'totals', or a comma/pipe separated combo); default is h2h moneyline"
+						},
+						"book": {
+							"type": "string",
+							"description": "Optional single-book filter (e.g., 'draftkings'); omit for every reachable source"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 50,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of merged odds records (default: 50)"
+						},
+						"sources": {
+							"type": "string",
+							"default": "all",
+							"description": "Comma-separated source list: the_odds_api, espn, oddsportal, bovada, betonline, or 'all' (default) for every reachable source"
+						}
+					},
+					"required": ["event_id"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"sport": {
+										"type": "string"
+									},
+									"event": {
+										"type": "string"
+									},
+									"market": {
+										"type": "string"
+									},
+									"book": {
+										"type": "string"
+									},
+									"source": {
+										"type": "string"
+									},
+									"home_odds": {
+										"type": "number"
+									},
+									"away_odds": {
+										"type": "number"
+									},
+									"last_update": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"event_id": {
+							"type": "string"
+						},
+						"limit": {
+							"type": "integer"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "sports_betting",
+				"keywords": ["ai", "all", "api", "scrape", "sources"],
+				"use_cases": [
+					"Use to get the complete multi-source picture for a single event, e"
+				],
+				"longDescription": "Aggregate one event's odds from every reachable source at once: The Odds API (free tier), ESPN, OddsPortal, Bovada, BetOnline, and the 112-book sportsbook registry scraped directly via intelligent fallback \u2014 more sources than any other odds service, with no paid odds API. Use to get the complete multi-source picture for a single event, e.g. call with event_id='nba:bda33adc...' and sources='all' to compare every book and feed on one matchup; the merged result is deduped with the sharpest line winning conflicts. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "sports_betting",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_weather",
+				"description": "Get current weather and short-range forecasts for a location, built for research pipelines that need environmental context (rain, wind, temperature, AQI) alongside other data. Use to enrich scraping jobs or model outdoor conditions, e.g. 'what is the weather in Austin, TX right now?' or call with latitude/longitude to avoid geocoding.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"location": {
+							"type": "string",
+							"description": "City name or place query, e.g. 'Austin, TX'"
+						},
+						"latitude": {
+							"type": "number",
+							"description": "Latitude (alternative to location)"
+						},
+						"longitude": {
+							"type": "number",
+							"description": "Longitude (alternative to location)"
+						},
+						"forecast_days": {
+							"type": "integer",
+							"default": 3,
+							"minimum": 0,
+							"maximum": 16,
+							"description": "Days of forecast to include (0 = current only)"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"location": {
+									"type": "string"
+								},
+								"temperature_c": {
+									"type": "number"
+								},
+								"condition": {
+									"type": "string"
+								},
+								"humidity_pct": {
+									"type": "number"
+								},
+								"wind_kph": {
+									"type": "number"
+								},
+								"forecast": {
+									"type": "array",
+									"items": {
+										"type": "object"
+									}
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "data",
+				"keywords": ["ai", "api", "data", "search", "weather"],
+				"use_cases": [
+					"Use to enrich scraping jobs or model outdoor conditions, e"
+				],
+				"longDescription": "Get current weather and short-range forecasts for a location, built for research pipelines that need environmental context (rain, wind, temperature, AQI) alongside other data. Use to enrich scraping jobs or model outdoor conditions, e.g. 'what is the weather in Austin, TX right now?' or call with latitude/longitude to avoid geocoding. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "data",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_agri",
+				"description": "Get agricultural data: crop conditions, growing-degree days, soil moisture, and commodity-relevant climate indices for a region. Use to model crop yield risk or monitor growing regions, e.g. 'what are the corn growing conditions in Iowa?' or call with region='us' and crop='corn' for the USDA-style condition report.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"region": {
+							"type": "string",
+							"default": "us",
+							"description": "Region code, e.g. 'us', 'br', 'in' (default: 'us')"
+						},
+						"crop": {
+							"type": "string",
+							"default": "",
+							"description": "Crop filter, e.g. 'corn', 'soybeans', 'wheat'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of records (default: 20)"
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"region": {
+										"type": "string"
+									},
+									"crop": {
+										"type": "string"
+									},
+									"condition": {
+										"type": "string"
+									},
+									"gdd": {
+										"type": "number"
+									},
+									"soil_moisture_pct": {
+										"type": "number"
+									},
+									"date": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"region": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "agriculture",
+				"keywords": ["agri", "data", "monitor"],
+				"use_cases": [
+					"Use to model crop yield risk or monitor growing regions, e"
+				],
+				"longDescription": "Get agricultural data: crop conditions, growing-degree days, soil moisture, and commodity-relevant climate indices for a region. Use to model crop yield risk or monitor growing regions, e.g. 'what are the corn growing conditions in Iowa?' or call with region='us' and crop='corn' for the USDA-style condition report. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "agriculture",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_papers",
+				"description": "Search academic papers and preprints (arXiv, Semantic Scholar, PubMed) by keyword, author, or topic and return titles, abstracts, and citation counts. Use for research pipelines that need scholarly grounding, e.g. 'find recent papers on retrieval-augmented generation' or call with author='Smith' and limit=10 for recent works.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Search query, e.g. 'retrieval augmented generation'"
+						},
+						"author": {
+							"type": "string",
+							"description": "Filter by author name, e.g. 'Smith'"
+						},
+						"year_from": {
+							"type": "integer",
+							"description": "Earliest publication year, e.g. 2020"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of papers (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"title": {
+										"type": "string"
+									},
+									"authors": {
+										"type": "array",
+										"items": {
+											"type": "string"
+										}
+									},
+									"abstract": {
+										"type": "string"
+									},
+									"year": {
+										"type": "integer"
+									},
+									"citations": {
+										"type": "integer"
+									},
+									"url": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"query": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "research",
+				"keywords": ["papers", "search"],
+				"use_cases": [],
+				"longDescription": "Search academic papers and preprints (arXiv, Semantic Scholar, PubMed) by keyword, author, or topic and return titles, abstracts, and citation counts. Use for research pipelines that need scholarly grounding, e.g. 'find recent papers on retrieval-augmented generation' or call with author='Smith' and limit=10 for recent works. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "research",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_domain",
+				"description": "Get a domain intelligence report: WHOIS registration, SSL/TLS details, hosting provider, and technology fingerprint for a website. Use to enrich leads, vet domains before scraping, or map a competitor's stack, e.g. 'what can you tell me about example.com?' or call with domain='rugmunch.io' for hosting and tech details.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"domain": {
+							"type": "string",
+							"description": "Domain to analyze, e.g. 'example.com'"
+						},
+						"include_tech": {
+							"type": "boolean",
+							"default": true,
+							"description": "Include technology fingerprint (default: true)"
+						}
+					},
+					"required": ["domain"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"domain": {
+									"type": "string"
+								},
+								"registrar": {
+									"type": "string"
+								},
+								"registered_at": {
+									"type": "string"
+								},
+								"expires_at": {
+									"type": "string"
+								},
+								"hosting_provider": {
+									"type": "string"
+								},
+								"tech_stack": {
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								},
+								"ssl_issuer": {
+									"type": "string"
+								}
+							}
+						},
+						"domain": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "data_enrichment",
+				"keywords": ["ai", "api", "domain", "web"],
+				"use_cases": [
+					"Use to enrich leads, vet domains before scraping, or map a competitor's stack, e"
+				],
+				"longDescription": "Get a domain intelligence report: WHOIS registration, SSL/TLS details, hosting provider, and technology fingerprint for a website. Use to enrich leads, vet domains before scraping, or map a competitor's stack, e.g. 'what can you tell me about example.com?' or call with domain='rugmunch.io' for hosting and tech details. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "data_enrichment",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_events",
+				"description": "Search live event listings (concerts, sports, theater) by keyword and optionally location or date, backed by Ticketmaster / SeatGeek class feeds. Use to find upcoming events for an artist or venue, e.g. 'what concerts are near Austin next month?' or call with query='Taylor Swift' and location='New York' for dated listings.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Event keyword search, e.g. 'Taylor Swift' or 'Broadway'"
+						},
+						"location": {
+							"type": "string",
+							"description": "City / region filter, e.g. 'New York' (optional)"
+						},
+						"date": {
+							"type": "string",
+							"description": "Date filter YYYY-MM-DD (optional)"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 200,
+							"description": "Maximum number of events (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"event_id": {
+										"type": "string"
+									},
+									"name": {
+										"type": "string"
+									},
+									"venue": {
+										"type": "string"
+									},
+									"city": {
+										"type": "string"
+									},
+									"date": {
+										"type": "string"
+									},
+									"url": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"query": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "events",
+				"keywords": ["events", "search"],
+				"use_cases": ["Use to find upcoming events for an artist or venue, e"],
+				"longDescription": "Search live event listings (concerts, sports, theater) by keyword and optionally location or date, backed by Ticketmaster / SeatGeek class feeds. Use to find upcoming events for an artist or venue, e.g. 'what concerts are near Austin next month?' or call with query='Taylor Swift' and location='New York' for dated listings. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "events",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_resale",
+				"description": "Get resale ticket pricing for a specific event: asking prices, ticket counts, and section-level ranges across resale marketplaces. Use with an event_id from pry_events to size demand before buying, e.g. call with event_id from a sold-out concert to see floor and nosebleed asking ranges side by side.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"event_id": {
+							"type": "string",
+							"description": "Event identifier from pry_events, e.g. 'vv1aZt7B8v'"
+						}
+					},
+					"required": ["event_id"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"event_id": {
+									"type": "string"
+								},
+								"min_price": {
+									"type": "number"
+								},
+								"max_price": {
+									"type": "number"
+								},
+								"ticket_count": {
+									"type": "integer"
+								},
+								"sections": {
+									"type": "array",
+									"items": {
+										"type": "object"
+									}
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "retail",
+				"keywords": ["resale"],
+				"use_cases": [],
+				"longDescription": "Get resale ticket pricing for a specific event: asking prices, ticket counts, and section-level ranges across resale marketplaces. Use with an event_id from pry_events to size demand before buying, e.g. call with event_id from a sold-out concert to see floor and nosebleed asking ranges side by side. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "retail",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_freight",
+				"description": "Get ocean container freight rates for a route: spot and contract rates per 40ft container across major trade lanes, plus FMC contract visibility where available. Use to model shipping costs, e.g. 'container rates from Shanghai to Los Angeles this week', or call with route='Far East to US West Coast' for the lane spread.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"route": {
+							"type": "string",
+							"description": "Trade lane, e.g. 'Shanghai to Los Angeles' or 'Far East to US West Coast'"
+						},
+						"origin": {
+							"type": "string",
+							"description": "Origin port or region (alternative to route)"
+						},
+						"destination": {
+							"type": "string",
+							"description": "Destination port or region (alternative to route)"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of rate quotes (default: 20)"
+						}
+					},
+					"required": ["route"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"route": {
+										"type": "string"
+									},
+									"container_type": {
+										"type": "string"
+									},
+									"rate_usd": {
+										"type": "number"
+									},
+									"valid_from": {
+										"type": "string"
+									},
+									"valid_to": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"route": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "logistics",
+				"keywords": ["ai", "freight"],
+				"use_cases": ["Use to model shipping costs, e"],
+				"longDescription": "Get ocean container freight rates for a route: spot and contract rates per 40ft container across major trade lanes, plus FMC contract visibility where available. Use to model shipping costs, e.g. 'container rates from Shanghai to Los Angeles this week', or call with route='Far East to US West Coast' for the lane spread. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "logistics",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_energy_lmp",
+				"description": "Get electricity locational marginal prices (LMP) for an ISO region and date, with day-ahead / real-time splits where available. Use to model energy costs or spot volatility, e.g. 'LMP for ERCOT today', or call with region='PJM' and date='2026-08-16' for nodal pricing snapshots.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"region": {
+							"type": "string",
+							"description": "ISO / balancing authority, e.g. 'ERCOT', 'PJM', 'CAISO', 'NYISO'"
+						},
+						"date": {
+							"type": "string",
+							"description": "Date YYYY-MM-DD (default: today)"
+						}
+					},
+					"required": ["region"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"region": {
+									"type": "string"
+								},
+								"date": {
+									"type": "string"
+								},
+								"lmp_usd_mwh": {
+									"type": "number"
+								},
+								"day_ahead_usd_mwh": {
+									"type": "number"
+								},
+								"real_time_usd_mwh": {
+									"type": "number"
+								},
+								"nodes": {
+									"type": "array",
+									"items": {
+										"type": "object"
+									}
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "energy",
+				"keywords": ["ai", "energy", "lmp"],
+				"use_cases": ["Use to model energy costs or spot volatility, e"],
+				"longDescription": "Get electricity locational marginal prices (LMP) for an ISO region and date, with day-ahead / real-time splits where available. Use to model energy costs or spot volatility, e.g. 'LMP for ERCOT today', or call with region='PJM' and date='2026-08-16' for nodal pricing snapshots. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "energy",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_grocery",
+				"description": "Get grocery prices for a product or category, optionally filtered by ZIP code for local store pricing. Use to compare staple costs across markets, e.g. 'price of a dozen eggs in 10001', or call with query='milk' and zip='78701' to see regional averages and store-level ranges.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Item or category, e.g. 'eggs', 'milk', 'avocados'"
+						},
+						"zip": {
+							"type": "string",
+							"description": "5-digit ZIP code for local pricing (optional)"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of price records (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"item": {
+										"type": "string"
+									},
+									"price_usd": {
+										"type": "number"
+									},
+									"unit": {
+										"type": "string"
+									},
+									"store": {
+										"type": "string"
+									},
+									"zip": {
+										"type": "string"
+									},
+									"date": {
+										"type": "string"
+									}
+								}
+							}
+						},
+						"query": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "retail",
+				"keywords": ["grocery"],
+				"use_cases": ["Use to compare staple costs across markets, e"],
+				"longDescription": "Get grocery prices for a product or category, optionally filtered by ZIP code for local store pricing. Use to compare staple costs across markets, e.g. 'price of a dozen eggs in 10001', or call with query='milk' and zip='78701' to see regional averages and store-level ranges. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "retail",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_restaurant",
+				"description": "Get a restaurant's menu with prices: items, sections, and per-dish pricing for a named restaurant. Use to build cost-of-dining datasets or research competitors, e.g. call with name=\"Katz's Delicatessen\" and location='New York' for the full menu with prices.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"name": {
+							"type": "string",
+							"description": "Restaurant name, e.g. \"Katz's Delicatessen\""
+						},
+						"location": {
+							"type": "string",
+							"description": "City / address to disambiguate (optional)"
+						}
+					},
+					"required": ["name"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"name": {
+									"type": "string"
+								},
+								"cuisine": {
+									"type": "string"
+								},
+								"sections": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"section": {
+												"type": "string"
+											},
+											"items": {
+												"type": "array",
+												"items": {
+													"type": "object"
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "retail",
+				"keywords": ["data", "restaurant", "search"],
+				"use_cases": [
+					"Use to build cost-of-dining datasets or research competitors, e"
+				],
+				"longDescription": "Get a restaurant's menu with prices: items, sections, and per-dish pricing for a named restaurant. Use to build cost-of-dining datasets or research competitors, e.g. call with name=\"Katz's Delicatessen\" and location='New York' for the full menu with prices. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "retail",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_imports",
+				"description": "Get U.S. customs import records for a company: shipment dates, commodity descriptions, suppliers, and origin countries. Use to size a competitor's supply chain or vet suppliers, e.g. call with company='Tesla Inc' for recent bill-of-lading entries with quantities.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"company": {
+							"type": "string",
+							"description": "Company name or importer-of-record, e.g. 'Tesla Inc'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of shipment records (default: 20)"
+						}
+					},
+					"required": ["company"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"consignee": {
+										"type": "string"
+									},
+									"supplier": {
+										"type": "string"
+									},
+									"commodity": {
+										"type": "string"
+									},
+									"origin_country": {
+										"type": "string"
+									},
+									"arrival_date": {
+										"type": "string"
+									},
+									"value_usd": {
+										"type": "number"
+									}
+								}
+							}
+						},
+						"company": {
+							"type": "string"
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "trade",
+				"keywords": ["ai", "imports"],
+				"use_cases": [
+					"Use to size a competitor's supply chain or vet suppliers, e"
+				],
+				"longDescription": "Get U.S. customs import records for a company: shipment dates, commodity descriptions, suppliers, and origin countries. Use to size a competitor's supply chain or vet suppliers, e.g. call with company='Tesla Inc' for recent bill-of-lading entries with quantities. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "trade",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_firmographics",
+				"description": "Get firmographic data for a company: employee count band, revenue range, founding year, headquarters, industry, and company type. Use to segment leads or enrich CRM records, e.g. call with company='Rug Munch Media' for the standard firmographic profile with confidence scores.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"company": {
+							"type": "string",
+							"description": "Company name, e.g. 'Rug Munch Media'"
+						}
+					},
+					"required": ["company"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"company": {
+									"type": "string"
+								},
+								"employees_band": {
+									"type": "string"
+								},
+								"revenue_range_usd": {
+									"type": "string"
+								},
+								"founded_year": {
+									"type": "integer"
+								},
+								"headquarters": {
+									"type": "string"
+								},
+								"industry": {
+									"type": "string"
+								},
+								"company_type": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "business",
+				"keywords": ["data", "firmographics"],
+				"use_cases": ["Use to segment leads or enrich CRM records, e"],
+				"longDescription": "Get firmographic data for a company: employee count band, revenue range, founding year, headquarters, industry, and company type. Use to segment leads or enrich CRM records, e.g. call with company='Rug Munch Media' for the standard firmographic profile with confidence scores. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "business",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_app_search",
+				"description": "Search the Apple App Store by keyword and return matching apps \u2014 name, bundle id, price, rating, category, and store URL. Use to find apps by feature, compare pricing across categories, or feed app-market research, e.g. search query='crypto wallet' to list every mobile wallet on the store. Backed by the free public iTunes Search API; never raises and returns an empty list when the feed is unreachable.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "App store search keywords, e.g. 'crypto wallet'"
+						},
+						"country": {
+							"type": "string",
+							"default": "us",
+							"description": "Two-letter store country code (default: 'us')"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of apps to return (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"items": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"app_id": {
+												"type": "string"
+											},
+											"name": {
+												"type": "string"
+											},
+											"price": {
+												"type": "number"
+											},
+											"currency": {
+												"type": "string"
+											},
+											"rating": {
+												"type": "number"
+											},
+											"categories": {
+												"type": "array",
+												"items": {
+													"type": "string"
+												}
+											},
+											"url": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								},
+								"query": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "app_store",
+				"keywords": ["ai", "api", "app", "crypto", "search"],
+				"use_cases": [
+					"Use to find apps by feature, compare pricing across categories, or feed app-market research, e"
+				],
+				"longDescription": "Search the Apple App Store by keyword and return matching apps \u2014 name, bundle id, price, rating, category, and store URL. Use to find apps by feature, compare pricing across categories, or feed app-market research, e.g. search query='crypto wallet' to list every mobile wallet on the store. Backed by the free public iTunes Search API; never raises and returns an empty list when the feed is unreachable. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "app_store",
+				"capabilities": ["search"]
+			},
+			{
+				"name": "pry_app_reviews",
+				"description": "Get recent user reviews for an app by its store identifier \u2014 the numeric App Store id or bundle id, e.g. 'com.coinbase.app' \u2014 returning rating, title, body, author, and review date for each. Use to gauge app sentiment, triage support complaints, or feed product-research pipelines, e.g. reviews for '284910350' (Coinbase). Reads the free public App Store customer reviews feed; never raises and returns an empty list when the feed is unreachable.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"app_id": {
+							"type": "string",
+							"description": "App Store numeric id or bundle id, e.g. '284910350' or 'com.coinbase.app'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 200,
+							"description": "Maximum number of reviews to return (default: 20)"
+						}
+					},
+					"required": ["app_id"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"items": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"app_id": {
+												"type": "string"
+											},
+											"rating": {
+												"type": "integer"
+											},
+											"title": {
+												"type": "string"
+											},
+											"body": {
+												"type": "string"
+											},
+											"author": {
+												"type": "string"
+											},
+											"date": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								},
+								"app_id": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "social",
+				"keywords": ["ai", "app", "reviews", "search"],
+				"use_cases": [
+					"Use to gauge app sentiment, triage support complaints, or feed product-research pipelines, e"
+				],
+				"longDescription": "Get recent user reviews for an app by its store identifier \u2014 the numeric App Store id or bundle id, e.g. 'com.coinbase.app' \u2014 returning rating, title, body, author, and review date for each. Use to gauge app sentiment, triage support complaints, or feed product-research pipelines, e.g. reviews for '284910350' (Coinbase). Reads the free public App Store customer reviews feed; never raises and returns an empty list when the feed is unreachable. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "social",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_news",
+				"description": "Search news articles by keyword across public news feeds and aggregators, returning title, source, published date, and URL for each result. Use to monitor a brand, topic, or competitor in the press, e.g. query='crypto regulation' for the latest regulatory coverage. Best-effort over free public feeds; never raises and returns an empty list when a feed is unreachable or rate-limited.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "News search keywords, e.g. 'crypto regulation'"
+						},
+						"language": {
+							"type": "string",
+							"default": "en",
+							"description": "Two-letter article language filter (default: 'en')"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of articles to return (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"items": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"title": {
+												"type": "string"
+											},
+											"source": {
+												"type": "string"
+											},
+											"published_at": {
+												"type": "string"
+											},
+											"url": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								},
+								"query": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "news_intelligence",
+				"keywords": ["ai", "crypto", "monitor", "news", "search"],
+				"use_cases": [
+					"Use to monitor a brand, topic, or competitor in the press, e"
+				],
+				"longDescription": "Search news articles by keyword across public news feeds and aggregators, returning title, source, published date, and URL for each result. Use to monitor a brand, topic, or competitor in the press, e.g. query='crypto regulation' for the latest regulatory coverage. Best-effort over free public feeds; never raises and returns an empty list when a feed is unreachable or rate-limited. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "news_intelligence",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_sentiment",
+				"description": "Score the sentiment of recent news about a keyword \u2014 positive / neutral / negative with a confidence score \u2014 using lightweight text analysis over the same public news feeds as pry_news. Use to gauge market or brand mood, e.g. query='Bitcoin ETF' before a trade or campaign. Degrades to a neutral score when no articles are found; never raises on feed failures.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Topic to score, e.g. 'Bitcoin ETF'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of articles analyzed (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"query": {
+									"type": "string"
+								},
+								"sentiment": {
+									"type": "string",
+									"enum": ["positive", "neutral", "negative"]
+								},
+								"score": {
+									"type": "number"
+								},
+								"confidence": {
+									"type": "number"
+								},
+								"articles_analyzed": {
+									"type": "integer"
+								},
+								"sample_articles": {
+									"type": "array",
+									"items": {
+										"type": "object"
+									}
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "social",
+				"keywords": ["ai", "sentiment"],
+				"use_cases": ["Use to gauge market or brand mood, e"],
+				"longDescription": "Score the sentiment of recent news about a keyword \u2014 positive / neutral / negative with a confidence score \u2014 using lightweight text analysis over the same public news feeds as pry_news. Use to gauge market or brand mood, e.g. query='Bitcoin ETF' before a trade or campaign. Degrades to a neutral score when no articles are found; never raises on feed failures. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "social",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_company_watch",
+				"description": "Return the regulatory watch record for a company \u2014 recent enforcement actions, fines, sanctions, and compliance filings \u2014 e.g. company='OpenAI' for its compliance exposure. Use for due diligence, vendor screening, or competitor risk monitoring before partnering or trading. Backed by free public regulatory feeds; degrades to an empty record when no data is found.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"company": {
+							"type": "string",
+							"description": "Company name to watch, e.g. 'OpenAI'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of watch records to return (default: 20)"
+						}
+					},
+					"required": ["company"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"company": {
+									"type": "string"
+								},
+								"findings": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"kind": {
+												"type": "string"
+											},
+											"title": {
+												"type": "string"
+											},
+											"date": {
+												"type": "string"
+											},
+											"severity": {
+												"type": "string"
+											},
+											"source": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "business",
+				"keywords": ["ai", "company", "data", "monitor", "watch"],
+				"use_cases": [],
+				"longDescription": "Return the regulatory watch record for a company \u2014 recent enforcement actions, fines, sanctions, and compliance filings \u2014 e.g. company='OpenAI' for its compliance exposure. Use for due diligence, vendor screening, or competitor risk monitoring before partnering or trading. Backed by free public regulatory feeds; degrades to an empty record when no data is found. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "business",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_deals",
+				"description": "Search deals, discounts, and promotions by keyword across public deal feeds, returning merchant, product, price, discount percentage, and expiry for each result. Use to build deal trackers, power shopping comparisons, or feed coupon content, e.g. query='PS5' for current console offers. Best-effort over free public sources; never raises and returns an empty list on failure.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Deal search keywords, e.g. 'PS5'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of deals to return (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"items": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"title": {
+												"type": "string"
+											},
+											"merchant": {
+												"type": "string"
+											},
+											"price": {
+												"type": "number"
+											},
+											"currency": {
+												"type": "string"
+											},
+											"discount_pct": {
+												"type": "number"
+											},
+											"expires_at": {
+												"type": "string"
+											},
+											"url": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								},
+								"query": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "retail",
+				"keywords": ["ai", "deals", "search"],
+				"use_cases": [
+					"Use to build deal trackers, power shopping comparisons, or feed coupon content, e"
+				],
+				"longDescription": "Search deals, discounts, and promotions by keyword across public deal feeds, returning merchant, product, price, discount percentage, and expiry for each result. Use to build deal trackers, power shopping comparisons, or feed coupon content, e.g. query='PS5' for current console offers. Best-effort over free public sources; never raises and returns an empty list on failure. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "retail",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_drop_alert",
+				"description": "Check for drop alerts / limited product restock or flash-sale signals for a product, returning availability windows, price drops, and the merchant for each signal, e.g. product='RTX 5090' to track GPU drops. Use to power restock-notification bots, supply monitoring, or scalper-resistant buying queues. Best-effort over public feeds; degrades to an empty list when no drop signal is found.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"product": {
+							"type": "string",
+							"description": "Product name or SKU to watch for drops, e.g. 'RTX 5090'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of drop signals to return (default: 20)"
+						}
+					},
+					"required": ["product"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"items": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"product": {
+												"type": "string"
+											},
+											"merchant": {
+												"type": "string"
+											},
+											"price": {
+												"type": "number"
+											},
+											"currency": {
+												"type": "string"
+											},
+											"availability": {
+												"type": "string"
+											},
+											"alert_type": {
+												"type": "string"
+											},
+											"url": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								},
+								"product": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "alerts",
+				"keywords": ["ai", "alert", "drop", "monitor"],
+				"use_cases": [
+					"Use to power restock-notification bots, supply monitoring, or scalper-resistant buying queues"
+				],
+				"longDescription": "Check for drop alerts / limited product restock or flash-sale signals for a product, returning availability windows, price drops, and the merchant for each signal, e.g. product='RTX 5090' to track GPU drops. Use to power restock-notification bots, supply monitoring, or scalper-resistant buying queues. Best-effort over public feeds; degrades to an empty list when no drop signal is found. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "alerts",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_contracts",
+				"description": "Search government contract opportunities and awards by keyword across public procurement feeds, returning agency, solicitation number, award value, status, and deadline for each result. Use to monitor public-sector RFPs and awarded contracts, e.g. query='cybersecurity' for current federal bidding data. Best-effort over free public sources; never raises and returns an empty list on failure.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Contract search keywords, e.g. 'cybersecurity'"
+						},
+						"agency": {
+							"type": "string",
+							"description": "Optional agency filter, e.g. 'DHS'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of contracts to return (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"items": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"title": {
+												"type": "string"
+											},
+											"agency": {
+												"type": "string"
+											},
+											"solicitation_number": {
+												"type": "string"
+											},
+											"value": {
+												"type": "number"
+											},
+											"currency": {
+												"type": "string"
+											},
+											"status": {
+												"type": "string"
+											},
+											"deadline": {
+												"type": "string"
+											},
+											"url": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								},
+								"query": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "government",
+				"keywords": ["ai", "contracts", "data", "monitor", "search"],
+				"use_cases": [
+					"Use to monitor public-sector RFPs and awarded contracts, e"
+				],
+				"longDescription": "Search government contract opportunities and awards by keyword across public procurement feeds, returning agency, solicitation number, award value, status, and deadline for each result. Use to monitor public-sector RFPs and awarded contracts, e.g. query='cybersecurity' for current federal bidding data. Best-effort over free public sources; never raises and returns an empty list on failure. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "government",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_grants",
+				"description": "Search government grant opportunities by keyword across public grant feeds, returning agency, opportunity number, funding amount, eligibility, and deadline for each result. Use to find open funding programs for research, nonprofits, or businesses, e.g. query='small business innovation research'. Best-effort over free public sources; never raises and returns an empty list on failure.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"query": {
+							"type": "string",
+							"description": "Grant search keywords, e.g. 'small business innovation research'"
+						},
+						"agency": {
+							"type": "string",
+							"description": "Optional agency filter, e.g. 'NSF'"
+						},
+						"limit": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 100,
+							"description": "Maximum number of grants to return (default: 20)"
+						}
+					},
+					"required": ["query"]
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"success": {
+							"type": "boolean"
+						},
+						"data": {
+							"type": "object",
+							"properties": {
+								"items": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"title": {
+												"type": "string"
+											},
+											"agency": {
+												"type": "string"
+											},
+											"opportunity_number": {
+												"type": "string"
+											},
+											"amount": {
+												"type": "number"
+											},
+											"currency": {
+												"type": "string"
+											},
+											"eligibility": {
+												"type": "string"
+											},
+											"deadline": {
+												"type": "string"
+											},
+											"url": {
+												"type": "string"
+											}
+										}
+									}
+								},
+								"total": {
+									"type": "integer"
+								},
+								"query": {
+									"type": "string"
+								}
+							}
+						}
+					},
+					"required": ["success"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "government",
+				"keywords": ["ai", "grants", "search"],
+				"use_cases": [
+					"Use to find open funding programs for research, nonprofits, or businesses, e"
+				],
+				"longDescription": "Search government grant opportunities by keyword across public grant feeds, returning agency, opportunity number, funding amount, eligibility, and deadline for each result. Use to find open funding programs for research, nonprofits, or businesses, e.g. query='small business innovation research'. Best-effort over free public sources; never raises and returns an empty list on failure. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "government",
+				"capabilities": ["utility"]
+			},
+			{
+				"name": "pry_actor_catalog",
+				"description": "List every Pry Apify Store actor (94) with description, pricing events and per-event USD price. Store parity surface: anything runnable on Apify is discoverable here. Filter by optional 'domain' substring (e.g. 'monitor', 'crypto', 'seo').",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"domain": {
+							"type": "string",
+							"description": "Optional case-insensitive substring filter over actor name/title."
+						}
+					},
+					"required": []
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"total": {
+							"type": "integer"
+						},
+						"actors": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"actor": {
+										"type": "string"
+									},
+									"title": {
+										"type": "string"
+									},
+									"description": {
+										"type": "string"
+									},
+									"processor": {
+										"type": ["string", "null"]
+									},
+									"uses_browser": {
+										"type": "boolean"
+									},
+									"min_memory_mbytes": {
+										"type": "integer"
+									},
+									"pricing_events": {
+										"type": "array"
+									}
+								},
+								"required": ["actor", "title", "pricing_events"]
+							}
+						}
+					},
+					"required": ["total", "actors"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"category": "actors",
+				"keywords": ["actor", "ai", "api", "catalog", "crypto", "monitor"],
+				"use_cases": [],
+				"longDescription": "List every Pry Apify Store actor (94) with description, pricing events and per-event USD price. Store parity surface: anything runnable on Apify is discoverable here. Filter by optional 'domain' substring (e.g. 'monitor', 'crypto', 'seo'). Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "actors",
+				"capabilities": ["actors"]
+			},
+			{
+				"name": "pry_actor_run",
+				"description": "Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors. Use after pry_actor_catalog: pass the actor name plus target urls; results are the same dataset items the Apify run would produce. Examples: actor='news-feed-monitor', actor='universal-scraper', actor='token-safety-scanner'.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"actor": {
+							"type": "string",
+							"description": "Actor name without the pry- prefix, e.g. 'news-feed-monitor'."
+						},
+						"urls": {
+							"type": "array",
+							"items": {
+								"type": "string",
+								"format": "uri"
+							},
+							"description": "Target URLs for the actor pipeline."
+						},
+						"max_items": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100,
+							"default": 25,
+							"description": "Hard cap on processed URLs (runaway protection)."
+						}
+					},
+					"required": ["actor", "urls"]
+				},
+				"annotations": {
+					"readOnlyHint": true,
+					"destructiveHint": false,
+					"idempotentHint": true
+				},
+				"outputSchema": {
+					"type": "object",
+					"properties": {
+						"actor": {
+							"type": "string"
+						},
+						"items": {
+							"type": "array"
+						},
+						"item_count": {
+							"type": "integer"
+						},
+						"equivalent_apify_charge_usd": {
+							"type": "number"
+						}
+					},
+					"required": ["actor", "items", "item_count"]
+				},
+				"category": "actors",
+				"keywords": ["actor", "api", "data", "monitor", "run", "scrape"],
+				"use_cases": [],
+				"longDescription": "Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors. Use after pry_actor_catalog: pass the actor name plus target urls; results are the same dataset items the Apify run would produce. Examples: actor='news-feed-monitor', actor='universal-scraper', actor='token-safety-scanner'. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"group": "actors",
+				"capabilities": ["actors"]
+			}
+		],
+		"by_category": {
+			"actors": 2,
+			"affiliate": 1,
+			"agriculture": 1,
+			"alerts": 2,
+			"app_store": 1,
+			"business": 2,
+			"compliance": 1,
+			"crypto": 3,
+			"data": 1,
+			"data_enrichment": 2,
+			"data_extraction": 1,
+			"document_processing": 1,
+			"energy": 1,
+			"events": 1,
+			"government": 3,
+			"jobs_careers": 2,
+			"legal": 5,
+			"local": 1,
+			"logistics": 1,
+			"monitoring": 1,
+			"news_intelligence": 1,
+			"payments": 1,
+			"real_estate": 1,
+			"research": 1,
+			"retail": 4,
+			"safety": 1,
+			"search": 2,
+			"social": 3,
+			"sports_betting": 13,
+			"trade": 1,
+			"travel": 2,
+			"utility": 4,
+			"web_scraping": 6
+		}
+	},
+	"categories": [
+		"actors",
+		"affiliate",
+		"agriculture",
+		"alerts",
+		"app_store",
+		"business",
+		"compliance",
+		"crypto",
+		"data",
+		"data_enrichment",
+		"data_extraction",
+		"document_processing",
+		"energy",
+		"events",
+		"government",
+		"jobs_careers",
+		"legal",
+		"local",
+		"logistics",
+		"monitoring",
+		"news_intelligence",
+		"payments",
+		"real_estate",
+		"research",
+		"retail",
+		"safety",
+		"search",
+		"social",
+		"sports_betting",
+		"trade",
+		"travel",
+		"utility",
+		"web_scraping"
+	],
+	"payment": {
+		"x402": true,
+		"crypto": ["BTC", "ETH", "SOL", "USDC", "USDT", "TRX"],
+		"fiat": ["USD"]
+	},
+	"pricing": {
+		"model": "pay_per_request",
+		"free_tier": {
+			"requests_per_minute": 10
+		},
+		"tiers": [
+			{
+				"name": "free",
+				"price": 0,
+				"requests_per_minute": 10
+			},
+			{
+				"name": "pro",
+				"price": 9,
+				"requests_per_minute": 60,
+				"period": "month"
+			},
+			{
+				"name": "enterprise",
+				"price": 49,
+				"requests_per_minute": 300,
+				"period": "month"
+			}
+		]
+	},
+	"tags": [
+		"scraping",
+		"web",
+		"data",
+		"x402",
+		"crypto",
+		"ai-agents",
+		"mcp",
+		"cloudflare-bypass",
+		"browser-automation",
+		"monitoring",
+		"sports-betting",
+		"legal-intelligence",
+		"real-estate",
+		"jobs",
+		"research"
+	],
+	"features": [
+		"15-tier anti-detection fallback",
+		"x402 crypto payments (7 networks)",
+		"73 MCP tools",
+		"110+ scraping templates",
+		"Automated signup",
+		"CAPTCHA solving",
+		"AI visual scraping",
+		"GraphQL API discovery",
+		"Mobile app API scraping",
+		"Self-hosted or cloud"
+	],
+	"stats": {
+		"tools": 73,
+		"categories": 33,
+		"templates": 110,
+		"tiers": 15,
+		"networks": 7
+	}
+}

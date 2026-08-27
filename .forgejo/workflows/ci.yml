@@ -684,6 +684,157 @@ jobs:
           else
             echo "archfit not installed — skipping (non-blocking)"
           fi
+
+  # ── ENTERPRISE QUALITY GATES (2026-08-27) ─────────────────────
+  mutation-test:
+    name: Mutation testing (mutmut)
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - name: Install Node.js for actions/checkout
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install uv + setup
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
+          uv python install 3.11
+          uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -e ".[dev]"
+      - name: Run mutation tests (targeted)
+        run: |
+          source .venv/bin/activate
+          mutmut run --paths-to-mutate=src/pry/payments,src/pry/engine --tests-dir=tests/ --runner="pytest tests/" || true
+          mutmut results > mutmut-report.txt 2>&1 || true
+          echo "=== Mutation test results ==="
+          cat mutmut-report.txt || echo "mutmut not available"
+        continue-on-error: true
+      - name: Upload report
+        uses: actions/upload-artifact@v3
+        with:
+          name: mutmut-report
+          path: mutmut-report.txt
+        continue-on-error: true
+
+  complexity-gate:
+    name: Code complexity (radon + xenon)
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install tools
+        run: pip install radon xenon
+      - name: Complexity check (radon)
+        run: |
+          echo "=== Cyclomatic complexity (A-E grades) ==="
+          radon cc src/ -a -nc --min=B || echo "WARN: complexity below B grade found"
+      - name: Xenon complexity gate (grade B minimum)
+        run: |
+          xenon --max-absolute B --max-modules A --max-average A src/ || {
+            echo "❌ Complexity gate failed: code exceeds B grade threshold"
+            exit 1
+          }
+
+  dead-code-gate:
+    name: Dead code detection (vulture)
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install vulture
+        run: pip install vulture
+      - name: Dead code scan (min 80% confidence)
+        run: |
+          vulture src/ --min-confidence 80 > vulture-report.txt 2>&1 || true
+          echo "=== Dead code report ==="
+          cat vulture-report.txt
+          if grep -q "unused" vulture-report.txt; then
+            echo "⚠️ Dead code found — review and remove"
+          fi
+
+  docstring-gate:
+    name: Docstring coverage (interrogate)
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install interrogate
+        run: pip install interrogate
+      - name: Docstring coverage check (min 60%)
+        run: |
+          interrogate src/ --verbose --fail-under 60 --generate-badge /tmp/interrogate-badge.svg || {
+            echo "❌ Docstring coverage below 60%"
+            exit 1
+          }
+
+  security-dependency-gate:
+    name: Dependency security (pip-audit)
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install tools
+        run: pip install pip-audit
+      - name: pip-audit (known vulnerabilities)
+        run: |
+          pip-audit --strict --desc --format json -o pip-audit-report.json || {
+            echo "❌ Known vulnerabilities found in dependencies"
+            cat pip-audit-report.json
+            exit 1
+          }
+      - name: Upload report
+        uses: actions/upload-artifact@v3
+        with:
+          name: pip-audit-report
+          path: pip-audit-report.json
+
+  coverage-regression-gate:
+    name: Coverage regression (diff-cover)
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.11-nodejs22
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Install Node.js for actions/checkout
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Install uv + setup
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
+          uv python install 3.11
+          uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -e ".[dev]"
+      - name: Run tests with coverage
+        run: |
+          source .venv/bin/activate
+          pytest tests/ -x -q --tb=short --cov=. --cov-report=xml:coverage.xml -m "not integration"
+      - name: Coverage regression check
+        run: |
+          source .venv/bin/activate
+          pip install diff-cover
+          diff-cover coverage.xml --compare-branch=origin/main --fail-under=75 || {
+            echo "❌ Coverage regression detected (below 75% or dropped vs main)"
+            exit 1
+          }
+
 # Append these jobs under `jobs:` in any repo's ci.yml. Self-contained.
   supply-chain:
     runs-on: docker-x64
