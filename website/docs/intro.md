@@ -12,7 +12,7 @@ Pry is a self-hosted web scraping and browser automation platform with native x4
 {
   "mcpServers": {
     "pry": {
-      "url": "http://100.104.130.92:8002/sse"
+      "url": "http://localhost:8002/sse"
     }
   }
 }

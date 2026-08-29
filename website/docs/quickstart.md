@@ -10,7 +10,7 @@ Add Pry to your MCP client configuration:
 {
   "mcpServers": {
     "pry": {
-      "url": "http://100.104.130.92:8002/sse"
+      "url": "http://localhost:8002/sse"
     }
   }
 }

@@ -37,7 +37,7 @@ AI agents can discover and use Pry without API keys. Well-known endpoints (`/.we
 
 ```bash
 # MCP (AI agents)
-{"mcpServers": {"pry": {"url": "http://100.104.130.92:8002/sse"}}}
+{"mcpServers": {"pry": {"url": "http://localhost:8002/sse"}}}
 
 # Docker (self-hosted)
 git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git

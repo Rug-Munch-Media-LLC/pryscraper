@@ -10,7 +10,7 @@ Pry exposes 73 MCP tools across 27 categories. Every tool has structured input/o
 {
   "mcpServers": {
     "pry": {
-      "url": "http://100.104.130.92:8002/sse"
+      "url": "http://localhost:8002/sse"
     }
   }
 }
@@ -22,7 +22,7 @@ Pry exposes 73 MCP tools across 27 categories. Every tool has structured input/o
 {
   "mcpServers": {
     "pry": {
-      "url": "http://100.104.130.92:8002/mcp"
+      "url": "http://localhost:8002/mcp"
     }
   }
 }
