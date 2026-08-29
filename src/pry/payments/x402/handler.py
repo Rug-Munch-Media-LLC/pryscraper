@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from pry.payments.x402 import (
@@ -38,6 +40,7 @@ from pry.payments.x402.scheme import (
     X402Network,
     X402Scheme,
     _encode_payment_required_body,
+    asset_to_atomic,
     build_payment_required,
     network_verification_status,
     resolve_price_usd,
@@ -61,12 +64,19 @@ class X402Handler:
         wallet: str = "",
         facilitator_url: str = "",
         router: FacilitatorRouter | None = None,
+        payments_file: str | Path | None = None,
+        settlements_file: str | Path | None = None,
     ) -> None:
         self.wallet = wallet or X402_WALLET
         self.facilitator_url = facilitator_url or X402_FACILITATOR_URL
         self.router = router or get_facilitator_router()
-        self.payments_file = X402_DIR / "payments.jsonl"
-        self.settlements_file = X402_DIR / "settlements.jsonl"
+        # Overridable audit-log paths (tests inject per-call temp files). When
+        # omitted, the canonical package data dir is used so a fresh handler per
+        # request shares the same payments/settlements JSONL.
+        self.payments_file = Path(payments_file) if payments_file else X402_DIR / "payments.jsonl"
+        self.settlements_file = (
+            Path(settlements_file) if settlements_file else X402_DIR / "settlements.jsonl"
+        )
         self._load_payments()
 
     def _load_payments(self) -> None:
@@ -169,13 +179,32 @@ class X402Handler:
         if amount_usd <= 0:
             amount_usd = X402_PRICING.get(payment_id, {}).get("price_usd", 0.001)
 
-        result = await self.router.verify(payment_id, tx_hash, network, asset, amount_usd)
+        try:
+            result = await self.router.verify(
+                payment_id=payment_id,
+                tx_hash=tx_hash,
+                network=network,
+                asset=asset,
+                amount_usd=amount_usd,
+            )
+        except Exception as e:  # noqa: BLE001 — fail closed on facilitator error
+            logger.warning(
+                "x402_verify_router_error", extra={"payment_id": payment_id, "error": str(e)}
+            )
+            return {"verified": False, "reason": f"facilitator error: {e}", "settlement": None}
+        # Server-authoritative atomic pricing: the verified payment records the
+        # operation it was purchased for and the minimum amount (atomic units)
+        # the server required at verify time. ``is_paid()`` re-checks both so a
+        # cheap payment can never be replayed against a more expensive gated
+        # operation, and a payment that under-pays the CURRENT price is refused.
         payment_record = {
             "payment_id": payment_id,
             "tx_hash": tx_hash,
             "network": network,
             "asset": asset,
             "amount_usd": amount_usd,
+            "required_amount_atomic": asset_to_atomic(amount_usd, asset, network),
+            "operation": operation,
             "verified": result["verified"],
             "reason": result.get("reason", ""),
             "facilitator": result.get("facilitator", ""),
@@ -208,8 +237,21 @@ class X402Handler:
         if amount_usd <= 0:
             amount_usd = X402_PRICING.get(payment_id, {}).get("price_usd", 0.001)
 
-        settlement = await self.router.settle(payment_id, tx_hash, network, asset, amount_usd)
-        self._record_settlement(settlement)
+        settlement = await self.router.settle(
+            payment_id=payment_id,
+            tx_hash=tx_hash,
+            network=network,
+            asset=asset,
+            amount_usd=amount_usd,
+        )
+        # Enrich the settlement audit record with the identity fields so the
+        # JSONL ledger is self-describing (payment_id/tx_hash/network/asset).
+        record = dict(settlement or {})
+        record.setdefault("payment_id", payment_id)
+        record.setdefault("tx_hash", tx_hash)
+        record.setdefault("network", network)
+        record.setdefault("asset", asset)
+        self._record_settlement(record)
         return settlement
 
     def require_payment(
@@ -229,13 +271,27 @@ class X402Handler:
             "body": body,
         }
 
-    def is_paid(self, payment_id: str, caller_key: str = "") -> bool:
-        """Return True only if the payment is verified, unexpired and caller-bound.
+    def is_paid(self, payment_id: str, caller_key: str = "", operation: str = "") -> bool:
+        """Return True only if the payment is verified, unexpired, caller-bound
+        and still satisfies the gate for ``operation``.
 
         Replay hardening: a verified payment_id is usable for
         ``PAYMENT_VALIDITY_SECONDS`` only, and only by the caller it was bound
         to (IP/payer wallet where available). Payments recorded without an
         ``expires_at`` (pre-hardening data) fail closed.
+
+        Cross-operation + amount hardening: when a gate ``operation`` is
+        supplied (the enforcement middleware always does), the payment must
+        have been purchased for that exact operation AND its recorded
+        server-side required amount (atomic units) must still cover that
+        operation's CURRENT server-authoritative price. A cheap ``scrape``
+        payment can therefore never unlock a more expensive ``crawl`` /
+        ``monitor`` / … endpoint, and a payment that under-pays the current
+        price (e.g. a price was raised after purchase) is rejected. Overpayment
+        is allowed. Payments recorded before this hardening (no
+        ``operation``/``required_amount_atomic``) fail closed for a gated
+        operation. Callers that do not gate by operation keep the legacy
+        verified/unexpired/caller contract.
         """
         now = datetime.now(UTC)
         for p in self.payments:
@@ -254,8 +310,45 @@ class X402Handler:
             stored_caller = p.get("caller_key") or ""
             if stored_caller and (not caller_key or stored_caller != caller_key):
                 continue
+            if operation:
+                # The gate is for a specific operation: the payment must have
+                # been purchased for that operation and still cover its price.
+                if (p.get("operation") or "") != operation:
+                    continue  # cross-operation replay → reject
+                if not self._amount_covers(p, operation):
+                    continue  # underpayment / price raised → reject
+            # Else: legacy caller without a gate operation — the verified /
+            # unexpired / caller checks above are sufficient (the middleware
+            # always passes ``operation``).
             return True
         return False
+
+    def _amount_covers(self, payment: dict[str, Any], operation: str) -> bool:
+        """Server-authoritative atomic recheck for a gated operation.
+
+        Compares the recorded payment amount (atomic units) against the
+        operation's CURRENT server price (also atomic units), computed with the
+        same ``asset_to_atomic`` conversion used by ``validate_client_amount``
+        on the verify path. Overpayment is allowed; underpayment or an
+        unknown/garbled price fails closed. No USD float comparisons.
+        """
+        asset = payment.get("asset") or X402_DEFAULT_ASSET
+        network = payment.get("network") or X402_DEFAULT_NETWORK
+        required = resolve_price_usd(operation, network=network, asset=asset)
+        if required <= 0 or not math.isfinite(float(required)):
+            return False  # no authoritative price → fail closed
+        try:
+            required_atomic = asset_to_atomic(required, asset, network)
+        except (TypeError, ValueError):
+            return False  # unquoteable price → fail closed
+        raw_paid = payment.get("required_amount_atomic")
+        if raw_paid is None:
+            return False  # pre-hardening record without atomics → fail closed
+        try:
+            paid_atomic = int(raw_paid)
+        except (TypeError, ValueError):
+            return False  # garbled atomics → fail closed
+        return paid_atomic >= required_atomic
 
     def get_payment(self, payment_id: str) -> dict[str, Any] | None:
         for p in self.payments:

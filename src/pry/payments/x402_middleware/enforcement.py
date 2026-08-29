@@ -192,7 +192,7 @@ class X402Middleware:
         # /v1/x402/pay route) are visible to this middleware instance.
         if payment_id_header:
             self.handler.refresh()
-            if self.handler.is_paid(payment_id_header, caller_key=caller_key):
+            if self.handler.is_paid(payment_id_header, caller_key=caller_key, operation=operation):
                 # Payment IS the credential: mark verified so the inner
                 # auth layer accepts the request without an API key.
                 scope["x402_verified"] = {

@@ -29,6 +29,7 @@ from pry.payments.x402 import (
     EIP7702_TOKEN_ADDRESSES,
     X402_NETWORK_WALLETS,
     X402_OFFLINE_MODE,
+    X402_PLACEHOLDER_WALLETS,
     X402_SELF_FACILITATE,
     X402_SELF_FACILITATOR_KEY,
     X402_SELF_FACILITATOR_RPC,
@@ -185,7 +186,7 @@ class FacilitatorRouter:
         enabled facilitator with a verify URL.
         """
         wallet = (X402_WALLET or "").strip()
-        wallet_configured = bool(wallet and wallet != "pry-default-wallet")
+        wallet_configured = bool(wallet and wallet not in X402_PLACEHOLDER_WALLETS)
         mode = "self_hosted" if self.self_hosted else "external"
         if self.self_hosted:
             fac = self._get_self_facilitator()
@@ -379,7 +380,7 @@ class FacilitatorRouter:
             "network": network,
             "asset": asset,
             "amount": str(asset_to_atomic(amount_usd, asset, network)),
-            "payToAddress": X402_WALLET,
+            "payToAddress": (X402_WALLET if X402_WALLET not in X402_PLACEHOLDER_WALLETS else ""),
             "scheme": X402Scheme.EXACT.value,
             "timestamp": datetime.now(UTC).isoformat(),
         }
@@ -661,7 +662,7 @@ class FacilitatorRouter:
             "network": network,
             "asset": asset,
             "amount": str(asset_to_atomic(amount_usd, asset, network)),
-            "payToAddress": X402_WALLET,
+            "payToAddress": (X402_WALLET if X402_WALLET not in X402_PLACEHOLDER_WALLETS else ""),
             "scheme": X402Scheme.EXACT.value,
             "timestamp": datetime.now(UTC).isoformat(),
         }

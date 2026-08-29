@@ -75,13 +75,38 @@ def _env_flag(name: str) -> bool:
 try:
     from pry.api.secrets_backend import get_secret as _gs
 
-    X402_WALLET: str = _gs("x402_wallet") or os.getenv("PRY_X402_WALLET", "pry-default-wallet")
+    X402_WALLET: str = _gs("x402_wallet") or os.getenv("PRY_X402_WALLET", "")
     X402_FACILITATOR_URL: str = _gs("x402_facilitator") or os.getenv(
         "PRY_X402_FACILITATOR", "https://x402.org/facilitator"
     )
 except ImportError:
-    X402_WALLET = os.getenv("PRY_X402_WALLET", "pry-default-wallet")
+    X402_WALLET = os.getenv("PRY_X402_WALLET", "")
     X402_FACILITATOR_URL = os.getenv("PRY_X402_FACILITATOR", "https://x402.org/facilitator")
+
+# Wallets that are NEVER a real receiving address. The self-facilitator and the
+# accept builders treat these as "not configured" and fail closed rather than
+# silently emitting a fake payTo. Kept at the package root so
+# importlib.reload(x402) recomputes nothing but the sentinel is stable.
+#
+# "0x1E3AC01d0fdb976179790BDD02823196A92705C9" is coffer's
+# CONFIGURED_WALLET sentinel (treated as unconfigured there). A deployment that
+# points a Pry receiving wallet at this address has NOT configured a payee —
+# add it to the placeholder set so Pry never emits it as a real payTo.
+X402_PLACEHOLDER_WALLETS: frozenset[str] = frozenset(
+    {
+        "",
+        "pry-default-wallet",
+        "pry-default",
+        "0xRMI_PLATFORM_WALLET",
+        "0x1E3AC01d0fdb976179790BDD02823196A92705C9",
+    }
+)
+
+
+def wallet_configured(wallet: str) -> bool:
+    """True only when ``wallet`` is a real, non-placeholder receiving address."""
+    return bool(wallet and wallet not in X402_PLACEHOLDER_WALLETS)
+
 
 # NOTE: literal defaults are equal to X402Network.BASE.value and
 # X402Asset.USDC.value; the enums live in x402.scheme which is imported after
@@ -305,6 +330,7 @@ __all__ = [
     "X402_ORACLE_SOURCE",
     "X402_ORACLE_TTL_SECONDS",
     "X402_ORACLE_URL",
+    "X402_PLACEHOLDER_WALLETS",
     "X402_PRICING",
     "X402_SELF_FACILITATE",
     "X402_SELF_FACILITATOR_KEY",
@@ -361,4 +387,5 @@ __all__ = [
     "validate_client_amount",
     "verify_batch_payment",
     "verify_solana_payment",
+    "wallet_configured",
 ]

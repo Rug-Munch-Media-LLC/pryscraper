@@ -60,6 +60,7 @@ from eth_utils import keccak, to_canonical_address, to_checksum_address
 from pry.payments.x402 import (
     X402_DEFAULT_ASSET,
     X402_DIR,
+    X402_PLACEHOLDER_WALLETS,
     X402_SELF_FACILITATOR_KEY,
     X402_SELF_FACILITATOR_RPC,
     X402_TIMEOUT_SECONDS,
@@ -117,7 +118,9 @@ _TRANSFER_FROM_SELECTOR = keccak(text="transferFrom(address,address,uint256)")[:
 # unavailable (USDC transferWithAuthorization costs ~65k; 100k is safe).
 _DEFAULT_TX_GAS = 100_000
 
-# Placeholder wallet used before an operator configures a real payTo address.
+# Placeholder wallets never accepted as a real payTo. When no operator wallet
+# is configured (empty input or a legacy placeholder), verify/settle fail
+# closed instead of silently using a fake address.
 _PLACEHOLDER_WALLET = "pry-default-wallet"
 
 
@@ -664,7 +667,7 @@ class SelfFacilitator:
                 network=network,
             )
 
-        if self.pay_to == _PLACEHOLDER_WALLET or not self.pay_to:
+        if self.pay_to in X402_PLACEHOLDER_WALLETS:
             return VerifyResult(
                 False, "server wallet (payTo) not configured", asset=asset, network=network
             )
@@ -908,7 +911,7 @@ class SelfFacilitator:
                 error_detail="no authorization and payment not pre-approved",
             )
 
-        if self.pay_to == _PLACEHOLDER_WALLET or not self.pay_to:
+        if self.pay_to in X402_PLACEHOLDER_WALLETS:
             return SettleOutcome(
                 False,
                 error_code=SettleErrorCode.NOT_SETTLABLE.value,

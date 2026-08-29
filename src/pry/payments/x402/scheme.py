@@ -31,6 +31,7 @@ from pry.payments.x402 import (
     X402_DEFAULT_ASSET,
     X402_DEFAULT_NETWORK,
     X402_NETWORK_WALLETS,
+    X402_PLACEHOLDER_WALLETS,
     X402_WALLET,
 )
 
@@ -438,10 +439,10 @@ VERIFICATION_STATUS: dict[str, dict[str, Any]] = {
         "note": "SPL RPC verifier — getTransaction jsonParsed USDC transferChecked to the configured Solana wallet",
     },
     "tron": {
-        "status": "live",
-        "real": True,
-        "scaffolded": False,
-        "note": "TRC-20 Grid verifier — gettransactioninfobyid USDT Transfer event to the configured TRON wallet",
+        "status": "scaffolded:needs_facilitator",
+        "real": False,
+        "scaffolded": True,
+        "note": "TRON scaffolded — no TRC-20 settlement verifier is wired/exposed yet; do not claim verified",
     },
 }
 
@@ -925,6 +926,8 @@ def build_multi_asset_accepts(
     resource: str = "",
     description: str = "",
     mime_type: str = "application/json",
+    preferred_networks: list[str] | None = None,
+    preferred_assets: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Build the accepts list covering every quotable asset in SUPPORTED_ASSETS.
 
@@ -932,18 +935,32 @@ def build_multi_asset_accepts(
     atomic amount for the operation's server-side price (per-network
     ``prices`` overrides in X402_PRICING apply). Assets without a configured
     USD-per-unit conversion are skipped — they cannot be quoted honestly.
+
+    ``preferred_networks``/``preferred_assets`` narrow the acceptance surface
+    to the requested networks/assets (as legacy names or CAIP-2 ids). When
+    omitted, the full SUPPORTED_ASSETS table is advertised.
     """
+    pref_networks = {normalize_network_id(n) for n in (preferred_networks or []) if n}
+    pref_assets = {a.upper() for a in (preferred_assets or []) if a}
     price_info = X402_PRICING.get(operation, {"price_usd": 0.001, "description": operation})
     resource_url = resource or f"https://pry.dev/api/{operation}"
     accepts: list[dict[str, Any]] = []
     for network_id, assets in SUPPORTED_ASSETS.items():
+        if pref_networks and network_id not in pref_networks:
+            continue
         for asset, entry in assets.items():
+            if pref_assets and asset.upper() not in pref_assets:
+                continue
             price_usd = resolve_price_usd(operation, network=network_id, asset=asset)
             unit_usd = usd_per_unit_for(asset)
             if not unit_usd or price_usd <= 0:
                 continue
             amount = asset_to_atomic(price_usd, asset, network_id)
             pay_to = X402_NETWORK_WALLETS.get(network_id) or X402_WALLET
+            if pay_to in X402_PLACEHOLDER_WALLETS:
+                # Never emit a fake/placeholder address as payTo: an operator
+                # must configure a real receiving wallet before taking payments.
+                pay_to = ""
             accepts.append(
                 {
                     "scheme": X402Scheme.EXACT.value,
@@ -1015,6 +1032,8 @@ def build_payment_required(
                 resource=resource_url,
                 description=description,
                 mime_type=mime_type,
+                preferred_networks=preferred_networks,
+                preferred_assets=preferred_assets,
             )
         else:
             networks = preferred_networks or _default_networks_for_asset(X402_DEFAULT_ASSET)
@@ -1025,6 +1044,9 @@ def build_payment_required(
                     if not _asset_on_network(asset, network):
                         continue
                     amount = _to_atomic(price_info["price_usd"], asset)
+                    pay_to = X402_WALLET
+                    if pay_to in X402_PLACEHOLDER_WALLETS:
+                        pay_to = ""
                     accepts.append(
                         {
                             "scheme": X402Scheme.EXACT.value,
@@ -1033,13 +1055,16 @@ def build_payment_required(
                             "resource": resource_url,
                             "description": description or price_info.get("description", operation),
                             "mimeType": mime_type,
-                            "payToAddress": X402_WALLET,
+                            "payToAddress": pay_to,
                             "asset": asset,
                             "extra": {"name": asset, "version": "2", "operation": operation},
                         }
                     )
         if not accepts:
             # Final fallback so we never return an empty accepts array
+            fallback_pay_to = X402_WALLET
+            if fallback_pay_to in X402_PLACEHOLDER_WALLETS:
+                fallback_pay_to = ""
             accepts.append(
                 {
                     "scheme": X402Scheme.EXACT.value,
@@ -1048,7 +1073,7 @@ def build_payment_required(
                     "resource": resource_url,
                     "description": description or price_info.get("description", operation),
                     "mimeType": mime_type,
-                    "payToAddress": X402_WALLET,
+                    "payToAddress": fallback_pay_to,
                     "asset": X402_DEFAULT_ASSET,
                     "extra": {"name": X402_DEFAULT_ASSET, "version": "2", "operation": operation},
                 }
@@ -1087,7 +1112,7 @@ def _legacy_payment_request(
         "description": price_info.get("description", operation),
         "maxAmountRequired": str(int(price_info["price_usd"] * 1_000_000)),
         "asset": X402Asset.USDC.value,
-        "payTo": X402_WALLET,
+        "payTo": (X402_WALLET if X402_WALLET not in X402_PLACEHOLDER_WALLETS else ""),
         "maxTimeoutSeconds": 60,
         "extra": metadata or {},
     }

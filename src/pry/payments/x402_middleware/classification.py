@@ -68,6 +68,14 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/keys/{key_id}/balance",
         "/v1/keys/{key_id}/credit",
         "/v1/keys/{key_id}/ledger",
+        # Billing / bulk scrape-credit packs (control plane — the monetary gate
+        # is the x402 PaymentRequired manifest, not the middleware; the balance
+        # read + signup are free). Purchase/confirm ARM the gate server-side.
+        "/v1/billing/packs",
+        "/v1/billing/purchase",
+        "/v1/billing/purchase/{invoice_id}/confirm",
+        "/v1/billing/signup",
+        "/v1/billing/balance",
         # Job / session management (control plane, not data plane)
         "/v1/job/{job_id}",
         "/v1/jobs",

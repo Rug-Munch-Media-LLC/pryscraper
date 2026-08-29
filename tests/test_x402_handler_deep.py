@@ -15,11 +15,15 @@ logic, get_stats shape.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+from pry.payments.x402 import X402_FACILITATOR_URL, X402_WALLET
 from pry.payments.x402.handler import X402Handler
 
 
@@ -48,8 +52,11 @@ class TestConstructorAndLoad:
 
     def test_constructor_defaults(self, tmp_path: Path) -> None:
         handler = X402Handler(payments_file=tmp_path / "p.jsonl")
-        assert handler.wallet == "pry-default-wallet"
-        assert handler.facilitator_url == "https://x402.facilitator.pryscraper.com"
+        # The handler adopts the module-configured wallet/facilitator defaults.
+        # The wallet may be a real gopass/env address OR the empty (unconfigured)
+        # string — it must NEVER be a placeholder sentinel (fail closed).
+        assert handler.wallet == X402_WALLET
+        assert handler.facilitator_url == X402_FACILITATOR_URL
         assert handler.router is not None
 
 
@@ -109,10 +116,10 @@ class TestCreatePaymentRequired:
 
     def test_multi_asset_shape_includes_supported_assets(self, tmp_path: Path) -> None:
         handler = X402Handler(payments_file=tmp_path / "p.jsonl")
-        body, headers = handler.create_payment_required("scrape", multi_asset=True)
+        body, _ = handler.create_payment_required("scrape", multi_asset=True)
         assert body["x402Version"] == 1
         assert "supported_assets" in body
-        assert "supported_networks" in body
+        assert "networks" in body
         assert len(body["accepts"]) >= 2  # multiple assets
         # Each accept has network + asset
         for acc in body["accepts"]:
@@ -127,8 +134,11 @@ class TestCreatePaymentRequired:
             preferred_networks=["base"],
             preferred_assets=["USDC"],
         )
+        # Multi-asset accepts are keyed by CAIP-2 network id; preferred narrows
+        # the advertised surface to the requested network/asset.
+        assert body["accepts"]
         for acc in body["accepts"]:
-            assert acc["network"] == "base"
+            assert acc["network"] == "eip155:8453"
             assert acc["asset"] == "USDC"
 
 
@@ -269,5 +279,5 @@ class TestGetStats:
         assert "total_payments" in stats
         assert "wallet" in stats
         assert "facilitator" in stats
-        assert stats["wallet"] == "pry-default-wallet"
-        assert stats["facilitator"] == "https://x402.facilitator.pryscraper.com"
+        assert stats["wallet"] == X402_WALLET
+        assert stats["facilitator"] == X402_FACILITATOR_URL
