@@ -13,7 +13,7 @@ jobs:
         with:
           # Forgejo's built-in GITHUB_TOKEN can't create releases on a
           # protected branch — RELEASE_TOKEN is a repo-scoped PAT
-          # (rotates via gopass rmi/forgejo/api_token).
+          # (rotates via the Forgejo API token secret).
           token: ${{ secrets.RELEASE_TOKEN }}
           release-type: python
           package-name: pryscraper

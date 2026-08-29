@@ -60,12 +60,12 @@ def _resolve_token() -> str:
     gopass = shutil.which("gopass")
     if not gopass:
         print(
-            "ERROR: no Apify token. Set APIFY_TOKEN or install gopass (rmi/infra/apify_org_token).",
+            "ERROR: no Apify token. Set APIFY_TOKEN (secrets manager).",
             file=sys.stderr,
         )
         raise SystemExit(2)
     proc = subprocess.run(  # noqa: S603 - resolved absolute path, fixed argv
-        [gopass, "show", "-o", "rmi/infra/apify_org_token"],
+        [os.getenv("APIFY_TOKEN", "")],
         capture_output=True,
         text=True,
         check=False,
@@ -75,7 +75,7 @@ def _resolve_token() -> str:
     if proc.returncode == 0 and token:
         return token
     print(
-        "ERROR: no Apify token. Set APIFY_TOKEN or unlock gopass (rmi/infra/apify_org_token).",
+        "ERROR: no Apify token. Set APIFY_TOKEN (secrets manager).",
         file=sys.stderr,
     )
     raise SystemExit(2)

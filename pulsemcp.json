@@ -29,7 +29,7 @@
 			"command": "pryscraper-mcp"
 		},
 		"streamable-http": {
-			"url": "https://pryscraper.com/mcp"
+			"url": "https://api.pryscraper.com/mcp/"
 		}
 	},
 	"tools": [

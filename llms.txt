@@ -10,10 +10,11 @@
 
 ## MCP Server
 
-- URL: http://100.104.130.92:8002/sse
+- URL: https://api.pryscraper.com/mcp/
 - Transport: SSE, Streamable HTTP, stdio
-- Auth: None (public)
+- Auth: x402 pay-per-call (no account/API key for discovery; paid prefixes require an x402 payment signature or a paid-tier API key)
 - Tools: 73
+- Categories: 33
 
 ## Categories
 
@@ -397,7 +398,7 @@ Category: sports_betting
 
 ### pry_scrape
 
-Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 9-tier fallback chain (direct -> cloudscraper -> FlareSolverr -> Play
+Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 15-tier fallback chain (direct -> cloudscraper -> FlareSolverr -> Play
 
 Category: web_scraping
 

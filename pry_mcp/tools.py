@@ -21,7 +21,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
         "name": "pry_scrape",
         "description": (
             "Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, "
-            "DataDome, Akamai, and other anti-bot systems via a 9-tier fallback chain "
+            "DataDome, Akamai, and other anti-bot systems via a 15-tier fallback chain "
             "(direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> "
             "Archive.org -> Google Cache -> Tor -> undetected-chromedriver). "
             "Use when you need the text content of a page a plain HTTP request cannot fetch, "
@@ -585,6 +585,115 @@ PRY_TOOLS: list[dict[str, Any]] = [
                         "wallet": {"type": "string"},
                         "facilitator": {"type": "string"},
                         "supported_networks": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_balance",
+        "description": (
+            "Read the prepaid balance of a Pry account (bulk scrape credits purchased via "
+            "crypto). Pass your pry API key (e.g. api_key='pry_abc123_deadbeef...') or a "
+            "user_id to see the USD balance + low-balance flag. Use before buying a pack to "
+            "confirm you can afford an operation, or after a purchase to confirm the credit "
+            "landed (e.g. after a 5000-credit starter pack you should see ~5.00 USD). This is "
+            "a free read of your own account — it does not spend credits."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "api_key": {
+                    "type": "string",
+                    "description": "The pry API key whose owner's balance to read.",
+                },
+                "user_id": {
+                    "type": "string",
+                    "description": "Optional explicit account id (takes precedence over api_key).",
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "balance": {
+                            "type": "object",
+                            "properties": {
+                                "user_id": {"type": "string"},
+                                "balance_usd": {"type": "number"},
+                                "low_balance": {"type": "boolean"},
+                            },
+                        }
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
+        "name": "pry_buy_pack",
+        "description": (
+            "Initiate a crypto purchase of a bulk scrape-credit pack. Pass a pack id "
+            "(e.g. pack_id='starter' for $5/5,000 credits) and it returns a spec-compliant "
+            "x402 PaymentRequired manifest with the real receiving wallet as payToAddress and "
+            "the server-authoritative price in atomic units. The agent/partner pays USDC "
+            "on-chain (or the quoted asset, defaults to the configured network), then calls the "
+            "confirm endpoint with the tx hash to credit the balance — and on first purchase an "
+            "API key is minted. An empty payToAddress in the response means the operator hasn't "
+            "configured a receiving wallet; never pay a placeholder address."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "pack_id": {
+                    "type": "string",
+                    "default": "starter",
+                    "description": "Credit-pack id: starter ($5/5,000 credits), growth ($20/20,000), bulk ($100/100,000).",
+                },
+                "api_key": {
+                    "type": "string",
+                    "description": "Optional API key whose owner receives the credits (else a key is minted on purchase).",
+                },
+                "user_id": {
+                    "type": "string",
+                    "description": "Optional explicit account id to credit.",
+                },
+                "network": {
+                    "type": "string",
+                    "description": "Optional CAIP-2 / legacy x402 network (defaults to the configured default).",
+                },
+                "asset": {
+                    "type": "string",
+                    "default": "USDC",
+                    "description": "Optional asset to pay in (defaults to USDC).",
+                },
+            },
+            "required": ["pack_id"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "status_code": {"type": "integer"},
+                        "payment_required": {"type": "object"},
+                        "invoice_id": {"type": "string"},
+                        "pack_id": {"type": "string"},
+                        "amount_usd": {"type": "number"},
+                        "amount_atomic": {"type": "integer"},
+                        "credits": {"type": "integer"},
+                        "chain": {"type": "string"},
+                        "pay_to": {"type": "string"},
+                        "asset": {"type": "string"},
+                        "expires_at": {"type": "string"},
                     },
                 },
             },
@@ -3932,7 +4041,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
 # state mutation), non-destructive, idempotent (repeated calls are safe).
 # Tools that mutate server state opt out explicitly.
 #
-# Audit (2026-08-17, all 71 PRY_TOOLS):
+# Audit (2026-08-17, all 73 PRY_TOOLS):
 #   * pry_monitor  — persists a scheduled monitor on the server:
 #     readOnlyHint=False, idempotentHint=False. destructiveHint stays False:
 #     it never deletes data (removal is a separate /v1/monitor/{id} DELETE).

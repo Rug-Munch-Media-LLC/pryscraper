@@ -22,7 +22,7 @@
 		},
 		{
 			"type": "streamable-http",
-			"url": "https://pryscraper.com/mcp",
+			"url": "https://api.pryscraper.com/mcp/",
 			"description": "Hosted Streamable HTTP endpoint (2025-03-26 spec)"
 		}
 	],

@@ -254,7 +254,7 @@ def get_registry_manifest() -> dict[str, Any]:
         "docs": "https://docs.[INTERNAL]",
         "source": "https://git.rugmunch.io/RugMunchMedia/pryscraper",
         "mcp": {
-            "url": "http://100.104.130.92:8002/sse",
+            "url": "http://[INTERNAL]:8002/sse",
             "transport": ["sse", "streamable-http", "stdio"],
             "auth": "none",
         },
@@ -335,7 +335,7 @@ def generate_llms_txt() -> str:
         "",
         "## MCP Server",
         "",
-        "- URL: http://100.104.130.92:8002/sse",
+        "- URL: http://[INTERNAL]:8002/sse",
         "- Transport: SSE, Streamable HTTP, stdio",
         "- Auth: None (public)",
         f"- Tools: {len(tools)}",

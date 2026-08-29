@@ -363,6 +363,8 @@ _REST_PROXY_TOOLS: dict[str, dict[str, Any]] = {
     "pry_parse_document": {"url": "https://example.com/spec.pdf"},
     "pry_screenshot": {"url": "https://example.com/checkout"},
     "pry_x402_pricing": {},
+    "pry_balance": {"api_key": "pry_deadbeef_" + "0" * 32},
+    "pry_buy_pack": {"pack_id": "starter"},
     "pry_referrals": {"category": "proxies"},
     "pry_scrape_methods": {},
 }

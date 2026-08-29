@@ -19,12 +19,15 @@ WORKDIR /usr/src/app
 # Dependencies first for layer caching.
 COPY requirements.lock .
 RUN pip install --no-cache-dir --disable-pip-version-check -r requirements.lock \
-    && pip install --no-cache-dir --disable-pip-version-check "apify-sdk>=2.7" \
+    && pip install --no-cache-dir --disable-pip-version-check "apify>=4.0" \
     && python -m playwright install chromium 2>&1 | tail -1
 
 # Actor source + application code.
+# apify_actor.py / apify_schema.py live at src/pry/actors/ (NOT repo root) —
+# copy them to the package dir so the entrypoint can import them.
 COPY .actor/src/main.py .actor/src/main.py
-COPY apify_actor.py apify_schema.py ./
+COPY src/pry/actors/apify_actor.py src/pry/actors/apify_actor.py
+COPY src/pry/actors/apify_schema.py src/pry/actors/apify_schema.py
 COPY *.py ./
 
 CMD ["python", ".actor/src/main.py"]

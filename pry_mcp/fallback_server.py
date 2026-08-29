@@ -383,6 +383,8 @@ def make_fallback_server(
                 "pry_parse_document": ("POST", "/v1/parse"),
                 "pry_screenshot": ("POST", "/v1/screenshot"),
                 "pry_x402_pricing": ("GET", "/v1/x402/pricing"),
+                "pry_balance": ("POST", "/v1/billing/balance"),
+                "pry_buy_pack": ("POST", "/v1/billing/purchase"),
                 "pry_referrals": ("GET", "/v1/referrals/catalog"),
                 # Data-domain REST fallbacks (used when a domain module has not
                 # landed yet and the guarded local dispatch was declined):

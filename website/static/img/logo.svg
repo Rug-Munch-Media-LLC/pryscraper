@@ -18,7 +18,7 @@
 
 ### MCP (AI Agents)
 ```json
-{"mcpServers": {"pry": {"url": "http://100.104.130.92:8002/sse"}}}
+{"mcpServers": {"pry": {"url": "http://[INTERNAL]:8002/sse"}}}
 ```
 
 ### Docker (Self-hosted)

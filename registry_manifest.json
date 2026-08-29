@@ -4,6 +4,7 @@
 	"description": "Professional web scraping with x402 crypto payments. 15-tier anti-detection fallback, AI extraction, auto-signup, CAPTCHA solving. 73 MCP tools across web scraping, data extraction, monitoring, sports betting, legal intelligence, real estate, jobs, and more.",
 	"longDescription": "Pry is a self-hosted web scraping and browser automation platform with native x402 micropayments. It routes each request through an adaptive 15-tier fallback chain \u2014 direct HTTP, TLS fingerprint impersonation, cloudscraper, FlareSolverr, undetected-chromedriver, Camoufox, Playwright stealth, Googlebot UA, Tor, premium proxies, Archive.org, Google Cache, AI visual scraping, mobile app API, and GraphQL discovery \u2014 escalating only as far as the target requires, then remembering what worked per domain.",
 	"version": "3.0.0",
+	"updatedAt": "2026-08-29",
 	"author": {
 		"name": "Rug Munch Media LLC",
 		"email": "admin@rugmunch.io"
@@ -12,17 +13,19 @@
 	"website": "https://[INTERNAL]",
 	"docs": "https://docs.[INTERNAL]",
 	"source": "https://git.rugmunch.io/RugMunchMedia/pryscraper",
+	"icon": "https://[INTERNAL]/img/logo.svg",
 	"mcp": {
-		"url": "http://100.104.130.92:8002/sse",
+		"url": "https://api.pryscraper.com/mcp/",
 		"transport": ["sse", "streamable-http", "stdio"],
-		"auth": "none"
+		"auth": "api-key",
+		"authNote": "No account or API key required to discover the server; each operation is pay-per-request gated via x402 (multi-chain USDC). Supply an x402 payment signature, or an API key for the paid tier, to execute paid prefixes."
 	},
 	"tools": {
 		"count": 73,
 		"items": [
 			{
 				"name": "pry_scrape",
-				"description": "Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 9-tier fallback chain (direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver). Use when you need the text content of a page a plain HTTP request cannot fetch, e.g. a Cloudflare-protected article or a JS-heavy blog post.",
+				"description": "Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 15-tier fallback chain (direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver). Use when you need the text content of a page a plain HTTP request cannot fetch, e.g. a Cloudflare-protected article or a JS-heavy blog post.",
 				"inputSchema": {
 					"type": "object",
 					"properties": {
@@ -46,7 +49,22 @@
 							"description": "Optional JSON schema for structured extraction, e.g. {fields: [{name, selector, type}]}"
 						}
 					},
-					"required": ["url"]
+					"required": ["url"],
+					"examples": [
+						{
+							"url": "https://example.com/article",
+							"bypass_cloudflare": true,
+							"js_render": false
+						},
+						{
+							"url": "https://docs.example.com/guide",
+							"extract_schema": {
+								"fields": [
+									{ "name": "title", "selector": "h1", "type": "text" }
+								]
+							}
+						}
+					]
 				},
 				"outputSchema": {
 					"type": "object",
@@ -104,7 +122,7 @@
 				"use_cases": [
 					"Use when you need the text content of a page a plain HTTP request cannot fetch, e"
 				],
-				"longDescription": "Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 9-tier fallback chain (direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver). Use when you need the text content of a page a plain HTTP request cannot fetch, e.g. a Cloudflare-protected article or a JS-heavy blog post. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 15-tier fallback chain (direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver). Use when you need the text content of a page a plain HTTP request cannot fetch, e.g. a Cloudflare-protected article or a JS-heavy blog post. Part of the Pry scraping platform \u2014 73 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "web_scraping",
 				"capabilities": ["web_scraping"]
 			},
@@ -148,7 +166,15 @@
 							"description": "URL path patterns to skip (e.g., ['/cart/', '/login'])"
 						}
 					},
-					"required": ["url"]
+					"required": ["url"],
+					"examples": [
+						{
+							"url": "https://example.com",
+							"max_pages": 50,
+							"max_depth": 2,
+							"include_paths": ["/docs/"]
+						}
+					]
 				},
 				"outputSchema": {
 					"type": "object",
@@ -745,7 +771,13 @@
 							"description": "Capture the entire page height instead of just the viewport"
 						}
 					},
-					"required": ["url"]
+					"required": ["url"],
+					"examples": [
+						{
+							"url": "https://example.com/checkout",
+							"full_page": true
+						}
+					]
 				},
 				"outputSchema": {
 					"type": "object",

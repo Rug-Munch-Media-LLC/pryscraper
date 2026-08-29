@@ -45,7 +45,7 @@ DATABUS_URL = os.getenv(
 )
 # Service-to-service auth — the backend VALIDATES this key (401 otherwise).
 # Source: same secret the backend mounts as /run/secrets/rmi_internal_key
-# (gopass rmi/infra/rmi_internal_key). Unset = deliveries will be rejected.
+# (secrets manager). Unset = deliveries will be rejected.
 DATABUS_API_KEY = os.getenv("RMI_INTERNAL_KEY", "") or os.getenv("PRY_DATABUS_API_KEY", "")
 DATABUS_ENABLED = os.getenv("PRY_DATABUS_ENABLED", "1") == "1"
 DATABUS_TIMEOUT = int(os.getenv("PRY_DATABUS_TIMEOUT", "10"))

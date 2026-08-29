@@ -31,18 +31,18 @@ domain.
 
 ### For AI Agents (MCP)
 
-Pry exposes **73 MCP tools** across 27 categories — web scraping, data extraction,
+Pry exposes **73 MCP tools** across 33 categories — web scraping, data extraction,
 monitoring, sports betting, legal intelligence, real estate, jobs, research, and more.
 Every tool has structured input/output schemas, annotations (`readOnlyHint`,
 `destructiveHint`, `idempotentHint`), and bot-readable descriptions.
 
-**MCP URL:** `http://100.104.130.92:8002/sse` (public, no auth)
+**MCP URL:** `https://api.pryscraper.com/mcp/` (no account or API key needed to discover; paid calls gated by x402)
 
 ### For Humans (REST API)
 
 ```bash
 # Scrape any URL (bypasses Cloudflare automatically)
-curl -X POST http://100.104.130.92:8002/v1/scrape \
+curl -X POST https://api.pryscraper.com/v1/scrape \
   -H "Content-Type: application/json" \
   -d '{"url": "https://example.com"}'
 
@@ -60,13 +60,13 @@ curl -X POST http://100.104.130.92:8002/v1/scrape \
 {
   "mcpServers": {
     "pry": {
-      "url": "http://100.104.130.92:8002/sse"
+      "url": "https://api.pryscraper.com/mcp/"
     }
   }
 }
 ```
 
-That's it. No API key. No auth. 73 tools immediately available.
+That's it. No account or API key required to discover the server — each paid call is gated per-request via x402 (pay for what you use).
 
 ### Self-hosted (Docker)
 
@@ -76,7 +76,7 @@ cd pryscraper
 docker compose up -d
 ```
 
-API: `http://localhost:8002` · MCP: `http://localhost:8002/sse`
+API: `http://localhost:8002` · MCP: `http://localhost:8002/mcp/`
 
 ### CLI
 
@@ -91,7 +91,7 @@ pry crawl https://docs.com --max-pages 20
 
 ## MCP Server
 
-### Tools (73 total, 27 categories)
+### Tools (73 total, 33 categories)
 
 | Category | Count | Example Tools |
 |----------|:-----:|---------------|
@@ -133,8 +133,8 @@ pry crawl https://docs.com --max-pages 20
 
 ### Transports
 
-- **SSE** (Server-Sent Events): `http://100.104.130.92:8002/sse`
-- **Streamable HTTP**: `http://100.104.130.92:8002/mcp`
+- **SSE** (Server-Sent Events): `https://api.pryscraper.com/sse`
+- **Streamable HTTP**: `https://api.pryscraper.com/mcp/`
 - **stdio**: `pry mcp --stdio`
 
 ---
