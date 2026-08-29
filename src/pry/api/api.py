@@ -172,7 +172,14 @@ try:
     _BIDDING_DATA_ROUTER: Any | None = bidding_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _BIDDING_DATA_ROUTER = None
-from pry.payments.crypto.router import router as crypto_payment_router
+# billing_packs router (bulk scrape-credit crypto checkout) — guarded so
+# api.py keeps working if the commerce module has not landed yet.
+try:
+    from pry.api.routers.commerce.billing_packs import router as billing_packs_router
+
+    _BILLING_PACKS_ROUTER: Any | None = billing_packs_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _BILLING_PACKS_ROUTER = None
 from pry.api.routers.ai.vision import router as vision_router
 from pry.api.routers.commerce.reconciliation import router as reconciliation_router
 from pry.api.routers.commerce.referrals import router as referrals_router
@@ -206,6 +213,7 @@ from pry.api.routers.scraping.streams import router as streams_router
 from pry.api.routers.scraping.structure import router as structure_router
 from pry.api.routers.scraping.transform import router as transform_router
 from pry.core.settings import settings
+from pry.payments.crypto.router import router as crypto_payment_router
 from pry.payments.x402_middleware import X402Middleware
 
 # Configure structured (JSON) logging for the whole process. Per
@@ -481,6 +489,9 @@ if _DEALS_DATA_ROUTER is not None:
 # bidding_data router is included when it has landed.
 if _BIDDING_DATA_ROUTER is not None:
     app.include_router(_BIDDING_DATA_ROUTER)
+# billing_packs router is included when it has landed.
+if _BILLING_PACKS_ROUTER is not None:
+    app.include_router(_BILLING_PACKS_ROUTER)
 app.include_router(monitoring_router)
 app.include_router(parsing_router)
 app.include_router(pipeline_router)
