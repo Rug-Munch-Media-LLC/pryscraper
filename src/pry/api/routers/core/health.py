@@ -51,6 +51,21 @@ async def _check_redis() -> bool:
         return False
 
 
+async def _check_database() -> bool:
+    """CRITICAL dep — SQLAlchemy engine reachable.
+
+    The sync ``db_health()`` probe is run in a worker thread so it never
+    blocks the event loop (ASYNC240). Fails closed (False) on any error.
+    """
+    try:
+        from pry.core.db import db_health
+
+        result = await asyncio.to_thread(db_health)
+        return bool(result.get("available"))
+    except Exception:  # noqa: BLE001 - probe must never break /health
+        return False
+
+
 async def _check_flaresolverr() -> bool:
     """OPTIONAL dep — tier 3 of the 9-tier scrape fallback chain."""
     try:
@@ -89,15 +104,22 @@ async def health_check() -> JSONResponse:
     Optional dependencies are included in the payload as informational
     flags so dashboards can see them without paging on them.
     """
-    redis_ok, flare_ok, ollama_ok = await asyncio.gather(
-        _check_redis(), _check_flaresolverr(), _check_ollama(), return_exceptions=False
+    redis_ok, db_ok, flare_ok, ollama_ok = await asyncio.gather(
+        _check_redis(),
+        _check_database(),
+        _check_flaresolverr(),
+        _check_ollama(),
+        return_exceptions=False,
     )
     deps = {
         "redis": redis_ok,  # CRITICAL
+        "database": db_ok,  # CRITICAL
         "flaresolverr": flare_ok,  # optional — informational
         "ollama": ollama_ok,  # optional — informational
     }
-    healthy = redis_ok
+    # BOTH critical deps must be up (redis = queue/cache backbone,
+    # database = key issuance/metering/billing). Optional deps never gate.
+    healthy = redis_ok and db_ok
     return JSONResponse(
         status_code=200 if healthy else 503,
         content={
@@ -116,13 +138,13 @@ async def live() -> dict[str, str]:
 
 @router.get("/ready", summary="Kubernetes readiness probe", response_model=None)
 async def ready() -> JSONResponse | dict[str, str]:
-    """Readiness — CRITICAL dependencies only (redis).
+    """Readiness — CRITICAL dependencies only (redis + database).
 
     NOTE: this deliberately does NOT probe Ollama or FlareSolverr. Both are
     optional enhancement tiers; gating readiness on them caused the
     2026-08-21 four-day false-unhealthy incident.
     """
-    if await _check_redis():
+    if await _check_redis() and await _check_database():
         return {"status": "ready"}
     return JSONResponse(status_code=503, content={"status": "not_ready"})
 

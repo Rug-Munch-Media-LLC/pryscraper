@@ -320,13 +320,17 @@ app.mount("/mcp", mcp_app)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://pryscraper.com",
+        "https://api.pryscraper.com",
         "https://rugmunch.io",
-        # Internal app origins are covered by the wildcard regex below —
-        # do not enumerate internal hostnames in public source (TOP-100 #11).
+        # Dev + internal app origins are covered by the regex below — do not
+        # enumerate internal hostnames in public source (TOP-100 #11).
         "http://localhost:3000",
         "http://localhost:5173",
     ],
-    allow_origin_regex=r"https://.*\.rugmunch\.io",
+    # Locked to first-party hosts only. No "*" wildcard. Subdomains of the
+    # product (pryscraper.com) and the fleet dashboard (rugmunch.io).
+    allow_origin_regex=r"https://(?:[a-z0-9-]+\.)*(?:pryscraper\.com|rugmunch\.io)",
     allow_methods=["*"],
     allow_headers=["*"],
 )

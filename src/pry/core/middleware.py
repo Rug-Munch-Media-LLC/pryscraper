@@ -32,6 +32,7 @@ always trusted, matching the pre-existing testclient/loopback behavior.
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
+import hmac
 import ipaddress
 import json
 import os
@@ -50,12 +51,23 @@ from pry.core.observability import REQUEST_COUNT, REQUEST_LATENCY
 from pry.core.settings import settings
 
 try:
-    from pry.core.logging_config import get_logger as _get_logger, setup_logging
+    from pry.core.logging_config import (
+        bind_request_id,
+        clear_request_id,
+        get_logger as _get_logger,
+        setup_logging,
+    )
 
     setup_logging()
     logger = _get_logger(__name__)
 except ImportError:  # pragma: no cover
     import logging
+
+    def bind_request_id(_request_id: str) -> None:  # no-op fallback
+        return None
+
+    def clear_request_id() -> None:
+        return None
 
     logger = logging.getLogger(__name__)
 
@@ -188,6 +200,23 @@ _AUTH_PUBLIC_PATHS: set[str] = {
 }
 
 
+# ── Security headers (defense-in-depth) ────────────────────────────
+# nginx already sets these at the edge; setting them again at the app
+# level guarantees a browser/API client behind any proxy still gets
+# them (HTML injection / clickjacking / referrer-leak mitigation).
+_SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
+    (b"x-content-type-options", b"nosniff"),
+    (b"x-frame-options", b"DENY"),
+    (b"referrer-policy", b"strict-origin-when-cross-origin"),
+    (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
+    # Relax-but-not-open CSP. API responses are JSON; the policy only
+    # constrains any rendered HTML. Feasible and safe at the app layer.
+    (
+        b"content-security-policy",
+        b"default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data:; 'sandbox'",
+    ),
+)
+
 # ── Fail-closed auth policy ──
 # Shared by PryHttpMiddleware and the sensitive configuration routers
 # (routers/proxy.py, routers/config.py) so every egress-mutating endpoint
@@ -264,7 +293,10 @@ def request_authorized(scope: MutableMapping[str, Any]) -> bool:
 
     if api_key:
         # Legacy global key, or a JWT issued by rmi-backend.
-        if token == api_key:
+        # Timing-safe compare (constant-time) for the legacy global key.
+        # A plain == comparison leaks the key length/prefix through
+        # per-byte timing, letting a remote attacker binary-search the key.
+        if hmac.compare_digest(token.encode("utf-8"), api_key.encode("utf-8")):
             # The operator's master key is the bootstrap admin credential:
             # bind a full-scope identity so admin endpoints (/v1/keys
             # issuance) work before any DB key exists. Without this, key
@@ -377,6 +409,10 @@ class PryHttpMiddleware:
 
         start = time.time()
         request_id = self._get_header(scope, b"x-request-id") or uuid.uuid4().hex[:12]
+        # Bind request_id into structlog contextvars so EVERY log line emitted
+        # during this request (including downstream modules) carries it at the
+        # top level of the JSON record. Cleared at every exit path below.
+        bind_request_id(request_id)
         path = scope.get("path", "")
         method = scope.get("method", "GET")
         ip = _resolve_client_ip(scope)
@@ -412,10 +448,12 @@ class PryHttpMiddleware:
                         (b"content-type", b"application/json"),
                         (b"content-length", str(len(body)).encode()),
                         (b"x-request-id", request_id.encode()),
+                        *_SECURITY_HEADERS,
                     ],
                 }
             )
             await send({"type": "http.response.body", "body": body})
+            clear_request_id()
             return
 
         # Check if route exists — pass through unknown paths to 404 handler
@@ -437,6 +475,7 @@ class PryHttpMiddleware:
                     method=method, endpoint="unmatched", status=str(passthrough_status)
                 ).inc()
                 REQUEST_LATENCY.labels(endpoint="unmatched").observe(time.time() - start)
+            clear_request_id()
             return
 
         # Rate limiting: use user rate limiter if API key present, else IP-based
@@ -446,16 +485,22 @@ class PryHttpMiddleware:
             api_key = auth_header[7:]
 
         if api_key and api_key != settings.api_key:
-            # Valid API key (not the legacy global key) — use user rate limiter
-            # We need to validate the key and get its tier/limits
-            # For now, use a simple check - in production this would validate against DB
+            # DB-issued key (pry_...) already validated in request_authorized(),
+            # which bound the authenticated record into scope["pry_api_key"].
+            # Use ITS per-key rate_limit_rpm + quota (set at issue time) so
+            # PRY_RATE_LIMIT_RPM / api_keys_service per-key quotas apply, instead
+            # of the previous hardcoded "FREE" tier default.
+            key_record = scope.get("pry_api_key") or {}
             allowed, stats = user_ratelimiter.check(
-                api_key_id=api_key[:12],  # Use prefix as bucket key
-                tier="FREE",  # Would be looked up from DB
-                cost_usd=0.0,  # Would be calculated per endpoint
+                api_key_id=key_record.get("key_id", api_key[:12]),
+                tier=key_record.get("tier", "FREE"),
+                rpm=key_record.get("rate_limit_rpm"),
+                quota_monthly=key_record.get("quota_monthly"),
+                cost_usd=0.0,
             )
+            effective_limit = key_record.get("rate_limit_rpm") or ratelimiter.default_rpm
             rate_limit_headers = {
-                "x-ratelimit-limit": str(stats.get("limit", ratelimiter.default_rpm)),
+                "x-ratelimit-limit": str(stats.get("limit", effective_limit)),
                 "x-ratelimit-remaining": str(stats.get("remaining", 0)),
                 "x-ratelimit-reset": str(int(stats.get("quota_reset_at", time.time()))),
                 "x-ratelimit-quota-used": str(stats.get("quota_used", 0)),
@@ -502,12 +547,16 @@ class PryHttpMiddleware:
                 (b"content-type", b"application/json"),
                 (b"content-length", str(len(body)).encode()),
                 (b"x-request-id", request_id.encode()),
+                *_SECURITY_HEADERS,
             ]
             # Add rate limit headers
             for k, v in rate_limit_headers.items():
                 headers.append((k.encode(), str(v).encode()))
+            # RFC 6585 Retry-After: seconds the client should wait before retrying.
+            headers.append((b"retry-after", str(int(float(stats.get("retry_after", 1)))).encode()))
             await send({"type": "http.response.start", "status": 429, "headers": headers})
             await send({"type": "http.response.body", "body": body})
+            clear_request_id()
             return
 
         logger.info(
@@ -530,6 +579,7 @@ class PryHttpMiddleware:
             if message["type"] == "http.response.start":
                 response_status = message.get("status", 200)
                 headers = list(message.get("headers", []))
+                headers.extend(_SECURITY_HEADERS)
                 headers.append((b"x-ratelimit-limit", ratelimit_limit))
                 headers.append((b"x-ratelimit-remaining", ratelimit_remaining))
                 headers.append((b"x-ratelimit-reset", ratelimit_reset))
@@ -571,3 +621,4 @@ class PryHttpMiddleware:
                 "duration": f"{elapsed:.3f}s",
             },
         )
+        clear_request_id()
