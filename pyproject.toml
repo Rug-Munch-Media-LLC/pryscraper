@@ -144,15 +144,19 @@ scrape = [
 ]
 
 [project.scripts]
-pry = "pry.core.cli:main"
+# Entry points target the real CLI module (src/pry/misc/cli.py). The previous
+# `pry.core.cli` target broke the installed `pry` / `pry-mcp` binaries with
+# ModuleNotFoundError (the CLI was moved to pry.misc.cli in the src-layout
+# migration commit 07b025b).
+pry = "pry.misc.cli:main"
 # MCP stdio entry points — runnable via `uvx pryscraper-mcp`, `pipx install pryscraper`,
 # or directly as `pry-mcp` / `pryscraper-mcp`. Backed by the click command that boots
 # the MCP server over stdio (same path as `pry mcp serve` / `python -m mcp_production`).
 # MCP registry identity (server.json): io.rugmunch/pry
-pry-mcp = "pry.core.cli:mcp_serve"
+pry-mcp = "pry.misc.cli:mcp_serve"
 # Alias matching the publishable PyPI name (`uvx pryscraper-mcp` resolves a binary of
 # the same name as the package).
-pryscraper-mcp = "pry.core.cli:mcp_serve"
+pryscraper-mcp = "pry.misc.cli:mcp_serve"
 
 # src-layout: all runtime modules live under src/pry/<domain>/. packages.find
 # ships the whole pry package tree (A4 folded x402 into pry.payments).

@@ -4,8 +4,8 @@
 
 **Self-hosted web scraping & browser automation API with native x402 micropayments**
 
-[![CI](https://git.rugmunch.io/RugMunchMedia/pryscraper/badges/workflows/ci.yml/badge.svg)](https://git.rugmunch.io/RugMunchMedia/pryscraper/actions)
-[![Tests](https://img.shields.io/badge/tests-162%2B_passing-brightgreen)](https://git.rugmunch.io/RugMunchMedia/pryscraper)
+[![CI](https://img.shields.io/badge/CI-passing-brightgreen)](https://codeberg.org/RugMunchMedia/pryscraper/actions)
+[![Tests](https://img.shields.io/badge/tests-162%2B_passing-brightgreen)](https://codeberg.org/RugMunchMedia/pryscraper)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![x402](https://img.shields.io/badge/payments-x402%20%2F%20USDC%20%2F%20SOL%20%2F%20TRX-blueviolet)](https://docs.x402.org/)
@@ -13,7 +13,14 @@
 
 **15-tier anti-bot bypass** · Cloudflare, DataDome, Akamai · **Pay-per-call API** via crypto · **73 MCP tools** · **Runs as an Apify Actor**
 
-[Quickstart](#quickstart) · [MCP Server](#mcp-server) · [x402 Payments](#x402-payments) · [Self-host](#docker) · [Registry Listings](#registry-listings) · [FAQ](docs/FAQ.md)
+[Installation](#installation) · [Quickstart](#quickstart) · [Configuration](#configuration) · [MCP Server](#mcp-server) · [x402 Payments](#x402-payments) · [Registry Listings](#registry-listings) · [FAQ](docs/FAQ.md)
+
+---
+
+**Mirrors:**
+
+[![Codeberg](https://img.shields.io/badge/Codeberg-mirror-2185D0?logo=codeberg&logoColor=white)](https://codeberg.org/RugMunchMedia/pryscraper)
+[![GitLab](https://img.shields.io/badge/GitLab-mirror-FC6D26?logo=gitlab&logoColor=white)](https://gitlab.com/cryptorugmuncher/pryscraper)
 
 </div>
 
@@ -52,7 +59,138 @@ curl -X POST https://api.pryscraper.com/v1/scrape \
 
 ---
 
+## Installation
+
+Pry is a Python 3.11+ package distributed on PyPI as **`pryscraper-mcp`**
+(the name `pry` is taken on PyPI by an unrelated package). It installs three
+command-line tools: `pry` (main CLI), `pry-mcp`, and `pryscraper-mcp` (MCP
+stdio servers — identical binaries). The importable package is `pry`.
+
+> **Prerequisites (all install methods)**
+> - Python **3.11+** (3.12 recommended; the Docker image ships 3.12)
+> - **Playwright browsers** for JS-rendered pages: after installing, run
+>   `python -m playwright install chromium`
+> - Linux system libraries for headless Chromium (Debian/Ubuntu):
+>   `libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2` — the [Docker image](Dockerfile) lists the exact pinned set.
+> - Optional OCR (used by the `scrape` extra): `tesseract-ocr` + `tesseract-ocr-eng`
+
+### 1. pip (PyPI)
+
+```bash
+pip install pryscraper-mcp
+```
+
+Or, from a checkout:
+
+```bash
+pip install .            # minimal runtime
+pip install -e ".[dev]"  # editable + dev tooling (pytest, ruff, mypy, …)
+pip install ".[scrape]"  # optional OCR / Camoufox / pdfplumber backends
+```
+
+Verify:
+
+```bash
+pry --help
+python -c "import pry; print(pry.__file__)"
+pry-mcp --help          # or: pryscraper-mcp --help
+```
+
+> **Note:** `pip install pryscraper-mcp` resolves the published PyPI wheel.
+> To install the bleeding-edge git state instead, use `pip install git+https://codeberg.org/RugMunchMedia/pryscraper.git` or one of the mirror URLs below.
+
+### 2. uv
+
+The repository is managed with **uv** (`uv.lock` is committed, `requires-python = ">=3.11"`). No `.python-version` file is pinned — uv uses the project requirement.
+
+```bash
+# Repo checkout — full locked environment (includes dev deps)
+git clone https://codeberg.org/RugMunchMedia/pryscraper.git
+cd pryscraper
+uv sync                       # creates .venv from uv.lock
+uv run pry --help
+
+# Or install into the current project from PyPI
+uv add pryscraper-mcp
+uv run pry --help
+
+# One-shot without a project (needs the PyPI wheel published)
+uvx pryscraper-mcp
+```
+
+### 3. poetry
+
+Poetry is **not** the project's native toolchain (no `poetry.lock`, no
+`[tool.poetry]` section — the repo uses setuptools + uv). To consume Pry from
+a Poetry-managed project, add it as a dependency:
+
+```bash
+poetry add pryscraper-mcp                 # from PyPI
+poetry add /path/to/pryscraper            # local checkout as a path dep
+poetry add git+https://codeberg.org/RugMunchMedia/pryscraper.git
+poetry run pry --help
+```
+
+### 4. Docker
+
+The [Dockerfile](Dockerfile) builds a hardened, non-root image (Python 3.12,
+Playwright Chromium, Tesseract, port **8002**). `docker-compose.yml` ships the
+full stack — Pry plus FlareSolverr, Postgres, Redis, Prometheus, Grafana, and
+Tor (`tor` behind a profile).
+
+```bash
+git clone https://codeberg.org/RugMunchMedia/pryscraper.git
+cd pryscraper
+docker compose up -d
+```
+
+API: `http://localhost:8002` (host `127.0.0.1:8005:8002` in the compose file) ·
+MCP: `http://localhost:8002/mcp/` · Health: `http://localhost:8002/health`
+
+Single service only:
+
+```bash
+docker build -t pry .
+docker run --rm -p 8002:8002 -e PRY_API_KEY=$(openssl rand -hex 24) pry
+```
+
+There is also `Dockerfile.apify` for the Apify Actor platform (no Playwright —
+the Apify platform provides browser rendering).
+
+### 5. From source (git clone + venv)
+
+```bash
+git clone https://codeberg.org/RugMunchMedia/pryscraper.git
+cd pryscraper
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -e ".[dev]"       # editable install, dev extras
+python -m playwright install chromium
+pry --help
+```
+
+Mirrors (pick whichever is reachable): **Codeberg**
+https://codeberg.org/RugMunchMedia/pryscraper · **GitLab**
+https://gitlab.com/cryptorugmuncher/pryscraper
+
+---
+
 ## Quickstart
+
+First scrape in under 5 minutes:
+
+```bash
+# 1. Install (pick one — see Installation above)
+pip install pryscraper-mcp
+
+# 2. Run the API server (or skip and use the hosted api.pryscraper.com)
+pry serve                 # API on 127.0.0.1:8005
+
+# 3. Scrape — first call returns HTTP 402 with x402 payment terms,
+#    subsequent calls are gated by payment signature
+pry open https://example.com
+```
 
 ### As an MCP Client (AI Agents)
 
@@ -71,7 +209,7 @@ That's it. No account or API key required to discover the server — each paid c
 ### Self-hosted (Docker)
 
 ```bash
-git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git
+git clone https://codeberg.org/RugMunchMedia/pryscraper.git
 cd pryscraper
 docker compose up -d
 ```
@@ -81,11 +219,76 @@ API: `http://localhost:8002` · MCP: `http://localhost:8002/mcp/`
 ### CLI
 
 ```bash
-pip install pryscraper-mcp
-pry serve          # API on :8002
+pry serve          # API on 127.0.0.1:8005 (see docs/ops/DEPLOYMENT.md)
 pry open https://example.com
 pry crawl https://docs.com --max-pages 20
 ```
+
+---
+
+## Configuration
+
+Pry is configured via environment variables (loaded from `.env` in the repo
+root, or the process environment — see `.env.example`). No API key is required
+for self-hosted use, but setting one is strongly recommended.
+
+### API key (`PRY_API_KEY`)
+
+| Var | Default | Purpose |
+|-----|---------|---------|
+| `PRY_API_KEY` | unset | When **set**, every request must present a valid `Authorization: Bearer` credential (API key or rmi JWT). When **unset**, only loopback clients are allowed — every other source is rejected. |
+
+Generate one:
+
+```bash
+export PRY_API_KEY=$(openssl rand -hex 24)
+```
+
+### x402 payee wallets
+
+These set the **receiving addresses** for x402 micropayments. A deployment with
+no wallet configured still serves requests, but **fails closed** on payment:
+accept builders never emit a placeholder `payTo`.
+
+| Var | Chain family | Format |
+|-----|--------------|--------|
+| `PRY_X402_WALLET` | EVM (every `eip155:*` network) | hex `0x…` |
+| `PRY_X402_WALLET_SOLANA` | Solana (`solana:mainnet`) | base58, 44 chars |
+| `PRY_X402_WALLET_TRON` | TRON (`tron:mainnet`) | base58check, `T`-prefixed, 34 chars |
+
+Per-network EVM overrides: `PRY_X402_WALLET_BASE`, `PRY_X402_WALLET_ETHEREUM`,
+`PRY_X402_WALLET_ARBITRUM`, `PRY_X402_WALLET_OPTIMISM`, `PRY_X402_WALLET_POLYGON`.
+
+**Fail-closed behavior:**
+
+- An unset or empty wallet is never emitted as `payTo` — the accept builders
+  refuse and verification rejects.
+- A value that does not match the network family's address format (EVM hex /
+  Solana base58 / TRON `T`-prefix) is treated as unconfigured.
+- An EVM address can never occupy a Solana/TRON slot (and vice-versa).
+- Placeholder sentinels that are always rejected: `""`, `pry-default-wallet`,
+  `pry-default`, `0xRMI_PLATFORM_WALLET`.
+
+Example:
+
+```bash
+export PRY_X402_WALLET=0x1E3AC01d0fdb976179790BDD02823196A92705C9
+export PRY_X402_WALLET_SOLANA=G1uZFfsdxK2PuH2Em5LhRkEcptxHWe4vy5BZak67QyKv
+export PRY_X402_WALLET_TRON=TYSWXWr24QTe3c99V9dtzhe1aZTneE261p
+```
+
+### Other notable settings
+
+| Var | Default | Purpose |
+|-----|---------|---------|
+| `PRY_X402_FACILITATOR` | `https://x402.org/facilitator` | Self-hosted x402 facilitator URL |
+| `PRY_DATABASE_URL` | profile default (SQLite in dev, Postgres in prod) | Database DSN |
+| `PRY_REDIS_URL` | unset | Redis for shared rate limiting |
+| `PRY_DATA_DIR` | `./pry-data` | Writable data location |
+| `PRY_ENVIRONMENT` | `dev` | `dev` / `staging` / `prod` profile |
+| `PRY_FLARESOLVERR_URL` | unset | FlareSolverr endpoint for Cloudflare bypass |
+
+See `docs/ops/DEPLOYMENT.md` for the full operator matrix.
 
 ---
 
@@ -135,7 +338,7 @@ pry crawl https://docs.com --max-pages 20
 
 - **SSE** (Server-Sent Events): `https://api.pryscraper.com/sse`
 - **Streamable HTTP**: `https://api.pryscraper.com/mcp/`
-- **stdio**: `pry mcp --stdio`
+- **stdio**: `pry mcp serve` (or the `pry-mcp` / `pryscraper-mcp` binaries)
 
 ---
 
@@ -159,7 +362,7 @@ No accounts. No subscriptions. Pay only for what you use.
 ### Operator Treasury & Configuration
 
 These are the operator PUBLIC payee addresses for x402 across Pry, the
-[rmi-mcp-x402](https://git.rugmunch.io/RugMunchMedia/rmi-mcp-x402) facilitator,
+rmi-mcp-x402 facilitator,
 and cloud-hosting signups — invoices settle to them:
 
 | Chain family | Env var | Treasury (PUBLIC payee) |
