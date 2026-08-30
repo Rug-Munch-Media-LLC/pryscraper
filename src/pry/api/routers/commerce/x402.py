@@ -113,6 +113,7 @@ async def x402_catalog() -> dict[str, Any]:
             {
                 "actor": name,
                 "title": spec.title,
+                "icon": spec.icon,
                 "engine": spec.processor or "scrape",
                 "mcp_tool": ENGINE_TOOLS.get(spec.processor, "pry_scrape"),
                 "category": str(getattr(spec.category, "value", spec.category)),

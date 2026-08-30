@@ -52,6 +52,13 @@ VALID_EDITORS = {
 
 SYNTHETIC_EVENTS = {"apify-actor-start", "apify-default-dataset-item"}
 
+# Curated badge PNG icon pack (repo-relative asset path). The canonical
+# per-actor icon is the 256px rounded-square gradient badge; badge-512 is
+# the hi-dpi twin. Both live under assets/actors/icons and are named after
+# the preset (e.g. pry-universal-scraper.png). See assets/actors/icons/.
+ICON_DIR_256 = "assets/actors/icons/badge-256"
+ICON_DIR_512 = "assets/actors/icons/badge-512"
+
 
 EVENT_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 
@@ -98,7 +105,11 @@ class InputField:
         if self.type == "object":
             return "json"
         if self.type == "array":
-            return "requestListSources" if self.name in ("urls", "requests", "start_urls") else "stringList"
+            return (
+                "requestListSources"
+                if self.name in ("urls", "requests", "start_urls")
+                else "stringList"
+            )
         if self.enum:
             return "select"
         return "textfield"
@@ -111,9 +122,11 @@ class InputField:
         if self.type == "object":
             return "json"
         if self.type == "array":
-            return ("requestListSources"
-                    if self.name in ("urls", "requests", "start_urls")
-                    else "stringList")
+            return (
+                "requestListSources"
+                if self.name in ("urls", "requests", "start_urls")
+                else "stringList"
+            )
         if self.enum:
             return "select"
         return "textfield"
@@ -266,6 +279,22 @@ class ActorSpec:
         if not self.pricing_events:
             raise ValueError(f"actor '{self.name}' has no pricing events")
         return self.pricing_events[0]
+
+    @property
+    def icon(self) -> str:
+        """Repo-relative path to the canonical 256px badge icon for this actor.
+
+        The curated icon pack is named after the preset (this actor's ``name``),
+        so the reference is derivable without per-preset duplication. Used by
+        the MCP catalog and the publication metadata so Apify's Store card and
+        the MCP registry both resolve the same badge.
+        """
+        return f"{ICON_DIR_256}/{self.name}.png"
+
+    @property
+    def icon_hd(self) -> str:
+        """Repo-relative path to the hi-dpi (512px) badge icon for this actor."""
+        return f"{ICON_DIR_512}/{self.name}.png"
 
     def to_actor_json(self) -> dict[str, Any]:
         """Render the spec-compliant actor.json object."""

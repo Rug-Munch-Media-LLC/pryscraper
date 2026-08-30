@@ -253,6 +253,7 @@ def get_registry_manifest() -> dict[str, Any]:
         "website": "https://[INTERNAL]",
         "docs": "https://docs.[INTERNAL]",
         "source": "https://git.rugmunch.io/RugMunchMedia/pryscraper",
+        "icon": "https://[INTERNAL]/img/pry.png",
         "mcp": {
             "url": "http://[INTERNAL]:8002/sse",
             "transport": ["sse", "streamable-http", "stdio"],

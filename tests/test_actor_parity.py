@@ -29,6 +29,7 @@ from typing import Any, cast
 from actor_factory.presets import ALL_PRESETS
 from actor_factory.publish import sorted_specs
 from actor_factory.runner import PPEScraperRunner
+from actor_factory.spec import ICON_DIR_256, ICON_DIR_512
 from pry_mcp.tools import _actor_catalog_entries
 
 
@@ -97,3 +98,44 @@ class TestRunnerParity:
         src = inspect.getsource(pry_mcp.tools.call_actor_tool)
         assert "PPEScraperRunner" in src
         assert "from actor_factory.runner import" in src or "actor_factory.runner" in src
+
+
+class TestActorIconParity:
+    """Every preset ships a curated badge icon (256 + hi-dpi 512).
+
+    The ``spec.icon``/``spec.icon_hd`` path convention must resolve to a real
+    committed PNG, and the MCP catalog surface must advertise the same icon
+    reference so agents can render the actor's Store card.
+    """
+
+    def test_every_preset_has_a_256_badge(self) -> None:
+        missing = [
+            name for name in ALL_PRESETS if not (Path(ICON_DIR_256) / f"{name}.png").is_file()
+        ]
+        assert not missing, f"presets missing 256px badge icon: {missing}"
+
+    def test_every_preset_has_a_512_badge(self) -> None:
+        missing = [
+            name for name in ALL_PRESETS if not (Path(ICON_DIR_512) / f"{name}.png").is_file()
+        ]
+        assert not missing, f"presets missing 512px (hi-dpi) badge icon: {missing}"
+
+    def test_spec_icon_resolves_to_real_file(self) -> None:
+        for name, spec in ALL_PRESETS.items():
+            assert Path(spec.icon).is_file(), f"{name}: {spec.icon} missing"
+            assert Path(spec.icon_hd).is_file(), f"{name}: {spec.icon_hd} missing"
+
+    def test_mcp_catalog_exposes_each_icon(self) -> None:
+        """pry_actor_catalog rows carry the same icon reference the spec uses."""
+        for entry in _actor_catalog_entries():
+            actor = entry["actor"]
+            spec = ALL_PRESETS[f"pry-{actor}"]
+            assert entry["icon"] == spec.icon, actor
+            assert entry["icon_hd"] == spec.icon_hd, actor
+            assert Path(entry["icon"]).is_file(), f"{actor}: catalog icon missing"
+
+    def test_brand_icon_resolves(self) -> None:
+        # The Pry brand badge is the 95th icon (not a preset); the MCP manifest
+        # points at it via /img/pry.png which mirrors assets/actors/icons.
+        assert (Path(ICON_DIR_256) / "pry.png").is_file()
+        assert (Path("website/static/img") / "pry.png").is_file()
