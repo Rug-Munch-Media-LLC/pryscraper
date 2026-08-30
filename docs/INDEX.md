@@ -25,10 +25,13 @@ CODE_OF_CONDUCT, AGENTS (agent contract), RADICLE (P2P mirror), SKILL.
 ## Ops (`docs/ops/`)
 | Doc | What it covers |
 |---|---|
-| ARCHITECTURE.md | System architecture |
+| ARCHITECTURE.md | System architecture (components, 15-tier engine, middleware order, data flow) |
+| TOOLS-CATALOG.md | Full 76-tool / 33-category breakdown with per-category pricing |
+| API-REFERENCE.md | REST + MCP endpoint surface, x402 payment-gated flow |
+| PAYMENTS.md | x402 model, 7-chain treasuries, packs vs subscription, security |
+| DEPLOYMENT.md | Deploy + operations (env var reference, scaling, self-host vs cloud) |
 | DEVELOPMENT.md | Local dev workflow |
 | TESTING.md | Test suite guide (unit/contract/fuzz/k6) |
-| DEPLOYMENT.md | Deploy runbook |
 | USAGE.md | API usage examples |
 | FAQ.md | Common questions |
 | MCP_X402_AUDIT.md | x402/MCP payment system review |

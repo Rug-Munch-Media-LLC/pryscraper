@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="website/static/img/logo.svg" alt="pryscraper logo — a crowbar prying open the corner of a panel" width="360">
+
 # Pry — Open any website
 
 **Self-hosted web scraping & browser automation API with native x402 micropayments**
@@ -9,11 +11,11 @@
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![x402](https://img.shields.io/badge/payments-x402%20%2F%20USDC%20%2F%20SOL%20%2F%20TRX-blueviolet)](https://docs.x402.org/)
-[![MCP](https://img.shields.io/badge/MCP-73_tools-purple)](https://modelcontextprotocol.io/)
+[![MCP](https://img.shields.io/badge/MCP-76_tools-purple)](https://modelcontextprotocol.io/)
 
-**15-tier anti-bot bypass** · Cloudflare, DataDome, Akamai · **Pay-per-call API** via crypto · **73 MCP tools** · **Runs as an Apify Actor**
+**15-tier anti-bot bypass** · Cloudflare, DataDome, Akamai · **Pay-per-call API** via crypto · **76 MCP tools** · **Runs as an Apify Actor**
 
-[Installation](#installation) · [Quickstart](#quickstart) · [Configuration](#configuration) · [MCP Server](#mcp-server) · [x402 Payments](#x402-payments) · [Registry Listings](#registry-listings) · [FAQ](docs/FAQ.md)
+[Installation](#installation) · [Quickstart](#quickstart) · [Configuration](#configuration) · [MCP Server](#mcp-server) · [x402 Payments](#x402-payments) · [Registry Listings](#registry-listings) · [FAQ](docs/FAQ.md) · [Tool Catalog](docs/ops/TOOLS-CATALOG.md) · [API Reference](docs/ops/API-REFERENCE.md) · [Payments](docs/ops/PAYMENTS.md) · [Operations](docs/ops/DEPLOYMENT.md)
 
 ---
 
@@ -38,7 +40,7 @@ domain.
 
 ### For AI Agents (MCP)
 
-Pry exposes **73 MCP tools** across 33 categories — web scraping, data extraction,
+Pry exposes **76 MCP tools** across 33 categories — web scraping, data extraction,
 monitoring, sports betting, legal intelligence, real estate, jobs, research, and more.
 Every tool has structured input/output schemas, annotations (`readOnlyHint`,
 `destructiveHint`, `idempotentHint`), and bot-readable descriptions.
@@ -290,11 +292,44 @@ export PRY_X402_WALLET_TRON=TYSWXWr24QTe3c99V9dtzhe1aZTneE261p
 
 See `docs/ops/DEPLOYMENT.md` for the full operator matrix.
 
+### Scrape LLM backend (cost)
+
+Pry routes its scrape/extract/parse LLM calls (extract_llm, quality_check,
+extract_with_review, vision/OCR) through a **free-first fallback chain** with a
+paid reliability backstop, so MCP scrapes run at near-zero cost.
+
+- **Order env var:** `PRY_LLM_PROVIDER_ORDER` (comma-separated, case-insensitive).
+  It names providers in the order Pry tries them; on a transient failure (429/5xx/
+  timeout) Pry retries the current provider with backoff, then falls through to the
+  next one. See `intelligence/llm/registry.py` (`_provider_order_from_env`).
+- **Recommended chain (free/cheap → paid backstop):**
+  `zai,nvidia,groq,openrouter,kimi,cerebras,kilocode,deepseek`
+  - `zai` = GLM / z.ai — cheapest extraction tier.
+  - `nvidia` (free NIM), `groq` (free), `openrouter` (free models), `kimi`,
+    `cerebras`, `kilocode` — free tiers.
+  - `deepseek` — **paid** reliability backstop, always LAST.
+- **Activation:** a provider is only registered (and thus reachable) if its API key
+  resolves. Each key can be supplied as `PRY_<NAME>_API_KEY`, the standard env var
+  (e.g. `NVIDIA_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY`), or a gopass
+  secret at `pry/<name>` (see `settings.py` → `_apply_secrets_backend`). A missing
+  key just drops that slot from the live chain — the rest still work.
+- **Overriding:** set `PRY_LLM_PROVIDER_ORDER` to any subset/order, e.g.
+  `nvidia,groq,deepseek` to skip weaker free tiers, or `deepseek` alone for a
+  paid-only deployment.
+- **Excluded:** `opencode_zen` (free `deepseek-v4-flash-free`) is intentionally not
+  listed — the fleet reserves that model as the `small_model`, not for extraction.
+
+> [REVIEW] `deepseek`'s `cost_per_1k_*` fields are hardcoded `0.0` in providers.py
+> (comment: "Paid but low cost"), so cost tracking under-reports paid spend. Engine
+> cost fields are out of scope for this change.
+
 ---
 
 ## MCP Server
 
-### Tools (73 total, 33 categories)
+### Tools (76 total, 33 categories)
+
+> Full breakdown with per-category tables and pricing: [docs/ops/TOOLS-CATALOG.md](docs/ops/TOOLS-CATALOG.md)
 
 | Category | Count | Example Tools |
 |----------|:-----:|---------------|
@@ -452,7 +487,7 @@ GET /llms.txt                     → AI agent discovery (llms.txt standard)
 | Feature | Pry | Firecrawl | Scrapling | Apify |
 |---------|:---:|:---------:|:---------:|:-----:|
 | Anti-detection tiers | **15** | 2 | 3 | 1 |
-| MCP tools | **73** | 5 | 8 | 0 |
+| MCP tools | **76** | 5 | 8 | 0 |
 | x402 payments | ✅ | ❌ | ❌ | ❌ |
 | Self-hosted | ✅ | ❌ | ✅ | ✅ |
 | Templates | **110+** | 0 | 0 | 1000+ |
@@ -470,7 +505,7 @@ GET /llms.txt                     → AI agent discovery (llms.txt standard)
 ┌─────────────────────────────────────────────────────────────┐
 │                        Pry Platform                          │
 ├─────────────────────────────────────────────────────────────┤
-│  MCP Layer (73 tools)  │  REST API  │  x402 Payments        │
+│  MCP Layer (76 tools)  │  REST API  │  x402 Payments        │
 ├─────────────────────────────────────────────────────────────┤
 │  15-Tier Scraping Engine                                    │
 │  ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐  │

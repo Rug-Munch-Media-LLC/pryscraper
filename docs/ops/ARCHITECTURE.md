@@ -1,230 +1,265 @@
+# Pry Architecture
+
 [//]: # (SPDX-License-Identifier: MIT)
 [//]: # (Copyright (c) 2026 Rug Munch Media LLC)
 ---
 title: Pry Architecture & Design
 status: canonical
 owner: Rug Munch Media LLC Engineering
-last_updated: 2026-06-30
+last_updated: 2026-08-30
 audience:
   - engineers
   - agents
-note: Replaces Firecrawl, Crawl4AI, and Browserless in a single self-hosted application.
+note: Replaces Firecrawl, Crawl4AI, and Browserless in a single self-hosted application. Supersedes the prior 10-tier architecture note — the live engine is a 15-tier adaptive fallback chain (see `src/pry/engine/ultimate_scraper.py`).
 ---
 
 # Pry Architecture
 
-## Overview
+Pry (v3.0.0) is a self-hosted web scraping + browser automation platform
+exposed simultaneously as an MCP server and a REST API, monetized per-call via
+native [x402](https://docs.x402.org/) crypto micropayments. It routes every
+request through an adaptive **15-tier anti-bot fallback chain**, escalated only
+as far as the target requires, then remembers what worked per domain.
 
-Pry (formerly MunchCrawl) v3.0.0 is a self-hosted web scraping + browser automation API.
-It replaces Firecrawl, Crawl4AI, and Browserless in a single application. No API keys needed.
+**Stack**: Python 3.11+/3.12, FastAPI, Playwright, FlareSolverr, Redis, Postgres,
+httpx, Prometheus.
 
-**Stack**: Python 3.11+, FastAPI, Playwright, FlareSolverr, Redis, httpx
-**Entry**: `cli.py:main()` → CLI or `api.py:app` → FastAPI
-**Deployment**: Docker Compose (recommended) or bare metal
-
-## Scraping Pipeline (10-tier fallback)
-
-```
-Client → Pry API → Ultimate Scraper → 10-tier fallback chain
-```
-
-| Tier | Method | Purpose |
-|------|--------|---------|
-| 1 | Direct HTTP | Rotating UAs, browser-like headers |
-| 2 | cloudscraper | Python-native Cloudflare JS challenge |
-| 3 | FlareSolverr | Headless Chrome Cloudflare/WAF bypass |
-| 4 | undetected-chromedriver | Modified Chrome, no automation flags |
-| 5 | Playwright | Full browser with human behavior (mouse, scroll, timing) |
-| 6 | Googlebot UA | Search engine crawl mimic |
-| 7 | Tor proxy | Anonymous routing via SOCKS5 |
-| 8 | Archive.org / Wayback Machine | Cached version fallback |
-| 9 | Google Cache | Cached snapshot |
-| 10 | Textise dot iitty | Text-only version |
-
-## Data Flow
+## Components
 
 ```
-┌──────────────┐    ┌──────────────┐    ┌──────────────────┐
-│   CLI/SDK    │───→│  Pry API      │───→│  Ultimate Scraper │
-│  (httpx)     │    │  (FastAPI)    │    │  (10-tier chain) │
-└──────────────┘    └──────┬───────┘    └────────┬─────────┘
-                           │                      │
-                      ┌────┴────┐           ┌─────┴──────┐
-                      │  Cache  │           │  Playwright │
-                      │  Redis  │           │  FlareSolv. │
-                      │  Rate   │           │  cloudscraper│
-                      │  Limit  │           │  Tor/SOCKS5 │
-                      └─────────┘           └────────────┘
-                           │                      │
-                      ┌────┴────┐           ┌─────┴──────┐
-                      │  MCP    │           │  Parse/     │
-                      │  Server  │           │  Extract    │
-                      └─────────┘           └────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│                                Pry Platform                                 │
+├────────────────────────────────────────────────────────────────────────────┤
+│  MCP Layer (76 tools)            │  REST API (v1, ~298 operations)          │
+│  /mcp  (SSE + Streamable HTTP)   │  /v1/*  (93 router files)                │
+│  /sse                            │  /.well-known/* + /llms.txt              │
+├────────────────────────────────────────────────────────────────────────────┤
+│  X402Middleware  ── payment gate (402 → verify → settle)                    │
+│  PryHttpMiddleware ── auth, rate-limit, request-id, timing, metrics          │
+│  CORS + RFC 7807 error handlers                                              │
+├────────────────────────────────────────────────────────────────────────────┤
+│  Scraping Engine (UltimateScraper) — 15-tier adaptive fallback               │
+│  proxy_manager · captcha/* · stealth_engine · cookie_warmer · quality        │
+├────────────────────────────────────────────────────────────────────────────┤
+│  LLM Intelligence Layer — 18 provider classes, fallback chain, cost tracker  │
+│  (registry.py + providers.py + base.py)                                      │
+├────────────────────────────────────────────────────────────────────────────┤
+│  Payments / x402 — facilitator router, SelfFacilitator (EIP-3009),          │
+│  scheme (multi-chain accepts), solana_verifier, tron_verifier, batch         │
+├────────────────────────────────────────────────────────────────────────────┤
+│  Commerce / Billing — billing_service (USD ledger), packs, subscription,     │
+│  enforcement tiers, signup, marketplace                                       │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Database & Storage
+## 15-Tier Scraping Engine
 
-All data stored under `~/.pry/`:
+`UltimateScraper.tier_order` (in `src/pry/engine/ultimate_scraper.py`) builds the
+chain below, reordered per-domain by the adaptive registry
+(`src/pry/engine/adaptive.py`). Each tier is wrapped in a per-domain circuit
+breaker and a retry config; a block signal short-circuits to the next tier and
+a success locks the tier's priority for the domain's next request.
 
-| Directory | Purpose |
-|-----------|---------|
-| `~/.pry/quality/` | Quality check history |
-| `~/.pry/reviews/` | Human review queue |
-| `~/.pry/intel/` | Competitive intelligence snapshots |
-| `~/.pry/costing/` | Usage tracking |
-| `~/.pry/freshness/` | Content fingerprints |
-| `~/.pry/structure/` | Page structure monitor history |
-| `~/.pry/seo/` | SEO snapshot history |
-| `~/.pry/monitors/` | Scheduled monitors |
-| `~/.pry/vault/` | Encrypted credentials |
-| `~/.pry/accounts/` | Registered account pool |
-| `~/.pry/reports/` | Generated client reports |
-| `~/.pry/training/` | AI training datasets |
-| `~/.pry/pipelines/` | Saved pipeline definitions |
-| `~/.pry/gdpr/` | Consent records, deletion requests |
-| `~/.pry/agency/` | Agency/client management |
+| # | Tier | Method |
+|---|------|--------|
+| 1 | `direct` | Plain HTTP, rotating UA + browser-like headers |
+| 2 | `tls_fingerprint` | TLS impersonation (curl-impersonate class) |
+| 3 | `cloudscraper` | Python-native Cloudflare JS challenge |
+| 4 | `flaresolverr` | Headless Chrome Cloudflare/WAF bypass (sidecar) |
+| 5 | `undetected` | undetected-chromedriver — no automation flags |
+| 6 | `camoufox` | Camoufox stealth Firefox |
+| 7 | `playwright` | Full browser + human behavior (mouse, scroll, timing) |
+| 8 | `googlebot` | Googlebot UA crawl mimic |
+| 9 | `premium_proxy` | Residential / premium proxy via ProxyManager |
+| 10 | `tor` | Anonymous routing via SOCKS5 (optional daemon) |
+| 11 | `archive` | Archive.org / Wayback cached copy |
+| 12 | `google_cache` | Google cached snapshot |
+| 13 | `ai_visual` | AI visual scraping (vision model on a screenshot) |
+| 14 | `mobile_app` | Mobile-app API scraping |
+| 15 | `graphql` | GraphQL API discovery + query execution |
 
-## Module Map
+Auxiliary engines live alongside the scraper:
+- `proxy_manager.py` (32 KB) — proxy pool, rotation, health scoring, Webshare integration.
+- `captcha/` — `recaptcha_v2`, `recaptcha_v3`, `hcaptcha`, `turnstile`, `image_ocr`, `base`, `registry`, `token_api` (auto-fallback solvers).
+- `stealth_scripts/*.js` — `webdriver_hide`, `canvas_noise`, `webgl_noise`, `audio_noise`, `human_mouse`, `human_type`.
+- `block_detection.py`, `quality.py`, `resilience.py`, `retry.py`, `dedup.py`, `shadow_dom.py`, `lazy_load.py`, `graphql_discovery.py`, `mobile_app_scraper.py`, `ai_visual_scraper.py`.
 
-| Module | Lines | Type | Purpose |
-|--------|-------|------|---------|
-| `api.py` | 3,849 | API | FastAPI application — 115 endpoints across 46 tag groups |
-| `ultimate_scraper.py` | 343 | Scraper | 10-tier fallback scraper (direct → FlareSolverr → Playwright → Tor → cache) |
-| `scraper.py` | 561 | Scraper | Core scraper engine, anti-detection, content extraction |
-| `pipeline.py` | 160 | Pipeline | Hook point definitions for data processing pipelines |
-| `pipelines.py` | 499 | Pipeline | Step types registry, pipeline validation and execution |
-| `extraction.py` | 315 | Extraction | Chunking strategies for LLM extraction |
-| `extractor.py` | 136 | Extraction | Structured data extraction from web content |
-| `parser.py` | 121 | Parsing | Document parsing (PDF, DOCX, CSV, JSON, images) |
-| `adaptive.py` | 175 | Detection | Anti-block adaptive scraper — rotates strategies |
-| `browser_pool.py` | 95 | Browser | Playwright manager and browser pre-warming |
-| `stealth_engine.py` | 176 | Browser | Stealth initialization scripts for browser contexts |
-| `automator.py` | 319 | Browser | Persistent browser session with cookie management |
-| `sessions.py` | 105 | Browser | Session save/restore to filesystem |
-| `captcha_solver.py` | 238 | Auth | 6+ CAPTCHA solver providers with auto-fallback |
-| `auth_connector.py` | 328 | Auth | Credential vault (encrypted), SSO login script generation |
-| `signup_automator.py` | 177 | Auth | Identity generation, email/SMS verification automation |
-| `account_manager.py` | 111 | Auth | Account pool management, session persistence, proxy scoring |
-| `shadow_dom.py` | 109 | Parsing | Shadow DOM content extraction |
-| `lazy_load.py` | 96 | Parsing | Lazy load and infinite scroll handling |
-| `freshness.py` | 227 | Monitoring | Content hash computation for change detection |
-| `monitor.py` | 301 | Monitoring | Scheduled content monitors with cron-based scheduling |
-| `seo_monitor.py` | 262 | SEO | SEO analysis — title, meta, headings, keywords, readability |
-| `structure_monitor.py` | 234 | Monitoring | Page structure change monitoring |
-| `alerter.py` | 189 | Alerts | Multi-channel alerting (webhook, Slack, email, SMS) |
-| `quality.py` | 397 | Quality | Content quality metrics — completeness, accuracy, freshness |
-| `review.py` | 258 | Review | Human-in-the-loop review queue with approval/rejection |
-| `reconciliation.py` | 370 | Data | Schema reconciliation across verticals (e-commerce, jobs, etc.) |
-| `enrichment.py` | 206 | Data | Tech stack detection, metadata enrichment |
-| `training_data.py` | 362 | Data | AI training dataset generation, PII stripping, license classification |
-| `reports.py` | 266 | Reports | Client report generation |
-| `costing.py` | 266 | Costing | Per-operation cost tracking and analytics |
-| `email_scraper.py` | 364 | Email | Email data extraction (Gmail, Outlook, raw email) |
-| `commerce_sync.py` | 191 | Commerce | WooCommerce/Shopify product sync |
-| `crm_sync.py` | 359 | CRM | Salesforce / HubSpot / Pipedrive / Close.com sync |
-| `destinations.py` | 361 | Export | Data export — webhooks, Slack, S3, GCS, SFTP |
-| `intelligence.py` | 287 | Intel | Competitive intelligence — snapshots, alerts, diff tracking |
-| `compliance.py` | 443 | Compliance | GDPR/CCPA compliance — sensitive data detection, consent |
-| `gdpr.py` | 316 | GDPR | Consent management, data retention, deletion requests |
-| `agency.py` | 248 | Agency | White-label agency profiles, client management, quotas |
-| `jobqueue.py` | 119 | Jobs | Async job queue with status tracking |
-| `network.py` | 145 | Network | Proxy rotation, Tor routing, network utilities |
-| `markdown_gen.py` | 181 | Export | Markdown generation from scraped content |
-| `template_engine.py` | 138 | Templates | Pre-built scraper template registry (110 templates) |
-| `advanced.py` | 249 | Features | Premium features — diff tracking, vision AI, batch processing |
-| `pryextras.py` | 172 | Extras | WebSocket streaming, real-time job progress |
-| `mcp_server.py` | 127 | MCP | MCP tool discovery + execution (Claude/Hermes/Cursor) |
-| `mconfig.py` | 129 | Config | Configuration manager — env vars, config file, API overrides |
-| `settings.py` | 55 | Config | Pydantic settings with environment variable loading |
-| `errors.py` | 49 | Core | Base exception hierarchy |
-| `client.py` | 43 | Core | Shared httpx client singleton |
-| `cache.py` | 80 | Core | LRU cache key generation with TTL |
-| `ratelimit.py` | 84 | Core | Token bucket rate limiter (configurable RPM) |
-| `pryfile.py` | 119 | Config | Pryfile (pry.yml) job definition parser and executor |
-| `pry_sdk.py` | 130 | SDK | Async + sync Python SDK for API consumption |
-| `cli.py` | 339 | CLI | Click-based CLI with autocomplete support |
-| `ai_plugin.py` | 55 | AI | OpenAPI spec generation for AI agent integration |
-| `api.py` | 3,849 | API | FastAPI application — 115 endpoints across 46 tag groups |
+## LLM Intelligence Layer
 
-## API Endpoint Groups
+`src/pry/intelligence/llm/` is a provider-agnostic LLM abstraction:
 
-| Tag | Endpoints | Purpose |
-|-----|-----------|---------|
-| Health | 3 | `/health`, `/live`, `/ready` |
-| Stats | 1 | `/v0/stats` |
-| Costing | 4 | Dashboard, usage, record, costs |
-| Freshness | 3 | Dashboard, check, details |
-| Scraping | 8 | Scrape, detect-block, crawl, map, PDF, lazy capture, link scrape, sitemap |
-| Parsing | 3 | Parse, PDF, shadow-dom |
-| Automation | 2 | Automate, screenshot |
-| Vision | 2 | Analyze, describe |
-| Sessions | 5 | Create, close, list, save, restore |
-| Batch | 2 | Batch scrape, batch-file |
-| Analysis | 6 | Compare, watch, summarize, diff, categorize, suggest |
-| Extraction | 8 | Links, SEO, schema, emails, extract, extract/llm, fields, extraction run |
-| Export | 1 | Export |
-| Email | 3 | Scrape, gmail, outlook |
-| Alerts | 2 | Send, channels |
-| Jobs | 2 | Status, list |
-| MCP | 2 | Tools, call |
-| Config | 3 | Get, update, tor |
-| Recorder | 4 | Start, step, export, clear |
-| Transform | 2 | Transform, pipe |
-| Execute | 1 | Run |
-| Dashboard | 1 | Dashboard |
-| Circuit Breaker | 2 | Status, reset |
-| Pipeline | 3 | Hook, list hooks, run |
-| Share | 2 | Create, view |
-| Compliance | 2 | Check, docs |
-| GDPR | 8 | Consent, status, revoke, deletion request/execute, retention, export, audit, policy |
-| Training | 4 | Clean, dataset, list datasets, dataset detail |
-| Monitoring | 5 | Create, run, list, delete, check |
-| Structure | 3 | Check, history, archive |
-| Intelligence | 4 | Snapshot, list, diff, report |
-| Auth | 6 | Credentials store/list/delete, SSO, CAPTCHA, session health |
-| Review | 6 | Submit, approve, reject, list, detail, queue |
-| Quality | 3 | Check, history, score |
-| Enrichment | 2 | Analyze, history |
-| Reconciliation | 2 | Run, history |
-| Commerce | 2 | Sync, platforms |
-| CRM | 2 | Sync, platforms |
-| Pipelines | 7 | Validate, run, save, list, get, delete, schema |
-| Agency | 7 | Create, get, branding, client create, client list, analytics, quota |
-| SEO | 3 | Analyze, track, keywords |
-| Reports | 3 | Generate, list, get |
-| Templates | 3 | List, get, generate |
-| Integrations | 3 | Zappier, Make, webhooks |
-| AI | 2 | GPT manifest, MCP config |
-| System | 1 | System info |
+- **`base.py`** — `LLMProvider` abstract interface, `LLMResponse`, `LLMError`,
+  `cost_tracker` (in-memory spend), `parse_json_response`, `ReferralConfig`.
+- **`providers.py`** — 18 provider classes, one per vendor: OpenAI, Anthropic,
+  Google, Cohere, Mistral, OpenRouter, KiloCode, DeepSeek, Groq, Kimi, Nvidia,
+  Nous, Zai (GLM), Cerebras, MiniMax, SiliconFlow, OpenCodeZen, and Ollama
+  (always registered, free/private). `register_default_providers()` registers
+  a provider only when its API key resolves (`settings.<provider>_api_key`).
+- **`registry.py`** — `LLMRegistry` with a `fallback_chain`, per-provider retry
+  with exponential backoff + jitter (`PRY_LLM_RETRY_*`), and `PRY_LLM_PROVIDER_ORDER`
+  to control chain order. `complete()`, `complete_json()`, `stream_chat()`,
+  `stream_json()` all walk the chain.
 
-## Security Model
+**Registered count.** 18 provider classes exist in `providers.py`; only those
+with a key are registered, plus Ollama which is always registered. Order is
+seeded by `PRY_LLM_PROVIDER_ORDER` (default
+`zai,nvidia,groq,openrouter,kimi,cerebras,kilocode,deepseek` — free/cheap first,
+paid deepseek as the backstop). `[REVIEW]` if the deployment's live chain length
+differs from 18.
 
-- **Vault**: Encrypted credential storage at `~/.pry/vault/`
-- **GDPR**: Full consent management, retention policies, deletion workflow
-- **Rate limiting**: Token bucket per-IP (default 120 RPM)
-- **Circuit breaker**: Per-domain backoff on failures
-- **No API keys required**: Self-hosted, fully private
+## Payments / x402
+
+`src/pry/payments/x402/` implements the x402 v1 spec:
+
+- **`__init__.py`** — config/resolution of payment wallets (`X402_WALLET`,
+  `X402_NETWORK_WALLETS`), placeholder sentinels, address-format validators,
+  offline-mode debug gate, `PAYMENT_VALIDITY_SECONDS`, per-network RPCs and
+  ERC-20 token addresses.
+- **`scheme.py`** — `X402_PRICING` (13 canonical ops), `SUPPORTED_NETWORKS`
+  (7 chains), `SUPPORTED_ASSETS` (per-network asset table), base64 codecs,
+  server attestation (`attest_payment_required`, keccak256-ecdsa-secp256k1-v1),
+  price resolution + oracle.
+- **`facilitator.py`** — `FacilitatorRouter` with `DEFAULT_FACILITATORS`
+  (coinbase, payai, cloudflare, eip-7702) and auto-fallback.
+- **`self_facilitator.py`** — EIP-3009 verify + settlement broadcast on Pry
+  infra (no external facilitator / Coinbase CDP). Opt-in via
+  `PRY_X402_SELF_FACILITATE=1`.
+- **`handler.py`** — `X402Handler`: `verify_payment`, `settle_payment`, replay
+  hardening (tx-hash idempotency), caller-binding, expiration.
+- **`solana_verifier.py`** — real SPL USDC on-chain verifier (getTransaction
+  jsonParsed — no Solana SDK).
+- **`tron_verifier.py`** — `[REVIEW]` scaffold (structure/price/asset validation
+  only; see `VERIFICATION_STATUS` in `scheme.py`).
+- **`batch.py`** — batch payment helpers (`create_batch_payment`,
+  `is_batch_paid`, `verify_batch_payment`).
+
+`src/pry/payments/x402_middleware/` is the enforcement layer:
+`enforcement.py` (`X402Middleware` ASGI gate), `classification.py`
+(fail-closed free/paid route classifiers + `audit_route_classification`),
+`config.py` (`PAID_ENDPOINTS` prefix→operation map + merged price tiers).
+
+## Middleware / Enforcement
+
+Middleware order in `src/pry/api/api.py` — **outermost first**. Registration
+order in Starlette is last-adds-outermost, so `X402Middleware` (registered last,
+line 428) is the outermost:
+
+1. **`X402Middleware`** — the payment gate (OUTERMOST). Any request not on a free
+   path and matching a paid prefix is served a 402 challenge unless a valid
+   `payment_id` / `PAYMENT-SIGNATURE` / batch id is present and verified. It sits
+   outside the auth layer on purpose: a keyless agent must reach the **402
+   challenge before** the API-key auth layer rejects with 401. Verified payments
+   set `scope["x402_verified"]`, which `request_authorized` accepts as the
+   credential.
+2. **`PryHttpMiddleware`** — auth (Bearer API key or rmi JWT), per-key/per-IP
+   rate limiting, request-id, timing, Prometheus metrics.
+3. **`CORSMiddleware`** — allow-list locked to `pryscraper.com` + `rugmunch.io`
+   (regex) and localhost dev origins. No `*`.
+4. **FastAPI routers** — the application handlers.
+
+RFC 7807 Problem Details are emitted by the error handlers for 400/401/403/404/
+409/429/500/502/503; `PryError` is translated to its own problem+json body.
+
+## Commerce / Billing
+
+`src/pry/commerce/`:
+
+- **`billing_service.py`** — the machine-facing **USD ledger**: `credit`,
+  `drawdown`, `get_balance`, `ledger`, `_apply`. Every pack/subscription
+  purchase and every x402 settle lands here.
+- **`billing/packs.py`** — bulk **scrape-credit packs** (crypto checkout via
+  x402 self-facilitation). `credits * SCRAPE_CREDIT_USD == price_usd`.
+  Fail-closed on unconfigured wallet.
+- **`billing/subscription.py`** — monthly **Pro/Team/Enterprise** crypto
+  subscriptions (x402 default, BTCPay fallback when `PRY_BTCPAY_*` set).
+- **`billing/tiers.py`** — `TIERS` table (`free`/`pro`/`team`/`enterprise`):
+  monthly price, request quota, concurrent limit, feature flags, rpm cap.
+- **`billing/enforcer.py`** — enforces tier limits at request time.
+- **`signup/`** — auto-signup automation (form detection, engine, email verify).
+- **`marketplace/`** — Amazon/Walmart/TikTok/retail marketplace intelligence.
+- **`referrals/`, `agency.py`, `actor_marketplace.py`, `pipelines.py`** — referral
+  program, white-label agency, Actor marketplace, data pipelines.
+- **`costing.py`** — per-operation cost tracking and analytics.
+
+## REST API Surface
+
+Composition root `src/pry/api/api.py` mounts every router (93 router files) and
+the MCP sub-app. The `openapi.json` is generated at build; the live route count
+is ~293 paths / **~298 operations** across ~117 path group prefixes
+(`grep`-verified against `src/pry/api/routers/**`). Routers are grouped under
+`core/`, `scraping/`, `data/`, `ai/`, `commerce/`, `integrations/`, `user/`,
+and `well-known/`.
+
+## MCP Server
+
+`src/pry/api/api.py` mounts `create_mcp_app()` at `/mcp`:
+- `/mcp` — Streamable HTTP transport.
+- `/mcp/sse` — SSE transport.
+- `/mcp/messages` — messages prefix (classified free in the gate).
+- `/sse` — standalone SSE entry.
+- stdio via `pry mcp serve` / `pry-mcp` / `pryscraper-mcp`.
+
+`register_all()` binds all 76 `PRY_TOOLS`; `combined_tool_executor` runs
+crypto/marketplace/data-domain tools locally and falls through to the REST proxy
+for the rest. `src/pry/api/registry_metadata.py` enriches each tool with
+category, keywords, use_cases, longDescription, group, and capabilities.
+
+## Data Flow (ASCII)
+
+```
+                       ┌───────────────────────────────────┐
+   Client ────────────▶│  X402Middleware (payment gate)     │  ← OUTERMOST
+   (MCP / REST / CLI)  │  free? ─▶ yes → pass through       │
+                       │  paid?  ─▶ 402 challenge           │
+                       │          └─ verify+settle → allow   │
+                       └───────────────────────────────────┘
+                                    │
+                                    ▼
+                       ┌───────────────────────────────────┐
+                       │  PryHttpMiddleware (auth/rate)     │
+                       └───────────────────────────────────┘
+                                    │
+                                    ▼
+                       ┌───────────────────────────────────┐
+                       │  CORS → FastAPI routers/handlers    │
+                       └───────────────┬───────────────────┘
+                                       │
+              ┌────────────────────────┼────────────────────────┐
+              ▼                        ▼                        ▼
+   ┌────────────────────┐   ┌────────────────────┐   ┌────────────────────┐
+   │  UltimateScraper   │   │  LLM Registry      │   │  Billing / Ledger  │
+   │  15-tier chain     │   │  provider fallback │   │  USD prepaid       │
+   │  → extraction      │   │  complete_json     │   │  credit/drawdown   │
+   │  → quality         │   │  cost_tracker      │   │  subscription      │
+   └────────────────────┘   └────────────────────┘   └────────────────────┘
+              │                        │                        │
+              ▼                        ▼                        ▼
+     ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+     │ Cache / Redis    │    │ Qdrant / DB      │    │ x402 Facilitator │
+     │ (rate, content)  │    │ (results, keys)  │    │ verify + settle  │
+     └──────────────────┘    └──────────────────┘    └──────────────────┘
+```
+
+## Storage
+
+Data lives under `PRY_DATA_DIR` (default `~/.pry`):
+
+| Location | Purpose |
+|----------|---------|
+| `x402/` | Payment records, settlements JSONL, nonce/replay store |
+| `llm_usage/` | Per-provider LLM usage + spend (registry.py) |
+| `quality/`, `reviews/`, `intel/`, `costing/`, `freshness/`, `structure/`, `seo/`, `monitors/`, `vault/`, `accounts/`, `reports/`, `training/`, `pipelines/`, `gdpr/`, `agency/` | Engine/app state (docs/ops/ARCHITECTURE.md legacy tree still applies) |
+| `warmed_cookies/` | Pre-warmed cookie jars for stealth |
+| database (`PRY_DATABASE_URL`) | SQLite (dev) / Postgres (prod) for durable app state |
 
 ## External Dependencies
 
 | Dependency | Purpose |
 |------------|---------|
 | FlareSolverr | Cloudflare/WAF challenge bypass (Docker sidecar) |
-| Redis | Optional cache backend |
-| Playwright | Full browser automation (Chromium) |
+| Redis | Optional shared cache + rate limiting |
+| Postgres | Durable database (default in prod) |
+| Playwright (Chromium) | Full browser automation |
 | Tor | Anonymous routing (optional) |
-| OpenRouter | Vision AI models (optional) |
-
-## Project Files
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| Python source files | 101 files | Core application |
-| Test files | 43 files | pytest test suite |
-| JSON templates | 110 files | Pre-built scraper templates |
-| HTML templates | 2 files | Coverage report, browser popup |
-| Stealth scripts | 6 JS files | Browser anti-detection |
-| Browser extension | 5 files | Chrome extension |
-| Shopify app | 3 files | Commerce integration |
-| WP plugin | 1 file | WordPress integration |
-| Config files | 8 files | pyproject.toml, Dockerfile, Makefile, etc. |
+| x402 facilitator | External `coinbase`/`payai`/`cloudflare` verify+settle, OR self-facilitate |
+| LLM providers | 18 provider families for AI extraction/scrape (free-first) |
