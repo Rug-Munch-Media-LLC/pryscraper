@@ -72,15 +72,30 @@ def _env_flag(name: str) -> bool:
 # Kept at the package root (not in a submodule) so importlib.reload(x402)
 # recomputes the secrets-backed values — tests patch secrets_backend.get_secret
 # and reload the package to assert the new values.
+# The shared EVM treasury receiving address is sourced from gopass under the
+# secret name `evm_treasury_address` (see .env.example). Reference the NAME
+# only — never hardcode a wallet value into source. Every EVM network shares
+# this treasury; Solana/TRON use DISTINCT base58 addresses and must be
+# configured separately (PRY_X402_WALLET_SOLANA / PRY_X402_WALLET_TRON).
+# This is a secret NAME, never a value.
+EVM_TREASURY_SECRET = "evm_treasury_address"  # noqa: S105
+
 try:
     from pry.api.secrets_backend import get_secret as _gs
 
-    X402_WALLET: str = _gs("x402_wallet") or os.getenv("PRY_X402_WALLET", "")
+    # Receive-wallet precedence: an explicit x402 wallet first (gopass
+    # `x402_wallet` / PRY_X402_WALLET), then the shared EVM treasury (gopass
+    # `evm_treasury_address` / PRY_EVM_TREASURY_ADDRESS). Never hardcoded;
+    # unresolved stays "" and is treated as unconfigured (fail closed — the
+    # accept builders never emit a placeholder payTo).
+    X402_WALLET: str = (
+        _gs("x402_wallet") or _gs(EVM_TREASURY_SECRET) or os.getenv("PRY_X402_WALLET", "")
+    )
     X402_FACILITATOR_URL: str = _gs("x402_facilitator") or os.getenv(
         "PRY_X402_FACILITATOR", "https://x402.org/facilitator"
     )
 except ImportError:
-    X402_WALLET = os.getenv("PRY_X402_WALLET", "")
+    X402_WALLET = os.getenv("PRY_X402_WALLET", "") or os.getenv("PRY_EVM_TREASURY_ADDRESS", "")
     X402_FACILITATOR_URL = os.getenv("PRY_X402_FACILITATOR", "https://x402.org/facilitator")
 
 # Wallets that are NEVER a real receiving address. The self-facilitator and the
@@ -116,15 +131,15 @@ X402_DEFAULT_ASSET: str = os.getenv("PRY_X402_ASSET", "USDC")
 
 # Per-network receiving wallets (CAIP-2 keyed). A Solana/TRON receiving
 # address is NOT the same as the EVM wallet, so operators MUST configure
-# these before accepting real payments on those chains. Falls back to
-# X402_WALLET when unset — acceptable for EVM, [REVIEW] invalid for
-# solana/tron until configured.
+# these before accepting real payments on those chains. EVM networks share
+# the resolved treasury (X402_WALLET — itself gopass `evm_treasury_address`
+# by default); solana/tron stay "" (fail closed) until explicitly configured.
 X402_NETWORK_WALLETS: dict[str, str] = {
-    "eip155:8453": os.getenv("PRY_X402_WALLET_BASE", ""),
-    "eip155:1": os.getenv("PRY_X402_WALLET_ETHEREUM", ""),
-    "eip155:42161": os.getenv("PRY_X402_WALLET_ARBITRUM", ""),
-    "eip155:10": os.getenv("PRY_X402_WALLET_OPTIMISM", ""),
-    "eip155:137": os.getenv("PRY_X402_WALLET_POLYGON", ""),
+    "eip155:8453": os.getenv("PRY_X402_WALLET_BASE", X402_WALLET),
+    "eip155:1": os.getenv("PRY_X402_WALLET_ETHEREUM", X402_WALLET),
+    "eip155:42161": os.getenv("PRY_X402_WALLET_ARBITRUM", X402_WALLET),
+    "eip155:10": os.getenv("PRY_X402_WALLET_OPTIMISM", X402_WALLET),
+    "eip155:137": os.getenv("PRY_X402_WALLET_POLYGON", X402_WALLET),
     "solana:mainnet": os.getenv("PRY_X402_WALLET_SOLANA", ""),
     "tron:mainnet": os.getenv("PRY_X402_WALLET_TRON", ""),
 }
@@ -313,6 +328,7 @@ __all__ = [
     "EIP7702_RPC",
     "EIP7702_TOKEN_ADDRESSES",
     "ERC20_TRANSFER_SELECTOR",
+    "EVM_TREASURY_SECRET",
     "PAYMENT_VALIDITY_SECONDS",
     "SOLANA_RPC_TIMEOUT_SECONDS",
     "SOLANA_USDC_MINT",

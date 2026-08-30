@@ -44,6 +44,7 @@ from pry.payments.x402.scheme import (
     build_payment_required,
     network_verification_status,
     resolve_price_usd,
+    validate_client_amount,
 )
 
 logger = logging.getLogger(__name__)
@@ -175,7 +176,18 @@ class X402Handler:
         network = network or X402_DEFAULT_NETWORK
         asset = asset or X402_DEFAULT_ASSET
         if operation:
-            amount_usd = resolve_price_usd(operation)
+            # Server-authoritative pricing, resolved per (operation, network,
+            # asset) and compared in integer atoms. client-supplied
+            # ``amount_usd`` is ignored for the required price; underpayment,
+            # non-finite and negative amounts are refused. Overpayment allowed.
+            ok, reason = validate_client_amount(operation, amount_usd, asset, network=network)
+            if not ok:
+                logger.warning(
+                    "x402_verify_underpayment_rejected",
+                    extra={"operation": operation, "reason": reason},
+                )
+                return {"verified": False, "reason": reason, "settlement": None}
+            amount_usd = resolve_price_usd(operation, network=network, asset=asset)
         if amount_usd <= 0:
             amount_usd = X402_PRICING.get(payment_id, {}).get("price_usd", 0.001)
 
@@ -233,7 +245,9 @@ class X402Handler:
         network = network or X402_DEFAULT_NETWORK
         asset = asset or X402_DEFAULT_ASSET
         if operation:
-            amount_usd = resolve_price_usd(operation)
+            # Resolve the server-authoritative price per (operation, network,
+            # asset); ignore any client-supplied amount for the receipt.
+            amount_usd = resolve_price_usd(operation, network=network, asset=asset)
         if amount_usd <= 0:
             amount_usd = X402_PRICING.get(payment_id, {}).get("price_usd", 0.001)
 
