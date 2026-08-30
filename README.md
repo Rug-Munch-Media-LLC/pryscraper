@@ -156,6 +156,39 @@ No accounts. No subscriptions. Pay only for what you use.
 | **Solana** | USDC, USDT, SOL | `G1uZFfs...QyKv` |
 | **TRON** | USDT, TRX | `TYSWXWr...E261p` |
 
+### Operator Treasury & Configuration
+
+These are the operator PUBLIC payee addresses for x402 across Pry, the
+[rmi-mcp-x402](https://git.rugmunch.io/RugMunchMedia/rmi-mcp-x402) facilitator,
+and cloud-hosting signups — invoices settle to them:
+
+| Chain family | Env var | Treasury (PUBLIC payee) |
+|---|---|---|
+| EVM (all `eip155:*`) | `PRY_X402_WALLET` | `0x1E3AC01d0fdb976179790BDD02823196A92705C9` |
+| Solana | `PRY_X402_WALLET_SOLANA` | `G1uZFfsdxK2PuH2Em5LhRkEcptxHWe4vy5BZak67QyKv` |
+| TRON | `PRY_X402_WALLET_TRON` | `TYSWXWr24QTe3c99V9dtzhe1aZTneE261p` |
+
+**Env schema** (resolved in `src/pry/payments/x402/__init__.py`):
+
+- `PRY_X402_WALLET` — canonical EVM payee, shared by every `eip155:*` network.
+  Resolution: gopass `x402_wallet` → gopass `evm_treasury_address` →
+  `PRY_X402_WALLET` → `PRY_EVM_TREASURY_ADDRESS`. Per-network overrides:
+  `PRY_X402_WALLET_BASE` / `_ETHEREUM` / `_ARBITRUM` / `_OPTIMISM` / `_POLYGON`.
+- `PRY_X402_WALLET_SOLANA` — Solana base58 (44 chars). Defaults `""`.
+- `PRY_X402_WALLET_TRON` — TRON base58check, `T`-prefixed (34 chars). Defaults `""`.
+
+**Fail-closed:** an unset or placeholder wallet is never emitted as `payTo` —
+the accept builders refuse and verification rejects. A value that does not
+match the network family's address format (EVM hex / Solana base58 / TRON
+`T`-prefix) is treated as unconfigured. An EVM address can never occupy a
+Solana/TRON slot.
+
+> **Gotcha:** `0x1E3AC0…05C9` is a REAL operator payee, not a sentinel. It was
+> historically mistaken for coffer's `CONFIGURED_WALLET` placeholder and listed
+> in `X402_PLACEHOLDER_WALLETS`, which made a correctly configured deployment
+> fail closed. The only placeholders are `""`, `pry-default-wallet`,
+> `pry-default`, `0xRMI_PLATFORM_WALLET`. Do not re-add the treasury there.
+
 ### Pricing
 
 | Operation | Price |

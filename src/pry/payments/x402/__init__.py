@@ -23,6 +23,17 @@ Standards compliance:
 - PAYMENT-REQUIRED header (Base64-encoded JSON)
 - PAYMENT-SIGNATURE header (Base64-encoded JSON, signed)
 - PAYMENT-RESPONSE header on success (Base64-encoded settlement receipt)
+
+Server attestation (audit #1): the PAYMENT-REQUIRED body is now signed by the
+server over the canonical (payTo, amount, network, nonce, issued_at, operation)
+of every accept (``keccak256-ecdsa-secp256k1-v1``, x402/scheme.py). The signer
+key comes from ``PRY_X402_ATTEST_KEY``, else ``PRY_X402_FACILITATOR_KEY``, else
+is derived from ``PRY_X402_ATTEST_SECRET`` (never hardcoded); when none is
+configured the body is emitted UNATTESTED (backward compatible). A client or a
+verify/settle path validates the payTo with
+``verify_payment_required_attestation(body, expected_signer=...)`` — see that
+helper's docstring for the ``attested``/``verified`` semantics and the
+out-of-band ``expected_signer`` trust requirement.
 - Multi-chain support: base, solana, ethereum, polygon, arbitrum, optimism, bnb,
   avalanche, base-sepolia, tron, bitcoin, litecoin, dogecoin
 - Multi-asset: USDC, USDT, native
@@ -50,6 +61,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 
 from pry.core.paths import PRY_DATA_DIR
 
@@ -123,6 +135,32 @@ def wallet_configured(wallet: str) -> bool:
     return bool(wallet and wallet not in X402_PLACEHOLDER_WALLETS)
 
 
+# ── Address-format validation ──────────────────────────────────────────────
+# Family-specific address shapes used by the payTo resolver so an EVM hex
+# address can NEVER occupy a Solana/TRON slot (and vice-versa). Formats:
+#   EVM    — 0x + 40 hex chars (42 total)
+#   Solana — base58, 44 chars (ed25519 pubkey)
+#   TRON   — base58check, 34 chars, starts with 'T'
+_EVM_ADDRESS_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
+_SOLANA_ADDRESS_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{44}$")
+_TRON_ADDRESS_RE = re.compile(r"^T[1-9A-HJ-NP-Za-km-z]{33}$")
+
+
+def is_evm_address(addr: str) -> bool:
+    """True when ``addr`` is a 0x-prefixed 40-hex EVM address (42 chars)."""
+    return bool(addr and _EVM_ADDRESS_RE.fullmatch(addr.strip()))
+
+
+def is_solana_address(addr: str) -> bool:
+    """True when ``addr`` is a 44-char base58 Solana address."""
+    return bool(addr and _SOLANA_ADDRESS_RE.fullmatch(addr.strip()))
+
+
+def is_tron_address(addr: str) -> bool:
+    """True when ``addr`` is a 34-char T-prefixed TRON base58 address."""
+    return bool(addr and _TRON_ADDRESS_RE.fullmatch(addr.strip()))
+
+
 # NOTE: literal defaults are equal to X402Network.BASE.value and
 # X402Asset.USDC.value; the enums live in x402.scheme which is imported after
 # this config block so the constants stay reload-recomputable.
@@ -184,16 +222,16 @@ EIP7702_RPC: dict[str, str] = {
 # sent TO one of these token contracts with a transfer() to our wallet for at
 # least the server-side price. Addresses are well-known mainnet addresses.
 #
-# NOTE — Base USDT discrepancy: this V1 table lists
-# 0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb, while the canonical
-# SUPPORTED_ASSETS table (x402/scheme.py) uses the official bridged Tether USD
-# 0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2. The V1 table is intentionally
-# NOT churned for compatibility; new code should read
-# SUPPORTED_ASSETS["eip155:8453"]["USDT"]["contract"].
+# NOTE — Base USDT single source: the Base USDT entry is derived below from
+# SUPPORTED_ASSETS (x402/scheme.py) so the two tables can never disagree.
+# The V1 table previously hardcoded 0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb
+# for Base USDT — an error: that contract is DAI on Base ("Dai Stablecoin",
+# 18 decimals, confirmed via eth_call), not USDT. The authoritative address is
+# the official bridged Tether USD 0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2.
 EIP7702_TOKEN_ADDRESSES: dict[str, dict[str, str]] = {
     "base": {
         "USDC": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-        "USDT": "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
+        # USDT derived from SUPPORTED_ASSETS below (single source of truth).
     },
     "ethereum": {
         "USDC": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
@@ -268,6 +306,11 @@ from .scheme import (  # noqa: E402
     SUPPORTED_NETWORKS,
     VERIFICATION_STATUS,
     X402_ASSET_USD_PER_UNIT,
+    X402_ATTEST_ALGORITHM,
+    X402_ATTEST_DOMAIN,
+    X402_ATTEST_KEY_ENV,
+    X402_ATTEST_SECRET_ENV,
+    X402_ATTEST_VERSION,
     X402_ORACLE_SOURCE,
     X402_ORACLE_TTL_SECONDS,
     X402_ORACLE_URL,
@@ -285,6 +328,8 @@ from .scheme import (  # noqa: E402
     _legacy_payment_request,
     _to_atomic,
     asset_to_atomic,
+    attest_payment_required,
+    attestation_signer_address,
     build_multi_asset_accepts,
     build_payment_required,
     clear_price_cache,
@@ -299,9 +344,11 @@ from .scheme import (  # noqa: E402
     probe_oracle,
     require_payment_legacy,
     resolve_asset_entry,
+    resolve_pay_to,
     resolve_price_usd,
     usd_per_unit_for,
     validate_client_amount,
+    verify_payment_required_attestation,
 )
 from .self_facilitator import (  # noqa: E402
     CHAIN_ID_BY_NETWORK,
@@ -317,6 +364,13 @@ from .solana_verifier import (  # noqa: E402
     SOLANA_USDC_MINT,
     verify_solana_payment,
 )
+
+# Single source of truth for Base USDT: SUPPORTED_ASSETS (x402/scheme.py) is
+# authoritative. The V1 EIP7702_TOKEN_ADDRESSES entry previously hardcoded
+# 0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb — that contract is DAI on Base,
+# not USDT (verified via eth_call name()/symbol()). Derive it so the tables
+# can never disagree again.
+EIP7702_TOKEN_ADDRESSES["base"]["USDT"] = SUPPORTED_ASSETS["eip155:8453"]["USDT"]["contract"]
 
 __all__ = [
     "ASSET_DECIMALS",
@@ -336,6 +390,11 @@ __all__ = [
     "SUPPORTED_NETWORKS",
     "VERIFICATION_STATUS",
     "X402_ASSET_USD_PER_UNIT",
+    "X402_ATTEST_ALGORITHM",
+    "X402_ATTEST_DOMAIN",
+    "X402_ATTEST_KEY_ENV",
+    "X402_ATTEST_SECRET_ENV",
+    "X402_ATTEST_VERSION",
     "X402_DEBUG_MODE",
     "X402_DEFAULT_ASSET",
     "X402_DEFAULT_NETWORK",
@@ -378,6 +437,8 @@ __all__ = [
     "_legacy_payment_request",
     "_to_atomic",
     "asset_to_atomic",
+    "attest_payment_required",
+    "attestation_signer_address",
     "build_multi_asset_accepts",
     "build_payment_required",
     "clear_price_cache",
@@ -388,6 +449,9 @@ __all__ = [
     "get_facilitator_router",
     "is_asset_supported",
     "is_batch_paid",
+    "is_evm_address",
+    "is_solana_address",
+    "is_tron_address",
     "logger",
     "network_family",
     "network_verification_status",
@@ -397,11 +461,13 @@ __all__ = [
     "register_facilitator",
     "require_payment_legacy",
     "resolve_asset_entry",
+    "resolve_pay_to",
     "resolve_price_usd",
     "set_facilitator_router",
     "usd_per_unit_for",
     "validate_client_amount",
     "verify_batch_payment",
+    "verify_payment_required_attestation",
     "verify_solana_payment",
     "wallet_configured",
 ]

@@ -25,7 +25,10 @@ from pry.payments.x402 import SOLANA_USDC_MINT, network_verification_status
 from pry.payments.x402.facilitator import FacilitatorRouter
 from pry.payments.x402.solana_verifier import (
     DEFAULT_SOLANA_RPC_URL,
+    SOLANA_NATIVE_DECIMALS,
+    SOLANA_USDT_MINT,
     SPL_TOKEN_PROGRAM_ID,
+    SYSTEM_PROGRAM_ID,
     verify_solana_payment,
 )
 
@@ -193,8 +196,9 @@ async def test_verify_wrong_recipient() -> None:
 @pytest.mark.asyncio
 @respx.mock
 async def test_verify_wrong_mint() -> None:
-    """A transferChecked to the recipient of a NON-USDC mint is rejected."""
-    other_mint = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"  # USDT
+    """A transferChecked to the recipient of a NON-supported mint is rejected."""
+    # A mint that is neither USDC nor USDT (not an advertised solana asset).
+    other_mint = "4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"
     respx.post(DEFAULT_SOLANA_RPC_URL).mock(
         return_value=_ok_response(
             _rpc_result(
@@ -205,6 +209,7 @@ async def test_verify_wrong_mint() -> None:
     result = await verify_solana_payment("sig-abc", RECIPIENT, 1.0)
     assert result["verified"] is False
     assert "wrong_mint" in result["reason"]
+    assert "unsupported asset" in result["reason"]
 
 
 @pytest.mark.asyncio
@@ -431,6 +436,134 @@ async def test_facilitator_solana_underpayment_reflects_onchain(monkeypatch) -> 
     assert result["verified"] is False
     assert "underpayment" in result["reason"]
     assert result["network"] == "solana:mainnet"
+
+
+# ── Multi-asset verification: USDT + native SOL ─────────────────────────────
+
+
+def _parsed_system_transfer(
+    destination: str,
+    lamports: int,
+) -> dict[str, Any]:
+    """Build a jsonParsed system-program transfer (native SOL) instruction."""
+    return {
+        "program": "system",
+        "programId": SYSTEM_PROGRAM_ID,
+        "parsed": {
+            "type": "transfer",
+            "info": {
+                "source": "src11111111111111111111111111111111111111111",
+                "destination": destination,
+                "lamports": lamports,
+            },
+        },
+    }
+
+
+def test_solana_usdt_mint_matches_scheme_table() -> None:
+    """SOLANA_USDT_MINT is derived from SUPPORTED_ASSETS (single source of truth)."""
+    from pry.payments.x402 import SUPPORTED_ASSETS
+
+    assert SUPPORTED_ASSETS["solana:mainnet"]["USDT"]["contract"] == SOLANA_USDT_MINT
+    assert SOLANA_USDT_MINT == "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+    assert SOLANA_NATIVE_DECIMALS == 9
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_verify_usdt_transfer_checked() -> None:
+    """A Solana USDT transferChecked to the recipient verifies like USDC."""
+    respx.post(DEFAULT_SOLANA_RPC_URL).mock(
+        return_value=_ok_response(
+            _rpc_result(
+                instructions=[
+                    _parsed_transfer_checked(SOLANA_USDT_MINT, RECIPIENT, USDC_AMOUNT_ATOMIC)
+                ]
+            )
+        )
+    )
+    result = await verify_solana_payment("sig-abc", RECIPIENT, 1.0)
+    assert result["verified"] is True
+    assert result["mint"] == SOLANA_USDT_MINT
+    assert result["asset"] == "USDT"
+    assert result["amount_raw"] == USDC_AMOUNT_ATOMIC
+    assert result["amount_usd"] == 2.0
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_verify_native_sol_transfer() -> None:
+    """A native SOL (SystemProgram transfer) payment verifies with a SOL price."""
+    # 0.02 SOL at 150 USD/SOL = 3 USD >= 1 USD required.
+    respx.post(DEFAULT_SOLANA_RPC_URL).mock(
+        return_value=_ok_response(
+            _rpc_result(instructions=[_parsed_system_transfer(RECIPIENT, 20_000_000)])
+        )
+    )
+    result = await verify_solana_payment("sig-abc", RECIPIENT, 1.0, sol_price_usd=150.0)
+    assert result["verified"] is True
+    assert result["asset"] == "SOL"
+    assert result["mint"] == ""
+    assert result["amount_raw"] == 20_000_000
+    assert result["amount_decimals"] == 9
+    assert result["amount_usd"] == 3.0
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_verify_native_sol_without_price_fails_closed() -> None:
+    """Native SOL without a supplied SOL price fails closed — never guesses."""
+    respx.post(DEFAULT_SOLANA_RPC_URL).mock(
+        return_value=_ok_response(
+            _rpc_result(instructions=[_parsed_system_transfer(RECIPIENT, 20_000_000)])
+        )
+    )
+    result = await verify_solana_payment("sig-abc", RECIPIENT, 1.0)
+    assert result["verified"] is False
+    assert "sol_price_unavailable" in result["reason"]
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_verify_native_sol_underpayment() -> None:
+    """A native SOL payment below the required USD value is rejected."""
+    # 0.001 SOL at 100 USD/SOL = 0.1 USD < 1 USD required.
+    respx.post(DEFAULT_SOLANA_RPC_URL).mock(
+        return_value=_ok_response(
+            _rpc_result(instructions=[_parsed_system_transfer(RECIPIENT, 1_000_000)])
+        )
+    )
+    result = await verify_solana_payment("sig-abc", RECIPIENT, 1.0, sol_price_usd=100.0)
+    assert result["verified"] is False
+    assert "underpayment" in result["reason"]
+    assert "SOL" in result["reason"]
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_verify_strict_asset_rejects_other_supported_mint() -> None:
+    """asset='USDC' rejects a USDT transfer even though USDT is supported."""
+    respx.post(DEFAULT_SOLANA_RPC_URL).mock(
+        return_value=_ok_response(
+            _rpc_result(
+                instructions=[
+                    _parsed_transfer_checked(SOLANA_USDT_MINT, RECIPIENT, USDC_AMOUNT_ATOMIC)
+                ]
+            )
+        )
+    )
+    result = await verify_solana_payment("sig-abc", RECIPIENT, 1.0, asset="USDC")
+    assert result["verified"] is False
+    assert "wrong_asset" in result["reason"]
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_verify_unknown_asset_name_rejected() -> None:
+    """An asset outside the advertised solana:mainnet table fails precisely."""
+    result = await verify_solana_payment("sig-abc", RECIPIENT, 1.0, asset="BONK")
+    assert result["verified"] is False
+    assert "unsupported_asset" in result["reason"]
 
 
 # ── Scheme status: solana is now live, tron stays scaffolded ────────────────

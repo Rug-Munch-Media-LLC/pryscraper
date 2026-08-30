@@ -91,7 +91,7 @@ def test_require_payment_legacy():
 
 
 @pytest.mark.asyncio
-async def test_handler_verify_payment():
+async def test_handler_verify_payment(tmp_path):
     with (
         patch("pry.payments.x402.handler.FacilitatorRouter"),
         patch("pry.payments.x402.handler.get_facilitator_router") as mock_get,
@@ -99,9 +99,17 @@ async def test_handler_verify_payment():
         mock_instance = MagicMock()
         mock_instance.verify = AsyncMock(return_value={"verified": True, "reason": ""})
         mock_get.return_value = mock_instance
-        h = X402Handler()
-        result = await h.verify_payment("p1", "0xtx", network="base")
+        h = X402Handler(
+            payments_file=tmp_path / "payments.jsonl",
+            settlements_file=tmp_path / "settlements.jsonl",
+        )
+        # Replay-dedup: a fresh tx_hash verifies once…
+        result = await h.verify_payment("p1", "0xtx-fresh", network="base")
         assert result["verified"] is True
+        # …and the same tx_hash is single-use — the replay is rejected.
+        replay = await h.verify_payment("p2", "0xtx-fresh", network="base")
+        assert replay["verified"] is False
+        assert replay["reason"] == "tx_hash already consumed"
 
 
 @pytest.mark.asyncio

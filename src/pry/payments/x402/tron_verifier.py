@@ -26,6 +26,7 @@ on a stable dict shape.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import UTC, datetime
 from typing import Any
@@ -49,6 +50,41 @@ TRANSFER_EVENT_TOPIC0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55
 # TRON mainnet address prefix byte (base58check encoding starts with 'T').
 TRON_ADDRESS_PREFIX = "41"
 
+# Base58 alphabet (Bitcoin-style, used by TRON addresses).
+_BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def _base58check_to_hex(address: str) -> str:
+    """Decode a TRON base58check address to its 41-prefixed lowercase hex form.
+
+    Returns "" for malformed input (bad alphabet, wrong length, bad checksum)
+    so callers can fail closed.
+    """
+    if not address:
+        return ""
+    num = 0
+    for ch in address:
+        idx = _BASE58_ALPHABET.find(ch)
+        if idx < 0:
+            return ""
+        num = num * 58 + idx
+    raw = num.to_bytes((num.bit_length() + 7) // 8, "big") if num else b""
+    # Leading '1' characters encode leading zero bytes.
+    raw = b"\x00" * (len(address) - len(address.lstrip("1"))) + raw
+    if len(raw) != 25:  # 1 version byte + 20-byte payload + 4-byte checksum
+        return ""
+    payload, checksum = raw[:-4], raw[-4:]
+    if hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4] != checksum:
+        return ""
+    return payload.hex().lower()
+
+
+# Hex form of TRON_USDT_CONTRACT (41-prefixed) for comparing against the
+# emitting contract address on each log entry. Derived at import time so the
+# base58 constant stays the single source of truth. If the constant were ever
+# malformed this becomes "" and every verification fails closed.
+TRON_USDT_CONTRACT_HEX = _base58check_to_hex(TRON_USDT_CONTRACT)
+
 
 def _tron_hex_to_base58(hex_addr: str) -> str:
     """Convert a TRON hex address (41-prefixed) to base58check.
@@ -59,6 +95,29 @@ def _tron_hex_to_base58(hex_addr: str) -> str:
     if hex_addr.lower().startswith(TRON_ADDRESS_PREFIX):
         return hex_addr[2:].lower()
     return hex_addr.lower()
+
+
+def _normalize_log_address(address: Any) -> str:
+    """Normalize a log's emitting-contract address to 41-prefixed lowercase hex.
+
+    TRON Grid returns log addresses as 41-prefixed hex; base58 is accepted as
+    a defensive fallback. Returns "" when the address is missing or malformed
+    so callers can fail closed.
+    """
+    if not isinstance(address, str):
+        return ""
+    addr = address.strip()
+    if not addr:
+        return ""
+    if addr.lower().startswith("0x"):
+        addr = TRON_ADDRESS_PREFIX + addr[2:]
+    if len(addr) == 42 and addr.lower().startswith(TRON_ADDRESS_PREFIX.lower()):
+        try:
+            int(addr, 16)
+            return addr.lower()
+        except ValueError:
+            return ""
+    return _base58check_to_hex(addr)
 
 
 def _failure(reason: str, **extra: Any) -> dict[str, Any]:
@@ -116,8 +175,11 @@ def _iter_trc20_transfers(contract_result: dict[str, Any]) -> list[dict[str, Any
     """Yield decoded TRC-20 Transfer events from a contract result.
 
     Each event is a dict with ``from``, ``to``, ``value``, ``topic0``.
-    Only events with the canonical Transfer topic0 and matching USDT
-    contract are returned.
+    Only events with the canonical Transfer topic0 **emitted by the configured
+    USDT contract** are returned. The emitting contract address is mandatory:
+    a log without an ``address`` (or with a non-USDT contract) is skipped —
+    fail closed, since topic0 alone is shared by every TRC-20 token and any
+    scam token's Transfer event would otherwise pass verification.
     """
     events: list[dict[str, Any]] = []
     # TRON Grid returns events in ``contractResult`` or ``internal_transactions``.
@@ -129,6 +191,15 @@ def _iter_trc20_transfers(contract_result: dict[str, Any]) -> list[dict[str, Any
     for entry in logs:
         if not isinstance(entry, dict):
             continue
+        # SECURITY: the log's emitting contract must be the configured USDT
+        # contract. Without this check any TRC-20 token (scam tokens included)
+        # transferring to the treasury would pass verification.
+        log_contract = _normalize_log_address(
+            entry.get("address") or entry.get("contract_address") or ""
+        )
+        if not log_contract or log_contract != TRON_USDT_CONTRACT_HEX:
+            continue
+
         topics = entry.get("topics") or []
         if not isinstance(topics, list) or len(topics) < 3:
             continue
@@ -161,6 +232,33 @@ def _iter_trc20_transfers(contract_result: dict[str, Any]) -> list[dict[str, Any
     return events
 
 
+def _has_non_usdt_transfer(contract_result: dict[str, Any]) -> bool:
+    """True if any log carries the Transfer topic0 but was NOT emitted by the
+    configured USDT contract (or lacks an emitting address).
+
+    Used only to produce a precise ``wrong_contract`` failure reason — the
+    security decision itself is the filter inside ``_iter_trc20_transfers``.
+    """
+    logs = contract_result.get("log") or contract_result.get("logs") or []
+    if not isinstance(logs, list):
+        return False
+    for entry in logs:
+        if not isinstance(entry, dict):
+            continue
+        topics = entry.get("topics") or []
+        if not isinstance(topics, list) or not topics:
+            continue
+        topic0 = topics[0]
+        if not isinstance(topic0, str) or topic0.lower() != TRANSFER_EVENT_TOPIC0:
+            continue
+        log_contract = _normalize_log_address(
+            entry.get("address") or entry.get("contract_address") or ""
+        )
+        if log_contract != TRON_USDT_CONTRACT_HEX:
+            return True
+    return False
+
+
 async def verify_tron_trc20_payment(
     tx_hash: str,
     expected_recipient: str,
@@ -174,6 +272,9 @@ async def verify_tron_trc20_payment(
     Queries ``/walletsolidity/gettransactioninfobyid`` and looks for a
     TRC-20 Transfer event where:
       - ``topics[0]`` is the canonical Transfer event signature
+      - the log's emitting contract address equals ``TRON_USDT_CONTRACT``
+        (case-insensitive; fail closed on missing/mismatched address so
+        non-USDT scam tokens can never pass verification)
       - ``to`` (decoded from topics[2]) equals ``expected_recipient`` (hex)
       - ``value`` (decoded from data) >= amount_usd / usdt_price_usd * 10**6
 
@@ -219,14 +320,25 @@ async def verify_tron_trc20_payment(
     if not data:
         return _failure("transaction_not_found")
 
-    # Decode TRC-20 Transfer events.
+    # Decode TRC-20 Transfer events. Only events emitted by the configured
+    # USDT contract are accepted (fail closed on any other TRC-20 token).
     events = _iter_trc20_transfers(data)
+    receipt: dict[str, Any] = {}
     if not events:
         # Fallback: try decoding from receipt.logs if present.
-        receipt = data.get("receipt") or {}
-        events = _iter_trc20_transfers(receipt)
+        candidate_receipt = data.get("receipt")
+        if isinstance(candidate_receipt, dict):
+            receipt = candidate_receipt
+            events = _iter_trc20_transfers(receipt)
 
     if not events:
+        if _has_non_usdt_transfer(data) or _has_non_usdt_transfer(receipt):
+            return _failure(
+                f"wrong_contract: TRC-20 Transfer event not emitted by USDT "
+                f"contract {TRON_USDT_CONTRACT} — refusing to credit "
+                f"non-USDT token transfers",
+                block=data.get("blockNumber"),
+            )
         return _failure(
             "no_trc20_transfer_found: no TRC-20 Transfer event in transaction",
             block=data.get("blockNumber"),

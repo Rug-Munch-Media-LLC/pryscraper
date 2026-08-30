@@ -79,6 +79,7 @@ class X402Handler:
             Path(settlements_file) if settlements_file else X402_DIR / "settlements.jsonl"
         )
         self._load_payments()
+        self._load_settlements()
 
     def _load_payments(self) -> None:
         self.payments: list[dict[str, Any]] = []
@@ -114,6 +115,56 @@ class X402Handler:
                 f.write(json.dumps(settlement) + "\n")
         except OSError as e:
             logger.warning("x402_settlement_record_failed", extra={"error": str(e)})
+
+    def _load_settlements(self) -> None:
+        """Rehydrate the settled-tx idempotency index from the audit log.
+
+        Keys are ``tx:{network}:{tx_hash}`` (the on-chain payment is globally
+        unique); only *successful* settlements are indexed so a failed attempt
+        never blocks a retry. Indexing on load lets a fresh ``X402Handler`` per
+        request (e.g. the /v1/x402/pay route) see settles made by other
+        instances and refuse to double-settle the same tx.
+        """
+        self._settled_txs: dict[str, dict[str, Any]] = {}
+        if not self.settlements_file.exists():
+            return
+        try:
+            for line in self.settlements_file.read_text().splitlines():
+                if line.strip():
+                    rec = json.loads(line)
+                    if rec.get("success") is True:
+                        key = self._settlement_key(rec)
+                        if key:
+                            self._settled_txs.setdefault(key, rec)
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    def _settlement_key(self, rec: dict[str, Any] | None) -> str:
+        """Stable idempotency key for a settlement receipt.
+
+        ``tx:{network}:{tx_hash}`` is preferred — a tx_hash is the on-chain
+        proof and can only legitimately settle once. Falls back to
+        ``pid:{payment_id}`` only when no tx_hash is present so legacy records
+        still get idempotency.
+        """
+        rec = rec or {}
+        tx_hash = str(rec.get("tx_hash") or "").strip()
+        if tx_hash:
+            network = str(rec.get("network") or "").strip()
+            return f"tx:{network}:{tx_hash}"
+        pid = str(rec.get("payment_id") or "").strip()
+        return f"pid:{pid}" if pid else ""
+
+    def _tx_consumed(self, tx_hash: str) -> bool:
+        """True when ``tx_hash`` was already recorded as a *verified* payment.
+
+        Replay-hardening (fix #1): a single on-chain tx must not be able to
+        mint unlimited payment_ids. If a payer swaps a fresh ``payment_id``
+        onto an already-used tx_hash, verify_payment refuses it.
+        """
+        if not tx_hash:
+            return False
+        return any(p.get("tx_hash") == tx_hash and p.get("verified") for p in self.payments)
 
     def create_payment_required(
         self,
@@ -204,6 +255,15 @@ class X402Handler:
                 "x402_verify_router_error", extra={"payment_id": payment_id, "error": str(e)}
             )
             return {"verified": False, "reason": f"facilitator error: {e}", "settlement": None}
+        # Replay-hardening (fix #1): a tx_hash may only be consumed once. A payer
+        # who swaps a fresh payment_id onto an already-verified tx_hash is trying
+        # to mint unlimited payment_ids from one on-chain tx — refuse it.
+        if result.get("verified") and self._tx_consumed(tx_hash):
+            logger.warning(
+                "x402_verify_tx_replay_rejected",
+                extra={"payment_id": payment_id, "tx_hash": tx_hash},
+            )
+            return {"verified": False, "reason": "tx_hash already consumed", "settlement": None}
         # Server-authoritative atomic pricing: the verified payment records the
         # operation it was purchased for and the minimum amount (atomic units)
         # the server required at verify time. ``is_paid()`` re-checks both so a
@@ -251,6 +311,17 @@ class X402Handler:
         if amount_usd <= 0:
             amount_usd = X402_PRICING.get(payment_id, {}).get("price_usd", 0.001)
 
+        # Idempotency (fix #4): a settled tx must never duplicate ledger
+        # entries. If this payment was already settled successfully, return the
+        # cached receipt WITHOUT re-rolling the facilitator and WITHOUT appending
+        # a second line to settlements.jsonl.
+        key = self._settlement_key(
+            {"payment_id": payment_id, "tx_hash": tx_hash, "network": network, "asset": asset}
+        )
+        if key and key in self._settled_txs:
+            logger.info("x402_settle_idempotent", extra={"settle_key": key})
+            return self._settled_txs[key]
+
         settlement = await self.router.settle(
             payment_id=payment_id,
             tx_hash=tx_hash,
@@ -265,6 +336,9 @@ class X402Handler:
         record.setdefault("tx_hash", tx_hash)
         record.setdefault("network", network)
         record.setdefault("asset", asset)
+        # Only index successful settles so a failed attempt can be retried.
+        if record.get("success") is True and key:
+            self._settled_txs.setdefault(key, record)
         self._record_settlement(record)
         return settlement
 

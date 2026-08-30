@@ -58,6 +58,7 @@ from eth_keys.datatypes import PrivateKey, Signature
 from eth_utils import keccak, to_canonical_address, to_checksum_address
 
 from pry.payments.x402 import (
+    X402_DEBUG_MODE,
     X402_DEFAULT_ASSET,
     X402_DIR,
     X402_PLACEHOLDER_WALLETS,
@@ -96,6 +97,70 @@ CHAIN_ID_BY_NETWORK: dict[str, int] = {
     "eip155:84532": 84532,
     "base-sepolia": 84532,
 }
+
+# ── Testnet rejection (fix #2) ────────────────────────────────────────────────
+# Free-faucet testnet USDC must NEVER verify as a real payment on the live
+# path. Any network whose normalized id or chain id lands in these sets is
+# rejected unless PRY_X402_ALLOW_TESTNETS is explicitly enabled (and gated by
+# DEBUG — same convention as X402_OFFLINE_MODE). Mirrors the codebase's
+# existing "dev-only bypass requires DEBUG" rule so production never accepts
+# a testnet.
+TESTNET_NETWORK_IDS: frozenset[str] = frozenset(
+    {
+        "base-sepolia",
+        "eip155:84532",
+        "sepolia",
+        "eip155:11155111",
+        "eip155:11155420",  # optimistic sepolia
+        "eip155:80002",  # polygon amoy
+        "eip155:421614",  # arbitrum sepolia
+        "eip155:97",  # bsc testnet
+        "eip155:43113",  # avalanche fuji
+        "eip155:17000",  # holesky
+    }
+)
+TESTNET_CHAIN_IDS: frozenset[int] = frozenset(
+    {
+        84532,
+        11155111,
+        11155420,
+        80002,
+        421614,
+        97,
+        43113,
+        17000,
+    }
+)
+
+
+def _allow_testnets() -> bool:
+    """Whether testnet chains are permitted on the live verify/settle path.
+
+    Dev/test only — requires BOTH PRY_X402_ALLOW_TESTNETS=true AND a debug
+    flag. Production (no debug flag) always rejects testnets.
+    """
+    return (
+        os.getenv("PRY_X402_ALLOW_TESTNETS", "false").lower() in ("1", "true", "yes")
+        and X402_DEBUG_MODE
+    )
+
+
+def is_testnet_network(network: str) -> bool:
+    """True when ``network`` (legacy name or CAIP-2 id) is a known testnet.
+
+    Checks the normalized id and the resolved chain id so both ``base-sepolia``
+    and ``eip155:84532`` are caught. Unknown networks are NOT treated as
+    testnets by this check alone (callers additionally require the network to
+    be a supported EVM chain before verifying).
+    """
+    if not network:
+        return False
+    network_id = normalize_network_id(network)
+    if network_id in TESTNET_NETWORK_IDS:
+        return True
+    chain_id = _chain_id_for(network)
+    return chain_id is not None and chain_id in TESTNET_CHAIN_IDS
+
 
 # EIP-712 typehashes (EIP-3009 / EIP-712 domain).
 _EIP712_DOMAIN_TYPEHASH = keccak(
@@ -641,6 +706,18 @@ class SelfFacilitator:
         except (TypeError, ValueError):
             amount_usd = 0.0
 
+        # Testnet rejection (fix #2): a free-faucet testnet authorization must
+        # never verify as a real payment unless explicitly allowed (dev/test
+        # only, debug-gated). Fail closed in production.
+        if is_testnet_network(network) and not _allow_testnets():
+            return VerifyResult(
+                False,
+                f"testnet {network!r} rejected on live verify path — "
+                "set PRY_X402_ALLOW_TESTNETS=true with DEBUG to enable for dev/test",
+                asset=asset,
+                network=network,
+            )
+
         entry = resolve_asset_entry(network, asset)
         if entry is None:
             return VerifyResult(
@@ -863,6 +940,16 @@ class SelfFacilitator:
 
         network = normalize_network_id(str(payment.get("network") or ""))
         asset = str(payment.get("asset") or X402_DEFAULT_ASSET).upper()
+
+        # Testnet rejection (fix #2) — never broadcast settlement on a testnet
+        # unless explicitly allowed (dev/test only, debug-gated).
+        if is_testnet_network(network) and not _allow_testnets():
+            return SettleOutcome(
+                False,
+                error_code=SettleErrorCode.NOT_SETTLABLE.value,
+                error_detail=f"testnet {network!r} rejected on live settle path",
+            )
+
         entry = resolve_asset_entry(network, asset)
         if entry is None:
             return SettleOutcome(

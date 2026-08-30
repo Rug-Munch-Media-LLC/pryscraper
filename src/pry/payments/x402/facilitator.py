@@ -35,6 +35,8 @@ from pry.payments.x402 import (
     X402_SELF_FACILITATOR_RPC,
     X402_TIMEOUT_SECONDS,
     X402_WALLET,
+    is_solana_address,
+    is_tron_address,
 )
 from pry.payments.x402.scheme import (
     _NATIVE_ASSETS,
@@ -471,12 +473,12 @@ class FacilitatorRouter:
                 "settlement": None,
                 "network": network_id,
             }
-        recipient = (X402_NETWORK_WALLETS.get(network_id) or X402_WALLET or "").strip()
-        if not recipient or recipient == "pry-default-wallet":
+        recipient = (X402_NETWORK_WALLETS.get(network_id) or "").strip()
+        if not recipient or recipient == "pry-default-wallet" or not is_solana_address(recipient):
             return {
                 "verified": False,
                 "reason": (
-                    "solana receiving wallet not configured — set "
+                    "solana receiving wallet not configured or malformed — set "
                     "PRY_X402_WALLET_SOLANA (a Solana base58 address, not the EVM wallet)"
                 ),
                 "settlement": None,
@@ -543,12 +545,12 @@ class FacilitatorRouter:
                 "settlement": None,
                 "network": network_id,
             }
-        recipient = (X402_NETWORK_WALLETS.get(network_id) or X402_WALLET or "").strip()
-        if not recipient or recipient == "pry-default-wallet":
+        recipient = (X402_NETWORK_WALLETS.get(network_id) or "").strip()
+        if not recipient or recipient == "pry-default-wallet" or not is_tron_address(recipient):
             return {
                 "verified": False,
                 "reason": (
-                    "TRON receiving wallet not configured — set "
+                    "TRON receiving wallet not configured or malformed — set "
                     "PRY_X402_WALLET_TRON (a TRON base58 address, not the EVM wallet)"
                 ),
                 "settlement": None,

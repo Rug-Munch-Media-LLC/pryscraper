@@ -74,6 +74,8 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/billing/packs",
         "/v1/billing/purchase",
         "/v1/billing/purchase/{invoice_id}/confirm",
+        "/v1/billing/subscription/invoice",
+        "/v1/billing/subscription/invoice/{invoice_id}/confirm",
         "/v1/billing/signup",
         "/v1/billing/balance",
         # Job / session management (control plane, not data plane)

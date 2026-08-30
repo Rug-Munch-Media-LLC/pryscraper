@@ -69,6 +69,7 @@ from pry.payments.x402 import (
     X402_DEFAULT_NETWORK,
     X402_NETWORK_WALLETS,
     X402_WALLET,
+    resolve_pay_to,
 )
 from pry.payments.x402.scheme import (
     X402Scheme,
@@ -207,7 +208,9 @@ def _create_x402_invoice(
     network = X402_DEFAULT_NETWORK
     chain = normalize_network_id(network)
     amount_atomic = asset_to_atomic(amount_usd, asset, network)
-    payment_address = X402_NETWORK_WALLETS.get(chain) or X402_WALLET
+    payment_address = resolve_pay_to(
+        chain, wallets=X402_NETWORK_WALLETS, evm_wallet=X402_WALLET
+    )  # family-aware; "" when unconfigured
     invoice_id = f"inv_{uuid.uuid4().hex[:12]}"
     resource = f"https://pry.dev/api/billing/subscription/{invoice_id}"
     description = f"{TIERS[tier_name].name.title()} subscription ({months} month(s))"

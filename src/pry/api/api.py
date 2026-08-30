@@ -180,6 +180,16 @@ try:
     _BILLING_PACKS_ROUTER: Any | None = billing_packs_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
     _BILLING_PACKS_ROUTER = None
+# billing_subscription router (hosted subscription crypto checkout) — guarded
+# so api.py keeps working if the commerce module has not landed yet.
+try:
+    from pry.api.routers.commerce.billing_subscription import (
+        router as billing_subscription_router,
+    )
+
+    _BILLING_SUBSCRIPTION_ROUTER: Any | None = billing_subscription_router
+except ImportError:  # pragma: no cover — parallel build not landed yet
+    _BILLING_SUBSCRIPTION_ROUTER = None
 from pry.api.routers.ai.vision import router as vision_router
 from pry.api.routers.commerce.reconciliation import router as reconciliation_router
 from pry.api.routers.commerce.referrals import router as referrals_router
@@ -496,6 +506,9 @@ if _BIDDING_DATA_ROUTER is not None:
 # billing_packs router is included when it has landed.
 if _BILLING_PACKS_ROUTER is not None:
     app.include_router(_BILLING_PACKS_ROUTER)
+# billing_subscription router is included when it has landed.
+if _BILLING_SUBSCRIPTION_ROUTER is not None:
+    app.include_router(_BILLING_SUBSCRIPTION_ROUTER)
 app.include_router(monitoring_router)
 app.include_router(parsing_router)
 app.include_router(pipeline_router)

@@ -15,6 +15,7 @@ payment-request helpers. Config constants (``X402_WALLET``,
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import logging
 import math
@@ -33,7 +34,24 @@ from pry.payments.x402 import (
     X402_NETWORK_WALLETS,
     X402_PLACEHOLDER_WALLETS,
     X402_WALLET,
+    is_evm_address,
+    is_solana_address,
+    is_tron_address,
 )
+
+# Attestation crypto: same backend the self-facilitator uses (eth_keys for
+# secp256k1 ecrecover/sign, eth_utils keccak for the digest). Imported
+# best-effort so the module still loads (and attestation is simply disabled)
+# if the crypto deps are unavailable in a stripped runtime. Resolved lazily —
+# a mock/reload never has to re-import.
+try:  # pragma: no cover - depends on runtime deps
+    from eth_keys import keys as _eth_keys
+    from eth_utils import keccak as _keccak
+except Exception:  # noqa: BLE001 - optional crypto dep; attestation disabled
+    # (backward compatible) even when eth_keys/eth_utils are absent.
+    _eth_keys = None
+    _keccak = None
+    logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
@@ -179,11 +197,11 @@ SUPPORTED_ASSETS: dict[str, dict[str, dict[str, Any]]] = {
             "asset": "USDT",
             "network": "eip155:8453",
             "name": "Base USDT",
-            # Canonical bridged Tether USD on Base. NOTE: the legacy V1
-            # EIP7702_TOKEN_ADDRESSES table (x402/__init__.py) still lists
-            # 0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb for Base USDT — a
-            # known discrepancy. The V1 table is intentionally NOT churned;
-            # this entry is the authoritative address.
+            # Canonical bridged Tether USD on Base. This is the SINGLE source
+            # of truth: the legacy V1 EIP7702_TOKEN_ADDRESSES table derives
+            # its Base USDT entry from here (x402/__init__.py). The address it
+            # previously hardcoded (0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb)
+            # is DAI on Base, not USDT.
             "contract": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
             "decimals": 6,
             "verification": "permit2",
@@ -678,6 +696,53 @@ def network_family(network: str) -> str:
     return "unknown"
 
 
+def resolve_pay_to(
+    network: str,
+    wallets: dict[str, str] | None = None,
+    evm_wallet: str | None = None,
+) -> str:
+    """Resolve the payTo (receiving) address for ``network`` — family-aware.
+
+    EVM networks (eip155:*) use the per-network override from the wallet map
+    (``PRY_X402_WALLET_BASE`` etc.) or, failing that, the shared EVM treasury
+    ``evm_wallet`` (defaults to ``X402_WALLET``, itself gopass
+    ``evm_treasury_address`` by default). Solana resolves to
+    ``PRY_X402_WALLET_SOLANA`` and TRON to ``PRY_X402_WALLET_TRON``.
+
+    There is NO cross-family fallback: a Solana/TRON invoice NEVER emits an
+    EVM hex address and an EVM invoice never emits a base58 address. The
+    resolved address is format-checked against its family
+    (``is_evm_address`` / ``is_solana_address`` / ``is_tron_address``);
+    unconfigured, placeholder, or shape-mismatched values return "" so
+    callers fail closed instead of advertising a fake payTo.
+
+    ``wallets``/``evm_wallet`` override the default wallet sources. Callers
+    that expose module-level wallet attributes (e.g. packs.py) pass them
+    explicitly so the resolution seam stays patchable in tests.
+    """
+    network_wallets = X402_NETWORK_WALLETS if wallets is None else wallets
+    evm = X402_WALLET if evm_wallet is None else evm_wallet
+    family = network_family(network)
+    if family == "solana":
+        pay_to = network_wallets.get("solana:mainnet", "")
+        if not is_solana_address(pay_to):
+            return ""
+    elif family == "tron":
+        pay_to = network_wallets.get("tron:mainnet", "")
+        if not is_tron_address(pay_to):
+            return ""
+    elif family == "evm":
+        network_id = normalize_network_id(network)
+        pay_to = network_wallets.get(network_id) or evm
+        if not is_evm_address(pay_to):
+            return ""
+    else:
+        return ""
+    if pay_to in X402_PLACEHOLDER_WALLETS:
+        return ""
+    return pay_to
+
+
 def network_verification_status(network: str) -> str:
     """Return the verification-status label for a network.
 
@@ -769,9 +834,315 @@ def _from_atomic(amount_atomic: int, asset: str = X402_DEFAULT_ASSET) -> float:
     return float(round(amount_atomic / (10**decimals), decimals))
 
 
+# ── Server attestation over the payment-required challenge ─────────────────
+# Audit #1 (HIGH): the x402 payment-required body was unsigned — a MITM /
+# proxy / shared cache could rewrite ``payToAddress`` (or the amount) and a
+# payer would happily sign/authorize the attacker's address. This block
+# DOMAIN-SEPARATES and SIGNS the canonical (payTo, amount, network, nonce,
+# issued_at, operation) of every accept with a server key, so a client or a
+# verify/settle path can recompute the digest and confirm the payTo came from
+# US.
+#
+# Scheme (v1): ``keccak256-ecdsa-secp256k1-v1``. The canonical payload is a
+# stable, ordered JSON list (no dict-key ordering ambiguity), keccak256-hashed,
+# then signed with the server's secp256k1 key using the same ``eth_keys``
+# backend the self-facilitator uses for EIP-3009. The recoverable 65-byte
+# signature (r||s||v) is embedded per accept under ``body["attestation"]``; a
+# verifier recomputes the digest and ecrecovers the signer, rejecting any
+# accept whose payTo/amount/network/operation/resource/asset changed.
+#
+# Key source (NEVER hardcoded), precedence:
+#   1. ``PRY_X402_ATTEST_KEY``      - explicit 32-byte private key hex (with/without 0x)
+#   2. ``PRY_X402_FACILITATOR_KEY`` - reuse the EIP-3009 facilitator key
+#   3. ``PRY_X402_ATTEST_SECRET``   - derive a key via sha256(secret) (deterministic)
+#   (none)                          - body is emitted UNATTESTED (backward compatible);
+#                                     ``verify_payment_required_attestation`` reports
+#                                     ``attested=False`` and callers decide whether to enforce.
+#
+# BACKWARD COMPAT: attestation is attached ONLY at encode time
+# (``_encode_payment_required_body``) over the accepts ACTUALLY being encoded,
+# so callers that compact/trim the accepts (x402 middleware enforcement) always
+# get a self-consistent signature. ``build_payment_required`` still returns a
+# clean body; the encode step signs a COPY and never mutates the caller's dict.
+
+X402_ATTEST_DOMAIN: str = "pry-x402/attestation/v1"
+X402_ATTEST_ALGORITHM: str = "keccak256-ecdsa-secp256k1-v1"
+X402_ATTEST_VERSION: int = 1
+X402_ATTEST_KEY_ENV: str = "PRY_X402_ATTEST_KEY"
+X402_ATTEST_SECRET_ENV: str = "PRY_X402_ATTEST_SECRET"  # noqa: S105 - env var NAME, never a value
+
+# Mutable per-process cache of the resolved key. Cleared on module reload
+# (tests), so a reload + env change re-derives it. None = unconfigured.
+_attest_key_cache: Any = None
+
+
+def _attestation_private_key() -> Any:
+    """Resolve the attestation private key (cached); None when unconfigured."""
+    global _attest_key_cache
+    if _attest_key_cache is not None:
+        return _attest_key_cache
+    if not _eth_keys:
+        return None
+    raw = os.getenv(X402_ATTEST_KEY_ENV, "").strip()
+    if raw:
+        raw = raw[2:] if raw.lower().startswith("0x") else raw
+        try:
+            _attest_key_cache = _eth_keys.PrivateKey(bytes.fromhex(raw))
+            return _attest_key_cache
+        except (ValueError, TypeError):
+            logger.warning("x402_attest_key_invalid_ignored", extra={"env": X402_ATTEST_KEY_ENV})
+    fac = os.getenv("PRY_X402_FACILITATOR_KEY", "").strip()
+    if fac:
+        fac = fac[2:] if fac.lower().startswith("0x") else fac
+        try:
+            _attest_key_cache = _eth_keys.PrivateKey(bytes.fromhex(fac))
+            return _attest_key_cache
+        except (ValueError, TypeError):
+            logger.warning(
+                "x402_attest_key_invalid_ignored", extra={"env": "PRY_X402_FACILITATOR_KEY"}
+            )
+    secret = os.getenv(X402_ATTEST_SECRET_ENV, "").strip()
+    if secret:
+        # Derive a key deterministically from a configured secret. Never hardcoded.
+        _attest_key_cache = _eth_keys.PrivateKey(hashlib.sha256(secret.encode()).digest())
+        return _attest_key_cache
+    return None
+
+
+def attestation_signer_address() -> str:
+    """Return the attestation signer checksum address ("" when unconfigured)."""
+    key = _attestation_private_key()
+    if key is None:
+        return ""
+    return key.public_key.to_address()
+
+
+def _attestation_payload(
+    issued_at: int,
+    nonce: str,
+    index: int,
+    accept: dict[str, Any],
+) -> bytes:
+    """Canonical, domain-separated bytes for one accept.
+
+    Ordered JSON list (stable; dict keys are not signed directly so there is
+    no ordering ambiguity). A verifier MUST rebuild the exact same list from
+    the accept plus the top-level ``issued_at``/``nonce`` — any change to
+    payTo, amount, network, operation, resource or asset flips the digest.
+    """
+    extra = accept.get("extra") if isinstance(accept.get("extra"), dict) else {}
+    return json.dumps(
+        [
+            X402_ATTEST_DOMAIN,
+            int(X402_ATTEST_VERSION),
+            int(issued_at),
+            str(nonce),
+            int(index),
+            str(accept.get("payToAddress", "")),
+            str(accept.get("maxAmountRequired", "")),
+            str(normalize_network_id(str(accept.get("network", "")))),
+            str(extra.get("operation", "") or accept.get("operation", "")),
+            str(accept.get("resource", "")),
+            str(accept.get("asset", "")),
+        ],
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _attestation_digest(issued_at: int, nonce: str, index: int, accept: dict[str, Any]) -> bytes:
+    return _keccak(_attestation_payload(issued_at, nonce, index, accept))
+
+
+def attest_payment_required(body: dict[str, Any]) -> dict[str, Any]:
+    """Return ``body`` with a server attestation attached (non-mutating, idempotent).
+
+    When no attestation key is configured, or ``body`` already carries an
+    ``attestation``, ``body`` is returned unchanged (backward compatible).
+    Otherwise a shallow copy is produced with ``body["attestation"]`` holding
+    the domain, version, algorithm, nonce, ``issued_at``, signer address and a
+    per-accept recoverable ECDSA signature. The caller's dict is never mutated
+    so compaction/trim consumers keep the clean body.
+    """
+    if not isinstance(body, dict):
+        return body
+    if body.get("attestation") is not None:
+        return body
+    key = _attestation_private_key()
+    if key is None:
+        return body
+    accepts = body.get("accepts")
+    if not isinstance(accepts, list) or not accepts:
+        return body  # nothing to attest
+    nonce = uuid.uuid4().hex
+    issued_at = int(time.time())
+    signer = key.public_key.to_address()
+    signatures: list[dict[str, Any]] = []
+    for index, accept in enumerate(accepts):
+        if not isinstance(accept, dict):
+            continue
+        digest = _attestation_digest(issued_at, nonce, index, accept)
+        sig = key.sign_msg_hash(digest)
+        signatures.append({"index": index, "signature": sig.to_bytes().hex()})
+    attested = dict(body)
+    attested["attestation"] = {
+        "version": X402_ATTEST_VERSION,
+        "algorithm": X402_ATTEST_ALGORITHM,
+        "domain": X402_ATTEST_DOMAIN,
+        "nonce": nonce,
+        "issued_at": issued_at,
+        "signer": signer,
+        "accepts": signatures,
+    }
+    return attested
+
+
+def verify_payment_required_attestation(
+    body: dict[str, Any],
+    expected_signer: str = "",
+) -> dict[str, Any]:
+    """Verify the server attestation on a payment-required body.
+
+    Returns ``{"verified", "reason", "attested", "signer", "signer_ok"}``.
+
+    - ``attested=False`` - no ``attestation`` on the body (no server key was
+      configured at issue time). Callers decide whether to enforce; this is
+      the backward-compatible path.
+    - ``verified=True`` - every accept's signature validates against the
+      recomputed digest AND the ecrecovered signer matches the embedded
+      ``signer`` AND (when ``expected_signer`` is supplied) that signer equals
+      ``expected_signer`` (trusted out-of-band). This is what a settle/verify
+      path should require before trusting ``payToAddress``.
+    """
+    if not isinstance(body, dict):
+        return {
+            "verified": False,
+            "reason": "body not a mapping",
+            "attested": False,
+            "signer": "",
+            "signer_ok": False,
+        }
+    attest = body.get("attestation")
+    if not isinstance(attest, dict):
+        return {
+            "verified": False,
+            "reason": "no attestation present",
+            "attested": False,
+            "signer": "",
+            "signer_ok": False,
+        }
+    signer = str(attest.get("signer", ""))
+    if not _eth_keys:
+        return {
+            "verified": False,
+            "reason": "attestation crypto unavailable",
+            "attested": True,
+            "signer": signer,
+            "signer_ok": False,
+        }
+    if int(attest.get("version", 0)) != X402_ATTEST_VERSION:
+        return {
+            "verified": False,
+            "reason": "unsupported attestation version",
+            "attested": True,
+            "signer": signer,
+            "signer_ok": False,
+        }
+    if attest.get("algorithm") != X402_ATTEST_ALGORITHM:
+        return {
+            "verified": False,
+            "reason": "unsupported attestation algorithm",
+            "attested": True,
+            "signer": signer,
+            "signer_ok": False,
+        }
+    nonce = str(attest.get("nonce", ""))
+    issued_at = int(attest.get("issued_at", 0) or 0)
+    sig_map = {
+        int(s.get("index", -1)): str(s.get("signature", ""))
+        for s in attest.get("accepts", [])
+        if isinstance(s, dict)
+    }
+    accepts = body.get("accepts")
+    if not isinstance(accepts, list):
+        return {
+            "verified": False,
+            "reason": "no accepts to verify",
+            "attested": True,
+            "signer": signer,
+            "signer_ok": False,
+        }
+    for index, accept in enumerate(accepts):
+        if not isinstance(accept, dict):
+            return {
+                "verified": False,
+                "reason": f"accept {index} not a mapping",
+                "attested": True,
+                "signer": signer,
+                "signer_ok": False,
+            }
+        raw_sig = sig_map.get(index, "")
+        if not raw_sig:
+            return {
+                "verified": False,
+                "reason": f"missing signature for accept {index}",
+                "attested": True,
+                "signer": signer,
+                "signer_ok": False,
+            }
+        try:
+            signature = _eth_keys.Signature(bytes.fromhex(raw_sig))
+            digest = _attestation_digest(issued_at, nonce, index, accept)
+            recovered = signature.recover_public_key_from_msg_hash(digest).to_address()
+        except (ValueError, TypeError):
+            return {
+                "verified": False,
+                "reason": f"invalid signature for accept {index}",
+                "attested": True,
+                "signer": signer,
+                "signer_ok": False,
+            }
+        if not signer or recovered != signer:
+            return {
+                "verified": False,
+                "reason": (
+                    f"signature mismatch for accept {index} (tampered payTo/amount/network?)"
+                ),
+                "attested": True,
+                "signer": signer,
+                "signer_ok": False,
+            }
+    signer_ok = True
+    if expected_signer:
+        signer_ok = signer.lower() == expected_signer.lower()
+        if not signer_ok:
+            return {
+                "verified": False,
+                "reason": "signer not in trusted set",
+                "attested": True,
+                "signer": signer,
+                "signer_ok": False,
+            }
+    return {
+        "verified": True,
+        "reason": "",
+        "attested": True,
+        "signer": signer,
+        "signer_ok": signer_ok,
+    }
+
+
 def _encode_payment_required_body(body: dict[str, Any]) -> str:
-    """Base64-encode the PaymentRequired body per x402 spec."""
-    return base64.b64encode(json.dumps(body).encode()).decode()
+    """Base64-encode the PaymentRequired body per x402 spec.
+
+    Attaches a server attestation over the accepts ACTUALLY being encoded
+    (see :func:`attest_payment_required`) so a client/verifier can
+    cryptographically confirm that ``payToAddress`` came from the server —
+    closing audit #1 (the body was previously unsigned). Non-mutating and
+    idempotent; when no attestation key is configured the body is encoded
+    exactly as before.
+    """
+    attested = attest_payment_required(body)
+    return base64.b64encode(json.dumps(attested).encode()).decode()
 
 
 def _decode_payment_signature(header: str) -> dict[str, Any] | None:
@@ -956,11 +1327,7 @@ def build_multi_asset_accepts(
             if not unit_usd or price_usd <= 0:
                 continue
             amount = asset_to_atomic(price_usd, asset, network_id)
-            pay_to = X402_NETWORK_WALLETS.get(network_id) or X402_WALLET
-            if pay_to in X402_PLACEHOLDER_WALLETS:
-                # Never emit a fake/placeholder address as payTo: an operator
-                # must configure a real receiving wallet before taking payments.
-                pay_to = ""
+            pay_to = resolve_pay_to(network_id)  # family-aware; "" when unconfigured
             accepts.append(
                 {
                     "scheme": X402Scheme.EXACT.value,
@@ -1044,9 +1411,7 @@ def build_payment_required(
                     if not _asset_on_network(asset, network):
                         continue
                     amount = _to_atomic(price_info["price_usd"], asset)
-                    pay_to = X402_WALLET
-                    if pay_to in X402_PLACEHOLDER_WALLETS:
-                        pay_to = ""
+                    pay_to = resolve_pay_to(network)  # family-aware; "" when unconfigured
                     accepts.append(
                         {
                             "scheme": X402Scheme.EXACT.value,
@@ -1062,9 +1427,7 @@ def build_payment_required(
                     )
         if not accepts:
             # Final fallback so we never return an empty accepts array
-            fallback_pay_to = X402_WALLET
-            if fallback_pay_to in X402_PLACEHOLDER_WALLETS:
-                fallback_pay_to = ""
+            fallback_pay_to = resolve_pay_to(X402Network.BASE.value)
             accepts.append(
                 {
                     "scheme": X402Scheme.EXACT.value,
@@ -1112,7 +1475,7 @@ def _legacy_payment_request(
         "description": price_info.get("description", operation),
         "maxAmountRequired": str(int(price_info["price_usd"] * 1_000_000)),
         "asset": X402Asset.USDC.value,
-        "payTo": (X402_WALLET if X402_WALLET not in X402_PLACEHOLDER_WALLETS else ""),
+        "payTo": resolve_pay_to(X402_DEFAULT_NETWORK),
         "maxTimeoutSeconds": 60,
         "extra": metadata or {},
     }

@@ -19,6 +19,7 @@ import pytest
 from pry.payments.x402.tron_verifier import (
     TRANSFER_EVENT_TOPIC0,
     TRON_USDT_CONTRACT,
+    TRON_USDT_CONTRACT_HEX,
     _iter_trc20_transfers,
     _tron_hex_to_base58,
     verify_tron_trc20_payment,
@@ -48,6 +49,7 @@ class TestIterTrc20Transfers:
         result = {
             "log": [
                 {
+                    "address": TRON_USDT_CONTRACT_HEX,
                     "topics": [
                         TRANSFER_EVENT_TOPIC0,
                         "0x000000000000000000000000" + "a" * 40,
@@ -61,6 +63,60 @@ class TestIterTrc20Transfers:
         assert len(events) == 1
         assert events[0]["to"] == "41" + "b" * 40
         assert events[0]["value"] == 1_000_000  # 1 USDT
+
+    def test_iter_rejects_non_usdt_contract(self) -> None:
+        """Scam-token Transfer events (wrong emitting contract) are dropped."""
+        scam_contract = "41" + "d" * 40
+        result = {
+            "log": [
+                {
+                    "address": scam_contract,
+                    "topics": [
+                        TRANSFER_EVENT_TOPIC0,
+                        "0x000000000000000000000000" + "a" * 40,
+                        "0x000000000000000000000000" + "b" * 40,
+                    ],
+                    "data": "0x00000000000000000000000000000000000000000000000000000000000f4240",
+                },
+            ],
+        }
+        events = _iter_trc20_transfers(result)
+        assert len(events) == 0
+
+    def test_iter_fails_closed_on_missing_address(self) -> None:
+        """Logs without an emitting contract address are dropped (fail closed)."""
+        result = {
+            "log": [
+                {
+                    "topics": [
+                        TRANSFER_EVENT_TOPIC0,
+                        "0x000000000000000000000000" + "a" * 40,
+                        "0x000000000000000000000000" + "b" * 40,
+                    ],
+                    "data": "0x00000000000000000000000000000000000000000000000000000000000f4240",
+                },
+            ],
+        }
+        events = _iter_trc20_transfers(result)
+        assert len(events) == 0
+
+    def test_iter_contract_match_is_case_insensitive(self) -> None:
+        """Uppercase hex emitting address still matches the USDT contract."""
+        result = {
+            "log": [
+                {
+                    "address": TRON_USDT_CONTRACT_HEX.upper(),
+                    "topics": [
+                        TRANSFER_EVENT_TOPIC0,
+                        "0x000000000000000000000000" + "a" * 40,
+                        "0x000000000000000000000000" + "b" * 40,
+                    ],
+                    "data": "0x00000000000000000000000000000000000000000000000000000000000f4240",
+                },
+            ],
+        }
+        events = _iter_trc20_transfers(result)
+        assert len(events) == 1
 
     def test_iter_skips_non_transfer_events(self) -> None:
         result = {
@@ -147,6 +203,7 @@ class TestVerifyTronTrc20Payment:
                 "blockTimeStamp": 1700000000000,
                 "log": [
                     {
+                        "address": TRON_USDT_CONTRACT_HEX,
                         "topics": [
                             TRANSFER_EVENT_TOPIC0,
                             "0x000000000000000000000000" + "a" * 40,
@@ -176,6 +233,7 @@ class TestVerifyTronTrc20Payment:
                 "blockTimeStamp": 1700000000000,
                 "log": [
                     {
+                        "address": TRON_USDT_CONTRACT_HEX,
                         "topics": [
                             TRANSFER_EVENT_TOPIC0,
                             "0x000000000000000000000000" + "a" * 40,
@@ -205,6 +263,7 @@ class TestVerifyTronTrc20Payment:
                 "blockTimeStamp": 1700000000000,
                 "log": [
                     {
+                        "address": TRON_USDT_CONTRACT_HEX,
                         "topics": [
                             TRANSFER_EVENT_TOPIC0,
                             "0x000000000000000000000000" + "a" * 40,
@@ -224,6 +283,65 @@ class TestVerifyTronTrc20Payment:
         assert result["recipient"] == "41" + "b" * 40
         assert result["amount_raw"] == 2_000_000  # 2 USDT
         assert result["contract"] == TRON_USDT_CONTRACT
+
+    @pytest.mark.asyncio
+    async def test_scam_token_transfer_rejected(self) -> None:
+        """A non-USDT TRC-20 token transfer to the treasury must NOT verify."""
+        request = httpx.Request("POST", "https://test.com")
+        mock_response = httpx.Response(
+            200,
+            json={
+                "blockNumber": 12345,
+                "blockTimeStamp": 1700000000000,
+                "log": [
+                    {
+                        "address": "41" + "d" * 40,  # scam token contract
+                        "topics": [
+                            TRANSFER_EVENT_TOPIC0,
+                            "0x000000000000000000000000" + "a" * 40,
+                            "0x000000000000000000000000" + "b" * 40,
+                        ],
+                        "data": "0x000000000000000000000000000000000000000000000000000000000001e8480",
+                    },
+                ],
+            },
+            request=request,
+        )
+        with patch("httpx.AsyncClient.post", return_value=mock_response):
+            result = await verify_tron_trc20_payment(
+                "tx_hash", "41" + "b" * 40, 1.0, rpc_url="https://test.com"
+            )
+        assert result["verified"] is False
+        assert "wrong_contract" in result["reason"]
+
+    @pytest.mark.asyncio
+    async def test_missing_log_address_fails_closed(self) -> None:
+        """A Transfer log with no emitting address must NOT verify."""
+        request = httpx.Request("POST", "https://test.com")
+        mock_response = httpx.Response(
+            200,
+            json={
+                "blockNumber": 12345,
+                "blockTimeStamp": 1700000000000,
+                "log": [
+                    {
+                        "topics": [
+                            TRANSFER_EVENT_TOPIC0,
+                            "0x000000000000000000000000" + "a" * 40,
+                            "0x000000000000000000000000" + "b" * 40,
+                        ],
+                        "data": "0x00000000000000000000000000000000000000000000000000000000001e8480",
+                    },
+                ],
+            },
+            request=request,
+        )
+        with patch("httpx.AsyncClient.post", return_value=mock_response):
+            result = await verify_tron_trc20_payment(
+                "tx_hash", "41" + "b" * 40, 1.0, rpc_url="https://test.com"
+            )
+        assert result["verified"] is False
+        assert result["reason"] != ""
 
 
 class TestTronUsdtContract:
@@ -247,3 +365,8 @@ class TestTronUsdtContract:
             TRANSFER_EVENT_TOPIC0
             == "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
         )
+
+    def test_usdt_contract_hex_derivation(self) -> None:
+        """Hex form must be the 41-prefixed decode of the base58 contract."""
+        assert TRON_USDT_CONTRACT_HEX == "41a614f803b6fd780986a42c78ec9c7f77e6ded13c"
+        assert len(TRON_USDT_CONTRACT_HEX) == 42

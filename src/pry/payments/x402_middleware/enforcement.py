@@ -257,6 +257,22 @@ class X402Middleware:
                             amount_usd=amount_usd,
                             operation=operation,
                         )
+                        # Settlement-success gating (fix #3): for self-facilitation
+                        # (EIP-3009) funds only move at settle, so a verify that
+                        # passes but a settle that FAILS must NOT grant access.
+                        # Fail closed: reject with a fresh 402 challenge and never
+                        # mark x402_verified.
+                        if not settlement or settlement.get("success") is not True:
+                            logger.warning(
+                                "x402_settle_failed_access_denied",
+                                extra={
+                                    "payment_id": payment_id,
+                                    "tx_hash": tx_hash,
+                                    "reason": settlement.get("reason", "") if settlement else "",
+                                },
+                            )
+                            await self._send_payment_required(operation, path, send)
+                            return
                         response_b64 = base64.b64encode(json.dumps(settlement).encode()).decode()
                         self.payments[payment_id] = {
                             "payment_id": payment_id,

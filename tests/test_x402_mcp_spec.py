@@ -77,6 +77,37 @@ class _AlwaysVerifyRouter(FacilitatorRouter):
         }
 
 
+class _AlwaysVerifySettleFail(FacilitatorRouter):
+    """Test router whose verify always passes but whose settle always FAILS.
+
+    Used to prove settlement-success gating (fix #3): a verify that passes but
+    a settle that fails must NOT grant access — the gate responds 402.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(facilitators=[])
+
+    async def verify(
+        self,
+        payment_id: str,
+        tx_hash: str,
+        network: str,
+        asset: str,
+        amount_usd: float,
+    ) -> dict[str, Any]:
+        return {"verified": True, "reason": "", "settlement": None, "facilitator": "test"}
+
+    async def settle(
+        self,
+        payment_id: str,
+        tx_hash: str,
+        network: str,
+        asset: str,
+        amount_usd: float,
+    ) -> dict[str, Any]:
+        return {"success": False, "reason": "settlement rejected", "transaction": tx_hash}
+
+
 # ── MCP spec compliance ──
 
 
@@ -305,18 +336,60 @@ def test_x402_handler_require_payment() -> None:
     assert "accepts" in response["body"]
 
 
-def test_x402_handler_verify_and_settle() -> None:
-    set_facilitator_router(_AlwaysVerifyRouter())
+def test_x402_handler_verify_and_settle(tmp_path) -> None:
+    """Verify may pass but a FAILED settle must deny access (fix #3).
+
+    The enforcement middleware owns the decision: it calls verify then settle
+    and only grants a 2xx when settlement succeeds. Driving the REAL middleware
+    with a router that always verifies but always fails settlement must return a
+    402 payment-required challenge — never a 2xx. Replay-dedup (single-use
+    tx_hash) is asserted too.
+    """
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from pry.payments.x402_middleware import X402Middleware
+
+    app = FastAPI()
+
+    @app.get("/v1/scrape")
+    async def scrape():
+        return {"ok": True}
+
+    set_facilitator_router(_AlwaysVerifySettleFail())
     try:
-        handler = X402Handler()
-        payment_id = "test-pay-123"
-        tx_hash = "0xabc123"
-        verify_result = asyncio.run(handler.verify_payment(payment_id, tx_hash))
-        assert verify_result["verified"] is True
-        assert handler.is_paid(payment_id) is True
-        settlement = asyncio.run(handler.settle_payment(payment_id, tx_hash))
-        assert settlement["success"] is True
-        assert settlement["transaction"] == tx_hash
+        handler = X402Handler(
+            payments_file=tmp_path / "payments.jsonl",
+            settlements_file=tmp_path / "settlements.jsonl",
+        )
+        mw = X402Middleware(app=app)
+        mw.handler = handler  # isolate audit logs to this test
+
+        client = TestClient(mw, raise_server_exceptions=False)
+        sig = base64.b64encode(
+            json.dumps(
+                {
+                    "payment_id": "test-pay-123",
+                    "tx_hash": "0xabc123",
+                    "network": "base",
+                    "asset": "USDC",
+                    "amount_usd": 1.0,
+                }
+            ).encode()
+        ).decode()
+
+        # Access denied when settlement FAILS: verify passes (router.verify=True)
+        # but settle returns success=False, so the gate responds 402 — no 2xx.
+        r = client.get("/v1/scrape", headers={"PAYMENT-SIGNATURE": sig})
+        assert r.status_code == 402
+        assert "PAYMENT-REQUIRED" in r.headers
+
+        # Replay-dedup: a fresh tx_hash verifies once, then is single-use.
+        verify_once = asyncio.run(handler.verify_payment("test-pay-r1", "0xreplay1"))
+        assert verify_once["verified"] is True
+        replay = asyncio.run(handler.verify_payment("test-pay-r2", "0xreplay1"))
+        assert replay["verified"] is False
+        assert replay["reason"] == "tx_hash already consumed"
     finally:
         set_facilitator_router(FacilitatorRouter())
 

@@ -63,6 +63,7 @@ from pry.payments.x402 import (
     X402_DEFAULT_NETWORK,
     X402_NETWORK_WALLETS,
     X402_WALLET,
+    resolve_pay_to,
     wallet_configured,
 )
 from pry.payments.x402.scheme import (
@@ -332,7 +333,9 @@ def _resolve_pay_to(network: str) -> str:
     when the resolved wallet is a placeholder / unconfigured. This is the
     fail-closed gate: a pack purchase NEVER returns a fake payTo.
     """
-    pay_to = X402_NETWORK_WALLETS.get(network) or X402_WALLET
+    pay_to = resolve_pay_to(
+        network, wallets=X402_NETWORK_WALLETS, evm_wallet=X402_WALLET
+    )  # family-aware; "" (fails closed) when unconfigured
     if not wallet_configured(pay_to):
         raise PackWalletUnconfigured(
             f"no real receiving wallet configured for network '{network}' — "
