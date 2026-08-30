@@ -39,10 +39,12 @@ from pry.core.paths import PRY_DATA_DIR
 logger = structlog.get_logger(__name__)
 
 # ── Configuration ───────────────────────────────────────────────────
-DATABUS_URL = os.getenv(
-    "PRY_DATABUS_URL",
-    "http://rmi-backend:8000/api/v1/databus/ingest",
-)
+# Configurable via env: PRY_DATABUS_URL. No hardcoded hostname default —
+# the fleet `internal-hostname` gitleaks rule forbids literal *.rugmunch.io in
+# committed code, and pry rides its own network (no rmi-backend:8000). The
+# value is supplied by /srv/rmi-infra/.env.pry (env_file). Unset → bridge
+# fail-opens (deliveries are skipped; the retry/dead-letter lanes absorb them).
+DATABUS_URL = os.getenv("PRY_DATABUS_URL", "")
 # Service-to-service auth — the backend VALIDATES this key (401 otherwise).
 # Source: same secret the backend mounts as /run/secrets/rmi_internal_key
 # (secrets manager). Unset = deliveries will be rejected.
@@ -73,6 +75,13 @@ async def publish_to_databus(**kwargs: Any) -> dict[str, Any]:
     Returns an empty dict (does not modify the pipeline context).
     """
     if not DATABUS_ENABLED:
+        return {}
+
+    # Fail-open: without a configured PRY_DATABUS_URL there is nowhere to
+    # deliver (pry is on its own network, not the shared rmi_network). Skipping
+    # is correct — the scrape result is unaffected and stored locally as usual.
+    if not DATABUS_URL:
+        logger.debug("databus_bridge: PRY_DATABUS_URL unset, skipping delivery")
         return {}
 
     # Extract relevant fields from the pipeline context
