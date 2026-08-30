@@ -84,7 +84,7 @@ def submit_to_registries() -> None:
     x402_manifest = {
         "name": "Pry Scraping API",
         "description": "Pay-per-request web scraping with x402 payments",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "payment": {
             "x402": {
                 "enabled": True,
@@ -107,7 +107,7 @@ def submit_to_registries() -> None:
     agent_card = {
         "name": "Pry Scraping Agent",
         "description": "Web scraping agent with x402 payments",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "capabilities": ["web_scraping", "data_extraction", "captcha_solving", "auto_signup"],
         "payment": {"x402": True, "crypto": ["BTC", "ETH", "SOL", "USDC", "USDT", "TRX"]},
     }
