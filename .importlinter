@@ -9,6 +9,9 @@
 [importlinter]
 root_packages =
     pry
+# Enable ruling on external (non-pry) packages so the upstream boundary below
+# can forbid backend/rag/scanner/bot/product internals.
+include_external_packages = True
 
 [importlinter:contract:1]
 name = Domain independence (no cross-domain imports)
@@ -45,3 +48,20 @@ source_modules =
 forbidden_modules =
     pry.api
     pry.payments
+
+# Canonical source of truth: standards/ARCHITECTURE.md + standards/import-linter.contract.yaml
+# [REVIEW] Tooling gap (pre-existing): pry is src-layout installed editable in
+# .venv, but the venv has no lint-imports and global lint-imports can't resolve
+# src-layout `pry`. This config is dormant until lint-imports runs with the venv.
+[importlinter:contract:4]
+name = pryscraper never imports backend/rag/scanner/bot/product internals
+type = forbidden
+source_modules =
+    pry
+forbidden_modules =
+    app
+    rugbrain
+    rugmunch_scanner
+    rugmunchbot
+    walletpress
+ignore_imports =

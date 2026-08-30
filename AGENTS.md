@@ -72,6 +72,20 @@ make commit        # conventional commit
 make clean         # remove build artifacts
 ```
 
+## Domain Boundaries (one domain -> one repo -> one owner)
+Canonical contract: [standards/ARCHITECTURE.md](../standards/ARCHITECTURE.md) +
+`standards/repo-domains.json`. Enforced by `.importlinter` (pre-push) and
+`scripts/repo-boundary-check.sh` (pre-commit).
+
+- **OWNS:** the web-scraping / crypto-intelligence-crawler framework — scraper,
+  extractor, parser, stealth engine, captcha solver, job queue, MCP server, SDK.
+- **DOES NOT own:** scanner engine / risk heuristics (rugmunch-scanner), RAG /
+  retrieval (rugbrain), crypto-intelligence API + DataBus (rmi-backend), the
+  Telegram client (rugmunchbot), wallet management (walletpress), and the
+  codebase-reference corpus / Solidity dev trees (contextcrypto).
+- **Leaf boundary:** pryscraper never imports `app`, `rugbrain`,
+  `rugmunch_scanner`, `rugmunchbot`, or `walletpress` internals.
+
 ## Architecture
 See [ARCHITECTURE.md](docs/ops/ARCHITECTURE.md). Update it when components change.
 
