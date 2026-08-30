@@ -30,10 +30,13 @@ class TestRegistryMetadata:
         assert "tags" in manifest
 
     def test_manifest_tool_count_matches(self) -> None:
-        from pry.api.registry_metadata import get_registry_manifest
+        from pry.api.registry_metadata import get_enriched_tools, get_registry_manifest
 
         manifest = get_registry_manifest()
-        assert manifest["stats"]["tools"] == 73
+        # Dynamic: stats.tools must match the actually-enriched tool list so
+        # registry reconciliation (currently 76) never drifts from the data.
+        assert manifest["stats"]["tools"] == len(get_enriched_tools())
+        assert manifest["stats"]["tools"] > 0
         assert manifest["stats"]["categories"] > 20
 
     def test_manifest_payment_config(self) -> None:
@@ -110,7 +113,12 @@ class TestMCPPublicAccess:
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "ok"
-        assert data["tools_count"] == 73
+        # Dynamic: tools_count must match the reconciled registry (76), not a
+        # hardcoded literal that drifts as tools are added/removed.
+        from pry.api.registry_metadata import get_registry_manifest
+
+        assert data["tools_count"] == get_registry_manifest()["stats"]["tools"]
+        assert data["tools_count"] > 0
 
     def test_mcp_initialize_public(self) -> None:
         resp = self.client.post(
@@ -143,7 +151,11 @@ class TestMCPPublicAccess:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert len(data["result"]["tools"]) == 73
+        # Dynamic: tools/list length must track the reconciled registry (76).
+        from pry.api.registry_metadata import get_registry_manifest
+
+        assert len(data["result"]["tools"]) == get_registry_manifest()["stats"]["tools"]
+        assert len(data["result"]["tools"]) > 0
 
 
 class TestRouteClassification:

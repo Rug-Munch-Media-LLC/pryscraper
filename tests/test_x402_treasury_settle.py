@@ -46,9 +46,23 @@ def _reload_all() -> None:
     importlib.reload(_handler_mod)
 
 
-def _restore_real_config() -> None:
-    """Recompute module constants from the REAL secrets backend (fake undone)."""
-    _reload_all()
+def _snapshot_modules() -> dict:
+    """Snapshot the module globals that ``_reload_all`` mutates.
+
+    ``importlib.reload`` re-executes a shared module *in place*, so any state
+    (e.g. ``X402_WALLET``) it recomputes leaks into sibling tests that import
+    those modules. We snapshot ``__dict__`` up front and restore it exactly so
+    the reload is fully undone regardless of what the secrets backend returns
+    when the fake is lifted (gopass is flaky under pytest's captured stdin).
+    """
+    return {mod: mod.__dict__.copy() for mod in (x402, scheme, _handler_mod)}
+
+
+def _restore_modules(snapshot: dict) -> None:
+    """Restore the module globals captured by ``_snapshot_modules``."""
+    for mod, state in snapshot.items():
+        mod.__dict__.clear()
+        mod.__dict__.update(state)
 
 
 def test_treasury_secret_name_is_reference_only() -> None:
@@ -70,6 +84,7 @@ def test_payto_resolves_to_real_treasury_via_secret_name() -> None:
         return default
 
     env = {k: v for k, v in os.environ.items() if not k.startswith("PRY_X402_")}
+    snapshot = _snapshot_modules()
     with (
         patch.dict(os.environ, env, clear=True),
         patch.object(_sb, "get_secret", side_effect=fake_get_secret),
@@ -92,9 +107,9 @@ def test_payto_resolves_to_real_treasury_via_secret_name() -> None:
         assert accepts[0]["payToAddress"] == TEST_TREASURY
         assert accepts[0]["payToAddress"] not in ("", x402.X402_PLACEHOLDER_WALLETS)
 
-    # Restore the module constants to the real runtime config (whatever the
-    # machine actually resolves) — never leak the test fake into later tests.
-    _restore_real_config()
+    # Undo the reload mutations exactly (never leak the test fake or a
+    # gopass-dependent re-derivation into sibling tests).
+    _restore_modules(snapshot)
 
 
 class _FakeRouter:

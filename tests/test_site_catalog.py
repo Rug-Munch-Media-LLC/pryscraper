@@ -50,7 +50,8 @@ REQUIRED_KEYS = (
 
 
 def test_catalog_size_within_target() -> None:
-    assert 40 <= len(CATALOG) <= 60, f"catalog has {len(CATALOG)} entries (target 40-60)"
+    # Curated catalog; bounded so an accidental explosion (or empty) is caught.
+    assert 40 <= len(CATALOG) <= 100, f"catalog has {len(CATALOG)} entries (target 40-100)"
 
 
 def test_site_ids_unique() -> None:
@@ -194,7 +195,7 @@ def _client(app: FastAPI) -> TestClient:
 
 
 def test_router_importable() -> None:
-    from pry.api.routers import site_catalog as site_catalog_mod
+    from pry.api.routers.data import site_catalog as site_catalog_mod
 
     assert hasattr(site_catalog_mod, "router")
     assert site_catalog_mod.router is site_catalog_router

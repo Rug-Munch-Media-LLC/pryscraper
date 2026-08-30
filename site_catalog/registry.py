@@ -41,15 +41,17 @@ METHOD_VOCABULARY: frozenset[str] = frozenset(
         "next_data",
         "embedded_json",
         "stealth",
+        "stealth_browser",
         "browser",
         "tor",
         "proxy",
         "signed",
+        "rsc",
     }
 )
 
 ANTI_BOT_LEVELS: frozenset[str] = frozenset({"none", "low", "medium", "high"})
-ROBOTS_STATES: frozenset[str] = frozenset({"allowed", "restricted", "unknown"})
+ROBOTS_STATES: frozenset[str] = frozenset({"allowed", "restricted", "unknown", "blocked"})
 
 DATA_DOMAINS: frozenset[str] = frozenset(
     {

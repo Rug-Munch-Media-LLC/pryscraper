@@ -98,8 +98,11 @@ def cmd_open(url, output_json=False, schema_path=None, timeout=30):
     if schema_path:
         with open(schema_path) as f:
             payload["jsonSchema"] = json.load(f)
-    _spinner(f"Prying open {url[:50]}")
-    data = _req("POST", "/v1/scrape", payload, timeout + 10)
+    done = _spinner(f"Prying open {url[:50]}")
+    try:
+        data = _req("POST", "/v1/scrape", payload, timeout + 10)
+    finally:
+        done()
     print(f"{GREEN}✓{NC} Pry opened {url}\n", end="")
     if output_json or schema_path:
         print(json.dumps(data, indent=2))
@@ -110,8 +113,11 @@ def cmd_open(url, output_json=False, schema_path=None, timeout=30):
 
 def cmd_watch(url, webhook="", interval=3600):
     """Register a page for change monitoring."""
-    _spinner(f"Registering {url[:50]} for monitoring")
-    data = _req("POST", "/v1/watch", {"url": url, "webhook": webhook, "interval": interval}, 45)
+    done = _spinner(f"Registering {url[:50]} for monitoring")
+    try:
+        data = _req("POST", "/v1/watch", {"url": url, "webhook": webhook, "interval": interval}, 45)
+    finally:
+        done()
     if data.get("success"):
         status = data.get("data", {}).get("status", "registered")
         print(f"{GREEN}✓{NC} Watching {url} (status: {status})")
@@ -123,8 +129,11 @@ def cmd_watch(url, webhook="", interval=3600):
 
 def cmd_crawl(url, max_pages=10, output=None, timeout=120):
     """Crawl multiple pages from a starting URL."""
-    _spinner(f"Crawling {url[:50]} (up to {max_pages} pages)")
-    data = _req("POST", "/v1/crawl", {"url": url, "maxPages": max_pages}, timeout)
+    done = _spinner(f"Crawling {url[:50]} (up to {max_pages} pages)")
+    try:
+        data = _req("POST", "/v1/crawl", {"url": url, "maxPages": max_pages}, timeout)
+    finally:
+        done()
     pages = data.get("data", {}).get("pages", [])
     print(f"{GREEN}✓{NC} Crawled {len(pages)} page(s) from {url}")
     if output:
@@ -145,13 +154,16 @@ def cmd_batch(filepath, template_str="", timeout=30):
         print(f"{RED}✖ File not found: {filepath}{NC}")
         sys.exit(1)
     template = json.loads(template_str) if template_str else {"body": "body"}
-    _spinner(f"Processing {filepath}")
-    data = _req(
-        "POST",
-        "/v1/batch-file",
-        {"filepath": filepath, "template": template, "timeout": timeout},
-        timeout * 5,
-    )
+    done = _spinner(f"Processing {filepath}")
+    try:
+        data = _req(
+            "POST",
+            "/v1/batch-file",
+            {"filepath": filepath, "template": template, "timeout": timeout},
+            timeout * 5,
+        )
+    finally:
+        done()
     results = data.get("data", {}).get("results", [])
     ok = sum(1 for r in results if r.get("status") == "ok")
     err = len(results) - ok
@@ -165,8 +177,11 @@ def cmd_batch(filepath, template_str="", timeout=30):
 
 def cmd_parse(url, timeout=60):
     """Parse a document to text."""
-    _spinner(f"Parsing {url[:50]}")
-    data = _req("POST", "/v1/parse", {"url": url, "timeout": timeout}, timeout + 10)
+    done = _spinner(f"Parsing {url[:50]}")
+    try:
+        data = _req("POST", "/v1/parse", {"url": url, "timeout": timeout}, timeout + 10)
+    finally:
+        done()
     text = data.get("data", {}).get("text", "")
     fmt = data.get("data", {}).get("format", "unknown")
     pages = data.get("data", {}).get("pages", 0)
@@ -176,8 +191,11 @@ def cmd_parse(url, timeout=60):
 
 def cmd_screenshot(url, output=None, timeout=30):
     """Take a screenshot."""
-    _spinner(f"Capturing {url[:50]}")
-    data = _req("POST", "/v1/screenshot", {"url": url}, timeout + 10)
+    done = _spinner(f"Capturing {url[:50]}")
+    try:
+        data = _req("POST", "/v1/screenshot", {"url": url}, timeout + 10)
+    finally:
+        done()
     b64 = data.get("data", {}).get("screenshot", "")
     if not b64:
         print(f"{RED}✖ No screenshot returned{NC}")
@@ -204,8 +222,11 @@ def cmd_run(pryfile_path="pry.yml"):
         print(f"{RED}✖ No {pryfile_path} found{NC}")
         print(f"  Create one: {CYAN}pry open https://example.com{NC}")
         sys.exit(1)
-    _spinner(f"Running jobs from {pryfile_path}")
-    data = _req("POST", "/v1/run", {"path": pryfile_path}, 120)
+    done = _spinner(f"Running jobs from {pryfile_path}")
+    try:
+        data = _req("POST", "/v1/run", {"path": pryfile_path}, 120)
+    finally:
+        done()
     jobs = data.get("data", {}).get("jobs", [])
     print(f"{GREEN}✓{NC} Executed {len(jobs)} job(s)")
     for j in jobs:

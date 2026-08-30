@@ -103,17 +103,17 @@ except ImportError:
 # silently emitting a fake payTo. Kept at the package root so
 # importlib.reload(x402) recomputes nothing but the sentinel is stable.
 #
-# "0x1E3AC01d0fdb976179790BDD02823196A92705C9" is coffer's
-# CONFIGURED_WALLET sentinel (treated as unconfigured there). A deployment that
-# points a Pry receiving wallet at this address has NOT configured a payee —
-# add it to the placeholder set so Pry never emits it as a real payTo.
+# NOTE (2026-08-30): "0x1E3AC01d0fdb976179790BDD02823196A92705C9" is the REAL
+# operator-confirmed EVM treasury (all eip155 chains). It was previously
+# mistaken for coffer's CONFIGURED_WALLET sentinel and listed here as a
+# placeholder — it is NOT. Do not re-add it. Placeholder entries are only the
+# genuine sentinels below (empty string + dev/test markers).
 X402_PLACEHOLDER_WALLETS: frozenset[str] = frozenset(
     {
         "",
         "pry-default-wallet",
         "pry-default",
         "0xRMI_PLATFORM_WALLET",
-        "0x1E3AC01d0fdb976179790BDD02823196A92705C9",
     }
 )
 

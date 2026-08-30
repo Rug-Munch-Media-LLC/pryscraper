@@ -116,6 +116,9 @@ def test_print_usage():
 def test_spinner():
     gen = _spinner("test spinner")
     assert gen is not None
+    # _spinner returns a stop function; call it so the daemon thread does not
+    # leak past the test and deadlock interpreter shutdown.
+    gen()
 
 
 # ── cmd_* functions ──
