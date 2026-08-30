@@ -20,6 +20,25 @@ from pry.api.mcp_sse import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _sse_observer_cleanup():
+    """Drain SSE-global state after every test in this module.
+
+    Guards against a leaked MCP notification observer (registered by
+    `mcp_sse_endpoint` and only unregistered when the event-stream
+    generator's finally block runs). A stale observer whose session has
+    been cleared re-enters `_enqueue_response` -> "session not found"
+    warning -> MCPLoggingHandler.emit -> observer recursion on the next
+    "pry"-tree log record, hanging the full suite.
+    """
+    yield
+    from pry_mcp import notifications as _notifications
+
+    _notifications._mcp_notification_observers.clear()
+    MCP_SSE_SESSIONS.clear()
+    MCP_SSE_TASKS.clear()
+
+
 def setup_method():
     MCP_SSE_SESSIONS.clear()
     MCP_SSE_TASKS.clear()
@@ -115,3 +134,14 @@ async def test_mcp_sse_endpoint():
     response = await mcp_sse_endpoint(mock_request, mock_handler)
     assert response is not None
     assert hasattr(response, "body_iterator") or hasattr(response, "media_type")
+
+    # Consume/close the event stream so the endpoint's finally block runs
+    # `_cleanup_session(session_id, observer)` and unregisters the global
+    # notification observer. Leaving the generator unstarted leaks the
+    # observer into `pry_mcp.notifications._mcp_notification_observers`;
+    # once the session is later cleared, any subsequent "pry"-tree log
+    # record re-enters the leaked observer -> `_enqueue_response` ->
+    # "session not found" warning -> MCPLoggingHandler.emit -> observer
+    # recursion, hanging the whole suite.
+    async for _chunk in response.body_iterator:
+        break
