@@ -468,10 +468,18 @@ async def _call(srv: Any, name: str, args: dict[str, Any], req_id: int = 100) ->
 class TestToolMetadata:
     """Every PRY_TOOLS entry must meet the 2026 MCP quality bar."""
 
-    def test_tool_count_is_73(self) -> None:
-        assert len(PRY_TOOLS) == 73
-        assert len(PRY_TOOL_NAMES) == 73
-        assert len({t["name"] for t in PRY_TOOLS}) == 73
+    def test_tool_count_consistent(self) -> None:
+        """PRY_TOOLS and PRY_TOOL_NAMES must be internally consistent.
+
+        The absolute count is dynamic — it is derived from the registered
+        tools in ``pry_mcp.tools.PRY_TOOLS`` rather than a hardcoded constant,
+        so new tools (e.g. ``pry_kol_leaderboards``) don't break the audit.
+        """
+        registered = len(PRY_TOOLS)
+        assert registered > 0
+        assert registered == len(PRY_TOOL_NAMES)
+        assert registered == len({t["name"] for t in PRY_TOOLS})
+        assert all(t["name"] for t in PRY_TOOLS)
 
     @pytest.mark.parametrize("tool_name", sorted(PRY_TOOL_NAMES))
     def test_tools_list_metadata(self, tool_name: str) -> None:
@@ -703,7 +711,7 @@ class TestTransportCompliance:
         body = resp.json()
         assert body["jsonrpc"] == "2.0"
         assert body["id"] == 1
-        assert len(body["result"]["tools"]) == 73
+        assert len(body["result"]["tools"]) == len(PRY_TOOLS)
 
     def test_post_sse_accept_returns_event_stream(self, mcp_client: TestClient) -> None:
         resp = mcp_client.post(
@@ -874,7 +882,9 @@ class TestRegistryConsistency:
 
     def test_llms_txt_lists_every_tool(self) -> None:
         text = (REPO_ROOT / "llms.txt").read_text(encoding="utf-8")
-        listed = set(re.findall(r"^- \[(pry_[a-z0-9_]+)\]", text, flags=re.MULTILINE))
+        # llms.txt lists each tool as a "### pry_tool_name" heading (not a
+        # "- [pry_...]" bullet) — match the actual file format.
+        listed = set(re.findall(r"^### (pry_[a-z0-9_]+)", text, flags=re.MULTILINE))
         assert listed == set(PRY_TOOL_NAMES), (
             f"llms.txt drift: missing={sorted(set(PRY_TOOL_NAMES) - listed)} "
             f"extra={sorted(listed - set(PRY_TOOL_NAMES))}"
@@ -882,4 +892,10 @@ class TestRegistryConsistency:
 
     def test_smithery_comment_matches_count(self) -> None:
         text = (REPO_ROOT / "smithery.yaml").read_text(encoding="utf-8")
-        assert "Tool count: 73" in text, "smithery.yaml tool-count comment drifted"
+        expected = f"Tool count: {len(PRY_TOOLS)}"
+        match = re.search(r"Tool count: (\d+)", text)
+        actual = match.group(1) if match else "?"
+        assert expected in text, (
+            f"smithery.yaml tool-count comment drifted: expected '{expected}', "
+            f"file says 'Tool count: {actual}'"
+        )

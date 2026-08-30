@@ -4258,13 +4258,14 @@ async def call_crypto_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
         limit = int(arguments.get("limit", 500))
         health_only = bool(arguments.get("health_only", False))
         try:
-            from crypto_market.kol_leaderboards import (
-                fetch_kol_leaderboards,
-                source_health,
-            )
+            from crypto_market.kol_leaderboards import fetch_kol_leaderboards
         except ImportError:
             return _crypto_module_unavailable(name)
         if health_only:
+            try:
+                from crypto_market.kol_leaderboards import source_health
+            except ImportError:
+                return _crypto_module_unavailable(name)
             return {
                 "content": [{"type": "text", "text": json.dumps(source_health(), indent=2)}],
                 "isError": False,

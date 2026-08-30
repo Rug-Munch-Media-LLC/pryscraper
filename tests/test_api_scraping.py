@@ -59,7 +59,7 @@ def mock_scrape_result() -> dict:
 
 @pytest.mark.asyncio
 async def test_v1_scrape_success(client: TestClient, mock_scrape_result: dict) -> None:
-    with patch("pry.core.deps.scraper") as mock_scraper:
+    with patch("pry.api.routers.scraping.scraping.scraper") as mock_scraper:
         mock_scraper.scrape = AsyncMock(return_value=mock_scrape_result)
         resp = client.post("/v1/scrape", json={"url": "https://example.com"})
 
@@ -75,8 +75,8 @@ async def test_v1_scrape_with_json_schema(client: TestClient, mock_scrape_result
     schema = {"title": "page title"}
     extracted = {"title": "Example"}
     with (
-        patch("pry.core.deps.scraper") as mock_scraper,
-        patch("pry.core.deps.extractor") as mock_extractor,
+        patch("pry.api.routers.scraping.scraping.scraper") as mock_scraper,
+        patch("pry.api.routers.scraping.scraping.extractor") as mock_extractor,
     ):
         mock_scraper.scrape = AsyncMock(return_value=mock_scrape_result)
         mock_extractor.extract = AsyncMock(return_value=extracted)
@@ -90,7 +90,7 @@ async def test_v1_scrape_with_json_schema(client: TestClient, mock_scrape_result
 @pytest.mark.asyncio
 async def test_v1_detect_block_success(client: TestClient) -> None:
     html = "<html><body>ok</body></html>"
-    with patch("pry.api.client.get_client") as mock_get_client:
+    with patch("pry.api.routers.scraping.scraping.get_client") as mock_get_client:
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(
             return_value=AsyncMock(
@@ -115,7 +115,7 @@ async def test_v1_detect_block_success(client: TestClient) -> None:
 
 @pytest.mark.asyncio
 async def test_v1_capture_lazy_success(client: TestClient, mock_scrape_result: dict) -> None:
-    with patch("pry.core.deps.scraper") as mock_scraper:
+    with patch("pry.api.routers.scraping.scraping.scraper") as mock_scraper:
         mock_scraper.scrape = AsyncMock(return_value=mock_scrape_result)
         resp = client.post("/v1/capture/lazy", json={"url": "https://example.com"})
 
@@ -129,7 +129,7 @@ async def test_v1_capture_lazy_success(client: TestClient, mock_scrape_result: d
 @pytest.mark.asyncio
 async def test_v1_crawl_success(client: TestClient, mock_scrape_result: dict) -> None:
     pages = [mock_scrape_result]
-    with patch("pry.core.deps.scraper") as mock_scraper:
+    with patch("pry.api.routers.scraping.scraping.scraper") as mock_scraper:
         mock_scraper.crawl = AsyncMock(return_value=pages)
         resp = client.post(
             "/v1/crawl", json={"url": "https://example.com", "maxPages": 2, "maxDepth": 1}
@@ -145,7 +145,7 @@ async def test_v1_crawl_success(client: TestClient, mock_scrape_result: dict) ->
 @pytest.mark.asyncio
 async def test_v1_map_success(client: TestClient) -> None:
     urls = ["https://example.com/page1", "https://example.com/page2"]
-    with patch("pry.core.deps.scraper") as mock_scraper:
+    with patch("pry.api.routers.scraping.scraping.scraper") as mock_scraper:
         mock_scraper.map_urls = AsyncMock(return_value=urls)
         resp = client.post("/v1/map", json={"url": "https://example.com", "limit": 10})
 
@@ -158,7 +158,7 @@ async def test_v1_map_success(client: TestClient) -> None:
 @pytest.mark.asyncio
 async def test_v1_batch_success(client: TestClient, mock_scrape_result: dict) -> None:
     urls = ["https://example.com/1", "https://example.com/2"]
-    with patch("pry.core.deps.scraper") as mock_scraper:
+    with patch("pry.api.routers.scraping.scraping.scraper") as mock_scraper:
         mock_scraper.scrape = AsyncMock(return_value=mock_scrape_result)
         resp = client.post("/v1/batch", json=urls)
 
