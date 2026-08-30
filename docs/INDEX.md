@@ -35,3 +35,4 @@ CODE_OF_CONDUCT, AGENTS (agent contract), RADICLE (P2P mirror), SKILL.
 | IMAGEGEN-RUNBOOK.md | Brand asset generation |
 
 ## ADRs — `docs/adr/` · Specs — `docs/specs/`
+| GO-LIVE.md | Marketplace (Actify/Glama/MCP Registry) go-live + rollback checklist |

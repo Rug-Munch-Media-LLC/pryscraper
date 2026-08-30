@@ -80,6 +80,14 @@
 			"description": "Discover new crypto token launches and liquidity pairs (crypto)"
 		},
 		{
+			"name": "pry_balance",
+			"description": "Read the prepaid balance of a Pry account (bulk scrape credits purchased via crypto). Pass your pry API key (e.g. api_key='pry_abc123_deadbeef...') or a user_id to see the USD balance + low-balance flag. Use before buyin"
+		},
+		{
+			"name": "pry_buy_pack",
+			"description": "Initiate a crypto purchase of a bulk scrape-credit pack. Pass a pack id (e.g. pack_id='starter' for $5/5,000 credits) and it returns a spec-compliant x402 PaymentRequired manifest with the real receiving wallet as payToA"
+		},
+		{
 			"name": "pry_kol_leaderboards",
 			"description": "Scrape KOL/crypto-influencer leaderboards for handles, wallets and P&L stats (crypto)"
 		},

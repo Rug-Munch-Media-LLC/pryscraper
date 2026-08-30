@@ -45,6 +45,8 @@
 		"pry_screenshot",
 		"pry_x402_pricing",
 		"pry_referrals",
+		"pry_balance",
+		"pry_buy_pack",
 		"pry_token_launches",
 		"pry_kol_leaderboards",
 		"pry_cex_listings",

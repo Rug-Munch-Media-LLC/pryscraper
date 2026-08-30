@@ -4,16 +4,16 @@
 
 ## Documentation
 
-- [Full Docs](https://docs.[INTERNAL])
-- [API Reference](https://docs.[INTERNAL]/api)
-- [x402 Payments](https://docs.[INTERNAL]/x402)
+- [Full Docs](https://docs.pryscraper.com)
+- [API Reference](https://docs.pryscraper.com/api)
+- [x402 Payments](https://docs.pryscraper.com/x402)
 
 ## MCP Server
 
 - URL: https://api.pryscraper.com/mcp/
 - Transport: SSE, Streamable HTTP, stdio
 - Auth: x402 pay-per-call (no account/API key for discovery; paid prefixes require an x402 payment signature or a paid-tier API key)
-- Tools: 73
+- Tools: 76
 - Categories: 33
 
 ## Categories
@@ -25,7 +25,7 @@
 - app_store: 1 tools
 - business: 2 tools
 - compliance: 1 tools
-- crypto: 3 tools
+- crypto: 4 tools
 - data: 1 tools
 - data_enrichment: 2 tools
 - data_extraction: 1 tools
@@ -39,7 +39,7 @@
 - logistics: 1 tools
 - monitoring: 1 tools
 - news_intelligence: 1 tools
-- payments: 1 tools
+- payments: 3 tools
 - real_estate: 1 tools
 - research: 1 tools
 - retail: 4 tools
@@ -114,6 +114,12 @@ Scan sportsbook lines for guaranteed-profit arbitrage opportunities: the same ev
 
 Category: sports_betting
 
+### pry_balance
+
+Read the prepaid balance of a Pry account (bulk scrape credits purchased via crypto). Pass your pry API key (e.g. api_key='pry_abc123_deadbeef...') or a user_id to see the USD balance + low-balance fl
+
+Category: payments
+
 ### pry_betting_percentages
 
 Get public betting percentages (the share of bets and the share of money on each side of a game) across bookmakers, e.g. 'how much of the money is on the Chiefs tonight?' or call with sport='nfl' to s
@@ -131,6 +137,12 @@ Category: sports_betting
 Aggregate live odds for one sport/market across all 112 sportsbooks in Pry's registry (US, offshore, EU, UK, and Asian books) by scraping each book directly through Pry's intelligent fallback chain — 
 
 Category: sports_betting
+
+### pry_buy_pack
+
+Initiate a crypto purchase of a bulk scrape-credit pack. Pass a pack id (e.g. pack_id='starter' for $5/5,000 credits) and it returns a spec-compliant x402 PaymentRequired manifest with the real receiv
+
+Category: payments
 
 ### pry_cex_listings
 
@@ -270,6 +282,12 @@ Get per-level salary bands (total compensation, base, stock, bonus) for a compan
 
 Category: jobs_careers
 
+### pry_kol_leaderboards
+
+Scrape KOL / crypto-influencer leaderboards for usernames (handles), wallets, followers and P&L / win-loss stats. Reads public trader leaderboards (kolscan.io Solana trader board; gmgn.ai and dexscree
+
+Category: crypto
+
 ### pry_legal_dockets
 
 Search U.S. federal and state court dockets by full-text query using the free CourtListener REST API v4, returning docket titles, courts, and case numbers. Use to monitor litigation against a company,
@@ -398,7 +416,7 @@ Category: sports_betting
 
 ### pry_scrape
 
-Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 15-tier fallback chain (direct -> cloudscraper -> FlareSolverr -> Play
+Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 15-tier fallback chain (direct -> cloudscraper -> FlareSolverr -> Pla
 
 Category: web_scraping
 

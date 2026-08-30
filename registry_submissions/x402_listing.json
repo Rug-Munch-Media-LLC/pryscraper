@@ -1,85 +1,81 @@
 {
-  "seller": {
-    "id": "pry-scraper",
-    "name": "Pry Scraping API",
-    "description": "Professional web scraping with crypto payments",
-    "website": "https://[INTERNAL]",
-    "icon": "https://[INTERNAL]/icon.png",
-    "banner": "https://[INTERNAL]/banner.png"
-  },
-  "services": [
-    {
-      "id": "scrape",
-      "name": "Web Scraping",
-      "description": "Scrape any URL with 15-tier anti-detection fallback",
-      "price": {
-        "amount": "0.001",
-        "currency": "USD"
-      },
-      "network": "eip155:8453",
-      "asset": "USDC",
-      "endpoint": "https://[INTERNAL]/v1/scrape"
-    },
-    {
-      "id": "crawl",
-      "name": "Website Crawling",
-      "description": "Crawl entire websites with BFS discovery",
-      "price": {
-        "amount": "0.005",
-        "currency": "USD"
-      },
-      "network": "eip155:8453",
-      "asset": "USDC",
-      "endpoint": "https://[INTERNAL]/v1/crawl"
-    },
-    {
-      "id": "extract",
-      "name": "AI Extraction",
-      "description": "LLM-powered structured data extraction",
-      "price": {
-        "amount": "0.003",
-        "currency": "USD"
-      },
-      "network": "eip155:8453",
-      "asset": "USDC",
-      "endpoint": "https://[INTERNAL]/v1/extract"
-    },
-    {
-      "id": "signup",
-      "name": "Account Signup",
-      "description": "Automated account registration on any site",
-      "price": {
-        "amount": "0.01",
-        "currency": "USD"
-      },
-      "network": "eip155:8453",
-      "asset": "USDC",
-      "endpoint": "https://[INTERNAL]/v1/signup"
-    },
-    {
-      "id": "captcha",
-      "name": "CAPTCHA Solving",
-      "description": "Solve reCAPTCHA, hCaptcha, Turnstile",
-      "price": {
-        "amount": "0.005",
-        "currency": "USD"
-      },
-      "network": "eip155:8453",
-      "asset": "USDC",
-      "endpoint": "https://[INTERNAL]/v1/auth/captcha"
-    }
-  ],
-  "payment": {
-    "x402": true,
-    "crypto": true,
-    "providers": [
-      "coinbase_commerce",
-      "nowpayments",
-      "btcpay"
-    ]
-  },
-  "contact": {
-    "email": "admin@rugmunch.io",
-    "website": "https://[INTERNAL]"
-  }
+	"seller": {
+		"id": "pry-scraper",
+		"name": "Pry Scraping API",
+		"description": "Professional web scraping with crypto payments",
+		"website": "https://pryscraper.com",
+		"icon": "https://pryscraper.com/img/pry.png",
+		"banner": "https://pryscraper.com/img/logo.svg"
+	},
+	"services": [
+		{
+			"id": "scrape",
+			"name": "Web Scraping",
+			"description": "Scrape any URL with 15-tier anti-detection fallback",
+			"price": {
+				"amount": "0.001",
+				"currency": "USD"
+			},
+			"network": "eip155:8453",
+			"asset": "USDC",
+			"endpoint": "https://api.pryscraper.com/v1/scrape"
+		},
+		{
+			"id": "crawl",
+			"name": "Website Crawling",
+			"description": "Crawl entire websites with BFS discovery",
+			"price": {
+				"amount": "0.005",
+				"currency": "USD"
+			},
+			"network": "eip155:8453",
+			"asset": "USDC",
+			"endpoint": "https://api.pryscraper.com/v1/crawl"
+		},
+		{
+			"id": "extract",
+			"name": "AI Extraction",
+			"description": "LLM-powered structured data extraction",
+			"price": {
+				"amount": "0.003",
+				"currency": "USD"
+			},
+			"network": "eip155:8453",
+			"asset": "USDC",
+			"endpoint": "https://api.pryscraper.com/mcp/"
+		},
+		{
+			"id": "signup",
+			"name": "Account Signup",
+			"description": "Automated account registration on any site",
+			"price": {
+				"amount": "0.01",
+				"currency": "USD"
+			},
+			"network": "eip155:8453",
+			"asset": "USDC",
+			"endpoint": "https://api.pryscraper.com/mcp/"
+		},
+		{
+			"id": "captcha",
+			"name": "CAPTCHA Solving",
+			"description": "Solve reCAPTCHA, hCaptcha, Turnstile",
+			"price": {
+				"amount": "0.005",
+				"currency": "USD"
+			},
+			"network": "eip155:8453",
+			"asset": "USDC",
+			"endpoint": "https://api.pryscraper.com/mcp/"
+		}
+	],
+	"payment": {
+		"x402": true,
+		"crypto": true,
+		"providers": ["coinbase_commerce", "nowpayments", "btcpay"]
+	},
+	"contact": {
+		"email": "admin@rugmunch.io",
+		"website": "https://pryscraper.com"
+	}
 }

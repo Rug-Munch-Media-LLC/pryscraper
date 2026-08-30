@@ -42,12 +42,12 @@ def get_mcp_listing() -> dict[str, Any]:
         "version": "2.0.0",
         "author": {"name": "Rug Munch Media LLC", "email": "admin@rugmunch.io"},
         "license": "MIT",
-        "icon": "https://[INTERNAL]/icon.png",
-        "banner": "https://[INTERNAL]/banner.png",
-        "website": "https://[INTERNAL]",
+        "icon": "https://pryscraper.com/img/pry.png",
+        "banner": "https://pryscraper.com/og.svg",
+        "website": "https://pryscraper.com",
         "docs": "https://docs.example.com",
         "mcp": {
-            "url": "https://[INTERNAL]/mcp",
+            "url": "https://api.pryscraper.com/mcp/",
             "transport": ["sse", "stdio"],
         },
         "tools": [
@@ -88,9 +88,9 @@ def get_x402_listing() -> dict[str, Any]:
             "id": "pry-scraper",
             "name": "Pry Scraping API",
             "description": "Professional web scraping with crypto payments",
-            "website": "https://[INTERNAL]",
-            "icon": "https://[INTERNAL]/icon.png",
-            "banner": "https://[INTERNAL]/banner.png",
+            "website": "https://pryscraper.com",
+            "icon": "https://pryscraper.com/img/pry.png",
+            "banner": "https://pryscraper.com/og.svg",
         },
         "services": [
             {
@@ -100,7 +100,7 @@ def get_x402_listing() -> dict[str, Any]:
                 "price": {"amount": "0.001", "currency": "USD"},
                 "network": "eip155:8453",
                 "asset": "USDC",
-                "endpoint": "https://[INTERNAL]/v1/scrape",
+                "endpoint": "https://api.pryscraper.com/v1/scrape",
             },
             {
                 "id": "crawl",
@@ -109,7 +109,7 @@ def get_x402_listing() -> dict[str, Any]:
                 "price": {"amount": "0.005", "currency": "USD"},
                 "network": "eip155:8453",
                 "asset": "USDC",
-                "endpoint": "https://[INTERNAL]/v1/crawl",
+                "endpoint": "https://api.pryscraper.com/v1/crawl",
             },
             {
                 "id": "extract",
@@ -118,7 +118,7 @@ def get_x402_listing() -> dict[str, Any]:
                 "price": {"amount": "0.003", "currency": "USD"},
                 "network": "eip155:8453",
                 "asset": "USDC",
-                "endpoint": "https://[INTERNAL]/v1/extract",
+                "endpoint": "https://api.pryscraper.com/v1/extract",
             },
             {
                 "id": "signup",
@@ -127,7 +127,7 @@ def get_x402_listing() -> dict[str, Any]:
                 "price": {"amount": "0.01", "currency": "USD"},
                 "network": "eip155:8453",
                 "asset": "USDC",
-                "endpoint": "https://[INTERNAL]/v1/signup",
+                "endpoint": "https://api.pryscraper.com/v1/signup",
             },
             {
                 "id": "captcha",
@@ -136,7 +136,7 @@ def get_x402_listing() -> dict[str, Any]:
                 "price": {"amount": "0.005", "currency": "USD"},
                 "network": "eip155:8453",
                 "asset": "USDC",
-                "endpoint": "https://[INTERNAL]/v1/auth/captcha",
+                "endpoint": "https://api.pryscraper.com/v1/auth/captcha",
             },
         ],
         "payment": {
@@ -146,7 +146,7 @@ def get_x402_listing() -> dict[str, Any]:
         },
         "contact": {
             "email": "admin@rugmunch.io",
-            "website": "https://[INTERNAL]",
+            "website": "https://pryscraper.com",
         },
     }
 

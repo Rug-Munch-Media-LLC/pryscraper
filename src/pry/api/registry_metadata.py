@@ -232,7 +232,7 @@ def get_registry_manifest() -> dict[str, Any]:
         "description": (
             "Professional web scraping with x402 crypto payments. "
             "15-tier anti-detection fallback, AI extraction, auto-signup, CAPTCHA solving. "
-            "73 MCP tools across web scraping, data extraction, monitoring, sports betting, "
+            "76 MCP tools across web scraping, data extraction, monitoring, sports betting, "
             "legal intelligence, real estate, jobs, and more."
         ),
         "longDescription": (
@@ -250,12 +250,12 @@ def get_registry_manifest() -> dict[str, Any]:
             "email": "admin@rugmunch.io",
         },
         "license": "MIT",
-        "website": "https://[INTERNAL]",
-        "docs": "https://docs.[INTERNAL]",
+        "website": "https://pryscraper.com",
+        "docs": "https://docs.pryscraper.com",
         "source": "https://git.rugmunch.io/RugMunchMedia/pryscraper",
-        "icon": "https://[INTERNAL]/img/pry.png",
+        "icon": "https://pryscraper.com/img/pry.png",
         "mcp": {
-            "url": "http://[INTERNAL]:8002/sse",
+            "url": "https://api.pryscraper.com/mcp/",
             "transport": ["sse", "streamable-http", "stdio"],
             "auth": "none",
         },
@@ -299,7 +299,7 @@ def get_registry_manifest() -> dict[str, Any]:
         "features": [
             "15-tier anti-detection fallback",
             "x402 crypto payments (7 networks)",
-            "73 MCP tools",
+            "76 MCP tools",
             "110+ scraping templates",
             "Automated signup",
             "CAPTCHA solving",
@@ -330,13 +330,13 @@ def generate_llms_txt() -> str:
         "",
         "## Documentation",
         "",
-        "- [Full Docs](https://docs.[INTERNAL])",
-        "- [API Reference](https://docs.[INTERNAL]/api)",
-        "- [x402 Payments](https://docs.[INTERNAL]/x402)",
+        "- [Full Docs](https://docs.pryscraper.com)",
+        "- [API Reference](https://docs.pryscraper.com/api)",
+        "- [x402 Payments](https://docs.pryscraper.com/x402)",
         "",
         "## MCP Server",
         "",
-        "- URL: http://[INTERNAL]:8002/sse",
+        "- URL: https://api.pryscraper.com/mcp/",
         "- Transport: SSE, Streamable HTTP, stdio",
         "- Auth: None (public)",
         f"- Tools: {len(tools)}",
