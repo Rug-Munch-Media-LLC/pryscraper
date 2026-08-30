@@ -746,6 +746,81 @@ PRY_TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "pry_kol_leaderboards",
+        "description": (
+            "Scrape KOL / crypto-influencer leaderboards for usernames (handles), "
+            "wallets, followers and P&L / win-loss stats. Reads public trader "
+            "leaderboards (kolscan.io Solana trader board; gmgn.ai and dexscreener "
+            "smart-money boards are registered but Cloudflare/JS-gated and flagged "
+            "[REVIEW]). Use to grow a KOL watchlist, e.g. 'pull the top KOL wallets "
+            "from the kolscan leaderboard' or 'find new crypto influencer handles + wallets'."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "default": 500,
+                    "minimum": 1,
+                    "maximum": 1000,
+                    "description": "Maximum number of KOL records to return (default: 500)",
+                },
+                "source": {
+                    "type": "string",
+                    "enum": [
+                        "kolscan_leaderboard",
+                        "gmgn_smart_money",
+                        "dexscreener_smart_money",
+                        "all",
+                    ],
+                    "default": "kolscan_leaderboard",
+                    "description": (
+                        "Which KOL source to scrape. Blocked sources return a 'blocked' "
+                        "annotation (no rows) until a JS-capable solver is wired in."
+                    ),
+                },
+                "health_only": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "When true, only return per-source reachability/block health.",
+                },
+            },
+            "required": [],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "records": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "handle": {"type": "string"},
+                                    "name": {"type": "string"},
+                                    "address": {"type": "string"},
+                                    "chain": {"type": "string"},
+                                    "source": {"type": "string"},
+                                    "twitter": {"type": "string"},
+                                    "profit": {"type": "number"},
+                                    "wins": {"type": "integer"},
+                                    "losses": {"type": "integer"},
+                                    "followers": {"type": "integer"},
+                                },
+                            },
+                        },
+                        "total": {"type": "integer"},
+                        "blocked": {"type": "array"},
+                    },
+                },
+            },
+            "required": ["success"],
+        },
+    },
+    {
         "name": "pry_token_launches",
         "description": (
             "Discover new crypto token launches, new liquidity pairs, and trending tokens "
@@ -4178,6 +4253,29 @@ async def call_crypto_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
             "isError": False,
         }
 
+    if name == "pry_kol_leaderboards":
+        source = arguments.get("source", "kolscan_leaderboard")
+        limit = int(arguments.get("limit", 500))
+        health_only = bool(arguments.get("health_only", False))
+        try:
+            from crypto_market.kol_leaderboards import (
+                fetch_kol_leaderboards,
+                source_health,
+            )
+        except ImportError:
+            return _crypto_module_unavailable(name)
+        if health_only:
+            return {
+                "content": [{"type": "text", "text": json.dumps(source_health(), indent=2)}],
+                "isError": False,
+            }
+        sources = None if source == "all" else [source]
+        result = await fetch_kol_leaderboards(limit=limit, sources=sources)
+        return {
+            "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
+            "isError": False,
+        }
+
     return None
 
 
@@ -5602,6 +5700,8 @@ def _actor_catalog_entries() -> list[dict[str, Any]]:
                 "actor": spec.name.removeprefix("pry-"),
                 "title": spec.title,
                 "description": spec.description,
+                "icon": spec.icon,
+                "icon_hd": spec.icon_hd,
                 "processor": spec.processor,
                 "uses_browser": spec.uses_browser,
                 "min_memory_mbytes": spec.min_memory_mbytes,

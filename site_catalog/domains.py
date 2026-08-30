@@ -158,6 +158,62 @@ CATALOG: list[dict[str, Any]] = [
         "requires_key": False,
         "data_domain": "crypto",
     },
+    # kol_leaderboards.py — KOL/influencer trader leaderboards (wallet + handle
+    # + P&L/wins). kolscan.io is reachable via its Next.js RSC payload (no
+    # browser); gmgn.ai + dexscreener smart-money boards are Cloudflare/JS-gated
+    # and registered as blocked ([REVIEW] — needs a FlareSolverr/Playwright
+    # solver, see crypto_market.kol_leaderboards.KOL_SOURCES).
+    {
+        "site_id": "kolscan_leaderboard",
+        "fallback_chain": [],
+        "tested": True,
+        "domain": "kolscan.io",
+        "method": "rsc",
+        "confidence": 0.85,
+        "anti_bot": "low",
+        "robots": "unknown",
+        "latency_ms_estimate": 500,
+        "output_schema": [
+            "handle",
+            "name",
+            "address",
+            "chain",
+            "source",
+            "twitter",
+            "profit",
+            "wins",
+            "losses",
+            "followers",
+        ],
+        "requires_key": False,
+        "data_domain": "crypto",
+    },
+    {
+        "site_id": "gmgn_kol",
+        "fallback_chain": [],
+        "tested": False,
+        "domain": "gmgn.ai",
+        "method": "stealth_browser",
+        "confidence": 0.3,
+        "anti_bot": "high",
+        "robots": "blocked",
+        "latency_ms_estimate": 3000,
+        "output_schema": [
+            "handle",
+            "name",
+            "address",
+            "chain",
+            "source",
+            "profit",
+            "wins",
+            "losses",
+            "followers",
+        ],
+        "requires_key": False,
+        "data_domain": "crypto",
+        "blocked": True,
+        "note": "Cloudflare 403 — needs FlareSolverr/Playwright solver",
+    },
     # token_security.py — GoPlus token-security API.
     {
         "site_id": "goplus",

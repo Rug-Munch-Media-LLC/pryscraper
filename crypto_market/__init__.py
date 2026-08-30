@@ -25,6 +25,13 @@ from __future__ import annotations
 import importlib
 import pkgutil
 
+from crypto_market.kol_leaderboards import (
+    KOL_SOURCES,
+    fetch_kol_leaderboards,
+    fetch_kolscan_leaderboard,
+    health_check,
+    source_health,
+)
 from crypto_market.token_launches import (
     get_chain_context,
     get_new_pairs,
@@ -33,10 +40,15 @@ from crypto_market.token_launches import (
 )
 
 __all__ = [
+    "KOL_SOURCES",
+    "fetch_kol_leaderboards",
+    "fetch_kolscan_leaderboard",
     "get_chain_context",
     "get_new_pairs",
     "get_new_tokens",
     "get_trending_tokens",
+    "health_check",
+    "source_health",
 ]
 
 # ── Re-export public callables from sibling submodules ───────────────────

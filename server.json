@@ -79,6 +79,10 @@
 			"description": "Track recent token launches, deployer activity, and new mint intelligence (crypto)."
 		},
 		{
+			"name": "pry_kol_leaderboards",
+			"description": "Scrape KOL/crypto-influencer leaderboards for handles, wallets, followers and P&L stats (crypto)."
+		},
+		{
 			"name": "pry_cex_listings",
 			"description": "Monitor CEX listing announcements and delisting events for crypto tokens (crypto)."
 		},

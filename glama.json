@@ -80,6 +80,10 @@
 			"description": "Discover new crypto token launches and liquidity pairs (crypto)"
 		},
 		{
+			"name": "pry_kol_leaderboards",
+			"description": "Scrape KOL/crypto-influencer leaderboards for handles, wallets and P&L stats (crypto)"
+		},
+		{
 			"name": "pry_cex_listings",
 			"description": "CEX listing and delisting signals for tokens (crypto)"
 		},

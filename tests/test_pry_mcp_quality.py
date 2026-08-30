@@ -73,6 +73,11 @@ _DOMAIN_TOOLS: dict[str, tuple[str, tuple[str, ...], dict[str, Any]]] = {
         ("scan_token",),
         {"chain": "solana", "address": "So11111111111111111111111111111111111111112"},
     ),
+    "pry_kol_leaderboards": (
+        "crypto_market.kol_leaderboards",
+        ("fetch_kol_leaderboards",),
+        {"limit": 25, "source": "kolscan_leaderboard"},
+    ),
     "pry_odds": ("sports_data.odds", ("get_odds",), {"sport": "basketball_nba", "limit": 5}),
     "pry_arbitrage": (
         "sports_data.arbitrage",
