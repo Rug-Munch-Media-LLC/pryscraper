@@ -12,7 +12,9 @@ from pry.payments.x402 import (
     PAYMENT_VALIDITY_SECONDS,
     X402Handler,
     _encode_payment_required_body,
+    attestation_signer_address,
     validate_client_amount,
+    verify_payment_required_attestation,
 )
 from pry.payments.x402_middleware import config as _pricing_config
 from pry.payments.x402_middleware.classification import (
@@ -30,6 +32,66 @@ logger = logging.getLogger(__name__)
 
 # full acceptance surface; only the header is compacted under this budget.
 X402_PAYMENT_HEADER_MAX_BYTES = 12_000
+
+
+def _decode_presented_payment_required(raw: Any) -> dict[str, Any] | None:
+    """Decode a client-echoed payment-required body (audit #1 gate).
+
+    The PAYMENT-SIGNATURE payload may carry the attested 402 body the client
+    actually received (so a MITM that rewrote ``payToAddress``/amount/network
+    in the challenge is caught at settle time). The field is OPTIONAL and
+    accepted as a parsed dict, a raw JSON string, or the Base64
+    ``PAYMENT-REQUIRED`` header value. Returns None when absent/unparseable.
+    """
+    if isinstance(raw, dict):
+        return raw
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    text = raw.strip()
+    try:
+        decoded = json.loads(text)
+        return decoded if isinstance(decoded, dict) else None
+    except (ValueError, TypeError):
+        pass
+    try:
+        decoded = json.loads(base64.b64decode(text).decode())
+        return decoded if isinstance(decoded, dict) else None
+    except (ValueError, TypeError, OSError):
+        return None
+
+
+def _verify_presented_attestation(payload: dict[str, Any]) -> tuple[bool, str]:
+    """Verify the server attestation on a client-presented 402 body.
+
+    Returns ``(ok, reason)`` for the audit #1 payTo-tamper gate:
+
+    - ``(True, "")`` when the payload carries no ``payment_required`` body or
+      the body is UNATTESTED — backward compatible (a legacy body emitted with
+      no server attestation key configured still passes).
+    - ``(False, reason)`` when the body IS attested but the signature does not
+      validate against the server's own attestation signer (tampered
+      payTo/amount/network) — FAIL CLOSED so a forged challenge can never
+      steer a payment to an attacker-controlled address.
+    """
+    raw = payload.get("payment_required")
+    if raw is None:
+        return True, ""
+    body = _decode_presented_payment_required(raw)
+    if not isinstance(body, dict):
+        logger.warning("x402_attestation_undecodable_body", extra={"field": "payment_required"})
+        return False, "echoed payment-required body could not be decoded"
+    if not isinstance(body.get("attestation"), dict):
+        # Unattested challenge (no key configured at issue time) — legacy path.
+        return True, ""
+    expected = attestation_signer_address()
+    if not expected:
+        # We have no attestation key, so we can never have issued an attested
+        # body. A presented one is forged or from a different server.
+        return False, "attested body presented but no local attestation key configured"
+    result = verify_payment_required_attestation(body, expected_signer=expected)
+    if result.get("verified"):
+        return True, ""
+    return False, str(result.get("reason") or "invalid attestation")
 
 
 def _compact_payment_required_header(body: dict[str, Any], max_bytes: int) -> str:
@@ -225,6 +287,25 @@ class X402Middleware:
                 asset = payload.get("asset", "")
                 amount_usd = float(payload.get("amount_usd", 0.0))
                 if payment_id and tx_hash:
+                    # Audit #1 gate: if the client echoes the payment-required
+                    # body it received, verify the server attestation so a
+                    # MITM-rewritten payTo/amount/network challenge is refused
+                    # before any verify/settle runs. Unattested bodies (no key
+                    # configured at issue time) still pass (legacy); an
+                    # INVALID attestation fails closed with a fresh 402.
+                    attest_ok, attest_reason = _verify_presented_attestation(payload)
+                    if not attest_ok:
+                        logger.warning(
+                            "x402_attestation_rejected",
+                            extra={
+                                "operation": operation,
+                                "path": path,
+                                "payment_id": payment_id,
+                                "reason": attest_reason,
+                            },
+                        )
+                        await self._send_payment_required(operation, path, send)
+                        return
                     # Server-side pricing is authoritative: never trust the
                     # client-supplied amount. Reject underpayment BEFORE any
                     # facilitator call. ``network`` lets the canonical

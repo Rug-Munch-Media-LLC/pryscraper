@@ -42,6 +42,7 @@ from pry.payments.x402.scheme import (
     _NATIVE_ASSETS,
     X402Scheme,
     asset_to_atomic,
+    get_asset_usd_price,
     network_family,
     network_verification_status,
     normalize_network_id,
@@ -440,11 +441,15 @@ class FacilitatorRouter:
         asset: str,
         amount_usd: float,
     ) -> dict[str, Any]:
-        """Verify a Solana USDC payment on-chain via the SPL RPC verifier.
+        """Verify a Solana payment (USDC / USDT / native SOL) on-chain via the
+        SPL RPC verifier.
 
         Uses ``x402.solana_verifier.verify_solana_payment`` (guarded import —
         if the module is absent, e.g. an older checkout, fall back to the
-        scaffolded path). The server Solana receiving wallet comes from
+        scaffolded path). Native SOL payments are valued with the canonical
+        SOL/USD quote (``get_asset_usd_price("SOL")`` — live oracle or
+        env-overridable static default), so a native SOL transfer verifies
+        like any other asset. The server Solana receiving wallet comes from
         ``X402_NETWORK_WALLETS`` (``PRY_X402_WALLET_SOLANA``) — a Solana
         address is NOT the EVM wallet, so verification fails closed when it is
         unconfigured. The result reflects real on-chain verification.
@@ -490,7 +495,27 @@ class FacilitatorRouter:
             # Module absent (older checkout) — keep the honest scaffold path.
             return self._scaffold_non_evm_verify(payment_id, tx_hash, network, asset, amount_usd)
 
-        result = await verify_solana_payment(tx_hash, recipient, amount_usd)
+        # Native SOL verification needs a SOL/USD price — there is no stable
+        # $1 assumption, and the verifier fails closed without one. Use the
+        # canonical price path (live oracle when PRY_X402_ORACLE_SOURCE is
+        # configured, else the env-overridable static default
+        # PRY_X402_USD_PER_UNIT_SOL, default 140) — the SAME quote used to
+        # build the accept list, so verification can never price a SOL
+        # payment at 0 or drift from the quoted amount.
+        sol_quote = await get_asset_usd_price("SOL", network_id)
+        if sol_quote.usd is None or sol_quote.usd <= 0:
+            return {
+                "verified": False,
+                "reason": (
+                    "sol_price_unavailable: no SOL/USD price for native SOL "
+                    "verification — set PRY_X402_USD_PER_UNIT_SOL or configure an oracle"
+                ),
+                "settlement": None,
+                "network": network_id,
+            }
+        result = await verify_solana_payment(
+            tx_hash, recipient, amount_usd, sol_price_usd=sol_quote.usd
+        )
         return {
             "verified": bool(result.get("verified")),
             "reason": result.get("reason", ""),
