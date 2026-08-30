@@ -50,6 +50,12 @@ services:
       - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
       - PYTHONDONTWRITEBYTECODE=1
       - PRY_FLARESOLVERR_URL=http://flaresolverr-pry:8191/v1
+      # PRY_DATABUS_URL intentionally NOT listed here (gitleaks internal-hostname
+      # rule + fleet convention: config lives in /srv/rmi-infra/.env.pry).
+      # Set to the public API base + /api/v1/databus/ingest — same backend
+      # process over its public route (network separation 2026-08-31; auth via
+      # RMI_INTERNAL_KEY). rmi-backend binds host loopback only, so
+      # host-gateway routing is not viable; public URL is the decoupled path.
       - TOR_ENABLED=0
       - TOR_SOCKS5_HOST=tor
       - TOR_SOCKS5_PORT=9050
@@ -91,9 +97,12 @@ services:
       - no-new-privileges:true
     networks:
       - default
-      # Reach rmi-backend by name for the DataBus bridge (RAG intel feed).
-      # rmi_network is created by the rmi-infra stack — external reference.
-      - rmi
+    # Network separation (2026-08-31 coupling audit #10): pry no longer joins
+    # the shared rmi_network. The DataBus bridge reaches rmi-backend over the
+    # public API route (same backend process, same RMI_INTERNAL_KEY auth);
+    # retry queue + dead-letter file absorb transient unreachability.
+    # NOTE: rmi-backend binds 127.0.0.1:8000 on the host, so host-gateway
+    # routing is NOT an option — the public URL is the only decoupled path.
     depends_on:
       flaresolverr:
         condition: service_healthy
@@ -331,7 +340,5 @@ volumes:
   prometheus-data:
   grafana-data:
 
-networks:
-  rmi:
-    external: true
-    name: rmi_network
+# No external networks — pry is fully self-contained (own pg/redis).
+# DataBus bridge → rmi-backend goes over the public API URL (see pry env).
