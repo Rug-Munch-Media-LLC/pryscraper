@@ -209,6 +209,126 @@ class TestEndpoints:
         assert "Pry Admin" in r.text
 
 
+# ── Earnings / users / payments endpoints ────────────────────────────────────
+
+
+class TestEarningsEndpoints:
+    def test_earnings_shape(self, client: TestClient, data_dir: Path) -> None:
+        _write_payments(data_dir, [{"amount_usd": 1.25, "verified": True}])
+        r = client.get(f"{ADMIN_PREFIX}/v1/admin/earnings")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["success"] is True
+        assert body["backend"] in {"earnings_tracker", "payment_analytics"}
+        assert "total" in body
+        assert "daily" in body
+        assert "by_stream" in body
+        assert "by_chain" in body
+        assert "mrr" in body
+        assert "growth" in body
+
+    def test_treasury_never_500(self, client: TestClient, data_dir: Path) -> None:
+        _write_payments(data_dir, [])
+        r = client.get(f"{ADMIN_PREFIX}/v1/admin/earnings/treasury")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["success"] is True
+        assert "treasury" in body
+
+
+class TestUserAdmin:
+    def test_users_list_shape(self, client: TestClient) -> None:
+        r = client.get(f"{ADMIN_PREFIX}/v1/admin/users")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["success"] is True
+        assert isinstance(body["users"], list)
+        for u in body["users"]:
+            assert {"user_id", "email", "tier", "is_active", "balance_usd"} <= set(u)
+
+    def test_credit_then_list_shows_balance(self, client: TestClient) -> None:
+        import uuid
+
+        uid = f"u-credit-{uuid.uuid4().hex[:8]}"
+        r = client.post(
+            f"{ADMIN_PREFIX}/v1/admin/users/{uid}/credit",
+            json={"amount_usd": 5.0, "reason": "grant"},
+        )
+        assert r.status_code == 200
+        assert r.json()["success"] is True
+
+        r = client.get(f"{ADMIN_PREFIX}/v1/admin/users")
+        users = r.json()["users"]
+        match = [u for u in users if u["user_id"] == uid]
+        assert len(match) == 1
+        assert match[0]["balance_usd"] == pytest.approx(5.0)
+
+    def test_credit_rejects_bad_amount(self, client: TestClient) -> None:
+        r = client.post(f"{ADMIN_PREFIX}/v1/admin/users/u-x/credit", json={"amount_usd": -1})
+        assert r.status_code == 422
+
+    def test_credit_rejects_bad_reason(self, client: TestClient) -> None:
+        r = client.post(
+            f"{ADMIN_PREFIX}/v1/admin/users/u-x/credit",
+            json={"amount_usd": 1, "reason": "nonsense"},
+        )
+        assert r.status_code == 422
+
+    def test_suspend_unknown_user_404(self, client: TestClient) -> None:
+        r = client.post(f"{ADMIN_PREFIX}/v1/admin/users/nope/suspend")
+        assert r.status_code == 404
+
+    def test_suspend_disables_account(self, client: TestClient) -> None:
+        import uuid
+
+        from pry.core.db.models import User
+        from pry.core.db.session import get_session
+
+        uid = f"u-susp-{uuid.uuid4().hex[:8]}"
+        with get_session() as s:
+            s.add(User(user_id=uid, email=f"{uid}@test", password_hash="x"))
+            s.commit()
+        r = client.post(f"{ADMIN_PREFIX}/v1/admin/users/{uid}/suspend")
+        assert r.status_code == 200
+        with get_session() as s:
+            assert s.query(User).filter_by(user_id=uid).first().is_active is False
+
+
+class TestPaymentEndpoints:
+    def test_recent_returns_newest_first_capped_50(
+        self, client: TestClient, data_dir: Path
+    ) -> None:
+        from datetime import UTC, datetime, timedelta
+
+        now = datetime.now(UTC)
+        rows = [
+            {"amount_usd": float(i), "ts": (now - timedelta(hours=i)).isoformat(), "verified": True}
+            for i in range(60)
+        ]
+        _write_payments(data_dir, rows)
+        r = client.get(f"{ADMIN_PREFIX}/v1/admin/payments/recent")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["count"] == 50
+        assert len(body["payments"]) == 50
+        # newest first: first row is the most recent (i=0)
+        assert body["payments"][0]["amount_usd"] == 0.0
+
+    def test_failed_lists_unverified(self, client: TestClient, data_dir: Path) -> None:
+        _write_payments(
+            data_dir,
+            [
+                {"amount_usd": 1.0, "verified": True},
+                {"amount_usd": 2.0, "verified": False, "reason": "bad signature"},
+            ],
+        )
+        r = client.get(f"{ADMIN_PREFIX}/v1/admin/payments/failed")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["count"] == 1
+        assert body["payments"][0]["reason"] == "bad signature"
+
+
 # ── Apify integration ────────────────────────────────────────────────────────
 
 

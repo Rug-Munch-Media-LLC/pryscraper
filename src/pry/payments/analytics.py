@@ -12,7 +12,10 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pry.payments.earnings import EarningsTracker
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +24,11 @@ class PaymentAnalytics:
     """Payment analytics engine for tracking revenue and conversion."""
 
     def __init__(self, payments_file: str = "", settlements_file: str = ""):
-        from pry.core.settings import settings
+        from pry.core.paths import PRY_DATA_DIR
 
-        self.payments_file = payments_file or str(settings.x402_dir / "payments.jsonl")
-        self.settlements_file = settlements_file or str(settings.x402_dir / "settlements.jsonl")
+        x402_dir = PRY_DATA_DIR / "x402"
+        self.payments_file = payments_file or str(x402_dir / "payments.jsonl")
+        self.settlements_file = settlements_file or str(x402_dir / "settlements.jsonl")
 
     def get_revenue_summary(self, days: int = 30) -> dict[str, Any]:
         """Get revenue summary for the last N days."""
@@ -107,6 +111,46 @@ class PaymentAnalytics:
 
         router = get_facilitator_router()
         return router.facilitator_stats()
+
+    # ── Unified earnings (delegates to EarningsTracker) ─────────────────────
+
+    def get_total_earnings(self, days: int = 30) -> dict[str, Any]:
+        """Total earnings across ALL streams (x402, packs, subscriptions, actors)."""
+        return self._tracker().get_total_earnings(days)
+
+    def get_daily_earnings(self, days: int = 30) -> list[dict[str, Any]]:
+        """Per-day earnings across ALL streams, broken down by stream."""
+        return self._tracker().get_daily_earnings(days)
+
+    def get_revenue_by_stream(self, days: int = 30) -> dict[str, Any]:
+        """Revenue split by stream."""
+        return self._tracker().get_revenue_by_stream(days)
+
+    def get_revenue_by_chain(self, days: int = 30) -> dict[str, Any]:
+        """Revenue split by settlement chain."""
+        return self._tracker().get_revenue_by_chain(days)
+
+    def get_mrr(self) -> dict[str, Any]:
+        """Monthly recurring revenue from active paid subscriptions."""
+        return self._tracker().get_mrr()
+
+    def get_growth_rate(self, days: int = 30) -> dict[str, Any]:
+        """Earnings growth vs the preceding window."""
+        return self._tracker().get_growth_rate(days)
+
+    def get_treasury_balances(self) -> dict[str, Any]:
+        """On-chain operator treasury balances (cached, never raises)."""
+        return self._tracker().get_treasury_balances()
+
+    def export_earnings_csv(self, days: int = 30) -> str:
+        """Export daily earnings across all streams as CSV."""
+        return self._tracker().export_csv(days)
+
+    def _tracker(self) -> EarningsTracker:
+        """Lazy EarningsTracker bound to this instance's payment files."""
+        from pry.payments.earnings import EarningsTracker
+
+        return EarningsTracker(analytics=self)
 
     def _load_payments(self, days: int) -> list[dict[str, Any]]:
         """Load payments from JSONL file."""
