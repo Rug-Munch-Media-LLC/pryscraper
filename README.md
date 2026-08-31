@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="website/static/img/logo.svg" alt="pryscraper logo — a crowbar prying open the corner of a panel" width="360">
+<img src="website/static/img/pry-logo.png" alt="PRY — web scraping, browser automation & data intelligence" width="420">
 
 # Pry — Open any website
 

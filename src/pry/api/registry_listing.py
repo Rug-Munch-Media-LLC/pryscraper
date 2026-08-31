@@ -42,7 +42,7 @@ def get_mcp_listing() -> dict[str, Any]:
         "version": "3.0.0",
         "author": {"name": "Rug Munch Media LLC", "email": "admin@rugmunch.io"},
         "license": "MIT",
-        "icon": "https://pryscraper.com/img/pry.png",
+        "icon": "https://pryscraper.com/img/pry-logo.png",
         "banner": "https://pryscraper.com/og.png",
         "website": "https://pryscraper.com",
         "docs": "https://docs.pryscraper.com",
@@ -89,8 +89,8 @@ def get_x402_listing() -> dict[str, Any]:
             "name": "Pry Scraping API",
             "description": "Professional web scraping with crypto payments",
             "website": "https://pryscraper.com",
-            "icon": "https://pryscraper.com/img/pry.png",
-            "banner": "https://pryscraper.com/og.svg",
+            "icon": "https://pryscraper.com/img/pry-logo.png",
+            "banner": "https://pryscraper.com/og.png",
         },
         "services": [
             {
