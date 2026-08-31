@@ -1,60 +1,72 @@
 {
-	"title": "Input schema for Pry Crypto Listing Monitor",
-	"description": "Monitor crypto news and exchange pages for new token listing announcements. Early listing signals are a proven trading edge; this actor watches your sources through anti-bot escalation and emits structured announcement items.",
-	"type": "object",
-	"schemaVersion": 1,
-	"properties": {
-		"urls": {
-			"title": "Target URLs",
-			"type": "array",
-			"description": "One or more https:// URLs to process.",
-			"editor": "requestListSources",
-			"prefill": [
-				{
-					"url": "https://example.com"
-				}
-			],
-			"example": [
-				{
-					"url": "https://example.com"
-				}
-			]
-		},
-		"keywords": {
-			"title": "Signal keywords",
-			"type": "array",
-			"description": "Flag items whose content matches any keyword (lists, delist, futures).",
-			"sectionCaption": "Signal settings",
-			"editor": "stringList",
-			"prefill": ["listing", "delist", "futures", "spot"],
-			"items": {
-				"type": "string"
-			},
-			"example": ["listing", "delist", "futures", "spot"]
-		},
-		"max_items": {
-			"title": "Max items (cost cap)",
-			"type": "integer",
-			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-			"sectionCaption": "Advanced",
-			"editor": "number",
-			"default": 25,
-			"minimum": 1,
-			"example": 25
-		},
-		"proxy_configuration": {
-			"title": "Proxy configuration",
-			"type": "object",
-			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-			"sectionCaption": "Advanced",
-			"editor": "hidden",
-			"prefill": {
-				"useApifyProxy": true
-			},
-			"example": {
-				"useApifyProxy": true
-			}
-		}
-	},
-	"required": ["urls"]
+    "title": "Input schema for Pry Crypto Listing Monitor",
+    "description": "Monitor crypto news and exchange pages for new token listing announcements. Early listing signals are a proven trading edge; this actor watches your sources through anti-bot escalation and emits structured announcement items.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "urls": {
+            "title": "Target URLs",
+            "type": "array",
+            "description": "One or more https:// URLs to process.",
+            "editor": "requestListSources",
+            "prefill": [
+                {
+                    "url": "https://www.coingecko.com"
+                }
+            ],
+            "example": [
+                {
+                    "url": "https://www.coingecko.com"
+                }
+            ]
+        },
+        "keywords": {
+            "title": "Signal keywords",
+            "type": "array",
+            "description": "Flag items whose content matches any keyword (lists, delist, futures).",
+            "sectionCaption": "Signal settings",
+            "editor": "stringList",
+            "prefill": [
+                "listing",
+                "delist",
+                "futures",
+                "spot"
+            ],
+            "items": {
+                "type": "string"
+            },
+            "example": [
+                "listing",
+                "delist",
+                "futures",
+                "spot"
+            ]
+        },
+        "max_items": {
+            "title": "Max items (cost cap)",
+            "type": "integer",
+            "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+            "sectionCaption": "Advanced",
+            "editor": "number",
+            "default": 25,
+            "minimum": 1,
+            "example": 25
+        },
+        "proxy_configuration": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+            "sectionCaption": "Advanced",
+            "editor": "hidden",
+            "prefill": {
+                "useApifyProxy": true
+            },
+            "example": {
+                "useApifyProxy": true
+            }
+        }
+    },
+    "required": [
+        "urls"
+    ]
 }

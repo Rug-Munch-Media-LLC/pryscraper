@@ -1,78 +1,88 @@
 {
-	"actorSpecification": 1,
-	"name": "terms-policy-watch",
-	"title": "Terms & Policy Watch",
-	"description": "Monitor Terms of Service and Privacy Policy pages for silent changes - diff-aware emit-on-change semantics so legal and compliance teams catch rewrites the day they happen.",
-	"version": "1.1",
-	"buildTag": "latest",
-	"meta": {
-		"templateId": "pry-actor-factory"
-	},
-	"dockerfile": "./Dockerfile",
-	"minMemoryMbytes": 256,
-	"maxMemoryMbytes": 1024,
-	"input": {
-		"title": "Input schema for Pry Terms & Policy Watch",
-		"description": "Monitor Terms of Service and Privacy Policy pages for silent changes - diff-aware emit-on-change semantics so legal and compliance teams catch rewrites the day they happen.",
-		"type": "object",
-		"schemaVersion": 1,
-		"properties": {
-			"urls": {
-				"title": "Target URLs",
-				"type": "array",
-				"description": "One or more https:// URLs to process.",
-				"editor": "requestListSources",
-				"prefill": [
-					{
-						"url": "https://example.com"
-					}
-				],
-				"example": [
-					{
-						"url": "https://example.com"
-					}
-				]
-			},
-			"section_filter": {
-				"title": "Section keywords",
-				"type": "array",
-				"description": "Only emit changes touching these sections.",
-				"sectionCaption": "Watch settings",
-				"editor": "stringList",
-				"prefill": ["arbitration", "data sharing", "liability"],
-				"items": {
-					"type": "string"
-				},
-				"example": ["arbitration", "data sharing", "liability"]
-			},
-			"max_items": {
-				"title": "Max items (cost cap)",
-				"type": "integer",
-				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-				"sectionCaption": "Advanced",
-				"editor": "number",
-				"default": 25,
-				"minimum": 1,
-				"example": 25
-			},
-			"proxy_configuration": {
-				"title": "Proxy configuration",
-				"type": "object",
-				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-				"sectionCaption": "Advanced",
-				"editor": "hidden",
-				"prefill": {
-					"useApifyProxy": true
-				},
-				"example": {
-					"useApifyProxy": true
-				}
-			}
-		},
-		"required": ["urls"]
-	},
-	"output": "./output_schema.json",
-	"storages": {
-		"dataset": "./dataset_schema.json"
-	}
+    "actorSpecification": 1,
+    "name": "terms-policy-watch",
+    "title": "Terms & Policy Watch",
+    "description": "Monitor Terms of Service and Privacy Policy pages for silent changes - diff-aware emit-on-change semantics so legal and compliance teams catch rewrites the day they happen.",
+    "version": "1.1",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "pry-actor-factory"
+    },
+    "dockerfile": "./Dockerfile",
+    "minMemoryMbytes": 256,
+    "maxMemoryMbytes": 1024,
+    "input": {
+        "title": "Input schema for Pry Terms & Policy Watch",
+        "description": "Monitor Terms of Service and Privacy Policy pages for silent changes - diff-aware emit-on-change semantics so legal and compliance teams catch rewrites the day they happen.",
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "urls": {
+                "title": "Target URLs",
+                "type": "array",
+                "description": "One or more https:// URLs to process.",
+                "editor": "requestListSources",
+                "prefill": [
+                    {
+                        "url": "https://www.tiktok.com/legal/terms-of-service"
+                    }
+                ],
+                "example": [
+                    {
+                        "url": "https://www.tiktok.com/legal/terms-of-service"
+                    }
+                ]
+            },
+            "section_filter": {
+                "title": "Section keywords",
+                "type": "array",
+                "description": "Only emit changes touching these sections.",
+                "sectionCaption": "Watch settings",
+                "editor": "stringList",
+                "prefill": [
+                    "arbitration",
+                    "data sharing",
+                    "liability"
+                ],
+                "items": {
+                    "type": "string"
+                },
+                "example": [
+                    "arbitration",
+                    "data sharing",
+                    "liability"
+                ]
+            },
+            "max_items": {
+                "title": "Max items (cost cap)",
+                "type": "integer",
+                "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+                "sectionCaption": "Advanced",
+                "editor": "number",
+                "default": 25,
+                "minimum": 1,
+                "example": 25
+            },
+            "proxy_configuration": {
+                "title": "Proxy configuration",
+                "type": "object",
+                "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+                "sectionCaption": "Advanced",
+                "editor": "hidden",
+                "prefill": {
+                    "useApifyProxy": true
+                },
+                "example": {
+                    "useApifyProxy": true
+                }
+            }
+        },
+        "required": [
+            "urls"
+        ]
+    },
+    "output": "./output_schema.json",
+    "storages": {
+        "dataset": "./dataset_schema.json"
+    }
 }

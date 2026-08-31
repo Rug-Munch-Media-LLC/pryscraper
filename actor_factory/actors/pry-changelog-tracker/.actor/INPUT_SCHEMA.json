@@ -1,57 +1,59 @@
 {
-	"title": "Input schema for Pry Changelog Tracker",
-	"description": "Track competitor product changelogs and release notes pages - new features, fixes and pricing-page edits detected between runs so product teams never miss a competitor move.",
-	"type": "object",
-	"schemaVersion": 1,
-	"properties": {
-		"urls": {
-			"title": "Target URLs",
-			"type": "array",
-			"description": "One or more https:// URLs to process.",
-			"editor": "requestListSources",
-			"prefill": [
-				{
-					"url": "https://example.com"
-				}
-			],
-			"example": [
-				{
-					"url": "https://example.com"
-				}
-			]
-		},
-		"emit_unchanged": {
-			"title": "Emit unchanged runs",
-			"type": "boolean",
-			"description": "Push a no-change item for continuous tracking history.",
-			"sectionCaption": "Track settings",
-			"editor": "checkbox",
-			"default": false,
-			"example": false
-		},
-		"max_items": {
-			"title": "Max items (cost cap)",
-			"type": "integer",
-			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-			"sectionCaption": "Advanced",
-			"editor": "number",
-			"default": 25,
-			"minimum": 1,
-			"example": 25
-		},
-		"proxy_configuration": {
-			"title": "Proxy configuration",
-			"type": "object",
-			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-			"sectionCaption": "Advanced",
-			"editor": "hidden",
-			"prefill": {
-				"useApifyProxy": true
-			},
-			"example": {
-				"useApifyProxy": true
-			}
-		}
-	},
-	"required": ["urls"]
+    "title": "Input schema for Pry Changelog Tracker",
+    "description": "Track competitor product changelogs and release notes pages - new features, fixes and pricing-page edits detected between runs so product teams never miss a competitor move.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "urls": {
+            "title": "Target URLs",
+            "type": "array",
+            "description": "One or more https:// URLs to process.",
+            "editor": "requestListSources",
+            "prefill": [
+                {
+                    "url": "https://github.com/facebook/react/releases"
+                }
+            ],
+            "example": [
+                {
+                    "url": "https://github.com/facebook/react/releases"
+                }
+            ]
+        },
+        "emit_unchanged": {
+            "title": "Emit unchanged runs",
+            "type": "boolean",
+            "description": "Push a no-change item for continuous tracking history.",
+            "sectionCaption": "Track settings",
+            "editor": "checkbox",
+            "default": false,
+            "example": false
+        },
+        "max_items": {
+            "title": "Max items (cost cap)",
+            "type": "integer",
+            "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+            "sectionCaption": "Advanced",
+            "editor": "number",
+            "default": 25,
+            "minimum": 1,
+            "example": 25
+        },
+        "proxy_configuration": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+            "sectionCaption": "Advanced",
+            "editor": "hidden",
+            "prefill": {
+                "useApifyProxy": true
+            },
+            "example": {
+                "useApifyProxy": true
+            }
+        }
+    },
+    "required": [
+        "urls"
+    ]
 }

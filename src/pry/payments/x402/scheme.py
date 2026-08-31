@@ -1343,6 +1343,15 @@ def build_multi_asset_accepts(
     for network_id, assets in SUPPORTED_ASSETS.items():
         if pref_networks and network_id not in pref_networks:
             continue
+        # Gate on verification status: only advertise networks whose
+        # settlement verification is REAL (VERIFICATION_STATUS[family]["real"]).
+        # Scaffolded families (e.g. TRON — no TRC-20 verifier wired) must not
+        # appear in the 402 acceptance table, or clients could attempt
+        # payments that can never settle.
+        family = network_family(network_id)
+        verification = VERIFICATION_STATUS.get(family, {})
+        if not verification.get("real", False):
+            continue
         for asset, entry in assets.items():
             if pref_assets and asset.upper() not in pref_assets:
                 continue
@@ -1431,6 +1440,10 @@ def build_payment_required(
             assets = preferred_assets or [X402_DEFAULT_ASSET]
             accepts = []
             for network in networks:
+                # Same real-verification gate as the multi-asset table:
+                # scaffolded families (e.g. TRON) are never advertised.
+                if not VERIFICATION_STATUS.get(network_family(network), {}).get("real", False):
+                    continue
                 for asset in assets:
                     if not _asset_on_network(asset, network):
                         continue

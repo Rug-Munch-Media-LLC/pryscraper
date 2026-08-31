@@ -1,68 +1,70 @@
 {
-	"title": "Input schema for Pry Maps Lead Extractor",
-	"description": "Extract local business leads from Google Maps listings: names, addresses, phones, websites and publicly listed emails in one pass. Combines the two most-demanded Apify workflows - maps data and contact enrichment - with anti-bot escalation built in.",
-	"type": "object",
-	"schemaVersion": 1,
-	"properties": {
-		"urls": {
-			"title": "Maps search URLs",
-			"type": "array",
-			"description": "Google Maps search or place URLs to extract businesses from.",
-			"editor": "requestListSources",
-			"prefill": [
-				{
-					"url": "https://example.com"
-				}
-			],
-			"example": [
-				{
-					"url": "https://example.com"
-				}
-			]
-		},
-		"include_social_links": {
-			"title": "Include social profiles",
-			"type": "boolean",
-			"description": "Collect LinkedIn/X/Facebook links from business sites.",
-			"sectionCaption": "Lead settings",
-			"editor": "checkbox",
-			"default": true,
-			"example": true
-		},
-		"timeout": {
-			"title": "Timeout (seconds)",
-			"type": "integer",
-			"description": "Per-listing timeout.",
-			"sectionCaption": "Lead settings",
-			"editor": "number",
-			"default": 30,
-			"minimum": 5,
-			"maximum": 120,
-			"example": 30
-		},
-		"max_items": {
-			"title": "Max items (cost cap)",
-			"type": "integer",
-			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-			"sectionCaption": "Advanced",
-			"editor": "number",
-			"default": 25,
-			"minimum": 1,
-			"example": 25
-		},
-		"proxy_configuration": {
-			"title": "Proxy configuration",
-			"type": "object",
-			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-			"sectionCaption": "Advanced",
-			"editor": "hidden",
-			"prefill": {
-				"useApifyProxy": true
-			},
-			"example": {
-				"useApifyProxy": true
-			}
-		}
-	},
-	"required": ["urls"]
+    "title": "Input schema for Pry Maps Lead Extractor",
+    "description": "Extract local business leads from Google Maps listings: names, addresses, phones, websites and publicly listed emails in one pass. Combines the two most-demanded Apify workflows - maps data and contact enrichment - with anti-bot escalation built in.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "urls": {
+            "title": "Maps search URLs",
+            "type": "array",
+            "description": "Google Maps search or place URLs to extract businesses from.",
+            "editor": "requestListSources",
+            "prefill": [
+                {
+                    "url": "https://www.yelp.com"
+                }
+            ],
+            "example": [
+                {
+                    "url": "https://www.yelp.com"
+                }
+            ]
+        },
+        "include_social_links": {
+            "title": "Include social profiles",
+            "type": "boolean",
+            "description": "Collect LinkedIn/X/Facebook links from business sites.",
+            "sectionCaption": "Lead settings",
+            "editor": "checkbox",
+            "default": true,
+            "example": true
+        },
+        "timeout": {
+            "title": "Timeout (seconds)",
+            "type": "integer",
+            "description": "Per-listing timeout.",
+            "sectionCaption": "Lead settings",
+            "editor": "number",
+            "default": 30,
+            "minimum": 5,
+            "maximum": 120,
+            "example": 30
+        },
+        "max_items": {
+            "title": "Max items (cost cap)",
+            "type": "integer",
+            "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+            "sectionCaption": "Advanced",
+            "editor": "number",
+            "default": 25,
+            "minimum": 1,
+            "example": 25
+        },
+        "proxy_configuration": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+            "sectionCaption": "Advanced",
+            "editor": "hidden",
+            "prefill": {
+                "useApifyProxy": true
+            },
+            "example": {
+                "useApifyProxy": true
+            }
+        }
+    },
+    "required": [
+        "urls"
+    ]
 }

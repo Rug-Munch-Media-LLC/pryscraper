@@ -1,76 +1,82 @@
 {
-	"actorSpecification": 1,
-	"name": "electricity-price-watch",
-	"title": "Electricity Price Watch",
-	"description": "Track electricity tariff and spot-price publications from utility and exchange pages - day-ahead prices normalized per MWh for energy analysts and cost modelers.",
-	"version": "1.1",
-	"buildTag": "latest",
-	"meta": {
-		"templateId": "pry-actor-factory"
-	},
-	"dockerfile": "./Dockerfile",
-	"minMemoryMbytes": 256,
-	"maxMemoryMbytes": 1024,
-	"input": {
-		"title": "Input schema for Pry Electricity Price Watch",
-		"description": "Track electricity tariff and spot-price publications from utility and exchange pages - day-ahead prices normalized per MWh for energy analysts and cost modelers.",
-		"type": "object",
-		"schemaVersion": 1,
-		"properties": {
-			"urls": {
-				"title": "Target URLs",
-				"type": "array",
-				"description": "One or more https:// URLs to process.",
-				"editor": "requestListSources",
-				"prefill": [
-					{
-						"url": "https://example.com"
-					}
-				],
-				"example": [
-					{
-						"url": "https://example.com"
-					}
-				]
-			},
-			"unit": {
-				"title": "Price unit",
-				"type": "string",
-				"description": "Normalization unit for captured prices.",
-				"sectionCaption": "Price settings",
-				"editor": "select",
-				"default": "EUR/MWh",
-				"enum": ["EUR/MWh", "USD/MWh", "c/kWh"],
-				"example": "EUR/MWh"
-			},
-			"max_items": {
-				"title": "Max items (cost cap)",
-				"type": "integer",
-				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-				"sectionCaption": "Advanced",
-				"editor": "number",
-				"default": 25,
-				"minimum": 1,
-				"example": 25
-			},
-			"proxy_configuration": {
-				"title": "Proxy configuration",
-				"type": "object",
-				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-				"sectionCaption": "Advanced",
-				"editor": "hidden",
-				"prefill": {
-					"useApifyProxy": true
-				},
-				"example": {
-					"useApifyProxy": true
-				}
-			}
-		},
-		"required": ["urls"]
-	},
-	"output": "./output_schema.json",
-	"storages": {
-		"dataset": "./dataset_schema.json"
-	}
+    "actorSpecification": 1,
+    "name": "electricity-price-watch",
+    "title": "Electricity Price Watch",
+    "description": "Track electricity tariff and spot-price publications from utility and exchange pages - day-ahead prices normalized per MWh for energy analysts and cost modelers.",
+    "version": "1.1",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "pry-actor-factory"
+    },
+    "dockerfile": "./Dockerfile",
+    "minMemoryMbytes": 256,
+    "maxMemoryMbytes": 1024,
+    "input": {
+        "title": "Input schema for Pry Electricity Price Watch",
+        "description": "Track electricity tariff and spot-price publications from utility and exchange pages - day-ahead prices normalized per MWh for energy analysts and cost modelers.",
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "urls": {
+                "title": "Target URLs",
+                "type": "array",
+                "description": "One or more https:// URLs to process.",
+                "editor": "requestListSources",
+                "prefill": [
+                    {
+                        "url": "https://www.eia.gov"
+                    }
+                ],
+                "example": [
+                    {
+                        "url": "https://www.eia.gov"
+                    }
+                ]
+            },
+            "unit": {
+                "title": "Price unit",
+                "type": "string",
+                "description": "Normalization unit for captured prices.",
+                "sectionCaption": "Price settings",
+                "editor": "select",
+                "default": "EUR/MWh",
+                "enum": [
+                    "EUR/MWh",
+                    "USD/MWh",
+                    "c/kWh"
+                ],
+                "example": "EUR/MWh"
+            },
+            "max_items": {
+                "title": "Max items (cost cap)",
+                "type": "integer",
+                "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+                "sectionCaption": "Advanced",
+                "editor": "number",
+                "default": 25,
+                "minimum": 1,
+                "example": 25
+            },
+            "proxy_configuration": {
+                "title": "Proxy configuration",
+                "type": "object",
+                "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+                "sectionCaption": "Advanced",
+                "editor": "hidden",
+                "prefill": {
+                    "useApifyProxy": true
+                },
+                "example": {
+                    "useApifyProxy": true
+                }
+            }
+        },
+        "required": [
+            "urls"
+        ]
+    },
+    "output": "./output_schema.json",
+    "storages": {
+        "dataset": "./dataset_schema.json"
+    }
 }

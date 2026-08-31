@@ -1,71 +1,81 @@
 {
-	"title": "Input schema for Pry Outbound Link Harvester",
-	"description": "Harvest external outbound links per page across a site: which domains a site links to, how often, and from where - prospecting data for SEO outreach and partnership research.",
-	"type": "object",
-	"schemaVersion": 1,
-	"properties": {
-		"urls": {
-			"title": "Target URLs",
-			"type": "array",
-			"description": "One or more https:// URLs to process.",
-			"editor": "requestListSources",
-			"prefill": [
-				{
-					"url": "https://example.com"
-				}
-			],
-			"example": [
-				{
-					"url": "https://example.com"
-				}
-			]
-		},
-		"max_pages": {
-			"title": "Max pages",
-			"type": "integer",
-			"description": "Hard cap on processed pages (runaway protection).",
-			"sectionCaption": "Scraping settings",
-			"editor": "number",
-			"default": 100,
-			"minimum": 1,
-			"maximum": 10000,
-			"example": 100
-		},
-		"exclude_domains": {
-			"title": "Excluded domains",
-			"type": "array",
-			"description": "Domains to skip (e.g. social widgets).",
-			"sectionCaption": "Harvest settings",
-			"editor": "stringList",
-			"prefill": ["facebook.com", "twitter.com", "x.com"],
-			"items": {
-				"type": "string"
-			},
-			"example": ["facebook.com", "twitter.com", "x.com"]
-		},
-		"max_items": {
-			"title": "Max items (cost cap)",
-			"type": "integer",
-			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-			"sectionCaption": "Advanced",
-			"editor": "number",
-			"default": 25,
-			"minimum": 1,
-			"example": 25
-		},
-		"proxy_configuration": {
-			"title": "Proxy configuration",
-			"type": "object",
-			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-			"sectionCaption": "Advanced",
-			"editor": "hidden",
-			"prefill": {
-				"useApifyProxy": true
-			},
-			"example": {
-				"useApifyProxy": true
-			}
-		}
-	},
-	"required": ["urls"]
+    "title": "Input schema for Pry Outbound Link Harvester",
+    "description": "Harvest external outbound links per page across a site: which domains a site links to, how often, and from where - prospecting data for SEO outreach and partnership research.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "urls": {
+            "title": "Target URLs",
+            "type": "array",
+            "description": "One or more https:// URLs to process.",
+            "editor": "requestListSources",
+            "prefill": [
+                {
+                    "url": "https://en.wikipedia.org"
+                }
+            ],
+            "example": [
+                {
+                    "url": "https://en.wikipedia.org"
+                }
+            ]
+        },
+        "max_pages": {
+            "title": "Max pages",
+            "type": "integer",
+            "description": "Hard cap on processed pages (runaway protection).",
+            "sectionCaption": "Scraping settings",
+            "editor": "number",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 10000,
+            "example": 100
+        },
+        "exclude_domains": {
+            "title": "Excluded domains",
+            "type": "array",
+            "description": "Domains to skip (e.g. social widgets).",
+            "sectionCaption": "Harvest settings",
+            "editor": "stringList",
+            "prefill": [
+                "facebook.com",
+                "twitter.com",
+                "x.com"
+            ],
+            "items": {
+                "type": "string"
+            },
+            "example": [
+                "facebook.com",
+                "twitter.com",
+                "x.com"
+            ]
+        },
+        "max_items": {
+            "title": "Max items (cost cap)",
+            "type": "integer",
+            "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+            "sectionCaption": "Advanced",
+            "editor": "number",
+            "default": 25,
+            "minimum": 1,
+            "example": 25
+        },
+        "proxy_configuration": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+            "sectionCaption": "Advanced",
+            "editor": "hidden",
+            "prefill": {
+                "useApifyProxy": true
+            },
+            "example": {
+                "useApifyProxy": true
+            }
+        }
+    },
+    "required": [
+        "urls"
+    ]
 }

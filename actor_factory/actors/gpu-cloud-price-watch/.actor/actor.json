@@ -1,89 +1,91 @@
 {
-	"actorSpecification": 1,
-	"name": "gpu-cloud-price-watch",
-	"title": "GPU Cloud Price Watch",
-	"description": "Track GPU rental prices and availability - H100, A100, H200 - across RunPod, Lambda, Vast.ai and CoreWeave. GPU price snapshots pulled hourly for ML cost optimization and capacity planning.",
-	"version": "1.0",
-	"buildTag": "latest",
-	"meta": {
-		"templateId": "pry-actor-factory"
-	},
-	"dockerfile": "./Dockerfile",
-	"minMemoryMbytes": 1024,
-	"maxMemoryMbytes": 4096,
-	"input": {
-		"title": "Input schema for Pry GPU Cloud Price Watch",
-		"description": "Track GPU rental prices and availability - H100, A100, H200 - across RunPod, Lambda, Vast.ai and CoreWeave. GPU price snapshots pulled hourly for ML cost optimization and capacity planning.",
-		"type": "object",
-		"schemaVersion": 1,
-		"properties": {
-			"change_threshold": {
-				"title": "Change threshold",
-				"type": "integer",
-				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
-				"sectionCaption": "Watch settings",
-				"editor": "number",
-				"default": 3,
-				"minimum": 0,
-				"maximum": 64,
-				"example": 3
-			},
-			"urls": {
-				"title": "Target URLs",
-				"type": "array",
-				"description": "One or more https:// URLs to process.",
-				"editor": "requestListSources",
-				"prefill": [
-					{
-						"url": "https://example.com"
-					}
-				],
-				"example": [
-					{
-						"url": "https://example.com"
-					}
-				]
-			},
-			"gpu_models": {
-				"title": "GPU models",
-				"type": "array",
-				"description": "Filter to these GPU model names (e.g. H100, A100).",
-				"sectionCaption": "GPU settings",
-				"editor": "stringList",
-				"default": [],
-				"items": {
-					"type": "string"
-				},
-				"example": []
-			},
-			"max_items": {
-				"title": "Max items (cost cap)",
-				"type": "integer",
-				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-				"sectionCaption": "Advanced",
-				"editor": "number",
-				"default": 25,
-				"minimum": 1,
-				"example": 25
-			},
-			"proxy_configuration": {
-				"title": "Proxy configuration",
-				"type": "object",
-				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-				"sectionCaption": "Advanced",
-				"editor": "hidden",
-				"prefill": {
-					"useApifyProxy": true
-				},
-				"example": {
-					"useApifyProxy": true
-				}
-			}
-		},
-		"required": ["urls"]
-	},
-	"output": "./output_schema.json",
-	"storages": {
-		"dataset": "./dataset_schema.json"
-	}
+    "actorSpecification": 1,
+    "name": "gpu-cloud-price-watch",
+    "title": "GPU Cloud Price Watch",
+    "description": "Track GPU rental prices and availability - H100, A100, H200 - across RunPod, Lambda, Vast.ai and CoreWeave. GPU price snapshots pulled hourly for ML cost optimization and capacity planning.",
+    "version": "1.0",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "pry-actor-factory"
+    },
+    "dockerfile": "./Dockerfile",
+    "minMemoryMbytes": 1024,
+    "maxMemoryMbytes": 4096,
+    "input": {
+        "title": "Input schema for Pry GPU Cloud Price Watch",
+        "description": "Track GPU rental prices and availability - H100, A100, H200 - across RunPod, Lambda, Vast.ai and CoreWeave. GPU price snapshots pulled hourly for ML cost optimization and capacity planning.",
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "change_threshold": {
+                "title": "Change threshold",
+                "type": "integer",
+                "description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+                "sectionCaption": "Watch settings",
+                "editor": "number",
+                "default": 3,
+                "minimum": 0,
+                "maximum": 64,
+                "example": 3
+            },
+            "urls": {
+                "title": "Target URLs",
+                "type": "array",
+                "description": "One or more https:// URLs to process.",
+                "editor": "requestListSources",
+                "prefill": [
+                    {
+                        "url": "https://www.runpod.io"
+                    }
+                ],
+                "example": [
+                    {
+                        "url": "https://www.runpod.io"
+                    }
+                ]
+            },
+            "gpu_models": {
+                "title": "GPU models",
+                "type": "array",
+                "description": "Filter to these GPU model names (e.g. H100, A100).",
+                "sectionCaption": "GPU settings",
+                "editor": "stringList",
+                "default": [],
+                "items": {
+                    "type": "string"
+                },
+                "example": []
+            },
+            "max_items": {
+                "title": "Max items (cost cap)",
+                "type": "integer",
+                "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+                "sectionCaption": "Advanced",
+                "editor": "number",
+                "default": 25,
+                "minimum": 1,
+                "example": 25
+            },
+            "proxy_configuration": {
+                "title": "Proxy configuration",
+                "type": "object",
+                "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+                "sectionCaption": "Advanced",
+                "editor": "hidden",
+                "prefill": {
+                    "useApifyProxy": true
+                },
+                "example": {
+                    "useApifyProxy": true
+                }
+            }
+        },
+        "required": [
+            "urls"
+        ]
+    },
+    "output": "./output_schema.json",
+    "storages": {
+        "dataset": "./dataset_schema.json"
+    }
 }

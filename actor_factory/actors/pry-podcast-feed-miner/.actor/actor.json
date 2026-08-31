@@ -1,77 +1,79 @@
 {
-	"actorSpecification": 1,
-	"name": "podcast-feed-miner",
-	"title": "Podcast Feed Miner",
-	"description": "Mine podcast RSS feeds into structured episode datasets: titles, descriptions, durations, publish dates and audio URLs - perfect for media monitoring and transcript pipeline feeds.",
-	"version": "1.1",
-	"buildTag": "latest",
-	"meta": {
-		"templateId": "pry-actor-factory"
-	},
-	"dockerfile": "./Dockerfile",
-	"minMemoryMbytes": 256,
-	"maxMemoryMbytes": 1024,
-	"input": {
-		"title": "Input schema for Pry Podcast Feed Miner",
-		"description": "Mine podcast RSS feeds into structured episode datasets: titles, descriptions, durations, publish dates and audio URLs - perfect for media monitoring and transcript pipeline feeds.",
-		"type": "object",
-		"schemaVersion": 1,
-		"properties": {
-			"urls": {
-				"title": "Target URLs",
-				"type": "array",
-				"description": "One or more https:// URLs to process.",
-				"editor": "requestListSources",
-				"prefill": [
-					{
-						"url": "https://example.com"
-					}
-				],
-				"example": [
-					{
-						"url": "https://example.com"
-					}
-				]
-			},
-			"max_episodes": {
-				"title": "Max episodes per feed",
-				"type": "integer",
-				"description": "Cap per feed to control cost.",
-				"sectionCaption": "Feed settings",
-				"editor": "number",
-				"default": 50,
-				"minimum": 1,
-				"maximum": 200,
-				"example": 50
-			},
-			"max_items": {
-				"title": "Max items (cost cap)",
-				"type": "integer",
-				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-				"sectionCaption": "Advanced",
-				"editor": "number",
-				"default": 25,
-				"minimum": 1,
-				"example": 25
-			},
-			"proxy_configuration": {
-				"title": "Proxy configuration",
-				"type": "object",
-				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-				"sectionCaption": "Advanced",
-				"editor": "hidden",
-				"prefill": {
-					"useApifyProxy": true
-				},
-				"example": {
-					"useApifyProxy": true
-				}
-			}
-		},
-		"required": ["urls"]
-	},
-	"output": "./output_schema.json",
-	"storages": {
-		"dataset": "./dataset_schema.json"
-	}
+    "actorSpecification": 1,
+    "name": "podcast-feed-miner",
+    "title": "Podcast Feed Miner",
+    "description": "Mine podcast RSS feeds into structured episode datasets: titles, descriptions, durations, publish dates and audio URLs - perfect for media monitoring and transcript pipeline feeds.",
+    "version": "1.1",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "pry-actor-factory"
+    },
+    "dockerfile": "./Dockerfile",
+    "minMemoryMbytes": 256,
+    "maxMemoryMbytes": 1024,
+    "input": {
+        "title": "Input schema for Pry Podcast Feed Miner",
+        "description": "Mine podcast RSS feeds into structured episode datasets: titles, descriptions, durations, publish dates and audio URLs - perfect for media monitoring and transcript pipeline feeds.",
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "urls": {
+                "title": "Target URLs",
+                "type": "array",
+                "description": "One or more https:// URLs to process.",
+                "editor": "requestListSources",
+                "prefill": [
+                    {
+                        "url": "https://podcasts.apple.com"
+                    }
+                ],
+                "example": [
+                    {
+                        "url": "https://podcasts.apple.com"
+                    }
+                ]
+            },
+            "max_episodes": {
+                "title": "Max episodes per feed",
+                "type": "integer",
+                "description": "Cap per feed to control cost.",
+                "sectionCaption": "Feed settings",
+                "editor": "number",
+                "default": 50,
+                "minimum": 1,
+                "maximum": 200,
+                "example": 50
+            },
+            "max_items": {
+                "title": "Max items (cost cap)",
+                "type": "integer",
+                "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+                "sectionCaption": "Advanced",
+                "editor": "number",
+                "default": 25,
+                "minimum": 1,
+                "example": 25
+            },
+            "proxy_configuration": {
+                "title": "Proxy configuration",
+                "type": "object",
+                "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+                "sectionCaption": "Advanced",
+                "editor": "hidden",
+                "prefill": {
+                    "useApifyProxy": true
+                },
+                "example": {
+                    "useApifyProxy": true
+                }
+            }
+        },
+        "required": [
+            "urls"
+        ]
+    },
+    "output": "./output_schema.json",
+    "storages": {
+        "dataset": "./dataset_schema.json"
+    }
 }

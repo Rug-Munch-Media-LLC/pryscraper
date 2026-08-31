@@ -1,68 +1,70 @@
 {
-	"title": "Input schema for Pry News Feed Monitor",
-	"description": "Monitor news sites and blogs through RSS/Atom discovery plus full-article extraction behind paywalls' bot defenses (public articles only). Emits new articles since the last run.",
-	"type": "object",
-	"schemaVersion": 1,
-	"properties": {
-		"urls": {
-			"title": "Target URLs",
-			"type": "array",
-			"description": "One or more https:// URLs to process.",
-			"editor": "requestListSources",
-			"prefill": [
-				{
-					"url": "https://example.com"
-				}
-			],
-			"example": [
-				{
-					"url": "https://example.com"
-				}
-			]
-		},
-		"max_articles_per_source": {
-			"title": "Max articles per source",
-			"type": "integer",
-			"description": "Cap per feed to control cost.",
-			"sectionCaption": "Monitor settings",
-			"editor": "number",
-			"default": 20,
-			"minimum": 1,
-			"maximum": 100,
-			"example": 20
-		},
-		"full_text": {
-			"title": "Extract full article text",
-			"type": "boolean",
-			"description": "Fetch and extract complete article bodies, not just summaries.",
-			"sectionCaption": "Monitor settings",
-			"editor": "checkbox",
-			"default": true,
-			"example": true
-		},
-		"max_items": {
-			"title": "Max items (cost cap)",
-			"type": "integer",
-			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-			"sectionCaption": "Advanced",
-			"editor": "number",
-			"default": 25,
-			"minimum": 1,
-			"example": 25
-		},
-		"proxy_configuration": {
-			"title": "Proxy configuration",
-			"type": "object",
-			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-			"sectionCaption": "Advanced",
-			"editor": "hidden",
-			"prefill": {
-				"useApifyProxy": true
-			},
-			"example": {
-				"useApifyProxy": true
-			}
-		}
-	},
-	"required": ["urls"]
+    "title": "Input schema for Pry News Feed Monitor",
+    "description": "Monitor news sites and blogs through RSS/Atom discovery plus full-article extraction behind paywalls' bot defenses (public articles only). Emits new articles since the last run.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "urls": {
+            "title": "Target URLs",
+            "type": "array",
+            "description": "One or more https:// URLs to process.",
+            "editor": "requestListSources",
+            "prefill": [
+                {
+                    "url": "https://www.reuters.com"
+                }
+            ],
+            "example": [
+                {
+                    "url": "https://www.reuters.com"
+                }
+            ]
+        },
+        "max_articles_per_source": {
+            "title": "Max articles per source",
+            "type": "integer",
+            "description": "Cap per feed to control cost.",
+            "sectionCaption": "Monitor settings",
+            "editor": "number",
+            "default": 20,
+            "minimum": 1,
+            "maximum": 100,
+            "example": 20
+        },
+        "full_text": {
+            "title": "Extract full article text",
+            "type": "boolean",
+            "description": "Fetch and extract complete article bodies, not just summaries.",
+            "sectionCaption": "Monitor settings",
+            "editor": "checkbox",
+            "default": true,
+            "example": true
+        },
+        "max_items": {
+            "title": "Max items (cost cap)",
+            "type": "integer",
+            "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+            "sectionCaption": "Advanced",
+            "editor": "number",
+            "default": 25,
+            "minimum": 1,
+            "example": 25
+        },
+        "proxy_configuration": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+            "sectionCaption": "Advanced",
+            "editor": "hidden",
+            "prefill": {
+                "useApifyProxy": true
+            },
+            "example": {
+                "useApifyProxy": true
+            }
+        }
+    },
+    "required": [
+        "urls"
+    ]
 }

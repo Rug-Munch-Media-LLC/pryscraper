@@ -16,6 +16,8 @@ Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from actor_factory.spec import ActorSpec, InputField, PricingEvent
 
 URLS_FIELD = InputField(
@@ -460,7 +462,7 @@ LEAD_HARVESTER_ACTOR = ActorSpec(
             name="lead-set-harvested",
             title="Lead set harvested",
             description="One domain processed with contacts extracted.",
-            price_usd=0.0015,
+            price_usd=0.005,
         ),
     ),
     min_memory_mbytes=512,
@@ -3446,7 +3448,12 @@ APP_STORE_RANK_WATCH_ACTOR = ActorSpec(
         PricingEvent(
             name="rank-snapshot-pulled",
             title="Rank snapshot pulled",
-            description="One app rank snapshot pulled for a keyword.",
+            description=(
+                "One app rank snapshot pulled for a keyword. Billed per "
+                "keyword tracked: total run cost scales with the keyword "
+                "count (each keyword requires its own store page check), "
+                "so a 50-keyword app costs 50x the single-keyword PPE price."
+            ),
             price_usd=0.01,
         ),
     ),
@@ -3759,7 +3766,7 @@ ESG_SCORECARD_EXTRACTOR_ACTOR = ActorSpec(
             name="metric-extracted",
             title="Metric extracted",
             description="One ESG metric extracted with value, unit and source.",
-            price_usd=0.02,
+            price_usd=0.03,
         ),
     ),
     processor="extract",
@@ -3936,7 +3943,7 @@ SUPPLIER_RISK_SIGNAL_WATCH_ACTOR = ActorSpec(
             name="risk-signal-scored",
             title="Risk signal scored",
             description="One supplier risk signal scored from source events.",
-            price_usd=0.02,
+            price_usd=0.025,
         ),
     ),
     processor="monitor",
@@ -3966,3 +3973,138 @@ ALL_PRESETS.update(
         )
     }
 )
+
+
+# ── Realistic prefill URLs ────────────────────────────────────────────────
+# Apify store norms expect each actor's default input to point at a real,
+# stable target for its vertical (the daily automated test runs DEFAULT
+# INPUT). Hosts are allowlisted in linter.STABLE_PREFILL_HOSTS.
+PREFILL_URLS: dict[str, str] = {
+    "pry-ai-model-pricing-watch": "https://openrouter.ai/models",
+    "pry-app-store-rank-watch": "https://apps.apple.com",
+    "pry-appexchange-marketplace-watch": "https://appexchange.salesforce.com",
+    "pry-chargepoint-ev-station-watch": "https://www.chargepoint.com",
+    "pry-esg-scorecard-extractor": "https://www.microsoft.com/investor",
+    "pry-gpu-cloud-price-watch": "https://www.runpod.io",
+    "pry-insurance-rate-compare": "https://www.geico.com",
+    "pry-ngo-grant-deadline-watch": "https://www.grants.gov",
+    "pry-pharma-pipeline-watch": "https://clinicaltrials.gov",
+    "pry-accessibility-scanner": "https://www.gov.uk",
+    "pry-ad-intel-monitor": "https://www.facebook.com/ads/library",
+    "pry-air-quality-monitor": "https://www.airnow.gov",
+    "pry-api-docs-diff": "https://docs.stripe.com/api",
+    "pry-app-store-review-miner": "https://apps.apple.com",
+    "pry-arxiv-paper-monitor": "https://arxiv.org",
+    "pry-blog-post-extractor": "https://blog.rust-lang.org",
+    "pry-broken-links-auditor": "https://www.wikipedia.org",
+    "pry-chain-tvl-monitor": "https://defillama.com",
+    "pry-change-monitor": "https://news.ycombinator.com",
+    "pry-changelog-tracker": "https://github.com/facebook/react/releases",
+    "pry-clinical-trials-watch": "https://clinicaltrials.gov",
+    "pry-contact-form-finder": "https://www.mozilla.org",
+    "pry-course-catalog-extractor": "https://www.coursera.org",
+    "pry-court-docket-monitor": "https://www.courtlistener.com",
+    "pry-crypto-listing-monitor": "https://www.coingecko.com",
+    "pry-crypto-market-monitor": "https://api.coingecko.com/api/v3/coins/markets",
+    "pry-cve-advisory-watch": "https://nvd.nist.gov",
+    "pry-deal-radar": "https://www.reddit.com/r/deals",
+    "pry-defi-yield-monitor": "https://defillama.com/yields",
+    "pry-document-parser": "https://www.irs.gov",
+    "pry-earthquake-alert-monitor": "https://earthquake.usgs.gov",
+    "pry-ecommerce-catalog-crawler": "https://www.ikea.com",
+    "pry-electricity-price-watch": "https://www.eia.gov",
+    "pry-event-listings-aggregator": "https://www.eventbrite.com",
+    "pry-fda-recall-monitor": "https://www.fda.gov",
+    "pry-flight-price-watch": "https://www.kayak.com",
+    "pry-forum-discussion-miner": "https://news.ycombinator.com",
+    "pry-fx-rate-monitor": "https://www.ecb.europa.eu",
+    "pry-gas-fee-monitor": "https://etherscan.io/gastracker",
+    "pry-gdpr-cookie-checker": "https://www.bbc.com",
+    "pry-github-release-monitor": "https://github.com/vercel/next.js/releases",
+    "pry-hacker-news-monitor": "https://news.ycombinator.com",
+    "pry-hotel-rate-watch": "https://www.booking.com",
+    "pry-inventory-alert": "https://www.nike.com",
+    "pry-jobs-aggregator": "https://www.indeed.com",
+    "pry-json-api-monitor": "https://api.github.com",
+    "pry-knowledge-base-miner": "https://support.apple.com",
+    "pry-lead-harvester": "https://www.ycombinator.com",
+    "pry-llm-corpus-builder": "https://en.wikisource.org",
+    "pry-local-business-schema-auditor": "https://www.yelp.com",
+    "pry-local-directory-extractor": "https://www.yelp.com",
+    "pry-maps-lead-extractor": "https://www.yelp.com",
+    "pry-news-feed-monitor": "https://www.reuters.com",
+    "pry-newsletter-archive-miner": "https://www.stratechery.com",
+    "pry-npm-package-stats": "https://www.npmjs.com",
+    "pry-onion-site-monitor": "https://www.torproject.org",
+    "pry-outbound-link-harvester": "https://en.wikipedia.org",
+    "pry-pdf-invoice-extractor": "https://www.irs.gov",
+    "pry-podcast-feed-miner": "https://podcasts.apple.com",
+    "pry-podcast-review-miner": "https://podcasts.apple.com",
+    "pry-prediction-market-monitor": "https://polymarket.com",
+    "pry-press-release-monitor": "https://www.prnewswire.com",
+    "pry-price-watcher": "https://www.amazon.com",
+    "pry-product-data-extractor": "https://www.bestbuy.com",
+    "pry-producthunt-launch-monitor": "https://www.producthunt.com",
+    "pry-property-lister": "https://www.zillow.com",
+    "pry-provider-finder": "https://www.psychologytoday.com",
+    "pry-pypi-package-stats": "https://pypi.org",
+    "pry-rdap-domain-watch": "https://rdap.verisign.com/com/v1/domain/example.com",
+    "pry-recipe-miner": "https://www.allrecipes.com",
+    "pry-research-paper-watch": "https://arxiv.org",
+    "pry-restaurant-menu-extractor": "https://www.starbucks.com",
+    "pry-review-aggregator": "https://www.trustpilot.com",
+    "pry-rss-feed-monitor": "https://hnrss.org",
+    "pry-sanctions-screener": "https://sanctionssearch.ofac.treas.gov",
+    "pry-scholarship-grants-finder": "https://www.grants.gov",
+    "pry-screenshot-capture": "https://news.ycombinator.com",
+    "pry-sec-filings-watch": "https://www.sec.gov",
+    "pry-seo-site-auditor": "https://www.python.org",
+    "pry-serp-rank-tracker": "https://www.bing.com",
+    "pry-serp-scraper": "https://www.bing.com",
+    "pry-site-crawler": "https://docs.python.org",
+    "pry-sitemap-diff": "https://www.sitemaps.org",
+    "pry-social-card-auditor": "https://www.theverge.com",
+    "pry-space-launch-monitor": "https://ll.thespacedevs.com",
+    "pry-sports-odds-best-line": "https://www.oddsportal.com",
+    "pry-ssl-cert-monitor": "https://www.cloudflare.com",
+    "pry-stablecoin-flow-monitor": "https://defillama.com",
+    "pry-startup-funding-monitor": "https://techcrunch.com",
+    "pry-status-page-aggregator": "https://www.githubstatus.com",
+    "pry-steam-game-stats": "https://store.steampowered.com",
+    "pry-tech-stack-detector": "https://www.shopify.com",
+    "pry-tender-procurement-monitor": "https://sam.gov",
+    "pry-terms-policy-watch": "https://www.tiktok.com/legal/terms-of-service",
+    "pry-token-safety-scanner": "https://etherscan.io",
+    "pry-token-unlock-monitor": "https://cryptorank.io/unlocks",
+    "pry-universal-scraper": "https://news.ycombinator.com",
+    "pry-usaspending-contracts": "https://www.usaspending.gov",
+    "pry-uspto-patent-monitor": "https://www.uspto.gov",
+    "pry-wayback-diff": "https://web.archive.org",
+    "pry-weather-data-collector": "https://open-meteo.com",
+    "pry-whale-transfer-monitor": "https://etherscan.io",
+    "pry-youtube-rss-monitor": "https://www.youtube.com",
+    "pry-restaurant-availability-watch": "https://www.opentable.com",
+    "pry-shipment-carrier-rate-watch": "https://www.fedex.com",
+    "pry-supplier-risk-signal-watch": "https://www.reuters.com",
+    "pry-telecom-plan-monitor": "https://www.t-mobile.com",
+    "pry-ticket-resale-price-watch": "https://www.stubhub.com",
+    "pry-utility-tariff-watch": "https://www.eia.gov",
+}
+
+
+def _apply_prefill_urls() -> None:
+    """Swap each preset's shared example.com prefill for its vertical URL."""
+    for name, url in PREFILL_URLS.items():
+        spec = ALL_PRESETS.get(name)
+        if spec is None:
+            continue
+        new_inputs = tuple(
+            replace(field, prefill=[{"url": url}])
+            if field.name == "urls" and field.prefill
+            else field
+            for field in spec.inputs
+        )
+        ALL_PRESETS[name] = replace(spec, inputs=new_inputs)
+
+
+_apply_prefill_urls()

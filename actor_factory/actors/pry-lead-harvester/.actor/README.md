@@ -2,7 +2,7 @@
 
 Harvest publicly listed business contacts from websites: emails, phone numbers and social profile links extracted from contact pages and footers across a domain, with anti-bot escalation for protected sites.
 
-> Looking to **lead data at scale**, need a reliable **lead scraper**, or want **harvester monitoring** without infrastructure headaches? This actor handles it on Apify's managed runtime.
+> Need **lead harvester data** without infrastructure headaches? This actor scrapes, monitors and exports it on Apify's managed runtime - pay per result, no subscription.
 
 This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) with per-domain memory, block-signal detection and circuit breakers. Cheaper tiers are tried first; escalation happens only when a target actually fights back.
 
@@ -13,6 +13,11 @@ This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflar
 - **Transparent billing**: pay-per-event, charged per processed item
 - **Platform perks**: scheduling, API access, proxy rotation, monitoring and webhooks come free with Apify
 
+## Use Cases
+
+- **Continuous monitoring** - schedule the actor to pull fresh lead harvester data on the cadence you need (hourly, daily, weekly) and alert via webhooks when anything changes
+- **Market & competitive research** - bulk-collect lead harvester records into one dataset to benchmark competitors, prices and trends over time
+- **AI & analytics pipelines** - export clean, structured lead set harvested results to JSON/CSV/Excel, or feed them straight into LLM/RAG workflows, BI dashboards or a warehouse via the Apify API
 ## Tutorial
 
 1. Add your target URLs to the `urls` field (one per entry).
@@ -20,17 +25,19 @@ This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflar
 3. Click **Start** - results stream into the dataset as each URL finishes.
 4. Export as JSON/CSV/Excel, or consume via API/webhook.
 
-## How much will it cost to scrape with this Actor?
+## Pricing
 
-Billing is **pay-per-event**: you are charged `$0.0015` per `lead-set-harvested` (one domain processed with contacts extracted.) - that is **$1.50 per 1,000 items**, with no subscription and no minimum.
+### How much will it cost to scrape with this Actor?
 
-Example: 100 items at 512 MB costs roughly **$0.15** in event charges (platform compute adds about $0.0333). The synthetic `apify-actor-start` event covers startup compute. Your spending limit is always respected - the run stops gracefully at the cap.
+Billing is **pay-per-event**: you are charged `$0.0050` per `lead-set-harvested` (one domain processed with contacts extracted.) - that is **$5.00 per 1,000 items**, with no subscription and no minimum.
+
+Example: 100 items at 512 MB costs roughly **$0.50** in event charges (platform compute adds about $0.0333). The synthetic `apify-actor-start` event covers startup compute. Your spending limit is always respected - the run stops gracefully at the cap.
 
 ### Events
 
 | Event | Title | Price | Description |
 |---|---|---|---|
-| `lead-set-harvested` | Lead set harvested | $0.0015 | One domain processed with contacts extracted. |
+| `lead-set-harvested` | Lead set harvested | $0.0050 | One domain processed with contacts extracted. |
 
 ## Input reference
 
@@ -66,6 +73,14 @@ Each dataset item looks like this:
 }
 ```
 
+### Dataset fields
+
+- `url` - the source URL that produced this item
+- `status` - `ok`, `skipped` or `error`, so downstream jobs can filter reliably
+- `method` - which tier of the fallback chain succeeded (transparency into how the data was fetched)
+- `scraped_at` - ISO-8601 UTC timestamp for time-series use
+- `data` / `content` - the extracted payload (structured records or clean markdown, depending on the actor)
+
 Items with `status: "error"` include an `error` reason - invalid targets are billed transparently and never silently dropped.
 
 ## How can I use this data?
@@ -91,6 +106,19 @@ curl -X POST https://api.apify.com/v2/acts/~run \\
 ```
 
 Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Apify platform.
+
+## Limitations
+
+- Publicly accessible pages only - login-walled or paywalled content is not supported
+- Extremely aggressive anti-bot targets may still block some requests; failures are reported honestly per URL
+- Data quality mirrors the source: if a page hides its data behind images or canvas, extraction may be partial
+
+## Troubleshooting
+
+- **Empty dataset?** Check the run log - each URL is reported with `ok`, `skipped` or `error` and a reason; fix the flagged targets and re-run
+- **Blocked or 403 responses?** The adaptive ladder escalates automatically; if a target still fails, lower `max_items` and retry later, or schedule runs further apart
+- **Unexpected fields?** Compare your output against the example below - `data_path` (where present) controls which array is extracted
+- **Run stopped early?** You hit the spending limit or `max_items` cap - raise the cap and resume; completed items are always flushed to the dataset
 
 ## FAQ
 

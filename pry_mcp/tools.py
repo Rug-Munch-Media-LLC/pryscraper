@@ -1216,6 +1216,12 @@ PRY_TOOLS: list[dict[str, Any]] = [
                     "maximum": 100,
                     "description": "Maximum number of dockets to return (default: 20)",
                 },
+                "offset": {
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": 0,
+                    "description": "Number of dockets to skip before the page (pagination)",
+                },
             },
             "required": ["query"],
         },
@@ -3426,6 +3432,12 @@ PRY_TOOLS: list[dict[str, Any]] = [
                     "maximum": 100,
                     "description": "Maximum number of shipment records (default: 20)",
                 },
+                "offset": {
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": 0,
+                    "description": "Number of shipment records to skip before the page (pagination)",
+                },
             },
             "required": ["company"],
         },
@@ -3985,6 +3997,12 @@ PRY_TOOLS: list[dict[str, Any]] = [
                     "maximum": 100,
                     "description": "Maximum number of grants to return (default: 20)",
                 },
+                "offset": {
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": 0,
+                    "description": "Number of grants to skip before the page (pagination)",
+                },
             },
             "required": ["query"],
         },
@@ -4022,10 +4040,11 @@ PRY_TOOLS: list[dict[str, Any]] = [
     {
         "name": "pry_actor_catalog",
         "description": (
-            "List every Pry Apify Store actor (94) with description, pricing "
+            "List every Pry Apify Store actor (94) with description, category, pricing "
             "events and per-event USD price. Store parity surface: anything "
             "runnable on Apify is discoverable here. Filter by optional "
-            "'domain' substring (e.g. 'monitor', 'crypto', 'seo')."
+            "'domain' substring (e.g. 'monitor', 'crypto', 'seo'). Supports "
+            "offset/limit pagination over the full catalog."
         ),
         "inputSchema": {
             "type": "object",
@@ -4033,6 +4052,18 @@ PRY_TOOLS: list[dict[str, Any]] = [
                 "domain": {
                     "type": "string",
                     "description": "Optional case-insensitive substring filter over actor name/title.",
+                },
+                "offset": {
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": 0,
+                    "description": "Number of actors to skip before the page (pagination)",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": 0,
+                    "description": "Maximum actors per page (0 = all)",
                 },
             },
             "required": [],
@@ -4049,6 +4080,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
                             "actor": {"type": "string"},
                             "title": {"type": "string"},
                             "description": {"type": "string"},
+                            "category": {"type": "string"},
                             "processor": {"type": ["string", "null"]},
                             "uses_browser": {"type": "boolean"},
                             "min_memory_mbytes": {"type": "integer"},
@@ -4415,12 +4447,21 @@ async def call_legal_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
             from legal_docs.dockets import search_dockets
         except ImportError:
             return _data_module_unavailable(name, "legal_docs")
-        data = await search_dockets(query=query, limit=limit)
+        try:
+            offset = int(arguments.get("offset") or 0)
+        except (TypeError, ValueError):
+            offset = 0
+        # Over-fetch by offset so the slice still yields a full page.
+        data = await search_dockets(query=query, limit=limit + offset)
+        data, total = _apply_offset(data, arguments)
+        payload: dict[str, Any] = {"success": True, "data": data, "query": query}
+        if total:
+            payload["total"] = total
         return {
             "content": [
                 {
                     "type": "text",
-                    "text": json.dumps({"success": True, "data": data, "query": query}, indent=2),
+                    "text": json.dumps(payload, indent=2),
                 }
             ],
             "isError": False,
@@ -5172,6 +5213,25 @@ def _domain_tool_kwargs(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     return dict(arguments)
 
 
+def _apply_offset(data: Any, arguments: dict[str, Any]) -> tuple[Any, int]:
+    """Apply ``offset`` pagination to a list-shaped handler result.
+
+    Returns ``(page, total)`` where ``total`` is the pre-slice length. When
+    ``offset`` is absent/0 the data passes through unchanged. Non-list data
+    (dicts, scalars) is returned untouched with total 0.
+    """
+    if not isinstance(data, list):
+        return data, 0
+    total = len(data)
+    try:
+        offset = int(arguments.get("offset") or 0)
+    except (TypeError, ValueError):
+        offset = 0
+    if offset <= 0:
+        return data, total
+    return data[offset:], total
+
+
 async def _call_domain_dispatcher(
     name: str,
     arguments: dict[str, Any],
@@ -5202,6 +5262,14 @@ async def _call_domain_dispatcher(
         if fn is None:
             continue
         kwargs = kwargs_builder(name, arguments)
+        # Offset pagination: over-fetch by ``offset`` so the slice below
+        # still yields a full ``limit``-sized page past the skipped rows.
+        try:
+            _offset = int(arguments.get("offset") or 0)
+        except (TypeError, ValueError):
+            _offset = 0
+        if _offset > 0:
+            kwargs["limit"] = int(kwargs.get("limit") or 20) + _offset
         result = fn(**{k: v for k, v in kwargs.items() if _callable_accepts(fn, k)})
         # Handlers are usually async (events/freight/energy/...) but some
         # landed modules expose sync registry reads (app-store/news/
@@ -5213,11 +5281,15 @@ async def _call_domain_dispatcher(
             data = await result
         else:
             data = result
+        data, total = _apply_offset(data, arguments)
+        payload: dict[str, Any] = {"success": True, "data": data}
+        if total:
+            payload["total"] = total
         return {
             "content": [
                 {
                     "type": "text",
-                    "text": json.dumps({"success": True, "data": data}, indent=2),
+                    "text": json.dumps(payload, indent=2),
                 }
             ],
             "isError": False,
@@ -5684,7 +5756,7 @@ async def call_bidding_tool(name: str, arguments: dict[str, Any]) -> dict[str, A
 
 # ── Apify actor parity layer ─────────────────────────────────────────────────
 #
-# Store parity: every Pry Apify Actor is reachable from MCP. Instead of 94
+# Store parity: every Pry Apify Actor is reachable from MCP. Instead of one
 # near-duplicate tool definitions (tool-list bloat breaks MCP clients), the
 # surface is catalog-driven: ``pry_actor_catalog`` discovers, ``pry_actor_run``
 # executes through the SAME PPEScraperRunner.process_url + PROCESSORS code
@@ -5693,6 +5765,7 @@ async def call_bidding_tool(name: str, arguments: dict[str, Any]) -> dict[str, A
 
 def _actor_catalog_entries() -> list[dict[str, Any]]:
     """Catalog rows for every preset, sorted by name for determinism."""
+    from actor_factory.metadata import PRESET_CATEGORY_MAP
     from actor_factory.presets import ALL_PRESETS
 
     entries: list[dict[str, Any]] = []
@@ -5703,6 +5776,7 @@ def _actor_catalog_entries() -> list[dict[str, Any]]:
                 "actor": spec.name.removeprefix("pry-"),
                 "title": spec.title,
                 "description": spec.description,
+                "category": PRESET_CATEGORY_MAP.get(spec.name, "OTHER"),
                 "icon": spec.icon,
                 "icon_hd": spec.icon_hd,
                 "processor": spec.processor,
@@ -5736,11 +5810,24 @@ async def call_actor_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
         if domain:
             needle = str(domain).lower()
             entries = [e for e in entries if needle in e["actor"] or needle in e["title"].lower()]
+        # offset/limit pagination over the (109+) row catalog.
+        try:
+            offset = int(arguments.get("offset") or 0)
+        except (TypeError, ValueError):
+            offset = 0
+        limit = arguments.get("limit")
+        total = len(entries)
+        if offset > 0:
+            entries = entries[offset:]
+        if isinstance(limit, int) and limit > 0:
+            entries = entries[:limit]
         return {
             "content": [
                 {
                     "type": "text",
-                    "text": json.dumps({"total": len(entries), "actors": entries}, indent=2),
+                    "text": json.dumps(
+                        {"total": total, "count": len(entries), "actors": entries}, indent=2
+                    ),
                 }
             ]
         }
@@ -5830,3 +5917,29 @@ async def call_actor_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
 
 
 ACTOR_TOOL_NAMES: frozenset[str] = frozenset({"pry_actor_catalog", "pry_actor_run"})
+
+
+def _sync_actor_catalog_description() -> None:
+    """Keep the pry_actor_catalog description's actor count honest.
+
+    ALL_PRESETS grows over time; a hardcoded count in the static tool list
+    drifts (it said 94 when the table reached 109). Patch the description
+    with the live len(ALL_PRESETS) at import; on any import failure fall
+    back to the neutral wording (no count).
+    """
+    try:
+        from actor_factory.presets import ALL_PRESETS
+
+        count = len(ALL_PRESETS)
+    except ImportError:  # pragma: no cover - presets not installed yet
+        count = None
+    for tool in PRY_TOOLS:
+        if tool.get("name") == "pry_actor_catalog":
+            if count is not None:
+                tool["description"] = tool["description"].replace("(94)", f"({count})")
+            else:
+                tool["description"] = tool["description"].replace(" (94)", "")
+            break
+
+
+_sync_actor_catalog_description()

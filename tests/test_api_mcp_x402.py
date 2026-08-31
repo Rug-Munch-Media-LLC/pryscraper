@@ -329,16 +329,19 @@ class TestX402Middleware:
         assert "accepts" in body
         assert "PAYMENT-REQUIRED" in response.headers
         # The challenge exposes the canonical CAIP-2 acceptance surface
-        # (multi-asset mode): every supported network appears in accepts.
+        # (multi-asset mode): every REAL-verified network appears in accepts.
+        # TRON is gated out — its verification is scaffolded (no TRC-20
+        # settlement verifier wired), so advertising it would let agents
+        # attempt payments that cannot settle.
         networks = {a["network"] for a in body["accepts"]}
         assert "eip155:8453" in networks  # Base
         assert "solana:mainnet" in networks
-        assert "tron:mainnet" in networks
-        # Multi-asset acceptance: Solana USDT / TRON USDT / Arbitrum ARB are
-        # quotable options with USD-equivalent atomic amounts.
+        assert "tron:mainnet" not in networks
+        # Multi-asset acceptance: Solana USDT / Arbitrum ARB are quotable
+        # options with USD-equivalent atomic amounts.
         by_net_asset = {(a["network"], a["asset"]) for a in body["accepts"]}
         assert ("solana:mainnet", "USDT") in by_net_asset
-        assert ("tron:mainnet", "USDT") in by_net_asset
+        assert ("tron:mainnet", "USDT") not in by_net_asset
         assert ("eip155:42161", "ARB") in by_net_asset
         # The challenge body also carries the supported surface tables.
         assert "networks" in body
@@ -376,13 +379,13 @@ class TestX402Middleware:
             "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
         )
 
-    def test_paid_endpoint_solana_tron_challenge_structure(self) -> None:
-        """The 402 challenge for Solana/TRON carries valid header structure.
+    def test_paid_endpoint_solana_challenge_structure(self) -> None:
+        """The 402 challenge for Solana carries valid header structure.
 
         The challenge (PAYMENT-REQUIRED header) must round-trip and the
-        Solana/TRON acceptance options must carry the required x402 fields so
-        an agent knows exactly how to pay. This only validates the challenge
-        — on-chain settlement for those chains is a scaffolded [REVIEW] path.
+        Solana acceptance options must carry the required x402 fields so
+        an agent knows exactly how to pay. TRON is excluded from accepts
+        until its TRC-20 settlement verifier is real (scaffolded [REVIEW]).
         """
         client = TestClient(app)
         response = client.post("/v1/scrape", json={"url": "https://example.com"})
@@ -391,7 +394,7 @@ class TestX402Middleware:
         decoded = json.loads(base64.b64decode(header).decode())
         assert decoded["x402Version"] == 1
         accepts = {f"{a['network']}:{a['asset']}": a for a in decoded["accepts"]}
-        for key in ("solana:mainnet:USDC", "tron:mainnet:USDT"):
+        for key in ("solana:mainnet:USDC",):
             assert key in accepts
             option = accepts[key]
             for field in (
@@ -404,7 +407,8 @@ class TestX402Middleware:
             ):
                 assert field in option
             assert option["extra"]["caip2"] == option["network"]
-            assert option["extra"]["verification"] in ("spl", "trc20")
+            assert option["extra"]["verification"] == "spl"
+        assert not any(k.startswith("tron:") for k in accepts)
 
 
 class TestX402BatchPayments:

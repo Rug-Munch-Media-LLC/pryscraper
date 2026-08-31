@@ -1,66 +1,68 @@
 {
-	"actorSpecification": 1,
-	"name": "fda-recall-monitor",
-	"title": "FDA Recall Monitor",
-	"description": "Monitor food, drug and device recalls via the public openFDA API - classification, affected products and dates for compliance teams, retailers and consumer safety trackers.",
-	"version": "1.0",
-	"buildTag": "latest",
-	"meta": {
-		"templateId": "pry-actor-factory"
-	},
-	"dockerfile": "./Dockerfile",
-	"minMemoryMbytes": 512,
-	"maxMemoryMbytes": 2048,
-	"input": {
-		"title": "Input schema for Pry FDA Recall Monitor",
-		"description": "Monitor food, drug and device recalls via the public openFDA API - classification, affected products and dates for compliance teams, retailers and consumer safety trackers.",
-		"type": "object",
-		"schemaVersion": 1,
-		"properties": {
-			"urls": {
-				"title": "Target URLs",
-				"type": "array",
-				"description": "One or more https:// URLs to process.",
-				"editor": "requestListSources",
-				"prefill": [
-					{
-						"url": "https://example.com"
-					}
-				],
-				"example": [
-					{
-						"url": "https://example.com"
-					}
-				]
-			},
-			"max_items": {
-				"title": "Max items (cost cap)",
-				"type": "integer",
-				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-				"sectionCaption": "Advanced",
-				"editor": "number",
-				"default": 25,
-				"minimum": 1,
-				"example": 25
-			},
-			"proxy_configuration": {
-				"title": "Proxy configuration",
-				"type": "object",
-				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-				"sectionCaption": "Advanced",
-				"editor": "hidden",
-				"prefill": {
-					"useApifyProxy": true
-				},
-				"example": {
-					"useApifyProxy": true
-				}
-			}
-		},
-		"required": ["urls"]
-	},
-	"output": "./output_schema.json",
-	"storages": {
-		"dataset": "./dataset_schema.json"
-	}
+    "actorSpecification": 1,
+    "name": "fda-recall-monitor",
+    "title": "FDA Recall Monitor",
+    "description": "Monitor food, drug and device recalls via the public openFDA API - classification, affected products and dates for compliance teams, retailers and consumer safety trackers.",
+    "version": "1.0",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "pry-actor-factory"
+    },
+    "dockerfile": "./Dockerfile",
+    "minMemoryMbytes": 512,
+    "maxMemoryMbytes": 2048,
+    "input": {
+        "title": "Input schema for Pry FDA Recall Monitor",
+        "description": "Monitor food, drug and device recalls via the public openFDA API - classification, affected products and dates for compliance teams, retailers and consumer safety trackers.",
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "urls": {
+                "title": "Target URLs",
+                "type": "array",
+                "description": "One or more https:// URLs to process.",
+                "editor": "requestListSources",
+                "prefill": [
+                    {
+                        "url": "https://www.fda.gov"
+                    }
+                ],
+                "example": [
+                    {
+                        "url": "https://www.fda.gov"
+                    }
+                ]
+            },
+            "max_items": {
+                "title": "Max items (cost cap)",
+                "type": "integer",
+                "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+                "sectionCaption": "Advanced",
+                "editor": "number",
+                "default": 25,
+                "minimum": 1,
+                "example": 25
+            },
+            "proxy_configuration": {
+                "title": "Proxy configuration",
+                "type": "object",
+                "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+                "sectionCaption": "Advanced",
+                "editor": "hidden",
+                "prefill": {
+                    "useApifyProxy": true
+                },
+                "example": {
+                    "useApifyProxy": true
+                }
+            }
+        },
+        "required": [
+            "urls"
+        ]
+    },
+    "output": "./output_schema.json",
+    "storages": {
+        "dataset": "./dataset_schema.json"
+    }
 }

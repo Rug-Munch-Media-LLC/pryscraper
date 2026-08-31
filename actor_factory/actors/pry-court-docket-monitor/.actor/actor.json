@@ -1,75 +1,77 @@
 {
-	"actorSpecification": 1,
-	"name": "court-docket-monitor",
-	"title": "Court Docket Monitor",
-	"description": "Monitor public court dockets for new cases, motions and rulings by party or jurisdiction. Litigation intelligence without manual PACER trawling.",
-	"version": "1.1",
-	"buildTag": "latest",
-	"meta": {
-		"templateId": "pry-actor-factory"
-	},
-	"dockerfile": "./Dockerfile",
-	"minMemoryMbytes": 512,
-	"maxMemoryMbytes": 2048,
-	"input": {
-		"title": "Input schema for Pry Court Docket Monitor",
-		"description": "Monitor public court dockets for new cases, motions and rulings by party or jurisdiction. Litigation intelligence without manual PACER trawling.",
-		"type": "object",
-		"schemaVersion": 1,
-		"properties": {
-			"urls": {
-				"title": "Target URLs",
-				"type": "array",
-				"description": "One or more https:// URLs to process.",
-				"editor": "requestListSources",
-				"prefill": [
-					{
-						"url": "https://example.com"
-					}
-				],
-				"example": [
-					{
-						"url": "https://example.com"
-					}
-				]
-			},
-			"party_filter": {
-				"title": "Party name filter",
-				"type": "string",
-				"description": "Only emit docket entries matching this party.",
-				"sectionCaption": "Docket settings",
-				"editor": "textfield",
-				"default": "",
-				"example": ""
-			},
-			"max_items": {
-				"title": "Max items (cost cap)",
-				"type": "integer",
-				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-				"sectionCaption": "Advanced",
-				"editor": "number",
-				"default": 25,
-				"minimum": 1,
-				"example": 25
-			},
-			"proxy_configuration": {
-				"title": "Proxy configuration",
-				"type": "object",
-				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-				"sectionCaption": "Advanced",
-				"editor": "hidden",
-				"prefill": {
-					"useApifyProxy": true
-				},
-				"example": {
-					"useApifyProxy": true
-				}
-			}
-		},
-		"required": ["urls"]
-	},
-	"output": "./output_schema.json",
-	"storages": {
-		"dataset": "./dataset_schema.json"
-	}
+    "actorSpecification": 1,
+    "name": "court-docket-monitor",
+    "title": "Court Docket Monitor",
+    "description": "Monitor public court dockets for new cases, motions and rulings by party or jurisdiction. Litigation intelligence without manual PACER trawling.",
+    "version": "1.1",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "pry-actor-factory"
+    },
+    "dockerfile": "./Dockerfile",
+    "minMemoryMbytes": 512,
+    "maxMemoryMbytes": 2048,
+    "input": {
+        "title": "Input schema for Pry Court Docket Monitor",
+        "description": "Monitor public court dockets for new cases, motions and rulings by party or jurisdiction. Litigation intelligence without manual PACER trawling.",
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "urls": {
+                "title": "Target URLs",
+                "type": "array",
+                "description": "One or more https:// URLs to process.",
+                "editor": "requestListSources",
+                "prefill": [
+                    {
+                        "url": "https://www.courtlistener.com"
+                    }
+                ],
+                "example": [
+                    {
+                        "url": "https://www.courtlistener.com"
+                    }
+                ]
+            },
+            "party_filter": {
+                "title": "Party name filter",
+                "type": "string",
+                "description": "Only emit docket entries matching this party.",
+                "sectionCaption": "Docket settings",
+                "editor": "textfield",
+                "default": "",
+                "example": ""
+            },
+            "max_items": {
+                "title": "Max items (cost cap)",
+                "type": "integer",
+                "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+                "sectionCaption": "Advanced",
+                "editor": "number",
+                "default": 25,
+                "minimum": 1,
+                "example": 25
+            },
+            "proxy_configuration": {
+                "title": "Proxy configuration",
+                "type": "object",
+                "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+                "sectionCaption": "Advanced",
+                "editor": "hidden",
+                "prefill": {
+                    "useApifyProxy": true
+                },
+                "example": {
+                    "useApifyProxy": true
+                }
+            }
+        },
+        "required": [
+            "urls"
+        ]
+    },
+    "output": "./output_schema.json",
+    "storages": {
+        "dataset": "./dataset_schema.json"
+    }
 }

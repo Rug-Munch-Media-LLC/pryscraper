@@ -78,6 +78,15 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/billing/subscription/invoice/{invoice_id}/confirm",
         "/v1/billing/signup",
         "/v1/billing/balance",
+        # Cloud hosting signup + instance management (control plane — the
+        # monetary gate is the 402 payment manifest, not the middleware).
+        "/v1/hosting/plans",
+        "/v1/hosting/signup",
+        "/v1/hosting/signup/{invoice_id}/confirm",
+        "/v1/hosting/instances",
+        "/v1/hosting/instances/{instance_id}",
+        "/v1/hosting/instances/{instance_id}/renew",
+        "/v1/hosting/instances/{instance_id}/cancel",
         # Job / session management (control plane, not data plane)
         "/v1/job/{job_id}",
         "/v1/jobs",

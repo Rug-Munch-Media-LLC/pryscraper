@@ -1,58 +1,64 @@
 {
-	"title": "Input schema for Pry Token Safety Scanner",
-	"description": "Screen token pages for rug-pull and honeypot risk signals using Pry's crypto security checks: contract flags, liquidity signals and risk scores compiled into one dataset per token.",
-	"type": "object",
-	"schemaVersion": 1,
-	"properties": {
-		"urls": {
-			"title": "Target URLs",
-			"type": "array",
-			"description": "One or more https:// URLs to process.",
-			"editor": "requestListSources",
-			"prefill": [
-				{
-					"url": "https://example.com"
-				}
-			],
-			"example": [
-				{
-					"url": "https://example.com"
-				}
-			]
-		},
-		"risk_threshold": {
-			"title": "Risk threshold",
-			"type": "string",
-			"description": "Maximum acceptable risk level before flagging.",
-			"sectionCaption": "Scan settings",
-			"editor": "select",
-			"default": "medium",
-			"enum": ["low", "medium", "high"],
-			"example": "medium"
-		},
-		"max_items": {
-			"title": "Max items (cost cap)",
-			"type": "integer",
-			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-			"sectionCaption": "Advanced",
-			"editor": "number",
-			"default": 25,
-			"minimum": 1,
-			"example": 25
-		},
-		"proxy_configuration": {
-			"title": "Proxy configuration",
-			"type": "object",
-			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-			"sectionCaption": "Advanced",
-			"editor": "hidden",
-			"prefill": {
-				"useApifyProxy": true
-			},
-			"example": {
-				"useApifyProxy": true
-			}
-		}
-	},
-	"required": ["urls"]
+    "title": "Input schema for Pry Token Safety Scanner",
+    "description": "Screen token pages for rug-pull and honeypot risk signals using Pry's crypto security checks: contract flags, liquidity signals and risk scores compiled into one dataset per token.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "urls": {
+            "title": "Target URLs",
+            "type": "array",
+            "description": "One or more https:// URLs to process.",
+            "editor": "requestListSources",
+            "prefill": [
+                {
+                    "url": "https://etherscan.io"
+                }
+            ],
+            "example": [
+                {
+                    "url": "https://etherscan.io"
+                }
+            ]
+        },
+        "risk_threshold": {
+            "title": "Risk threshold",
+            "type": "string",
+            "description": "Maximum acceptable risk level before flagging.",
+            "sectionCaption": "Scan settings",
+            "editor": "select",
+            "default": "medium",
+            "enum": [
+                "low",
+                "medium",
+                "high"
+            ],
+            "example": "medium"
+        },
+        "max_items": {
+            "title": "Max items (cost cap)",
+            "type": "integer",
+            "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+            "sectionCaption": "Advanced",
+            "editor": "number",
+            "default": 25,
+            "minimum": 1,
+            "example": 25
+        },
+        "proxy_configuration": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+            "sectionCaption": "Advanced",
+            "editor": "hidden",
+            "prefill": {
+                "useApifyProxy": true
+            },
+            "example": {
+                "useApifyProxy": true
+            }
+        }
+    },
+    "required": [
+        "urls"
+    ]
 }

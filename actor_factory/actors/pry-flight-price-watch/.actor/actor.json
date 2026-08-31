@@ -1,76 +1,82 @@
 {
-	"actorSpecification": 1,
-	"name": "flight-price-watch",
-	"title": "Flight Price Watch",
-	"description": "Watch flight fares on any route across OTAs and airline sites without GDS fees. JS-rendered results handled by stealth browser tiers; normalized price points per observation.",
-	"version": "1.1",
-	"buildTag": "latest",
-	"meta": {
-		"templateId": "pry-actor-factory"
-	},
-	"dockerfile": "./Dockerfile",
-	"minMemoryMbytes": 1024,
-	"maxMemoryMbytes": 4096,
-	"input": {
-		"title": "Input schema for Pry Flight Price Watch",
-		"description": "Watch flight fares on any route across OTAs and airline sites without GDS fees. JS-rendered results handled by stealth browser tiers; normalized price points per observation.",
-		"type": "object",
-		"schemaVersion": 1,
-		"properties": {
-			"urls": {
-				"title": "Target URLs",
-				"type": "array",
-				"description": "One or more https:// URLs to process.",
-				"editor": "requestListSources",
-				"prefill": [
-					{
-						"url": "https://example.com"
-					}
-				],
-				"example": [
-					{
-						"url": "https://example.com"
-					}
-				]
-			},
-			"cabin_class": {
-				"title": "Cabin class",
-				"type": "string",
-				"description": "Economy, business or first.",
-				"sectionCaption": "Route settings",
-				"editor": "select",
-				"default": "economy",
-				"enum": ["economy", "business", "first"],
-				"example": "economy"
-			},
-			"max_items": {
-				"title": "Max items (cost cap)",
-				"type": "integer",
-				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-				"sectionCaption": "Advanced",
-				"editor": "number",
-				"default": 25,
-				"minimum": 1,
-				"example": 25
-			},
-			"proxy_configuration": {
-				"title": "Proxy configuration",
-				"type": "object",
-				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-				"sectionCaption": "Advanced",
-				"editor": "hidden",
-				"prefill": {
-					"useApifyProxy": true
-				},
-				"example": {
-					"useApifyProxy": true
-				}
-			}
-		},
-		"required": ["urls"]
-	},
-	"output": "./output_schema.json",
-	"storages": {
-		"dataset": "./dataset_schema.json"
-	}
+    "actorSpecification": 1,
+    "name": "flight-price-watch",
+    "title": "Flight Price Watch",
+    "description": "Watch flight fares on any route across OTAs and airline sites without GDS fees. JS-rendered results handled by stealth browser tiers; normalized price points per observation.",
+    "version": "1.1",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "pry-actor-factory"
+    },
+    "dockerfile": "./Dockerfile",
+    "minMemoryMbytes": 1024,
+    "maxMemoryMbytes": 4096,
+    "input": {
+        "title": "Input schema for Pry Flight Price Watch",
+        "description": "Watch flight fares on any route across OTAs and airline sites without GDS fees. JS-rendered results handled by stealth browser tiers; normalized price points per observation.",
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "urls": {
+                "title": "Target URLs",
+                "type": "array",
+                "description": "One or more https:// URLs to process.",
+                "editor": "requestListSources",
+                "prefill": [
+                    {
+                        "url": "https://www.kayak.com"
+                    }
+                ],
+                "example": [
+                    {
+                        "url": "https://www.kayak.com"
+                    }
+                ]
+            },
+            "cabin_class": {
+                "title": "Cabin class",
+                "type": "string",
+                "description": "Economy, business or first.",
+                "sectionCaption": "Route settings",
+                "editor": "select",
+                "default": "economy",
+                "enum": [
+                    "economy",
+                    "business",
+                    "first"
+                ],
+                "example": "economy"
+            },
+            "max_items": {
+                "title": "Max items (cost cap)",
+                "type": "integer",
+                "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+                "sectionCaption": "Advanced",
+                "editor": "number",
+                "default": 25,
+                "minimum": 1,
+                "example": 25
+            },
+            "proxy_configuration": {
+                "title": "Proxy configuration",
+                "type": "object",
+                "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+                "sectionCaption": "Advanced",
+                "editor": "hidden",
+                "prefill": {
+                    "useApifyProxy": true
+                },
+                "example": {
+                    "useApifyProxy": true
+                }
+            }
+        },
+        "required": [
+            "urls"
+        ]
+    },
+    "output": "./output_schema.json",
+    "storages": {
+        "dataset": "./dataset_schema.json"
+    }
 }

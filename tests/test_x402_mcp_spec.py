@@ -498,19 +498,24 @@ def test_asset_support_lookup() -> None:
     assert resolve_asset_entry("base", "BOGUS") is None
 
 
-def test_multi_asset_accepts_include_solana_tron() -> None:
-    """Multi-asset accepts quote Solana/TRON assets with USD-equivalent amounts."""
+def test_multi_asset_accepts_include_solana_exclude_tron() -> None:
+    """Multi-asset accepts quote Solana assets; TRON is gated out.
+
+    TRON verification is scaffolded (VERIFICATION_STATUS["tron"]["real"] is
+    False — no TRC-20 settlement verifier wired), so it must NEVER appear in
+    the 402 acceptance table: agents could otherwise attempt payments that
+    cannot settle.
+    """
     accepts = build_multi_asset_accepts("scrape", "https://pry.dev/api/scrape")
     by_key = {(a["network"], a["asset"]): a for a in accepts}
     assert ("solana:mainnet", "USDC") in by_key
-    assert ("tron:mainnet", "USDT") in by_key
+    assert ("tron:mainnet", "USDT") not in by_key
+    assert not any(a["network"].startswith("tron") for a in accepts)
     sol = by_key[("solana:mainnet", "USDC")]
     assert sol["network"] == "solana:mainnet"
     assert int(sol["maxAmountRequired"]) > 0
     assert sol["extra"]["verification"] == "spl"
     assert sol["extra"]["usdPerUnit"] == 1.0
-    tron = by_key[("tron:mainnet", "USDT")]
-    assert tron["extra"]["verification"] == "trc20"
     arb = by_key[("eip155:42161", "ARB")]
     # ARB is quoted at its USD-per-unit rate (18 decimals).
     assert arb["extra"]["usdPerUnit"] > 0
@@ -524,7 +529,7 @@ def test_multi_asset_payment_required_body() -> None:
     networks = {a["network"] for a in body["accepts"]}
     assert "eip155:8453" in networks
     assert "solana:mainnet" in networks
-    assert "tron:mainnet" in networks
+    assert "tron:mainnet" not in networks
     assert "networks" in body
     assert "supported_assets" in body
     # Legacy single-asset path is unchanged.
@@ -536,14 +541,15 @@ def test_multi_asset_payment_required_body() -> None:
 
 
 def test_multi_asset_solana_tron_challenge_header() -> None:
-    """Solana/TRON challenge headers round-trip per the x402 spec."""
+    """Solana challenge headers round-trip per the x402 spec; TRON excluded."""
     body = build_payment_required("scrape", multi_asset=True)
     encoded = _encode_payment_required_body(body)
     decoded = json.loads(base64.b64decode(encoded).decode())
     assert decoded == body
-    tron = next(a for a in decoded["accepts"] if a["network"] == "tron:mainnet")
+    sol = next(a for a in decoded["accepts"] if a["network"] == "solana:mainnet")
     for field in ("scheme", "network", "maxAmountRequired", "resource", "payToAddress", "asset"):
-        assert field in tron
+        assert field in sol
+    assert not any(a["network"].startswith("tron") for a in decoded["accepts"])
 
 
 def test_per_network_per_asset_price_override() -> None:

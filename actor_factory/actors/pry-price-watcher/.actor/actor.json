@@ -1,84 +1,86 @@
 {
-	"actorSpecification": 1,
-	"name": "price-watcher",
-	"title": "Price Watcher",
-	"description": "Track product prices on any e-commerce site - including JavaScript-rendered storefronts behind bot protection. Uses schema.org/Product structured data first, heuristic extraction as fallback, and SimHash change detection between runs.",
-	"version": "1.1",
-	"buildTag": "latest",
-	"meta": {
-		"templateId": "pry-actor-factory"
-	},
-	"dockerfile": "./Dockerfile",
-	"minMemoryMbytes": 1024,
-	"maxMemoryMbytes": 8192,
-	"input": {
-		"title": "Input schema for Pry Price Watcher",
-		"description": "Track product prices on any e-commerce site - including JavaScript-rendered storefronts behind bot protection. Uses schema.org/Product structured data first, heuristic extraction as fallback, and SimHash change detection between runs.",
-		"type": "object",
-		"schemaVersion": 1,
-		"properties": {
-			"urls": {
-				"title": "Target URLs",
-				"type": "array",
-				"description": "One or more https:// URLs to process.",
-				"editor": "requestListSources",
-				"prefill": [
-					{
-						"url": "https://example.com"
-					}
-				],
-				"example": [
-					{
-						"url": "https://example.com"
-					}
-				]
-			},
-			"currency_hint": {
-				"title": "Currency hint",
-				"type": "string",
-				"description": "Expected ISO currency code for price normalization.",
-				"sectionCaption": "Watch settings",
-				"editor": "textfield",
-				"default": "USD",
-				"example": "USD"
-			},
-			"extract_image": {
-				"title": "Include product image URL",
-				"type": "boolean",
-				"description": "Capture the primary product image when present.",
-				"sectionCaption": "Watch settings",
-				"editor": "checkbox",
-				"default": false,
-				"example": false
-			},
-			"max_items": {
-				"title": "Max items (cost cap)",
-				"type": "integer",
-				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-				"sectionCaption": "Advanced",
-				"editor": "number",
-				"default": 25,
-				"minimum": 1,
-				"example": 25
-			},
-			"proxy_configuration": {
-				"title": "Proxy configuration",
-				"type": "object",
-				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-				"sectionCaption": "Advanced",
-				"editor": "hidden",
-				"prefill": {
-					"useApifyProxy": true
-				},
-				"example": {
-					"useApifyProxy": true
-				}
-			}
-		},
-		"required": ["urls"]
-	},
-	"output": "./output_schema.json",
-	"storages": {
-		"dataset": "./dataset_schema.json"
-	}
+    "actorSpecification": 1,
+    "name": "price-watcher",
+    "title": "Price Watcher",
+    "description": "Track product prices on any e-commerce site - including JavaScript-rendered storefronts behind bot protection. Uses schema.org/Product structured data first, heuristic extraction as fallback, and SimHash change detection between runs.",
+    "version": "1.1",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "pry-actor-factory"
+    },
+    "dockerfile": "./Dockerfile",
+    "minMemoryMbytes": 1024,
+    "maxMemoryMbytes": 8192,
+    "input": {
+        "title": "Input schema for Pry Price Watcher",
+        "description": "Track product prices on any e-commerce site - including JavaScript-rendered storefronts behind bot protection. Uses schema.org/Product structured data first, heuristic extraction as fallback, and SimHash change detection between runs.",
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "urls": {
+                "title": "Target URLs",
+                "type": "array",
+                "description": "One or more https:// URLs to process.",
+                "editor": "requestListSources",
+                "prefill": [
+                    {
+                        "url": "https://www.amazon.com"
+                    }
+                ],
+                "example": [
+                    {
+                        "url": "https://www.amazon.com"
+                    }
+                ]
+            },
+            "currency_hint": {
+                "title": "Currency hint",
+                "type": "string",
+                "description": "Expected ISO currency code for price normalization.",
+                "sectionCaption": "Watch settings",
+                "editor": "textfield",
+                "default": "USD",
+                "example": "USD"
+            },
+            "extract_image": {
+                "title": "Include product image URL",
+                "type": "boolean",
+                "description": "Capture the primary product image when present.",
+                "sectionCaption": "Watch settings",
+                "editor": "checkbox",
+                "default": false,
+                "example": false
+            },
+            "max_items": {
+                "title": "Max items (cost cap)",
+                "type": "integer",
+                "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+                "sectionCaption": "Advanced",
+                "editor": "number",
+                "default": 25,
+                "minimum": 1,
+                "example": 25
+            },
+            "proxy_configuration": {
+                "title": "Proxy configuration",
+                "type": "object",
+                "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+                "sectionCaption": "Advanced",
+                "editor": "hidden",
+                "prefill": {
+                    "useApifyProxy": true
+                },
+                "example": {
+                    "useApifyProxy": true
+                }
+            }
+        },
+        "required": [
+            "urls"
+        ]
+    },
+    "output": "./output_schema.json",
+    "storages": {
+        "dataset": "./dataset_schema.json"
+    }
 }

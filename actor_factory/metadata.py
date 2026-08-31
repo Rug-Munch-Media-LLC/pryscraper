@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from actor_factory.spec import ActorSpec
@@ -190,7 +190,7 @@ def category_for(preset_name: str) -> str:
     return PRESET_CATEGORY_MAP[preset_name]
 
 
-def build_pricing_infos(spec: ActorSpec) -> dict:
+def build_pricing_infos(spec: ActorSpec) -> dict[str, Any]:
     """PAY_PER_EVENT ``pricingInfos`` entry from a preset's pricing events.
 
     Shape follows PayPerEventActorPricingInfo (docs.apify.com/api/v2/act-put):
@@ -201,7 +201,7 @@ def build_pricing_infos(spec: ActorSpec) -> dict:
     if not spec.pricing_events:
         msg = f"{spec.name}: preset defines no pricing events"
         raise ValueError(msg)
-    events: dict[str, dict] = {}
+    events: dict[str, dict[str, Any]] = {}
     for idx, event in enumerate(spec.pricing_events):
         events[event.name] = {
             "eventTitle": event.title,
@@ -216,7 +216,7 @@ def build_pricing_infos(spec: ActorSpec) -> dict:
     }
 
 
-def build_publication_payload(spec: ActorSpec) -> dict:
+def build_publication_payload(spec: ActorSpec) -> dict[str, Any]:
     """Full metadata PUT body: public + categorized + priced."""
     return {
         "title": spec.title,
@@ -228,8 +228,8 @@ def build_publication_payload(spec: ActorSpec) -> dict:
 
 
 def _request(
-    path: str, method: str, token: str, payload: dict | None = None
-) -> tuple[int, dict | str]:
+    path: str, method: str, token: str, payload: dict[str, Any] | None = None
+) -> tuple[int, dict[str, Any] | str]:
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(  # noqa: S310 - fixed https base URL
         f"{API_BASE}{path}",

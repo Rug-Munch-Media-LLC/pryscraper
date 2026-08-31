@@ -393,5 +393,38 @@ if _HAS_SA:
         created_at = Column(DateTime, default=_now, index=True)
         Index("ix_ledger_user_created", user_id, created_at.desc())
 
+    # ── Cloud hosting (hosted pry instances) ──
+    class HostingPlan(Base):
+        __tablename__ = "hosting_plans"
+        tier = Column(String(32), primary_key=True)  # pro | team | enterprise
+        name = Column(String(64), nullable=False)
+        price_usd_monthly = Column(Float, nullable=True)  # None = custom quote
+        max_concurrent_scrapes = Column(Integer, default=1, nullable=False)
+        max_pages_month = Column(Integer, nullable=True)  # None = unlimited
+        storage_gb = Column(Integer, default=1, nullable=False)
+        features = Column(JSON, default=list)
+        created_at = Column(DateTime, default=_now)
+
+    class HostedInstance(Base):
+        __tablename__ = "hosted_instances"
+        id = Column(Integer, primary_key=True)
+        instance_id = Column(String(64), unique=True, index=True, nullable=False)
+        user_id = Column(
+            String(64),
+            ForeignKey("users.user_id", ondelete="CASCADE"),
+            index=True,
+            nullable=False,
+        )
+        plan_tier = Column(String(32), nullable=False)  # pro | team | enterprise
+        status = Column(
+            String(16), default="active", nullable=False, index=True
+        )  # active | suspended | cancelled
+        api_key = Column(String(64), default="", nullable=False)  # api_keys.key_id reference
+        created_at = Column(DateTime, default=_now, nullable=False)
+        expires_at = Column(DateTime, nullable=True, index=True)
+        region = Column(String(32), default="us-east", nullable=False)
+        resource_limit = Column(JSON, default=dict)  # concurrency / pages / storage caps
+        Index("ix_hosted_instances_user_created", user_id, created_at.desc())
+
 else:  # pragma: no cover
     Base = None  # type: ignore

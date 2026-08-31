@@ -2,7 +2,7 @@
 
 Track app keyword rank snapshots on the Apple App Store and Google Play - position per keyword, version churn and category movement - each rank snapshot pulled on schedule for ASO teams and competitive app intel.
 
-> Looking to **store data at scale**, need a reliable **store scraper**, or want **store monitoring** without infrastructure headaches? This actor handles it on Apify's managed runtime.
+> Need **app store rank watch data** without infrastructure headaches? This actor scrapes, monitors and exports it on Apify's managed runtime - pay per result, no subscription.
 
 This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) with per-domain memory, block-signal detection and circuit breakers. Cheaper tiers are tried first; escalation happens only when a target actually fights back.
 
@@ -13,6 +13,11 @@ This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflar
 - **Transparent billing**: pay-per-event, charged per processed item
 - **Platform perks**: scheduling, API access, proxy rotation, monitoring and webhooks come free with Apify
 
+## Use Cases
+
+- **Continuous monitoring** - schedule the actor to pull fresh app store rank watch data on the cadence you need (hourly, daily, weekly) and alert via webhooks when anything changes
+- **Market & competitive research** - bulk-collect app store rank watch records into one dataset to benchmark competitors, prices and trends over time
+- **AI & analytics pipelines** - export clean, structured rank snapshot pulled results to JSON/CSV/Excel, or feed them straight into LLM/RAG workflows, BI dashboards or a warehouse via the Apify API
 ## Tutorial
 
 1. Add the page(s) or feed(s) to watch in `urls`.
@@ -20,9 +25,11 @@ This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflar
 3. Schedule runs (hourly/daily both work). Changed pages land in the dataset with a similarity detail; unchanged ones stay quiet.
 4. Want an audit trail instead? Flip on `include_unchanged` and every capture is kept.
 
-## How much will it cost to scrape with this Actor?
+## Pricing
 
-Billing is **pay-per-event**: you are charged `$0.0100` per `rank-snapshot-pulled` (one app rank snapshot pulled for a keyword.) - that is **$10.00 per 1,000 items**, with no subscription and no minimum.
+### How much will it cost to scrape with this Actor?
+
+Billing is **pay-per-event**: you are charged `$0.0100` per `rank-snapshot-pulled` (one app rank snapshot pulled for a keyword. billed per keyword tracked: total run cost scales with the keyword count (each keyword requires its own store page check), so a 50-keyword app costs 50x the single-keyword ppe price.) - that is **$10.00 per 1,000 items**, with no subscription and no minimum.
 
 Example: 100 items at 1024 MB costs roughly **$1.00** in event charges (platform compute adds about $0.0667). The synthetic `apify-actor-start` event covers startup compute. Your spending limit is always respected - the run stops gracefully at the cap.
 
@@ -30,7 +37,7 @@ Example: 100 items at 1024 MB costs roughly **$1.00** in event charges (platform
 
 | Event | Title | Price | Description |
 |---|---|---|---|
-| `rank-snapshot-pulled` | Rank snapshot pulled | $0.0100 | One app rank snapshot pulled for a keyword. |
+| `rank-snapshot-pulled` | Rank snapshot pulled | $0.0100 | One app rank snapshot pulled for a keyword. Billed per keyword tracked: total run cost scales with the keyword count (each keyword requires its own store page check), so a 50-keyword app costs 50x the single-keyword PPE price. |
 
 ## Input reference
 
@@ -58,6 +65,14 @@ Each dataset item looks like this:
 }
 ```
 
+### Dataset fields
+
+- `url` - the source URL that produced this item
+- `status` - `ok`, `skipped` or `error`, so downstream jobs can filter reliably
+- `method` - which tier of the fallback chain succeeded (transparency into how the data was fetched)
+- `scraped_at` - ISO-8601 UTC timestamp for time-series use
+- `data` / `content` - the extracted payload (structured records or clean markdown, depending on the actor)
+
 Items with `status: "error"` include an `error` reason - invalid targets are billed transparently and never silently dropped.
 
 ## How can I use this data?
@@ -83,6 +98,19 @@ curl -X POST https://api.apify.com/v2/acts/~run \\
 ```
 
 Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Apify platform.
+
+## Limitations
+
+- The first run only establishes the baseline - differences appear from the second run onward
+- Heavily JavaScript-rendered pages may need the browser tier, which is slower than plain HTTP fetches
+- Cosmetic changes (ads, rotating banners) are filtered, but very noisy pages can still produce low-value diffs
+
+## Troubleshooting
+
+- **Empty dataset?** Check the run log - each URL is reported with `ok`, `skipped` or `error` and a reason; fix the flagged targets and re-run
+- **Blocked or 403 responses?** The adaptive ladder escalates automatically; if a target still fails, lower `max_items` and retry later, or schedule runs further apart
+- **Unexpected fields?** Compare your output against the example below - `data_path` (where present) controls which array is extracted
+- **Run stopped early?** You hit the spending limit or `max_items` cap - raise the cap and resume; completed items are always flushed to the dataset
 
 ## FAQ
 

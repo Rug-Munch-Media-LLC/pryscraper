@@ -1,86 +1,88 @@
 {
-	"actorSpecification": 1,
-	"name": "event-listings-aggregator",
-	"title": "Event Listings Aggregator",
-	"description": "Aggregate event listings from conference, meetup and event-calenda sites: names, dates, venues, organizers and registration links - normalized for calendar and intel products.",
-	"version": "1.1",
-	"buildTag": "latest",
-	"meta": {
-		"templateId": "pry-actor-factory"
-	},
-	"dockerfile": "./Dockerfile",
-	"minMemoryMbytes": 512,
-	"maxMemoryMbytes": 4096,
-	"input": {
-		"title": "Input schema for Pry Event Listings Aggregator",
-		"description": "Aggregate event listings from conference, meetup and event-calenda sites: names, dates, venues, organizers and registration links - normalized for calendar and intel products.",
-		"type": "object",
-		"schemaVersion": 1,
-		"properties": {
-			"urls": {
-				"title": "Target URLs",
-				"type": "array",
-				"description": "One or more https:// URLs to process.",
-				"editor": "requestListSources",
-				"prefill": [
-					{
-						"url": "https://example.com"
-					}
-				],
-				"example": [
-					{
-						"url": "https://example.com"
-					}
-				]
-			},
-			"max_pages": {
-				"title": "Max pages",
-				"type": "integer",
-				"description": "Hard cap on processed pages (runaway protection).",
-				"sectionCaption": "Scraping settings",
-				"editor": "number",
-				"default": 100,
-				"minimum": 1,
-				"maximum": 10000,
-				"example": 100
-			},
-			"upcoming_only": {
-				"title": "Upcoming only",
-				"type": "boolean",
-				"description": "Drop events that already started.",
-				"sectionCaption": "Filter settings",
-				"editor": "checkbox",
-				"default": true,
-				"example": true
-			},
-			"max_items": {
-				"title": "Max items (cost cap)",
-				"type": "integer",
-				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-				"sectionCaption": "Advanced",
-				"editor": "number",
-				"default": 25,
-				"minimum": 1,
-				"example": 25
-			},
-			"proxy_configuration": {
-				"title": "Proxy configuration",
-				"type": "object",
-				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-				"sectionCaption": "Advanced",
-				"editor": "hidden",
-				"prefill": {
-					"useApifyProxy": true
-				},
-				"example": {
-					"useApifyProxy": true
-				}
-			}
-		},
-		"required": ["urls"]
-	},
-	"output": "./output_schema.json",
-	"storages": {
-		"dataset": "./dataset_schema.json"
-	}
+    "actorSpecification": 1,
+    "name": "event-listings-aggregator",
+    "title": "Event Listings Aggregator",
+    "description": "Aggregate event listings from conference, meetup and event-calenda sites: names, dates, venues, organizers and registration links - normalized for calendar and intel products.",
+    "version": "1.1",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "pry-actor-factory"
+    },
+    "dockerfile": "./Dockerfile",
+    "minMemoryMbytes": 512,
+    "maxMemoryMbytes": 4096,
+    "input": {
+        "title": "Input schema for Pry Event Listings Aggregator",
+        "description": "Aggregate event listings from conference, meetup and event-calenda sites: names, dates, venues, organizers and registration links - normalized for calendar and intel products.",
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "urls": {
+                "title": "Target URLs",
+                "type": "array",
+                "description": "One or more https:// URLs to process.",
+                "editor": "requestListSources",
+                "prefill": [
+                    {
+                        "url": "https://www.eventbrite.com"
+                    }
+                ],
+                "example": [
+                    {
+                        "url": "https://www.eventbrite.com"
+                    }
+                ]
+            },
+            "max_pages": {
+                "title": "Max pages",
+                "type": "integer",
+                "description": "Hard cap on processed pages (runaway protection).",
+                "sectionCaption": "Scraping settings",
+                "editor": "number",
+                "default": 100,
+                "minimum": 1,
+                "maximum": 10000,
+                "example": 100
+            },
+            "upcoming_only": {
+                "title": "Upcoming only",
+                "type": "boolean",
+                "description": "Drop events that already started.",
+                "sectionCaption": "Filter settings",
+                "editor": "checkbox",
+                "default": true,
+                "example": true
+            },
+            "max_items": {
+                "title": "Max items (cost cap)",
+                "type": "integer",
+                "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+                "sectionCaption": "Advanced",
+                "editor": "number",
+                "default": 25,
+                "minimum": 1,
+                "example": 25
+            },
+            "proxy_configuration": {
+                "title": "Proxy configuration",
+                "type": "object",
+                "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+                "sectionCaption": "Advanced",
+                "editor": "hidden",
+                "prefill": {
+                    "useApifyProxy": true
+                },
+                "example": {
+                    "useApifyProxy": true
+                }
+            }
+        },
+        "required": [
+            "urls"
+        ]
+    },
+    "output": "./output_schema.json",
+    "storages": {
+        "dataset": "./dataset_schema.json"
+    }
 }

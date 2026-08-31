@@ -1,68 +1,70 @@
 {
-	"title": "Input schema for Pry Press Release Monitor",
-	"description": "Monitor company and wire-service press releases: headlines, datelines and full announcement text - PR intelligence and media monitoring without manual source checking.",
-	"type": "object",
-	"schemaVersion": 1,
-	"properties": {
-		"urls": {
-			"title": "Target URLs",
-			"type": "array",
-			"description": "One or more https:// URLs to process.",
-			"editor": "requestListSources",
-			"prefill": [
-				{
-					"url": "https://example.com"
-				}
-			],
-			"example": [
-				{
-					"url": "https://example.com"
-				}
-			]
-		},
-		"max_pages": {
-			"title": "Max pages",
-			"type": "integer",
-			"description": "Hard cap on processed pages (runaway protection).",
-			"sectionCaption": "Scraping settings",
-			"editor": "number",
-			"default": 100,
-			"minimum": 1,
-			"maximum": 10000,
-			"example": 100
-		},
-		"keyword_filter": {
-			"title": "Keyword filter",
-			"type": "string",
-			"description": "Only emit releases matching this keyword.",
-			"sectionCaption": "Monitor settings",
-			"editor": "textfield",
-			"default": "",
-			"example": ""
-		},
-		"max_items": {
-			"title": "Max items (cost cap)",
-			"type": "integer",
-			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-			"sectionCaption": "Advanced",
-			"editor": "number",
-			"default": 25,
-			"minimum": 1,
-			"example": 25
-		},
-		"proxy_configuration": {
-			"title": "Proxy configuration",
-			"type": "object",
-			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-			"sectionCaption": "Advanced",
-			"editor": "hidden",
-			"prefill": {
-				"useApifyProxy": true
-			},
-			"example": {
-				"useApifyProxy": true
-			}
-		}
-	},
-	"required": ["urls"]
+    "title": "Input schema for Pry Press Release Monitor",
+    "description": "Monitor company and wire-service press releases: headlines, datelines and full announcement text - PR intelligence and media monitoring without manual source checking.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "urls": {
+            "title": "Target URLs",
+            "type": "array",
+            "description": "One or more https:// URLs to process.",
+            "editor": "requestListSources",
+            "prefill": [
+                {
+                    "url": "https://www.prnewswire.com"
+                }
+            ],
+            "example": [
+                {
+                    "url": "https://www.prnewswire.com"
+                }
+            ]
+        },
+        "max_pages": {
+            "title": "Max pages",
+            "type": "integer",
+            "description": "Hard cap on processed pages (runaway protection).",
+            "sectionCaption": "Scraping settings",
+            "editor": "number",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 10000,
+            "example": 100
+        },
+        "keyword_filter": {
+            "title": "Keyword filter",
+            "type": "string",
+            "description": "Only emit releases matching this keyword.",
+            "sectionCaption": "Monitor settings",
+            "editor": "textfield",
+            "default": "",
+            "example": ""
+        },
+        "max_items": {
+            "title": "Max items (cost cap)",
+            "type": "integer",
+            "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+            "sectionCaption": "Advanced",
+            "editor": "number",
+            "default": 25,
+            "minimum": 1,
+            "example": 25
+        },
+        "proxy_configuration": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+            "sectionCaption": "Advanced",
+            "editor": "hidden",
+            "prefill": {
+                "useApifyProxy": true
+            },
+            "example": {
+                "useApifyProxy": true
+            }
+        }
+    },
+    "required": [
+        "urls"
+    ]
 }

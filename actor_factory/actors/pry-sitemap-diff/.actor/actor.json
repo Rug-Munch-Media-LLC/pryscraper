@@ -1,86 +1,88 @@
 {
-	"actorSpecification": 1,
-	"name": "sitemap-diff",
-	"title": "Sitemap Diff",
-	"description": "Track sitemap changes between runs: new URLs, removed URLs and lastmod shifts - the fastest way to catch competitor site launches and content strategy moves.",
-	"version": "1.1",
-	"buildTag": "latest",
-	"meta": {
-		"templateId": "pry-actor-factory"
-	},
-	"dockerfile": "./Dockerfile",
-	"minMemoryMbytes": 256,
-	"maxMemoryMbytes": 1024,
-	"input": {
-		"title": "Input schema for Pry Sitemap Diff",
-		"description": "Track sitemap changes between runs: new URLs, removed URLs and lastmod shifts - the fastest way to catch competitor site launches and content strategy moves.",
-		"type": "object",
-		"schemaVersion": 1,
-		"properties": {
-			"change_threshold": {
-				"title": "Change threshold",
-				"type": "integer",
-				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
-				"sectionCaption": "Watch settings",
-				"editor": "number",
-				"default": 3,
-				"minimum": 0,
-				"maximum": 64,
-				"example": 3
-			},
-			"urls": {
-				"title": "Target URLs",
-				"type": "array",
-				"description": "One or more https:// URLs to process.",
-				"editor": "requestListSources",
-				"prefill": [
-					{
-						"url": "https://example.com"
-					}
-				],
-				"example": [
-					{
-						"url": "https://example.com"
-					}
-				]
-			},
-			"emit_all": {
-				"title": "Emit full URL list",
-				"type": "boolean",
-				"description": "Push every URL found, not just the summary.",
-				"sectionCaption": "Diff settings",
-				"editor": "checkbox",
-				"default": false,
-				"example": false
-			},
-			"max_items": {
-				"title": "Max items (cost cap)",
-				"type": "integer",
-				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-				"sectionCaption": "Advanced",
-				"editor": "number",
-				"default": 25,
-				"minimum": 1,
-				"example": 25
-			},
-			"proxy_configuration": {
-				"title": "Proxy configuration",
-				"type": "object",
-				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-				"sectionCaption": "Advanced",
-				"editor": "hidden",
-				"prefill": {
-					"useApifyProxy": true
-				},
-				"example": {
-					"useApifyProxy": true
-				}
-			}
-		},
-		"required": ["urls"]
-	},
-	"output": "./output_schema.json",
-	"storages": {
-		"dataset": "./dataset_schema.json"
-	}
+    "actorSpecification": 1,
+    "name": "sitemap-diff",
+    "title": "Sitemap Diff",
+    "description": "Track sitemap changes between runs: new URLs, removed URLs and lastmod shifts - the fastest way to catch competitor site launches and content strategy moves.",
+    "version": "1.1",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "pry-actor-factory"
+    },
+    "dockerfile": "./Dockerfile",
+    "minMemoryMbytes": 256,
+    "maxMemoryMbytes": 1024,
+    "input": {
+        "title": "Input schema for Pry Sitemap Diff",
+        "description": "Track sitemap changes between runs: new URLs, removed URLs and lastmod shifts - the fastest way to catch competitor site launches and content strategy moves.",
+        "type": "object",
+        "schemaVersion": 1,
+        "properties": {
+            "change_threshold": {
+                "title": "Change threshold",
+                "type": "integer",
+                "description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+                "sectionCaption": "Watch settings",
+                "editor": "number",
+                "default": 3,
+                "minimum": 0,
+                "maximum": 64,
+                "example": 3
+            },
+            "urls": {
+                "title": "Target URLs",
+                "type": "array",
+                "description": "One or more https:// URLs to process.",
+                "editor": "requestListSources",
+                "prefill": [
+                    {
+                        "url": "https://www.sitemaps.org"
+                    }
+                ],
+                "example": [
+                    {
+                        "url": "https://www.sitemaps.org"
+                    }
+                ]
+            },
+            "emit_all": {
+                "title": "Emit full URL list",
+                "type": "boolean",
+                "description": "Push every URL found, not just the summary.",
+                "sectionCaption": "Diff settings",
+                "editor": "checkbox",
+                "default": false,
+                "example": false
+            },
+            "max_items": {
+                "title": "Max items (cost cap)",
+                "type": "integer",
+                "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+                "sectionCaption": "Advanced",
+                "editor": "number",
+                "default": 25,
+                "minimum": 1,
+                "example": 25
+            },
+            "proxy_configuration": {
+                "title": "Proxy configuration",
+                "type": "object",
+                "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+                "sectionCaption": "Advanced",
+                "editor": "hidden",
+                "prefill": {
+                    "useApifyProxy": true
+                },
+                "example": {
+                    "useApifyProxy": true
+                }
+            }
+        },
+        "required": [
+            "urls"
+        ]
+    },
+    "output": "./output_schema.json",
+    "storages": {
+        "dataset": "./dataset_schema.json"
+    }
 }

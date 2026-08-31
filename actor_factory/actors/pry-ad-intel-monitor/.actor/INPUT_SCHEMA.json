@@ -1,68 +1,70 @@
 {
-	"title": "Input schema for Pry Ad Intel Monitor",
-	"description": "Monitor competitor advertising: detect active ad placements and landing-page changes across the web with block-signal aware escalation for protected publisher sites.",
-	"type": "object",
-	"schemaVersion": 1,
-	"properties": {
-		"urls": {
-			"title": "Target URLs",
-			"type": "array",
-			"description": "One or more https:// URLs to process.",
-			"editor": "requestListSources",
-			"prefill": [
-				{
-					"url": "https://example.com"
-				}
-			],
-			"example": [
-				{
-					"url": "https://example.com"
-				}
-			]
-		},
-		"max_pages": {
-			"title": "Max pages",
-			"type": "integer",
-			"description": "Hard cap on processed pages (runaway protection).",
-			"sectionCaption": "Scraping settings",
-			"editor": "number",
-			"default": 100,
-			"minimum": 1,
-			"maximum": 10000,
-			"example": 100
-		},
-		"detect_networks": {
-			"title": "Detect ad networks",
-			"type": "boolean",
-			"description": "Identify which ad networks a page runs.",
-			"sectionCaption": "Intel settings",
-			"editor": "checkbox",
-			"default": true,
-			"example": true
-		},
-		"max_items": {
-			"title": "Max items (cost cap)",
-			"type": "integer",
-			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-			"sectionCaption": "Advanced",
-			"editor": "number",
-			"default": 25,
-			"minimum": 1,
-			"example": 25
-		},
-		"proxy_configuration": {
-			"title": "Proxy configuration",
-			"type": "object",
-			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-			"sectionCaption": "Advanced",
-			"editor": "hidden",
-			"prefill": {
-				"useApifyProxy": true
-			},
-			"example": {
-				"useApifyProxy": true
-			}
-		}
-	},
-	"required": ["urls"]
+    "title": "Input schema for Pry Ad Intel Monitor",
+    "description": "Monitor competitor advertising: detect active ad placements and landing-page changes across the web with block-signal aware escalation for protected publisher sites.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "urls": {
+            "title": "Target URLs",
+            "type": "array",
+            "description": "One or more https:// URLs to process.",
+            "editor": "requestListSources",
+            "prefill": [
+                {
+                    "url": "https://www.facebook.com/ads/library"
+                }
+            ],
+            "example": [
+                {
+                    "url": "https://www.facebook.com/ads/library"
+                }
+            ]
+        },
+        "max_pages": {
+            "title": "Max pages",
+            "type": "integer",
+            "description": "Hard cap on processed pages (runaway protection).",
+            "sectionCaption": "Scraping settings",
+            "editor": "number",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 10000,
+            "example": 100
+        },
+        "detect_networks": {
+            "title": "Detect ad networks",
+            "type": "boolean",
+            "description": "Identify which ad networks a page runs.",
+            "sectionCaption": "Intel settings",
+            "editor": "checkbox",
+            "default": true,
+            "example": true
+        },
+        "max_items": {
+            "title": "Max items (cost cap)",
+            "type": "integer",
+            "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+            "sectionCaption": "Advanced",
+            "editor": "number",
+            "default": 25,
+            "minimum": 1,
+            "example": 25
+        },
+        "proxy_configuration": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+            "sectionCaption": "Advanced",
+            "editor": "hidden",
+            "prefill": {
+                "useApifyProxy": true
+            },
+            "example": {
+                "useApifyProxy": true
+            }
+        }
+    },
+    "required": [
+        "urls"
+    ]
 }

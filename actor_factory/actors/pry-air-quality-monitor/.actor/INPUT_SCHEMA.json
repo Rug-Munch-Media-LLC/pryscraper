@@ -1,70 +1,72 @@
 {
-	"title": "Input schema for Pry Air Quality Monitor",
-	"description": "Monitor air-quality indices and pollutant readings from public monitoring pages - AQI, PM2.5/PM10 and trend direction for health, insurance and smart-city datasets.",
-	"type": "object",
-	"schemaVersion": 1,
-	"properties": {
-		"change_threshold": {
-			"title": "Change threshold",
-			"type": "integer",
-			"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
-			"sectionCaption": "Watch settings",
-			"editor": "number",
-			"default": 3,
-			"minimum": 0,
-			"maximum": 64,
-			"example": 3
-		},
-		"urls": {
-			"title": "Target URLs",
-			"type": "array",
-			"description": "One or more https:// URLs to process.",
-			"editor": "requestListSources",
-			"prefill": [
-				{
-					"url": "https://example.com"
-				}
-			],
-			"example": [
-				{
-					"url": "https://example.com"
-				}
-			]
-		},
-		"aqi_threshold": {
-			"title": "AQI alert threshold",
-			"type": "integer",
-			"description": "Emit an alert item when AQI exceeds this value.",
-			"sectionCaption": "Alert settings",
-			"editor": "number",
-			"default": 100,
-			"minimum": 0,
-			"maximum": 500,
-			"example": 100
-		},
-		"max_items": {
-			"title": "Max items (cost cap)",
-			"type": "integer",
-			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-			"sectionCaption": "Advanced",
-			"editor": "number",
-			"default": 25,
-			"minimum": 1,
-			"example": 25
-		},
-		"proxy_configuration": {
-			"title": "Proxy configuration",
-			"type": "object",
-			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
-			"sectionCaption": "Advanced",
-			"editor": "hidden",
-			"prefill": {
-				"useApifyProxy": true
-			},
-			"example": {
-				"useApifyProxy": true
-			}
-		}
-	},
-	"required": ["urls"]
+    "title": "Input schema for Pry Air Quality Monitor",
+    "description": "Monitor air-quality indices and pollutant readings from public monitoring pages - AQI, PM2.5/PM10 and trend direction for health, insurance and smart-city datasets.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "change_threshold": {
+            "title": "Change threshold",
+            "type": "integer",
+            "description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+            "sectionCaption": "Watch settings",
+            "editor": "number",
+            "default": 3,
+            "minimum": 0,
+            "maximum": 64,
+            "example": 3
+        },
+        "urls": {
+            "title": "Target URLs",
+            "type": "array",
+            "description": "One or more https:// URLs to process.",
+            "editor": "requestListSources",
+            "prefill": [
+                {
+                    "url": "https://www.airnow.gov"
+                }
+            ],
+            "example": [
+                {
+                    "url": "https://www.airnow.gov"
+                }
+            ]
+        },
+        "aqi_threshold": {
+            "title": "AQI alert threshold",
+            "type": "integer",
+            "description": "Emit an alert item when AQI exceeds this value.",
+            "sectionCaption": "Alert settings",
+            "editor": "number",
+            "default": 100,
+            "minimum": 0,
+            "maximum": 500,
+            "example": 100
+        },
+        "max_items": {
+            "title": "Max items (cost cap)",
+            "type": "integer",
+            "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+            "sectionCaption": "Advanced",
+            "editor": "number",
+            "default": 25,
+            "minimum": 1,
+            "example": 25
+        },
+        "proxy_configuration": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+            "sectionCaption": "Advanced",
+            "editor": "hidden",
+            "prefill": {
+                "useApifyProxy": true
+            },
+            "example": {
+                "useApifyProxy": true
+            }
+        }
+    },
+    "required": [
+        "urls"
+    ]
 }
