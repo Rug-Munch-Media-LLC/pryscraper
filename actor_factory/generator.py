@@ -448,6 +448,18 @@ def _default_output_format(spec: ActorSpec) -> str:
     return "markdown"
 
 
+def _example_url(spec: ActorSpec) -> str:
+    """Real example URL for docs/curl snippets: the actor's own prefill
+    target when it has one, otherwise a stable generic page. Never
+    example.com - buyers read placeholder URLs as unfinished work."""
+    for f in spec.inputs:
+        if f.name == "urls" and isinstance(f.prefill, list):
+            for entry in f.prefill:
+                if isinstance(entry, dict) and entry.get("url"):
+                    return str(entry["url"])
+    return "https://news.ycombinator.com"
+
+
 def _example_item(spec: ActorSpec) -> str:
     """Processor-specific realistic dataset sample for the README.
 
@@ -456,7 +468,8 @@ def _example_item(spec: ActorSpec) -> str:
     boilerplate and hide the real contract from buyers.
     """
     ts = "2026-01-01T00:00:00+00:00"
-    base = {"url": "https://example.com", "status": "ok", "method": "direct", "scraped_at": ts}
+    src = _example_url(spec)
+    base = {"url": src, "status": "ok", "method": "direct", "scraped_at": ts}
     proc = spec.processor or ""
     name = spec.name.lower()
 
@@ -659,7 +672,10 @@ def _example_item(spec: ActorSpec) -> str:
         item = {
             **base,
             "content": "# Example page\n\nClean markdown content...",
-            "metadata": {"domain": "example.com", "content_length": 1234},
+            "metadata": {
+                "domain": src.removeprefix("https://").removeprefix("http://").split("/")[0],
+                "content_length": 1234,
+            },
         }
 
     return json.dumps(item, indent=2)
@@ -822,6 +838,38 @@ def _troubleshooting_section(spec: ActorSpec) -> str:
     )
 
 
+def _tips_section(spec: ActorSpec) -> str:
+    """1-2 practical usage tips, tuned per processor."""
+    proc = spec.processor or ""
+    if proc == "monitor":
+        tips = (
+            "- **Baseline first**: run once manually before scheduling - the "
+            "first run only records the fingerprint, so scheduled diffs are "
+            "meaningful from run two onward\n"
+            "- **Filter in the dataset**: enable `include_unchanged` only for "
+            "audit trails; for alerting, keep it off and let webhooks fire "
+            "on the changed items alone\n"
+        )
+    elif proc == "jsondata":
+        tips = (
+            "- **Use `data_path`** to point at the exact array you want "
+            "(e.g. `data.items`) - you get one clean record per element "
+            "instead of one blob per response\n"
+            "- **Batch smart**: group endpoints that share rate limits into "
+            "separate scheduled runs rather than one huge batch\n"
+        )
+    else:
+        tips = (
+            "- **Start small, then scale**: validate output on 2-3 URLs "
+            "first, then raise `max_items` and schedule bulk runs - failed "
+            "targets are reported per-URL, so retries are cheap\n"
+            "- **Automate the boring part**: pair an Apify schedule with a "
+            "webhook and the dataset lands in your pipeline without any "
+            "manual runs\n"
+        )
+    return "## Tips\n\n" + tips + "\n"
+
+
 def _render_readme(spec: ActorSpec) -> str:
     """Store-winning README per Apify's actor-readme best practices.
 
@@ -873,6 +921,7 @@ def _render_readme(spec: ActorSpec) -> str:
         for f in spec.inputs
     )
     example_item = _example_item(spec)
+    example_url = _example_url(spec)
     example_cost = run_economics(
         price_per_item_usd=primary.price_usd,
         profile=WorkloadProfile(
@@ -893,6 +942,13 @@ def _render_readme(spec: ActorSpec) -> str:
         "with per-domain memory, block-signal detection and circuit breakers. "
         "Cheaper tiers are tried first; escalation happens only when a target "
         "actually fights back.\n\n"
+        "## What it does\n\n"
+        f"{spec.title.removeprefix('Pry ')} delivers fresh {_topic(spec)} "
+        "as clean, structured data you can actually use - no infrastructure "
+        "to run, no proxies to manage, no parsers to maintain. Point it at "
+        "your targets, and every result lands in the dataset with a per-URL "
+        "status so downstream jobs can trust what they consume. You pay "
+        "only for successfully processed items.\n\n"
         "## What can this Actor do?\n\n"
         f"- Process **{len(spec.inputs)} configured input groups** - URLs in, "
         "structured results out\n"
@@ -958,18 +1014,20 @@ def _render_readme(spec: ActorSpec) -> str:
         "curl -X POST https://api.apify.com/v2/acts/~run \\\\\n"
         '  -H "Authorization: Bearer $APIFY_TOKEN" \\\\\n'
         '  -H "Content-Type: application/json" \\\\\n'
-        '  -d \'{"urls": ["https://example.com"]}\'\n'
+        f'  -d \'{{"urls": ["{example_url}"]}}\'\n'
         "```\n\n"
         "Integrations: Zapier, Make, n8n, Airbyte and webhooks are "
         "first-class on the Apify platform.\n\n"
         + _limitations_section(spec)
         + _troubleshooting_section(spec)
+        + _tips_section(spec)
         + "## FAQ\n\n"
         + _render_faq(spec)
         + "## Support\n\n"
         "Issues and feature requests: "
         "[repository](https://codeberg.org/RugMunchMedia/pryscraper). "
-        "Custom actors built on this engine are available on request.\n"
+        "Questions or custom-actor requests: [support@pryscraper.com]"
+        "(mailto:support@pryscraper.com).\n"
     )
 
 

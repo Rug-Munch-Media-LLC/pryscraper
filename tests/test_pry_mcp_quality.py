@@ -642,7 +642,8 @@ class TestToolRoundTrips:
         with patch("pry_mcp.fallback_server.httpx.AsyncClient", return_value=mock_client):
             resp = await _call(srv, "pry_scrape", {"url": "https://example.com"})
         assert "error" not in resp
-        assert resp["result"]["isError"] is False
+        # API down is a structured tool error (isError=True), not a fake success.
+        assert resp["result"]["isError"] is True
         assert "Would call POST /v1/scrape" in resp["result"]["content"][0]["text"]
 
     async def test_pry_compliance_url_falls_through_to_rest_proxy(self) -> None:

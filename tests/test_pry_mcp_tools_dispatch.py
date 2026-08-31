@@ -143,7 +143,7 @@ class TestCallCryptoTool:
         assert result is not None
         assert result["isError"] is False
         payload = json.loads(_text(result))
-        assert payload["items"][0]["symbol"] == "TEST"
+        assert payload["data"]["items"][0]["symbol"] == "TEST"
         fake.get_new_tokens.assert_awaited_once_with(chain="solana", limit=5)
 
     async def test_non_crypto_tool_returns_none(self) -> None:
@@ -189,7 +189,7 @@ class TestCallMarketplaceTool:
         assert result is not None
         assert result["isError"] is False
         payload = json.loads(_text(result))
-        assert payload["asin"] == "B08N5WRWNW"
+        assert payload["data"]["asin"] == "B08N5WRWNW"
         fake.get_product.assert_awaited_once_with("B08N5WRWNW")
 
     async def test_non_marketplace_tool_returns_none(self) -> None:
@@ -310,13 +310,18 @@ class TestFallbackServerRESTProxy:
         mock_client.post.side_effect = httpx.ConnectError("connection refused")
         with patch("pry_mcp.fallback_server.httpx.AsyncClient", return_value=mock_client):
             result = await server.call_tool("pry_scrape", {"url": "https://example.com"})
-        assert result["isError"] is False
+        # Structured MCP tool error: isError=True + {"error", "code"} payload.
+        assert result["isError"] is True
         text = result["content"][0]["text"]
         assert "Would call POST /v1/scrape" in text
         assert "Live execution unavailable" in text
+        assert json.loads(text)["code"] == "API_UNAVAILABLE"
 
     async def test_unwired_tool_returns_readable_message(self) -> None:
         server = self._server()
         result = await server.call_tool("pry_unknown", {})
-        assert result["isError"] is False
-        assert "not yet wired" in result["content"][0]["text"]
+        # Unwired tools are tool errors with a structured payload.
+        assert result["isError"] is True
+        text = result["content"][0]["text"]
+        assert "not yet wired" in text
+        assert json.loads(text)["code"] == "TOOL_NOT_WIRED"

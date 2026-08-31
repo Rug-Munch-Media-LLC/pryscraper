@@ -90,7 +90,14 @@ async def _call_crypto_tool(name: str, arguments: dict[str, Any]) -> dict[str, A
     except Exception as e:  # noqa: BLE001 — surface crypto handler failures as MCP errors
         logger.warning("mcp_crypto_tool_failed", extra={"tool": name, "error": str(e)})
         return {
-            "content": [{"type": "text", "text": f"Tool {name} failed: {e}"}],
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {"error": f"Tool {name} failed: {e}", "code": "TOOL_EXECUTION_FAILED"}
+                    ),
+                }
+            ],
             "isError": True,
         }
 
@@ -122,7 +129,14 @@ async def _call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[s
     except Exception as e:  # noqa: BLE001 — surface marketplace handler failures as MCP errors
         logger.warning("mcp_marketplace_tool_failed", extra={"tool": name, "error": str(e)})
         return {
-            "content": [{"type": "text", "text": f"Tool {name} failed: {e}"}],
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {"error": f"Tool {name} failed: {e}", "code": "TOOL_EXECUTION_FAILED"}
+                    ),
+                }
+            ],
             "isError": True,
         }
 
@@ -159,7 +173,14 @@ async def _call_domain_tool(
     except Exception as e:  # noqa: BLE001 — surface handler failures as MCP errors
         logger.warning("mcp_domain_tool_failed", extra={"tool": name, "error": str(e)})
         return {
-            "content": [{"type": "text", "text": f"Tool {name} failed: {e}"}],
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {"error": f"Tool {name} failed: {e}", "code": "TOOL_EXECUTION_FAILED"}
+                    ),
+                }
+            ],
             "isError": True,
         }
 
@@ -353,7 +374,17 @@ def make_fallback_server(
                         "mcp_tool_executor_failed", extra={"tool": name, "error": str(e)}
                     )
                     return {
-                        "content": [{"type": "text", "text": f"Tool {name} failed: {e}"}],
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": json.dumps(
+                                    {
+                                        "error": f"Tool {name} failed: {e}",
+                                        "code": "TOOL_EXECUTION_FAILED",
+                                    }
+                                ),
+                            }
+                        ],
                         "isError": True,
                     }
 
@@ -461,8 +492,18 @@ def make_fallback_server(
             }
             if name not in tool_map:
                 return {
-                    "content": [{"type": "text", "text": f"Tool {name} not yet wired to API"}],
-                    "isError": False,
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {
+                                    "error": f"Tool {name} not yet wired to API",
+                                    "code": "TOOL_NOT_WIRED",
+                                }
+                            ),
+                        }
+                    ],
+                    "isError": True,
                 }
             method, path = tool_map[name]
 
@@ -482,13 +523,18 @@ def make_fallback_server(
                     "content": [
                         {
                             "type": "text",
-                            "text": (
-                                f"Would call {method} {path} with {arguments}. "
-                                f"Live execution unavailable: {e}"
+                            "text": json.dumps(
+                                {
+                                    "error": (
+                                        f"Would call {method} {path} with {arguments}. "
+                                        f"Live execution unavailable: {e}"
+                                    ),
+                                    "code": "API_UNAVAILABLE",
+                                }
                             ),
                         }
                     ],
-                    "isError": False,
+                    "isError": True,
                 }
 
         def _tool_result_to_content(self, result: Any, tool_name: str) -> dict[str, Any]:

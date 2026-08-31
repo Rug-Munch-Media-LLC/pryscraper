@@ -6,6 +6,10 @@ Track domain registration data via the public RDAP protocol - expiry dates, stat
 
 This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) with per-domain memory, block-signal detection and circuit breakers. Cheaper tiers are tried first; escalation happens only when a target actually fights back.
 
+## What it does
+
+RDAP Domain Watch delivers fresh rdap domain watch as clean, structured data you can actually use - no infrastructure to run, no proxies to manage, no parsers to maintain. Point it at your targets, and every result lands in the dataset with a per-URL status so downstream jobs can trust what they consume. You pay only for successfully processed items.
+
 ## What can this Actor do?
 
 - Process **1 configured input groups** - URLs in, structured results out
@@ -51,7 +55,7 @@ Each dataset item looks like this:
 
 ```json
 {
-  "url": "https://example.com",
+  "url": "https://rdap.verisign.com/com/v1/domain/example.com",
   "status": "ok",
   "method": "direct",
   "scraped_at": "2026-01-01T00:00:00+00:00",
@@ -111,7 +115,7 @@ Run it programmatically:
 curl -X POST https://api.apify.com/v2/acts/~run \\
   -H "Authorization: Bearer $APIFY_TOKEN" \\
   -H "Content-Type: application/json" \\
-  -d '{"urls": ["https://example.com"]}'
+  -d '{"urls": ["https://rdap.verisign.com/com/v1/domain/example.com"]}'
 ```
 
 Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Apify platform.
@@ -129,6 +133,11 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 - **Unexpected fields?** Compare your output against the example below - `data_path` (where present) controls which array is extracted
 - **Run stopped early?** You hit the spending limit or `max_items` cap - raise the cap and resume; completed items are always flushed to the dataset
 
+## Tips
+
+- **Use `data_path`** to point at the exact array you want (e.g. `data.items`) - you get one clean record per element instead of one blob per response
+- **Batch smart**: group endpoints that share rate limits into separate scheduled runs rather than one huge batch
+
 ## FAQ
 
 **What exactly does Pry RDAP Domain Watch deliver?** Track domain registration data via the public RDAP protocol - expiry dates, status flags and nameservers for portfolio management, expiry sniping and brand protection. Results land in the dataset as structured items with transparent status reporting.
@@ -143,4 +152,4 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 
 ## Support
 
-Issues and feature requests: [repository](https://codeberg.org/RugMunchMedia/pryscraper). Custom actors built on this engine are available on request.
+Issues and feature requests: [repository](https://codeberg.org/RugMunchMedia/pryscraper). Questions or custom-actor requests: [support@pryscraper.com](mailto:support@pryscraper.com).

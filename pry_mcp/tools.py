@@ -4071,7 +4071,9 @@ PRY_TOOLS: list[dict[str, Any]] = [
         "outputSchema": {
             "type": "object",
             "properties": {
+                "success": {"type": "boolean"},
                 "total": {"type": "integer"},
+                "count": {"type": "integer", "description": "Actors on this page"},
                 "actors": {
                     "type": "array",
                     "items": {
@@ -4081,16 +4083,29 @@ PRY_TOOLS: list[dict[str, Any]] = [
                             "title": {"type": "string"},
                             "description": {"type": "string"},
                             "category": {"type": "string"},
+                            "icon": {"type": "string"},
+                            "icon_hd": {"type": "string"},
                             "processor": {"type": ["string", "null"]},
                             "uses_browser": {"type": "boolean"},
                             "min_memory_mbytes": {"type": "integer"},
-                            "pricing_events": {"type": "array"},
+                            "pricing_events": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "event": {"type": "string"},
+                                        "title": {"type": "string"},
+                                        "price_usd": {"type": "number"},
+                                    },
+                                    "required": ["event", "price_usd"],
+                                },
+                            },
                         },
-                        "required": ["actor", "title", "pricing_events"],
+                        "required": ["actor", "title", "category", "pricing_events"],
                     },
                 },
             },
-            "required": ["total", "actors"],
+            "required": ["success", "total", "actors"],
         },
         "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
     },
@@ -4132,12 +4147,35 @@ PRY_TOOLS: list[dict[str, Any]] = [
         "outputSchema": {
             "type": "object",
             "properties": {
+                "success": {"type": "boolean"},
                 "actor": {"type": "string"},
-                "items": {"type": "array"},
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "url": {"type": "string"},
+                            "status": {"type": "string"},
+                            "method": {"type": "string"},
+                            "content": {"type": "string"},
+                            "scraped_at": {"type": "string"},
+                            "error": {"type": "string"},
+                        },
+                    },
+                    "description": "Dataset items, same shape as the Apify actor run",
+                },
                 "item_count": {"type": "integer"},
-                "equivalent_apify_charge_usd": {"type": "number"},
+                "format": {
+                    "type": "string",
+                    "description": "Output format used for item content (default: markdown)",
+                },
+                "equivalent_apify_charge_usd": {
+                    "type": "number",
+                    "description": "PPE charge the equivalent Apify run would bill",
+                },
+                "note": {"type": "string"},
             },
-            "required": ["actor", "items", "item_count"],
+            "required": ["success", "actor", "items", "item_count"],
         },
     },
 ]
@@ -4212,9 +4250,14 @@ def _crypto_module_unavailable(tool_name: str) -> dict[str, Any]:
         "content": [
             {
                 "type": "text",
-                "text": (
-                    f"Tool {tool_name} is not available yet: the crypto_market module has "
-                    "not finished landing (parallel build in progress). Try again shortly."
+                "text": json.dumps(
+                    {
+                        "error": (
+                            f"Tool {tool_name} is not available yet: the crypto_market module has "
+                            "not finished landing (parallel build in progress). Try again shortly."
+                        ),
+                        "code": "MODULE_UNAVAILABLE",
+                    }
                 ),
             }
         ],
@@ -4250,7 +4293,12 @@ async def call_crypto_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
         }.get(kind, get_new_tokens)
         launches_data = await fn(chain=chain, limit=limit)
         return {
-            "content": [{"type": "text", "text": json.dumps(launches_data, indent=2)}],
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({"success": True, "data": launches_data}, indent=2),
+                }
+            ],
             "isError": False,
         }
 
@@ -4263,7 +4311,12 @@ async def call_crypto_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
             return _crypto_module_unavailable(name)
         signals_data = await get_listing_signals(exchanges=exchanges, lookback_hours=lookback_hours)
         return {
-            "content": [{"type": "text", "text": json.dumps(signals_data, indent=2)}],
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({"success": True, "data": signals_data}, indent=2),
+                }
+            ],
             "isError": False,
         }
 
@@ -4271,19 +4324,19 @@ async def call_crypto_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
         chain = arguments.get("chain", "")
         address = arguments.get("address", "")
         if not chain or not address:
-            return {
-                "content": [
-                    {"type": "text", "text": "pry_token_security requires chain and address"}
-                ],
-                "isError": True,
-            }
+            return _missing_arg(name, "chain and address")
         try:
             from crypto_market.token_security import scan_token
         except ImportError:
             return _crypto_module_unavailable(name)
         scan_data = await scan_token(chain, address)
         return {
-            "content": [{"type": "text", "text": json.dumps(scan_data, indent=2)}],
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({"success": True, "data": scan_data}, indent=2),
+                }
+            ],
             "isError": False,
         }
 
@@ -4301,13 +4354,23 @@ async def call_crypto_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
             except ImportError:
                 return _crypto_module_unavailable(name)
             return {
-                "content": [{"type": "text", "text": json.dumps(source_health(), indent=2)}],
+                "content": [
+                    {
+                        "type": "text",
+                        "text": json.dumps({"success": True, "data": source_health()}, indent=2),
+                    }
+                ],
                 "isError": False,
             }
         sources = None if source == "all" else [source]
         result = await fetch_kol_leaderboards(limit=limit, sources=sources)
         return {
-            "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({"success": True, "data": result}, indent=2),
+                }
+            ],
             "isError": False,
         }
 
@@ -4320,9 +4383,14 @@ def _marketplace_module_unavailable(tool_name: str) -> dict[str, Any]:
         "content": [
             {
                 "type": "text",
-                "text": (
-                    f"Tool {tool_name} is not available yet: the marketplace module has "
-                    "not finished landing (parallel build in progress). Try again shortly."
+                "text": json.dumps(
+                    {
+                        "error": (
+                            f"Tool {tool_name} is not available yet: the marketplace module has "
+                            "not finished landing (parallel build in progress). Try again shortly."
+                        ),
+                        "code": "MODULE_UNAVAILABLE",
+                    }
                 ),
             }
         ],
@@ -4342,27 +4410,26 @@ async def call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[st
     if name == "pry_amazon_product":
         asin = arguments.get("asin", "")
         if not asin:
-            return {
-                "content": [{"type": "text", "text": "pry_amazon_product requires asin"}],
-                "isError": True,
-            }
+            return _missing_arg(name, "asin")
         try:
             from pry.commerce.marketplace.amazon import get_product as get_amazon_product
         except ImportError:
             return _marketplace_module_unavailable(name)
         product_data = await get_amazon_product(asin)
         return {
-            "content": [{"type": "text", "text": json.dumps(product_data, indent=2)}],
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({"success": True, "data": product_data}, indent=2),
+                }
+            ],
             "isError": False,
         }
 
     if name == "pry_amazon_search":
         query = arguments.get("query", "")
         if not query:
-            return {
-                "content": [{"type": "text", "text": "pry_amazon_search requires query"}],
-                "isError": True,
-            }
+            return _missing_arg(name, "query")
         limit = int(arguments.get("limit", 20))
         try:
             from pry.commerce.marketplace.amazon import search_products as search_amazon_products
@@ -4370,24 +4437,31 @@ async def call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[st
             return _marketplace_module_unavailable(name)
         search_data = await search_amazon_products(query, limit=limit)
         return {
-            "content": [{"type": "text", "text": json.dumps(search_data, indent=2)}],
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({"success": True, "data": search_data}, indent=2),
+                }
+            ],
             "isError": False,
         }
 
     if name == "pry_walmart_product":
         product_id = arguments.get("product_id", "")
         if not product_id:
-            return {
-                "content": [{"type": "text", "text": "pry_walmart_product requires product_id"}],
-                "isError": True,
-            }
+            return _missing_arg(name, "product_id")
         try:
             from pry.commerce.marketplace.walmart import get_product as get_walmart_product
         except ImportError:
             return _marketplace_module_unavailable(name)
         product_data = await get_walmart_product(product_id)
         return {
-            "content": [{"type": "text", "text": json.dumps(product_data, indent=2)}],
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({"success": True, "data": product_data}, indent=2),
+                }
+            ],
             "isError": False,
         }
 
@@ -4399,7 +4473,12 @@ async def call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[st
             return _marketplace_module_unavailable(name)
         trending_data = await get_trending(limit=limit)
         return {
-            "content": [{"type": "text", "text": json.dumps(trending_data, indent=2)}],
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({"success": True, "data": trending_data}, indent=2),
+                }
+            ],
             "isError": False,
         }
 
@@ -4412,9 +4491,14 @@ def _data_module_unavailable(tool_name: str, package: str) -> dict[str, Any]:
         "content": [
             {
                 "type": "text",
-                "text": (
-                    f"Tool {tool_name} is not available yet: the {package} module has "
-                    "not finished landing (parallel build in progress). Try again shortly."
+                "text": json.dumps(
+                    {
+                        "error": (
+                            f"Tool {tool_name} is not available yet: the {package} module has "
+                            "not finished landing (parallel build in progress). Try again shortly."
+                        ),
+                        "code": "MODULE_UNAVAILABLE",
+                    }
                 ),
             }
         ],
@@ -4423,9 +4507,19 @@ def _data_module_unavailable(tool_name: str, package: str) -> dict[str, Any]:
 
 
 def _missing_arg(tool_name: str, arg: str) -> dict[str, Any]:
-    """MCP content dict for a missing required argument."""
+    """MCP content dict for a missing required argument (structured error)."""
     return {
-        "content": [{"type": "text", "text": f"{tool_name} requires {arg}"}],
+        "content": [
+            {
+                "type": "text",
+                "text": json.dumps(
+                    {
+                        "error": f"{tool_name} requires {arg}",
+                        "code": "MISSING_ARGUMENT",
+                    }
+                ),
+            }
+        ],
         "isError": True,
     }
 
@@ -4887,9 +4981,14 @@ def _sports_module_unavailable(tool_name: str) -> dict[str, Any]:
         "content": [
             {
                 "type": "text",
-                "text": (
-                    f"Tool {tool_name} is not available yet: the sports_data module has "
-                    "not finished landing (parallel build in progress). Try again shortly."
+                "text": json.dumps(
+                    {
+                        "error": (
+                            f"Tool {tool_name} is not available yet: the sports_data module has "
+                            "not finished landing (parallel build in progress). Try again shortly."
+                        ),
+                        "code": "MODULE_UNAVAILABLE",
+                    }
                 ),
             }
         ],
@@ -5167,9 +5266,14 @@ def _domain_module_unavailable(tool_name: str, package: str) -> dict[str, Any]:
         "content": [
             {
                 "type": "text",
-                "text": (
-                    f"Tool {tool_name} is not available yet: the {package} module has "
-                    "not finished landing (parallel build in progress). Try again shortly."
+                "text": json.dumps(
+                    {
+                        "error": (
+                            f"Tool {tool_name} is not available yet: the {package} module has "
+                            "not finished landing (parallel build in progress). Try again shortly."
+                        ),
+                        "code": "MODULE_UNAVAILABLE",
+                    }
                 ),
             }
         ],
@@ -5826,7 +5930,13 @@ async def call_actor_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
                 {
                     "type": "text",
                     "text": json.dumps(
-                        {"total": total, "count": len(entries), "actors": entries}, indent=2
+                        {
+                            "success": True,
+                            "total": total,
+                            "count": len(entries),
+                            "actors": entries,
+                        },
+                        indent=2,
                     ),
                 }
             ]
@@ -5840,10 +5950,7 @@ async def call_actor_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
         actor = arguments.get("actor")
         urls = arguments.get("urls") or []
         if not actor or not isinstance(actor, str):
-            return {
-                "content": [{"type": "text", "text": "error: 'actor' is required"}],
-                "isError": True,
-            }
+            return _missing_arg(name, "actor")
         spec = ALL_PRESETS.get(f"pry-{actor}")
         if spec is None:
             known = ", ".join(sorted(a.removeprefix("pry-") for a in ALL_PRESETS))
@@ -5851,16 +5958,18 @@ async def call_actor_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
                 "content": [
                     {
                         "type": "text",
-                        "text": f"error: unknown actor '{actor}'. Known actors: {known}",
+                        "text": json.dumps(
+                            {
+                                "error": f"unknown actor '{actor}'. Known actors: {known}",
+                                "code": "UNKNOWN_ACTOR",
+                            }
+                        ),
                     }
                 ],
                 "isError": True,
             }
         if not urls:
-            return {
-                "content": [{"type": "text", "text": "error: 'urls' is required"}],
-                "isError": True,
-            }
+            return _missing_arg(name, "urls")
 
         max_items = arguments.get("max_items")
         if not isinstance(max_items, int) or max_items < 1:
@@ -5897,9 +6006,11 @@ async def call_actor_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
                     "type": "text",
                     "text": json.dumps(
                         {
+                            "success": True,
                             "actor": spec.name.removeprefix("pry-"),
                             "items": items,
                             "item_count": len(items),
+                            "format": options.get("output_format", "markdown"),
                             "equivalent_apify_charge_usd": round(charged, 6),
                             "note": (
                                 "Ran locally via MCP - same pipeline as the Apify "

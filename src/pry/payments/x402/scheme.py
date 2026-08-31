@@ -1483,6 +1483,28 @@ def build_payment_required(
         "x402Version": 1,
         "accepts": accepts,
     }
+    # Self-documenting 402 (audit: challenge quality): an AI agent receiving
+    # this body must understand exactly WHAT to pay, WHERE, and HOW without
+    # reading docs. ``description`` is human+machine readable; ``instructions``
+    # spells out the pay-then-retry flow with a concrete example from the
+    # first accept; ``error`` carries the actionable message.
+    first = accepts[0] if accepts else {}
+    first_amount = str(first.get("maxAmountRequired", ""))
+    first_asset = str(first.get("asset", X402_DEFAULT_ASSET))
+    first_network = str(first.get("network", X402_DEFAULT_NETWORK))
+    first_pay_to = str(first.get("payToAddress", ""))
+    body["description"] = description or price_info.get("description", operation)
+    body["instructions"] = (
+        f"payment required: send {first_amount} {first_asset} "
+        f"(atomic units) to {first_pay_to or '<configured treasury>'} on the "
+        f"{first_network} network, then retry this request with the "
+        f"PAYMENT-SIGNATURE header containing the payment_id and tx_hash. "
+        f"See GET /v1/x402/pricing for the full price list and treasuries."
+    )
+    body["error"] = (
+        f"payment required: send {first_amount} {first_asset} to "
+        f"{first_pay_to or '<configured treasury>'} on {first_network}"
+    )
     if multi_asset:
         # Multi-chain acceptance surface so agents can see every network/asset
         # they may pay with (additive — spec clients ignore unknown keys).

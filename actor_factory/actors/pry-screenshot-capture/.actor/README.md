@@ -6,6 +6,10 @@ Full-page screenshots of any URL, including sites behind anti-bot systems, via s
 
 This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) with per-domain memory, block-signal detection and circuit breakers. Cheaper tiers are tried first; escalation happens only when a target actually fights back.
 
+## What it does
+
+Screenshot Capture delivers fresh screenshot capture as clean, structured data you can actually use - no infrastructure to run, no proxies to manage, no parsers to maintain. Point it at your targets, and every result lands in the dataset with a per-URL status so downstream jobs can trust what they consume. You pay only for successfully processed items.
+
 ## What can this Actor do?
 
 - Process **3 configured input groups** - URLs in, structured results out
@@ -53,13 +57,13 @@ Each dataset item looks like this:
 
 ```json
 {
-  "url": "https://example.com",
+  "url": "https://news.ycombinator.com",
   "status": "ok",
   "method": "direct",
   "scraped_at": "2026-01-01T00:00:00+00:00",
   "content": "# Example page\n\nClean markdown content...",
   "metadata": {
-    "domain": "example.com",
+    "domain": "news.ycombinator.com",
     "content_length": 1234
   }
 }
@@ -94,7 +98,7 @@ Run it programmatically:
 curl -X POST https://api.apify.com/v2/acts/~run \\
   -H "Authorization: Bearer $APIFY_TOKEN" \\
   -H "Content-Type: application/json" \\
-  -d '{"urls": ["https://example.com"]}'
+  -d '{"urls": ["https://news.ycombinator.com"]}'
 ```
 
 Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Apify platform.
@@ -112,6 +116,11 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 - **Unexpected fields?** Compare your output against the example below - `data_path` (where present) controls which array is extracted
 - **Run stopped early?** You hit the spending limit or `max_items` cap - raise the cap and resume; completed items are always flushed to the dataset
 
+## Tips
+
+- **Start small, then scale**: validate output on 2-3 URLs first, then raise `max_items` and schedule bulk runs - failed targets are reported per-URL, so retries are cheap
+- **Automate the boring part**: pair an Apify schedule with a webhook and the dataset lands in your pipeline without any manual runs
+
 ## FAQ
 
 **What exactly does Pry Screenshot Capture deliver?** Full-page screenshots of any URL, including sites behind anti-bot systems, via stealth browser tiers. Results land in the dataset as structured items with transparent status reporting.
@@ -128,4 +137,4 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 
 ## Support
 
-Issues and feature requests: [repository](https://codeberg.org/RugMunchMedia/pryscraper). Custom actors built on this engine are available on request.
+Issues and feature requests: [repository](https://codeberg.org/RugMunchMedia/pryscraper). Questions or custom-actor requests: [support@pryscraper.com](mailto:support@pryscraper.com).

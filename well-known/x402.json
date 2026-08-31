@@ -12,19 +12,19 @@
 				"eip155:42161",
 				"eip155:10",
 				"eip155:137",
-				"solana:mainnet",
-				"tron:mainnet"
+				"solana:mainnet"
 			],
 			"supported_assets": [
 				"USDC",
 				"USDT",
 				"ETH",
 				"SOL",
-				"TRX",
 				"ARB",
 				"POL",
 				"WETH"
-			]
+			],
+			"pricing_endpoint": "https://api.pryscraper.com/v1/x402/pricing",
+			"treasuries": "Per-chain treasury wallets (EVM, Solana) are served live by the pricing endpoint — never hardcode them here. TRON is gated (settlement verification scaffolded) and is not advertised."
 		}
 	}
 }

@@ -6,6 +6,10 @@ Watch URLs for content changes with SimHash near-duplicate detection. Schedule i
 
 This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) with per-domain memory, block-signal detection and circuit breakers. Cheaper tiers are tried first; escalation happens only when a target actually fights back.
 
+## What it does
+
+Change Monitor delivers fresh change monitor as clean, structured data you can actually use - no infrastructure to run, no proxies to manage, no parsers to maintain. Point it at your targets, and every result lands in the dataset with a per-URL status so downstream jobs can trust what they consume. You pay only for successfully processed items.
+
 ## What can this Actor do?
 
 - Process **3 configured input groups** - URLs in, structured results out
@@ -54,7 +58,7 @@ Each dataset item looks like this:
 
 ```json
 {
-  "url": "https://example.com",
+  "url": "https://news.ycombinator.com",
   "status": "ok",
   "method": "direct",
   "scraped_at": "2026-01-01T00:00:00+00:00",
@@ -95,7 +99,7 @@ Run it programmatically:
 curl -X POST https://api.apify.com/v2/acts/~run \\
   -H "Authorization: Bearer $APIFY_TOKEN" \\
   -H "Content-Type: application/json" \\
-  -d '{"urls": ["https://example.com"]}'
+  -d '{"urls": ["https://news.ycombinator.com"]}'
 ```
 
 Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Apify platform.
@@ -112,6 +116,11 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 - **Blocked or 403 responses?** The adaptive ladder escalates automatically; if a target still fails, lower `max_items` and retry later, or schedule runs further apart
 - **Unexpected fields?** Compare your output against the example below - `data_path` (where present) controls which array is extracted
 - **Run stopped early?** You hit the spending limit or `max_items` cap - raise the cap and resume; completed items are always flushed to the dataset
+
+## Tips
+
+- **Baseline first**: run once manually before scheduling - the first run only records the fingerprint, so scheduled diffs are meaningful from run two onward
+- **Filter in the dataset**: enable `include_unchanged` only for audit trails; for alerting, keep it off and let webhooks fire on the changed items alone
 
 ## FAQ
 
@@ -133,4 +142,4 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 
 ## Support
 
-Issues and feature requests: [repository](https://codeberg.org/RugMunchMedia/pryscraper). Custom actors built on this engine are available on request.
+Issues and feature requests: [repository](https://codeberg.org/RugMunchMedia/pryscraper). Questions or custom-actor requests: [support@pryscraper.com](mailto:support@pryscraper.com).
