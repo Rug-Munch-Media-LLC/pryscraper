@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
@@ -40,6 +41,7 @@ async def payment_analytics(days: int = 30) -> dict[str, Any]:
     }
 
 
+@router.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
 async def dashboard() -> HTMLResponse:
     cache_stats = cache.stats()
     rate_stats = ratelimiter.get_stats()

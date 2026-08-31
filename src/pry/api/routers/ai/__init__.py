@@ -1,5 +1,1 @@
-# ai subpackage
-from .agency import router as agency_router
-from .ai import router as ai_router
-from .analysis import router as analysis_router
-from .vision import router as vision_router
+# ai subpackage — routers are mounted explicitly in pry.api.api

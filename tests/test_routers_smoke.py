@@ -23,8 +23,14 @@ ROUTERS_DIR = Path(__file__).resolve().parent.parent / "src" / "pry" / "api" / "
 
 
 def _router_modules() -> list[str]:
-    """Every router module in routers/ (excluding the package __init__)."""
-    return sorted(p.stem for p in ROUTERS_DIR.glob("*.py") if p.stem != "__init__")
+    """Every router module under routers/ at any depth (excluding __init__)."""
+    modules: list[str] = []
+    for p in sorted(ROUTERS_DIR.rglob("*.py")):
+        if p.stem == "__init__":
+            continue
+        rel = p.relative_to(ROUTERS_DIR).with_suffix("")
+        modules.append(".".join(rel.parts))
+    return modules
 
 
 MODULES = _router_modules()

@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 from typing import Any
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,11 @@ class GraphQLScraper:
                             data = resp.json()
                             if data.get("data", {}).get("__schema"):
                                 return json.dumps(data, indent=2)
-                    except Exception:
+                    except Exception as e:
+                        logger.debug(
+                            "graphql_endpoint_probe_failed",
+                            extra={"endpoint": endpoint, "error": str(e)[:80]},
+                        )
                         continue
 
             return None
@@ -124,6 +129,3 @@ fragment TypeRef on __Type {
   }
 }
 """
-
-
-from urllib.parse import urlparse

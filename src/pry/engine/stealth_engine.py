@@ -38,9 +38,13 @@ class StealthEngine:
     def webgl_noise(self) -> str:
         """Add random noise to WebGL rendering to prevent GPU fingerprinting."""
         noise = _RNG.uniform(0.0001, 0.001)
+        # Fixed-point formatting: repr() of small floats yields scientific
+        # notation (e.g. 9e-05), which is valid JS but breaks downstream
+        # parsers/tests expecting a plain decimal literal.
+        noise_str = f"{noise:.8f}"
         return f"""
         (() => {{
-            const noise = {noise};
+            const noise = {noise_str};
             const getParameter = WebGLRenderingContext.prototype.getParameter;
             WebGLRenderingContext.prototype.getParameter = function(p) {{
                 if (p === 37445) return 'Intel Inc.';
@@ -58,11 +62,15 @@ class StealthEngine:
         """
 
     def canvas_noise(self) -> str:
-        """Add random pixel noise to Canvas fingerprinting."""
+        """Add random noise to Canvas fingerprinting."""
         noise = _RNG.uniform(0.00005, 0.0005)
+        # Fixed-point: values < 1e-4 would otherwise render as scientific
+        # notation (e.g. 8.7e-05) — valid JS, but breaks the plain-decimal
+        # contract tests and downstream parsers rely on.
+        noise_str = f"{noise:.8f}"
         return f"""
         (() => {{
-            const noise = {noise};
+            const noise = {noise_str};
             const toDataURL = HTMLCanvasElement.prototype.toDataURL;
             HTMLCanvasElement.prototype.toDataURL = function(type, quality) {{
                 const canvas = this;

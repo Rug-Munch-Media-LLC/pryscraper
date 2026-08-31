@@ -1,2 +1,1 @@
-# user subpackage
-from .crm import router as crm_router
+# user subpackage — routers are mounted explicitly in pry.api.api

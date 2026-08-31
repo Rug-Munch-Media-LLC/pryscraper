@@ -15,6 +15,7 @@ Flow: screenshot → LLM vision model → structured extraction
 from __future__ import annotations
 
 import base64
+import importlib.util
 import logging
 from typing import Any
 
@@ -29,13 +30,9 @@ try:
 except ImportError:
     pass
 
-_has_httpx = False
-try:
-    import httpx
-
-    _has_httpx = True
-except ImportError:
-    pass
+# Availability probe only — the name is imported locally where used
+# (_extract_with_llm), so no module-level binding is needed.
+_has_httpx = importlib.util.find_spec("httpx") is not None
 
 
 class AIVisualScraper:

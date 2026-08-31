@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,11 @@ class MobileAppScraper:
                         resp = await client.get(api_url, headers=headers)
                         if resp.is_success and len(resp.text) > 100:
                             return resp.text
-                    except Exception:
+                    except Exception as e:
+                        logger.debug(
+                            "mobile_api_probe_failed",
+                            extra={"pattern": pattern, "error": str(e)[:80]},
+                        )
                         continue
 
             return None
@@ -87,6 +92,3 @@ class MobileAppScraper:
         ua = MOBILE_USER_AGENTS[self._ua_index % len(MOBILE_USER_AGENTS)]
         self._ua_index += 1
         return ua
-
-
-from urllib.parse import urlparse
