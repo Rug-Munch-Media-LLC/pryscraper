@@ -36,7 +36,7 @@ async def x402_manifest() -> dict[str, Any]:
     return {
         "name": "Pry Scraping API",
         "description": "Pay-per-request web scraping API with x402 payments",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "payment": {
             "x402": {
                 "enabled": True,
@@ -100,7 +100,7 @@ async def x402_manifest() -> dict[str, Any]:
         },
         "contact": {
             "website": "https://[INTERNAL]",
-            "docs": "https://docs.example.com",
+            "docs": "https://docs.pryscraper.com",
             "support": "support@rugmunch.io",
         },
     }
@@ -112,7 +112,7 @@ async def agent_card() -> dict[str, Any]:
     return {
         "name": "Pry Scraping Agent",
         "description": "Web scraping agent with x402 payment integration",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "capabilities": [
             "web_scraping",
             "website_crawling",

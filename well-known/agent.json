@@ -1,22 +1,15 @@
 {
-  "name": "Pry Scraping Agent",
-  "description": "Web scraping agent with x402 payments",
-  "version": "2.0.0",
-  "capabilities": [
-    "web_scraping",
-    "data_extraction",
-    "captcha_solving",
-    "auto_signup"
-  ],
-  "payment": {
-    "x402": true,
-    "crypto": [
-      "BTC",
-      "ETH",
-      "SOL",
-      "USDC",
-      "USDT",
-      "TRX"
-    ]
-  }
+	"name": "Pry Scraping Agent",
+	"description": "Web scraping agent with x402 payments",
+	"version": "3.0.0",
+	"capabilities": [
+		"web_scraping",
+		"data_extraction",
+		"captcha_solving",
+		"auto_signup"
+	],
+	"payment": {
+		"x402": true,
+		"crypto": ["BTC", "ETH", "SOL", "USDC", "USDT", "TRX"]
+	}
 }
