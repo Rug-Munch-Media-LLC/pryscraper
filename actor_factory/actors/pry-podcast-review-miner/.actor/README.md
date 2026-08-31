@@ -115,4 +115,4 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 
 ## Support
 
-Issues and feature requests: [repository](https://github.com/cryptorugmuncher/pryscraper). Custom actors built on this engine are available on request.
+Issues and feature requests: [repository](https://codeberg.org/RugMunchMedia/pryscraper). Custom actors built on this engine are available on request.

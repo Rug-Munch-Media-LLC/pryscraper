@@ -56,7 +56,7 @@ stale public claims, and thin integration wiring._
 
 ## C. DOCUMENTATION
 21. **Fix README badges**: GitHub links point to nonexistent
-    `github.com/cryptorugmuncher`; CI badge uses GitHub-style URL on Forgejo.
+    `codeberg.org/RugMunchMedia`; CI badge uses Forgejo URL.
     Point badges at Codeberg/Forgejo properly or drop them.
 22. **Sync llms.txt: "60 store-ready actors" → 79** (stale public claim).
 23. **Expand sitemap.xml** (5 URLs) — add docs pages, comparison pages, blog.

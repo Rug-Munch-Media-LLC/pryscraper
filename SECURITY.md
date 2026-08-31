@@ -60,7 +60,7 @@
 - Renovate bot for auto-PR updates
 
 ## Vulnerability Disclosure
-Email: security@rugmunch.io (PGP key available on request)
+Email: security@pryscraper.com (PGP key available on request)
 Response within 24 hours.
 Patch within 7 days for critical, 30 days for medium.
 

@@ -247,7 +247,7 @@ def get_registry_manifest() -> dict[str, Any]:
         "version": "3.0.0",
         "author": {
             "name": "Rug Munch Media LLC",
-            "email": "admin@rugmunch.io",
+            "email": "admin@pryscraper.com",
         },
         "license": "MIT",
         "website": "https://pryscraper.com",

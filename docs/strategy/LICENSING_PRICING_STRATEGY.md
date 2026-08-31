@@ -220,7 +220,7 @@ WalletPress is **THREE products** that need different strategies:
 
 **Change Date:** 2029-01-01, converts to MIT
 
-**Commercial license:** enterprise@rugmunch.io
+**Commercial license:** biz@pryscraper.com
 ## 4. RMI (RUG MUNCH INTELLIGENCE) — DETAILED PROFIT MODEL
 
 ### 4.1 License: OPEN CORE (CONFIRMED)

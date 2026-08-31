@@ -4,7 +4,7 @@ Scrape any website to clean markdown with a 12-tier adaptive anti-bot bypass (Cl
 
 > Looking to **universal data at scale**, need a reliable **universal scraper**, or want **scraper monitoring** without infrastructure headaches? This actor handles it on Apify's managed runtime.
 
-**Pry Universal Scraper** runs on the [Pry](https://github.com/cryptorugmuncher/pryscraper) engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) with per-domain memory, block-signal detection and circuit breakers. Cheaper tiers are tried first; escalation happens only when a target actually fights back.
+**Pry Universal Scraper** runs on the [Pry](https://codeberg.org/RugMunchMedia/pryscraper) engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) with per-domain memory, block-signal detection and circuit breakers. Cheaper tiers are tried first; escalation happens only when a target actually fights back.
 
 ## What can this Actor do?
 
@@ -98,4 +98,4 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 
 ## Support
 
-Issues and feature requests: [Pry repository](https://github.com/cryptorugmuncher/pryscraper). Custom actors built on this engine are available on request.
+Issues and feature requests: [Pry repository](https://codeberg.org/RugMunchMedia/pryscraper). Custom actors built on this engine are available on request.

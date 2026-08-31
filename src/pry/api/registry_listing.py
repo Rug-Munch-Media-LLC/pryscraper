@@ -40,7 +40,7 @@ def get_mcp_listing() -> dict[str, Any]:
         "displayName": "Pry Scraping API",
         "description": "Professional web scraping with x402 crypto payments. 15-tier anti-detection fallback, AI extraction, auto-signup, CAPTCHA solving.",
         "version": "3.0.0",
-        "author": {"name": "Rug Munch Media LLC", "email": "admin@rugmunch.io"},
+        "author": {"name": "Rug Munch Media LLC", "email": "admin@pryscraper.com"},
         "license": "MIT",
         "icon": "https://pryscraper.com/img/pry-logo.png",
         "banner": "https://pryscraper.com/og.png",
@@ -151,7 +151,7 @@ def get_x402_listing() -> dict[str, Any]:
             "providers": ["self-hosted"],
         },
         "contact": {
-            "email": "admin@rugmunch.io",
+            "email": "admin@pryscraper.com",
             "website": "https://pryscraper.com",
         },
     }

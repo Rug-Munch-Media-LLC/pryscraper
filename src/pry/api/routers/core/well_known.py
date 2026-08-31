@@ -101,7 +101,7 @@ async def x402_manifest() -> dict[str, Any]:
         "contact": {
             "website": "https://[INTERNAL]",
             "docs": "https://docs.pryscraper.com",
-            "support": "support@rugmunch.io",
+            "support": "support@pryscraper.com",
         },
     }
 

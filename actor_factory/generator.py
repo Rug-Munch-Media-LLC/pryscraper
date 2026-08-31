@@ -735,6 +735,93 @@ def _tutorial_steps(spec: ActorSpec) -> str:
     )
 
 
+def _topic(spec: ActorSpec) -> str:
+    """Human topic phrase for SEO copy, e.g. 'crypto market monitoring'."""
+    t = spec.title.removeprefix("Pry ").lower().replace("-", " ")
+    return t
+
+
+def _use_case_bullets(spec: ActorSpec) -> str:
+    """Three domain-relevant use cases (Apify docs: use cases drive conversion)."""
+    topic = _topic(spec)
+    event = spec.primary_event().name.replace("-", " ")
+    return (
+        f"- **Continuous monitoring** - schedule the actor to pull fresh "
+        f"{topic} data on the cadence you need (hourly, daily, weekly) and "
+        "alert via webhooks when anything changes\n"
+        f"- **Market & competitive research** - bulk-collect {topic} records "
+        "into one dataset to benchmark competitors, prices and trends over "
+        "time\n"
+        f"- **AI & analytics pipelines** - export clean, structured "
+        f"{event} results to JSON/CSV/Excel, or feed them straight into "
+        "LLM/RAG workflows, BI dashboards or a warehouse via the Apify API\n"
+    )
+
+
+def _store_description(spec: ActorSpec) -> str:
+    """Keyword-rich actor.json description, hard-capped at 200 chars."""
+    topic = _topic(spec)
+    base = spec.description.strip().rstrip(".")
+    tail = f". Scrape, monitor and export {topic} data via API on Apify"
+    candidate = base + tail
+    if len(candidate) <= 200:
+        return candidate
+    if len(base) <= 200:
+        return base
+    cut = base[:197].rsplit(" ", 1)[0]
+    return cut + "..."
+
+
+def _limitations_section(spec: ActorSpec) -> str:
+    proc = spec.processor or ""
+    if proc == "jsondata":
+        body = (
+            "- Sources must return JSON (or JSON inside HTML) - binary or "
+            "pure-HTML endpoints are reported as `skipped`, not guessed\n"
+            "- Free/public API tiers apply their own rate limits; very large "
+            "batches may need scheduling across runs\n"
+            "- Authentication-protected endpoints need publicly reachable "
+            "URLs - private dashboards are out of scope\n"
+        )
+    elif proc == "monitor":
+        body = (
+            "- The first run only establishes the baseline - differences "
+            "appear from the second run onward\n"
+            "- Heavily JavaScript-rendered pages may need the browser tier, "
+            "which is slower than plain HTTP fetches\n"
+            "- Cosmetic changes (ads, rotating banners) are filtered, but "
+            "very noisy pages can still produce low-value diffs\n"
+        )
+    else:
+        body = (
+            "- Publicly accessible pages only - login-walled or paywalled "
+            "content is not supported\n"
+            "- Extremely aggressive anti-bot targets may still block some "
+            "requests; failures are reported honestly per URL\n"
+            "- Data quality mirrors the source: if a page hides its data "
+            "behind images or canvas, extraction may be partial\n"
+        )
+    return "## Limitations\n\n" + body + "\n"
+
+
+def _troubleshooting_section(spec: ActorSpec) -> str:
+    return (
+        "## Troubleshooting\n\n"
+        "- **Empty dataset?** Check the run log - each URL is reported with "
+        "`ok`, `skipped` or `error` and a reason; fix the flagged targets "
+        "and re-run\n"
+        "- **Blocked or 403 responses?** The adaptive ladder escalates "
+        "automatically; if a target still fails, lower `max_items` and "
+        "retry later, or schedule runs further apart\n"
+        "- **Unexpected fields?** Compare your output against the example "
+        "below - `data_path` (where present) controls which array is "
+        "extracted\n"
+        "- **Run stopped early?** You hit the spending limit or `max_items` "
+        "cap - raise the cap and resume; completed items are always "
+        "flushed to the dataset\n\n"
+    )
+
+
 def _render_readme(spec: ActorSpec) -> str:
     """Store-winning README per Apify's actor-readme best practices.
 
@@ -742,9 +829,12 @@ def _render_readme(spec: ActorSpec) -> str:
     - >=300 words; H2/H3 only (H1 is the actor name on Store)
     - Introduction with bold keyword highlights
     - Step-by-step tutorial (ordered list reassures users, SEO-friendly)
-    - Cost-expectation section with search-optimized H2 ("How much will...")
-    - Input/output reference incl. JSON example
-    - FAQ + support section
+     - Cost-expectation section with search-optimized H2 ("Pricing" /
+       "How much will...")
+     - Use Cases section (3 domain-relevant bullets)
+     - Input/output reference incl. JSON example + dataset field glossary
+     - Limitations + Troubleshooting sections
+     - FAQ + support section
     - Platform advantages woven in (scheduling, API, proxies, monitoring)
     """
     primary = spec.primary_event()
@@ -792,31 +882,12 @@ def _render_readme(spec: ActorSpec) -> str:
         ),
     )
 
-    # SEO keywords derived from the actor's own vocabulary (docs: keywords
-    # belong in headings/paragraphs; search terms like "scrape X", "X data",
-    # "X API" are the highest-intent patterns).
-    kw_source = (spec.name + " " + spec.title).lower().replace("-", " ")
-    base_words = [w for w in kw_source.split() if len(w) > 3][:4]
-    keywords = ", ".join(
-        [
-            f"{w} scraper"
-            if i == 0
-            else f"{w} API"
-            if i == 1
-            else f"extract {w} data"
-            if i == 2
-            else f"{w} monitoring"
-            for i, w in enumerate(base_words)
-        ]
-    )
-
     return (
         f"# {spec.title}\n\n"
         f"{spec.description}\n\n"
-        f"> Looking to **{base_words[0] if base_words else 'scrape'} data at scale**, "
-        f"need a reliable **{keywords.split(', ')[0]}**, or want "
-        f"**{keywords.split(', ')[-1]}** without infrastructure headaches? "
-        "This actor handles it on Apify's managed runtime.\n\n"
+        f"> Need **{_topic(spec)} data** without infrastructure headaches? "
+        "This actor scrapes, monitors and exports it on Apify's managed "
+        "runtime - pay per result, no subscription.\n\n"
         f"This actor runs on the "
         "engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) "
         "with per-domain memory, block-signal detection and circuit breakers. "
@@ -830,9 +901,12 @@ def _render_readme(spec: ActorSpec) -> str:
         "- **Transparent billing**: pay-per-event, charged per processed item\n"
         "- **Platform perks**: scheduling, API access, proxy rotation, "
         "monitoring and webhooks come free with Apify\n\n"
-        "## Tutorial\n\n"
+        "## Use Cases\n\n"
+        + _use_case_bullets(spec)
+        + "## Tutorial\n\n"
         + _tutorial_steps(spec)
-        + "## How much will it cost to scrape with this Actor?\n\n"
+        + "## Pricing\n\n"
+        "### How much will it cost to scrape with this Actor?\n\n"
         f"Billing is **pay-per-event**: you are charged `${primary.price_usd:.4f}` "
         f"per `{primary.name}` ({primary.description.lower()}) - that is "
         f"**${primary.price_usd * 1000:.2f} per 1,000 items**, with no "
@@ -851,6 +925,15 @@ def _render_readme(spec: ActorSpec) -> str:
         "## Output reference\n\n"
         "Each dataset item looks like this:\n\n"
         f"```json\n{example_item}\n```\n\n"
+        "### Dataset fields\n\n"
+        "- `url` - the source URL that produced this item\n"
+        "- `status` - `ok`, `skipped` or `error`, so downstream jobs can "
+        "filter reliably\n"
+        "- `method` - which tier of the fallback chain succeeded "
+        "(transparency into how the data was fetched)\n"
+        "- `scraped_at` - ISO-8601 UTC timestamp for time-series use\n"
+        "- `data` / `content` - the extracted payload (structured records "
+        "or clean markdown, depending on the actor)\n\n"
         'Items with `status: "error"` include an `error` reason - invalid '
         "targets are billed transparently and never silently dropped.\n\n"
         + _data_source_section(spec)
@@ -879,9 +962,13 @@ def _render_readme(spec: ActorSpec) -> str:
         "```\n\n"
         "Integrations: Zapier, Make, n8n, Airbyte and webhooks are "
         "first-class on the Apify platform.\n\n"
-        "## FAQ\n\n" + _render_faq(spec) + "## Support\n\n"
+        + _limitations_section(spec)
+        + _troubleshooting_section(spec)
+        + "## FAQ\n\n"
+        + _render_faq(spec)
+        + "## Support\n\n"
         "Issues and feature requests: "
-        "[repository](https://github.com/cryptorugmuncher/pryscraper). "
+        "[repository](https://codeberg.org/RugMunchMedia/pryscraper). "
         "Custom actors built on this engine are available on request.\n"
     )
 
