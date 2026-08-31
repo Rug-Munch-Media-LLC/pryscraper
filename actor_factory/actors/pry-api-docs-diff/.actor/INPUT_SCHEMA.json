@@ -1,0 +1,71 @@
+{
+	"title": "Input schema for Pry API Docs Diff",
+	"description": "Watch public API documentation pages for endpoint changes - new routes, renamed fields, deprecation notices - so integrations break before your customers notice, not after.",
+	"type": "object",
+	"schemaVersion": 1,
+	"properties": {
+		"urls": {
+			"title": "Target URLs",
+			"type": "array",
+			"description": "One or more https:// URLs to process.",
+			"editor": "requestListSources",
+			"prefill": [
+				{
+					"url": "https://example.com"
+				}
+			],
+			"example": [
+				{
+					"url": "https://example.com"
+				}
+			]
+		},
+		"max_pages": {
+			"title": "Max pages",
+			"type": "integer",
+			"description": "Hard cap on processed pages (runaway protection).",
+			"sectionCaption": "Scraping settings",
+			"editor": "number",
+			"default": 100,
+			"minimum": 1,
+			"maximum": 10000,
+			"example": 100
+		},
+		"watch_paths": {
+			"title": "Docs paths",
+			"type": "array",
+			"description": "Doc URL paths to monitor.",
+			"sectionCaption": "Watch settings",
+			"editor": "stringList",
+			"prefill": ["/reference", "/changelog"],
+			"items": {
+				"type": "string"
+			},
+			"example": ["/reference", "/changelog"]
+		},
+		"max_items": {
+			"title": "Max items (cost cap)",
+			"type": "integer",
+			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+			"sectionCaption": "Advanced",
+			"editor": "number",
+			"default": 25,
+			"minimum": 1,
+			"example": 25
+		},
+		"proxy_configuration": {
+			"title": "Proxy configuration",
+			"type": "object",
+			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+			"sectionCaption": "Advanced",
+			"editor": "hidden",
+			"prefill": {
+				"useApifyProxy": true
+			},
+			"example": {
+				"useApifyProxy": true
+			}
+		}
+	},
+	"required": ["urls"]
+}

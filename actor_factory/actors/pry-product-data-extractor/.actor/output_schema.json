@@ -1,0 +1,12 @@
+{
+	"actorOutputSchemaVersion": 1,
+	"title": "Output of Pry Product Data Extractor",
+	"properties": {
+		"results": {
+			"type": "string",
+			"title": "Results",
+			"description": "One item per processed URL: url, status, content, method tier, scraped_at, metadata.",
+			"template": "{{links.apiDefaultDatasetUrl}}/items"
+		}
+	}
+}

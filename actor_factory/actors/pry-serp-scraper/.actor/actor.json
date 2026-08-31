@@ -1,0 +1,86 @@
+{
+	"actorSpecification": 1,
+	"name": "serp-scraper",
+	"title": "SERP Scraper",
+	"description": "Scrape Google search results pages: organic listings, ads, featured snippets and People Also Ask - via TLS-fingerprint and Googlebot-emulation tiers purpose-built for search engines. Structured JSON out, CAPTCHA escalation automatic.",
+	"version": "1.1",
+	"buildTag": "latest",
+	"meta": {
+		"templateId": "pry-actor-factory"
+	},
+	"dockerfile": "./Dockerfile",
+	"minMemoryMbytes": 512,
+	"maxMemoryMbytes": 2048,
+	"input": {
+		"title": "Input schema for Pry SERP Scraper",
+		"description": "Scrape Google search results pages: organic listings, ads, featured snippets and People Also Ask - via TLS-fingerprint and Googlebot-emulation tiers purpose-built for search engines. Structured JSON out, CAPTCHA escalation automatic.",
+		"type": "object",
+		"schemaVersion": 1,
+		"properties": {
+			"urls": {
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://example.com"
+					}
+				],
+				"example": [
+					{
+						"url": "https://example.com"
+					}
+				]
+			},
+			"num_results": {
+				"title": "Results per query",
+				"type": "integer",
+				"description": "Number of organic results to parse per page.",
+				"sectionCaption": "SERP settings",
+				"editor": "number",
+				"default": 20,
+				"minimum": 10,
+				"maximum": 100,
+				"example": 20
+			},
+			"include_ads": {
+				"title": "Include ads",
+				"type": "boolean",
+				"description": "Also extract sponsored listings.",
+				"sectionCaption": "SERP settings",
+				"editor": "checkbox",
+				"default": false,
+				"example": false
+			},
+			"max_items": {
+				"title": "Max items (cost cap)",
+				"type": "integer",
+				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+				"sectionCaption": "Advanced",
+				"editor": "number",
+				"default": 25,
+				"minimum": 1,
+				"example": 25
+			},
+			"proxy_configuration": {
+				"title": "Proxy configuration",
+				"type": "object",
+				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+				"sectionCaption": "Advanced",
+				"editor": "hidden",
+				"prefill": {
+					"useApifyProxy": true
+				},
+				"example": {
+					"useApifyProxy": true
+				}
+			}
+		},
+		"required": ["urls"]
+	},
+	"output": "./output_schema.json",
+	"storages": {
+		"dataset": "./dataset_schema.json"
+	}
+}

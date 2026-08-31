@@ -1,0 +1,48 @@
+{
+	"title": "Input schema for Pry Stablecoin Flow Monitor",
+	"description": "Stablecoin market caps, chains and flow shifts pulled from public public pegged-asset endpoints - mint/burn signals and depeg watch for risk teams and traders.",
+	"type": "object",
+	"schemaVersion": 1,
+	"properties": {
+		"urls": {
+			"title": "Target URLs",
+			"type": "array",
+			"description": "One or more https:// URLs to process.",
+			"editor": "requestListSources",
+			"prefill": [
+				{
+					"url": "https://example.com"
+				}
+			],
+			"example": [
+				{
+					"url": "https://example.com"
+				}
+			]
+		},
+		"max_items": {
+			"title": "Max items (cost cap)",
+			"type": "integer",
+			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+			"sectionCaption": "Advanced",
+			"editor": "number",
+			"default": 25,
+			"minimum": 1,
+			"example": 25
+		},
+		"proxy_configuration": {
+			"title": "Proxy configuration",
+			"type": "object",
+			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+			"sectionCaption": "Advanced",
+			"editor": "hidden",
+			"prefill": {
+				"useApifyProxy": true
+			},
+			"example": {
+				"useApifyProxy": true
+			}
+		}
+	},
+	"required": ["urls"]
+}

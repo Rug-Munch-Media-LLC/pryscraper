@@ -1,0 +1,88 @@
+{
+	"actorSpecification": 1,
+	"name": "restaurant-availability-watch",
+	"title": "Restaurant Availability Watch",
+	"description": "Check reservation-slot availability and waitlists on OpenTable and Resy pages protected by DataDome - each slot checked per venue, date and party size for concierge and dining-alert services.",
+	"version": "1.0",
+	"buildTag": "latest",
+	"meta": {
+		"templateId": "pry-actor-factory"
+	},
+	"dockerfile": "./Dockerfile",
+	"minMemoryMbytes": 1024,
+	"maxMemoryMbytes": 4096,
+	"input": {
+		"title": "Input schema for Pry Restaurant Availability Watch",
+		"description": "Check reservation-slot availability and waitlists on OpenTable and Resy pages protected by DataDome - each slot checked per venue, date and party size for concierge and dining-alert services.",
+		"type": "object",
+		"schemaVersion": 1,
+		"properties": {
+			"change_threshold": {
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"sectionCaption": "Watch settings",
+				"editor": "number",
+				"default": 3,
+				"minimum": 0,
+				"maximum": 64,
+				"example": 3
+			},
+			"urls": {
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://example.com"
+					}
+				],
+				"example": [
+					{
+						"url": "https://example.com"
+					}
+				]
+			},
+			"party_size": {
+				"title": "Party size",
+				"type": "integer",
+				"description": "Dining party size used for availability checks.",
+				"sectionCaption": "Slot settings",
+				"editor": "number",
+				"default": 2,
+				"minimum": 1,
+				"maximum": 20,
+				"example": 2
+			},
+			"max_items": {
+				"title": "Max items (cost cap)",
+				"type": "integer",
+				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+				"sectionCaption": "Advanced",
+				"editor": "number",
+				"default": 25,
+				"minimum": 1,
+				"example": 25
+			},
+			"proxy_configuration": {
+				"title": "Proxy configuration",
+				"type": "object",
+				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+				"sectionCaption": "Advanced",
+				"editor": "hidden",
+				"prefill": {
+					"useApifyProxy": true
+				},
+				"example": {
+					"useApifyProxy": true
+				}
+			}
+		},
+		"required": ["urls"]
+	},
+	"output": "./output_schema.json",
+	"storages": {
+		"dataset": "./dataset_schema.json"
+	}
+}

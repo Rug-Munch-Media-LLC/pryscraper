@@ -1,0 +1,59 @@
+{
+	"title": "Input schema for Pry SSL Certificate Monitor",
+	"description": "Watch TLS certificate health across your domains: expiry countdowns, issuer changes and handshake failures - caught by connection-level probes before browsers scare your visitors.",
+	"type": "object",
+	"schemaVersion": 1,
+	"properties": {
+		"urls": {
+			"title": "Target URLs",
+			"type": "array",
+			"description": "One or more https:// URLs to process.",
+			"editor": "requestListSources",
+			"prefill": [
+				{
+					"url": "https://example.com"
+				}
+			],
+			"example": [
+				{
+					"url": "https://example.com"
+				}
+			]
+		},
+		"warn_days": {
+			"title": "Warn before expiry (days)",
+			"type": "integer",
+			"description": "Emit a warning item when expiry is within this window.",
+			"sectionCaption": "Monitor settings",
+			"editor": "number",
+			"default": 14,
+			"minimum": 1,
+			"maximum": 90,
+			"example": 14
+		},
+		"max_items": {
+			"title": "Max items (cost cap)",
+			"type": "integer",
+			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+			"sectionCaption": "Advanced",
+			"editor": "number",
+			"default": 25,
+			"minimum": 1,
+			"example": 25
+		},
+		"proxy_configuration": {
+			"title": "Proxy configuration",
+			"type": "object",
+			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+			"sectionCaption": "Advanced",
+			"editor": "hidden",
+			"prefill": {
+				"useApifyProxy": true
+			},
+			"example": {
+				"useApifyProxy": true
+			}
+		}
+	},
+	"required": ["urls"]
+}

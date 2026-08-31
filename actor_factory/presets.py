@@ -3413,3 +3413,556 @@ ALL_PRESETS.update(
         )
     }
 )
+
+# ── batch 22: vertical-market watch actors (MARKET_RESEARCH.md gaps) ────────
+# 15 underserved niches from the 2026-08-31 Apify Store gap analysis.
+# Each targets a WAF-protected or JS-heavy vertical where the 15-tier
+# anti-bot engine is the differentiator; priced in the $0.005-$0.03 band.
+
+APP_STORE_RANK_WATCH_ACTOR = ActorSpec(
+    name="pry-app-store-rank-watch",
+    title="Pry App Store Rank Watch",
+    description=(
+        "Track app keyword rank snapshots on the Apple App Store and Google "
+        "Play - position per keyword, version churn and category movement - each rank "
+        "snapshot pulled on schedule for ASO teams and competitive app intel."
+    ),
+    version="1.0",
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+        InputField(
+            name="keywords",
+            title="Keywords to track",
+            type="array",
+            description="Keyword list; each store page is checked per keyword.",
+            editor="stringList",
+            item_type="string",
+            default=[],
+            section_caption="Rank settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="rank-snapshot-pulled",
+            title="Rank snapshot pulled",
+            description="One app rank snapshot pulled for a keyword.",
+            price_usd=0.01,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+APPEXCHANGE_MARKETPLACE_WATCH_ACTOR = ActorSpec(
+    name="pry-appexchange-marketplace-watch",
+    title="Pry AppExchange Marketplace Watch",
+    description=(
+        "Extract B2B marketplace listings - Salesforce AppExchange, Atlassian "
+        "Marketplace, HubSpot marketplace - with pricing tiers, review counts "
+        "and install trends for competitive SaaS intelligence."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="include_reviews",
+            title="Include review counts",
+            type="boolean",
+            description="Capture rating and review-count signals per listing.",
+            default=True,
+            section_caption="Listing settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="listing-extracted",
+            title="Listing extracted",
+            description="One marketplace listing with pricing tiers extracted.",
+            price_usd=0.02,
+        ),
+    ),
+    processor="extract",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+AI_MODEL_PRICING_WATCH_ACTOR = ActorSpec(
+    name="pry-ai-model-pricing-watch",
+    title="Pry AI Model Pricing Watch",
+    description=(
+        "Monitor LLM provider pricing pages - OpenAI, Anthropic, DeepInfra, "
+        "Together - capturing each pricing card with context windows, token "
+        "rates and rate limits so AI buyers never miss a price change."
+    ),
+    version="1.0",
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+        InputField(
+            name="providers",
+            title="Provider filter",
+            type="array",
+            description="Only emit pricing cards for these provider names.",
+            editor="stringList",
+            item_type="string",
+            default=[],
+            section_caption="Pricing settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="price-card-parsed",
+            title="Price card parsed",
+            description="One model pricing card parsed with context and rates.",
+            price_usd=0.005,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+GPU_CLOUD_PRICE_WATCH_ACTOR = ActorSpec(
+    name="pry-gpu-cloud-price-watch",
+    title="Pry GPU Cloud Price Watch",
+    description=(
+        "Track GPU rental prices and availability - H100, A100, H200 - across "
+        "RunPod, Lambda, Vast.ai and CoreWeave. GPU price snapshots pulled "
+        "hourly for ML cost optimization and capacity planning."
+    ),
+    version="1.0",
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+        InputField(
+            name="gpu_models",
+            title="GPU models",
+            type="array",
+            description="Filter to these GPU model names (e.g. H100, A100).",
+            editor="stringList",
+            item_type="string",
+            default=[],
+            section_caption="GPU settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="gpu-price-pulled",
+            title="GPU price pulled",
+            description="One GPU offer price pulled from a cloud provider.",
+            price_usd=0.005,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+CHARGEPOINT_EV_STATION_WATCH_ACTOR = ActorSpec(
+    name="pry-chargepoint-ev-station-watch",
+    title="Pry ChargePoint EV Station Watch",
+    description=(
+        "Monitor EV charging station status - availability, pricing and "
+        "outages - across ChargePoint, PlugShare-style public pages. "
+        "Station status snapshots pulled per venue for fleet ops and charging analytics."
+    ),
+    version="1.0",
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+        InputField(
+            name="include_pricing",
+            title="Include pricing",
+            type="boolean",
+            description="Capture per-kWh pricing when published on the page.",
+            default=True,
+            section_caption="Station settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="station-status-pulled",
+            title="Station status pulled",
+            description="One charging station status pulled with availability.",
+            price_usd=0.005,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+INSURANCE_RATE_COMPARE_ACTOR = ActorSpec(
+    name="pry-insurance-rate-compare",
+    title="Pry Insurance Rate Compare",
+    description=(
+        "Capture auto and home insurance quote-page rates and coverage tiers "
+        "from insurer quote funnels behind Akamai-grade bot walls - "
+        "normalized quote rows for rate shopping and market benchmarking."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="coverage_types",
+            title="Coverage types",
+            type="array",
+            description="Coverage tier labels to extract (e.g. liability, comprehensive).",
+            editor="stringList",
+            item_type="string",
+            default=[],
+            section_caption="Quote settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="quote-captured",
+            title="Quote captured",
+            description="One insurance quote captured with rate and coverage.",
+            price_usd=0.03,
+        ),
+    ),
+    processor="extract",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+TELECOM_PLAN_MONITOR_ACTOR = ActorSpec(
+    name="pry-telecom-plan-monitor",
+    title="Pry Telecom Plan Monitor",
+    description=(
+        "Monitor carrier plan pricing, data caps and promotional offers on "
+        "mobile and broadband pages behind PerimeterX defenses - every plan "
+        "scraped into structured rows for telecom price benchmarking."
+    ),
+    version="1.0",
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+        InputField(
+            name="track_promos",
+            title="Track promotions",
+            type="boolean",
+            description="Flag limited-time promo pricing and gift-card offers.",
+            default=True,
+            section_caption="Plan settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="plan-scraped",
+            title="Plan scraped",
+            description="One carrier plan scraped with price and data cap.",
+            price_usd=0.01,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+UTILITY_TARIFF_WATCH_ACTOR = ActorSpec(
+    name="pry-utility-tariff-watch",
+    title="Pry Utility Tariff Watch",
+    description=(
+        "Watch retail electricity and gas tariff pages by region - rate "
+        "schedules, standing charges and unit rates parsed from utility "
+        "portals that geo-block generic scrapers. Energy procurement intel."
+    ),
+    version="1.0",
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+        InputField(
+            name="region",
+            title="Region filter",
+            type="string",
+            description="Only emit tariffs for this region or service territory.",
+            default="",
+            section_caption="Tariff settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="tariff-parsed",
+            title="Tariff parsed",
+            description="One utility tariff parsed with unit rates and charges.",
+            price_usd=0.01,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+PHARMA_PIPELINE_WATCH_ACTOR = ActorSpec(
+    name="pry-pharma-pipeline-watch",
+    title="Pry Pharma Pipeline Watch",
+    description=(
+        "Track drug pipeline milestones - FDA approvals, orphan-drug "
+        "designations, trial phase transitions - across fda.gov and company "
+        "pipeline pages. Every milestone detected becomes a dataset row for "
+        "pharma competitive intelligence."
+    ),
+    version="1.0",
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+        InputField(
+            name="milestone_types",
+            title="Milestone types",
+            type="array",
+            description="Filter milestone kinds (e.g. approval, designation, phase).",
+            editor="stringList",
+            item_type="string",
+            default=[],
+            section_caption="Pipeline settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="milestone-detected",
+            title="Milestone detected",
+            description="One pipeline milestone detected with source and date.",
+            price_usd=0.02,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+ESG_SCORECARD_EXTRACTOR_ACTOR = ActorSpec(
+    name="pry-esg-scorecard-extractor",
+    title="Pry ESG Scorecard Extractor",
+    description=(
+        "Extract ESG and sustainability metrics from corporate report pages "
+        "and PDFs - emissions figures, diversity ratios, governance scores - "
+        "each metric extracted into structured rows for compliance reporting."
+    ),
+    version="1.0",
+    inputs=(
+        URLS_FIELD,
+        InputField(
+            name="pdf_fallback",
+            title="PDF extraction",
+            type="boolean",
+            description="Parse linked sustainability-report PDFs with OCR fallback.",
+            default=True,
+            section_caption="Extraction settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="metric-extracted",
+            title="Metric extracted",
+            description="One ESG metric extracted with value, unit and source.",
+            price_usd=0.02,
+        ),
+    ),
+    processor="extract",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=8192,
+)
+
+RESTAURANT_AVAILABILITY_WATCH_ACTOR = ActorSpec(
+    name="pry-restaurant-availability-watch",
+    title="Pry Restaurant Availability Watch",
+    description=(
+        "Check reservation-slot availability and waitlists on OpenTable and "
+        "Resy pages protected by DataDome - each slot checked per venue, "
+        "date and party size for concierge and dining-alert services."
+    ),
+    version="1.0",
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+        InputField(
+            name="party_size",
+            title="Party size",
+            type="integer",
+            description="Dining party size used for availability checks.",
+            minimum=1,
+            maximum=20,
+            default=2,
+            section_caption="Slot settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="slot-checked",
+            title="Slot checked",
+            description="One reservation slot checked for availability.",
+            price_usd=0.005,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+TICKET_RESALE_PRICE_WATCH_ACTOR = ActorSpec(
+    name="pry-ticket-resale-price-watch",
+    title="Pry Ticket Resale Price Watch",
+    description=(
+        "Track resale ticket prices across StubHub, SeatGeek and Ticketmaster "
+        "event pages - every resale price captured per section and row for "
+        "arbitrage analysis and dynamic-pricing research."
+    ),
+    version="1.0",
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+        InputField(
+            name="min_section_price",
+            title="Min section price (USD)",
+            type="integer",
+            description="Skip listings below this price to cut noise.",
+            minimum=0,
+            default=0,
+            section_caption="Resale settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="resale-price-captured",
+            title="Resale price captured",
+            description="One resale ticket price captured with section detail.",
+            price_usd=0.01,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+SHIPMENT_CARRIER_RATE_WATCH_ACTOR = ActorSpec(
+    name="pry-shipment-carrier-rate-watch",
+    title="Pry Shipment Carrier Rate Watch",
+    description=(
+        "Parse FedEx, UPS and DHL published rate tables and surcharge pages - "
+        "each rate table parsed into normalized rows with fuel and "
+        "residential surcharges for logistics cost benchmarking."
+    ),
+    version="1.0",
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+        InputField(
+            name="include_surcharges",
+            title="Include surcharges",
+            type="boolean",
+            description="Also parse surcharge and accessorials pages.",
+            default=True,
+            section_caption="Rate settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="rate-table-parsed",
+            title="Rate table parsed",
+            description="One carrier rate table parsed with surcharges.",
+            price_usd=0.01,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+NGO_GRANT_DEADLINE_WATCH_ACTOR = ActorSpec(
+    name="pry-ngo-grant-deadline-watch",
+    title="Pry NGO Grant Deadline Watch",
+    description=(
+        "Monitor grants.gov and foundation grant pages for new funding "
+        "opportunities - every grant deadline detected with amount, "
+        "eligibility and close date, so NGO teams never miss a submission."
+    ),
+    version="1.0",
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+        InputField(
+            name="eligibility_filter",
+            title="Eligibility filter",
+            type="array",
+            description="Only emit grants matching these eligibility keywords.",
+            editor="stringList",
+            item_type="string",
+            default=[],
+            section_caption="Grant settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="grant-deadline-detected",
+            title="Grant deadline detected",
+            description="One grant deadline detected with eligibility detail.",
+            price_usd=0.01,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=512,
+    max_memory_mbytes=2048,
+)
+
+SUPPLIER_RISK_SIGNAL_WATCH_ACTOR = ActorSpec(
+    name="pry-supplier-risk-signal-watch",
+    title="Pry Supplier Risk Signal Watch",
+    description=(
+        "Composite supplier-distress monitoring: sanctions hits, court "
+        "filings, recall events and financial signals scored per supplier "
+        "into a single risk signal for procurement resilience teams."
+    ),
+    version="1.0",
+    inputs=(
+        CHANGE_THRESHOLD_FIELD,
+        URLS_FIELD,
+        InputField(
+            name="signal_sources",
+            title="Signal sources",
+            type="array",
+            description="Signal categories to include (sanctions, court, recall, financial).",
+            editor="stringList",
+            item_type="string",
+            default=[],
+            section_caption="Risk settings",
+        ),
+    ),
+    pricing_events=(
+        PricingEvent(
+            name="risk-signal-scored",
+            title="Risk signal scored",
+            description="One supplier risk signal scored from source events.",
+            price_usd=0.02,
+        ),
+    ),
+    processor="monitor",
+    min_memory_mbytes=1024,
+    max_memory_mbytes=4096,
+)
+
+ALL_PRESETS.update(
+    {
+        spec.name: spec
+        for spec in (
+            APP_STORE_RANK_WATCH_ACTOR,
+            APPEXCHANGE_MARKETPLACE_WATCH_ACTOR,
+            AI_MODEL_PRICING_WATCH_ACTOR,
+            GPU_CLOUD_PRICE_WATCH_ACTOR,
+            CHARGEPOINT_EV_STATION_WATCH_ACTOR,
+            INSURANCE_RATE_COMPARE_ACTOR,
+            TELECOM_PLAN_MONITOR_ACTOR,
+            UTILITY_TARIFF_WATCH_ACTOR,
+            PHARMA_PIPELINE_WATCH_ACTOR,
+            ESG_SCORECARD_EXTRACTOR_ACTOR,
+            RESTAURANT_AVAILABILITY_WATCH_ACTOR,
+            TICKET_RESALE_PRICE_WATCH_ACTOR,
+            SHIPMENT_CARRIER_RATE_WATCH_ACTOR,
+            NGO_GRANT_DEADLINE_WATCH_ACTOR,
+            SUPPLIER_RISK_SIGNAL_WATCH_ACTOR,
+        )
+    }
+)

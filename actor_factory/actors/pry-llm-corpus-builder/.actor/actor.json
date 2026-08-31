@@ -1,0 +1,96 @@
+{
+	"actorSpecification": 1,
+	"name": "llm-corpus-builder",
+	"title": "LLM Corpus Builder",
+	"description": "Build clean, LLM-ready text corpora from any website. Crawls a domain through 12-tier anti-bot bypass and emits deduplicated markdown documents structured for RAG pipelines and fine-tuning datasets. The dataset drops straight into LangChain, LlamaIndex or your vector store.",
+	"version": "1.1",
+	"buildTag": "latest",
+	"meta": {
+		"templateId": "pry-actor-factory"
+	},
+	"dockerfile": "./Dockerfile",
+	"minMemoryMbytes": 1024,
+	"maxMemoryMbytes": 8192,
+	"input": {
+		"title": "Input schema for Pry LLM Corpus Builder",
+		"description": "Build clean, LLM-ready text corpora from any website. Crawls a domain through 12-tier anti-bot bypass and emits deduplicated markdown documents structured for RAG pipelines and fine-tuning datasets. The dataset drops straight into LangChain, LlamaIndex or your vector store.",
+		"type": "object",
+		"schemaVersion": 1,
+		"properties": {
+			"urls": {
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://example.com"
+					}
+				],
+				"example": [
+					{
+						"url": "https://example.com"
+					}
+				]
+			},
+			"max_pages": {
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"sectionCaption": "Scraping settings",
+				"editor": "number",
+				"default": 100,
+				"minimum": 1,
+				"maximum": 10000,
+				"example": 100
+			},
+			"min_content_chars": {
+				"title": "Min content length (chars)",
+				"type": "integer",
+				"description": "Skip pages shorter than this - filters nav/boilerplate shells.",
+				"sectionCaption": "Corpus settings",
+				"editor": "number",
+				"default": 500,
+				"minimum": 0,
+				"example": 500
+			},
+			"dedupe": {
+				"title": "Near-duplicate removal",
+				"type": "boolean",
+				"description": "SimHash-based near-duplicate filtering across the corpus.",
+				"sectionCaption": "Corpus settings",
+				"editor": "checkbox",
+				"default": true,
+				"example": true
+			},
+			"max_items": {
+				"title": "Max items (cost cap)",
+				"type": "integer",
+				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+				"sectionCaption": "Advanced",
+				"editor": "number",
+				"default": 25,
+				"minimum": 1,
+				"example": 25
+			},
+			"proxy_configuration": {
+				"title": "Proxy configuration",
+				"type": "object",
+				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+				"sectionCaption": "Advanced",
+				"editor": "hidden",
+				"prefill": {
+					"useApifyProxy": true
+				},
+				"example": {
+					"useApifyProxy": true
+				}
+			}
+		},
+		"required": ["urls"]
+	},
+	"output": "./output_schema.json",
+	"storages": {
+		"dataset": "./dataset_schema.json"
+	}
+}

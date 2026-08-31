@@ -1,0 +1,86 @@
+{
+	"actorSpecification": 1,
+	"name": "contact-form-finder",
+	"title": "Contact Form Finder",
+	"description": "Find contact forms, mailto links and submission endpoints across prospect sites - the first step of automated outreach done respectfully: know exactly where to reach a business.",
+	"version": "1.1",
+	"buildTag": "latest",
+	"meta": {
+		"templateId": "pry-actor-factory"
+	},
+	"dockerfile": "./Dockerfile",
+	"minMemoryMbytes": 256,
+	"maxMemoryMbytes": 2048,
+	"input": {
+		"title": "Input schema for Pry Contact Form Finder",
+		"description": "Find contact forms, mailto links and submission endpoints across prospect sites - the first step of automated outreach done respectfully: know exactly where to reach a business.",
+		"type": "object",
+		"schemaVersion": 1,
+		"properties": {
+			"urls": {
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://example.com"
+					}
+				],
+				"example": [
+					{
+						"url": "https://example.com"
+					}
+				]
+			},
+			"max_pages": {
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"sectionCaption": "Scraping settings",
+				"editor": "number",
+				"default": 100,
+				"minimum": 1,
+				"maximum": 10000,
+				"example": 100
+			},
+			"probe_contact_pages": {
+				"title": "Probe /contact paths",
+				"type": "boolean",
+				"description": "Also try common contact-page paths.",
+				"sectionCaption": "Finder settings",
+				"editor": "checkbox",
+				"default": true,
+				"example": true
+			},
+			"max_items": {
+				"title": "Max items (cost cap)",
+				"type": "integer",
+				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+				"sectionCaption": "Advanced",
+				"editor": "number",
+				"default": 25,
+				"minimum": 1,
+				"example": 25
+			},
+			"proxy_configuration": {
+				"title": "Proxy configuration",
+				"type": "object",
+				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+				"sectionCaption": "Advanced",
+				"editor": "hidden",
+				"prefill": {
+					"useApifyProxy": true
+				},
+				"example": {
+					"useApifyProxy": true
+				}
+			}
+		},
+		"required": ["urls"]
+	},
+	"output": "./output_schema.json",
+	"storages": {
+		"dataset": "./dataset_schema.json"
+	}
+}

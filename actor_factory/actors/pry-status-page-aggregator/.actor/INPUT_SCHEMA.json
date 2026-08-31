@@ -1,0 +1,57 @@
+{
+	"title": "Input schema for Pry Status Page Aggregator",
+	"description": "Aggregate vendor status pages into one incident feed: ongoing incidents, maintenance windows and resolution history across every service your operations depend on.",
+	"type": "object",
+	"schemaVersion": 1,
+	"properties": {
+		"urls": {
+			"title": "Target URLs",
+			"type": "array",
+			"description": "One or more https:// URLs to process.",
+			"editor": "requestListSources",
+			"prefill": [
+				{
+					"url": "https://example.com"
+				}
+			],
+			"example": [
+				{
+					"url": "https://example.com"
+				}
+			]
+		},
+		"active_only": {
+			"title": "Active incidents only",
+			"type": "boolean",
+			"description": "Drop resolved incidents from the dataset.",
+			"sectionCaption": "Feed settings",
+			"editor": "checkbox",
+			"default": true,
+			"example": true
+		},
+		"max_items": {
+			"title": "Max items (cost cap)",
+			"type": "integer",
+			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+			"sectionCaption": "Advanced",
+			"editor": "number",
+			"default": 25,
+			"minimum": 1,
+			"example": 25
+		},
+		"proxy_configuration": {
+			"title": "Proxy configuration",
+			"type": "object",
+			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+			"sectionCaption": "Advanced",
+			"editor": "hidden",
+			"prefill": {
+				"useApifyProxy": true
+			},
+			"example": {
+				"useApifyProxy": true
+			}
+		}
+	},
+	"required": ["urls"]
+}

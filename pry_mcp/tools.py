@@ -4069,7 +4069,9 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "PPEScraperRunner + processor code path as the deployed store "
             "actors. Use after pry_actor_catalog: pass the actor name plus "
             "target urls; results are the same dataset items the Apify run "
-            "would produce. Examples: actor='news-feed-monitor', "
+            "would produce. x402 pay-per-call: each processed URL bills the "
+            "actor's first PPE pricing event (see pry_actor_catalog / "
+            "pry_x402_pricing for per-event USD prices). Examples: actor='news-feed-monitor', "
             "actor='universal-scraper', actor='token-safety-scanner'."
         ),
         "inputSchema": {

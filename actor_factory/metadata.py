@@ -166,6 +166,22 @@ PRESET_CATEGORY_MAP: dict[str, str] = {
     "pry-restaurant-menu-extractor": "OTHER",
     "pry-pdf-invoice-extractor": "BUSINESS",
     "pry-outbound-link-harvester": "SEO_TOOLS",
+    # batch 22: vertical-market watch actors (MARKET_RESEARCH.md gaps)
+    "pry-app-store-rank-watch": "OTHER",
+    "pry-appexchange-marketplace-watch": "BUSINESS",
+    "pry-ai-model-pricing-watch": "DEVELOPER_TOOLS",
+    "pry-gpu-cloud-price-watch": "DEVELOPER_TOOLS",
+    "pry-chargepoint-ev-station-watch": "BUSINESS",
+    "pry-insurance-rate-compare": "BUSINESS",
+    "pry-telecom-plan-monitor": "BUSINESS",
+    "pry-utility-tariff-watch": "BUSINESS",
+    "pry-pharma-pipeline-watch": "BUSINESS",
+    "pry-esg-scorecard-extractor": "BUSINESS",
+    "pry-restaurant-availability-watch": "OTHER",
+    "pry-ticket-resale-price-watch": "OTHER",
+    "pry-shipment-carrier-rate-watch": "BUSINESS",
+    "pry-ngo-grant-deadline-watch": "BUSINESS",
+    "pry-supplier-risk-signal-watch": "BUSINESS",
 }
 
 

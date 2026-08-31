@@ -1,0 +1,68 @@
+{
+	"title": "Input schema for Pry Weather Data Collector",
+	"description": "Collect weather observations and forecasts from any forecast page - temperature, precipitation and condition signals normalized into flat rows for analytics and alerting pipelines.",
+	"type": "object",
+	"schemaVersion": 1,
+	"properties": {
+		"change_threshold": {
+			"title": "Change threshold",
+			"type": "integer",
+			"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+			"sectionCaption": "Watch settings",
+			"editor": "number",
+			"default": 3,
+			"minimum": 0,
+			"maximum": 64,
+			"example": 3
+		},
+		"urls": {
+			"title": "Target URLs",
+			"type": "array",
+			"description": "One or more https:// URLs to process.",
+			"editor": "requestListSources",
+			"prefill": [
+				{
+					"url": "https://example.com"
+				}
+			],
+			"example": [
+				{
+					"url": "https://example.com"
+				}
+			]
+		},
+		"location_label": {
+			"title": "Location label",
+			"type": "string",
+			"description": "Tag every row with this location identifier.",
+			"sectionCaption": "Collection settings",
+			"editor": "textfield",
+			"default": "",
+			"example": ""
+		},
+		"max_items": {
+			"title": "Max items (cost cap)",
+			"type": "integer",
+			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+			"sectionCaption": "Advanced",
+			"editor": "number",
+			"default": 25,
+			"minimum": 1,
+			"example": 25
+		},
+		"proxy_configuration": {
+			"title": "Proxy configuration",
+			"type": "object",
+			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+			"sectionCaption": "Advanced",
+			"editor": "hidden",
+			"prefill": {
+				"useApifyProxy": true
+			},
+			"example": {
+				"useApifyProxy": true
+			}
+		}
+	},
+	"required": ["urls"]
+}

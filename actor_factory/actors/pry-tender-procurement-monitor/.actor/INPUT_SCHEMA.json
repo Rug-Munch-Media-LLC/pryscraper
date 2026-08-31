@@ -1,0 +1,60 @@
+{
+	"title": "Input schema for Pry Tender & Procurement Monitor",
+	"description": "Watch government and enterprise procurement portals for new tenders, RFPs and awards matching your categories - public records monitoring with deadline fields normalized.",
+	"type": "object",
+	"schemaVersion": 1,
+	"properties": {
+		"urls": {
+			"title": "Target URLs",
+			"type": "array",
+			"description": "One or more https:// URLs to process.",
+			"editor": "requestListSources",
+			"prefill": [
+				{
+					"url": "https://example.com"
+				}
+			],
+			"example": [
+				{
+					"url": "https://example.com"
+				}
+			]
+		},
+		"category_keywords": {
+			"title": "Category keywords",
+			"type": "array",
+			"description": "Flag tenders matching these keywords.",
+			"sectionCaption": "Tender settings",
+			"editor": "stringList",
+			"prefill": ["construction", "software", "consulting"],
+			"items": {
+				"type": "string"
+			},
+			"example": ["construction", "software", "consulting"]
+		},
+		"max_items": {
+			"title": "Max items (cost cap)",
+			"type": "integer",
+			"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+			"sectionCaption": "Advanced",
+			"editor": "number",
+			"default": 25,
+			"minimum": 1,
+			"example": 25
+		},
+		"proxy_configuration": {
+			"title": "Proxy configuration",
+			"type": "object",
+			"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+			"sectionCaption": "Advanced",
+			"editor": "hidden",
+			"prefill": {
+				"useApifyProxy": true
+			},
+			"example": {
+				"useApifyProxy": true
+			}
+		}
+	},
+	"required": ["urls"]
+}
