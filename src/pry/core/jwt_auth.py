@@ -3,7 +3,7 @@
 Dual-mode: accepts both the legacy PRY_API_KEY and JWT tokens from rmi-backend.
 
 Usage:
-    from pry.api.jwt_auth import validate_pry_token
+    from pry.core.jwt_auth import validate_pry_token
 
     # In middleware:
     claims = validate_pry_token(token)

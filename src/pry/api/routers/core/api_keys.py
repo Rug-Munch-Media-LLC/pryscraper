@@ -19,8 +19,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from pry.api import api_keys_service
 from pry.commerce import billing_service
+from pry.core import api_keys_service
 
 router = APIRouter(prefix="/v1/keys", tags=["API Keys"])
 logger = logging.getLogger(__name__)

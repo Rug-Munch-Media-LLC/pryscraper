@@ -309,7 +309,7 @@ class PrySettings(BaseSettings):
             "captcha_nextcaptcha_api_key",
         )
         try:
-            from pry.api.secrets_backend import get_secret
+            from pry.core.secrets_backend import get_secret
         except ImportError:
             return
         for fname in sensitive:

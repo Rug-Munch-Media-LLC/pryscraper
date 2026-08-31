@@ -72,7 +72,7 @@ class HostingConfirmRequest(BaseModel):
 
 def _resolve_user(bearer: str) -> str:
     """Resolve a Bearer API key to its owner user_id (401 on failure)."""
-    from pry.api.api_keys_service import authenticate
+    from pry.core.api_keys_service import authenticate
 
     record = authenticate(bearer.strip())
     if record is None:

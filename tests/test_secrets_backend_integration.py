@@ -29,7 +29,7 @@ def test_settings_pulls_from_secrets_backend() -> None:
 
     with (
         patch.dict(os.environ, env, clear=True),
-        patch("pry.api.secrets_backend.get_secret", side_effect=fake_get_secret),
+        patch("pry.core.secrets_backend.get_secret", side_effect=fake_get_secret),
     ):
         # Re-import fresh
         from pry.core.settings import PrySettings
@@ -58,7 +58,7 @@ def test_x402_constants_come_from_secrets_backend() -> None:
 
     with (
         patch.dict(os.environ, env, clear=True),
-        patch("pry.api.secrets_backend.get_secret", side_effect=fake_get_secret),
+        patch("pry.core.secrets_backend.get_secret", side_effect=fake_get_secret),
     ):
         # Force re-import of x402 constants
         import importlib
@@ -83,7 +83,7 @@ def test_settings_does_not_override_set_env() -> None:
 
     with (
         patch.dict(os.environ, env, clear=True),
-        patch("pry.api.secrets_backend.get_secret", side_effect=fake_get_secret),
+        patch("pry.core.secrets_backend.get_secret", side_effect=fake_get_secret),
     ):
         from pry.core.settings import PrySettings
 

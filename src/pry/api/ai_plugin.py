@@ -1,5 +1,11 @@
 """Pry — AI Agent Plugin.
-OpenAPI spec server, MCP server wrapper, and GPT Action helper."""
+GPT Action helper and MCP server wrapper.
+
+The OpenAPI spec generator lives in :mod:`pry.api.openapi_spec` — it needs
+the full FastAPI app (all domains) and must not be importable from domain
+routers, or the domain-independence contract sees routers.ai -> api monolith
+-> every other domain.
+"""
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -8,29 +14,9 @@ OpenAPI spec server, MCP server wrapper, and GPT Action helper."""
 # Licensed under MIT. See LICENSE.
 
 import logging
-from typing import Any, cast
+from typing import Any
 
 logger = logging.getLogger(__name__)
-
-
-def get_openapi_spec() -> dict[str, Any]:
-    """Get the OpenAPI spec for AI agent integration.
-
-    Serves the LIVE spec generated from the running FastAPI app so the
-    AI-consumer surface (GPT Actions, MCP configs) can never drift from
-    the actual registered routes. The checked-in openapi.json is NOT read
-    here — it exists only as a static snapshot for tooling/CI.
-    """
-    try:
-        # Lazy import: `api` is heavy and importing it at module load would
-        # couple this lightweight plugin to the full app (and risk a circular
-        # import since routers/ai.py and routers/system.py import this module).
-        from pry.api.api import app
-
-        return cast("dict[str, Any]", app.openapi())
-    except Exception as e:  # noqa: BLE001
-        logger.error("openapi_spec_generation_failed", extra={"error": str(e)})
-        return {"error": "OpenAPI spec not found"}
 
 
 def get_gpt_action_manifest() -> dict[str, Any]:

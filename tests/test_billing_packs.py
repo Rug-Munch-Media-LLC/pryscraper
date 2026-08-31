@@ -161,7 +161,7 @@ def test_pack_purchase_credits_balance(db, monkeypatch) -> None:
 
 def test_pack_purchase_to_existing_key_owner(db, monkeypatch) -> None:
     """Credits the owner of an existing API key (no duplicate key minted)."""
-    from pry.api.api_keys_service import issue_key
+    from pry.core.api_keys_service import issue_key
 
     monkeypatch.setattr(
         packs, "_get_self_facilitator", lambda: _FakeFacilitator(_verified_result())

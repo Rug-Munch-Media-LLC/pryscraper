@@ -13,7 +13,7 @@ backend mode from the env):
   PRY_SECRET_BACKEND=auto     # try gopass, fall back to env
 
 Usage:
-    from pry.api.secrets_backend import get_secret
+    from pry.core.secrets_backend import get_secret
     api_key = get_secret("pry/openrouter_api_key")
     jwt_secret = get_secret("pry/jwt_secret", default="change-me")
 
@@ -80,7 +80,7 @@ def _gopass_available() -> bool:
         _GOPASS_AVAILABLE = False
         return False
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603 — pinned gopass binary, fixed argv, no shell
             [bin_path, "ls"],
             capture_output=True,
             text=True,
@@ -110,7 +110,7 @@ def _get_from_gopass(name: str) -> str | None:
         return None
     path = _normalize_name(name)
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603 — pinned gopass binary, fixed argv, no shell
             [bin_path, "show", "-o", path],
             capture_output=True,
             text=True,
@@ -218,7 +218,7 @@ def set_secret(name: str, value: str) -> bool:
         return False
     path = _normalize_name(name)
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603 — pinned gopass binary, fixed argv, no shell
             [bin_path, "insert", "-f", "-m", path],
             input=value,
             capture_output=True,

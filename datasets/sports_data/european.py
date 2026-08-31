@@ -69,7 +69,12 @@ from datasets.sports_data.sources import _as_text, _to_float
 # module is imported by the package during init, so degrade gracefully if
 # the sibling is momentarily unavailable (parallel build safety).
 try:
-    from datasets.sports_data.odds import _SPORTS, _american_to_decimal, _event_label, _resolve_sports
+    from datasets.sports_data.odds import (
+        _SPORTS,
+        _american_to_decimal,
+        _event_label,
+        _resolve_sports,
+    )
 except ImportError:  # pragma: no cover - parallel build guard
     _american_to_decimal = None  # type: ignore[assignment]
     _event_label = None  # type: ignore[assignment]

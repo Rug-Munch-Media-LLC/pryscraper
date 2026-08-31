@@ -34,7 +34,7 @@ from unittest.mock import patch
 
 import pytest
 
-import pry.api.secrets_backend as _sb
+import pry.core.secrets_backend as _sb
 import pry.payments.x402 as x402
 import pry.payments.x402.handler as _handler_mod
 import pry.payments.x402.scheme as scheme

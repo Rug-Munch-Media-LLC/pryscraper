@@ -93,7 +93,9 @@ class TestMobileAppScraper:
         scraper = MobileAppScraper()
         ua1 = scraper._rotate_ua()
         ua2 = scraper._rotate_ua()
-        assert ua1 != ua2 or True  # May cycle back
+        # _rotate_ua advances the index every call, so consecutive UAs differ
+        # (MOBILE_USER_AGENTS has >1 entry).
+        assert ua1 != ua2
 
 
 class TestGraphQLScraper:

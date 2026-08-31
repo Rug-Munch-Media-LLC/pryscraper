@@ -53,7 +53,7 @@ def test_master_key_wrong_token_rejected(monkeypatch: pytest.MonkeyPatch) -> Non
 def test_db_key_binds_record_into_scope(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(mw.settings, "api_key", "", raising=False)
     record = {"key_id": "key_abc", "user_id": "u1", "scopes": ["scrape"]}
-    with patch("pry.api.api_keys_service.authenticate", return_value=record):
+    with patch("pry.core.api_keys_service.authenticate", return_value=record):
         scope = _scope("pry_live_good")
         assert mw.request_authorized(scope) is True
     assert scope["pry_api_key"] == record
@@ -66,7 +66,7 @@ def test_db_key_store_outage_fails_closed(monkeypatch: pytest.MonkeyPatch) -> No
     def boom(token):
         raise RuntimeError("db down")
 
-    with patch("pry.api.api_keys_service.authenticate", side_effect=boom):
+    with patch("pry.core.api_keys_service.authenticate", side_effect=boom):
         scope = _scope("pry_live_whatever")
         assert mw.request_authorized(scope) is False
     assert "pry_api_key" not in scope
@@ -74,7 +74,7 @@ def test_db_key_store_outage_fails_closed(monkeypatch: pytest.MonkeyPatch) -> No
 
 def test_db_key_unknown_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(mw.settings, "api_key", "", raising=False)
-    with patch("pry.api.api_keys_service.authenticate", return_value=None):
+    with patch("pry.core.api_keys_service.authenticate", return_value=None):
         assert mw.request_authorized(_scope("pry_live_unknown")) is False
 
 

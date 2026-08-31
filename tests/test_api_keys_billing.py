@@ -20,8 +20,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import pry.api.api_keys_service as svc
 import pry.commerce.billing_service as billing
+import pry.core.api_keys_service as svc
 import pry.core.middleware as mw_module
 
 if TYPE_CHECKING:

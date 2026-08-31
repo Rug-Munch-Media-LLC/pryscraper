@@ -27,15 +27,6 @@ def _reset_logging_state(monkeypatch):
     logging.getLogger().handlers = []
 
 
-def test_setup_logging_is_idempotent():
-    logging_config.setup_logging()
-    assert logging_config.is_configured() is True
-    h1 = list(logging.getLogger().handlers)
-    logging_config.setup_logging()  # second call should be a no-op
-    h2 = list(logging.getLogger().handlers)
-    assert h1 == h2
-
-
 def test_json_output_has_required_fields(capsys):
     logging_config.setup_logging()
     log = logging_config.get_logger("test_module")

@@ -91,7 +91,7 @@ def ledger(user_id: str, limit: int = 50) -> list[dict[str, Any]]:
 def _apply(user_id: str, delta_usd: float, reason: str, reference: str) -> dict[str, Any]:
     if reason not in VALID_REASONS:
         raise ValueError(f"unknown ledger reason '{reason}'")
-    from pry.api.api_keys_service import ensure_user
+    from pry.core.api_keys_service import ensure_user
 
     ensure_user(user_id)  # balances carry an FK to users
     with get_session() as session:

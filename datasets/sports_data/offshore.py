@@ -59,8 +59,6 @@ from typing import Any
 import httpx
 
 import datasets.sports_data.sources as sources
-from pry.engine.retry import RetryConfig, async_retry
-from pry.engine.webshare_proxy import next_webshare_proxy
 from datasets.sports_data.sources import (
     _as_text,
     _classes,
@@ -72,12 +70,19 @@ from datasets.sports_data.sources import (
     _parse_betonline_html,
     _to_float,
 )
+from pry.engine.retry import RetryConfig, async_retry
+from pry.engine.webshare_proxy import next_webshare_proxy
 
 # Guarded import: sports_data.odds is extended by a parallel agent; this
 # module is imported by the package during init, so degrade gracefully if
 # the sibling is momentarily unavailable (parallel build safety).
 try:
-    from datasets.sports_data.odds import _SPORTS, _american_to_decimal, _event_label, _resolve_sports
+    from datasets.sports_data.odds import (
+        _SPORTS,
+        _american_to_decimal,
+        _event_label,
+        _resolve_sports,
+    )
 except ImportError:  # pragma: no cover - parallel build guard
     _american_to_decimal = None  # type: ignore[assignment]
     _event_label = None  # type: ignore[assignment]

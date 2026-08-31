@@ -607,7 +607,7 @@ def confirm_hosting_payment_sync(
 # ── Provisioning ────────────────────────────────────────────────────────────
 def _provision_instance(user_id: str, plan_tier: str) -> tuple[dict[str, Any], str]:
     """Create a HostedInstance row + mint an API key. Returns (instance, plaintext)."""
-    from pry.api.api_keys_service import (
+    from pry.core.api_keys_service import (
         issue_key,
     )
 

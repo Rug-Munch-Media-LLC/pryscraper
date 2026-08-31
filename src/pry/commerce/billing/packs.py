@@ -757,11 +757,11 @@ def _bind_account(invoice: dict[str, Any], *, user_id: str = "", api_key: str = 
     """Resolve (and persist on the invoice) the account receiving the credit.
 
     Precedence: explicit ``user_id``, then ``api_key``'s owner (via
-    :func:`pry.api.api_keys_service.authenticate`), then the binding stored
+    :func:`pry.core.api_keys_service.authenticate`), then the binding stored
     on the invoice (first submission wins), then a fresh primary account.
     Mutable — writes ``user_id``/``api_key`` onto ``invoice``.
     """
-    from pry.api.api_keys_service import PRIMARY_USER_ID, authenticate
+    from pry.core.api_keys_service import PRIMARY_USER_ID, authenticate
 
     if user_id:
         invoice["user_id"] = user_id
@@ -783,7 +783,7 @@ def _mint_key(user_id: str, pack_id: str) -> dict[str, Any]:
 
     The plaintext is returned once and stored hashed at rest.
     """
-    from pry.api.api_keys_service import issue_key
+    from pry.core.api_keys_service import issue_key
 
     return issue_key(
         user_id=user_id,
@@ -804,12 +804,12 @@ def signup_crypto(user_id: str = "", api_key: str = "") -> dict[str, Any]:
     Returns ``{api_key, user_id, created, starter_credits_usd}``.
     """
     if api_key:
-        from pry.api.api_keys_service import authenticate
+        from pry.core.api_keys_service import authenticate
 
         record = authenticate(api_key)
         if record:
             return {"api_key": api_key, "user_id": record["user_id"], "created": False}
-    from pry.api.api_keys_service import PRIMARY_USER_ID
+    from pry.core.api_keys_service import PRIMARY_USER_ID
 
     target_user_id = user_id or PRIMARY_USER_ID
     issued = _mint_key(target_user_id, "signup")

@@ -45,8 +45,8 @@ from typing import Any, cast
 
 from starlette.routing import Mount as StarletteMount, Route as StarletteRoute
 
-from pry.api.jwt_auth import is_jwt, validate_rmi_jwt
 from pry.core.deps import ratelimiter, user_ratelimiter
+from pry.core.jwt_auth import is_jwt, validate_rmi_jwt
 from pry.core.observability import REQUEST_COUNT, REQUEST_LATENCY
 from pry.core.settings import settings
 
@@ -277,7 +277,7 @@ def request_authorized(scope: MutableMapping[str, Any]) -> bool:
     # carry their own identity for rate limiting + metering + billing.
     if token.startswith("pry_"):
         try:
-            from pry.api.api_keys_service import authenticate as authenticate_db_key
+            from pry.core.api_keys_service import authenticate as authenticate_db_key
 
             record = authenticate_db_key(token)
         except Exception:  # noqa: BLE001 - auth store outage must not 500

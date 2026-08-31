@@ -29,8 +29,8 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Request
 
-from pry.api.jwt_auth import is_jwt, validate_rmi_jwt
 from pry.core.errors import NotFoundError  # type: ignore[import-not-found]
+from pry.core.jwt_auth import is_jwt, validate_rmi_jwt
 
 router = APIRouter(tags=["Auth"])
 

@@ -112,6 +112,7 @@ dev = [
     "ruff>=0.7.0",
     "mypy>=1.12.0",
     "pre-commit>=4.0.0",
+    "import-linter>=2.1",
     "alembic>=1.14.0",
     "respx>=0.21.0",
     "commitizen>=3.12.0",
@@ -233,6 +234,10 @@ extend-ignore = ["N815", "A002", "RUF006"]
 "src/pry/engine/ai_visual_scraper.py" = ["BLE001"]
 "src/pry/engine/graphql_scraper_enhanced.py" = ["BLE001"]
 "src/pry/engine/mobile_app_scraper.py" = ["BLE001"]
+# x_intel actor: multi-strategy fetch chain (guest GraphQL -> nitter ->
+# syndication -> webshare retry) — each strategy's failure must fall through
+# to the next, logged at debug.
+"actors/x_intel.py" = ["BLE001"]
 
 # BLE001 (blind except Exception) is enforced. Pre-existing sites are
 # marked with `# noqa: BLE001`; new code must use specific exception

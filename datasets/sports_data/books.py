@@ -84,8 +84,8 @@ from urllib.parse import urlparse
 
 import httpx
 
-from pry.engine.retry import RetryConfig, async_retry
 from datasets.sports_data.cache import TTLCache
+from pry.engine.retry import RetryConfig, async_retry
 
 logger = logging.getLogger(__name__)
 

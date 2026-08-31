@@ -20,9 +20,9 @@ from typing import Any
 
 import pytest
 
-from pry.core.settings import PrySettings, settings
 from datasets.sports_data import cache as cache_mod
 from datasets.sports_data.cache import TokenBucketRateLimiter, TTLCache
+from pry.core.settings import PrySettings, settings
 
 
 class FakeClock:

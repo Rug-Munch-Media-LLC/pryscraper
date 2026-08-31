@@ -93,7 +93,7 @@ def _env_flag(name: str) -> bool:
 EVM_TREASURY_SECRET = "evm_treasury_address"  # noqa: S105
 
 try:
-    from pry.api.secrets_backend import get_secret as _gs
+    from pry.core.secrets_backend import get_secret as _gs
 
     # Receive-wallet precedence: an explicit x402 wallet first (gopass
     # `x402_wallet` / PRY_X402_WALLET), then the shared EVM treasury (gopass

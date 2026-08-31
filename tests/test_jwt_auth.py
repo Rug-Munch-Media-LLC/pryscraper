@@ -6,7 +6,7 @@ import json
 import time
 from unittest.mock import MagicMock, patch
 
-from pry.api.jwt_auth import (
+from pry.core.jwt_auth import (
     _fetch_public_key,
     _load_key,
     is_jwt,
@@ -35,16 +35,16 @@ def test_load_key_inline():
 
 def test_fetch_public_key_from_cache():
     """Cached key within TTL returns cached value."""
-    with patch("pry.api.jwt_auth._jwks_cache", {"key": "cached-key", "fetched_at": time.time()}):
+    with patch("pry.core.jwt_auth._jwks_cache", {"key": "cached-key", "fetched_at": time.time()}):
         assert _fetch_public_key() == "cached-key"
 
 
 def test_fetch_public_key_from_env():
     """Env var PUBLIC_KEY is loaded when cache is stale."""
     with (
-        patch("pry.api.jwt_auth._jwks_cache", {"key": None, "fetched_at": 0.0}),
-        patch("pry.api.jwt_auth._JWT_PUBLIC_KEY", "/path/to/key.pem"),
-        patch("pry.api.jwt_auth._load_key", return_value="env-key"),
+        patch("pry.core.jwt_auth._jwks_cache", {"key": None, "fetched_at": 0.0}),
+        patch("pry.core.jwt_auth._JWT_PUBLIC_KEY", "/path/to/key.pem"),
+        patch("pry.core.jwt_auth._load_key", return_value="env-key"),
     ):
         result = _fetch_public_key()
         assert result == "env-key"
@@ -53,9 +53,9 @@ def test_fetch_public_key_from_env():
 def test_fetch_public_key_no_env_no_jwks():
     """No env key and JWKS unreachable returns None."""
     with (
-        patch("pry.api.jwt_auth._jwks_cache", {"key": None, "fetched_at": 0.0}),
-        patch("pry.api.jwt_auth._JWT_PUBLIC_KEY", ""),
-        patch("pry.api.jwt_auth._JWKS_URL", "https://invalid.example.com/jwks"),
+        patch("pry.core.jwt_auth._jwks_cache", {"key": None, "fetched_at": 0.0}),
+        patch("pry.core.jwt_auth._JWT_PUBLIC_KEY", ""),
+        patch("pry.core.jwt_auth._JWKS_URL", "https://invalid.example.com/jwks"),
     ):
         result = _fetch_public_key()
         assert result is None
@@ -64,15 +64,15 @@ def test_fetch_public_key_no_env_no_jwks():
 def test_fetch_public_key_invalid_scheme():
     """JWKS URL with non-http scheme returns None."""
     with (
-        patch("pry.api.jwt_auth._jwks_cache", {"key": None, "fetched_at": 0.0}),
-        patch("pry.api.jwt_auth._JWT_PUBLIC_KEY", ""),
-        patch("pry.api.jwt_auth._JWKS_URL", "file:///etc/passwd"),
+        patch("pry.core.jwt_auth._jwks_cache", {"key": None, "fetched_at": 0.0}),
+        patch("pry.core.jwt_auth._JWT_PUBLIC_KEY", ""),
+        patch("pry.core.jwt_auth._JWKS_URL", "file:///etc/passwd"),
     ):
         result = _fetch_public_key()
         assert result is None
 
 
-@patch("pry.api.jwt_auth.urllib.request.urlopen")
+@patch("pry.core.jwt_auth.urllib.request.urlopen")
 def test_fetch_public_key_jwks_success(mock_urlopen):
     """JWKS endpoint returning PEM works."""
     mock_resp = MagicMock()
@@ -80,15 +80,15 @@ def test_fetch_public_key_jwks_success(mock_urlopen):
     mock_urlopen.return_value.__enter__.return_value = mock_resp
 
     with (
-        patch("pry.api.jwt_auth._jwks_cache", {"key": None, "fetched_at": 0.0}),
-        patch("pry.api.jwt_auth._JWT_PUBLIC_KEY", ""),
-        patch("pry.api.jwt_auth._JWKS_URL", "https://example.com/jwks"),
+        patch("pry.core.jwt_auth._jwks_cache", {"key": None, "fetched_at": 0.0}),
+        patch("pry.core.jwt_auth._JWT_PUBLIC_KEY", ""),
+        patch("pry.core.jwt_auth._JWKS_URL", "https://example.com/jwks"),
     ):
         result = _fetch_public_key()
         assert result == "jwks-pem"
 
 
-@patch("pry.api.jwt_auth.urllib.request.urlopen")
+@patch("pry.core.jwt_auth.urllib.request.urlopen")
 def test_fetch_public_key_jwks_no_pem(mock_urlopen):
     """JWKS endpoint without PEM field returns None."""
     mock_resp = MagicMock()
@@ -96,9 +96,9 @@ def test_fetch_public_key_jwks_no_pem(mock_urlopen):
     mock_urlopen.return_value.__enter__.return_value = mock_resp
 
     with (
-        patch("pry.api.jwt_auth._jwks_cache", {"key": None, "fetched_at": 0.0}),
-        patch("pry.api.jwt_auth._JWT_PUBLIC_KEY", ""),
-        patch("pry.api.jwt_auth._JWKS_URL", "https://example.com/jwks"),
+        patch("pry.core.jwt_auth._jwks_cache", {"key": None, "fetched_at": 0.0}),
+        patch("pry.core.jwt_auth._JWT_PUBLIC_KEY", ""),
+        patch("pry.core.jwt_auth._JWKS_URL", "https://example.com/jwks"),
     ):
         result = _fetch_public_key()
         assert result is None
@@ -109,7 +109,7 @@ def test_fetch_public_key_jwks_no_pem(mock_urlopen):
 
 def test_validate_rmi_jwt_no_jwt_library():
     """Without pyjwt library, returns None."""
-    with patch("pry.api.jwt_auth._HAS_JWT", False):
+    with patch("pry.core.jwt_auth._HAS_JWT", False):
         assert validate_rmi_jwt("some.token.here") is None
 
 
@@ -120,11 +120,14 @@ def test_validate_rmi_jwt_empty_token():
 
 def test_validate_rmi_jwt_no_key():
     """No key configured returns None."""
-    with patch("pry.api.jwt_auth._HAS_JWT", True), patch("pry.api.jwt_auth._fetch_public_key", return_value=None):
+    with (
+        patch("pry.core.jwt_auth._HAS_JWT", True),
+        patch("pry.core.jwt_auth._fetch_public_key", return_value=None),
+    ):
         assert validate_rmi_jwt("some.token.here") is None
 
 
-@patch("pry.api.jwt_auth.pyjwt.decode")
+@patch("pry.core.jwt_auth.pyjwt.decode")
 def test_validate_rmi_jwt_success(mock_decode):
     """Valid JWT returns claims dict."""
     mock_decode.return_value = {
@@ -135,8 +138,8 @@ def test_validate_rmi_jwt_success(mock_decode):
         "wallet": "0xabc",
     }
     with (
-        patch("pry.api.jwt_auth._HAS_JWT", True),
-        patch("pry.api.jwt_auth._fetch_public_key", return_value="pub-key"),
+        patch("pry.core.jwt_auth._HAS_JWT", True),
+        patch("pry.core.jwt_auth._fetch_public_key", return_value="pub-key"),
     ):
         claims = validate_rmi_jwt("valid.jwt.token")
         assert claims is not None
@@ -145,13 +148,13 @@ def test_validate_rmi_jwt_success(mock_decode):
         assert claims["wallet"] == "0xabc"
 
 
-@patch("pry.api.jwt_auth.pyjwt.decode")
+@patch("pry.core.jwt_auth.pyjwt.decode")
 def test_validate_rmi_jwt_failure(mock_decode):
     """Invalid JWT returns None."""
     mock_decode.side_effect = ValueError("bad token")
     with (
-        patch("pry.api.jwt_auth._HAS_JWT", True),
-        patch("pry.api.jwt_auth._fetch_public_key", return_value="pub-key"),
+        patch("pry.core.jwt_auth._HAS_JWT", True),
+        patch("pry.core.jwt_auth._fetch_public_key", return_value="pub-key"),
     ):
         assert validate_rmi_jwt("bad.jwt.token") is None
 
@@ -166,23 +169,23 @@ def test_validate_rmi_jwt_rejects_non_rs256_algorithm():
     as the HMAC secret — anyone with the public key could forge tokens.
     """
     with (
-        patch("pry.api.jwt_auth._HAS_JWT", True),
-        patch("pry.api.jwt_auth._JWT_ALGORITHM", "HS256"),
-        patch("pry.api.jwt_auth._fetch_public_key", return_value="pub-key"),
-        patch("pry.api.jwt_auth.pyjwt.decode") as mock_decode,
+        patch("pry.core.jwt_auth._HAS_JWT", True),
+        patch("pry.core.jwt_auth._JWT_ALGORITHM", "HS256"),
+        patch("pry.core.jwt_auth._fetch_public_key", return_value="pub-key"),
+        patch("pry.core.jwt_auth.pyjwt.decode") as mock_decode,
     ):
         assert validate_rmi_jwt("some.jwt.token") is None
         mock_decode.assert_not_called()
 
 
-@patch("pry.api.jwt_auth.pyjwt.decode")
+@patch("pry.core.jwt_auth.pyjwt.decode")
 def test_validate_rmi_jwt_enforces_rs256_and_exp(mock_decode):
     """RS256 tokens are decoded with exp required."""
     mock_decode.return_value = {"sub": "u", "exp": time.time() + 60}
     with (
-        patch("pry.api.jwt_auth._HAS_JWT", True),
-        patch("pry.api.jwt_auth._JWT_ALGORITHM", "RS256"),
-        patch("pry.api.jwt_auth._fetch_public_key", return_value="pub-key"),
+        patch("pry.core.jwt_auth._HAS_JWT", True),
+        patch("pry.core.jwt_auth._JWT_ALGORITHM", "RS256"),
+        patch("pry.core.jwt_auth._fetch_public_key", return_value="pub-key"),
     ):
         validate_rmi_jwt("good.jwt.token")
         _args, kwargs = mock_decode.call_args

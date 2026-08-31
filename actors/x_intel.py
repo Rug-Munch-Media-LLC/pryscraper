@@ -33,6 +33,7 @@ import logging
 import os
 import random
 import re
+import secrets
 import sys
 from typing import Any
 
@@ -89,7 +90,7 @@ async def fetch_nitter(client: httpx.AsyncClient, handle: str) -> list[dict[str,
             if docs:
                 logger.info("nitter_hit base=%s handle=%s docs=%d", base, handle, len(docs))
                 return docs
-        except Exception as e:  # noqa: BLE001 — fail-open per-source by design
+        except Exception as e:
             logger.debug("nitter_fail base=%s err=%s", base, str(e)[:60])
     return []
 
@@ -119,15 +120,14 @@ async def fetch_syndication(client: httpx.AsyncClient, handle: str) -> list[dict
                     }
                 )
         return docs
-    except Exception as e:  # noqa: BLE001 — fail-open per-source by design
+    except Exception as e:
         logger.debug("syndication_fail handle=%s err=%s", handle, str(e)[:60])
         return []
 
 
-
 # ── Guest-token GraphQL (self-updating credentials from x.com's own JS) ───
 
-_BEARER_RE = re.compile(r'Bearer (AAAA[A-Za-z0-9%\-]+)')
+_BEARER_RE = re.compile(r"Bearer (AAAA[A-Za-z0-9%\-]+)")
 _QID_RE = re.compile(r'queryId:"([A-Za-z0-9_/]+)",operationName:"UserTweets"')
 _cached_credentials: dict[str, str] = {}
 
@@ -137,9 +137,13 @@ async def _get_guest_credentials(client: httpx.AsyncClient) -> dict[str, str]:
     if _cached_credentials.get("bearer") and _cached_credentials.get("qid"):
         return _cached_credentials
     home = await client.get("https://x.com/", headers={"User-Agent": UA})
-    js_links = re.findall(r'src="(https://abs\.twimg\.com/responsive-web/client-web/main[^"]+\.js)"', home.text)
+    js_links = re.findall(
+        r'src="(https://abs\.twimg\.com/responsive-web/client-web/main[^"]+\.js)"', home.text
+    )
     if not js_links:
-        js_links = re.findall(r'"(https://abs\.twimg\.com/responsive-web/client-web/[^"]+main[^"]*\.js)"', home.text)
+        js_links = re.findall(
+            r'"(https://abs\.twimg\.com/responsive-web/client-web/[^"]+main[^"]*\.js)"', home.text
+        )
     for js in js_links[:3]:
         r = await client.get(js, headers={"User-Agent": UA})
         bm = _BEARER_RE.search(r.text)
@@ -170,11 +174,14 @@ async def fetch_guest_graphql(client: httpx.AsyncClient, handle: str) -> list[di
     bearer = creds["bearer"]
     gt = await _activate_guest(client, bearer)
 
-    variables = json.dumps({
-        "screen_name": handle,
-        "count": 20,
-        "includePromotedContent": False,
-    }, separators=(",", ":"))
+    variables = json.dumps(
+        {
+            "screen_name": handle,
+            "count": 20,
+            "includePromotedContent": False,
+        },
+        separators=(",", ":"),
+    )
     headers = {
         "Authorization": f"Bearer {bearer}",
         "x-guest-token": gt,
@@ -197,13 +204,15 @@ async def fetch_guest_graphql(client: httpx.AsyncClient, handle: str) -> list[di
                 leg = obj["legacy"]
                 text = leg.get("full_text", "")
                 if len(text) >= 20:
-                    docs.append({
-                        "handle": handle,
-                        "text": text[:2000],
-                        "ts": leg.get("created_at", ""),
-                        "url": f"https://x.com/{handle}/status/{obj.get('rest_id', '')}",
-                        "source": "guest_graphql",
-                    })
+                    docs.append(
+                        {
+                            "handle": handle,
+                            "text": text[:2000],
+                            "ts": leg.get("created_at", ""),
+                            "url": f"https://x.com/{handle}/status/{obj.get('rest_id', '')}",
+                            "source": "guest_graphql",
+                        }
+                    )
             for v in obj.values():
                 _walk(v)
         elif isinstance(obj, list):
@@ -224,7 +233,9 @@ async def scrape_handle(handle: str, limit: int = 20) -> tuple[list[dict[str, An
     """
     proxy = os.getenv("X_PROXY_URL", "")
     webshare = _load_webshare_rotator()
-    async with httpx.AsyncClient(timeout=20.0, follow_redirects=True, proxy=proxy or None) as client:
+    async with httpx.AsyncClient(
+        timeout=20.0, follow_redirects=True, proxy=proxy or None
+    ) as client:
         # 1. guest-token GraphQL direct (no proxy, no account)
         try:
             docs = await fetch_guest_graphql(client, handle)
@@ -241,7 +252,7 @@ async def scrape_handle(handle: str, limit: int = 20) -> tuple[list[dict[str, An
             return docs[:limit], "syndication"
     # 3. webshare-proxied retry of the whole chain
     if webshare:
-        px = random.choice(webshare)
+        px = secrets.choice(webshare)
         try:
             async with httpx.AsyncClient(timeout=25.0, follow_redirects=True, proxy=px) as client:
                 docs = await fetch_guest_graphql(client, handle)

@@ -39,7 +39,7 @@ async def get_openapi() -> JSONResponse:
     Use this with ChatGPT GPT Actions, Claude MCP, or any AI agent
     framework to let AI models scrape the web through Pry.
     """
-    from pry.api.ai_plugin import get_openapi_spec
+    from pry.api.openapi_spec import get_openapi_spec
 
     spec = get_openapi_spec()
     return JSONResponse(content=spec)

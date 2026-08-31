@@ -5,7 +5,8 @@
 # Licensed under MIT. See LICENSE.
 """Tests for AI agent plugin."""
 
-from pry.api.ai_plugin import get_gpt_action_manifest, get_mcp_server_config, get_openapi_spec
+from pry.api.ai_plugin import get_gpt_action_manifest, get_mcp_server_config
+from pry.api.openapi_spec import get_openapi_spec
 
 
 def test_openapi_spec_valid() -> None:

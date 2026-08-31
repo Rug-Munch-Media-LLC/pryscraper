@@ -205,8 +205,8 @@ async def billing_signup(payload: SignupRequest) -> dict[str, Any]:
 )
 async def billing_balance(payload: BalanceRequest) -> dict[str, Any]:
     """Read the prepaid balance for the account identified by key or user id."""
-    from pry.api.api_keys_service import PRIMARY_USER_ID, authenticate
     from pry.commerce.billing_service import get_balance
+    from pry.core.api_keys_service import PRIMARY_USER_ID, authenticate
 
     user_id = payload.user_id
     if not user_id and payload.api_key:
