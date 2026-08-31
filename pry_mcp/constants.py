@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import os
 
-# MCP protocol version (per the official spec)
-MCP_PROTOCOL_VERSION = "2024-11-05"
+# MCP protocol version (per the official spec — latest revision 2026-07-28)
+MCP_PROTOCOL_VERSION = "2026-07-28"
 SERVER_NAME = "pry"
 SERVER_VERSION = "3.0.0"
 

@@ -5,9 +5,12 @@
 import base64
 import json
 import logging
+import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from pry.core.ratelimit import RateLimiter
+from pry.core.settings import settings
 from pry.payments.x402 import (
     PAYMENT_VALIDITY_SECONDS,
     X402Handler,
@@ -32,6 +35,14 @@ logger = logging.getLogger(__name__)
 
 # full acceptance surface; only the header is compacted under this budget.
 X402_PAYMENT_HEADER_MAX_BYTES = 12_000
+
+# Per-IP rate limit for the x402 gate itself (402 challenges + settle
+# attempts). X402Middleware sits OUTERMOST (api.py), so it runs BEFORE
+# PryHttpMiddleware's global limiter — without its own limiter a keyless
+# agent could hammer 402 challenges / facilitator verify+settle calls
+# unthrottled. Redis-backed via settings.redis_url (degrades to per-process
+# token bucket when Redis is down — see pry/core/ratelimit.py).
+X402_RATE_LIMIT_PER_MIN = int(os.getenv("X402_RATE_LIMIT_PER_MIN", "120"))
 
 
 def _decode_presented_payment_required(raw: Any) -> dict[str, Any] | None:
@@ -177,6 +188,11 @@ class X402Middleware:
         self.facilitator_url = facilitator_url
         self.handler = X402Handler(wallet=wallet, facilitator_url=facilitator_url)
         self.payments: dict[str, dict[str, Any]] = {}
+        self.limiter = RateLimiter(
+            default_rpm=X402_RATE_LIMIT_PER_MIN,
+            burst=X402_RATE_LIMIT_PER_MIN,
+            redis_url=settings.redis_url,
+        )
 
     def _is_free(self, path: str) -> bool:
         """Exact/prefix/admin free-path check (wildcard-aware)."""
@@ -243,6 +259,45 @@ class X402Middleware:
             return
 
         caller_key = _caller_key_from_scope(scope)
+
+        # Per-IP rate limit (audit hardening): the gate is outermost, so this
+        # is the ONLY limiter a keyless 402-challenge / settle request hits.
+        # IP-based (socket peer — X-Forwarded-For is spoofable); the inner
+        # PryHttpMiddleware adds API-key-based limiting for authenticated
+        # traffic on top of this.
+        allowed, rate_stats = self.limiter.check(caller_key or "unknown")
+        if not allowed:
+            logger.warning(
+                "x402_rate_limited",
+                extra={
+                    "path": path,
+                    "ip": caller_key,
+                    "retry_after": rate_stats.get("retry_after", 1),
+                },
+            )
+            body = json.dumps(
+                {
+                    "error": "rate_limit_exceeded",
+                    "detail": "too many payment requests; retry later",
+                    "retry_after": rate_stats.get("retry_after", 1),
+                }
+            ).encode()
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 429,
+                    "headers": [
+                        (b"content-type", b"application/json"),
+                        (b"content-length", str(len(body)).encode()),
+                        (
+                            b"retry-after",
+                            str(int(float(rate_stats.get("retry_after", 1)))).encode(),
+                        ),
+                    ],
+                }
+            )
+            await send({"type": "http.response.body", "body": body})
+            return
 
         headers = dict(scope.get("headers", []))
         payment_sig = headers.get(b"payment-signature", b"").decode()

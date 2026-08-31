@@ -56,7 +56,7 @@ class TestMCPJsonRPC:
         data = response.json()
         assert data["jsonrpc"] == "2.0"
         assert data["id"] == 1
-        assert data["result"]["protocolVersion"] == "2024-11-05"
+        assert data["result"]["protocolVersion"] == "2026-07-28"
         assert data["result"]["serverInfo"]["name"] == "pry"
         caps = data["result"]["capabilities"]
         assert caps["resources"]["subscribe"] is True
@@ -310,7 +310,7 @@ class TestMCPSSE:
                             assert "event: message" in event
                             data_line = event.split("data: ", 1)[1]
                             response = json.loads(data_line)
-                            assert response["result"]["protocolVersion"] == "2024-11-05"
+                            assert response["result"]["protocolVersion"] == "2026-07-28"
                             return
                 raise AssertionError("SSE stream closed before response event")
         finally:

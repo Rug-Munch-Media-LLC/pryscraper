@@ -418,3 +418,48 @@ def test_route_confirm_unknown_invoice_404(client: TestClient) -> None:
         json={"tx_hash": "0xabc"},
     )
     assert resp.status_code == 404
+
+
+# ── Coverage-gap tests: expired-instance renewal + cancel semantics ─────────
+def test_renew_expired_instance_extends_from_now(db, monkeypatch) -> None:
+    """An expired instance renewed via a renewal invoice rolls expiry forward
+    from *now* (not from the stale past expiry) and reactivates."""
+    from datetime import UTC, datetime, timedelta
+
+    from pry.core.db.models import HostedInstance
+    from pry.core.db.session import get_session
+
+    result = _provision(db, monkeypatch, email="expired@example.com")
+    instance_id = result["instance"]["instance_id"]
+
+    # Force the instance into the past (expired).
+    with get_session() as session:
+        row = session.query(HostedInstance).filter_by(instance_id=instance_id).first()
+        row.expires_at = datetime.now(UTC) - timedelta(days=30)
+        session.commit()
+    assert get_instance(instance_id)["active"] is False
+
+    renewal = renew_instance(instance_id)
+    confirmed = confirm_hosting_payment_sync(renewal["invoice_id"], "0x" + "e" * 8)
+    assert confirmed["paid"] is True
+    assert confirmed["instance"]["instance_id"] == instance_id
+
+    after = get_instance(instance_id)
+    assert after["active"] is True
+    # New expiry is ~1 month from now, not from the stale past expiry.
+    new_expiry = datetime.fromisoformat(after["expires_at"])
+    assert new_expiry > datetime.now(UTC) + timedelta(days=27)
+    assert new_expiry < datetime.now(UTC) + timedelta(days=32)
+
+
+def test_cancel_active_instance(db, monkeypatch) -> None:
+    """Cancelling an active instance marks it cancelled and inactive."""
+    result = _provision(db, monkeypatch, email="cancel@example.com")
+    instance_id = result["instance"]["instance_id"]
+    assert get_instance(instance_id)["active"] is True
+
+    cancelled = cancel_instance(instance_id)
+    assert cancelled["status"] == "cancelled"
+    assert get_instance(instance_id)["active"] is False
+    with pytest.raises(InstanceNotFound):
+        cancel_instance("inst_nope")

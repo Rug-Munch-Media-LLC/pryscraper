@@ -291,6 +291,118 @@ class TestTreasuryBalances:
         tracker._tron_balance()
         assert calls["n"] == 1  # second call served from cache
 
+    # ── EVM treasury parsing (RPC fallback + Etherscan paths) ────────────────
+
+    def test_evm_rpc_native_parsed(self, tracker, monkeypatch) -> None:
+        """No ETHERSCAN key → public RPC path; hex wei balance parsed to ETH."""
+        import pry.payments.earnings as earnings_mod
+
+        monkeypatch.delenv(earnings_mod.ETHERSCAN_API_KEY_ENV, raising=False)
+
+        class FakeResp:
+            def raise_for_status(self) -> None:
+                pass
+
+            def json(self) -> dict[str, Any]:
+                return {"result": hex(2 * earnings_mod.WEI)}  # 2 ETH in wei
+
+        monkeypatch.setattr("httpx.post", lambda *a, **k: FakeResp())
+        evm = tracker._evm_balance()
+        assert evm["address"] == earnings_mod.TREASURY_EVM
+        assert evm["native_balance"] == pytest.approx(2.0)
+        assert "error" not in evm
+
+    def test_evm_etherscan_native_and_usdc_parsed(self, tracker, monkeypatch) -> None:
+        """With an ETHERSCAN key: native balance + USDC token balance both parsed."""
+        import pry.payments.earnings as earnings_mod
+
+        monkeypatch.setenv(earnings_mod.ETHERSCAN_API_KEY_ENV, "testkey")
+        seen_actions: list[str] = []
+
+        class FakeResp:
+            def __init__(self, payload: dict[str, Any]) -> None:
+                self._payload = payload
+
+            def raise_for_status(self) -> None:
+                pass
+
+            def json(self) -> dict[str, Any]:
+                return self._payload
+
+        def fake_get(url: str, params: dict[str, Any] | None = None, **k: Any) -> FakeResp:
+            action = str((params or {}).get("action"))
+            seen_actions.append(action)
+            if action == "balance":
+                return FakeResp({"status": "1", "result": str(3 * earnings_mod.WEI)})
+            return FakeResp({"status": "1", "result": str(150 * earnings_mod.STABLE_ATOMIC)})
+
+        monkeypatch.setattr("httpx.get", fake_get)
+        evm = tracker._evm_balance()
+        assert evm["native_balance"] == pytest.approx(3.0)
+        assert evm["usdc_balance"] == pytest.approx(150.0)
+        assert set(seen_actions) == {"balance", "tokenbalance"}
+
+    def test_evm_etherscan_error_status_raises_value(self, tracker, monkeypatch) -> None:
+        """Etherscan status != 1 → error entry, never raises out of the tracker."""
+        import pry.payments.earnings as earnings_mod
+
+        monkeypatch.setenv(earnings_mod.ETHERSCAN_API_KEY_ENV, "testkey")
+
+        class FakeResp:
+            def raise_for_status(self) -> None:
+                pass
+
+            def json(self) -> dict[str, Any]:
+                return {"status": "0", "result": "NOTOK"}
+
+        monkeypatch.setattr("httpx.get", lambda *a, **k: FakeResp())
+        evm = tracker._evm_balance()
+        assert "error" in evm
+        assert evm["address"] == earnings_mod.TREASURY_EVM
+
+    def test_per_chain_error_isolation(self, tracker, monkeypatch) -> None:
+        """EVM probe failing must not poison the Solana/TRON results."""
+        import pry.payments.earnings as earnings_mod
+
+        class FakeResp:
+            def __init__(self, payload: dict[str, Any] | None = None) -> None:
+                self._payload = payload or {}
+
+            def raise_for_status(self) -> None:
+                pass
+
+            def json(self) -> dict[str, Any]:
+                return self._payload
+
+        def evm_boom(*a: Any, **k: Any) -> None:
+            raise ConnectionError("evm rpc down")
+
+        def selective_post(url: str, *a: Any, **k: Any) -> FakeResp:
+            if url == earnings_mod.EVM_PUBLIC_RPC:
+                raise ConnectionError("evm rpc down")
+            return FakeResp({"result": {"value": 1_000_000}})  # solana lamports
+
+        monkeypatch.setattr("httpx.post", selective_post)
+        monkeypatch.setattr("httpx.get", evm_boom)  # tron fails too
+        monkeypatch.delenv(earnings_mod.ETHERSCAN_API_KEY_ENV, raising=False)
+        balances = tracker.get_treasury_balances()
+        assert "error" in balances["evm"]
+        assert "error" in balances["tron"]
+        assert balances["solana"]["native_balance"] == pytest.approx(0.001)
+
+    def test_malformed_rpc_payload_never_raises(self, tracker, monkeypatch) -> None:
+        class BadResp:
+            def raise_for_status(self) -> None:
+                pass
+
+            def json(self) -> Any:
+                raise ValueError("not json")
+
+        monkeypatch.setattr("httpx.get", lambda *a, **k: BadResp())
+        monkeypatch.setattr("httpx.post", lambda *a, **k: BadResp())
+        balances = tracker.get_treasury_balances()  # must not raise
+        assert set(balances) >= {"evm", "solana", "tron", "cached_ttl_s"}
+
 
 # ── Analytics delegation ─────────────────────────────────────────────────────
 class TestAnalyticsDelegation:

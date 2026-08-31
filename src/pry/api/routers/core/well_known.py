@@ -12,9 +12,11 @@ can find and interact with Pry's paid API surface.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Response
+from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +29,13 @@ async def x402_manifest() -> dict[str, Any]:
 
     This manifest tells AI agents and marketplaces:
     - Which endpoints are paid
-    - What payment methods are accepted (USDC, USDT, SOL, TRX)
+    - What payment methods are accepted (USDC, USDT, SOL)
     - Pricing for each operation
-    - Supported networks (EVM, Solana, TRON)
+    - Supported networks (EVM, Solana)
+
+    TRON is intentionally NOT advertised: scheme.py gates tron:mainnet
+    (scaffolded — no TRC-20 settlement verifier is wired), so the manifest
+    must not claim it either.
 
     See: https://docs.x402.org/discovery
     """
@@ -41,6 +47,10 @@ async def x402_manifest() -> dict[str, Any]:
             "x402": {
                 "enabled": True,
                 "facilitator": "self-hosted",
+                # Mirrors scheme.py's LIVE acceptance surface. tron:mainnet is
+                # excluded — VERIFICATION_STATUS marks it scaffolded and the
+                # verify path rejects it; advertising it here would invite
+                # payments we cannot verify/settle.
                 "supported_networks": [
                     "eip155:8453",  # Base
                     "eip155:1",  # Ethereum
@@ -48,9 +58,9 @@ async def x402_manifest() -> dict[str, Any]:
                     "eip155:10",  # Optimism
                     "eip155:137",  # Polygon
                     "solana:mainnet",  # Solana
-                    "tron:mainnet",  # TRON
                 ],
-                "supported_assets": ["USDC", "USDT", "ETH", "SOL", "TRX", "ARB", "POL", "WETH"],
+                "supported_assets": ["USDC", "USDT", "ETH", "SOL", "ARB", "POL", "WETH"],
+                "pricing_endpoint": "/v1/x402/pricing",
             }
         },
         "endpoints": {
@@ -125,11 +135,80 @@ async def agent_card() -> dict[str, Any]:
             "x402": True,
             "crypto": ["BTC", "ETH", "SOL", "USDC", "USDT", "TRX"],
         },
+        "repository": {
+            "source": "codeberg",
+            "url": "https://codeberg.org/cryptorugmunch/pryscraper",
+        },
+        "contact": {
+            "website": "https://pryscraper.com",
+            "docs": "https://docs.pryscraper.com",
+            "support": "support@pryscraper.com",
+        },
         "mcp": {
             "url": "/mcp",
             "transport": ["sse", "stdio"],
         },
     }
+
+
+def _load_server_json() -> str | None:
+    """Read the canonical ``server.json`` manifest once at import time.
+
+    Import-time (sync) read keeps blocking pathlib calls out of the async
+    route (ruff ASYNC240) and caches the manifest for the process lifetime —
+    deployments ship ``server.json`` with the image, so it does not change
+    at runtime.
+    """
+    candidates = [
+        Path(__file__).resolve().parents[5] / "server.json",
+        Path.cwd() / "server.json",
+    ]
+    for candidate in candidates:
+        try:
+            if candidate.is_file():
+                return candidate.read_text(encoding="utf-8")
+        except OSError:
+            continue
+    return None
+
+
+_SERVER_JSON_CACHE: str | None = _load_server_json()
+
+
+@router.get("/.well-known/server.json")
+async def mcp_server_manifest() -> Response:
+    """Return the MCP registry server.json (server discovery manifest).
+
+    Serves the canonical registry manifest shipped at the repository root
+    (``server.json``): 76 tools, 6 resources, 7 prompts, version 3.0.0,
+    Codeberg repository URL. Falls back to a minimal generated manifest when
+    the file is not present in the deployment layout.
+    """
+    if _SERVER_JSON_CACHE is not None:
+        return Response(content=_SERVER_JSON_CACHE, media_type="application/json")
+    from pry.api.registry_metadata import get_registry_manifest
+
+    manifest = get_registry_manifest()
+    return JSONResponse(
+        {
+            "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+            "name": "io.rugmunch/pry",
+            "title": manifest.get("displayName", "Pry"),
+            "description": manifest.get("description", ""),
+            "version": manifest.get("version", "3.0.0"),
+            "websiteUrl": manifest.get("website", "https://pryscraper.com"),
+            "repository": {
+                "source": "codeberg",
+                "url": "https://codeberg.org/cryptorugmunch/pryscraper",
+            },
+            "remotes": [
+                {
+                    "type": "streamable-http",
+                    "url": "https://api.pryscraper.com/mcp/",
+                }
+            ],
+        }
+    )
 
 
 @router.get("/.well-known/x402-bazaar.json")

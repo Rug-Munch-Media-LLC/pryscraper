@@ -271,6 +271,7 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/training/export",
         # Well-known discovery endpoints (public for AI agent discovery)
         "/.well-known/agent.json",
+        "/.well-known/server.json",
         "/.well-known/x402.json",
         "/.well-known/x402-bazaar.json",
         "/llms.txt",

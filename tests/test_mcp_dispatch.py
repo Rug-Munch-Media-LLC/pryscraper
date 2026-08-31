@@ -103,7 +103,7 @@ class TestRegistrationSurface:
 
 
 class TestJsonRpcShape:
-    """The fallback server speaks MCP 2024-11-05 JSON-RPC; verify the
+    """The fallback server speaks MCP 2026-07-28 JSON-RPC; verify the
     content wrapper shape returned by call_tool."""
 
     @pytest.mark.asyncio

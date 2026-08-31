@@ -11,5 +11,14 @@
 	"payment": {
 		"x402": true,
 		"crypto": ["BTC", "ETH", "SOL", "USDC", "USDT", "TRX"]
+	},
+	"repository": {
+		"source": "codeberg",
+		"url": "https://codeberg.org/cryptorugmunch/pryscraper"
+	},
+	"contact": {
+		"website": "https://pryscraper.com",
+		"docs": "https://docs.pryscraper.com",
+		"support": "support@pryscraper.com"
 	}
 }

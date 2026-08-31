@@ -370,3 +370,60 @@ async def test_redis_backend_roundtrip_and_replay():
         with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
             third = await verify_batch_payment(r3["batch_id"], "0xredis")
         assert third["verified"] is False
+
+
+# ---------------------------------------------------------------------------
+# Redis failure degradation (Redis down mid-flight → in-memory fallback)
+# ---------------------------------------------------------------------------
+
+
+class _BrokenRedis:
+    """A Redis client that was reachable at connect time but now errors."""
+
+    def get(self, key: str) -> str:
+        raise ConnectionError("redis down")
+
+    def set(self, key: str, value: str, nx: bool = False, ex: int | None = None) -> bool:
+        raise ConnectionError("redis down")
+
+
+@pytest.mark.asyncio
+async def test_redis_down_falls_back_to_memory():
+    """With a reachable-but-broken Redis, batch state degrades to memory and
+    the full create → verify → is_paid flow still works (never raises)."""
+    with patch.object(batch_mod, "_get_redis", return_value=_BrokenRedis()):
+        r = await create_batch_payment(["scrape", "monitor"])
+        bid = r["batch_id"]
+        assert r["total_usd"] > 0
+
+        mock = AsyncMock()
+        mock.verify.return_value = {"verified": True, "reason": ""}
+        mock.settle.return_value = {"success": True}
+        with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+            result = await verify_batch_payment(bid, "0xdegraded", caller_key="c1")
+        assert result["verified"] is True
+
+        # State survived in the in-memory fallback store.
+        assert is_batch_paid(bid, caller_key="c1") is True
+        # Replay hardening still enforced from memory.
+        assert is_batch_paid(bid, caller_key="other") is False
+
+
+@pytest.mark.asyncio
+async def test_redis_tx_claim_failure_falls_back_to_memory_set():
+    """When the Redis SETNX claim errors, the in-memory tx set still blocks replay."""
+    with patch.object(batch_mod, "_get_redis", return_value=_BrokenRedis()):
+        assert batch_mod._consume_tx("0xtx1", "eip155:8453") is True
+        assert batch_mod._consume_tx("0xtx1", "eip155:8453") is False  # replay blocked
+        assert batch_mod._consume_tx("0xtx2", "eip155:8453") is True
+        assert batch_mod._consume_tx("", "eip155:8453") is False  # empty hash refused
+
+
+@pytest.mark.asyncio
+async def test_redis_read_failure_serves_memory_record():
+    """A batch saved to memory is still loadable when Redis reads fail."""
+    bid = (await create_batch_payment(["scrape"]))["batch_id"]
+    with patch.object(batch_mod, "_get_redis", return_value=_BrokenRedis()):
+        loaded = batch_mod._load_batch(bid)
+        assert loaded is not None
+        assert loaded["batch_id"] == bid

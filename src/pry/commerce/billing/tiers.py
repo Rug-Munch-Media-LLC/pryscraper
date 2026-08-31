@@ -60,8 +60,8 @@ TIERS: Final[dict[str, Tier]] = {
     "pro": Tier(
         name="pro",
         price_usd_monthly=49.0,
-        request_quota_monthly=50_000,
-        concurrent_limit=5,
+        request_quota_monthly=100_000,
+        concurrent_limit=100,
         feature_flags={
             "x402_pay_per_call",
             "priority_stealth",
@@ -74,7 +74,7 @@ TIERS: Final[dict[str, Tier]] = {
         name="team",
         price_usd_monthly=199.0,
         request_quota_monthly=500_000,
-        concurrent_limit=20,
+        concurrent_limit=500,
         feature_flags={
             "x402_pay_per_call",
             "priority_stealth",
@@ -90,7 +90,7 @@ TIERS: Final[dict[str, Tier]] = {
         name="enterprise",
         price_usd_monthly=None,  # custom quote
         request_quota_monthly=None,  # unlimited
-        concurrent_limit=100,
+        concurrent_limit=1000,
         feature_flags={
             "x402_pay_per_call",
             "priority_stealth",

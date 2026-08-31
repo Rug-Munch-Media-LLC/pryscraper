@@ -13,7 +13,7 @@ from pry_mcp import MCP_PROTOCOL_VERSION, PRY_TOOLS, make_fallback_server, regis
 def test_mcp_protocol_version() -> None:
     assert MCP_PROTOCOL_VERSION is not None
     assert isinstance(MCP_PROTOCOL_VERSION, str)
-    assert MCP_PROTOCOL_VERSION == "2024-11-05"
+    assert MCP_PROTOCOL_VERSION == "2026-07-28"
 
 
 def test_server_creation() -> None:

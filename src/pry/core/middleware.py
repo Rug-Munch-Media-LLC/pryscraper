@@ -190,6 +190,7 @@ _AUTH_PUBLIC_PATHS: set[str] = {
     "/mcp/messages",
     # Well-known discovery endpoints (public for AI agent discovery)
     "/.well-known/agent.json",
+    "/.well-known/server.json",
     "/.well-known/x402.json",
     "/.well-known/x402-bazaar.json",
     "/llms.txt",

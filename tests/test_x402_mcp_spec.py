@@ -112,8 +112,8 @@ class _AlwaysVerifySettleFail(FacilitatorRouter):
 
 
 def test_mcp_protocol_version() -> None:
-    """MCP 2024-11-05 is the current spec version."""
-    assert MCP_PROTOCOL_VERSION == "2024-11-05"
+    """MCP 2026-07-28 is the current spec version."""
+    assert MCP_PROTOCOL_VERSION == "2026-07-28"
 
 
 def test_tools_have_input_schema() -> None:

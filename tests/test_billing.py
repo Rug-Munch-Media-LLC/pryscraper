@@ -30,7 +30,7 @@ def test_tier_pricing_and_quotas() -> None:
     assert free.price_usd_monthly is None
     assert free.request_quota_monthly is None  # no monthly cap, pay-per-call
     assert TIERS["pro"].price_usd_monthly == 49.0
-    assert TIERS["pro"].request_quota_monthly == 50_000
+    assert TIERS["pro"].request_quota_monthly == 100_000
     assert TIERS["team"].price_usd_monthly == 199.0
     assert TIERS["team"].request_quota_monthly == 500_000
     assert TIERS["enterprise"].price_usd_monthly is None  # custom quote
@@ -177,11 +177,11 @@ def test_usage_stats_shape() -> None:
     stats = enforcer.usage_stats("sk_pro")
     assert stats["tier"] == "pro"
     assert stats["price_usd_monthly"] == 49.0
-    assert stats["request_quota_monthly"] == 50_000
+    assert stats["request_quota_monthly"] == 100_000
     assert stats["month_requests"] == 1
-    assert stats["quota_remaining"] == 49_999
+    assert stats["quota_remaining"] == 99_999
     assert stats["quota_exceeded"] is False
-    assert stats["concurrent_limit"] == 5
+    assert stats["concurrent_limit"] == 100
     assert stats["rate_limit_rpm"] == 120
     assert stats["rpm_remaining"] == 119
     assert stats["month"] == date.today().strftime("%Y-%m")

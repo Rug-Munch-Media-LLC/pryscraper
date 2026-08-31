@@ -797,7 +797,7 @@ class TestSessionLifecycle:
         assert resp.status_code == 200
         session_id = resp.headers.get("mcp-session-id")
         assert session_id, "initialize must issue an Mcp-Session-Id"
-        assert resp.json()["result"]["protocolVersion"] == "2024-11-05"
+        assert resp.json()["result"]["protocolVersion"] == "2026-07-28"
 
     def test_known_session_accepted(self, mcp_client: TestClient) -> None:
         init = mcp_client.post(

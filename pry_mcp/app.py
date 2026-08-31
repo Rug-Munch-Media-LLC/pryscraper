@@ -27,6 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from pry.api.mcp_sse import mcp_post_message, mcp_sse_endpoint
+from pry.core.middleware import request_authorized
 from pry.core.settings import settings
 from pry_mcp import MCP_PROTOCOL_VERSION, SERVER_VERSION, make_fallback_server, register_all
 from pry_mcp.fallback_server import combined_tool_executor
@@ -150,8 +151,26 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
 
         server = _get_server()
 
-        # 3. Session management: reject unknown inbound sessions; issue a new
-        #    session id on initialize when the client is stateless.
+        # 3. Auth gate: tool execution is a paid/arbitrary-code operation and
+        #    requires a valid API key (Bearer PRY_API_KEY / pry_ key / JWT) or
+        #    a verified x402 payment. Discovery methods (initialize,
+        #    tools/list, resources/list, prompts/list, ping, health) stay
+        #    public so agents can enumerate the surface without a key.
+        if body.get("method") == "tools/call" and not request_authorized(request.scope):
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "jsonrpc": "2.0",
+                    "id": body.get("id"),
+                    "error": {
+                        "code": -32001,
+                        "message": "Unauthorized: tools/call requires an API key",
+                    },
+                },
+                headers={"Cache-Control": "no-store"},
+            )
+
+        # 4. Session management: reject unknown inbound sessions; issue a new
         session_id = request.headers.get("mcp-session-id", "")
         if session_id and session_id not in _MCP_SESSIONS:
             return JSONResponse(
@@ -169,7 +188,7 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
             _MCP_SESSIONS.add(session_id)
             response_headers["Mcp-Session-Id"] = session_id
 
-        # 4. Notifications (requests without id) never produce a response.
+        # 5. Notifications (requests without id) never produce a response.
         if "id" not in body:
             await server.handle_request(body)
             return Response(status_code=202)
