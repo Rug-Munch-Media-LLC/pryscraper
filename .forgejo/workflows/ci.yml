@@ -710,11 +710,39 @@ jobs:
       - name: Run mutation tests (targeted)
         run: |
           source .venv/bin/activate
-          mutmut run --paths-to-mutate=src/pry/payments,src/pry/engine --tests-dir=tests/ --runner="pytest tests/" || true
+          # Scoped to the engine-core mutation baseline (MUTATION_BASELINE.md).
+          # mutmut 3.x reads scope from [tool.mutmut] in pyproject.toml — no CLI flags.
+          mutmut run --max-children 8
           mutmut results > mutmut-report.txt 2>&1 || true
+          mutmut export-cicd-stats
           echo "=== Mutation test results ==="
-          cat mutmut-report.txt || echo "mutmut not available"
-        continue-on-error: true
+          cat mutmut-report.txt
+      - name: Mutation score gate (fail below baseline)
+        run: |
+          source .venv/bin/activate
+          python - <<'PY'
+          import json, sys
+
+          BASELINE = 60.0  # keep in sync with MUTATION_BASELINE.md
+
+          try:
+              data = json.loads(open("mutants/mutmut-cicd-stats.json").read())
+          except (OSError, json.JSONDecodeError):
+              sys.exit("mutation gate: mutants/mutmut-cicd-stats.json missing or invalid — run `mutmut export-cicd-stats` first")
+
+          killed = data.get("killed", 0)
+          total = data.get("total", 0)
+          no_tests = data.get("no_tests", 0)
+          skipped = data.get("skipped", 0)
+          evaluated = total - no_tests - skipped
+          if evaluated <= 0:
+              sys.exit("mutation gate: no mutants evaluated — check [tool.mutmut] config")
+          score = 100.0 * killed / evaluated
+          print(f"mutation score: {score:.1f}% ({killed}/{evaluated} evaluated of {total}) — baseline {BASELINE}%")
+          if score < BASELINE:
+              sys.exit(f"mutation gate FAILED: {score:.1f}% < baseline {BASELINE}%")
+          PY
+        # Report upload stays non-blocking; the gate above is the blocking step.
       - name: Upload report
         uses: actions/upload-artifact@v3
         with:
