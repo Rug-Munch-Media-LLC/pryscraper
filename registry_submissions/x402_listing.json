@@ -72,7 +72,7 @@
 	"payment": {
 		"x402": true,
 		"crypto": true,
-		"providers": ["coinbase_commerce", "nowpayments", "btcpay"]
+		"providers": ["self-hosted"]
 	},
 	"contact": {
 		"email": "admin@rugmunch.io",

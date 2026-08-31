@@ -71,8 +71,14 @@ def get_mcp_listing() -> dict[str, Any]:
             "model": "pay_per_request",
             "tiers": [
                 {"name": "free", "price": 0, "requests_per_minute": 10},
-                {"name": "pro", "price": 9, "requests_per_minute": 60, "period": "month"},
-                {"name": "enterprise", "price": 49, "requests_per_minute": 300, "period": "month"},
+                {"name": "pro", "price": 49, "requests_per_minute": 120, "period": "month"},
+                {"name": "team", "price": 199, "requests_per_minute": 600, "period": "month"},
+                {
+                    "name": "enterprise",
+                    "price": None,
+                    "requests_per_minute": None,
+                    "period": "custom quote",
+                },
             ],
         },
         "tags": ["scraping", "web", "data", "x402", "crypto", "ai-agents", "mcp"],
@@ -142,7 +148,7 @@ def get_x402_listing() -> dict[str, Any]:
         "payment": {
             "x402": True,
             "crypto": True,
-            "providers": ["coinbase_commerce", "nowpayments", "btcpay"],
+            "providers": ["self-hosted"],
         },
         "contact": {
             "email": "admin@rugmunch.io",

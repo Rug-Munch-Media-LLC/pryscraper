@@ -743,6 +743,30 @@ def resolve_pay_to(
     return pay_to
 
 
+def treasury_wallets() -> dict[str, str]:
+    """Return the configured per-chain treasury addresses for the pricing endpoint.
+
+    Reads the operator env vars directly (``PRY_X402_WALLET`` for EVM,
+    ``PRY_X402_WALLET_SOLANA``, ``PRY_X402_WALLET_TRON``) so the live
+    ``/v1/x402/pricing`` response surfaces the ACTUAL configured treasuries
+    instead of a stale/empty module-level snapshot. Each address is
+    format-validated through :func:`resolve_pay_to` (family-aware, fail
+    closed) so an unconfigured or malformed wallet is reported as ``""``
+    rather than a fake payTo.
+    """
+    return {
+        "evm": resolve_pay_to("base", wallets={}, evm_wallet=os.getenv("PRY_X402_WALLET", "")),
+        "solana": resolve_pay_to(
+            "solana:mainnet",
+            wallets={"solana:mainnet": os.getenv("PRY_X402_WALLET_SOLANA", "")},
+        ),
+        "tron": resolve_pay_to(
+            "tron:mainnet",
+            wallets={"tron:mainnet": os.getenv("PRY_X402_WALLET_TRON", "")},
+        ),
+    }
+
+
 def network_verification_status(network: str) -> str:
     """Return the verification-status label for a network.
 

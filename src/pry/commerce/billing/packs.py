@@ -609,7 +609,7 @@ async def confirm_pack_purchase_async(
             "reason": result.get("reason", "no payment reported"),
         }
 
-    return _settle_pack_purchase(
+    return await _settle_pack_purchase_async(
         invoice_id,
         pack_id,
         user_id=account_user_id,
@@ -631,7 +631,7 @@ def _attach_tx(invoice_id: str, tx_hash: str, network: str, asset: str) -> None:
         submit_pack_payment(invoice_id, tx_hash, network=network, asset=asset)
 
 
-def _settle_pack_purchase(
+async def _settle_pack_purchase_async(
     invoice_id: str,
     pack_id: str,
     *,
@@ -641,13 +641,46 @@ def _settle_pack_purchase(
     paid_result: dict[str, Any],
     mint_key: bool,
 ) -> dict[str, Any]:
-    """Credit the ledger + mint a key on first purchase. Idempotent per tx.
+    """Settle on-chain, then credit the ledger + mint a key. Idempotent per tx.
 
     Shared by the sync and async confirm paths. Never raises on the credit
     path; the callers guarantee ``paid_result["paid"]`` is True.
+
+    Settlement gate: verify alone only ecrecovers the EIP-3009 authorization —
+    funds do not move until the self-facilitator broadcasts the settlement
+    (``SelfFacilitator.settle``). Credits are granted ONLY when settlement
+    succeeds; a failed broadcast returns a payment-failed result and the
+    ledger is never touched.
     """
     pack = get_pack(pack_id)
     reference = f"pack:{invoice_id}:{tx_hash}"
+
+    # ── On-chain settlement (EIP-3009 transferFrom via the authorization) ──
+    with _lock:
+        payment = dict(_INVOICES[invoice_id].get("payment") or {})
+    settle_tx = await _settle_onchain_async(
+        {
+            "payment_id": invoice_id,
+            "tx_hash": str(tx_hash),
+            "network": str(payment.get("network") or X402_DEFAULT_NETWORK),
+            "asset": str(payment.get("asset") or X402_DEFAULT_ASSET),
+            "amount_usd": float(payment.get("amount_usd") or 0.0),
+            "authorization": payment.get("authorization"),
+        }
+    )
+    if settle_tx is None:
+        return {
+            "paid": False,
+            "credits": 0,
+            "amount_usd": pack.price_usd,
+            "amount_atomic": pack.amount_atomic,
+            "api_key": api_key,
+            "balance": billing_service.get_balance(user_id)["balance_usd"],
+            "reason": "settlement failed",
+            "tx_hash": tx_hash,
+            "reference": reference,
+        }
+
     with _lock:
         stored_ref = _INVOICES[invoice_id].get("credited_reference")
         already_credited = stored_ref == reference
@@ -682,6 +715,35 @@ def _settle_pack_purchase(
         "tx_hash": tx_hash,
         "reference": reference,
     }
+
+
+async def _settle_onchain_async(payment: dict[str, Any]) -> str | None:
+    """Broadcast settlement via the self-facilitator. Returns tx hash or None."""
+    return await _get_self_facilitator().settle(payment)
+
+
+def _settle_pack_purchase(
+    invoice_id: str,
+    pack_id: str,
+    *,
+    user_id: str,
+    api_key: str,
+    tx_hash: str,
+    paid_result: dict[str, Any],
+    mint_key: bool,
+) -> dict[str, Any]:
+    """Sync bridge for :func:`_settle_pack_purchase_async` (``asyncio.run``)."""
+    return asyncio.run(
+        _settle_pack_purchase_async(
+            invoice_id,
+            pack_id,
+            user_id=user_id,
+            api_key=api_key,
+            tx_hash=tx_hash,
+            paid_result=paid_result,
+            mint_key=mint_key,
+        )
+    )
 
 
 def _pack_amount_atomic(pack_id: str) -> int:

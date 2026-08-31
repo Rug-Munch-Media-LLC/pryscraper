@@ -10,6 +10,21 @@ global:
     service: 'pry'
     environment: '${ENVIRONMENT:-prod}'
 
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+# ALERTING NOT WIRED YET — no alertmanager container exists in the pry stack
+# (rmi-alertmanager is on rmi_network, unreachable from pryscraper_default).
+# To wire notifications, either:
+#   1. Run an alertmanager container on pryscraper_default and uncomment:
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+#   2. Or configure alertmanager's route to POST to an n8n webhook
+#      (n8n:5678 is reachable; create a "Webhook" trigger workflow
+#      and set alertmanager webhook_configs.url to it).
+
 scrape_configs:
   - job_name: 'pry'
     static_configs:
@@ -38,6 +53,22 @@ scrape_configs:
       module: [http_2xx]
     static_configs:
       - targets: ['http://flaresolverr-pry:8191/health']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # Public API probe — catches CF tunnel / nginx / upstream failures that
+  # internal-only probes miss. Blackbox egresses from the container network.
+  - job_name: 'public-api'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ['https://api.pryscraper.com/health']
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

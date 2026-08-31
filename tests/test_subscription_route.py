@@ -41,15 +41,21 @@ _REAL_WALLET = "0x00000000000000000000000000000000000ABCDE"
 
 
 class _FakeFacilitator:
-    """Scripted SelfFacilitator double for subscription payment verification."""
+    """Scripted SelfFacilitator double for subscription verify + settle."""
 
-    def __init__(self, result: VerifyResult) -> None:
+    def __init__(self, result: VerifyResult, *, settle_tx: str | None = "0x" + "f" * 64) -> None:
         self.result = result
+        self.settle_tx = settle_tx
         self.verified_payments: list[dict[str, Any]] = []
+        self.settled_payments: list[dict[str, Any]] = []
 
     async def verify(self, payment: dict[str, Any]) -> VerifyResult:
         self.verified_payments.append(payment)
         return self.result
+
+    async def settle(self, payment: dict[str, Any]) -> str | None:
+        self.settled_payments.append(payment)
+        return self.settle_tx
 
 
 def _verified_result() -> VerifyResult:
@@ -210,6 +216,59 @@ def test_confirm_unknown_invoice_is_404(client: TestClient) -> None:
         json={"tx_hash": "0xdeadbeef"},
     )
     assert resp.status_code == 404
+
+
+# ── Settlement gate: activation ONLY after on-chain settle succeeds ────────
+def test_confirm_settle_success_activates(client: TestClient, monkeypatch) -> None:
+    """Verify + settle success -> subscription activated, settle was called."""
+    fake = _FakeFacilitator(_verified_result())
+    monkeypatch.setattr(subs_mod, "_get_self_facilitator", lambda: fake)
+    invoice_resp = client.post(
+        "/v1/billing/subscription/invoice",
+        json={"tier": "pro", "api_key": "sk_settle_ok", "months": 1},
+    )
+    invoice_id = invoice_resp.json()["data"]["invoice_id"]
+
+    confirm_resp = client.post(
+        f"/v1/billing/subscription/invoice/{invoice_id}/confirm",
+        json={"tx_hash": "0xsettled"},
+    )
+    assert confirm_resp.status_code == 200
+    data = confirm_resp.json()["data"]
+    assert data["paid"] is True
+    assert len(fake.settled_payments) == 1
+    assert fake.settled_payments[0]["payment_id"] == invoice_id
+
+    status = subscription_status("sk_settle_ok")
+    assert status["tier"] == "pro"
+    assert status["active"] is True
+
+
+def test_confirm_settle_failure_never_activates(client: TestClient, monkeypatch) -> None:
+    """A failed on-chain settlement must NOT activate — payment-failed response."""
+    fake = _FakeFacilitator(_verified_result(), settle_tx=None)
+    monkeypatch.setattr(subs_mod, "_get_self_facilitator", lambda: fake)
+    invoice_resp = client.post(
+        "/v1/billing/subscription/invoice",
+        json={"tier": "pro", "api_key": "sk_settle_fail", "months": 1},
+    )
+    invoice_id = invoice_resp.json()["data"]["invoice_id"]
+
+    confirm_resp = client.post(
+        f"/v1/billing/subscription/invoice/{invoice_id}/confirm",
+        json={"tx_hash": "0xnosettle"},
+    )
+    assert confirm_resp.status_code == 200
+    assert confirm_resp.json()["success"] is False
+    data = confirm_resp.json()["data"]
+    assert data["paid"] is False
+    assert "settlement" in data["reason"]
+    assert len(fake.settled_payments) == 1  # settle was attempted
+
+    # Not activated: the account is still on the FREE tier.
+    status = subscription_status("sk_settle_fail")
+    assert status["tier"] == "free"
+    assert status["active"] is False
 
 
 def test_reconfirm_same_invoice_is_idempotent(client: TestClient, monkeypatch) -> None:

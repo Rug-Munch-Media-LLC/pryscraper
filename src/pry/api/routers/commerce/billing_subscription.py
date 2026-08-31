@@ -48,6 +48,7 @@ from pydantic import BaseModel, Field
 from pry.commerce.billing import (
     activate_subscription,
     create_subscription_invoice,
+    settle_subscription_payment,
     submit_subscription_payment,
     verify_subscription_payment,
 )
@@ -175,6 +176,19 @@ def billing_subscription_confirm(
                 "tx_hash": result.get("tx_hash"),
                 "confirmed_at": result.get("confirmed_at"),
                 "subscription": _ACTIVATED[invoice_id],
+            },
+        }
+
+    # Settlement gate: verify only ecrecovers the EIP-3009 authorization —
+    # funds must actually move on-chain before the subscription activates.
+    settlement = settle_subscription_payment(invoice_id)
+    if not settlement["settled"]:
+        logger.warning("subscription_settlement_failed", extra={"invoice_id": invoice_id})
+        return {
+            "success": False,
+            "data": {
+                "paid": False,
+                "reason": settlement.get("reason") or "settlement failed",
             },
         }
 

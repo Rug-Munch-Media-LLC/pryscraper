@@ -78,3 +78,56 @@ groups:
         annotations:
           summary: "x402 gate misconfiguration detected"
           description: "A PAID_ENDPOINTS prefix is missing its X402_PRICING entry. Requests are being refused (fail-closed). Add pricing or fix the prefix."
+
+  # ── Basic service-health alerts (2026-08-31 audit remediation) ──
+  - name: pry-service-health
+    interval: 30s
+    rules:
+      # API container down (scrape of pry:8002 failing)
+      - alert: pry_container_down
+        expr: up{job="pry"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pry API container down for 2m"
+          description: "Prometheus cannot scrape pry:8002 — container crashed or network issue."
+
+      # 5xx error ratio > 10% over 5m (pry exposes pry_requests_total{status})
+      - alert: pry_high_error_rate
+        expr: |
+          sum(rate(pry_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(pry_requests_total[5m])), 0.001) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pry 5xx error rate above 10% for 5m"
+
+      # Postgres exporter unreachable
+      - alert: pry_pg_down
+        expr: up{job="postgres"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pry postgres exporter down for 2m"
+
+      # Redis exporter unreachable
+      - alert: pry_redis_down
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pry redis exporter down for 2m"
+
+      # Public API unreachable from outside (CF/nginx/upstream failure)
+      - alert: pry_public_api_down
+        expr: probe_success{job="public-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Public API https://api.pryscraper.com/health failing"

@@ -73,15 +73,21 @@
 			},
 			{
 				"name": "pro",
-				"price": 9,
-				"requests_per_minute": 60,
+				"price": 49,
+				"requests_per_minute": 120,
+				"period": "month"
+			},
+			{
+				"name": "team",
+				"price": 199,
+				"requests_per_minute": 600,
 				"period": "month"
 			},
 			{
 				"name": "enterprise",
-				"price": 49,
-				"requests_per_minute": 300,
-				"period": "month"
+				"price": null,
+				"requests_per_minute": null,
+				"period": "custom quote"
 			}
 		]
 	},

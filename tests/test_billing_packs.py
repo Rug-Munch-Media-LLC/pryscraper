@@ -32,15 +32,21 @@ _REAL_WALLET = "0x00000000000000000000000000000000000ABCDE"
 
 
 class _FakeFacilitator:
-    """Scripted SelfFacilitator double for pack payment verification."""
+    """Scripted SelfFacilitator double for pack payment verify + settle."""
 
-    def __init__(self, result: VerifyResult) -> None:
+    def __init__(self, result: VerifyResult, *, settle_tx: str | None = "0x" + "f" * 64) -> None:
         self.result = result
+        self.settle_tx = settle_tx
         self.verified_payments: list[dict] = []
+        self.settled_payments: list[dict] = []
 
     async def verify(self, payment: dict) -> VerifyResult:
         self.verified_payments.append(payment)
         return self.result
+
+    async def settle(self, payment: dict) -> str | None:
+        self.settled_payments.append(payment)
+        return self.settle_tx
 
 
 def _verified_result() -> VerifyResult:
@@ -231,3 +237,36 @@ def test_credit_is_idempotent_per_tx(db, monkeypatch) -> None:
     assert billing_service.get_balance("u_idem")["balance_usd"] == 5.0
     deposits = [e for e in billing_service.ledger("u_idem") if e["reason"] == "deposit"]
     assert len(deposits) == 1
+
+
+# ── Settlement gate: credits ONLY after on-chain settle succeeds ───────────
+def test_settle_success_credits_balance(db, monkeypatch) -> None:
+    """Verify + settle success -> the ledger is credited and settle was called."""
+    fake = _FakeFacilitator(_verified_result())
+    monkeypatch.setattr(packs, "_get_self_facilitator", lambda: fake)
+    invoice = create_pack_invoice("starter", user_id="u_settle_ok")
+    result = confirm_pack_purchase(invoice["invoice_id"], "0xsettled", user_id="u_settle_ok")
+
+    assert result["paid"] is True
+    assert result["credits"] == 5000
+    # The facilitator's settle was actually invoked with the payment payload.
+    assert len(fake.settled_payments) == 1
+    assert fake.settled_payments[0]["payment_id"] == invoice["invoice_id"]
+    assert billing_service.get_balance("u_settle_ok")["balance_usd"] == 5.0
+
+
+def test_settle_failure_never_credits(db, monkeypatch) -> None:
+    """A failed on-chain settlement must NOT credit — payment-failed response."""
+    fake = _FakeFacilitator(_verified_result(), settle_tx=None)
+    monkeypatch.setattr(packs, "_get_self_facilitator", lambda: fake)
+    invoice = create_pack_invoice("starter", user_id="u_settle_fail")
+    result = confirm_pack_purchase(invoice["invoice_id"], "0xnosettle", user_id="u_settle_fail")
+
+    assert result["paid"] is False
+    assert result["credits"] == 0
+    assert "settlement" in result["reason"]
+    assert len(fake.settled_payments) == 1  # settle was attempted
+
+    # No credit, no ledger entry, no key minted.
+    assert billing_service.get_balance("u_settle_fail")["balance_usd"] == 0.0
+    assert billing_service.ledger("u_settle_fail") == []

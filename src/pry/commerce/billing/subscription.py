@@ -507,6 +507,49 @@ def _verify_x402_payment_sync(payment: dict[str, Any]) -> VerifyResult:
     return asyncio.run(_verify_x402_payment(payment))
 
 
+async def _settle_x402_payment_async(payment: dict[str, Any]) -> str | None:
+    """Async core: broadcast settlement via the self-facilitator."""
+    return await _get_self_facilitator().settle(payment)
+
+
+def settle_subscription_payment(invoice_id: str) -> dict[str, Any]:
+    """Settle a verified x402 subscription payment on-chain.
+
+    Verify alone only ecrecovers the EIP-3009 authorization — funds do not
+    move until the self-facilitator broadcasts the settlement
+    (``SelfFacilitator.settle``). Call this AFTER
+    :func:`verify_subscription_payment` reports ``paid=True`` and BEFORE
+    :func:`activate_subscription`; activate only when ``settled`` is True.
+
+    Returns ``{settled: bool, tx_hash: str | None, reason: str}``. Idempotent:
+    re-settling an already-settled payment returns the existing tx hash.
+    """
+    _ensure_loaded()
+    with _lock:
+        invoice = _INVOICES.get(invoice_id)
+    if invoice is None or invoice.get("payment_method") == "btcpay":
+        return {"settled": False, "tx_hash": None, "reason": "not settlable"}
+    payment = invoice.get("payment") or {}
+    tx_hash = payment.get("tx_hash")
+    if tx_hash is None:
+        return {"settled": False, "tx_hash": None, "reason": "no payment reported"}
+    settle_tx = asyncio.run(
+        _settle_x402_payment_async(
+            {
+                "payment_id": invoice["invoice_id"],
+                "tx_hash": str(tx_hash),
+                "network": str(payment.get("network") or X402_DEFAULT_NETWORK),
+                "asset": str(payment.get("asset") or X402_DEFAULT_ASSET),
+                "amount_usd": float(payment.get("amount_usd") or 0.0),
+                "authorization": payment.get("authorization"),
+            }
+        )
+    )
+    if settle_tx is None:
+        return {"settled": False, "tx_hash": None, "reason": "settlement failed"}
+    return {"settled": True, "tx_hash": str(settle_tx), "reason": ""}
+
+
 def _get_self_facilitator() -> SelfFacilitator:
     """Build the self-facilitator used for x402 verification.
 

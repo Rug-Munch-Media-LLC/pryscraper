@@ -81,8 +81,13 @@ ENGINE_TOOLS: dict[str | None, str] = {
 async def x402_pricing() -> dict[str, Any]:
     """Get the price list for pay-per-scrape operations."""
     from pry.payments.x402 import X402Handler
+    from pry.payments.x402.scheme import treasury_wallets
 
-    return {"success": True, "data": X402Handler().get_stats()}
+    stats = X402Handler().get_stats()
+    # Surface the ACTUAL configured per-chain treasuries (env-driven) so the
+    # live pricing endpoint never reports a stale/empty wallet snapshot.
+    stats["wallets"] = treasury_wallets()
+    return {"success": True, "data": stats}
 
 
 @router.get(
@@ -226,8 +231,15 @@ async def x402_batch_payment(payload: dict[str, Any] = Body(...)) -> dict[str, A
 
 
 @router.post("/v1/x402/batch-verify", tags=["x402"], summary="Verify a batch x402 payment")
-async def x402_batch_verify(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
-    """Verify the on-chain payment for a batch and mark it paid."""
+async def x402_batch_verify(
+    request: Request,
+    payload: dict[str, Any] = Body(...),
+) -> dict[str, Any]:
+    """Verify the on-chain payment for a batch and mark it paid.
+
+    The batch is bound to the caller's IP at verify time; only that caller
+    can use the batch payment until it expires (replay hardening).
+    """
     from pry.payments.x402 import verify_batch_payment
 
     batch_id = payload.get("batch_id", "")
@@ -236,7 +248,10 @@ async def x402_batch_verify(payload: dict[str, Any] = Body(...)) -> dict[str, An
     asset = payload.get("asset", "")
     if not batch_id or not tx_hash:
         raise InvalidRequestError("batch_id and tx_hash are required")
-    result = await verify_batch_payment(batch_id, tx_hash, network=network, asset=asset)
+    caller_key = request.client.host if request and request.client else ""
+    result = await verify_batch_payment(
+        batch_id, tx_hash, network=network, asset=asset, caller_key=caller_key
+    )
     return {"success": result["verified"], "data": result}
 
 

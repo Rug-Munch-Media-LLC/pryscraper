@@ -12,9 +12,11 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from pry.payments.x402 import batch as batch_mod
 from pry.payments.x402.batch import (
     _batch_lock,
     _batch_payments,
+    _consumed_txs,
     create_batch_payment,
     is_batch_paid,
     verify_batch_payment,
@@ -23,10 +25,19 @@ from pry.payments.x402.batch import (
 
 @pytest.fixture(autouse=True)
 def clear_batch_registry():
-    """Clear the in-memory batch registry before each test."""
+    """Clear the in-memory batch registry and tx-replay set before each test.
+
+    Redis is forced off so tests exercise the deterministic in-memory fallback
+    path (a live Redis on the dev box must not change test behavior).
+    """
     with _batch_lock:
         _batch_payments.clear()
-    return
+        _consumed_txs.clear()
+    with patch.object(batch_mod, "_get_redis", return_value=None):
+        yield
+    with _batch_lock:
+        _batch_payments.clear()
+        _consumed_txs.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -195,4 +206,167 @@ async def test_is_paid_no_expiry():
     with _batch_lock:
         _batch_payments[bid]["paid"] = True
         _batch_payments[bid].pop("expires_at", None)
+    # Fail closed: a paid record without an expiry must never grant access.
+    assert is_batch_paid(bid) is False
+
+
+# ---------------------------------------------------------------------------
+# Settlement (fix #1: verify-only batches never collected funds)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_verify_settles_after_verify():
+    r = await create_batch_payment(["scrape"])
+    bid = r["batch_id"]
+    mock = AsyncMock()
+    mock.verify.return_value = {"verified": True, "reason": ""}
+    mock.settle.return_value = {"success": True}
+
+    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+        r2 = await verify_batch_payment(bid, "0xvalid")
+        assert r2["verified"] is True
+        assert r2["settled"] is True
+        mock.settle.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_verify_settle_failure_does_not_unverify():
+    r = await create_batch_payment(["scrape"])
+    bid = r["batch_id"]
+    mock = AsyncMock()
+    mock.verify.return_value = {"verified": True, "reason": ""}
+    mock.settle.return_value = {"success": False, "reason": "rpc down"}
+
+    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+        r2 = await verify_batch_payment(bid, "0xvalid")
+        assert r2["verified"] is True
+        assert r2["settled"] is False
     assert is_batch_paid(bid) is True
+
+
+@pytest.mark.asyncio
+async def test_verify_settle_exception_surfaced():
+    r = await create_batch_payment(["scrape"])
+    bid = r["batch_id"]
+    mock = AsyncMock()
+    mock.verify.return_value = {"verified": True, "reason": ""}
+    mock.settle.side_effect = RuntimeError("boom")
+
+    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+        r2 = await verify_batch_payment(bid, "0xvalid")
+        assert r2["verified"] is True
+        assert r2["settled"] is False
+
+
+# ---------------------------------------------------------------------------
+# Caller binding (fix #2: replayable cross-IP until expiry)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_caller_binding_blocks_other_caller():
+    r = await create_batch_payment(["scrape"])
+    bid = r["batch_id"]
+    mock = AsyncMock()
+    mock.verify.return_value = {"verified": True, "reason": ""}
+    mock.settle.return_value = {"success": True}
+
+    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+        await verify_batch_payment(bid, "0xvalid", caller_key="1.2.3.4")
+    assert is_batch_paid(bid, caller_key="1.2.3.4") is True
+    # Different caller → rejected
+    assert is_batch_paid(bid, caller_key="5.6.7.8") is False
+    # Missing caller → fail closed
+    assert is_batch_paid(bid) is False
+
+
+@pytest.mark.asyncio
+async def test_unbound_batch_legacy_contract():
+    """Batches verified without a caller_key stay usable by any caller."""
+    r = await create_batch_payment(["scrape"])
+    bid = r["batch_id"]
+    mock = AsyncMock()
+    mock.verify.return_value = {"verified": True, "reason": ""}
+    mock.settle.return_value = {"success": True}
+
+    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+        await verify_batch_payment(bid, "0xvalid")
+    assert is_batch_paid(bid) is True
+
+
+# ---------------------------------------------------------------------------
+# Tx replay (fix #4: one tx must not back two payments)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_tx_replay_second_batch_rejected():
+    mock = AsyncMock()
+    mock.verify.return_value = {"verified": True, "reason": ""}
+    mock.settle.return_value = {"success": True}
+
+    r1 = await create_batch_payment(["scrape"])
+    r2 = await create_batch_payment(["monitor"])
+    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+        first = await verify_batch_payment(r1["batch_id"], "0xsametx")
+        second = await verify_batch_payment(r2["batch_id"], "0xsametx")
+    assert first["verified"] is True
+    assert second["verified"] is False
+    assert "already consumed" in second["reason"]
+
+
+@pytest.mark.asyncio
+async def test_tx_replay_redis_setnx_semantics():
+    """The in-memory fallback must behave like Redis SETNX: first claim wins."""
+    assert batch_mod._consume_tx("0xabc", "base") is True
+    assert batch_mod._consume_tx("0xabc", "base") is False
+    assert batch_mod._consume_tx("0xabc", "polygon") is True  # different network → distinct tx
+    assert batch_mod._consume_tx("", "base") is False  # empty hash never claims
+
+
+class _FakeRedis:
+    """Minimal sync-Redis stub implementing get/set(nx)/ping for batch state."""
+
+    def __init__(self) -> None:
+        self.store: dict[str, str] = {}
+
+    def ping(self) -> bool:
+        return True
+
+    def get(self, key: str) -> str | None:
+        return self.store.get(key)
+
+    def set(self, key: str, value: str, nx: bool = False, ex: int | None = None) -> bool:
+        if nx and key in self.store:
+            return False
+        self.store[key] = value
+        return True
+
+
+@pytest.mark.asyncio
+async def test_redis_backend_roundtrip_and_replay():
+    """Batch state round-trips through Redis and SETNX blocks cross-worker replay."""
+    fake = _FakeRedis()
+    with patch.object(batch_mod, "_get_redis", return_value=fake):
+        r = await create_batch_payment(["scrape"])
+        bid = r["batch_id"]
+        assert f"pry:x402:batch:{bid}" in fake.store  # write-through to Redis
+
+        mock = AsyncMock()
+        mock.verify.return_value = {"verified": True, "reason": ""}
+        mock.settle.return_value = {"success": True}
+
+        with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+            r2 = await verify_batch_payment(bid, "0xredis", caller_key="9.9.9.9")
+            assert r2["verified"] is True
+        # A second worker (fresh in-memory state, same Redis) sees the paid batch.
+        with _batch_lock:
+            _batch_payments.clear()
+            _consumed_txs.clear()
+        assert is_batch_paid(bid, caller_key="9.9.9.9") is True
+        # And the tx claim survives: a second batch on the same tx is refused.
+        r3 = await create_batch_payment(["monitor"])
+        with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+            third = await verify_batch_payment(r3["batch_id"], "0xredis")
+        assert third["verified"] is False
