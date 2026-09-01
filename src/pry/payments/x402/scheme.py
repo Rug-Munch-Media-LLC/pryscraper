@@ -56,8 +56,8 @@ def _public_base_url() -> str:
 # if the crypto deps are unavailable in a stripped runtime. Resolved lazily —
 # a mock/reload never has to re-import.
 try:  # pragma: no cover - depends on runtime deps
-    from eth_keys import keys as _eth_keys
-    from eth_utils import keccak as _keccak
+    from eth_keys import keys as _eth_keys  # pyright: ignore[reportPrivateImportUsage]
+    from eth_utils import keccak as _keccak  # pyright: ignore[reportPrivateImportUsage]
 except Exception:  # noqa: BLE001 - optional crypto dep; attestation disabled
     # (backward compatible) even when eth_keys/eth_utils are absent.
     _eth_keys = None
@@ -972,7 +972,8 @@ def _attestation_payload(
     the accept plus the top-level ``issued_at``/``nonce`` — any change to
     payTo, amount, network, operation, resource or asset flips the digest.
     """
-    extra = accept.get("extra") if isinstance(accept.get("extra"), dict) else {}
+    raw_extra = accept.get("extra")
+    extra: dict[str, Any] = raw_extra if isinstance(raw_extra, dict) else {}
     return json.dumps(
         [
             X402_ATTEST_DOMAIN,
@@ -992,6 +993,8 @@ def _attestation_payload(
 
 
 def _attestation_digest(issued_at: int, nonce: str, index: int, accept: dict[str, Any]) -> bytes:
+    if _keccak is None:
+        raise RuntimeError("attestation crypto unavailable (eth_utils missing)")
     return _keccak(_attestation_payload(issued_at, nonce, index, accept))
 
 

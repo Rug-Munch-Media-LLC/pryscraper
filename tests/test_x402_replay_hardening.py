@@ -201,7 +201,12 @@ def test_verify_payment_records_atomic_required_amount() -> None:
     h.router.verify = AsyncMock(return_value={"verified": True, "reason": "", "facilitator": "t"})
 
     async def _run() -> None:
-        await h.verify_payment("pid1", "0xtx", network="base", asset="USDC", operation="scrape")
+        # Server-authoritative pricing (2026-09 hardening): a client-supplied
+        # amount below the server price for the operation is rejected BEFORE
+        # verification, so the call must offer at least the scrape price.
+        await h.verify_payment(
+            "pid1", "0xtx", network="base", asset="USDC", operation="scrape", amount_usd=0.001
+        )
 
     asyncio.run(_run())
     p = next(r for r in h.payments if r["payment_id"] == "pid1")
