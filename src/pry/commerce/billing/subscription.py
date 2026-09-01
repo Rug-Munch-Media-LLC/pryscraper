@@ -79,6 +79,19 @@ from pry.payments.x402.scheme import (
 )
 from pry.payments.x402.self_facilitator import SelfFacilitator
 
+
+def _public_base_url() -> str:
+    """Canonical public base URL for payment-manifest resource fields.
+
+    Env override PRY_PUBLIC_BASE_URL; defaults to the production API. The
+    resource URL is what agents see in the 402 manifest — it must point at
+    a domain we actually serve (pry.dev was a placeholder we do not own).
+    """
+    import os
+
+    return os.getenv("PRY_PUBLIC_BASE_URL", "https://api.pryscraper.com").rstrip("/")
+
+
 if TYPE_CHECKING:
     from pry.payments.x402.self_facilitator import VerifyResult
 
@@ -212,7 +225,7 @@ def _create_x402_invoice(
         chain, wallets=X402_NETWORK_WALLETS, evm_wallet=X402_WALLET
     )  # family-aware; "" when unconfigured
     invoice_id = f"inv_{uuid.uuid4().hex[:12]}"
-    resource = f"https://pry.dev/api/billing/subscription/{invoice_id}"
+    resource = f"{_public_base_url()}/api/billing/subscription/{invoice_id}"
     description = f"{TIERS[tier_name].name.title()} subscription ({months} month(s))"
 
     accepts: list[dict[str, Any]] = [

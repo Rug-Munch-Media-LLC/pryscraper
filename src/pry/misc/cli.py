@@ -250,7 +250,7 @@ def cmd_serve(host="127.0.0.1", port=8005):
 
 def _print_usage() -> None:
     """Print the standard Pry usage block (no exit)."""
-    print(f"{BOLD}Pry v{VERSION}{NC} — Pry open any website. {CYAN}pry.dev{NC}")
+    print(f"{BOLD}Pry v{VERSION}{NC} — Pry open any website. {CYAN}pryscraper.com{NC}")
     print()
     print(f"  {BOLD}Usage:{NC}")
     print(f"    {CYAN}pry open <url>{NC}              Scrape a URL")

@@ -74,6 +74,19 @@ from pry.payments.x402.scheme import (
 )
 from pry.payments.x402.self_facilitator import SelfFacilitator
 
+
+def _public_base_url() -> str:
+    """Canonical public base URL for payment-manifest resource fields.
+
+    Env override PRY_PUBLIC_BASE_URL; defaults to the production API. The
+    resource URL is what agents see in the 402 manifest — it must point at
+    a domain we actually serve (pry.dev was a placeholder we do not own).
+    """
+    import os
+
+    return os.getenv("PRY_PUBLIC_BASE_URL", "https://api.pryscraper.com").rstrip("/")
+
+
 logger = logging.getLogger(__name__)
 
 #: Invoice validity in seconds (default 24h).
@@ -284,7 +297,7 @@ def create_hosting_signup(user_email: str, plan_tier: str) -> dict[str, Any]:
         )
 
     invoice_id = f"host_{uuid.uuid4().hex[:12]}"
-    resource = f"https://pry.dev/api/hosting/signup/{invoice_id}"
+    resource = f"{_public_base_url()}/api/hosting/signup/{invoice_id}"
     description = f"Pry hosted instance — {plan.name} plan (${plan.price_usd_monthly}/mo)"
 
     accepts: list[dict[str, Any]] = [
@@ -772,7 +785,7 @@ def renew_instance(instance_id: str) -> dict[str, Any]:
         )
 
     invoice_id = f"host_{uuid.uuid4().hex[:12]}"
-    resource = f"https://pry.dev/api/hosting/renew/{invoice_id}"
+    resource = f"{_public_base_url()}/api/hosting/renew/{invoice_id}"
     description = f"Pry hosted instance renewal — {plan.name} plan (${plan.price_usd_monthly}/mo)"
     accepts: list[dict[str, Any]] = [
         {

@@ -802,7 +802,7 @@
 		},
 		{
 			"name": "pry_actor_catalog",
-			"description": "List every Pry Apify Store actor (94) with description, pricing events and per-event USD price. Store parity surface: anything runnable on Apify is discoverable here. Filter by optional 'domain' substring (e.g. 'monitor', 'crypto', 'seo')."
+			"description": "List every Pry Apify Store actor (109) with description, pricing events and per-event USD price. Store parity surface: anything runnable on Apify is discoverable here. Filter by optional 'domain' substring (e.g. 'monitor', 'crypto', 'seo')."
 		},
 		{
 			"name": "pry_actor_run",

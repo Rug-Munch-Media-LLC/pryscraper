@@ -17,7 +17,7 @@ These are the questions developers actually ask before running Pry.
 **What exactly is Pry?**
 A self-hosted web scraping and browser-automation API with native
 [x402](https://www.x402.org) micropayments. One engine, three surfaces: a
-REST API, an MCP server for AI agents, and 94 store-ready Apify Actors.
+REST API, an MCP server for AI agents, and 109 store-ready Apify Actors.
 
 **What can it fetch?**
 Any public URL → clean markdown, structured JSON (CSS/XPath schemas),
@@ -76,7 +76,7 @@ accepted network/asset so any compliant wallet can pay.
 **Where do I see prices?**
 `GET /v1/x402/pricing` for the operation price table,
 `GET /v1/x402/catalog` for the full machine-readable catalog — every priced
-operation, every paid endpoint, and all 94 Apify actors bound to their
+operation, every paid endpoint, and all 109 Apify actors bound to their
 equivalent MCP tool. Both are keyless.
 
 **Can I underpay or replay a payment?**
@@ -100,7 +100,7 @@ enforces, so tool docs can't drift from behavior.
 
 ## Apify Actors
 
-**94 actors? What are they?**
+**109 actors? What are they?**
 Store-ready packages of the same engine, one per job family — universal
 scraper, site crawler, change monitors, CVE watchers, lead harvesters,
 price watchers, and 20+ niche domain collectors. Each ships its own

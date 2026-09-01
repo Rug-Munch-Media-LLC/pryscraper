@@ -32,8 +32,8 @@ def get_gpt_action_manifest() -> dict[str, Any]:
         "description_for_model": "Plugin for scraping websites. Use it to extract content from URLs, crawl sites, extract structured data with CSS selectors, check legal compliance, monitor changes, and more.",
         "auth": {"type": "none"},
         "api": {"type": "openapi", "url": "/openapi.json"},
-        "contact_email": "support@pry.dev",
-        "legal_info_url": "https://pry.dev/terms",
+        "contact_email": "support@pryscraper.com",
+        "legal_info_url": "https://pryscraper.com/terms",
     }
 
 
