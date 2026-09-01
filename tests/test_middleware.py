@@ -363,6 +363,39 @@ async def test_middleware_public_path_skips_auth():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("POST", "/v1/hosting/signup"),
+        ("POST", "/v1/hosting/signup/inv_abc123/confirm"),
+        ("GET", "/v1/hosting/checkout/inv_abc123"),
+        ("GET", "/v1/hosting/portal"),
+    ],
+)
+async def test_middleware_hosting_human_rail_is_pre_auth(method, path):
+    """The human payment rail must be reachable WITHOUT an API key.
+
+    Regression: a prospective customer has no key yet — the payment IS the
+    auth. signup + confirm were missing from _AUTH_PUBLIC_PATHS, so the live
+    container 401'd the first step of the human rail (checkout/portal were
+    fixed earlier; signup was missed).
+    """
+    app = AsyncMock()
+    mw = PryHttpMiddleware(app)
+
+    with patch("pry.core.middleware.settings.api_key", "some-key"):
+        scope = {
+            "type": "http",
+            "method": method,
+            "path": path,
+            "headers": [],  # no Authorization header at all
+            "client": ["10.0.0.1", 0],
+        }
+        await mw(scope, None, None)
+        app.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_middleware_unknown_path_passes_through():
     """Unknown paths should be passed to the app (404 handler)."""
     app = AsyncMock()

@@ -203,6 +203,12 @@ _AUTH_PUBLIC_PATHS: set[str] = {
     # is email-keyed proof-of-ownership until full sessions ship).
     "/v1/hosting/checkout",
     "/v1/hosting/portal",
+    # Hosting signup + tx confirm — the FIRST steps of the human rail.
+    # A prospective customer has no API key yet (the payment IS the auth,
+    # same doctrine as the x402 402-challenge). Prefix match also covers
+    # POST /v1/hosting/signup/{invoice_id}/confirm. Keyless requests stay
+    # under the IP-based rate limiter, bounding invoice spam.
+    "/v1/hosting/signup",
 }
 
 
