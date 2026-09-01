@@ -934,3 +934,26 @@ async def test_verify_self_hosted_no_impl(router: FacilitatorRouter):
             amount_usd=1.0,
         )
         assert "reason" in result
+
+
+def test_eip7702_matches_uses_per_network_wallet(monkeypatch):
+    """The EIP-7702 match check must resolve payTo PER NETWORK.
+
+    Regression: the check read the global X402_WALLET (unset on prod where
+    only PRY_X402_WALLET_* per-network wallets are configured), so every
+    real payment failed with "server wallet not configured" even though the
+    challenge quoted the correct per-network payTo.
+    """
+    import pry.payments.x402.facilitator as fac
+    import pry.payments.x402.scheme as scheme_mod
+
+    wallet = "0x1E3AC01d0fdb976179790BDD02823196A92705C9"
+    token = __import__(
+        "pry.payments.x402", fromlist=["EIP7702_TOKEN_ADDRESSES"]
+    ).EIP7702_TOKEN_ADDRESSES["base"]["USDC"]
+    calldata = "0xa9059cbb" + "0" * 24 + wallet[2:].lower() + hex(1000)[2:].rjust(64, "0")
+    tx = {"to": token.lower(), "input": calldata, "value": "0x0"}
+
+    monkeypatch.setattr(scheme_mod, "X402_WALLET", "")  # global unset (prod state)
+    result = fac.FacilitatorRouter._eip7702_matches(None, tx, "eip155:8453", "USDC", 0.001)
+    assert result[0] is True, f"per-network wallet must satisfy the payTo check: {result}"

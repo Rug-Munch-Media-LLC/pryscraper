@@ -47,6 +47,7 @@ from pry.payments.x402.scheme import (
     network_verification_status,
     normalize_network_id,
     resolve_asset_entry,
+    resolve_pay_to,
 )
 from pry.payments.x402.self_facilitator import SelfFacilitator, VerifyResult
 
@@ -902,7 +903,7 @@ class FacilitatorRouter:
         server wallet on the asset's token contract; native assets must send
         value directly to the server wallet. Unknown assets fail closed.
         """
-        pay_to = (X402_WALLET or "").lower()
+        pay_to = (resolve_pay_to(network) or "").lower()
         if not pay_to or pay_to == "pry-default-wallet":
             return False, "server wallet not configured"
         tx_to = str(tx.get("to") or "").lower()
