@@ -198,6 +198,11 @@ _AUTH_PUBLIC_PATHS: set[str] = {
     # (the 402 challenge itself is the auth for paid calls).
     "/v1/x402/pricing",
     "/v1/x402/catalog",
+    # Human checkout + customer portal (pre-auth surfaces: the human IS
+    # the payer — the checkout page renders the 402 manifest, the portal
+    # is email-keyed proof-of-ownership until full sessions ship).
+    "/v1/hosting/checkout",
+    "/v1/hosting/portal",
 }
 
 
