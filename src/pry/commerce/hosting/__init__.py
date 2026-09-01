@@ -720,6 +720,15 @@ def _instance_payload(instance_id: str) -> dict[str, Any]:
 
 
 # ── Instance management ─────────────────────────────────────────────────────
+def get_hosting_invoice(invoice_id: str) -> dict[str, Any]:
+    """Return a hosting invoice record (checkout page + portal lookups)."""
+    with _lock:
+        invoice = _INVOICES.get(invoice_id)
+        if invoice is None:
+            raise ValueError(f"unknown hosting invoice {invoice_id!r}")
+        return dict(invoice)
+
+
 def get_instance(instance_id: str) -> dict[str, Any]:
     """Return instance details + status. Raises :class:`InstanceNotFound`."""
     payload = _instance_payload(instance_id)
