@@ -8,6 +8,7 @@ WebGL noise, Canvas randomization, AudioContext spoofing, mouse curves, keystrok
 # Licensed under Business Source License 1.1 — see LICENSE-BSL-STEALTH.
 # Change Date: 2029-01-01 (converts to MIT).
 
+import contextlib
 import json
 import logging
 import random
@@ -19,7 +20,11 @@ _RNG = random.SystemRandom()
 logger = logging.getLogger(__name__)
 
 SCRIPTS_DIR = Path(__file__).parent / "stealth_scripts"
-SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+# Read-only rootfs (production container): scripts are generated in memory
+# at runtime; save_scripts() is an explicit opt-in that surfaces the write
+# error where it belongs.
+with contextlib.suppress(OSError):
+    SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class StealthEngine:
