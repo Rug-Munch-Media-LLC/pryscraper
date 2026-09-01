@@ -278,18 +278,55 @@ async def hosting_checkout_page(invoice_id: str) -> Response:
 async def hosting_portal(
     email: str = Query(..., description="The email used at signup"),
 ) -> dict[str, Any]:
+    from pry.commerce import billing_service
     from pry.commerce.hosting import _ensure_user_by_email, list_instances
 
     user_id = _ensure_user_by_email(email.strip().lower())
     instances = list_instances(user_id)
+
+    # Apify-console-style credit + usage measurement.
+    balance: dict[str, Any] = {}
+    ledger: list[dict[str, Any]] = []
+    try:
+        balance = billing_service.balance(user_id)
+        ledger = billing_service.ledger(user_id, limit=25)
+    except Exception as exc:  # noqa: BLE001 — portal must render without billing rows
+        logger.warning("portal_billing_lookup_failed", extra={"error": str(exc)[:120]})
+
+    # Aggregate usage across the customer's API keys.
+    usage: list[dict[str, Any]] = []
+    try:
+        from pry.core.api_keys_service import list_keys_for_user
+
+        enforcer = _usage_enforcer()
+        for key_row in list_keys_for_user(user_id):
+            stats = enforcer.usage_stats(key_row.get("key") or key_row.get("key_prefix"))
+            stats.pop("api_key", None)
+            stats["key_name"] = key_row.get("name", "")
+            stats["key_id"] = key_row.get("key_id", "")
+            usage.append(stats)
+    except Exception as exc:  # noqa: BLE001 — usage is best-effort
+        logger.warning("portal_usage_lookup_failed", extra={"error": str(exc)[:120]})
+
     return {
         "success": True,
         "data": {
             "email": email.strip().lower(),
             "instances": instances,
+            "balance": balance,
+            "ledger": ledger,
+            "usage": usage,
             "support": "support@pryscraper.com",
         },
     }
+
+
+def _usage_enforcer() -> Any:
+    """A BillingEnforcer for portal usage lookups (per-call construction is
+    the documented pattern — see billing/subscription.py NOTES)."""
+    from pry.commerce.billing.enforcer import BillingEnforcer
+
+    return BillingEnforcer()
 
 
 __all__ = ["router"]
