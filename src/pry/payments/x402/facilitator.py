@@ -50,6 +50,41 @@ from pry.payments.x402.scheme import (
 )
 from pry.payments.x402.self_facilitator import SelfFacilitator, VerifyResult
 
+# Reverse map: CAIP-2 ID -> short name (for EIP7702_RPC key lookup).
+# EIP7702_RPC uses legacy short names ("base", "ethereum", ...) but the
+# verify flow receives CAIP-2 IDs ("eip155:8453"). Without this lookup the
+# EIP-7702 on-chain fallback never runs for any EVM chain.
+_CAIP2_TO_SHORT: dict[str, str] = {
+    v: k
+    for k, v in {
+        "base": "eip155:8453",
+        "ethereum": "eip155:1",
+        "arbitrum": "eip155:42161",
+        "optimism": "eip155:10",
+        "polygon": "eip155:137",
+        "bnb": "eip155:56",
+        "avalanche": "eip155:43114",
+        "base-sepolia": "eip155:84532",
+        "ethereum-sepolia": "eip155:11155111",
+    }.items()
+}
+
+
+def _eip7702_rpc_key(network: str) -> str | None:
+    """Resolve a network (CAIP-2 or short name) to its EIP7702_RPC key.
+
+    Returns the key ONLY when a matching EIP7702_RPC entry exists, so the
+    ``is not None`` guard sites never claim EIP-7702 support for a chain
+    that has no RPC configured (e.g. ethereum-sepolia in the reverse map).
+    """
+    if network in EIP7702_RPC:
+        return network
+    short = _CAIP2_TO_SHORT.get(normalize_network_id(network))
+    if short is not None and short in EIP7702_RPC:
+        return short
+    return None
+
+
 logger = logging.getLogger(__name__)
 
 # ERC-20 transfer(address,uint256) selector — used to parse token payments.
@@ -295,7 +330,7 @@ class FacilitatorRouter:
                 "asset": result.asset or asset,
             }
 
-        if network in EIP7702_RPC:
+        if _eip7702_rpc_key(network) is not None:
             eip_result = await self._eip7702_verify(tx_hash, network, asset, amount_usd)
             if eip_result["verified"]:
                 eip_result["facilitator"] = "self-hosted-eip7702"
@@ -418,7 +453,7 @@ class FacilitatorRouter:
                     self._mark_failure(facilitator)
 
         # EIP-7702 self-verify fallback for supported EVM chains
-        if network in EIP7702_RPC:
+        if _eip7702_rpc_key(network) is not None:
             result = await self._eip7702_verify(tx_hash, network, asset, amount_usd)
             if result["verified"]:
                 return result
@@ -720,7 +755,7 @@ class FacilitatorRouter:
                     self._mark_failure(facilitator)
 
         # EIP-7702 fallback settlement receipt
-        if network in EIP7702_RPC:
+        if _eip7702_rpc_key(network) is not None:
             return self._eip7702_settlement(payment_id, tx_hash, network)
 
         # Non-EVM chains have no settlement verifier yet — report honestly.
@@ -789,7 +824,7 @@ class FacilitatorRouter:
           the asset's token contract with a transfer() to our wallet (ERC-20);
         - the transferred value to be >= the server-side price.
         """
-        rpc = EIP7702_RPC.get(network)
+        rpc = EIP7702_RPC.get(_eip7702_rpc_key(network) or network)
         if not rpc:
             return {"verified": False, "reason": f"No EIP-7702 RPC for {network}"}
         try:
@@ -860,7 +895,7 @@ class FacilitatorRouter:
         if not pay_to or pay_to == "pry-default-wallet":
             return False, "server wallet not configured"
         tx_to = str(tx.get("to") or "").lower()
-        tokens = EIP7702_TOKEN_ADDRESSES.get(network, {})
+        tokens = EIP7702_TOKEN_ADDRESSES.get(_eip7702_rpc_key(network) or network, {})
         if asset in tokens:
             token = tokens[asset].lower()
             if tx_to != token:
