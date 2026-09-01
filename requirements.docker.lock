@@ -140,6 +140,7 @@ python-dotenv==1.2.3
 python-multipart==0.0.32
 python-socks==3.0.0
 pytz==2026.3.post1
+qrcode==8.2
 questionary==2.1.1
 readability-lxml==0.8.4.1
 readme_renderer==45.0
