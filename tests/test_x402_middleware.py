@@ -83,7 +83,9 @@ def test_caller_key_from_scope():
 def test_caller_key_no_client():
     scope = {}
     key = _caller_key_from_scope(scope)
-    assert key == ""
+    # 2026-09-01: no client info resolves to the "unknown" shared bucket
+    # (still rate-limited) rather than an empty key.
+    assert key == "unknown"
 
 
 def test_middleware_initializes():
