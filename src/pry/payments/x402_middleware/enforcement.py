@@ -219,6 +219,18 @@ class X402Middleware:
             await self.app(scope, receive, send)
             return
 
+        # Bearer-credentialed requests (hosted API keys, server-to-server
+        # callers such as the MCP dispatch) bypass the payment gate: the
+        # inner PryHttpMiddleware authenticates the credential (401 on
+        # invalid) and the BillingEnforcer meters/bills the key against its
+        # tier quota. The gate's job is to monetize KEYLESS agent traffic —
+        # credentialed traffic has its own billing path. Without this bypass
+        # every hosted API-key customer gets 402-challenged on paid endpoints.
+        _auth_header = dict(scope.get("headers", [])).get(b"authorization", b"")
+        if _auth_header.startswith(b"Bearer ") and len(_auth_header) > 7:
+            await self.app(scope, receive, send)
+            return
+
         # Resolve the operation once, up front, so server-side pricing can be
         # enforced against any client-supplied amount.
         operation = resolve_operation(path)

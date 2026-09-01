@@ -289,3 +289,44 @@ def test_x402_gate_buckets_by_xff_behind_trusted_proxy(monkeypatch) -> None:
     # Restore the module state for other tests.
     monkeypatch.setenv("PRY_TRUSTED_PROXIES", "")
     importlib.reload(core_mw)
+
+
+def test_x402_gate_passes_bearer_credentials_to_inner_auth() -> None:
+    """Hosted API-key customers must NOT get 402-challenged: the gate passes
+    Bearer-credentialed requests through to the inner auth/billing layer.
+    The gate monetizes KEYLESS traffic only."""
+    app = _make_app()
+    mw = X402Middleware(app)
+    reached: list[dict[str, Any]] = []
+
+    async def inner_app(scope, receive, send):
+        reached.append(scope)
+
+    mw.app = inner_app
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/v1/sports/books",
+        "headers": [(b"authorization", b"Bearer pry_live_test_key_12345")],
+        "client": ("203.0.113.7", 12345),
+        "query_string": b"",
+    }
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message):
+        pass
+
+    import asyncio
+
+    asyncio.run(mw(scope, receive, send))
+    # The request reached the inner app (no 402 challenge).
+    assert len(reached) == 1, "Bearer request was 402-challenged by the gate"
+
+    # Keyless request to the same path still gets the 402 challenge.
+    reached.clear()
+    keyless = dict(scope)
+    keyless["headers"] = []
+    asyncio.run(mw(keyless, receive, send))
+    assert len(reached) == 0, "keyless request was NOT challenged"
