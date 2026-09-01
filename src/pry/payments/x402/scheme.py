@@ -39,6 +39,17 @@ from pry.payments.x402 import (
     is_tron_address,
 )
 
+
+def _public_base_url() -> str:
+    """Canonical public base URL for payment-manifest resource fields.
+
+    Env override PRY_PUBLIC_BASE_URL; defaults to the production API.
+    """
+    import os
+
+    return os.getenv("PRY_PUBLIC_BASE_URL", "https://api.pryscraper.com").rstrip("/")
+
+
 # Attestation crypto: same backend the self-facilitator uses (eth_keys for
 # secp256k1 ecrecover/sign, eth_utils keccak for the digest). Imported
 # best-effort so the module still loads (and attestation is simply disabled)
@@ -1338,7 +1349,7 @@ def build_multi_asset_accepts(
     pref_networks = {normalize_network_id(n) for n in (preferred_networks or []) if n}
     pref_assets = {a.upper() for a in (preferred_assets or []) if a}
     price_info = X402_PRICING.get(operation, {"price_usd": 0.001, "description": operation})
-    resource_url = resource or f"https://pry.dev/api/{operation}"
+    resource_url = resource or f"{_public_base_url()}/api/{operation}"
     accepts: list[dict[str, Any]] = []
     for network_id, assets in SUPPORTED_ASSETS.items():
         if pref_networks and network_id not in pref_networks:
@@ -1423,7 +1434,7 @@ def build_payment_required(
     """
     price_info = X402_PRICING.get(operation, {"price_usd": 0.001, "description": operation})
     amount_atomic = _to_atomic(price_info["price_usd"], X402_DEFAULT_ASSET)
-    resource_url = resource or f"https://pry.dev/api/{operation}"
+    resource_url = resource or f"{_public_base_url()}/api/{operation}"
 
     if accepts is None:
         if multi_asset:

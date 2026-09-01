@@ -74,6 +74,17 @@ from pry.payments.x402.scheme import (
 )
 from pry.payments.x402.self_facilitator import SelfFacilitator
 
+
+def _public_base_url() -> str:
+    """Canonical public base URL for payment-manifest resource fields.
+
+    Env override PRY_PUBLIC_BASE_URL; defaults to the production API.
+    """
+    import os
+
+    return os.getenv("PRY_PUBLIC_BASE_URL", "https://api.pryscraper.com").rstrip("/")
+
+
 logger = logging.getLogger(__name__)
 
 #: Scrape-credit value in USD (matches the ``scrape`` x402 operation price,
@@ -254,7 +265,7 @@ def create_pack_invoice(
     pay_to = _resolve_pay_to(network)  # fails closed → raises PackWalletUnconfigured
 
     invoice_id = f"pack_{uuid.uuid4().hex[:12]}"
-    resource = f"https://pry.dev/api/billing/purchase/{invoice_id}"
+    resource = f"{_public_base_url()}/api/billing/purchase/{invoice_id}"
     description = f"{pack.description} — Bulk scrape credits ({pack.credits:,})"
 
     accepts: list[dict[str, Any]] = [
