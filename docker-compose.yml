@@ -42,6 +42,10 @@ services:
       # PRY_API_KEY intentionally NOT listed here: any `environment:` entry
       # shadows the env_file value; it is supplied solely by env_file.
       - PRY_DATA_DIR=/app/pry-data
+      # Trust the host nginx proxy (docker bridge gateway) for X-Forwarded-For
+      # so per-IP rate limiting buckets real clients, not the proxy IP.
+      # Without this, ALL internet traffic shares one rate-limit bucket.
+      - PRY_TRUSTED_PROXIES=172.16.0.0/12,127.0.0.1,::1
       # config.json is written into the data volume so the rootfs can be
       # read-only while runtime config changes still persist.
       - PRY_CONFIG_FILE=/app/pry-data/config.json

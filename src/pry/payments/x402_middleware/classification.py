@@ -363,11 +363,20 @@ def audit_route_classification(app: Any) -> list[str]:
 def _caller_key_from_scope(scope: dict[str, Any]) -> str:
     """Derive a caller binding key from the ASGI connection.
 
-    Uses the socket peer IP only — X-Forwarded-For is spoofable and must not
-    be trusted for payment binding. Returns "" when no client info is present
-    (e.g. tests / local unix sockets); such payments still expire.
+    Uses the trusted-proxy-aware client resolution from
+    ``pry.core.middleware`` (socket peer by default; X-Forwarded-For honored
+    ONLY when the immediate peer is loopback or a configured trusted proxy —
+    behind nginx/cloudflared the peer is the local proxy, so the real client
+    IP is required or every internet caller would share one rate-limit
+    bucket). Returns "" when no client info is present (e.g. tests / local
+    unix sockets); such payments still expire.
     """
-    client = scope.get("client")
-    if client and isinstance(client, (list, tuple)) and len(client) >= 1 and client[0]:
-        return str(client[0])
-    return ""
+    try:
+        from pry.core.middleware import _resolve_client_ip
+
+        return str(_resolve_client_ip(scope))
+    except ImportError:  # pragma: no cover — resolver unavailable (partial import)
+        client = scope.get("client")
+        if client and isinstance(client, (list, tuple)) and len(client) >= 1 and client[0]:
+            return str(client[0])
+        return ""

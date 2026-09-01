@@ -241,3 +241,51 @@ def test_x402_gate_rate_limits_per_ip() -> None:
 
     asyncio.run(drive())
     assert statuses == [402, 429]
+
+
+def test_x402_gate_buckets_by_xff_behind_trusted_proxy(monkeypatch) -> None:
+    """Behind a trusted proxy (nginx on the docker bridge), the gate must
+    bucket by the X-Forwarded-For client — not the proxy IP — or every
+    internet caller shares one rate-limit bucket (production incident)."""
+    monkeypatch.setenv("PRY_TRUSTED_PROXIES", "172.16.0.0/12")
+    # Re-import so the trusted-proxy networks tuple picks up the env.
+    import importlib
+
+    import pry.core.middleware as core_mw
+
+    importlib.reload(core_mw)
+    from pry.payments.x402_middleware import classification as cls
+
+    importlib.reload(cls)
+
+    def _scope(xff: str | None) -> dict[str, Any]:
+        headers = [(b"x-forwarded-for", xff.encode())] if xff else []
+        return {
+            "type": "http",
+            "method": "GET",
+            "path": "/v1/scrape",
+            "headers": headers,
+            "client": ("172.18.0.1", 55555),  # docker bridge gateway = trusted proxy
+            "query_string": b"",
+        }
+
+    # Trusted proxy peer + XFF -> bucket by the real client.
+    assert core_mw._resolve_client_ip(_scope("198.51.100.9")) == "198.51.100.9"
+    # Different XFF clients get different bucket keys.
+    assert cls._caller_key_from_scope(_scope("198.51.100.9")) == "198.51.100.9"
+    assert cls._caller_key_from_scope(_scope("198.51.100.10")) == "198.51.100.10"
+    # Untrusted peer (direct internet socket) -> XFF ignored, peer used.
+    direct = {
+        "type": "http",
+        "method": "GET",
+        "path": "/v1/scrape",
+        "headers": [(b"x-forwarded-for", b"198.51.100.9")],
+        "client": ("203.0.113.7", 12345),
+        "query_string": b"",
+    }
+    assert cls._caller_key_from_scope(direct) == "203.0.113.7"
+    # No XFF behind trusted proxy -> falls back to the (proxy) peer.
+    assert cls._caller_key_from_scope(_scope(None)) == "172.18.0.1"
+    # Restore the module state for other tests.
+    monkeypatch.setenv("PRY_TRUSTED_PROXIES", "")
+    importlib.reload(core_mw)
