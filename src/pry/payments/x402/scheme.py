@@ -905,6 +905,13 @@ X402_ATTEST_ALGORITHM: str = "keccak256-ecdsa-secp256k1-v1"
 X402_ATTEST_VERSION: int = 1
 X402_ATTEST_KEY_ENV: str = "PRY_X402_ATTEST_KEY"
 X402_ATTEST_SECRET_ENV: str = "PRY_X402_ATTEST_SECRET"  # noqa: S105 - env var NAME, never a value
+# Freshness window for a client-presented attestation. A captured attested
+# 402 body must not be replayable forever; a small future tolerance absorbs
+# clock skew between the issuing node and the verifying node (and in-flight
+# latency). On either failure the gate answers with a FRESH 402 challenge —
+# that fresh challenge IS the retry: the client re-pays against it.
+X402_ATTEST_MAX_SKEW_SECONDS: int = int(os.getenv("PRY_X402_ATTEST_MAX_SKEW", "120"))
+X402_ATTEST_MAX_AGE_SECONDS: int = int(os.getenv("PRY_X402_ATTEST_MAX_AGE", "600"))
 
 # Mutable per-process cache of the resolved key. Cleared on module reload
 # (tests), so a reload + env change re-derives it. None = unconfigured.
@@ -1092,6 +1099,37 @@ def verify_payment_required_attestation(
         }
     nonce = str(attest.get("nonce", ""))
     issued_at = int(attest.get("issued_at", 0) or 0)
+    if issued_at <= 0:
+        return {
+            "verified": False,
+            "reason": "attestation missing issued_at",
+            "attested": True,
+            "signer": signer,
+            "signer_ok": False,
+        }
+    now = int(time.time())
+    if issued_at - now > X402_ATTEST_MAX_SKEW_SECONDS:
+        return {
+            "verified": False,
+            "reason": (
+                "attestation issued_at in the future beyond clock-skew tolerance "
+                f"(> {X402_ATTEST_MAX_SKEW_SECONDS}s) — fetch a fresh 402 challenge"
+            ),
+            "attested": True,
+            "signer": signer,
+            "signer_ok": False,
+        }
+    if now - issued_at > X402_ATTEST_MAX_AGE_SECONDS:
+        return {
+            "verified": False,
+            "reason": (
+                f"attestation expired (issued_at older than {X402_ATTEST_MAX_AGE_SECONDS}s) "
+                "— fetch a fresh 402 challenge"
+            ),
+            "attested": True,
+            "signer": signer,
+            "signer_ok": False,
+        }
     sig_map = {
         int(s.get("index", -1)): str(s.get("signature", ""))
         for s in attest.get("accepts", [])

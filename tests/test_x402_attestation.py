@@ -126,3 +126,83 @@ def test_attest_idempotent_and_no_key_passthrough(monkeypatch) -> None:
     assert attest_payment_required(_attested_body()) is not None
     unattested = attest_payment_required(_attested_body())
     assert "attestation" not in unattested  # no key → backward-compatible passthrough
+
+
+# ── Freshness: clock-skew tolerance + replay window ─────────────────────────
+
+
+def _reissue(body: dict, issued_at: int) -> dict:
+    """Re-sign the body's accepts with a specific issued_at (test helper).
+
+    The digest binds issued_at, so testing freshness requires re-signing,
+    not just editing the timestamp.
+    """
+    import time as _time
+    import uuid as _uuid
+
+    import pry.payments.x402.scheme as scheme_mod
+
+    key = scheme_mod._attestation_private_key()
+    nonce = _uuid.uuid4().hex
+    signer = key.public_key.to_address()
+    signatures = []
+    for index, accept in enumerate(body["accepts"]):
+        digest = scheme_mod._attestation_digest(issued_at, nonce, index, accept)
+        sig = key.sign_msg_hash(digest)
+        signatures.append({"index": index, "signature": sig.to_bytes().hex()})
+    out = dict(body)
+    out["attestation"] = {
+        "version": scheme_mod.X402_ATTEST_VERSION,
+        "algorithm": scheme_mod.X402_ATTEST_ALGORITHM,
+        "domain": scheme_mod.X402_ATTEST_DOMAIN,
+        "nonce": nonce,
+        "issued_at": issued_at,
+        "signer": signer,
+        "accepts": signatures,
+    }
+    del _time
+    return out
+
+
+def test_attestation_within_skew_tolerance_accepted() -> None:
+    """issued_at slightly in the future (≤ skew tolerance) must still verify."""
+    import time
+
+    body = attest_payment_required(_attested_body())
+    reissued = _reissue(body, int(time.time()) + 30)
+    result = verify_payment_required_attestation(reissued)
+    assert result["verified"] is True
+
+
+def test_attestation_future_beyond_skew_rejected_with_retry_hint() -> None:
+    """An attestation dated far in the future is rejected — the reason tells
+    the client to fetch a fresh 402 (the retry vehicle)."""
+    import time
+
+    body = attest_payment_required(_attested_body())
+    reissued = _reissue(body, int(time.time()) + 3600)
+    result = verify_payment_required_attestation(reissued)
+    assert result["verified"] is False
+    assert "clock-skew" in result["reason"]
+    assert "fresh 402" in result["reason"]
+
+
+def test_attestation_expired_rejected_with_retry_hint() -> None:
+    """A captured attested body past the freshness window must not replay."""
+    import time
+
+    body = attest_payment_required(_attested_body())
+    reissued = _reissue(body, int(time.time()) - 3600)
+    result = verify_payment_required_attestation(reissued)
+    assert result["verified"] is False
+    assert "expired" in result["reason"]
+    assert "fresh 402" in result["reason"]
+
+
+def test_attestation_missing_issued_at_rejected() -> None:
+    """An attestation without issued_at fails closed."""
+    body = attest_payment_required(_attested_body())
+    body["attestation"] = {k: v for k, v in body["attestation"].items() if k != "issued_at"}
+    result = verify_payment_required_attestation(body)
+    assert result["verified"] is False
+    assert "issued_at" in result["reason"]

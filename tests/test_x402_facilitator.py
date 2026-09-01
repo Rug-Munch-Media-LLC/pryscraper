@@ -762,6 +762,37 @@ def test_eip7702_rpc_key_unknown_chain_returns_none():
     assert _eip7702_rpc_key("eip155:11155111") is None
 
 
+# ---------------------------------------------------------------------------
+# _settle_self_hosted — EIP-7702 settlement fallback for plain transfers
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_settle_self_hosted_plain_transfer_gets_eip7702_receipt():
+    """A verified plain transfer (no EIP-3009 authorization) must still SETTLE.
+
+    Regression: verify ✓ (EIP-7702 receipt check) → settle ✗ (SelfFacilitator
+    has nothing to broadcast) → middleware fail-closed 402 forever. The
+    settle leg must fall through to the EIP-7702 settlement receipt exactly
+    like the verify leg falls through to the EIP-7702 verify.
+    """
+    router = FacilitatorRouter(facilitators=[], self_hosted=True)
+    result = await router._settle_self_hosted("pay_123", "0xabc", "eip155:8453", "USDC", 0.001)
+    assert result["success"] is True
+    assert result["facilitator"] == "eip-7702"
+    assert result["transaction"] == "0xabc"
+    assert result["network"] == "eip155:8453"
+
+
+@pytest.mark.asyncio
+async def test_settle_self_hosted_non_evm_still_fails_honestly():
+    """Non-EVM chains have no settlement verifier — must stay an honest failure."""
+    router = FacilitatorRouter(facilitators=[], self_hosted=True)
+    result = await router._settle_self_hosted("pay_123", "sig123", "solana:mainnet", "USDC", 0.001)
+    assert result["success"] is False
+    assert "unavailable" in result["reason"]
+
+
 @respx.mock
 @pytest.mark.asyncio
 async def test_verify_eip7702_fallback_caip2_network(router: FacilitatorRouter):

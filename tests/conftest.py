@@ -5,6 +5,7 @@
 import logging
 import os
 from collections.abc import Generator
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -142,6 +143,27 @@ def pry_test_auth(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None
     _settings_mod.settings.api_key = ""
     yield
     _settings_mod.settings.api_key = original
+
+
+@pytest.fixture(autouse=True)
+def pry_x402_ledger_isolation(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Point every X402_DIR binding at a per-test scratch dir.
+
+    Regression: middleware-level tests that build a full app (e.g. the x402
+    hardening suite) constructed X402Handler with DEFAULT ledger paths, so
+    every run appended ghost payment records ("pay-clean", "0xclean", …) to
+    the LIVE ~/.pry/x402/payments.jsonl. Tests must never touch the live
+    ledger; handlers that need a specific file still pass explicit paths.
+    """
+    import pry.misc.x402 as _misc_x402
+    import pry.payments.x402.handler as _handler_mod
+    import pry.payments.x402.self_facilitator as _selffac_mod
+
+    scratch = tmp_path / "x402-ledger"
+    scratch.mkdir(parents=True, exist_ok=True)
+    for mod in (_handler_mod, _misc_x402, _selffac_mod):
+        if hasattr(mod, "X402_DIR"):
+            monkeypatch.setattr(mod, "X402_DIR", scratch)
 
 
 @pytest.fixture

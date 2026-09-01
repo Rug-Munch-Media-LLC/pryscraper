@@ -359,7 +359,16 @@ class FacilitatorRouter:
         asset: str,
         amount_usd: float,
     ) -> dict[str, Any]:
-        """Settle via a registered custom impl or the built-in SelfFacilitator."""
+        """Settle via a registered custom impl or the built-in SelfFacilitator.
+
+        When the impl cannot broadcast (a plain on-chain transfer carries no
+        EIP-3009 authorization), fall through to the EIP-7702 settlement
+        receipt for supported networks — mirroring ``_verify_self_hosted``.
+        The settle leg only runs AFTER the verify leg cryptographically
+        confirmed the tx paid the server wallet, so the receipt is honest.
+        Without this fallback a verified plain transfer could never settle
+        (verify ✓ → settle ✗ → fail-closed 402 forever).
+        """
         impl = self._impl_for(network)
         if impl is None:
             impl = self._get_self_facilitator()
@@ -375,6 +384,8 @@ class FacilitatorRouter:
                 "settled_at": datetime.now(UTC).isoformat(),
                 "note": "Broadcast by self-hosted facilitator",
             }
+        if _eip7702_rpc_key(network) is not None:
+            return self._eip7702_settlement(payment_id, tx_hash, network)
         return {
             "success": False,
             "payment_id": payment_id,
