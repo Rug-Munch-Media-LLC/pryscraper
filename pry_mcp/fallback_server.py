@@ -507,13 +507,25 @@ def make_fallback_server(
                 }
             method, path = tool_map[name]
 
-            # Try to call the Pry API directly.
+            method, path = tool_map[name]
+
+            # Try to call the Pry API directly. Server-to-server auth: the
+            # MCP server runs beside the API and must present the API key,
+            # or the x402 gate 402s its own tools (402-challenge loop).
+            import os
+
+            api_key = os.getenv("PRY_API_KEY", "")
+            headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
             try:
                 async with httpx.AsyncClient(timeout=60) as client:
                     if method == "GET":
-                        response = await client.get(f"{self.base_url}{path}", params=arguments)
+                        response = await client.get(
+                            f"{self.base_url}{path}", params=arguments, headers=headers
+                        )
                     else:
-                        response = await client.post(f"{self.base_url}{path}", json=arguments)
+                        response = await client.post(
+                            f"{self.base_url}{path}", json=arguments, headers=headers
+                        )
                     response.raise_for_status()
                     data = response.json()
                     return self._tool_result_to_content(data, name)

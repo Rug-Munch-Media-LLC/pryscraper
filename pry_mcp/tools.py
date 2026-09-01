@@ -4107,7 +4107,12 @@ PRY_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["success", "total", "actors"],
         },
-        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
     },
     {
         "name": "pry_actor_run",
@@ -4143,7 +4148,12 @@ PRY_TOOLS: list[dict[str, Any]] = [
             },
             "required": ["actor", "urls"],
         },
-        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
         "outputSchema": {
             "type": "object",
             "properties": {
@@ -4236,8 +4246,21 @@ def _annotations_for(name: str) -> dict[str, bool]:
     return {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True}
 
 
+_TOOL_ANNOTATIONS: dict[str, dict[str, bool]] = {
+    # pry_monitor persists a scheduled monitor on the server.
+    "pry_monitor": {
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+    },
+}
+
+# 2026-09-01 audit: every Pry tool reaches the open web (target sites, public
+# feeds, on-chain verifiers). The MCP spec defaults openWorldHint to true, but
+# directories and agent clients rank explicit declarations higher — declare it
+# on all 76 rather than relying on the default.
 for _tool in PRY_TOOLS:
-    _tool.setdefault("annotations", _annotations_for(str(_tool["name"])))
+    _tool.setdefault("annotations", {**_annotations_for(str(_tool["name"])), "openWorldHint": True})
 
 # Frozen set of every registered tool name — used by the registry-sync tests
 # to assert server.json / glama.json / pulsemcp.json / llms.txt stay in sync.
