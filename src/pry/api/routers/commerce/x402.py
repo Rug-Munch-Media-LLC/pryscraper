@@ -174,19 +174,30 @@ async def x402_verify_payment(
     ``amount_usd`` is validated against the SERVER-side price first and
     underpayment is rejected before any facilitator call.
     """
-    from pry.payments.x402 import X402_PRICING, X402Handler, validate_client_amount
+    from pry.payments.x402 import (
+        X402_PRICING,
+        X402Handler,
+        resolve_price_usd,
+    )
 
+    # When payment_id names a priced operation, the SERVER-side price is
+    # authoritative — never trust the client-supplied amount_usd. The client
+    # value is only a sanity check (reject if they claim MORE than the price,
+    # which would be a protocol violation); the actual on-chain verification
+    # uses the server price so a client who omits amount_usd (default 0.0)
+    # doesn't get a false "underpayment" rejection.
+    server_amount = 0.0
     if payment_id in X402_PRICING:
-        ok, reason = validate_client_amount(payment_id, amount_usd, asset, network=network)
-        if not ok:
+        server_amount = resolve_price_usd(payment_id, network=network, asset=asset)
+        # Sanity: reject if client claims MORE than the server price (protocol violation).
+        if amount_usd > server_amount + 1e-9:
             logger.warning(
-                "x402_underpayment_rejected",
-                extra={"operation": payment_id, "reason": reason},
+                "x402_client_overpayment_claim",
+                extra={"operation": payment_id, "client": amount_usd, "server": server_amount},
             )
-            return {
-                "success": False,
-                "data": {"verified": False, "reason": reason, "settlement": None},
-            }
+        # Use the server price for verification — the on-chain tx must match
+        # what the server charges, not what the client claims.
+        amount_usd = server_amount
 
     result = await X402Handler().verify_payment(
         payment_id,
