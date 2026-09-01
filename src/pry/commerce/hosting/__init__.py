@@ -575,6 +575,25 @@ async def confirm_hosting_payment(
             "user_id": user_id,
         },
     )
+
+    # Human receipt: email the customer (never fails the provisioning flow).
+    try:
+        from pry.commerce.hosting.checkout import send_hosting_receipt
+
+        user_email = str(invoice.get("user_email") or "")
+        if user_email:
+            send_hosting_receipt(
+                to_email=user_email,
+                invoice_id=invoice_id,
+                plan_tier=plan_tier,
+                amount_usd=amount_usd,
+                tx_hash=str(settle_tx),
+                api_key=api_key,
+                instance_id=instance["instance_id"] if instance else None,
+            )
+    except Exception as e:  # noqa: BLE001 — receipt is best-effort
+        logger.warning("hosting_receipt_error", extra={"error": str(e)[:120]})
+
     return {
         "paid": True,
         "invoice_id": invoice_id,

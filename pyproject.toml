@@ -51,6 +51,7 @@ classifiers = [
 license-files = ["LICENSE", "LICENSE-BSL-STEALTH"]
 
 dependencies = [
+    "qrcode>=8.0",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     # Official Model Context Protocol Python SDK — primary stdio transport for

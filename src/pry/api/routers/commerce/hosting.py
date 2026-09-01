@@ -29,7 +29,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Body, Header, HTTPException
+from fastapi import APIRouter, Body, Header, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 from pry.commerce.hosting import (
@@ -239,6 +239,57 @@ def _require_owner(instance_id: str, user_id: str) -> None:
         except InstanceNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         raise HTTPException(status_code=404, detail="unknown hosted instance")
+
+
+# ── Human checkout + portal (traditional crypto rail) ──────────────────────
+
+
+@router.get(
+    "/v1/hosting/checkout/{invoice_id}",
+    summary="Human crypto checkout page (QR + tx submission)",
+    description=(
+        "Self-contained HTML checkout for a hosting invoice: QR code, wallet "
+        "deep-link, amount + address, network picker, and a tx-hash form that "
+        "calls the existing on-chain confirm endpoint. Humans pay from any "
+        "wallet; the instance provisions automatically on verification."
+    ),
+    include_in_schema=False,
+)
+async def hosting_checkout_page(invoice_id: str) -> Response:
+    from pry.commerce.hosting import get_hosting_invoice
+    from pry.commerce.hosting.checkout import render_checkout_page
+
+    try:
+        invoice = get_hosting_invoice(invoice_id)
+    except Exception as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return Response(content=render_checkout_page(invoice), media_type="text/html")
+
+
+@router.get(
+    "/v1/hosting/portal",
+    summary="Customer portal — instances, usage and API keys",
+    description=(
+        "Email-keyed read-only portal for hosted customers: instances, "
+        "expiry, prepaid balance and ledger. Portal access is the invoice "
+        "email + instance id (proof of ownership) until full sessions ship."
+    ),
+)
+async def hosting_portal(
+    email: str = Query(..., description="The email used at signup"),
+) -> dict[str, Any]:
+    from pry.commerce.hosting import _ensure_user_by_email, list_instances
+
+    user_id = _ensure_user_by_email(email.strip().lower())
+    instances = list_instances(user_id)
+    return {
+        "success": True,
+        "data": {
+            "email": email.strip().lower(),
+            "instances": instances,
+            "support": "support@pryscraper.com",
+        },
+    }
 
 
 __all__ = ["router"]
