@@ -324,7 +324,18 @@ def _get_mcp_server() -> Any:
     """Lazy-initialize the spec-compliant MCP server."""
     global _mcp_server_instance
     if _mcp_server_instance is None:
-        _mcp_server_instance = make_fallback_server(base_url=f"http://localhost:{settings.port}")
+        from pry_mcp.fallback_server import combined_tool_executor
+
+        # tool_executor is REQUIRED for local domain dispatch: without it the
+        # server falls through to the REST proxy for every tool, and the
+        # actor tools (pry_actor_catalog/pry_actor_run — pure-local, no REST
+        # route) return TOOL_NOT_WIRED. combined_tool_executor chains the
+        # actor + crypto + marketplace + 21 domain dispatchers and raises
+        # _ToolNotHandled for anything REST-wired, which then proxies.
+        _mcp_server_instance = make_fallback_server(
+            base_url=f"http://localhost:{settings.port}",
+            tool_executor=combined_tool_executor,
+        )
         register_all(_mcp_server_instance)
     return _mcp_server_instance
 
