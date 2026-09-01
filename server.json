@@ -28,7 +28,7 @@
 	"tools": [
 		{
 			"name": "pry_scrape",
-			"description": "Scrape any URL to clean markdown with a 9-tier anti-bot fallback chain (Cloudflare bypass)."
+			"description": "Scrape any URL to clean markdown with a 15-tier anti-bot fallback chain (Cloudflare bypass)."
 		},
 		{
 			"name": "pry_crawl",

@@ -29,7 +29,7 @@
 	"tools": [
 		{
 			"name": "pry_scrape",
-			"description": "Scrape a URL to clean markdown with 9-tier anti-bot bypass"
+			"description": "Scrape a URL to clean markdown with 15-tier anti-bot bypass"
 		},
 		{
 			"name": "pry_crawl",
