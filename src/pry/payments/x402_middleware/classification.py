@@ -87,6 +87,10 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/hosting/instances/{instance_id}",
         "/v1/hosting/instances/{instance_id}/renew",
         "/v1/hosting/instances/{instance_id}/cancel",
+        # Human checkout + customer portal (control plane — the checkout page
+        # renders the 402 manifest for humans; the portal is email-keyed).
+        "/v1/hosting/checkout/{invoice_id}",
+        "/v1/hosting/portal",
         # Job / session management (control plane, not data plane)
         "/v1/job/{job_id}",
         "/v1/jobs",
