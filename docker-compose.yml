@@ -42,6 +42,8 @@ services:
       # PRY_API_KEY intentionally NOT listed here: any `environment:` entry
       # shadows the env_file value; it is supplied solely by env_file.
       - PRY_DATA_DIR=/app/pry-data
+      # PRY_ADMIN_PATH (stable admin surface prefix) comes from env_file —
+      # an `environment:` entry here would shadow it with an empty value.
       # Trust the host nginx proxy (docker bridge gateway) for X-Forwarded-For
       # so per-IP rate limiting buckets real clients, not the proxy IP.
       # Without this, ALL internet traffic shares one rate-limit bucket.
