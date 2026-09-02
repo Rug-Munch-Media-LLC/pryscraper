@@ -83,6 +83,7 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/hosting/plans",
         "/v1/hosting/signup",
         "/v1/hosting/signup/{invoice_id}/confirm",
+        "/v1/hosting/signup/{invoice_id}/verify",
         "/v1/hosting/instances",
         "/v1/hosting/instances/{instance_id}",
         "/v1/hosting/instances/{instance_id}/renew",

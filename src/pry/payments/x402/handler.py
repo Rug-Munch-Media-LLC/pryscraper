@@ -233,6 +233,7 @@ class X402Handler:
         amount_usd: float = 0.0,
         operation: str = "",
         caller_key: str = "",
+        attested_required_atomic: int = 0,
     ) -> dict[str, Any]:
         """Verify a payment via the x402 facilitator router.
 
@@ -243,6 +244,13 @@ class X402Handler:
         configured price is used and any client-supplied ``amount_usd`` is
         ignored. The recorded payment carries an ``expires_at`` and a
         ``caller_key`` so ``is_paid()`` can reject stale/replayed ids.
+
+        ``attested_required_atomic`` (price binding, audit #7): when > 0 the
+        attested challenge's SIGNED ``maxAmountRequired`` is forwarded to the
+        facilitator as the authoritative required amount for volatile-asset
+        comparison. The cross-operation price check
+        (``validate_client_amount``) is UNCHANGED — only the source of the
+        expected atomic amount for the oracle-priced comparison changes.
         """
         network = network or X402_DEFAULT_NETWORK
         asset = asset or X402_DEFAULT_ASSET
@@ -269,6 +277,7 @@ class X402Handler:
                 network=network,
                 asset=asset,
                 amount_usd=amount_usd,
+                attested_required_atomic=attested_required_atomic,
             )
         except Exception as e:  # noqa: BLE001 — fail closed on facilitator error
             logger.warning(

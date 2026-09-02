@@ -806,8 +806,18 @@ class SelfFacilitator:
                 network=network,
             )
 
-        # Amount: authorized value must be >= the server-side required amount
-        # (converted to atomic units using the live-oracle/static USD quote).
+        # Amount: authorized value must be >= the server-side required amount.
+        #
+        # Price binding (audit #7): when the payment carries an ATTESTED
+        # required amount (``attested_required_atomic`` — populated by the
+        # enforcement gate only after the echoed 402 body's server attestation
+        # verified), that SIGNED ``maxAmountRequired`` is the authoritative
+        # required amount for THIS payment. An honest payer who authorized the
+        # challenge-quoted amount must not be rejected because the live oracle
+        # moved between challenge and payment. Fail-closed is preserved:
+        # paying LESS than the attested amount is still underpayment, and
+        # overpayment stays allowed. Without an attested amount the previous
+        # live-oracle/static comparison applies (backward compatible).
         try:
             value = _to_int(auth.get("value"))
         except ValueError:
@@ -815,12 +825,22 @@ class SelfFacilitator:
                 False, "unparseable authorization value", asset=asset, network=network
             )
         decimals = int(entry.get("decimals", 6))
-        quote = await get_asset_usd_price(asset, network)
-        if not quote.usd or quote.usd <= 0:
-            return VerifyResult(
-                False, f"no USD price available for {asset}", asset=asset, network=network
+        attested_atomic = 0
+        try:
+            attested_atomic = int(payment.get("attested_required_atomic") or 0)
+        except (TypeError, ValueError):
+            attested_atomic = 0
+        if attested_atomic > 0:
+            required_atomic = attested_atomic
+        else:
+            quote = await get_asset_usd_price(asset, network)
+            if not quote.usd or quote.usd <= 0:
+                return VerifyResult(
+                    False, f"no USD price available for {asset}", asset=asset, network=network
+                )
+            required_atomic = (
+                round(amount_usd / quote.usd * (10**decimals)) if amount_usd > 0 else 1
             )
-        required_atomic = round(amount_usd / quote.usd * (10**decimals)) if amount_usd > 0 else 1
         if value < required_atomic:
             return VerifyResult(
                 False,

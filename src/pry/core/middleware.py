@@ -47,7 +47,12 @@ from starlette.routing import Mount as StarletteMount, Route as StarletteRoute
 
 from pry.core.deps import ratelimiter, user_ratelimiter
 from pry.core.jwt_auth import is_jwt, validate_rmi_jwt
-from pry.core.observability import REQUEST_COUNT, REQUEST_LATENCY
+from pry.core.observability import (
+    REQUEST_COUNT,
+    REQUEST_LATENCY,
+    set_span_attributes,
+    span,
+)
 from pry.core.settings import settings
 
 try:
@@ -203,6 +208,9 @@ _AUTH_PUBLIC_PATHS: set[str] = {
     # is email-keyed proof-of-ownership until full sessions ship).
     "/v1/hosting/checkout",
     "/v1/hosting/portal",
+    # Email verification link target (humans click it from mail clients —
+    # no API key exists yet; the code in the link IS the proof).
+    "/v1/hosting/verify",
     # Hosting signup + tx confirm — the FIRST steps of the human rail.
     # A prospective customer has no API key yet (the payment IS the auth,
     # same doctrine as the x402 402-challenge). Prefix match also covers
@@ -412,6 +420,19 @@ class PryHttpMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # OpenTelemetry: one span per HTTP request (name "METHOD path").
+        # Attributes (status, duration) are attached inside _handle_http via
+        # set_span_attributes; tracing is a no-op when OTel is disabled.
+        method = scope.get("method", "GET")
+        path = scope.get("path", "")
+        start = time.time()
+        with span(f"{method} {path}", {"http.method": method, "http.target": path}):
+            try:
+                await self._handle_http(scope, receive, send)
+            finally:
+                set_span_attributes({"duration_ms": int((time.time() - start) * 1000)})
+
+    async def _handle_http(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
         # CORS preflight: OPTIONS requests carry no credentials and must reach
         # CORSMiddleware without auth/rate-limit gating so browsers can probe
         # cross-origin access before sending the real request.
@@ -465,6 +486,7 @@ class PryHttpMiddleware:
                 }
             )
             await send({"type": "http.response.body", "body": body})
+            set_span_attributes({"http.status_code": 401})
             clear_request_id()
             return
 
@@ -482,6 +504,7 @@ class PryHttpMiddleware:
                 await send(message)
 
             await _app(scope, receive, passthrough_send)
+            set_span_attributes({"http.status_code": passthrough_status})
             if REQUEST_COUNT and REQUEST_LATENCY:
                 REQUEST_COUNT.labels(
                     method=method, endpoint="unmatched", status=str(passthrough_status)
@@ -568,6 +591,7 @@ class PryHttpMiddleware:
             headers.append((b"retry-after", str(int(float(stats.get("retry_after", 1)))).encode()))
             await send({"type": "http.response.start", "status": 429, "headers": headers})
             await send({"type": "http.response.body", "body": body})
+            set_span_attributes({"http.status_code": 429})
             clear_request_id()
             return
 
@@ -602,6 +626,7 @@ class PryHttpMiddleware:
         await self.app(scope, receive, wrapped_send)
 
         elapsed = time.time() - start
+        set_span_attributes({"http.status_code": response_status})
         # Route TEMPLATE as the label (e.g. /v1/job/{job_id}), never the
         # raw path — raw paths give every unique URL its own Prometheus
         # series and explode cardinality. Unmatched routes (404s from

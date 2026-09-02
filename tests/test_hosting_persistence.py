@@ -74,6 +74,9 @@ def db(tmp_path, monkeypatch):
 def _wallet(monkeypatch):
     monkeypatch.setattr(hosting_mod, "X402_NETWORK_WALLETS", {"eip155:8453": _REAL_WALLET})
     monkeypatch.setattr(hosting_mod, "X402_WALLET", _REAL_WALLET)
+    # Test escape hatch: legacy flows confirm without verifying the email
+    # first (the email gate itself is covered in test_hosting_email_verification).
+    monkeypatch.setenv("PRY_HOSTING_SKIP_EMAIL_VERIFY", "1")
 
 
 def test_create_signup_invoice_writes_to_db(db) -> None:

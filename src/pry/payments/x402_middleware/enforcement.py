@@ -16,6 +16,7 @@ from pry.payments.x402 import (
     X402Handler,
     _encode_payment_required_body,
     attestation_signer_address,
+    attested_max_amount_required,
     validate_client_amount,
     verify_payment_required_attestation,
 )
@@ -71,38 +72,59 @@ def _decode_presented_payment_required(raw: Any) -> dict[str, Any] | None:
         return None
 
 
-def _verify_presented_attestation(payload: dict[str, Any]) -> tuple[bool, str]:
+def _verify_presented_attestation(payload: dict[str, Any]) -> tuple[bool, str, dict[str, Any]]:
     """Verify the server attestation on a client-presented 402 body.
 
-    Returns ``(ok, reason)`` for the audit #1 payTo-tamper gate:
+    Returns ``(ok, reason, body)`` for the audit #1 payTo-tamper gate:
 
-    - ``(True, "")`` when the payload carries no ``payment_required`` body or
-      the body is UNATTESTED — backward compatible (a legacy body emitted with
-      no server attestation key configured still passes).
-    - ``(False, reason)`` when the body IS attested but the signature does not
-      validate against the server's own attestation signer (tampered
+    - ``(True, "", body)`` when the payload carries no ``payment_required``
+      body or the body is UNATTESTED — backward compatible (a legacy body
+      emitted with no server attestation key configured still passes).
+      ``body`` is the decoded body (or ``{}`` when absent/unparseable-but-
+      tolerated).
+    - ``(False, reason, body)`` when the body IS attested but the signature
+      does not validate against the server's own attestation signer (tampered
       payTo/amount/network) — FAIL CLOSED so a forged challenge can never
       steer a payment to an attacker-controlled address.
     """
     raw = payload.get("payment_required")
     if raw is None:
-        return True, ""
+        return True, "", {}
     body = _decode_presented_payment_required(raw)
     if not isinstance(body, dict):
         logger.warning("x402_attestation_undecodable_body", extra={"field": "payment_required"})
-        return False, "echoed payment-required body could not be decoded"
+        return False, "echoed payment-required body could not be decoded", {}
     if not isinstance(body.get("attestation"), dict):
         # Unattested challenge (no key configured at issue time) — legacy path.
-        return True, ""
+        return True, "", body
     expected = attestation_signer_address()
     if not expected:
         # We have no attestation key, so we can never have issued an attested
         # body. A presented one is forged or from a different server.
-        return False, "attested body presented but no local attestation key configured"
+        return False, "attested body presented but no local attestation key configured", body
     result = verify_payment_required_attestation(body, expected_signer=expected)
     if result.get("verified"):
-        return True, ""
-    return False, str(result.get("reason") or "invalid attestation")
+        return True, "", body
+    return False, str(result.get("reason") or "invalid attestation"), body
+
+
+def _attested_required_atomic(
+    body: dict[str, Any],
+    network: str,
+    asset: str,
+) -> int:
+    """Price binding (audit #7): the SIGNED required amount for this payment.
+
+    Given an ALREADY-VERIFIED attested payment-required body, extract the
+    ``maxAmountRequired`` (atomic) of the accept matching (network, asset).
+    Returns 0 when the body is unattested (legacy path — no binding, the
+    live-quote comparison applies) or no accept matches, so callers fall
+    back to the previous behavior. The attestation itself was verified by
+    :func:`_verify_presented_attestation` before this is consulted.
+    """
+    if not isinstance(body, dict) or not isinstance(body.get("attestation"), dict):
+        return 0
+    return attested_max_amount_required(body, network, asset)
 
 
 def _compact_payment_required_header(body: dict[str, Any], max_bytes: int) -> str:
@@ -360,7 +382,7 @@ class X402Middleware:
                     # before any verify/settle runs. Unattested bodies (no key
                     # configured at issue time) still pass (legacy); an
                     # INVALID attestation fails closed with a fresh 402.
-                    attest_ok, attest_reason = _verify_presented_attestation(payload)
+                    attest_ok, attest_reason, attest_body = _verify_presented_attestation(payload)
                     if not attest_ok:
                         logger.warning(
                             "x402_attestation_rejected",
@@ -373,6 +395,12 @@ class X402Middleware:
                         )
                         await self._send_payment_required(operation, path, send)
                         return
+                    # Price binding (audit #7): when the echoed 402 body is
+                    # ATTESTED and verified, its SIGNED maxAmountRequired is
+                    # the authoritative required amount for the volatile-asset
+                    # comparison downstream (self-facilitator verify). The
+                    # cross-operation price check below is UNCHANGED.
+                    attested_atomic = _attested_required_atomic(attest_body, network, asset)
                     # Server-side pricing is authoritative: never trust the
                     # client-supplied amount. Reject underpayment BEFORE any
                     # facilitator call. ``network`` lets the canonical
@@ -395,6 +423,7 @@ class X402Middleware:
                         amount_usd=amount_usd,
                         operation=operation,
                         caller_key=caller_key,
+                        attested_required_atomic=attested_atomic,
                     )
                     if verify_result.get("verified"):
                         settlement = await self.handler.settle_payment(

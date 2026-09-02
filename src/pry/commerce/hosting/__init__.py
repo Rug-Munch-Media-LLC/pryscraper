@@ -49,6 +49,7 @@ import calendar
 import hashlib
 import logging
 import os
+import secrets
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -114,6 +115,7 @@ def _invoice_to_dict(row: Any) -> dict[str, Any]:
         "credited_reference": row.credited_reference or "",
         "payment": dict(row.payment or {}),
         "x402_body": dict(row.x402_body or {}),
+        "email_verified": bool(row.email_verified),
         "created_at": _utc_iso(_aware(row.created_at)),
     }
 
@@ -146,6 +148,8 @@ def _save_invoice(record: dict[str, Any]) -> None:
         row.expires_at = _parse_iso(str(record["expires_at"]))
         row.payment = dict(record.get("payment") or {})
         row.x402_body = dict(record.get("x402_body") or {})
+        row.verification_code = str(record.get("verification_code") or "")
+        row.email_verified = bool(record.get("email_verified", False))
 
 
 def _load_invoice(invoice_id: str) -> dict[str, Any] | None:
@@ -419,12 +423,40 @@ def create_hosting_signup(user_email: str, plan_tier: str) -> dict[str, Any]:
             "authorization": None,
         },
         "x402_body": body,
+        # Email verification (audit item #4): 6-char URL-safe code proving
+        # the signup email is controlled by the payer before provisioning.
+        "verification_code": secrets.token_hex(3),  # 6 hex chars, URL-safe
+        "email_verified": False,
     }
     _save_invoice(record)
     logger.info(
         "hosting_signup_invoice_created",
         extra={"invoice_id": invoice_id, "plan_tier": plan.tier, "user_id": user_id},
     )
+    # Verification email: best-effort like the receipt — a mail outage must
+    # never fail invoice creation. The code is exposed in the API response
+    # ONLY when the mail backend is unconfigured (dev fallback).
+    verification_code: str | None = None
+    try:
+        from pry.commerce.hosting.checkout import (
+            mail_configured,
+            send_hosting_verification_email,
+        )
+
+        if mail_configured():
+            send_hosting_verification_email(
+                to_email=str(record["user_email"]),
+                invoice_id=invoice_id,
+                code=str(record["verification_code"]),
+            )
+        else:
+            verification_code = str(record["verification_code"])
+            logger.warning(
+                "hosting_verification_email_skipped_unconfigured",
+                extra={"invoice_id": invoice_id},
+            )
+    except Exception as e:  # noqa: BLE001 — verification mail is best-effort
+        logger.warning("hosting_verification_email_error", extra={"error": str(e)[:120]})
     return {
         "invoice_id": invoice_id,
         "plan_tier": plan.tier,
@@ -437,6 +469,8 @@ def create_hosting_signup(user_email: str, plan_tier: str) -> dict[str, Any]:
         "expires_at": expires_at,
         "payment_method": "x402",
         "payment_required": body,
+        "email_verified": False,
+        "verification_code": verification_code,
     }
 
 
@@ -471,6 +505,41 @@ def submit_hosting_payment(
             row.payment = payment
             row.status = "submitted"
     return {**invoice, "payment": payment, "status": "submitted"}
+
+
+# ── Email verification (audit item #4) ─────────────────────────────────────
+ENV_HOSTING_SKIP_EMAIL_VERIFY: str = "PRY_HOSTING_SKIP_EMAIL_VERIFY"
+
+
+def _email_gate_enabled() -> bool:
+    """True unless the test escape hatch disables the email gate.
+
+    ``PRY_HOSTING_SKIP_EMAIL_VERIFY=1`` lets existing test flows confirm
+    without verifying the email first (set in the hosting test fixtures).
+    """
+    return os.environ.get(ENV_HOSTING_SKIP_EMAIL_VERIFY, "") != "1"
+
+
+def verify_hosting_email(invoice_id: str, code: str) -> dict[str, Any]:
+    """Verify the signup email for *invoice_id* with *code*.
+
+    Matches the stored verification code (constant-time compare) and marks
+    the invoice ``email_verified``. Raises ``ValueError`` for unknown
+    invoices; returns ``{"verified": bool}`` (False on a wrong code).
+    """
+    if not code or not code.strip():
+        return {"verified": False, "reason": "verification code is required"}
+    with session_scope() as session:
+        row = session.query(_models.HostingInvoice).filter_by(invoice_id=invoice_id).first()
+        if row is None:
+            raise ValueError(f"unknown hosting invoice {invoice_id!r}")
+        if row.email_verified:
+            return {"verified": True, "invoice_id": invoice_id}
+        if not secrets.compare_digest(str(row.verification_code or ""), code.strip()):
+            return {"verified": False, "reason": "invalid verification code"}
+        row.email_verified = True
+    logger.info("hosting_email_verified", extra={"invoice_id": invoice_id})
+    return {"verified": True, "invoice_id": invoice_id}
 
 
 # ── Verification + settlement ───────────────────────────────────────────────
@@ -572,6 +641,21 @@ async def confirm_hosting_payment(
     except ValueError:
         expires_at = _now()
     expired = _now() >= expires_at
+
+    # Email-verification gate (audit item #4): the portal is keyed by
+    # user_email + instance id, so an unverified signup email must never
+    # reach provisioning — otherwise a bad actor could sign up with someone
+    # else's email and control the portal/receipt after paying. Fail closed
+    # with an actionable reason. Renewal invoices are bound to an already
+    # provisioned (hence verified) instance and skip the gate. [REVIEW]
+    if kind == "signup" and not invoice.get("email_verified") and _email_gate_enabled():
+        return {
+            "paid": False,
+            "invoice_id": invoice_id,
+            "instance": None,
+            "api_key": None,
+            "reason": "email not verified — check your inbox for the verification link",
+        }
 
     submit_hosting_payment(
         invoice_id, payment_proof, network=network, asset=asset, authorization=authorization

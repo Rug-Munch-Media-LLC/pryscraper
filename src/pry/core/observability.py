@@ -186,6 +186,26 @@ def span(name: str, attributes: dict[str, Any] | None = None) -> Iterator[Any]:
             raise
 
 
+def set_span_attributes(attributes: dict[str, Any]) -> None:
+    """Attach attributes to the CURRENT active span (no-op when tracing off).
+
+    Used by middleware to record status/duration on the request span opened
+    by ``span()`` — the span object itself is not passed down the ASGI chain.
+    """
+    tracer = get_tracer()
+    if tracer is None:
+        return
+    try:
+        current = trace.get_current_span()
+        if current is None or not getattr(current, "is_recording", lambda: False)():
+            return
+        for key, value in attributes.items():
+            if value is not None:
+                current.set_attribute(key, value)
+    except Exception:  # noqa: BLE001 — tracing must never break serving
+        logger.debug("span_attribute_failed")
+
+
 @contextmanager
 def track_request(endpoint: str, method: str = "GET"):
     """Context manager to track request metrics and timing.

@@ -56,6 +56,7 @@ class _AlwaysVerifyRouter(FacilitatorRouter):
         network: str,
         asset: str,
         amount_usd: float,
+        attested_required_atomic: int = 0,
     ) -> dict[str, Any]:
         return {"verified": True, "reason": "", "settlement": None, "facilitator": "test"}
 
@@ -94,6 +95,7 @@ class _AlwaysVerifySettleFail(FacilitatorRouter):
         network: str,
         asset: str,
         amount_usd: float,
+        attested_required_atomic: int = 0,
     ) -> dict[str, Any]:
         return {"verified": True, "reason": "", "settlement": None, "facilitator": "test"}
 

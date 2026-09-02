@@ -533,7 +533,7 @@ _STABLECOIN_ASSETS = {X402Asset.USDC.value, X402Asset.USDT.value, X402Asset.DAI.
 _oracle_cache: dict[tuple[str, str, str], tuple[float, float]] = {}
 
 
-def clear_price_cache() -> None:
+def clear_price_cache() -> None:  # test-only
     """Drop all cached oracle quotes (tests, provider toggles, re-probe)."""
     _oracle_cache.clear()
 
@@ -805,7 +805,7 @@ def resolve_asset_entry(network: str, asset: str) -> dict[str, Any] | None:
     return SUPPORTED_ASSETS.get(network_id, {}).get(asset.upper())
 
 
-def is_asset_supported(network: str, asset: str) -> bool:
+def is_asset_supported(network: str, asset: str) -> bool:  # test-only
     """Return True when (network, asset) is in the canonical acceptance table."""
     return resolve_asset_entry(network, asset) is not None
 
@@ -861,12 +861,6 @@ def _to_atomic(amount_usd: float, asset: str = X402_DEFAULT_ASSET) -> int:
     """Convert USD amount to atomic units for the given asset."""
     decimals = ASSET_DECIMALS.get(asset, 6)
     return int(amount_usd * (10**decimals))
-
-
-def _from_atomic(amount_atomic: int, asset: str = X402_DEFAULT_ASSET) -> float:
-    """Convert atomic units back to USD-normalized float."""
-    decimals = ASSET_DECIMALS.get(asset, 6)
-    return float(round(amount_atomic / (10**decimals), decimals))
 
 
 # ── Server attestation over the payment-required challenge ─────────────────
@@ -1207,6 +1201,47 @@ def verify_payment_required_attestation(
     }
 
 
+def attested_max_amount_required(
+    body: dict[str, Any],
+    network: str,
+    asset: str,
+) -> int:
+    """Extract the attested ``maxAmountRequired`` (atomic) for (network, asset).
+
+    Price binding (audit #7): the ``maxAmountRequired`` inside a VERIFIED
+    server attestation is the authoritative required amount for THAT payment —
+    it was signed at challenge-issuance time, so an honest payer who
+    authorized the quoted amount must not be re-priced against a live oracle
+    that moved in between. Callers MUST verify the body's attestation
+    (:func:`verify_payment_required_attestation`) BEFORE trusting the value
+    returned here; this helper performs no crypto of its own.
+
+    Returns the positive atomic amount of the accept matching the normalized
+    (network, asset) pair, or 0 when the body is unattested / unusable / no
+    accept matches (callers then fall back to the live-quote comparison).
+    """
+    if not isinstance(body, dict) or not isinstance(body.get("attestation"), dict):
+        return 0
+    network_id = normalize_network_id(str(network or ""))
+    asset_upper = str(asset or "").upper()
+    accepts = body.get("accepts")
+    if not isinstance(accepts, list):
+        return 0
+    for accept in accepts:
+        if not isinstance(accept, dict):
+            continue
+        if normalize_network_id(str(accept.get("network", ""))) != network_id:
+            continue
+        if str(accept.get("asset", "")).upper() != asset_upper:
+            continue
+        try:
+            value = int(str(accept.get("maxAmountRequired", "")))
+        except (ValueError, TypeError):
+            return 0
+        return value if value > 0 else 0
+    return 0
+
+
 def _encode_payment_required_body(body: dict[str, Any]) -> str:
     """Base64-encode the PaymentRequired body per x402 spec.
 
@@ -1221,17 +1256,12 @@ def _encode_payment_required_body(body: dict[str, Any]) -> str:
     return base64.b64encode(json.dumps(attested).encode()).decode()
 
 
-def _decode_payment_signature(header: str) -> dict[str, Any] | None:
+def _decode_payment_signature(header: str) -> dict[str, Any] | None:  # test-only
     """Decode the PAYMENT-SIGNATURE header per x402 spec."""
     try:
         return cast("dict[str, Any]", json.loads(base64.b64decode(header).decode()))
     except (ValueError, OSError):
         return None
-
-
-def _encode_payment_response(settlement: dict[str, Any]) -> str:
-    """Base64-encode the PaymentResponse (settlement receipt) per x402 spec."""
-    return base64.b64encode(json.dumps(settlement).encode()).decode()
 
 
 def _default_networks_for_asset(asset: str) -> list[str]:

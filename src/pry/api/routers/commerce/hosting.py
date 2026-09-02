@@ -70,6 +70,12 @@ class HostingConfirmRequest(BaseModel):
     )
 
 
+class HostingVerifyRequest(BaseModel):
+    """Verify the signup email for a hosting invoice."""
+
+    code: str = Field(..., description="The 6-char verification code from the email")
+
+
 def _resolve_user(bearer: str) -> str:
     """Resolve a Bearer API key to its owner user_id (401 on failure)."""
     from pry.core.api_keys_service import authenticate
@@ -148,6 +154,69 @@ async def hosting_signup_confirm(
     if not result["paid"]:
         return {"success": False, "data": result}
     return {"success": True, "data": result}
+
+
+@router.post(
+    "/v1/hosting/signup/{invoice_id}/verify",
+    summary="Verify the signup email for a hosting invoice",
+    description=(
+        "Confirms the signup email with the 6-char code sent at invoice "
+        "creation. Payment confirm is refused until the email is verified "
+        "(proof-of-ownership for the portal/receipt email). 400 on a wrong "
+        "code, 404 for an unknown invoice."
+    ),
+)
+async def hosting_signup_verify(
+    invoice_id: str,
+    payload: HostingVerifyRequest = Body(...),
+) -> dict[str, Any]:
+    """Mark a hosting invoice's signup email as verified."""
+    from pry.commerce.hosting import verify_hosting_email
+
+    try:
+        result = verify_hosting_email(invoice_id, payload.code)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if not result["verified"]:
+        return {"success": False, "data": result}
+    return {"success": True, "data": result}
+
+
+@router.get(
+    "/v1/hosting/verify/{invoice_id}",
+    summary="Email verification link target (human-friendly)",
+    description=(
+        "Verifies the signup email from the link in the verification email "
+        "and renders a simple confirmation page (humans click links from "
+        "mail clients). 404 for an unknown invoice."
+    ),
+    include_in_schema=False,
+)
+async def hosting_verify_link(invoice_id: str, code: str = Query("")) -> Response:
+    from pry.commerce.hosting import verify_hosting_email
+
+    try:
+        result = verify_hosting_email(invoice_id, code)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if result["verified"]:
+        body = (
+            "<h1>✅ Email verified</h1><p>Your email is verified — you can now "
+            "confirm your payment on the checkout page.</p>"
+        )
+    else:
+        body = (
+            "<h1>❌ Verification failed</h1><p>That verification code is not "
+            "valid for this invoice. Check the link in your email.</p>"
+        )
+    html_page = (
+        f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        f"<title>Pry — email verification</title></head>"
+        f'<body style="font-family:ui-sans-serif,system-ui,sans-serif;'
+        f"background:#0b0e14;color:#e6e9f0;display:flex;justify-content:center;"
+        f'padding:60px 16px"><div>{body}</div></body></html>'
+    )
+    return Response(content=html_page, media_type="text/html")
 
 
 @router.get(

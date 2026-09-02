@@ -202,6 +202,7 @@ class _FakeFacilitatorRouter:
         network: str,
         asset: str,
         amount_usd: float,
+        attested_required_atomic: int = 0,
     ) -> dict[str, object]:
         self.verify_calls.append(
             {
@@ -237,6 +238,7 @@ class _FakeFacilitatorRouter:
         network: str,
         asset: str,
         amount_usd: float,
+        attested_required_atomic: int = 0,
     ) -> dict[str, object]:
         self.settle_calls.append(
             {

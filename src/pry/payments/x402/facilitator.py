@@ -283,6 +283,7 @@ class FacilitatorRouter:
         network: str,
         asset: str,
         amount_usd: float,
+        attested_required_atomic: int = 0,
     ) -> dict[str, Any]:
         """Build the payment dict handed to SelfFacilitator/custom impls."""
         payment: dict[str, Any] = {
@@ -292,6 +293,10 @@ class FacilitatorRouter:
             "asset": asset,
             "amount_usd": amount_usd,
         }
+        if attested_required_atomic > 0:
+            # Price binding (audit #7): the attested challenge amount is the
+            # authoritative required amount for volatile-asset comparison.
+            payment["attested_required_atomic"] = int(attested_required_atomic)
         auth = self._pending_auths.get(payment_id)
         if auth:
             payment["authorization"] = auth
@@ -304,6 +309,7 @@ class FacilitatorRouter:
         network: str,
         asset: str,
         amount_usd: float,
+        attested_required_atomic: int = 0,
     ) -> dict[str, Any]:
         """Verify via a registered custom impl or the built-in SelfFacilitator.
 
@@ -317,7 +323,9 @@ class FacilitatorRouter:
         impl = self._impl_for(network)
         if impl is None:
             impl = self._get_self_facilitator()
-        payment = self._build_payment(payment_id, tx_hash, network, asset, amount_usd)
+        payment = self._build_payment(
+            payment_id, tx_hash, network, asset, amount_usd, attested_required_atomic
+        )
         result: VerifyResult = await impl.verify(payment)
         if result.verified:
             return {
@@ -404,10 +412,17 @@ class FacilitatorRouter:
         network: str,
         asset: str,
         amount_usd: float,
+        attested_required_atomic: int = 0,
     ) -> dict[str, Any]:
         """Verify a payment with the best available facilitator.
 
         Returns {"verified": bool, "reason": str, "settlement": dict|None}.
+
+        ``attested_required_atomic`` (price binding, audit #7): when > 0, the
+        attested challenge's SIGNED ``maxAmountRequired`` is passed through to
+        the self-hosted verifier as the authoritative required amount for
+        volatile-asset comparison (instead of a fresh live-oracle quote).
+        Ignored by external facilitators.
 
         EVM chains are verified via configured facilitators, with an
         EIP-7702 self-verify fallback. Solana verifies on-chain via the SPL
@@ -422,7 +437,9 @@ class FacilitatorRouter:
         # facilitator URLs (no Coinbase/CDP). Registered per-network impls
         # take precedence over the built-in SelfFacilitator.
         if self.self_hosted or self._impl_for(network) is not None:
-            return await self._verify_self_hosted(payment_id, tx_hash, network, asset, amount_usd)
+            return await self._verify_self_hosted(
+                payment_id, tx_hash, network, asset, amount_usd, attested_required_atomic
+            )
 
         payload = {
             "paymentId": payment_id,

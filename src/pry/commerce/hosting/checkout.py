@@ -25,6 +25,7 @@ from __future__ import annotations
 import html
 import json
 import logging
+import os
 import ssl
 from typing import Any
 
@@ -51,6 +52,8 @@ _PAGE_STYLE = """
   select{width:100%;background:#0b0e14;border:1px solid #2a3245;color:#e6e9f0;
          border-radius:8px;padding:10px;font-size:13px;margin:8px 0}
   a{color:#7aa2f7}
+  .banner{background:#3a2a12;border:1px solid #7a5a1e;color:#fbbf24;border-radius:8px;
+          padding:12px;font-size:13px;margin-bottom:16px}
 """
 
 
@@ -89,6 +92,16 @@ def render_checkout_page(invoice: dict[str, Any]) -> str:
     amount_atomic = html.escape(str(invoice.get("amount_atomic", "")))
     pay_to = html.escape(str(invoice.get("pay_to", "")))
     asset = html.escape(str(invoice.get("asset", "USDC")))
+    # Email-verification banner (audit item #4): shown while unverified —
+    # the QR stays visible (payment collection is never blocked); the gate
+    # applies at the confirm step, not the display.
+    verify_banner = (
+        ""
+        if invoice.get("email_verified")
+        else """<div class="banner">⚠️ Verify your email before confirming —
+click the verification link we sent to your inbox. Payment confirm is
+refused until the email is verified.</div>"""
+    )
     qr = _qr_svg(f"{_WALLET_LINKS.get(str(invoice.get('chain', '')), 'ethereum:')}{pay_to}")
     confirm_url = f"/v1/hosting/signup/{invoice_id}/confirm"
 
@@ -98,6 +111,7 @@ def render_checkout_page(invoice: dict[str, Any]) -> str:
 <title>Pry checkout — {plan} plan</title>
 <style>{_PAGE_STYLE}</style></head>
 <body><div class="card">
+{verify_banner}
 <h1>Pry Hosted — {plan} plan</h1>
 <div class="sub">Send exactly the amount below, then paste your transaction hash.
 Your instance provisions automatically on confirmation.</div>
@@ -149,6 +163,93 @@ async function verify() {{
 </script></body></html>"""
 
 
+# ── Email transport (shared by receipt + verification mail) ────────────────
+
+
+def mail_configured() -> bool:
+    """True when the SMTP relay credentials are present.
+
+    Mirrors :func:`send_hosting_receipt`'s backend: the fleet relay with the
+    biz@ identity, password from ``PRY_MAIL_PASSWORD``. When unconfigured,
+    signup exposes the verification code in the API response (dev fallback).
+    """
+    import os
+
+    return bool(os.getenv("PRY_MAIL_PASSWORD", ""))
+
+
+def _send_pry_mail(
+    *,
+    to_email: str,
+    subject: str,
+    body: str,
+    log_event: str,
+) -> dict[str, Any]:
+    """Send one email via the fleet SMTP relay. Never raises.
+
+    Shared transport for the hosting receipt + verification mail (same
+    pipeline, same identity). Failures are logged and returned.
+    """
+    import os
+    import smtplib
+    from email.message import EmailMessage
+    from email.utils import formatdate, make_msgid
+
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE  # loopback/tailscale SMTP hop
+        s = smtplib.SMTP("100.104.130.92", 587, timeout=15)
+        s.starttls(context=ctx)
+        s.login("biz@pryscraper.com", os.getenv("PRY_MAIL_PASSWORD", ""))
+        msg = EmailMessage()
+        msg["From"] = "Pry Business <biz@pryscraper.com>"
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg["Date"] = formatdate(localtime=True)
+        msg["Message-ID"] = make_msgid(domain="pryscraper.com")
+        msg.set_content(body)
+        s.send_message(msg)
+        s.quit()
+        logger.info(log_event, extra={"to": to_email})
+        return {"success": True}
+    except Exception as e:  # noqa: BLE001 — mail failure must not fail the flow
+        logger.warning(log_event + "_failed", extra={"to": to_email, "error": str(e)[:120]})
+        return {"success": False, "error": str(e)[:200]}
+
+
+def send_hosting_verification_email(*, to_email: str, invoice_id: str, code: str) -> dict[str, Any]:
+    """Email the signup verification link for a hosting invoice.
+
+    The link hits ``GET /v1/hosting/verify/{invoice_id}?code=...`` which
+    verifies and renders a confirmation page (humans click from mail
+    clients). Never raises — best-effort like the receipt.
+    """
+    base = os.getenv("PRY_PUBLIC_BASE_URL", "https://api.pryscraper.com").rstrip("/")
+    link = f"{base}/v1/hosting/verify/{invoice_id}?code={code}"
+    body = f"""Pry Hosted — verify your email
+
+Invoice: {invoice_id}
+
+Confirm this email address to activate your hosted-instance signup:
+  {link}
+
+Or enter this code on the checkout page: {code}
+
+If you did not request a Pry hosted instance, ignore this email —
+no payment has been taken and nothing will be provisioned.
+
+Support: support@pryscraper.com
+— Rug Munch Media LLC
+"""
+    return _send_pry_mail(
+        to_email=to_email,
+        subject=f"[Pry] Verify your email — hosting signup {invoice_id}",
+        body=body,
+        log_event="hosting_verification",
+    )
+
+
 # ── Receipt email ──────────────────────────────────────────────────────────
 
 
@@ -170,9 +271,6 @@ def send_hosting_receipt(
     customer can be re-sent manually).
     """
     import os
-    import smtplib
-    from email.message import EmailMessage
-    from email.utils import formatdate, make_msgid
 
     portal_url = (
         os.getenv("PRY_PUBLIC_BASE_URL", "https://api.pryscraper.com").rstrip("/")
@@ -195,24 +293,9 @@ Manage your instance, monitor usage and rotate API keys any time:
 Support: support@pryscraper.com
 — Rug Munch Media LLC
 """
-    try:
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE  # loopback/tailscale SMTP hop
-        s = smtplib.SMTP("100.104.130.92", 587, timeout=15)
-        s.starttls(context=ctx)
-        s.login("biz@pryscraper.com", os.getenv("PRY_MAIL_PASSWORD", ""))
-        msg = EmailMessage()
-        msg["From"] = "Pry Business <biz@pryscraper.com>"
-        msg["To"] = to_email
-        msg["Subject"] = f"[Pry] Receipt {invoice_id} — {plan_tier} plan (${amount_usd:.2f})"
-        msg["Date"] = formatdate(localtime=True)
-        msg["Message-ID"] = make_msgid(domain="pryscraper.com")
-        msg.set_content(body)
-        s.send_message(msg)
-        s.quit()
-        logger.info("hosting_receipt_sent", extra={"to": to_email, "invoice": invoice_id})
-        return {"success": True}
-    except Exception as e:  # noqa: BLE001 — receipt failure must not fail provisioning
-        logger.warning("hosting_receipt_failed", extra={"to": to_email, "error": str(e)[:120]})
-        return {"success": False, "error": str(e)[:200]}
+    return _send_pry_mail(
+        to_email=to_email,
+        subject=f"[Pry] Receipt {invoice_id} — {plan_tier} plan (${amount_usd:.2f})",
+        body=body,
+        log_event="hosting_receipt",
+    )

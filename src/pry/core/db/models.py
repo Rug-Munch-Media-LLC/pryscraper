@@ -454,6 +454,10 @@ if _HAS_SA:
         payment = Column(JSON, default=dict)  # tx_hash / network / asset / authorization
         x402_body = Column(JSON, default=dict)  # the 402 manifest body
         credited_reference = Column(String(256), default="")  # ledger idempotency ref
+        # Email verification (audit item #4): proof-of-ownership for the
+        # signup email before the payment confirm gates provisioning.
+        verification_code = Column(String(16), default="", nullable=False)
+        email_verified = Column(Boolean, default=False, nullable=False)
         created_at = Column(DateTime, default=_now, nullable=False)
         updated_at = Column(DateTime, default=_now, onupdate=_now, nullable=False)
         Index("ix_hosting_invoices_user_created", user_email, created_at.desc())
