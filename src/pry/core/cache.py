@@ -9,10 +9,13 @@ Prevents re-scraping the same URL within TTL window."""
 
 import hashlib
 import json
+import logging
 import time
 from collections import OrderedDict
 
 from pry.core.observability import CACHE_HITS
+
+logger = logging.getLogger(__name__)
 
 
 class ResponseCache:
@@ -21,11 +24,19 @@ class ResponseCache:
     Default TTL: 300 seconds (5 min) for pages, 3600 (1 hr) for API calls.
     """
 
+    # Max size of a single cached payload. Larger responses are skipped to
+    # avoid a single 5MB HTML page x 1000 entries ballooning memory.
+    _MAX_PAYLOAD_BYTES = 5 * 1024 * 1024  # 5MB
+    # Soft ceiling on total cached bytes. When exceeded, oldest entries are
+    # evicted (LRU) until the cache fits back under the limit.
+    _MAX_TOTAL_BYTES = 512 * 1024 * 1024  # 512MB
+
     def __init__(self, capacity: int = 500):
         self.capacity = capacity
         self._cache: OrderedDict = OrderedDict()
         self._hits = 0
         self._misses = 0
+        self._total_bytes = 0
 
     def _key(self, url: str, options: dict | None = None) -> str:
         """Generate cache key from URL + options."""
@@ -49,6 +60,7 @@ class ResponseCache:
                 return entry["data"]
             else:
                 del self._cache[key]
+                self._decrement_bytes(entry)
 
         self._misses += 1
         return None
@@ -56,13 +68,41 @@ class ResponseCache:
     def set(self, url: str, data: dict, options: dict | None = None, ttl: int = 300):
         """Cache a response with TTL in seconds."""
         key = self._key(url, options)
+
+        # Skip caching oversized payloads to bound memory usage.
+        payload_bytes = len(str(data).encode())
+        if payload_bytes > self._MAX_PAYLOAD_BYTES:
+            logger.debug(
+                "cache_skip_oversized",
+                extra={"url": url, "payload_bytes": payload_bytes},
+            )
+            return
+
         entry = {"data": data, "expires": time.time() + ttl, "cached_at": time.time()}
 
         # Evict oldest if at capacity
         if len(self._cache) >= self.capacity:
-            self._cache.popitem(last=False)
+            self._evict_oldest()
+
+        # Evict oldest until total bytes fit under the ceiling.
+        while self._total_bytes + payload_bytes > self._MAX_TOTAL_BYTES and self._cache:
+            self._evict_oldest()
 
         self._cache[key] = entry
+        self._total_bytes += payload_bytes
+
+    def _evict_oldest(self) -> None:
+        """Evict the least-recently-used entry and decrement byte accounting."""
+        if not self._cache:
+            return
+        _key, entry = self._cache.popitem(last=False)
+        self._decrement_bytes(entry)
+
+    def _decrement_bytes(self, entry: dict) -> None:
+        """Decrement total byte accounting for a removed entry."""
+        self._total_bytes -= len(str(entry["data"]).encode())
+        if self._total_bytes < 0:
+            self._total_bytes = 0
 
     def stats(self) -> dict:
         """Get cache hit/miss statistics."""
@@ -79,6 +119,7 @@ class ResponseCache:
         """Remove cached entry for a URL."""
         keys_to_remove = [k for k, v in self._cache.items() if v["data"].get("url") == url]
         for k in keys_to_remove:
+            self._decrement_bytes(self._cache[k])
             del self._cache[k]
 
     def clear(self):
@@ -86,3 +127,4 @@ class ResponseCache:
         self._cache.clear()
         self._hits = 0
         self._misses = 0
+        self._total_bytes = 0

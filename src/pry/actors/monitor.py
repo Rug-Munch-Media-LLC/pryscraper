@@ -373,6 +373,7 @@ async def list_monitors() -> list[dict[str, Any]]:
                 s.query(Monitor)
                 .filter(Monitor.active.is_(True))
                 .order_by(Monitor.created_at.desc())
+                .limit(500)
                 .all()
             )
             return [_monitor_to_dict(m) for m in monitors]

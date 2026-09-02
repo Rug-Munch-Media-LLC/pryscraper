@@ -71,9 +71,13 @@ def test_router_init(router: FacilitatorRouter):
 
 def test_router_contains_all_defaults(router: FacilitatorRouter):
     names = {f.name for f in router.facilitators}
-    for default in {"coinbase", "payai", "cloudflare"}:
-        # cloudflare is disabled by default but may be included if verify_url is set
-        assert default in names or default == "cloudflare"
+    # coinbase and payai are enabled by default and must be present.
+    assert "coinbase" in names
+    assert "payai" in names
+    # cloudflare is disabled by default (only included if verify_url is set),
+    # so it is NOT required — but if present it must be a real config.
+    if "cloudflare" in names:
+        assert any(f.name == "cloudflare" for f in router.facilitators)
 
 
 def test_router_sorted_by_priority(router: FacilitatorRouter):
@@ -238,8 +242,9 @@ async def test_settle_offline(router: FacilitatorRouter):
             asset="USDC",
             amount_usd=1.0,
         )
-        assert result is not None
-        assert result.get("success") is True
+        assert result["success"] is True
+        assert result["facilitator"] == "offline"
+        assert result["transaction"] == "0xabc"
 
 
 @pytest.mark.asyncio
@@ -253,7 +258,9 @@ async def test_settle_no_client_ip(router: FacilitatorRouter):
             asset="USDC",
             amount_usd=1.0,
         )
-        assert result is not None
+        assert result["success"] is True
+        assert result["facilitator"] == "offline"
+        assert result["payment_id"] == "pay_123"
 
 
 # ---------------------------------------------------------------------------
@@ -490,13 +497,16 @@ def test_impl_for_network_family_fallback(router: FacilitatorRouter):
 
 
 def test_impl_for_exact_match(router: FacilitatorRouter):
-    """Exact network match should take precedence."""
+    """Exact network match should take precedence over the family fallback."""
     exact = MagicMock()
     family = MagicMock()
-    router.register_facilitator("solana:mainnet", exact)
-    router.register_facilitator("solana", family)
-    result = router._impl_for("solana:mainnet")
-    assert result is exact or result is not None
+    # Register an exact CAIP-2 impl and a family impl. The family name "evm"
+    # does NOT normalize to the exact key, so the two registrations are
+    # distinct and _impl_for must prefer the exact match.
+    router.register_facilitator("eip155:8453", exact)
+    router.register_facilitator("evm", family)
+    result = router._impl_for("eip155:8453")
+    assert result is exact
 
 
 # ---------------------------------------------------------------------------
@@ -522,8 +532,11 @@ async def test_settle_via_external_facilitator(router: FacilitatorRouter):
             asset="USDC",
             amount_usd=1.0,
         )
-        # May fall through to offline if none succeed
-        assert result is not None
+        # The first healthy facilitator (coinbase) returns success, so the
+        # normalized receipt must reflect the on-chain tx and the facilitator.
+        assert result["success"] is True
+        assert result["transaction"] == "0xabc"
+        assert result["facilitator"] == "coinbase"
 
 
 @respx.mock
@@ -542,7 +555,11 @@ async def test_settle_external_http_error(router: FacilitatorRouter):
             asset="USDC",
             amount_usd=1.0,
         )
-        assert result is not None
+        # All external facilitators failed (HTTP 500) → EIP-7702 fallback
+        # settlement receipt for the EVM chain.
+        assert result["success"] is True
+        assert result["facilitator"] == "eip-7702"
+        assert result["transaction"] == "0xabc"
 
 
 # ---------------------------------------------------------------------------
@@ -563,7 +580,11 @@ async def test_settle_self_hosted(router: FacilitatorRouter):
             asset="USDC",
             amount_usd=1.0,
         )
-        assert result is not None
+        # SelfFacilitator has no RPC/key to broadcast, so the EVM settle falls
+        # through to the EIP-7702 settlement receipt.
+        assert result["success"] is True
+        assert result["facilitator"] == "eip-7702"
+        assert result["transaction"] == "0xabc"
 
 
 # ---------------------------------------------------------------------------
@@ -626,7 +647,7 @@ def test_readiness_self_hosted():
 @respx.mock
 @pytest.mark.asyncio
 async def test_settle_external_all_fail(router: FacilitatorRouter):
-    """When all external facilitators fail, offline mode kicks in."""
+    """When all external facilitators fail, the EIP-7702 fallback settles."""
     with patch("pry.payments.x402.facilitator.X402_OFFLINE_MODE", False):
         router.self_hosted = False
         for f in router.facilitators:
@@ -639,7 +660,10 @@ async def test_settle_external_all_fail(router: FacilitatorRouter):
             asset="USDC",
             amount_usd=1.0,
         )
-        assert result is not None
+        # All external facilitators unreachable → EIP-7702 settlement receipt.
+        assert result["success"] is True
+        assert result["facilitator"] == "eip-7702"
+        assert result["transaction"] == "0xabc"
 
 
 @respx.mock
@@ -658,7 +682,10 @@ async def test_settle_external_json_error(router: FacilitatorRouter):
             asset="USDC",
             amount_usd=1.0,
         )
-        assert result is not None
+        # All external facilitators returned non-JSON → EIP-7702 fallback.
+        assert result["success"] is True
+        assert result["facilitator"] == "eip-7702"
+        assert result["transaction"] == "0xabc"
 
 
 # ---------------------------------------------------------------------------
@@ -879,7 +906,10 @@ async def test_settle_self_hosted_without_impl(router: FacilitatorRouter):
             asset="USDC",
             amount_usd=1.0,
         )
-        assert result is not None
+        # SelfFacilitator can't broadcast (no RPC/key) → EIP-7702 fallback.
+        assert result["success"] is True
+        assert result["facilitator"] == "eip-7702"
+        assert result["transaction"] == "0xabc"
 
 
 # ---------------------------------------------------------------------------

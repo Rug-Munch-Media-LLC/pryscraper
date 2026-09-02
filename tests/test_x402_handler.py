@@ -55,18 +55,31 @@ def test_validate_client_amount_unknown_asset():
 
 def test_create_payment_request():
     req = create_payment_request("scrape", {"source": "test"})
-    assert "payment_id" in req or "wallet" in req
+    assert isinstance(req, dict)
+    assert "payment_id" in req
+    assert req["operation"] == "scrape"
+    assert req["asset"] == "USDC"
+    assert req["extra"] == {"source": "test"}
 
 
 def test_create_payment_request_unknown():
     req = create_payment_request("nonexistent", {})
-    assert req is not None
+    assert isinstance(req, dict)
+    assert "error" in req
+    assert "nonexistent" in req["error"]
 
 
 @pytest.mark.asyncio
 async def test_create_batch_payment():
     result = await create_batch_payment(["scrape", "monitor"])
-    assert "batch_id" in result or "error" in result
+    assert isinstance(result, dict)
+    assert "batch_id" in result
+    assert result["batch_id"].startswith("batch_")
+    # Both operations are valid, so the batch must carry a positive total and
+    # a per-operation breakdown covering exactly the requested ops.
+    assert result["total_usd"] > 0
+    assert {op["operation"] for op in result["operations"]} == {"scrape", "monitor"}
+    assert "payment_required" in result
 
 
 @pytest.mark.asyncio
@@ -84,7 +97,12 @@ async def test_verify_batch_payment():
 def test_require_payment_legacy():
     result = require_payment_legacy("scrape", {})
     assert isinstance(result, dict)
-    assert len(result) > 0  # Has some content regardless of format
+    # A valid operation must produce a full 402 response with the payment
+    # header and a spec-shaped body — not just "some content".
+    assert result["status_code"] == 402
+    assert result["headers"]["X-Payment-Required"] == "true"
+    assert result["headers"]["X-Payment-Options"] == "x402"
+    assert result["body"]["x402"]["operation"] == "scrape"
 
 
 # ── X402Handler ──

@@ -132,6 +132,8 @@ class EarningsTracker:
                         _models.LedgerEntry.reference.like("pack:%"),
                         _models.LedgerEntry.created_at >= cutoff,
                     )
+                    .order_by(_models.LedgerEntry.created_at.desc())
+                    .limit(1000)
                     .all()
                 )
                 for r in rows:

@@ -115,6 +115,13 @@ except ImportError:
     _has_graphql = False
 
 
+async def _get_shared_client() -> httpx.AsyncClient:
+    """Lazy import to avoid engine→api boundary violation (import-linter)."""
+    from pry.core.client import get_client
+
+    return await get_client()
+
+
 class UltimateScraper:
     """15-tier anti-detection scraper with automatic fallback.
 
@@ -585,10 +592,18 @@ class UltimateScraper:
         self, url: str, opts: dict[str, Any], proxy_url: str | None = None
     ) -> str | None:
         try:
-            async with httpx.AsyncClient(timeout=30, proxy=proxy_url) as c:
-                r = await safe_get(c, url, headers=self._build_headers(url))
-                if r.is_success:
-                    return r.text
+            # Proxy is a client-level httpx config (not a per-request param), so
+            # a dedicated client is required only when a proxy is in play. The
+            # common no-proxy path reuses the shared pooled client (get_client)
+            # so connections are kept alive across requests.
+            if proxy_url:
+                async with httpx.AsyncClient(timeout=30, proxy=proxy_url) as c:
+                    r = await safe_get(c, url, headers=self._build_headers(url))
+            else:
+                c = await _get_shared_client()
+                r = await safe_get(c, url, headers=self._build_headers(url), timeout=30)
+            if r.is_success:
+                return r.text
         except (httpx.HTTPError, httpx.RequestError) as e:
             logger.debug("direct_failed", extra={"error": str(e)[:50]})
         return None
@@ -598,6 +613,10 @@ class UltimateScraper:
     ) -> str | None:
         """Fetch via the configured premium residential/datacenter proxy."""
         try:
+            # This tier exists solely to route through the premium proxy, and
+            # proxy is a client-level httpx config (not a per-request param).
+            # A dedicated client is therefore required here — the shared pooled
+            # client cannot carry a per-request proxy.
             async with httpx.AsyncClient(timeout=45, proxy=proxy_url) as c:
                 r = await safe_get(c, url, headers=self._build_headers(url))
                 if r.is_success:
@@ -612,14 +631,23 @@ class UltimateScraper:
         if not _has_cloudscraper:
             return None
         try:
+            import asyncio
+
             import cloudscraper
 
-            scraper = cloudscraper.create_scraper(
-                browser={"browser": "chrome", "platform": "windows", "mobile": False}
-            )
-            resp = scraper.get(url, timeout=30, headers={"User-Agent": self._rotate_ua()})
-            if resp.status_code == 200:
-                return resp.text
+            def _do_fetch() -> str | None:
+                # cloudscraper's API is synchronous/blocking (create_scraper +
+                # get). It runs inside asyncio.to_thread so it does not block
+                # the event loop — same pattern as _tier_undetected.
+                scraper = cloudscraper.create_scraper(
+                    browser={"browser": "chrome", "platform": "windows", "mobile": False}
+                )
+                resp = scraper.get(url, timeout=30, headers={"User-Agent": self._rotate_ua()})
+                if resp.status_code == 200:
+                    return resp.text
+                return None
+
+            return await asyncio.to_thread(_do_fetch)
         except Exception as e:
             logger.debug("cloudscraper_failed", extra={"error": str(e)[:50]})
         return None
@@ -633,13 +661,13 @@ class UltimateScraper:
             return None
         try:
             payload = {"cmd": "request.get", "url": url, "maxTimeout": 60000}
-            async with httpx.AsyncClient(timeout=60) as c:
-                r = await c.post(settings.flaresolverr_url, json=payload)
-                if r.is_success:
-                    data = r.json()
-                    solution = data.get("solution", {})
-                    if solution.get("status") == 200:
-                        return solution["response"]
+            c = await _get_shared_client()
+            r = await c.post(settings.flaresolverr_url, json=payload, timeout=60)
+            if r.is_success:
+                data = r.json()
+                solution = data.get("solution", {})
+                if solution.get("status") == 200:
+                    return solution["response"]
         except (httpx.HTTPError, httpx.RequestError) as e:
             logger.debug("flaresolverr_failed", extra={"error": str(e)[:50]})
         return None
@@ -776,10 +804,17 @@ class UltimateScraper:
             headers["User-Agent"] = (
                 "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
             )
-            async with httpx.AsyncClient(timeout=30, proxy=proxy_url) as c:
-                r = await safe_get(c, url, headers=headers)
-                if r.is_success:
-                    return r.text
+            # Proxy is client-level httpx config; only a dedicated client is
+            # needed when a proxy is set. The no-proxy path reuses the shared
+            # pooled client (get_client).
+            if proxy_url:
+                async with httpx.AsyncClient(timeout=30, proxy=proxy_url) as c:
+                    r = await safe_get(c, url, headers=headers)
+            else:
+                c = await _get_shared_client()
+                r = await safe_get(c, url, headers=headers, timeout=30)
+            if r.is_success:
+                return r.text
         except (httpx.HTTPError, httpx.RequestError) as e:
             logger.debug("googlebot_failed", extra={"error": str(e)[:50]})
         return None
@@ -795,16 +830,16 @@ class UltimateScraper:
             # in the CDX call and breaks the /web/{ts}id_/ path entirely).
             target = quote(url, safe="")
             cdx_url = f"https://web.archive.org/cdx/search/cdx?url={target}&output=json&limit=1&fl=timestamp,original"
-            async with httpx.AsyncClient(timeout=15) as c:
-                r = await c.get(cdx_url, headers={"User-Agent": "Mozilla/5.0"})
-                if r.is_success:
-                    data = r.json()
-                    if len(data) > 1:
-                        timestamp = data[1][0]
-                        archive_url = f"https://web.archive.org/web/{timestamp}id_/{target}"
-                        ar = await safe_get(c, archive_url, timeout=30)
-                        if ar.is_success:
-                            return ar.text
+            c = await _get_shared_client()
+            r = await c.get(cdx_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+            if r.is_success:
+                data = r.json()
+                if len(data) > 1:
+                    timestamp = data[1][0]
+                    archive_url = f"https://web.archive.org/web/{timestamp}id_/{target}"
+                    ar = await safe_get(c, archive_url, timeout=30)
+                    if ar.is_success:
+                        return ar.text
         except (httpx.HTTPError, httpx.RequestError) as e:
             logger.debug("archive_failed", extra={"error": str(e)[:50]})
         return None
@@ -817,10 +852,10 @@ class UltimateScraper:
             # query string would be parsed as extra params of the cache URL.
             target = quote(url, safe="")
             cache_url = f"https://webcache.googleusercontent.com/search?q=cache:{target}"
-            async with httpx.AsyncClient(timeout=15) as c:
-                r = await safe_get(c, cache_url, headers={"User-Agent": "Mozilla/5.0"})
-                if r.is_success:
-                    return r.text
+            c = await _get_shared_client()
+            r = await safe_get(c, cache_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+            if r.is_success:
+                return r.text
         except (httpx.HTTPError, httpx.RequestError) as e:
             logger.debug("google_cache_failed", extra={"error": str(e)[:50]})
         return None
