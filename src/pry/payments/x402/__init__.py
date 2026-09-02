@@ -200,6 +200,23 @@ if X402_OFFLINE_MODE:
         "x402_offline_mode_active: ALL payment verification is BYPASSED — "
         "dev-only setting. DO NOT run with PRY_X402_OFFLINE=true in production."
     )
+
+# Production guard (quality audit #4): PRY_DATABASE_URL is the production
+# indicator (dev defaults to embedded SQLite — see pry.core.db.session). If
+# offline mode is somehow active while a database is configured, auto-disable
+# it — a stale DEBUG=true in prod must never auto-verify all payments.
+# Escape hatch: PRY_X402_OFFLINE_FORCE=true keeps offline mode on (for
+# testing against a configured DB) but still logs a warning.
+X402_OFFLINE_FORCE: bool = _env_flag("PRY_X402_OFFLINE_FORCE")
+if X402_OFFLINE_MODE and bool(os.getenv("PRY_DATABASE_URL")):
+    if X402_OFFLINE_FORCE:
+        logger.warning(
+            "X402_OFFLINE_MODE forced ON in production (PRY_DATABASE_URL is set) "
+            "via PRY_X402_OFFLINE_FORCE=true — ALL payment verification is BYPASSED."
+        )
+    else:
+        X402_OFFLINE_MODE = False
+        logger.critical("X402_OFFLINE_MODE auto-disabled in production (PRY_DATABASE_URL is set)")
 X402_TIMEOUT_SECONDS: float = float(os.getenv("PRY_X402_TIMEOUT", "15"))
 
 # How long a verified payment_id stays valid for replay (access reuse).
@@ -402,6 +419,7 @@ __all__ = [
     "X402_DIR",
     "X402_FACILITATOR_URL",
     "X402_NETWORK_WALLETS",
+    "X402_OFFLINE_FORCE",
     "X402_OFFLINE_MODE",
     "X402_ORACLE_SOURCE",
     "X402_ORACLE_TTL_SECONDS",

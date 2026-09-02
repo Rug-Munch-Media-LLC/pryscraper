@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT
 <!-- Copyright (c) 2026 Rug Munch Media LLC -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <title>Pry Scraper</title>
@@ -46,19 +46,19 @@
   </div>
   <div class="content">
     <div class="tabs">
-      <button class="tab active" data-tab="scrape">Scrape</button>
-      <button class="tab" data-tab="extract">Extract</button>
-      <button class="tab" data-tab="settings">Settings</button>
+      <button type="button" class="tab active" data-tab="scrape">Scrape</button>
+      <button type="button" class="tab" data-tab="extract">Extract</button>
+      <button type="button" class="tab" data-tab="settings">Settings</button>
     </div>
 
     <!-- Scrape Tab -->
     <div class="tab-content" id="tab-scrape">
       <div class="section">
-        <button class="btn btn-primary" id="scrape-current">Scrape This Page</button>
+        <button type="button" class="btn btn-primary" id="scrape-current">Scrape This Page</button>
         <div class="destinations">
-          <button class="dest-btn" data-dest="clipboard">📋 Clipboard</button>
-          <button class="dest-btn" data-dest="slack">💬 Slack</button>
-          <button class="dest-btn" data-dest="email">📧 Email</button>
+          <button type="button" class="dest-btn" data-dest="clipboard">📋 Clipboard</button>
+          <button type="button" class="dest-btn" data-dest="slack">💬 Slack</button>
+          <button type="button" class="dest-btn" data-dest="email">📧 Email</button>
         </div>
       </div>
       <div class="status" id="scrape-status"></div>
@@ -68,7 +68,7 @@
     <!-- Extract Tab -->
     <div class="tab-content" id="tab-extract" style="display:none;">
       <div class="field">
-        <label>What to extract</label>
+        <label for="extract-type">What to extract</label>
         <select id="extract-type">
           <option value="prices">Prices</option>
           <option value="products">Products</option>
@@ -79,10 +79,10 @@
         </select>
       </div>
       <div class="field" id="custom-selector-field" style="display:none;">
-        <label>CSS Selector</label>
+        <label for="custom-selector">CSS Selector</label>
         <input type="text" id="custom-selector" placeholder=".product-price, h2.title" />
       </div>
-      <button class="btn btn-primary" id="extract-current">Extract from Page</button>
+      <button type="button" class="btn btn-primary" id="extract-current">Extract from Page</button>
       <div class="status" id="extract-status"></div>
       <div id="extract-result" class="result-box" style="display:none;"></div>
     </div>
@@ -90,27 +90,27 @@
     <!-- Settings Tab -->
     <div class="tab-content" id="tab-settings" style="display:none;">
       <div class="field">
-        <label>Pry Server URL</label>
+        <label for="pry-server-url">Pry Server URL</label>
         <input type="url" id="pry-server-url" placeholder="http://localhost:8002" />
       </div>
       <div class="field">
-        <label>API Key (optional)</label>
+        <label for="pry-api-key">API Key (optional)</label>
         <input type="password" id="pry-api-key" placeholder="Leave blank if no auth" />
       </div>
       <div class="field">
-        <label>Default Destination</label>
+        <label for="default-destination">Default Destination</label>
         <select id="default-destination">
           <option value="clipboard">Clipboard</option>
           <option value="slack">Slack</option>
           <option value="email">Email</option>
         </select>
       </div>
-      <button class="btn btn-secondary" id="save-settings">Save Settings</button>
+      <button type="button" class="btn btn-secondary" id="save-settings">Save Settings</button>
       <div class="status" id="settings-status"></div>
     </div>
   </div>
   <div class="footer">
-    Powered by <a href="#" id="pry-version">Pry v3.0</a>
+    Powered by <span id="pry-version">Pry v3.0</span>
   </div>
   <script src="popup.js"></script>
 </body>

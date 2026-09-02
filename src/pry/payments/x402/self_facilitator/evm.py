@@ -1,38 +1,4 @@
-"""Pry — self-hosted x402 facilitator (no external facilitator / Coinbase CDP).
-
-Implements EVM ``exact``-scheme verify + settle entirely on Pry infra:
-
-- **verify**: ecrecover the EIP-3009 ``transferWithAuthorization`` signer
-  locally (via ``eth_keys``), then validate amount >= price, recipient == the
-  configured ``payTo`` wallet, validAfter/validBefore window, chain id and
-  nonce. Replays are rejected by a bounded in-memory nonce set with optional
-  JSON persistence (``X402_DIR/self_facilitator_nonces.json``).
-- **settle**: sign + broadcast the authorization (or a plain
-  ``transferFrom`` when the payer pre-approved) to the configured RPC via
-  httpx, returning the tx hash (or ``None`` when not settlable / chain
-  unavailable / missing key). Settlement is hardened: idempotent
-  (an already-settled payment returns the existing tx hash, never
-  double-submits), tracked in bounded ``pending_settlements`` /
-  ``_settled_txs`` structures, and failures are classified into a
-  :class:`SettleErrorCode` taxonomy (insufficient gas, nonce conflict, RPC
-  timeout, wrong chain, …) via :meth:`SelfFacilitator.settle_with_details`.
-
-Crypto: ``eth-keys`` (ecrecover + digest signing) and ``eth-account``
-(transaction signing / RLP). Keccak backend is ``eth-hash[pycryptodome]``.
-These are new [project] dependencies added in pyproject.toml — [REVIEW] lead
-reconciles. Nothing here talks to Coinbase / CDP / any external facilitator.
-
-The EIP-712 domain defaults to Circle USDC (name "USD Coin", version "2").
-Operators using a different EIP-3009 token MUST verify the token's
-domain name/version (``domain_name`` / ``domain_version`` args or
-``PRY_X402_EIP712_NAME`` / ``PRY_X402_EIP712_VERSION`` env). [REVIEW]
-
-This module is NOT wired into the ASGI middleware yet (the middleware is
-out of scope for this change): to use self-facilitation end-to-end, either
-call ``SelfFacilitator`` directly or attach the authorization to the router
-via ``FacilitatorRouter.submit_authorization(payment_id, authorization)``.
-Middleware-level plumbing is a follow-up. [REVIEW]
-"""
+"""Pry — the ``SelfFacilitator``: local EVM EIP-3009 verify + settle."""
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
@@ -41,507 +7,65 @@ Middleware-level plumbing is a follow-up. [REVIEW]
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import time
-from collections import OrderedDict, deque
-from dataclasses import dataclass
-from enum import StrEnum
-from pathlib import Path
-from typing import Any
+from collections import OrderedDict
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from eth_account import Account
 from eth_keys import keys
-from eth_keys.datatypes import PrivateKey, Signature
-from eth_utils import keccak, to_canonical_address, to_checksum_address
+from eth_keys.datatypes import PrivateKey
+from eth_utils import to_checksum_address
 
 from pry.payments.x402 import (
-    X402_DEBUG_MODE,
     X402_DEFAULT_ASSET,
-    X402_DIR,
-    X402_PLACEHOLDER_WALLETS,
     X402_SELF_FACILITATOR_KEY,
     X402_SELF_FACILITATOR_RPC,
     X402_TIMEOUT_SECONDS,
-    X402_WALLET,
 )
-from pry.payments.x402.scheme import (
-    X402Scheme,
-    get_asset_usd_price,
-    normalize_network_id,
-    resolve_asset_entry,
+from pry.payments.x402.scheme import normalize_network_id
+
+from .crypto import (
+    _TRANSFER_FROM_SELECTOR,
+    _TRANSFER_WITH_AUTH_SELECTOR,
+    _encode_address,
+    _encode_bytes32,
+    _encode_nonce,
+    _encode_uint,
+    _nonce_hex,
+    _parse_signature,
+    _to_int,
+    build_transfer_with_authorization_digest,
 )
+from .networks import _allow_testnets, _chain_id_for, is_testnet_network
+from .nonces import NonceStore
+from .response import SettleErrorCode, SettleOutcome, VerifyResult, _classify_settle_error
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# CAIP-2 / legacy network name -> EVM chain id (used for the EIP-712 domain
-# and the signed transaction's EIP-155 v). eip155:NNNN ids not listed here
-# are parsed directly from the CAIP-2 suffix.
-CHAIN_ID_BY_NETWORK: dict[str, int] = {
-    "eip155:8453": 8453,
-    "base": 8453,
-    "eip155:1": 1,
-    "ethereum": 1,
-    "eip155:42161": 42161,
-    "arbitrum": 42161,
-    "eip155:10": 10,
-    "optimism": 10,
-    "eip155:137": 137,
-    "polygon": 137,
-    "eip155:56": 56,
-    "bnb": 56,
-    "eip155:43114": 43114,
-    "avalanche": 43114,
-    "eip155:84532": 84532,
-    "base-sepolia": 84532,
-}
 
-# ── Testnet rejection (fix #2) ────────────────────────────────────────────────
-# Free-faucet testnet USDC must NEVER verify as a real payment on the live
-# path. Any network whose normalized id or chain id lands in these sets is
-# rejected unless PRY_X402_ALLOW_TESTNETS is explicitly enabled (and gated by
-# DEBUG — same convention as X402_OFFLINE_MODE). Mirrors the codebase's
-# existing "dev-only bypass requires DEBUG" rule so production never accepts
-# a testnet.
-TESTNET_NETWORK_IDS: frozenset[str] = frozenset(
-    {
-        "base-sepolia",
-        "eip155:84532",
-        "sepolia",
-        "eip155:11155111",
-        "eip155:11155420",  # optimistic sepolia
-        "eip155:80002",  # polygon amoy
-        "eip155:421614",  # arbitrum sepolia
-        "eip155:97",  # bsc testnet
-        "eip155:43113",  # avalanche fuji
-        "eip155:17000",  # holesky
-    }
-)
-TESTNET_CHAIN_IDS: frozenset[int] = frozenset(
-    {
-        84532,
-        11155111,
-        11155420,
-        80002,
-        421614,
-        97,
-        43113,
-        17000,
-    }
-)
+def _pkg() -> Any:
+    """The self_facilitator package module, resolved lazily at call time.
 
-
-def _allow_testnets() -> bool:
-    """Whether testnet chains are permitted on the live verify/settle path.
-
-    Dev/test only — requires BOTH PRY_X402_ALLOW_TESTNETS=true AND a debug
-    flag. Production (no debug flag) always rejects testnets.
+    Wallet config and the scheme seams (``X402_WALLET``,
+    ``X402_PLACEHOLDER_WALLETS``, ``resolve_asset_entry``,
+    ``get_asset_usd_price``) are read through the package so tests that patch
+    ``pry.payments.x402.self_facilitator.<name>`` keep working after the
+    module→package split.
     """
-    return (
-        os.getenv("PRY_X402_ALLOW_TESTNETS", "false").lower() in ("1", "true", "yes")
-        and X402_DEBUG_MODE
-    )
+    import pry.payments.x402.self_facilitator as pkg
 
+    return pkg
 
-def is_testnet_network(network: str) -> bool:
-    """True when ``network`` (legacy name or CAIP-2 id) is a known testnet.
-
-    Checks the normalized id and the resolved chain id so both ``base-sepolia``
-    and ``eip155:84532`` are caught. Unknown networks are NOT treated as
-    testnets by this check alone (callers additionally require the network to
-    be a supported EVM chain before verifying).
-    """
-    if not network:
-        return False
-    network_id = normalize_network_id(network)
-    if network_id in TESTNET_NETWORK_IDS:
-        return True
-    chain_id = _chain_id_for(network)
-    return chain_id is not None and chain_id in TESTNET_CHAIN_IDS
-
-
-# EIP-712 typehashes (EIP-3009 / EIP-712 domain).
-_EIP712_DOMAIN_TYPEHASH = keccak(
-    text="EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-)
-_TRANSFER_WITH_AUTH_TYPEHASH = keccak(
-    text="TransferWithAuthorization("
-    "address from,address to,uint256 value,uint256 validAfter,"
-    "uint256 validBefore,bytes32 nonce)"
-)
-
-# ERC-20 selectors used to build settlement calldata.
-_TRANSFER_WITH_AUTH_SELECTOR = keccak(
-    text="transferWithAuthorization("
-    "address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)"
-)[:4]
-_TRANSFER_FROM_SELECTOR = keccak(text="transferFrom(address,address,uint256)")[:4]
 
 # Fixed gas limit fallback for ERC-20 settlement if eth_estimateGas is
 # unavailable (USDC transferWithAuthorization costs ~65k; 100k is safe).
 _DEFAULT_TX_GAS = 100_000
-
-# Placeholder wallets never accepted as a real payTo. When no operator wallet
-# is configured (empty input or a legacy placeholder), verify/settle fail
-# closed instead of silently using a fake address.
-_PLACEHOLDER_WALLET = "pry-default-wallet"
-
-
-@dataclass
-class VerifyResult:
-    """Outcome of a self-hosted x402 payment verification.
-
-    Attributes:
-        verified: True when the payment satisfies the EIP-3009 checks.
-        reason: Human-readable failure reason (empty when verified).
-        signer: Recovered/expected signer address (checksummed).
-        amount_atomic: Authorized value in atomic units.
-        asset: Asset symbol (e.g. "USDC").
-        network: Normalized CAIP-2 network id.
-        scheme: Payment scheme ("exact").
-    """
-
-    verified: bool
-    reason: str = ""
-    signer: str = ""
-    amount_atomic: int = 0
-    asset: str = ""
-    network: str = ""
-    scheme: str = X402Scheme.EXACT.value
-
-
-class SettleErrorCode(StrEnum):
-    """Taxonomy of self-hosted settlement failures.
-
-    Classified so callers and operators can react precisely: retry on
-    ``rpc_timeout``, fund the facilitator key on ``insufficient_gas``, and
-    treat ``nonce_conflict`` as a re-submission hazard (never blindly
-    re-broadcast — idempotency already guards this).
-    """
-
-    NOT_SETTLABLE = "not_settlable"
-    WRONG_CHAIN = "wrong_chain"
-    INSUFFICIENT_GAS = "insufficient_gas"
-    NONCE_CONFLICT = "nonce_conflict"
-    RPC_TIMEOUT = "rpc_timeout"
-    RPC_ERROR = "rpc_error"
-
-
-@dataclass
-class SettleOutcome:
-    """Result of a self-hosted settlement attempt with error taxonomy.
-
-    ``success`` True + ``tx_hash`` set means the authorization was broadcast
-    (or had already been settled — ``idempotent`` True, never double-submitted).
-    On failure ``error_code`` is one of :class:`SettleErrorCode` and
-    ``error_detail`` carries the underlying message.
-    """
-
-    success: bool
-    tx_hash: str | None = None
-    error_code: str = ""
-    error_detail: str = ""
-    idempotent: bool = False
-
-
-# RPC error-message markers used to classify settlement failures.
-_RPC_INSUFFICIENT_GAS_MARKERS = (
-    "insufficient funds",
-    "insufficient balance",
-    "out of gas",
-    "gas required exceeds allowance",
-)
-_RPC_NONCE_MARKERS = (
-    "nonce too low",
-    "nonce too high",
-    "replacement transaction underpriced",
-    "same nonce",
-)
-
-
-def _classify_settle_error(exc: BaseException) -> tuple[str, str]:
-    """Map an RPC/httpx failure to a :class:`SettleErrorCode` + detail."""
-    detail = str(exc)
-    lowered = detail.lower()
-    if isinstance(exc, httpx.TimeoutException):
-        return SettleErrorCode.RPC_TIMEOUT.value, detail
-    if any(marker in lowered for marker in _RPC_INSUFFICIENT_GAS_MARKERS):
-        return SettleErrorCode.INSUFFICIENT_GAS.value, detail
-    if any(marker in lowered for marker in _RPC_NONCE_MARKERS):
-        return SettleErrorCode.NONCE_CONFLICT.value, detail
-    return SettleErrorCode.RPC_ERROR.value, detail
-
-
-# ── ABI encoding helpers (minimal EIP-712 subset) ────────────────────────────
-
-
-def _encode_address(addr: str) -> bytes:
-    return b"\x00" * 12 + to_canonical_address(addr)
-
-
-def _encode_uint(value: int) -> bytes:
-    return value.to_bytes(32, "big")
-
-
-def _encode_bytes32(value: bytes) -> bytes:
-    if len(value) < 32:
-        return value.rjust(32, b"\x00")
-    return value[-32:]
-
-
-def _to_int(value: Any) -> int:
-    """Parse an int from int / decimal str / 0x-hex str (EVM fields)."""
-    if isinstance(value, bool):
-        return int(value)
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str):
-        s = value.strip()
-        if s.startswith(("0x", "0X")):
-            return int(s, 16)
-        return int(s, 10)
-    raise ValueError(f"cannot parse {value!r} as integer")
-
-
-def _encode_nonce(nonce: Any) -> bytes:
-    """Normalize an EIP-3009 nonce (bytes32) to 32 bytes."""
-    if isinstance(nonce, bytes):
-        return _encode_bytes32(nonce)
-    if isinstance(nonce, int):
-        return nonce.to_bytes(32, "big")
-    value = str(nonce or "")
-    if value.startswith(("0x", "0X")):
-        raw = bytes.fromhex(value[2:])
-    else:
-        raw = bytes.fromhex(value) if value else b"\x00"
-    return _encode_bytes32(raw)
-
-
-def _nonce_hex(nonce: Any) -> str:
-    """Canonical lowercase hex string for a nonce (replay key component)."""
-    return _encode_nonce(nonce).hex()
-
-
-# ── EIP-712 / EIP-3009 digest ────────────────────────────────────────────────
-
-
-def domain_separator(
-    name: str,
-    version: str,
-    chain_id: int,
-    verifying_contract: str,
-) -> bytes:
-    """Compute the EIP-712 domain separator for an EIP-3009 token."""
-    return keccak(
-        _EIP712_DOMAIN_TYPEHASH
-        + keccak(text=name)
-        + keccak(text=version)
-        + _encode_uint(chain_id)
-        + _encode_address(verifying_contract)
-    )
-
-
-def transfer_with_authorization_struct_hash(
-    *,
-    from_address: str,
-    to_address: str,
-    value: int,
-    valid_after: int,
-    valid_before: int,
-    nonce: Any,
-) -> bytes:
-    """Compute the EIP-712 struct hash for ``TransferWithAuthorization``."""
-    return keccak(
-        _TRANSFER_WITH_AUTH_TYPEHASH
-        + _encode_address(from_address)
-        + _encode_address(to_address)
-        + _encode_uint(value)
-        + _encode_uint(valid_after)
-        + _encode_uint(valid_before)
-        + _encode_nonce(nonce)
-    )
-
-
-def build_transfer_with_authorization_digest(
-    *,
-    from_address: str,
-    to_address: str,
-    value: int,
-    valid_after: int,
-    valid_before: int,
-    nonce: Any,
-    chain_id: int,
-    token_address: str,
-    name: str = "USD Coin",
-    version: str = "2",
-) -> bytes:
-    """Compute the EIP-712 signed digest for an EIP-3009 authorization.
-
-    The digest is what the payer signs: ``keccak("\x19\x01" || domain || struct)``
-    per EIP-712 / EIP-3009.
-    """
-    domain = domain_separator(name, version, chain_id, token_address)
-    struct = transfer_with_authorization_struct_hash(
-        from_address=from_address,
-        to_address=to_address,
-        value=value,
-        valid_after=valid_after,
-        valid_before=valid_before,
-        nonce=nonce,
-    )
-    return keccak(b"\x19\x01" + domain + struct)
-
-
-# ── Signature helpers ────────────────────────────────────────────────────────
-
-
-def _signature_from_bytes(r: bytes, s: bytes, v: int) -> Signature | None:
-    """Build an eth_keys Signature, normalizing v (27/28 -> 0/1).
-
-    eth-keys 0.7 stores r/s as ints and requires v in {0, 1}.
-    """
-    if len(r) != 32 or len(s) != 32:
-        return None
-    v_norm = int(v)
-    if v_norm in (27, 28):
-        v_norm -= 27
-    if v_norm not in (0, 1):
-        return None
-    return Signature(vrs=(v_norm, int.from_bytes(r, "big"), int.from_bytes(s, "big")))
-
-
-def _parse_signature(auth: dict[str, Any]) -> Signature | None:
-    """Parse an EIP-3009 signature from ``signature`` (65-byte hex/bytes) or v/r/s.
-
-    r/s may be hex strings, ints, or bytes; v may be 0/1 or 27/28.
-    Odd-length hex (top nibble 0, e.g. ``hex()`` output) is left-padded.
-    """
-    signature = auth.get("signature")
-    if signature:
-        if isinstance(signature, (bytes, bytearray)):
-            raw = bytes(signature)
-        else:
-            try:
-                raw = bytes.fromhex(str(signature).removeprefix("0x"))
-            except ValueError:
-                return None
-        if len(raw) != 65:
-            return None
-        r, s, v = raw[:32], raw[32:64], int(raw[64])
-        return _signature_from_bytes(r, s, v)
-    r_value = auth.get("r")
-    s_value = auth.get("s")
-    if r_value is None or s_value is None:
-        return None
-    try:
-        r = r_value.to_bytes(32, "big") if isinstance(r_value, int) else _hex_to_bytes(str(r_value))
-        s = s_value.to_bytes(32, "big") if isinstance(s_value, int) else _hex_to_bytes(str(s_value))
-        v = int(auth.get("v", 27))
-    except (ValueError, OverflowError):
-        return None
-    return _signature_from_bytes(r, s, v)
-
-
-def _hex_to_bytes(value: str) -> bytes:
-    """Parse a hex string to bytes, left-padding odd-length input."""
-    s = value.removeprefix("0x")
-    if len(s) % 2:
-        s = "0" + s
-    return bytes.fromhex(s)
-
-
-def _chain_id_for(network: str) -> int | None:
-    """Resolve the EVM chain id for a legacy name or CAIP-2 network id."""
-    network_id = normalize_network_id(network)
-    if network_id in CHAIN_ID_BY_NETWORK:
-        return CHAIN_ID_BY_NETWORK[network_id]
-    if network_id.startswith("eip155:"):
-        try:
-            return int(network_id.split(":", 1)[1])
-        except ValueError:
-            return None
-    return None
-
-
-# ── Replay protection ────────────────────────────────────────────────────────
-
-
-class NonceStore:
-    """Bounded set of used EIP-3009 nonces with optional JSON persistence.
-
-    Replay protection is keyed by ``chain_id:token:nonce`` (a nonce is only
-    unique per token contract). The store is bounded (oldest entries are
-    evicted past ``max_size``) and persisted to ``path`` as JSON so used
-    nonces survive restarts.
-    """
-
-    def __init__(self, path: Path | str | None = None, max_size: int = 10_000) -> None:
-        self._path = Path(path) if path else None
-        self._max_size = max(int(max_size), 1)
-        self._used: set[str] = set()
-        self._order: deque[str] = deque()
-        self._load()
-
-    def _load(self) -> None:
-        if self._path is None or not self._path.exists():
-            return
-        try:
-            data = json.loads(self._path.read_text())
-        except (json.JSONDecodeError, OSError):
-            return
-        nonces = data.get("nonces") if isinstance(data, dict) else data
-        if not isinstance(nonces, list):
-            return
-        for nonce in nonces:
-            if isinstance(nonce, str) and nonce not in self._used:
-                self._used.add(nonce)
-                self._order.append(nonce)
-                self._trim()
-
-    def contains(self, nonce_key: str) -> bool:
-        return nonce_key in self._used
-
-    def mark_used(self, nonce_key: str) -> bool:
-        """Record a used nonce key. Returns False when it was already used."""
-        if nonce_key in self._used:
-            return False
-        self._used.add(nonce_key)
-        self._order.append(nonce_key)
-        self._trim()
-        self._persist()
-        return True
-
-    def _trim(self) -> None:
-        while len(self._order) > self._max_size:
-            oldest = self._order.popleft()
-            self._used.discard(oldest)
-
-    def _persist(self) -> None:
-        if self._path is None:
-            return
-        try:
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(
-                json.dumps(
-                    {"nonces": sorted(self._used), "max_size": self._max_size},
-                    sort_keys=True,
-                )
-            )
-        except OSError as e:
-            logger.warning("x402_nonce_persist_failed", extra={"error": str(e)})
-
-    def clear(self) -> None:
-        self._used.clear()
-        self._order.clear()
-
-    @property
-    def count(self) -> int:
-        return len(self._used)
-
-
-# ── The facilitator ──────────────────────────────────────────────────────────
 
 
 class SelfFacilitator:
@@ -580,14 +104,14 @@ class SelfFacilitator:
         max_settled: int = 10_000,
         max_pending: int = 10_000,
     ) -> None:
-        self.pay_to = self._normalize_address(pay_to or X402_WALLET)
+        self.pay_to = self._normalize_address(pay_to or _pkg().X402_WALLET)
         self.facilitator_key = facilitator_key or X402_SELF_FACILITATOR_KEY
         self.rpc_url = rpc_url or X402_SELF_FACILITATOR_RPC
         self.domain_name = domain_name or os.getenv("PRY_X402_EIP712_NAME", "USD Coin")
         self.domain_version = domain_version or os.getenv("PRY_X402_EIP712_VERSION", "2")
         self.timeout_seconds = timeout_seconds
         self.nonces = NonceStore(
-            path=nonce_path or X402_DIR / "self_facilitator_nonces.json",
+            path=nonce_path or _pkg().X402_DIR / "self_facilitator_nonces.json",
             max_size=max_nonces,
         )
         self._transport = transport
@@ -619,7 +143,7 @@ class SelfFacilitator:
             return ""
         network = normalize_network_id(str(payment.get("network") or ""))
         asset = str(payment.get("asset") or X402_DEFAULT_ASSET).upper()
-        entry = resolve_asset_entry(network, asset)
+        entry = _pkg().resolve_asset_entry(network, asset)
         chain_id = _chain_id_for(network) or 0
         token = str(entry["contract"]).lower() if entry else ""
         return f"nonce:{chain_id}:{token}:{_nonce_hex(auth.get('nonce'))}"
@@ -718,7 +242,7 @@ class SelfFacilitator:
                 network=network,
             )
 
-        entry = resolve_asset_entry(network, asset)
+        entry = _pkg().resolve_asset_entry(network, asset)
         if entry is None:
             return VerifyResult(
                 False,
@@ -744,7 +268,7 @@ class SelfFacilitator:
                 network=network,
             )
 
-        if self.pay_to in X402_PLACEHOLDER_WALLETS:
+        if self.pay_to in _pkg().X402_PLACEHOLDER_WALLETS:
             return VerifyResult(
                 False, "server wallet (payTo) not configured", asset=asset, network=network
             )
@@ -833,7 +357,7 @@ class SelfFacilitator:
         if attested_atomic > 0:
             required_atomic = attested_atomic
         else:
-            quote = await get_asset_usd_price(asset, network)
+            quote = await _pkg().get_asset_usd_price(asset, network)
             if not quote.usd or quote.usd <= 0:
                 return VerifyResult(
                     False, f"no USD price available for {asset}", asset=asset, network=network
@@ -970,7 +494,7 @@ class SelfFacilitator:
                 error_detail=f"testnet {network!r} rejected on live settle path",
             )
 
-        entry = resolve_asset_entry(network, asset)
+        entry = _pkg().resolve_asset_entry(network, asset)
         if entry is None:
             return SettleOutcome(
                 False,
@@ -1018,7 +542,7 @@ class SelfFacilitator:
                 error_detail="no authorization and payment not pre-approved",
             )
 
-        if self.pay_to in X402_PLACEHOLDER_WALLETS:
+        if self.pay_to in _pkg().X402_PLACEHOLDER_WALLETS:
             return SettleOutcome(
                 False,
                 error_code=SettleErrorCode.NOT_SETTLABLE.value,
