@@ -5,6 +5,7 @@
 # Licensed under MIT.
 """Tests for API helpers and auth."""
 
+from collections.abc import Generator
 from unittest.mock import patch
 
 import pytest
@@ -15,8 +16,14 @@ from pry.core.settings import settings
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(app)
+def client() -> Generator[TestClient, None, None]:
+    # Use TestClient as a context manager so the app's lifespan (and the
+    # anyio portal it runs on) is properly torn down. Returning a bare
+    # TestClient leaks a portal bound to the current event loop; when that
+    # loop is closed by pytest-asyncio after an async test, subsequent
+    # TestClient teardowns fail with "Event loop is closed".
+    with TestClient(app) as c:
+        yield c
 
 
 def test_get_or_key_from_env(monkeypatch) -> None:

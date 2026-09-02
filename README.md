@@ -311,8 +311,8 @@ paid reliability backstop, so MCP scrapes run at near-zero cost.
   - `deepseek` — **paid** reliability backstop, always LAST.
 - **Activation:** a provider is only registered (and thus reachable) if its API key
   resolves. Each key can be supplied as `PRY_<NAME>_API_KEY`, the standard env var
-  (e.g. `NVIDIA_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY`), or a gopass
-  secret at `pry/<name>` (see `settings.py` → `_apply_secrets_backend`). A missing
+  (e.g. `NVIDIA_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY`), or via
+  your secrets manager (see `settings.py` → `_apply_secrets_backend`). A missing
   key just drops that slot from the live chain — the rest still work.
 - **Overriding:** set `PRY_LLM_PROVIDER_ORDER` to any subset/order, e.g.
   `nvidia,groq,deepseek` to skip weaker free tiers, or `deepseek` alone for a
@@ -410,7 +410,7 @@ and cloud-hosting signups — invoices settle to them:
 **Env schema** (resolved in `src/pry/payments/x402/__init__.py`):
 
 - `PRY_X402_WALLET` — canonical EVM payee, shared by every `eip155:*` network.
-  Resolution: gopass `x402_wallet` → gopass `evm_treasury_address` →
+  Resolution: secrets manager `x402_wallet` → `evm_treasury_address` →
   `PRY_X402_WALLET` → `PRY_EVM_TREASURY_ADDRESS`. Per-network overrides:
   `PRY_X402_WALLET_BASE` / `_ETHEREUM` / `_ARBITRUM` / `_OPTIMISM` / `_POLYGON`.
 - `PRY_X402_WALLET_SOLANA` — Solana base58 (44 chars). Defaults `""`.

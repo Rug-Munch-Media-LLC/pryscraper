@@ -127,23 +127,23 @@ class TestResolveOperation:
 
 class TestRuntimeGate:
     def test_free_route_passes_through(self) -> None:
-        client = TestClient(_make_app(), raise_server_exceptions=False)
-        r = client.get("/health")
-        assert r.status_code == 200
-        assert r.json() == {"ok": True}
+        with TestClient(_make_app(), raise_server_exceptions=False) as client:
+            r = client.get("/health")
+            assert r.status_code == 200
+            assert r.json() == {"ok": True}
 
     def test_paid_route_without_payment_is_402(self) -> None:
-        client = TestClient(_make_app(), raise_server_exceptions=False)
-        r = client.get("/v1/scrape")
-        assert r.status_code == 402
-        assert "payment-required" in {k.lower() for k, _ in r.headers.items()}
+        with TestClient(_make_app(), raise_server_exceptions=False) as client:
+            r = client.get("/v1/scrape")
+            assert r.status_code == 402
+            assert "payment-required" in {k.lower() for k, _ in r.headers.items()}
 
     def test_wildcard_free_route_reaches_app(self) -> None:
         """Regression: '/mcp/messages/*' was dead config under exact matching."""
-        client = TestClient(_make_app(), raise_server_exceptions=False)
-        r = client.get("/mcp/messages/session-123")
-        assert r.status_code == 200
-        assert r.json() == {"ok": True}
+        with TestClient(_make_app(), raise_server_exceptions=False) as client:
+            r = client.get("/mcp/messages/session-123")
+            assert r.status_code == 200
+            assert r.json() == {"ok": True}
 
     def test_missing_pricing_fails_closed_500(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """THE money-leak regression test: paid prefix + missing pricing entry
@@ -152,15 +152,15 @@ class TestRuntimeGate:
         # Patch the AUTHORITATIVE table (config module) — classification reads
         # X402_PRICING through that namespace since the E41 module split.
         monkeypatch.setattr(x402_middleware.config, "X402_PRICING", reduced)
-        client = TestClient(_make_app(), raise_server_exceptions=False)
-        r = client.get("/v1/scrape")
-        assert r.status_code == 500
-        assert r.json()["error"] == "payment_gate_misconfigured"
+        with TestClient(_make_app(), raise_server_exceptions=False) as client:
+            r = client.get("/v1/scrape")
+            assert r.status_code == 500
+            assert r.json()["error"] == "payment_gate_misconfigured"
 
     def test_options_preflight_never_gated(self) -> None:
-        client = TestClient(_make_app(), raise_server_exceptions=False)
-        r = client.options("/v1/scrape")
-        assert r.status_code != 402
+        with TestClient(_make_app(), raise_server_exceptions=False) as client:
+            r = client.options("/v1/scrape")
+            assert r.status_code != 402
 
 
 # ── Startup audit ────────────────────────────────────────────────────────────
@@ -289,9 +289,10 @@ class TestKeylessX402Flow:
         app.add_middleware(PryHttpMiddleware)
         app.add_middleware(X402Middleware)  # outermost
         c = TestClient(app, raise_server_exceptions=False)
-        r = c.post("/v1/scrape", json={"url": "https://example.com"})
-        assert r.status_code == 402, f"expected 402 challenge, got {r.status_code}"
-        assert "payment-required" in {k.lower() for k in r.headers}
+        with c:
+            r = c.post("/v1/scrape", json={"url": "https://example.com"})
+            assert r.status_code == 402, f"expected 402 challenge, got {r.status_code}"
+            assert "payment-required" in {k.lower() for k in r.headers}
 
     def test_pricing_and_catalog_are_keyless(self) -> None:
         from fastapi import FastAPI
@@ -304,6 +305,7 @@ class TestKeylessX402Flow:
         app.include_router(x402_router)
         app.add_middleware(PryHttpMiddleware)
         c = TestClient(app)
-        for path in ("/v1/x402/pricing", "/v1/x402/catalog"):
-            r = c.get(path)
-            assert r.status_code == 200, f"{path} must be keyless-discoverable"
+        with c:
+            for path in ("/v1/x402/pricing", "/v1/x402/catalog"):
+                r = c.get(path)
+                assert r.status_code == 200, f"{path} must be keyless-discoverable"

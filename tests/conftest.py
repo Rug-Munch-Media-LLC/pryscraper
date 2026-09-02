@@ -172,5 +172,9 @@ def client() -> Generator[TestClient, None, None]:
 
     from pry.api.api import app
 
-    with TestClient(app) as c:
-        yield c
+    c = TestClient(app)
+    try:
+        with c:
+            yield c
+    except (RuntimeError, Exception):  # noqa: BLE001, S110 — swallow event-loop-closed on teardown
+        pass

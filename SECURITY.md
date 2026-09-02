@@ -59,6 +59,18 @@
 - `safety check` weekly (CI)
 - Renovate bot for auto-PR updates
 
+## Supported Versions
+
+Only the latest `main` branch is supported with security updates. Older
+releases and tags are not patched; users must upgrade to the current `main`
+(or the latest tagged release) to receive fixes.
+
+| Version | Supported |
+|---------|-----------|
+| latest `main` | ✅ |
+| previous tagged release | ⚠️ best-effort, 30-day window |
+| older releases | ❌ |
+
 ## Vulnerability Disclosure
 Email: security@pryscraper.com (PGP key available on request)
 Response within 24 hours.

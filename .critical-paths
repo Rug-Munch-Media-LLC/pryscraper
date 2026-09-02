@@ -1,8 +1,33 @@
 # AI Test Oracle — critical paths (see standards/docs/AI-TEST-ORACLE-POLICY.md)
 # Staged TEST files matching these prefixes trigger the independent-oracle
 # advisory in the canonical lefthook config.
+# Coverage: parser/extractor/quality engines, API surface, contract tests,
+# auth, payments (x402), scraping endpoints, MCP tools, and DB migrations.
 tests/test_parser
 tests/test_extractor
 tests/test_quality
 tests/test_api
 tests/contract
+# auth
+tests/test_jwt_auth
+tests/test_routers_auth
+tests/test_auth_connector
+tests/test_portal_auth
+tests/test_shopify_oauth
+# payments (x402)
+tests/test_x402
+tests/test_crypto_payments
+tests/test_billing
+tests/test_api_keys_billing
+tests/test_settlement_webhook
+# scraping endpoints
+tests/test_api_scraping
+tests/test_routers_scraping_api
+tests/test_scraper
+tests/test_ultimate_scraper
+# MCP tools
+tests/test_mcp
+tests/test_api_mcp
+tests/test_pry_mcp
+# db migrations
+tests/test_db_migrations
