@@ -98,11 +98,32 @@ class X402Handler:
         self.settlements_file = (
             Path(settlements_file) if settlements_file else X402_DIR / "settlements.jsonl"
         )
+        # Audit item #2: Postgres is the source of truth when the DB is
+        # reachable; the JSONL files remain as an audit-only trail. Adoption
+        # rule: explicit ledger files (tests) → file mode; a configured
+        # PRY_DATABASE_URL + reachable DB (production) → DB mode; otherwise
+        # the legacy file path (dev default).
+        from pry.payments.x402.ledger_store import available as _ledger_available
+
+        self._use_db = (
+            payments_file is None
+            and settlements_file is None
+            and bool(os.environ.get("PRY_DATABASE_URL"))
+            and _ledger_available()
+        )
         self._load_payments()
         self._load_settlements()
 
     def _load_payments(self) -> None:
         self.payments: list[dict[str, Any]] = []
+        if self._use_db:
+            try:
+                from pry.payments.x402.ledger_store import get_payments
+
+                self.payments = get_payments()
+                return
+            except Exception as e:  # noqa: BLE001 — degrade to file mode
+                logger.warning("x402_ledger_db_read_failed", extra={"error": str(e)[:160]})
         if self.payments_file.exists():
             try:
                 for line in self.payments_file.read_text().splitlines():
@@ -112,13 +133,24 @@ class X402Handler:
                 pass
 
     def _record_payment(self, payment: dict[str, Any]) -> None:
-        """Persist payment record to local JSONL audit log."""
+        """Persist a payment record: DB (source of truth) + JSONL (audit trail).
+
+        DB is authoritative when reachable; the file append is best-effort
+        and never blocks the payment flow.
+        """
+        if self._use_db:
+            try:
+                from pry.payments.x402.ledger_store import record_payment
+
+                record_payment(payment)
+            except Exception as e:  # noqa: BLE001 — DB write failure degrades to file
+                logger.warning("x402_payment_db_record_failed", extra={"error": str(e)[:160]})
         try:
             with open(self.payments_file, "a") as f:
                 f.write(json.dumps(payment) + "\n")
-            self.payments.append(payment)
         except OSError as e:
             logger.warning("x402_payment_record_failed", extra={"error": str(e)})
+        self.payments.append(payment)
 
     def refresh(self) -> None:
         """Reload payment records from the audit file.
@@ -130,6 +162,21 @@ class X402Handler:
         self._load_payments()
 
     def _record_settlement(self, settlement: dict[str, Any]) -> None:
+        """Persist a settlement: DB (source of truth) + JSONL (audit trail).
+
+        The DB insert is idempotent by the UNIQUE settlement key — a
+        concurrent duplicate returns the existing receipt instead of writing
+        a second row. Callers index the success path themselves.
+        """
+        if self._use_db:
+            try:
+                from pry.payments.x402.ledger_store import record_settlement
+
+                key = self._settlement_key(settlement)
+                if key:
+                    record_settlement(settlement, key)
+            except Exception as e:  # noqa: BLE001 — degrade to file-only
+                logger.warning("x402_settlement_db_record_failed", extra={"error": str(e)[:160]})
         try:
             with open(self.settlements_file, "a") as f:
                 f.write(json.dumps(settlement) + "\n")
@@ -137,15 +184,26 @@ class X402Handler:
             logger.warning("x402_settlement_record_failed", extra={"error": str(e)})
 
     def _load_settlements(self) -> None:
-        """Rehydrate the settled-tx idempotency index from the audit log.
+        """Rehydrate the settled-tx idempotency index.
 
-        Keys are ``tx:{network}:{tx_hash}`` (the on-chain payment is globally
-        unique); only *successful* settlements are indexed so a failed attempt
-        never blocks a retry. Indexing on load lets a fresh ``X402Handler`` per
-        request (e.g. the /v1/x402/pay route) see settles made by other
-        instances and refuse to double-settle the same tx.
+        DB-first when available (authoritative across processes); the JSONL
+        audit trail is the fallback. Keys are ``tx:{network}:{tx_hash}`` (the
+        on-chain payment is globally unique); only *successful* settlements
+        are indexed so a failed attempt never blocks a retry.
         """
         self._settled_txs: dict[str, dict[str, Any]] = {}
+        if self._use_db:
+            try:
+                from pry.payments.x402.ledger_store import get_settlements
+
+                for rec in get_settlements():
+                    if rec.get("success") is True:
+                        key = self._settlement_key(rec)
+                        if key:
+                            self._settled_txs.setdefault(key, rec)
+                return
+            except Exception as e:  # noqa: BLE001 — degrade to file mode
+                logger.warning("x402_settlement_db_read_failed", extra={"error": str(e)[:160]})
         if not self.settlements_file.exists():
             return
         try:
@@ -347,6 +405,19 @@ class X402Handler:
         key = self._settlement_key(
             {"payment_id": payment_id, "tx_hash": tx_hash, "network": network, "asset": asset}
         )
+        # DB-first idempotency: authoritative across processes AND hosts (the
+        # in-memory index only sees this process's settles).
+        if key and self._use_db:
+            try:
+                from pry.payments.x402.ledger_store import settlement_by_key
+
+                cached = settlement_by_key(key)
+                if cached is not None and cached.get("success") is True:
+                    self._settled_txs.setdefault(key, cached)
+                    logger.info("x402_settle_idempotent", extra={"settle_key": key})
+                    return cached
+            except Exception as e:  # noqa: BLE001 — fall through to memory
+                logger.warning("x402_settle_db_idempotency_failed", extra={"error": str(e)[:160]})
         if key and key in self._settled_txs:
             logger.info("x402_settle_idempotent", extra={"settle_key": key})
             return self._settled_txs[key]
