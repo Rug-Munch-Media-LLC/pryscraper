@@ -1,0 +1,25 @@
+# PryScraper pre-push override — FAST pushes, CI is the real gate.
+# The canonical standards/lefthook.yml pre-push runs 13 tools (pyright 49s,
+# test 55s, bandit 20s, grype 20s, vulture, interrogate, semgrep, pip-audit,
+# deptry, trufflehog) totaling 155+ seconds per push. Most are advisory (|| true)
+# but still execute and block the push. CI runs all 21 jobs post-push — that's
+# the blocking gate. Pre-push should be <10 seconds: secret detection only.
+#
+# This override REPLACES the pre-push section from standards/lefthook.yml.
+# Lefthook merges .lefthook.local.yml automatically.
+
+pre-push:
+  parallel: true
+  commands:
+    # -- Secret detection (CRITICAL, fast) --------------------
+    gitleaks-full:
+      run: |
+        if [ -f .gitleaks.toml ]; then
+          gitleaks detect --source . --no-git --config .gitleaks.toml -v
+        elif [ -f ../standards/.gitleaks.toml ]; then
+          gitleaks detect --source . --no-git --config ../standards/.gitleaks.toml -v
+        fi
+
+    # -- Methodology leak detection (CRITICAL, fast) -----------
+    methodology-leak:
+      run: bash scripts/pre-commit-methodology-check.sh
