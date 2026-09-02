@@ -459,7 +459,7 @@ async def test_tier_playwright_missing_dep(scraper: UltimateScraper):
 async def test_tier_playwright_oserror(scraper: UltimateScraper):
     with (
         patch("pry.engine.ultimate_scraper._has_playwright", True),
-        patch("pry.engine.ultimate_scraper.async_playwright", side_effect=OSError("no playwright")),
+        patch("pry.engine.browser_pool.async_playwright", side_effect=OSError("no playwright")),
     ):
         result = await scraper._tier_playwright("http://example.com", {})
         assert result is None

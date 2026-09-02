@@ -26,6 +26,11 @@ import httpx
 
 from pry.core.errors import InvalidRequestError
 from pry.core.observability import SCRAPE_LATENCY, span
+from pry.engine.browser_pool import (  # noqa: F401  (re-exported for backward compat)
+    BrowserPool,
+    close_browsers,
+    get_browser_pool,
+)
 from pry.engine.resilience import registry
 from pry.engine.retry import RetryConfig, async_retry
 from pry.engine.url_guard import safe_get, validate_url
@@ -66,10 +71,6 @@ _has_cloudscraper = importlib.util.find_spec("cloudscraper") is not None
 _has_undetected = importlib.util.find_spec("undetected_chromedriver") is not None
 _has_playwright = importlib.util.find_spec("playwright") is not None
 _has_tor = importlib.util.find_spec("aiohttp_socks") is not None
-
-async_playwright: Any = None
-if _has_playwright:
-    from playwright.async_api import async_playwright
 
 TLSScraper: Any = None
 _has_tls = True
@@ -150,109 +151,12 @@ async def _get_shared_client() -> httpx.AsyncClient:
     return await get_client()
 
 
-class BrowserPool:
-    """Lazy singleton browser pool for the browser-based fetch tiers.
-
-    The performance audit found that ``_tier_playwright``, ``_tier_undetected``
-    and ``_tier_camoufox`` launched a fresh browser per request (1-3s overhead
-    each). This pool launches each browser type ONCE on first use and reuses it
-    across requests. Every request gets an isolated context (cookies / storage)
-    that is closed after use — never the browser itself — so the expensive
-    launch cost is paid a single time per process.
-    """
-
-    def __init__(self) -> None:
-        self._playwright: Any = None
-        self._playwright_browser: Any = None
-        self._uc_driver: Any = None
-        self._uc_lock = threading.Lock()
-        self._closed = False
-
-    # -- Playwright -----------------------------------------------------
-    async def get_playwright_browser(self) -> Any:
-        """Return the shared Playwright Chromium browser, launching it once."""
-        if self._closed:
-            raise RuntimeError("browser pool is closed")
-        if self._playwright_browser is None:
-            self._playwright = await async_playwright().start()
-            self._playwright_browser = await self._playwright.chromium.launch(
-                headless=True,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-web-security",
-                ],
-            )
-        return self._playwright_browser
-
-    # -- undetected-chromedriver (synchronous) --------------------------
-    def get_uc_driver(self) -> Any:
-        """Return the shared undetected-chromedriver, launching it once.
-
-        Runs inside ``asyncio.to_thread`` (the driver API is synchronous). A
-        threading lock serializes access because a single driver can only
-        navigate one page at a time.
-        """
-        if self._closed:
-            raise RuntimeError("browser pool is closed")
-        with self._uc_lock:
-            if self._uc_driver is None:
-                import undetected_chromedriver as uc
-
-                self._uc_driver = uc.Chrome(headless=True, use_subprocess=True)
-            return self._uc_driver
-
-    async def close(self) -> None:
-        """Close all pooled browsers (graceful shutdown)."""
-        if self._closed:
-            return
-        self._closed = True
-        if self._playwright_browser is not None:
-            try:
-                await self._playwright_browser.close()
-            except Exception:
-                logger.debug("pool_playwright_close_failed", exc_info=True)
-            self._playwright_browser = None
-        if self._playwright is not None:
-            try:
-                await self._playwright.stop()
-            except Exception:
-                logger.debug("pool_playwright_stop_failed", exc_info=True)
-            self._playwright = None
-        if self._uc_driver is not None:
-            try:
-                self._uc_driver.quit()
-            except Exception:
-                logger.debug("pool_uc_quit_failed", exc_info=True)
-            self._uc_driver = None
-
-    def reset(self) -> None:
-        """Drop all cached browser references without closing them.
-
-        Used by tests to guarantee isolation between cases (a module-level
-        singleton would otherwise leak a mocked driver across tests).
-        """
-        self._playwright = None
-        self._playwright_browser = None
-        self._uc_driver = None
-        self._closed = False
-
-
-_browser_pool = BrowserPool()
-
-
-async def close_browsers() -> None:
-    """Close all pooled browsers. Call during graceful shutdown."""
-    await _browser_pool.close()
-    # Camoufox maintains its own module-level pool inside the integration.
-    if _has_camoufox:
-        try:
-            from pry.engine.camoufox_integration import close_browsers as _close_camoufox
-
-            await _close_camoufox()
-        except Exception:
-            logger.debug("camoufox_pool_close_failed", exc_info=True)
+# Process-level singleton browser pool. The pool itself lives in
+# ``pry.engine.browser_pool``; this module re-exports the singleton instance
+# (``_browser_pool``) and the ``close_browsers()`` shutdown hook for backward
+# compatibility with callers/tests that import them from here. All
+# ``UltimateScraper`` instances share this one pool via ``get_browser_pool()``.
+_browser_pool = get_browser_pool()
 
 
 class UltimateScraper:
@@ -830,7 +734,7 @@ class UltimateScraper:
                 # a fresh Chrome per request. The pool serializes access with a
                 # lock because a single driver can only navigate one page at a
                 # time.
-                driver = _browser_pool.get_uc_driver()
+                driver = get_browser_pool().get_uc_driver()
                 try:
                     driver.get(url)
                     # Note: time.sleep is used inside a sync thread-pool task because
@@ -863,7 +767,7 @@ class UltimateScraper:
             # Reuse the pooled browser (launched once) instead of launching a
             # fresh Chromium per request. Each request gets an isolated context
             # that is closed after use — the browser itself stays alive.
-            browser = await _browser_pool.get_playwright_browser()
+            browser = await get_browser_pool().get_playwright_browser()
             context = await browser.new_context(
                 viewport={
                     "width": _RNG.choice([1920, 1366, 1440]),

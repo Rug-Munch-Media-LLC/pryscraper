@@ -60,7 +60,7 @@ def _mock_playwright() -> tuple[MagicMock, MagicMock, MagicMock]:
 async def test_pool_returns_a_browser(pool: BrowserPool) -> None:
     """First call launches and returns a Playwright browser."""
     ap, chromium, browser = _mock_playwright()
-    with patch("pry.engine.ultimate_scraper.async_playwright", ap):
+    with patch("pry.engine.browser_pool.async_playwright", ap):
         result = await pool.get_playwright_browser()
 
     assert result is browser
@@ -72,7 +72,7 @@ async def test_pool_returns_a_browser(pool: BrowserPool) -> None:
 async def test_pool_returns_same_browser_on_second_call(pool: BrowserPool) -> None:
     """Singleton: the second call reuses the same browser (no relaunch)."""
     ap, chromium, browser = _mock_playwright()
-    with patch("pry.engine.ultimate_scraper.async_playwright", ap):
+    with patch("pry.engine.browser_pool.async_playwright", ap):
         first = await pool.get_playwright_browser()
         second = await pool.get_playwright_browser()
 
@@ -87,7 +87,7 @@ async def test_pool_returns_same_browser_on_second_call(pool: BrowserPool) -> No
 async def test_close_browsers_closes_the_browser(pool: BrowserPool) -> None:
     """close() closes the pooled Playwright browser and stops playwright."""
     ap, _, browser = _mock_playwright()
-    with patch("pry.engine.ultimate_scraper.async_playwright", ap):
+    with patch("pry.engine.browser_pool.async_playwright", ap):
         await pool.get_playwright_browser()
         await pool.close()
 
@@ -106,7 +106,7 @@ async def test_pool_does_not_reopen_after_close(pool: BrowserPool) -> None:
     only way to reuse it. This test pins the ACTUAL behaviour.
     """
     ap, _, _ = _mock_playwright()
-    with patch("pry.engine.ultimate_scraper.async_playwright", ap):
+    with patch("pry.engine.browser_pool.async_playwright", ap):
         await pool.get_playwright_browser()
         await pool.close()
 
@@ -118,7 +118,7 @@ async def test_pool_does_not_reopen_after_close(pool: BrowserPool) -> None:
 async def test_reset_allows_new_browser(pool: BrowserPool) -> None:
     """reset() drops cached refs so a fresh browser is launched next call."""
     ap, _, _ = _mock_playwright()
-    with patch("pry.engine.ultimate_scraper.async_playwright", ap):
+    with patch("pry.engine.browser_pool.async_playwright", ap):
         first = await pool.get_playwright_browser()
         pool.reset()
 
@@ -133,7 +133,7 @@ async def test_reset_allows_new_browser(pool: BrowserPool) -> None:
         ap2 = MagicMock()
         ap2.return_value = pw2
 
-        with patch("pry.engine.ultimate_scraper.async_playwright", ap2):
+        with patch("pry.engine.browser_pool.async_playwright", ap2):
             second = await pool.get_playwright_browser()
 
     assert first is not second
@@ -155,7 +155,7 @@ async def test_pool_raises_when_closed(pool: BrowserPool) -> None:
 async def test_close_is_idempotent(pool: BrowserPool) -> None:
     """Calling close() twice is safe and does not double-close."""
     ap, _, browser = _mock_playwright()
-    with patch("pry.engine.ultimate_scraper.async_playwright", ap):
+    with patch("pry.engine.browser_pool.async_playwright", ap):
         await pool.get_playwright_browser()
         await pool.close()
         await pool.close()
@@ -235,7 +235,7 @@ async def test_contexts_do_not_share_cookies(pool: BrowserPool) -> None:
     ctx_b.cookies = MagicMock(return_value={})
     browser.new_context = AsyncMock(side_effect=[ctx_a, ctx_b])
 
-    with patch("pry.engine.ultimate_scraper.async_playwright", ap):
+    with patch("pry.engine.browser_pool.async_playwright", ap):
         browser_handle = await pool.get_playwright_browser()
         context_a = await browser_handle.new_context()
         context_b = await browser_handle.new_context()
@@ -256,7 +256,7 @@ async def test_contexts_do_not_share_cookies(pool: BrowserPool) -> None:
 async def test_close_browsers_closes_module_pool() -> None:
     """close_browsers() closes the module-level singleton pool."""
     ap, _, browser = _mock_playwright()
-    with patch("pry.engine.ultimate_scraper.async_playwright", ap):
+    with patch("pry.engine.browser_pool.async_playwright", ap):
         from pry.engine.ultimate_scraper import _browser_pool
 
         _browser_pool.reset()

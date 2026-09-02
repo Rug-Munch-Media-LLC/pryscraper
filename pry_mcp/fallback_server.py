@@ -27,289 +27,29 @@ from pry_mcp.notifications import (
     _attach_mcp_logging,
     set_active_mcp_server,
 )
+from pry_mcp.tool_registry import (
+    ToolRegistry,
+    _hot_tool_cache,
+    _ToolNotHandled,
+    combined_tool_executor,
+    register_standard_executors,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Coroutine
 
 logger = logging.getLogger(__name__)
 
-# Hot MCP tools get a dispatch-level 10s memoization on top of any module
-# cache (e.g. sports_data.odds._http_cache uses the same 10s TTL). Bots that
-# poll the same tool+arguments sub-minute skip the whole guarded-import chain
-# and get an O(1) read, mirroring the "10s cache path" used by the data
-# packages. Entries expire lazily on read; the dict is bounded by
-# _HOT_TOOL_CACHE_MAX entries (LRU by insertion order).
-_HOT_TOOL_CACHE_MAX = 128
-_hot_tool_cache: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
-_HOT_TOOLS_10S = frozenset({"pry_odds", "pry_serp", "pry_live_odds", "pry_scores", "pry_alerts"})
-
-
-def _hot_cache_get(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
-    """Return a fresh (<=10s) cached MCP result for a hot tool, else None."""
-    import time
-
-    key = (name, json.dumps(arguments, sort_keys=True, default=str))
-    entry = _hot_tool_cache.get(key)
-    if entry is None:
-        return None
-    cached_at, result = entry
-    if time.monotonic() - cached_at < 10.0:
-        return result
-    _hot_tool_cache.pop(key, None)
-    return None
-
-
-def _hot_cache_set(name: str, arguments: dict[str, Any], result: dict[str, Any]) -> None:
-    """Memoize an MCP result for a hot tool for 10 seconds (bounded LRU)."""
-    import time
-
-    if len(_hot_tool_cache) >= _HOT_TOOL_CACHE_MAX:
-        # Drop the oldest entry (dicts preserve insertion order).
-        _hot_tool_cache.pop(next(iter(_hot_tool_cache)))
-    key = (name, json.dumps(arguments, sort_keys=True, default=str))
-    _hot_tool_cache[key] = (time.monotonic(), result)
-
-
-class _ToolNotHandled(Exception):
-    """Raised by a local tool executor to fall through to the REST proxy."""
-
-
-async def _call_crypto_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
-    """Dispatch crypto-market tools to their guarded handlers in pry_mcp.tools.
-
-    The ``crypto_market`` subpackage is built in parallel by other agents;
-    the dispatcher handles missing modules gracefully. Returns ``None`` for
-    non-crypto tools so callers fall through to their normal execution path.
-    """
-    try:
-        from pry_mcp.tools import call_crypto_tool
-    except ImportError:
-        return None
-    try:
-        return await call_crypto_tool(name, arguments)
-    except Exception as e:  # noqa: BLE001 — surface crypto handler failures as MCP errors
-        logger.warning("mcp_crypto_tool_failed", extra={"tool": name, "error": str(e)})
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": json.dumps(
-                        {"error": f"Tool {name} failed: {e}", "code": "TOOL_EXECUTION_FAILED"}
-                    ),
-                }
-            ],
-            "isError": True,
-        }
-
-
-async def crypto_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    """Local MCP tool executor: runs crypto-market tools directly (guarded
-    import) and signals non-crypto tools to fall through to the REST proxy.
-    Pass as ``tool_executor`` to ``make_fallback_server``.
-    """
-    result = await _call_crypto_tool(name, arguments)
-    if result is None:
-        raise _ToolNotHandled(name)
-    return result
-
-
-async def _call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
-    """Dispatch marketplace-intelligence tools to their guarded handlers.
-
-    The ``marketplace`` subpackage is built in parallel by other agents; the
-    dispatcher handles missing modules gracefully. Returns ``None`` for
-    non-marketplace tools so callers fall through to their normal execution path.
-    """
-    try:
-        from pry_mcp.tools import call_marketplace_tool
-    except ImportError:
-        return None
-    try:
-        return await call_marketplace_tool(name, arguments)
-    except Exception as e:  # noqa: BLE001 — surface marketplace handler failures as MCP errors
-        logger.warning("mcp_marketplace_tool_failed", extra={"tool": name, "error": str(e)})
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": json.dumps(
-                        {"error": f"Tool {name} failed: {e}", "code": "TOOL_EXECUTION_FAILED"}
-                    ),
-                }
-            ],
-            "isError": True,
-        }
-
-
-async def marketplace_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    """Local MCP tool executor: runs marketplace-intelligence tools directly
-    (guarded import) and signals non-marketplace tools to fall through to the
-    REST proxy. Pass as ``tool_executor`` to ``make_fallback_server``.
-    """
-    result = await _call_marketplace_tool(name, arguments)
-    if result is None:
-        raise _ToolNotHandled(name)
-    return result
-
-
-async def _call_domain_tool(
-    dispatcher_name: str, name: str, arguments: dict[str, Any]
-) -> dict[str, Any] | None:
-    """Call one guarded domain dispatcher from ``pry_mcp.tools``.
-
-    Each data-domain dispatcher (legal, real estate, jobs, travel, attention,
-    local, gov, ip) is imported lazily and returns ``None`` for tools it does
-    not own so the chain falls through to the next dispatcher.
-    """
-    try:
-        from pry_mcp import tools as _mcp_tools
-    except ImportError:
-        return None
-    dispatcher = getattr(_mcp_tools, dispatcher_name, None)
-    if dispatcher is None:
-        return None
-    try:
-        return await dispatcher(name, arguments)
-    except Exception as e:  # noqa: BLE001 — surface handler failures as MCP errors
-        logger.warning("mcp_domain_tool_failed", extra={"tool": name, "error": str(e)})
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": json.dumps(
-                        {"error": f"Tool {name} failed: {e}", "code": "TOOL_EXECUTION_FAILED"}
-                    ),
-                }
-            ],
-            "isError": True,
-        }
-
-
-async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    """Validated seam in front of the chained domain dispatchers.
-
-    Validates arguments against ``pry_mcp.validation.TOOL_REQUIREMENTS``
-    (top-20 high-risk tools) and converts validation/execution failures into
-    structured error dicts instead of propagating. ``_ToolNotHandled`` still
-    propagates so callers fall through to the REST proxy.
-    """
-    from pry_mcp.validation import ToolArgError, validate_tool_args
-
-    try:
-        validated = validate_tool_args(name, arguments)
-    except ToolArgError as exc:
-        logger.warning("mcp_tool_invalid_args", extra={"tool": name, "error": str(exc)})
-        return _structured_error(name, "invalid_args", str(exc))
-    try:
-        return await _combined_tool_executor_inner(name, validated)
-    except _ToolNotHandled:
-        raise
-    except Exception as e:  # noqa: BLE001 — structured error, not a crash
-        logger.warning("mcp_tool_failed", extra={"tool": name, "error": str(e)})
-        return _structured_error(name, "tool_failed", f"Tool {name} failed: {e}")
-
-
-def _structured_error(tool_name: str, code: str, message: str) -> dict[str, Any]:
-    """Build an error result readable by both transports.
-
-    Carries ``error`` (consumed by the SDK server's ``call_tool``) plus an
-    MCP ``content``/``isError`` shape (consumed by the fallback stdio server).
-    """
-    return {
-        "error": {"code": code, "message": message},
-        "content": [{"type": "text", "text": json.dumps({"error": message, "code": code})}],
-        "isError": True,
-    }
-
-
-async def _combined_tool_executor_inner(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    """Local MCP tool executor chaining every data-domain guarded dispatcher.
-
-    Order: crypto-market, marketplace-intelligence, then the twenty-one
-    data-domain packages (legal, real estate, jobs, travel, attention, local,
-    gov, ip, sports, climate, research, events, freight, energy, food,
-    supply, app-store, news, compliance, deals, bidding).
-    Raises ``_ToolNotHandled`` when no dispatcher owns the tool so callers
-    fall through to the REST proxy.
-
-    Hot tools (odds, serp, live_odds, scores, alerts) take the 10s dispatch
-    cache path before the guarded-import chain runs, so pollers get O(1)
-    reads. Every dispatch logs its wall time at debug level.
-    """
-    if name in _HOT_TOOLS_10S:
-        cached = _hot_cache_get(name, arguments)
-        if cached is not None:
-            logger.debug("mcp_dispatch_cache_hit", extra={"tool": name})
-            return cached
-    import time
-
-    started = time.monotonic()
-    try:
-        # Actor-parity tools first: pure-local (catalog) or engine-backed
-        # (run) - never a REST round-trip.
-        try:
-            result = await _call_domain_tool("call_actor_tool", name, arguments)
-            if result is not None:
-                return result
-        except _ToolNotHandled:
-            pass
-        try:
-            result: dict[str, Any] | None = await crypto_tool_executor(name, arguments)
-            if result is not None:
-                return result
-        except _ToolNotHandled:
-            pass
-        try:
-            result = await marketplace_tool_executor(name, arguments)
-            if result is not None:
-                return result
-        except _ToolNotHandled:
-            pass
-        for dispatcher_name in (
-            "call_legal_tool",
-            "call_realestate_tool",
-            "call_jobs_tool",
-            "call_travel_tool",
-            "call_attention_tool",
-            "call_local_tool",
-            "call_gov_tool",
-            "call_ip_tool",
-            "call_sports_tool",
-            "call_climate_tool",
-            "call_research_tool",
-            "call_events_tool",
-            "call_freight_tool",
-            "call_energy_tool",
-            "call_food_tool",
-            "call_supply_tool",
-            "call_app_store_tool",
-            "call_news_tool",
-            "call_compliance_tool",
-            "call_deals_tool",
-            "call_bidding_tool",
-        ):
-            result = await _call_domain_tool(dispatcher_name, name, arguments)
-            if result is not None:
-                logger.debug(
-                    "mcp_dispatch_ms",
-                    extra={"tool": name, "ms": round((time.monotonic() - started) * 1000, 2)},
-                )
-                if name in _HOT_TOOLS_10S:
-                    _hot_cache_set(name, arguments, result)
-                return result
-        raise _ToolNotHandled(name)
-    except _ToolNotHandled:
-        raise
-    except Exception as e:
-        logger.debug(
-            "mcp_dispatch_failed_ms",
-            extra={
-                "tool": name,
-                "ms": round((time.monotonic() - started) * 1000, 2),
-                "error": str(e),
-            },
-        )
-        raise
+# Backward-compatible re-exports: the tool-dispatch functions moved to
+# pry_mcp.tool_registry, but existing callers (tests, sdk_server, app, api)
+# import them from pry_mcp.fallback_server.
+__all__ = [
+    "ToolRegistry",
+    "_ToolNotHandled",
+    "_hot_tool_cache",
+    "combined_tool_executor",
+    "make_fallback_server",
+]
 
 
 def make_fallback_server(
@@ -339,6 +79,11 @@ def make_fallback_server(
             self._client_info: dict[str, Any] = {}
             self.base_url = base_url.rstrip("/")
             self.tool_executor = tool_executor
+
+            # Tool dispatch registry: replaces the old chained executor /
+            # 23-deep try-except with dict-based dispatch over registered
+            # executors. The standard local chain is registered by default.
+            self._registry = register_standard_executors(ToolRegistry())
 
             # MCP logging state
             self._mcp_log_enabled = False
@@ -397,47 +142,35 @@ def make_fallback_server(
             if name not in self.tools:
                 return {"error": {"code": -32602, "message": f"Unknown tool: {name}"}}
 
-            # If a local executor is provided (e.g., when mounted inside api.py), use it.
-            if self.tool_executor is not None:
-                try:
-                    result = await self.tool_executor(name, arguments)
-                    return self._tool_result_to_content(result, name)
-                except _ToolNotHandled:
-                    # Local executor declined (non-crypto tool) — fall through
-                    # to the built-in crypto dispatch / REST proxy below.
-                    pass
-                except Exception as e:  # noqa: BLE001
-                    logger.warning(
-                        "mcp_tool_executor_failed", extra={"tool": name, "error": str(e)}
-                    )
-                    return {
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": json.dumps(
-                                    {
-                                        "error": f"Tool {name} failed: {e}",
-                                        "code": "TOOL_EXECUTION_FAILED",
-                                    }
-                                ),
-                            }
-                        ],
-                        "isError": True,
-                    }
-
-            # Crypto-market tools execute locally via guarded imports
-            # (the crypto_market modules land in parallel; degrade to a
-            # readable message if a module is absent).
-            crypto_result = await _call_crypto_tool(name, arguments)
-            if crypto_result is not None:
-                return crypto_result
-
-            # Marketplace-intelligence tools execute locally via guarded imports
-            # (the marketplace modules land in parallel; degrade to a readable
-            # message if a module is absent).
-            marketplace_result = await _call_marketplace_tool(name, arguments)
-            if marketplace_result is not None:
-                return marketplace_result
+            # Local dispatch. A custom ``tool_executor`` (e.g. injected by
+            # api.py / sdk_server) takes precedence; otherwise the tool
+            # registry runs the standard chained dispatch (replacing the old
+            # 23-deep try-except). _ToolNotHandled falls through to the REST
+            # proxy below.
+            executor = self.tool_executor or self._registry.dispatch
+            try:
+                result = await executor(name, arguments)
+                return self._tool_result_to_content(result, name)
+            except _ToolNotHandled:
+                # Local executors declined (non-local tool) — fall through to
+                # the REST proxy below.
+                pass
+            except Exception as e:  # noqa: BLE001
+                logger.warning("mcp_tool_executor_failed", extra={"tool": name, "error": str(e)})
+                return {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {
+                                    "error": f"Tool {name} failed: {e}",
+                                    "code": "TOOL_EXECUTION_FAILED",
+                                }
+                            ),
+                        }
+                    ],
+                    "isError": True,
+                }
 
             tool_map = {
                 "pry_scrape": ("POST", "/v1/scrape"),
