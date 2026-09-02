@@ -70,6 +70,10 @@ def test_store_credentials():
             },
         )
         assert r.status_code in (200, 422, 500)
+        if r.status_code == 200:
+            body = r.json()
+            assert body.get("success") is True
+            assert body["data"]["id"] == "cred-1"
 
 
 def test_list_credentials():
@@ -77,6 +81,11 @@ def test_list_credentials():
         mock_list.return_value = [{"id": "cred-1", "name": "test", "type": "password"}]
         r = client.get("/v1/auth/credentials")
         assert r.status_code in (200, 422, 500)
+        if r.status_code == 200:
+            body = r.json()
+            assert body.get("success") is True
+            assert body["data"]["total"] == 1
+            assert body["data"]["credentials"][0]["id"] == "cred-1"
 
 
 def test_delete_credentials():
@@ -84,6 +93,10 @@ def test_delete_credentials():
         mock_del.return_value = True
         r = client.delete("/v1/auth/credentials/cred-123")
         assert r.status_code in (200, 422, 500)
+        if r.status_code == 200:
+            body = r.json()
+            assert body.get("success") is True
+            assert body["data"]["deleted"] is True
 
 
 def test_delete_credentials_not_found():
@@ -124,6 +137,10 @@ def test_generate_sso_default_tenant():
             },
         )
         assert r.status_code in (200, 422, 500)
+        if r.status_code == 200:
+            body = r.json()
+            assert body.get("success") is True
+            assert body["data"]["success"] is True
 
 
 def test_solve_captcha_image():
@@ -138,6 +155,10 @@ def test_solve_captcha_image():
             },
         )
         assert r.status_code in (200, 422, 500)
+        if r.status_code == 200:
+            body = r.json()
+            assert body.get("success") is True
+            assert body["data"]["token"] == "captcha-token"
 
 
 def test_solve_captcha_recaptcha():
@@ -152,6 +173,10 @@ def test_solve_captcha_recaptcha():
             },
         )
         assert r.status_code in (200, 422, 500)
+        if r.status_code == 200:
+            body = r.json()
+            assert body.get("success") is True
+            assert body["data"]["token"] == "recaptcha-token"
 
 
 def test_check_session():

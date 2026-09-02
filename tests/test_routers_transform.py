@@ -25,16 +25,43 @@ def test_transform_csv():
 def test_transform_sql():
     r = client.post("/v1/transform?format=sql", json=SAMPLE_DATA)
     assert r.status_code == 200
+    body = r.json()
+    assert body.get("success") is True
+    assert body["data"]["format"] == "sql"
+    output = body["data"]["output"]
+    # SQL output must be a non-empty string containing an INSERT statement.
+    assert isinstance(output, str)
+    assert output.strip()
+    assert "INSERT" in output.upper()
+    assert "key" in output  # column name from SAMPLE_DATA
 
 
 def test_transform_html():
     r = client.post("/v1/transform?format=html", json=SAMPLE_DATA)
     assert r.status_code == 200
+    body = r.json()
+    assert body.get("success") is True
+    assert body["data"]["format"] == "html"
+    output = body["data"]["output"]
+    # HTML table output must be a non-empty string with a <table> element.
+    assert isinstance(output, str)
+    assert output.strip()
+    assert "<table" in output.lower()
+    assert "key" in output  # header cell from SAMPLE_DATA
 
 
 def test_transform_markdown():
     r = client.post("/v1/transform?format=markdown", json=SAMPLE_DATA)
     assert r.status_code == 200
+    body = r.json()
+    assert body.get("success") is True
+    assert body["data"]["format"] == "markdown"
+    output = body["data"]["output"]
+    # Markdown table output must be a non-empty string with a pipe-delimited row.
+    assert isinstance(output, str)
+    assert output.strip()
+    assert "|" in output
+    assert "key" in output  # header cell from SAMPLE_DATA
 
 
 def test_transform_unknown_format():

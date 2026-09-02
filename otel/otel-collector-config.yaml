@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+#
+# OpenTelemetry Collector config for Pry.
+#
+# Receives OTLP traces over gRPC (4317) and HTTP (4318) from the pry service
+# (which sets OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318), then
+# exports them to the collector console AND to the local Jaeger all-in-one
+# for trace inspection in the Jaeger UI (http://localhost:16686).
+#
+# This is a minimal local/dev pipeline. For production, replace the `debug`
+# exporter with a real backend (e.g. a remote OTLP endpoint, Tempo, or
+# Datadog) and remove the console sink to avoid log noise.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+
+exporters:
+  debug:
+    verbosity: basic
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug, otlp/jaeger]

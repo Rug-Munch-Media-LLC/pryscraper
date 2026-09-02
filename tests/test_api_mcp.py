@@ -105,6 +105,13 @@ class TestMCPJsonRPC:
         )
         # Should still respond with valid JSON
         assert resp.status_code == 200
+        assert resp.headers.get("content-type", "").startswith("application/json")
+        body = resp.json()
+        # Invalid JSON-RPC must return a JSON-RPC error object, not a result.
+        assert body.get("jsonrpc") == "2.0"
+        assert "result" not in body
+        assert body["error"]["code"] == -32600
+        assert body["error"]["message"] == "Invalid Request"
 
 
 class TestMCPSSE:

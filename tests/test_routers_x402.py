@@ -79,6 +79,16 @@ def test_x402_payment_request_with_metadata():
         json={"operation": "scrape", "metadata": {"source": "test"}},
     )
     assert response.status_code == 200
+    body = response.json()
+    assert body.get("success") is True
+    data = body["data"]
+    # Payment request must carry the operation, a payment_id, and echo metadata.
+    assert data["operation"] == "scrape"
+    assert data["payment_id"]
+    assert data["asset"] == "USDC"
+    assert data["network"]
+    assert data["maxAmountRequired"]
+    assert data["extra"] == {"source": "test"}
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +165,10 @@ def test_x402_batch_payment_not_a_list():
 def test_x402_batch_payment_empty_list():
     response = client.post("/v1/x402/batch-payment", json={"operations": []})
     assert response.status_code == 200
+    body = response.json()
+    # No valid operations => success=False with an error message.
+    assert body.get("success") is False
+    assert "error" in body
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +245,17 @@ def test_x402_pay_with_metadata():
             },
         )
         assert response.status_code == 200
+        body = response.json()
+        assert body.get("success") is True
+        data = body["data"]
+        # Pay flow must return a payment_id, echo the tx_hash, and expose the
+        # header values the client must send on the follow-up request.
+        assert data["payment_id"]
+        assert data["tx_hash"] == "0xvalid"
+        assert data["payer_wallet"] == "0xwallet"
+        assert data["verified"]["verified"] is True
+        assert data["use_in_header"]["X-Payment-ID"] == data["payment_id"]
+        assert data["use_in_header"]["X-Payment-Hash"] == "0xvalid"
 
 
 # ---------------------------------------------------------------------------

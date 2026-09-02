@@ -340,6 +340,56 @@ services:
           memory: 64M
           cpus: "0.1"
 
+  # ── OpenTelemetry Collector + Jaeger ────────────────────────────────────
+  # Pry's tracing (src/pry/core/observability.py) exports OTLP over HTTP when
+  # OTEL_EXPORTER_OTLP_ENDPOINT is set, otherwise it falls back to console.
+  # Pointing that env var at this collector (http://otel-collector:4318)
+  # routes traces to both the collector console and Jaeger for local/dev
+  # inspection. Enable by setting OTEL_EXPORTER_OTLP_ENDPOINT in the pry
+  # service environment (see .env.example) and starting the stack.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: pry-otel-collector
+    restart: unless-stopped
+    init: true
+    command:
+      - '--config=/etc/otelcol-contrib/config.yaml'
+    volumes:
+      - ./otel/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"  # OTLP gRPC
+      - "127.0.0.1:4318:4318"  # OTLP HTTP
+    depends_on:
+      jaeger:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 64M
+          cpus: "0.1"
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: pry-jaeger
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:16686:16686"  # Jaeger UI
+      - "127.0.0.1:14250:14250"  # OTLP gRPC (collector -> jaeger)
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+          cpus: "0.1"
+
 volumes:
   pry-data:
   pry-sessions:
