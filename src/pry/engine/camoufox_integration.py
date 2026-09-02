@@ -34,6 +34,42 @@ try:
 except ImportError:
     _has_camoufox = False
 
+# Module-level pooled Camoufox browser. Launched once on first use and reused
+# across requests (each request gets a fresh page that is closed after use),
+# avoiding the 1-3s per-request browser launch cost. Only used for the no-proxy
+# path — a proxy is a launch-time config so proxied requests get a fresh browser.
+_pooled_camoufox: Any = None
+_pooled_camoufox_config: dict[str, Any] | None = None
+
+
+async def _get_pooled_camoufox(config: dict[str, Any]) -> Any:
+    """Return the shared Camoufox browser, launching it once.
+
+    The browser is entered (``__aenter__``) once and cached. If the requested
+    config differs from the cached one (e.g. a different profile), the cached
+    browser is closed and relaunched with the new config.
+    """
+    global _pooled_camoufox, _pooled_camoufox_config
+    if _pooled_camoufox is not None and _pooled_camoufox_config == config:
+        return _pooled_camoufox
+    if _pooled_camoufox is not None:
+        with contextlib.suppress(Exception):
+            await _pooled_camoufox.__aexit__(None, None, None)
+        _pooled_camoufox = None
+    _pooled_camoufox = await AsyncCamoufox(**config).__aenter__()
+    _pooled_camoufox_config = config
+    return _pooled_camoufox
+
+
+async def close_browsers() -> None:
+    """Close the pooled Camoufox browser (graceful shutdown)."""
+    global _pooled_camoufox, _pooled_camoufox_config
+    if _pooled_camoufox is not None:
+        with contextlib.suppress(Exception):
+            await _pooled_camoufox.__aexit__(None, None, None)
+        _pooled_camoufox = None
+        _pooled_camoufox_config = None
+
 
 class CamoufoxBrowser:
     """Anti-detection Firefox browser using Camoufox."""
@@ -113,6 +149,7 @@ class CamoufoxBrowser:
         wait_time: int = 3000,
         proxy: str = "",
         cookies: list[dict] | None = None,
+        browser: Any = None,
     ) -> dict[str, Any]:
         """Fetch a URL with Camoufox anti-detection.
 
@@ -123,6 +160,9 @@ class CamoufoxBrowser:
             wait_time: Time to wait in milliseconds
             proxy: Proxy URL
             cookies: Cookies to set before navigation
+            browser: Optional shared Camoufox browser to reuse (pooling). When
+                provided, a fresh page is created per request and closed after
+                use; the browser itself is left open for the next request.
         """
         if not _has_camoufox:
             return {
@@ -138,37 +178,79 @@ class CamoufoxBrowser:
         try:
             start = time.time()
             validate_url(url)
+            if browser is not None:
+                # Explicit pooled path: reuse the shared browser, isolate per
+                # request with a fresh page, and close only the page afterwards.
+                page = await browser.new_page()
+                try:
+                    return await self._fetch_page(
+                        page, url, wait_selector, wait_time, cookies, profile_name, start
+                    )
+                finally:
+                    with contextlib.suppress(Exception):
+                        await page.close()
+            if not proxy:
+                # No proxy: reuse the module-level pooled browser (launched
+                # once) instead of launching a fresh Firefox per request.
+                pooled = await _get_pooled_camoufox(config)
+                page = await pooled.new_page()
+                try:
+                    return await self._fetch_page(
+                        page, url, wait_selector, wait_time, cookies, profile_name, start
+                    )
+                finally:
+                    with contextlib.suppress(Exception):
+                        await page.close()
             async with AsyncCamoufox(**config) as browser:
                 page = await browser.new_page()
-                # Route guard re-validates every request, including internal
-                # redirect hops the browser follows on its own.
-                await page.route("**/*", self._guarded_route)
-                if cookies:
-                    for cookie in cookies:
-                        await page.context.add_cookies([cookie])
-                await page.goto(url, wait_until="domcontentloaded")
-                if wait_selector:
+                try:
+                    return await self._fetch_page(
+                        page, url, wait_selector, wait_time, cookies, profile_name, start
+                    )
+                finally:
                     with contextlib.suppress(Exception):
-                        await page.wait_for_selector(wait_selector, timeout=wait_time)
-                else:
-                    await page.wait_for_timeout(wait_time)
-                content = await page.content()
-                title = await page.title()
-                elapsed = time.time() - start
-                cookies_received = await page.context.cookies()
-                return {
-                    "success": True,
-                    "url": url,
-                    "title": title,
-                    "content": content,
-                    "raw_html": content,
-                    "status_code": 200,
-                    "elapsed": round(elapsed, 2),
-                    "profile": profile_name,
-                    "cookies": cookies_received,
-                }
+                        await page.close()
         except Exception as e:  # noqa: BLE001
             return {"success": False, "error": str(e)[:300], "url": url}
+
+    async def _fetch_page(
+        self,
+        page: Any,
+        url: str,
+        wait_selector: str,
+        wait_time: int,
+        cookies: list[dict] | None,
+        profile_name: str,
+        start: float,
+    ) -> dict[str, Any]:
+        """Shared page-fetch logic used by both pooled and fresh browsers."""
+        # Route guard re-validates every request, including internal
+        # redirect hops the browser follows on its own.
+        await page.route("**/*", self._guarded_route)
+        if cookies:
+            for cookie in cookies:
+                await page.context.add_cookies([cookie])
+        await page.goto(url, wait_until="domcontentloaded")
+        if wait_selector:
+            with contextlib.suppress(Exception):
+                await page.wait_for_selector(wait_selector, timeout=wait_time)
+        else:
+            await page.wait_for_timeout(wait_time)
+        content = await page.content()
+        title = await page.title()
+        elapsed = time.time() - start
+        cookies_received = await page.context.cookies()
+        return {
+            "success": True,
+            "url": url,
+            "title": title,
+            "content": content,
+            "raw_html": content,
+            "status_code": 200,
+            "elapsed": round(elapsed, 2),
+            "profile": profile_name,
+            "cookies": cookies_received,
+        }
 
     async def fetch_with_stealth(
         self,
@@ -208,6 +290,12 @@ class CamoufoxBrowser:
 
     def is_available(self) -> bool:
         return _has_camoufox
+
+    def default_config(self) -> dict[str, Any]:
+        """Return the config dict for the default profile (for pooling)."""
+        return dict(
+            self.DEFAULT_CONFIGS.get(self.default_profile, self.DEFAULT_CONFIGS["chrome_windows"])
+        )
 
     @staticmethod
     def list_profiles() -> list[str]:

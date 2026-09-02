@@ -14,7 +14,7 @@ import httpx
 import pytest
 import respx
 
-from pry.engine.ultimate_scraper import UltimateScraper
+from pry.engine.ultimate_scraper import UltimateScraper, _browser_pool
 
 _VALID_HTML = "<html><body>" + "x" * 600 + "</body></html>"
 _VALID_HTML_2 = "<html><body>" + "y" * 600 + "</body></html>"
@@ -24,8 +24,13 @@ _VALID_HTML_3 = "<html><body>" + "z" * 600 + "</body></html>"
 @pytest.fixture
 def scraper() -> UltimateScraper:
     """Return a scraper with a clean registry mock so test pollution is impossible."""
+    # Reset the module-level browser pool so a mocked driver/browser cached by
+    # one test cannot leak into the next (the pool is a lazy singleton).
+    _browser_pool.reset()
     with (
-        patch("pry.engine.ultimate_scraper.registry.reorder_for_domain", side_effect=lambda _d, c: c),
+        patch(
+            "pry.engine.ultimate_scraper.registry.reorder_for_domain", side_effect=lambda _d, c: c
+        ),
         patch("pry.engine.ultimate_scraper.registry.is_service_allowed", return_value=True),
         patch("pry.engine.ultimate_scraper.registry.record_domain_tier_result"),
         patch("pry.engine.ultimate_scraper.registry.record_service_result"),

@@ -227,12 +227,14 @@ class TestSessionFactory:
 class TestAppSessionStoreIntegration:
     async def test_initialize_then_post_roundtrip_uses_store(self) -> None:
         """initialize issues a session id that the store reports as existing."""
-        from pry_mcp.app import _MCP_SESSIONS
+        from pry_mcp.session_store import get_memory_store, reset_session_store
 
+        reset_session_store()
         store = await get_session_store()
-        _MCP_SESSIONS.clear()
+        memory = get_memory_store()
+        memory._sessions.clear()
         await store.add("abc123")
         assert await store.exists("abc123")
-        assert "abc123" in _MCP_SESSIONS  # legacy alias shares the same dict
+        assert "abc123" in memory._sessions
         await store.remove("abc123")
-        assert "abc123" not in _MCP_SESSIONS
+        assert "abc123" not in memory._sessions

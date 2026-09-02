@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 from fastapi import HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 
+from pry.core.middleware import request_authorized
 from pry_mcp import (
     register_mcp_notification_observer,
     unregister_mcp_notification_observer,
@@ -211,7 +212,29 @@ async def mcp_post_message(
         )
         return Response(status_code=202)
 
-    # Handle initialize specially: it should not have an id response? Actually initialize does have id.
+    # SECURITY: Auth-gate tools/call on the legacy SSE transport, matching
+    # the Streamable HTTP transport (app.py).  Discovery methods
+    # (tools/list, resources/list, etc.) stay public so agents can
+    # enumerate the surface without a key.  tools/call executes arbitrary
+    # code and MUST require a valid credential.
+    if (
+        isinstance(body, dict)
+        and body.get("method") == "tools/call"
+        and not request_authorized(request.scope)
+    ):
+        _enqueue_response(
+            session_id,
+            {
+                "jsonrpc": "2.0",
+                "id": body.get("id"),
+                "error": {
+                    "code": -32001,
+                    "message": "Unauthorized: tools/call requires an API key",
+                },
+            },
+        )
+        return Response(status_code=202)
+
     response = await message_handler.handle_request(body)
     if response is not None:
         _enqueue_response(session_id, response)

@@ -16,6 +16,7 @@ from contextlib import suppress
 from typing import Any
 
 with suppress(ImportError):  # pragma: no cover
+    from sqlalchemy import text
     from sqlalchemy.exc import OperationalError, ProgrammingError, SQLAlchemyError
 
 from pry.core.db.models import _HAS_SA
@@ -91,7 +92,7 @@ async def db_health_async() -> dict[str, Any]:
     try:
         engine = get_async_engine()
         async with engine.connect() as conn:
-            await conn.execute(conn.default_schema_name or "SELECT 1")
+            await conn.execute(text("SELECT 1"))
         return {
             "available": True,
             "url": _resolve_async_database_url().split("@")[-1]

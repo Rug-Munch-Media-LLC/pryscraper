@@ -189,7 +189,13 @@ _AUTH_PUBLIC_PATHS: set[str] = {
     "/metrics",
     "/docs",
     "/openapi.json",
-    # MCP sub-app is public (AI agents must discover tools without API key)
+    # MCP sub-app is public (AI agents must discover tools without API key).
+    # SECURITY: /mcp/messages and /mcp/sse are public at the middleware layer
+    # because the SSE transport requires unauthenticated reachability for
+    # discovery.  tools/call (the dangerous operation) is auth-gated INSIDE
+    # both mcp_post_message (mcp_sse.py) and the Streamable HTTP handler
+    # (pry_mcp/app.py) — an unauthenticated caller gets a JSON-RPC -32001
+    # Unauthorized error, not tool execution.
     "/mcp",
     "/mcp/health",
     "/mcp/sse",

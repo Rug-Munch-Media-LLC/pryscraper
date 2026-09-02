@@ -83,14 +83,15 @@ services:
       # schema is stamped at head so first run is a no-op. See audit P0-1.
       - PRY_SKIP_MIGRATIONS=0
     healthcheck:
-      # TCP-connect probe: FlareSolverr's single event loop queues behind
-      # long scrape tasks, so HTTP health checks time out under load even
-      # though the service is alive and accepting connections.
-      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost', 8002), timeout=5); s.close()"]
-      interval: 20s
+      # HTTP /health probe — matches the Dockerfile HEALTHCHECK. A TCP probe
+      # only proves the socket accepts connections and masks HTTP-level
+      # failures (e.g. app crash-looping, 500s, unbound worker). /health
+      # returns 200 only when the process is up and FlareSolverr is reachable.
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 45s
+      retries: 3
+      start_period: 40s
     deploy:
       resources:
         limits:

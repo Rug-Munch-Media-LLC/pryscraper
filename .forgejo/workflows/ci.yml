@@ -418,6 +418,19 @@ jobs:
           echo "✅ requirements.docker.lock in sync with requirements.lock"
 
 
+  hadolint:
+    name: Hadolint (Dockerfile lint)
+    runs-on: docker-x64
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Run hadolint on Dockerfile (blocking on ERROR)
+        run: |
+          docker run --rm -v "$PWD":/workdir -w /workdir \
+            hadolint/hadolint:latest-alpine hadolint \
+            --config .hadolint.yaml \
+            --failure-threshold error \
+            Dockerfile
+
   trivy-scan:
     runs-on: docker-x64
     needs: test
@@ -433,6 +446,10 @@ jobs:
           output: 'trivy-results.sarif'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
+      - name: Run Grype vulnerability scanner (blocking on CRITICAL)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          grype app:${{ github.sha }} --fail-on critical
       - uses: actions/upload-artifact@v3
         with:
           name: trivy-results
