@@ -1,6 +1,6 @@
 # MCP Server
 
-Pry exposes 73 MCP tools across 27 categories. Every tool has structured input/output schemas and annotations.
+Pry exposes 76 MCP tools across 33 categories. Every tool has structured input/output schemas and annotations.
 
 ## Connecting
 
@@ -34,7 +34,7 @@ Pry exposes 73 MCP tools across 27 categories. Every tool has structured input/o
 pry mcp --stdio
 ```
 
-## Tools (73 total, 27 categories)
+## Tools (76 total, 33 categories)
 
 ### Web Scraping (6 tools)
 - `pry_scrape` — Scrape any URL to markdown

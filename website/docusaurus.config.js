@@ -1,16 +1,16 @@
 module.exports = {
 	title: "Pry Scraping API",
 	tagline: "Pay-per-request HTTP for the multi-chain economy",
-	url: "https://docs.[INTERNAL]",
+	url: "https://docs.pryscraper.com",
 	baseUrl: "/",
-	onBrokenLinks: "warn",
+	onBrokenLinks: "throw",
 	favicon: "img/favicon.ico",
 	organizationName: "RugMunchMedia",
 	projectName: "pryscraper",
 	themeConfig: {
 		navbar: {
 			title: "Pry",
-			logo: { alt: "Pry Logo", src: "img/logo.svg" },
+			logo: { alt: "Pry Logo", src: "img/logo.svg", href: "/docs/intro" },
 			items: [
 				{ to: "/docs/intro", label: "Docs", position: "left" },
 				{ to: "/docs/api/scrape", label: "API", position: "left" },
@@ -22,7 +22,7 @@ module.exports = {
 					position: "left",
 				},
 				{
-					href: "https://git.rugmunch.io/RugMunchMedia/pryscraper",
+					href: "https://codeberg.org/RugMunchMedia/pryscraper",
 					label: "GitHub",
 					position: "right",
 				},
@@ -35,9 +35,9 @@ module.exports = {
 					title: "Docs",
 					items: [
 						{ label: "Quickstart", to: "docs/intro" },
-						{ label: "API Reference", to: "docs/api" },
-						{ label: "x402 Payments", to: "docs/x402" },
-						{ label: "MCP Server", to: "docs/mcp" },
+						{ label: "API Reference", to: "docs/api/scrape" },
+						{ label: "x402 Payments", to: "docs/x402/overview" },
+						{ label: "MCP Server", to: "docs/mcp/overview" },
 					],
 				},
 				{
@@ -45,9 +45,8 @@ module.exports = {
 					items: [
 						{
 							label: "GitHub",
-							href: "https://git.rugmunch.io/RugMunchMedia/pryscraper",
+							href: "https://codeberg.org/RugMunchMedia/pryscraper",
 						},
-						{ label: "Discord", href: "https://discord.gg/pry" },
 					],
 				},
 				{
@@ -75,7 +74,7 @@ module.exports = {
 				docs: {
 					sidebarPath: require.resolve("./sidebars.js"),
 					editUrl:
-						"https://git.rugmunch.io/RugMunchMedia/pryscraper/tree/main/docs/",
+						"https://codeberg.org/RugMunchMedia/pryscraper/tree/main/docs/",
 				},
 				blog: { showReadingTime: true },
 				theme: { customCss: require.resolve("./src/css/custom.css") },

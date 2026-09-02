@@ -16,13 +16,13 @@ Add Pry to your MCP client configuration:
 }
 ```
 
-All 73 tools are immediately available. No API key required.
+All 76 tools are immediately available. Bearer auth is only enforced when `PRY_API_KEY` is set (loopback-only by default).
 
 ## Option 2: Docker (Self-hosted)
 
 ```bash
 # Clone the repo
-git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git
+git clone https://codeberg.org/RugMunchMedia/pryscraper.git
 cd pryscraper
 
 # Start the full stack
@@ -70,6 +70,6 @@ curl -X POST http://localhost:8002/v1/scrape \
 
 - [Installation Guide](installation) — detailed setup options
 - [Configuration](configuration) — env vars, wallets, networks
-- [API Reference](../api/scrape) — full endpoint documentation
-- [x402 Payments](../x402/overview) — payment integration guide
-- [MCP Server](../mcp/overview) — AI agent integration
+- [API Reference](api/scrape) — full endpoint documentation
+- [x402 Payments](x402/overview) — payment integration guide
+- [MCP Server](mcp/overview) — AI agent integration

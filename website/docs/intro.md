@@ -18,12 +18,12 @@ Pry is a self-hosted web scraping and browser automation platform with native x4
 }
 ```
 
-That's it. No API key. 73 tools immediately available.
+Bearer auth: free on loopback; set `PRY_API_KEY` for remote access. 76 tools immediately available.
 
 ### Self-hosted (Docker)
 
 ```bash
-git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git
+git clone https://codeberg.org/RugMunchMedia/pryscraper.git
 cd pryscraper
 docker compose up -d
 ```
@@ -42,7 +42,7 @@ pry crawl https://docs.com --max-pages 20
 | Feature | Pry | Firecrawl | Scrapling | Apify |
 |---------|:---:|:---------:|:---------:|:-----:|
 | Anti-detection tiers | **15** | 2 | 3 | 1 |
-| MCP tools | **73** | 5 | 8 | 0 |
+| MCP tools | **76** | 5 | 8 | 0 |
 | x402 payments | ✅ | ❌ | ❌ | ❌ |
 | Self-hosted | ✅ | ❌ | ✅ | ✅ |
 | Templates | **110+** | 0 | 0 | 1000+ |
@@ -54,7 +54,7 @@ pry crawl https://docs.com --max-pages 20
 ┌─────────────────────────────────────────────────────────────┐
 │                        Pry Platform                          │
 ├─────────────────────────────────────────────────────────────┤
-│  MCP Layer (73 tools)  │  REST API  │  x402 Payments        │
+│  MCP Layer (76 tools)  │  REST API  │  x402 Payments        │
 ├─────────────────────────────────────────────────────────────┤
 │  15-Tier Scraping Engine                                    │
 │  ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐  │
@@ -72,4 +72,4 @@ pry crawl https://docs.com --max-pages 20
 
 ## License
 
-MIT — see [LICENSE](https://git.rugmunch.io/RugMunchMedia/pryscraper/blob/main/LICENSE).
+MIT — see [LICENSE](https://codeberg.org/RugMunchMedia/pryscraper/blob/main/LICENSE).

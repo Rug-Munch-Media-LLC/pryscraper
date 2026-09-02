@@ -2,5 +2,5 @@
 
 Coming soon.
 
-See [GitHub](https://git.rugmunch.io/RugMunchMedia/pryscraper) for the latest.
+See [GitHub](https://codeberg.org/RugMunchMedia/pryscraper) for the latest.
 

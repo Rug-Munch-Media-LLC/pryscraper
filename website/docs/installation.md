@@ -5,7 +5,7 @@
 The fastest way to get started:
 
 ```bash
-git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git
+git clone https://codeberg.org/RugMunchMedia/pryscraper.git
 cd pryscraper
 docker compose up -d
 ```
@@ -27,7 +27,7 @@ pry serve
 ## From Source
 
 ```bash
-git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git
+git clone https://codeberg.org/RugMunchMedia/pryscraper.git
 cd pryscraper
 python -m venv .venv
 source .venv/bin/activate

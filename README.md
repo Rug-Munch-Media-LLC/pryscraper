@@ -7,7 +7,7 @@
 **Self-hosted web scraping & browser automation API with native x402 micropayments**
 
 [![CI](https://img.shields.io/badge/CI-passing-brightgreen)](https://codeberg.org/RugMunchMedia/pryscraper/actions)
-[![Tests](https://img.shields.io/badge/tests-162%2B_passing-brightgreen)](https://codeberg.org/RugMunchMedia/pryscraper)
+[![Tests](https://img.shields.io/badge/tests-218_files-brightgreen)](https://codeberg.org/RugMunchMedia/pryscraper)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![x402](https://img.shields.io/badge/payments-x402%20%2F%20USDC%20%2F%20SOL%20%2F%20TRX-blueviolet)](https://docs.x402.org/)
@@ -231,8 +231,9 @@ pry crawl https://docs.com --max-pages 20
 ## Configuration
 
 Pry is configured via environment variables (loaded from `.env` in the repo
-root, or the process environment — see `.env.example`). No API key is required
-for self-hosted use, but setting one is strongly recommended.
+root, or the process environment — see `.env.example`). Bearer auth is only
+enforced when `PRY_API_KEY` is set; unset means loopback-only access, but
+setting a key is strongly recommended for any non-loopback deployment.
 
 ### API key (`PRY_API_KEY`)
 
