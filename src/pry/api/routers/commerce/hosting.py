@@ -76,6 +76,12 @@ class HostingVerifyRequest(BaseModel):
     code: str = Field(..., description="The 6-char verification code from the email")
 
 
+class HostingPortalRequest(BaseModel):
+    """Request a fresh portal magic-link for a customer email."""
+
+    email: str = Field(..., description="The email used at signup")
+
+
 def _resolve_user(bearer: str) -> str:
     """Resolve a Bearer API key to its owner user_id (401 on failure)."""
     from pry.core.api_keys_service import authenticate
@@ -335,22 +341,66 @@ async def hosting_checkout_page(invoice_id: str) -> Response:
     return Response(content=render_checkout_page(invoice), media_type="text/html")
 
 
+@router.post(
+    "/v1/hosting/portal/request",
+    summary="Request a portal magic-link (emailed to the customer)",
+    description=(
+        "Sends a fresh signed portal link to the customer's email (rate-"
+        "limited: max 5 per email per hour). The link authenticates the "
+        "portal for its TTL — no API key or password needed. Always "
+        "returns success (no account enumeration)."
+    ),
+)
+async def hosting_portal_request(payload: HostingPortalRequest) -> dict[str, Any]:
+    """Magic-link request flow: email a fresh signed portal token."""
+    from pry.commerce.hosting import _ensure_user_by_email, list_instances
+    from pry.commerce.hosting.checkout import send_portal_link_email
+    from pry.commerce.hosting.portal_tokens import check_portal_link_rate
+
+    email = payload.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="a valid email is required")
+    if not check_portal_link_rate(email):
+        logger.warning("portal_link_rate_limited", extra={"email_hash": email[:3] + "***"})
+        raise HTTPException(
+            status_code=429,
+            detail="too many portal link requests — try again later",
+        )
+    # Only mail customers who actually have a hosted instance (anti-spam:
+    # strangers' addresses get a generic success, no email, no enumeration).
+    sent = False
+    try:
+        user_id = _ensure_user_by_email(email)
+        if list_instances(user_id):
+            send_portal_link_email(to_email=email)
+            sent = True
+    except Exception as exc:  # noqa: BLE001 — never leak account state
+        logger.warning("portal_link_request_failed", extra={"error": str(exc)[:120]})
+    return {"success": True, "data": {"sent": sent}}
+
+
 @router.get(
     "/v1/hosting/portal",
     summary="Customer portal — instances, usage and API keys",
     description=(
-        "Email-keyed read-only portal for hosted customers: instances, "
-        "expiry, prepaid balance and ledger. Portal access is the invoice "
-        "email + instance id (proof of ownership) until full sessions ship."
+        "Read-only portal for hosted customers: instances, expiry, prepaid "
+        "balance and ledger. Authenticated by a signed portal token from "
+        "the receipt email (magic-link) — the token encodes the customer "
+        "email + expiry under an HMAC-SHA256 signature. 401 without a "
+        "valid token."
     ),
 )
 async def hosting_portal(
-    email: str = Query(..., description="The email used at signup"),
+    token: str = Query(..., description="Signed portal token from the receipt/magic-link email"),
 ) -> dict[str, Any]:
     from pry.commerce import billing_service
     from pry.commerce.hosting import _ensure_user_by_email, list_instances
+    from pry.commerce.hosting.portal_tokens import verify_portal_token
 
-    user_id = _ensure_user_by_email(email.strip().lower())
+    email = verify_portal_token(token)
+    if email is None:
+        raise HTTPException(status_code=401, detail="invalid or expired portal token")
+    user_id = _ensure_user_by_email(email)
     instances = list_instances(user_id)
 
     # Apify-console-style credit + usage measurement.
@@ -380,7 +430,7 @@ async def hosting_portal(
     return {
         "success": True,
         "data": {
-            "email": email.strip().lower(),
+            "email": email,
             "instances": instances,
             "balance": balance,
             "ledger": ledger,

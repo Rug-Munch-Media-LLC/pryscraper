@@ -205,8 +205,11 @@ _AUTH_PUBLIC_PATHS: set[str] = {
     "/v1/x402/pricing",
     "/v1/x402/catalog",
     # Human checkout + customer portal (pre-auth surfaces: the human IS
-    # the payer — the checkout page renders the 402 manifest, the portal
-    # is email-keyed proof-of-ownership until full sessions ship).
+    # the payer — the checkout page renders the 402 manifest; the portal
+    # authenticates via a signed magic-link token carried in the query
+    # string, verified inside the endpoint — 401 without a valid token).
+    # POST /v1/hosting/portal/request is the rate-limited magic-link
+    # request flow (public by design; the rate limit is the protection).
     "/v1/hosting/checkout",
     "/v1/hosting/portal",
     # Email verification link target (humans click it from mail clients —

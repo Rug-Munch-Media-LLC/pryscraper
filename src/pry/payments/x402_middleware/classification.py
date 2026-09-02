@@ -89,9 +89,12 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/hosting/instances/{instance_id}/renew",
         "/v1/hosting/instances/{instance_id}/cancel",
         # Human checkout + customer portal (control plane — the checkout page
-        # renders the 402 manifest for humans; the portal is email-keyed).
+        # renders the 402 manifest for humans; the portal authenticates via a
+        # signed magic-link token, and /portal/request is the rate-limited
+        # magic-link request flow).
         "/v1/hosting/checkout/{invoice_id}",
         "/v1/hosting/portal",
+        "/v1/hosting/portal/request",
         # Email verification link target (humans click from mail clients;
         # pre-auth — the code in the link IS the proof of control).
         "/v1/hosting/verify/{invoice_id}",

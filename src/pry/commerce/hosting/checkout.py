@@ -250,6 +250,39 @@ Support: support@pryscraper.com
     )
 
 
+# ── Portal magic-link email ────────────────────────────────────────────────
+
+
+def send_portal_link_email(*, to_email: str) -> dict[str, Any]:
+    """Email a fresh signed portal link (magic-link request flow).
+
+    Never raises — best-effort like the receipt. The link authenticates
+    the portal for the token TTL (default 7 days).
+    """
+    from pry.commerce.hosting.portal_tokens import portal_url
+
+    link = portal_url(to_email)
+    body = f"""Pry Hosted — your portal link
+
+Open this link to view your instances, balance and usage:
+  {link}
+
+The link is valid for 7 days. Request a fresh one any time at
+POST /v1/hosting/portal/request (or reply to this email).
+
+If you did not request this link, ignore it — nothing was changed.
+
+Support: support@pryscraper.com
+— Rug Munch Media LLC
+"""
+    return _send_pry_mail(
+        to_email=to_email,
+        subject="[Pry] Your customer portal link",
+        body=body,
+        log_event="hosting_portal_link",
+    )
+
+
 # ── Receipt email ──────────────────────────────────────────────────────────
 
 
@@ -270,12 +303,10 @@ def send_hosting_receipt(
     receipt must not fail the provisioning flow (it's logged and the
     customer can be re-sent manually).
     """
-    import os
 
-    portal_url = (
-        os.getenv("PRY_PUBLIC_BASE_URL", "https://api.pryscraper.com").rstrip("/")
-        + f"/v1/hosting/portal?email={to_email}"
-    )
+    from pry.commerce.hosting.portal_tokens import portal_url
+
+    portal_link = portal_url(to_email)
     key_block = f"Your API key (shown once, store it safely):\n  {api_key}\n\n" if api_key else ""
     instance_block = f"Instance ID: {instance_id}\n" if instance_id else ""
     body = f"""Pry Hosted — payment receipt
@@ -288,7 +319,7 @@ Instance:  {instance_id or "(renewal — existing instance extended)"}
 
 {key_block}{instance_block}
 Manage your instance, monitor usage and rotate API keys any time:
-  {portal_url}
+  {portal_link}
 
 Support: support@pryscraper.com
 — Rug Munch Media LLC
