@@ -92,6 +92,9 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         # renders the 402 manifest for humans; the portal is email-keyed).
         "/v1/hosting/checkout/{invoice_id}",
         "/v1/hosting/portal",
+        # Email verification link target (humans click from mail clients;
+        # pre-auth — the code in the link IS the proof of control).
+        "/v1/hosting/verify/{invoice_id}",
         # Job / session management (control plane, not data plane)
         "/v1/job/{job_id}",
         "/v1/jobs",
