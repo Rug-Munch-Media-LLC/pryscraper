@@ -430,7 +430,7 @@ class FacilitatorRouter:
             "network": network,
             "asset": asset,
             "amount": str(asset_to_atomic(amount_usd, asset, network)),
-            "payToAddress": (X402_WALLET if X402_WALLET not in X402_PLACEHOLDER_WALLETS else ""),
+            "payToAddress": (resolve_pay_to(network) or ""),
             "scheme": X402Scheme.EXACT.value,
             "timestamp": datetime.now(UTC).isoformat(),
         }
@@ -736,7 +736,7 @@ class FacilitatorRouter:
             "network": network,
             "asset": asset,
             "amount": str(asset_to_atomic(amount_usd, asset, network)),
-            "payToAddress": (X402_WALLET if X402_WALLET not in X402_PLACEHOLDER_WALLETS else ""),
+            "payToAddress": (resolve_pay_to(network) or ""),
             "scheme": X402Scheme.EXACT.value,
             "timestamp": datetime.now(UTC).isoformat(),
         }

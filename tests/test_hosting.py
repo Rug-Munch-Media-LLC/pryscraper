@@ -104,8 +104,18 @@ def db(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _clean_hosting_state(monkeypatch):
-    """Reset the invoice registry + wire a real treasury wallet."""
+def _clean_hosting_state(tmp_path, monkeypatch):
+    """Isolated per-test DB + reset invoice registry + real treasury wallet.
+
+    Invoices persist in the hosting_invoices table — tests get a fresh
+    SQLite DB per test so they never touch the dev database.
+    """
+    monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/hosting-test.db")
+    import pry.core.db as db_pkg
+    import pry.core.db.session as session_mod
+
+    monkeypatch.setattr(db_pkg, "_engine", None, raising=False)
+    monkeypatch.setattr(session_mod, "_engine", None, raising=False)
     reset_hosting_state()
     monkeypatch.setattr(hosting_mod, "X402_NETWORK_WALLETS", {"eip155:8453": _REAL_WALLET})
     monkeypatch.setattr(hosting_mod, "X402_WALLET", _REAL_WALLET)

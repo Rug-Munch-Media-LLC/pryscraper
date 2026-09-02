@@ -426,5 +426,37 @@ if _HAS_SA:
         resource_limit = Column(JSON, default=dict)  # concurrency / pages / storage caps
         Index("ix_hosted_instances_user_created", user_id, created_at.desc())
 
+    # ── Hosting invoices (revenue records — persisted, audit item #1) ──
+    class HostingInvoice(Base):
+        __tablename__ = "hosting_invoices"
+        id = Column(Integer, primary_key=True)
+        invoice_id = Column(String(64), unique=True, index=True, nullable=False)
+        kind = Column(String(16), default="signup", nullable=False)  # signup | renewal
+        plan_tier = Column(String(32), nullable=False)  # pro | team | enterprise
+        user_email = Column(String(256), index=True, nullable=False)
+        user_id = Column(
+            String(64),
+            ForeignKey("users.user_id", ondelete="CASCADE"),
+            index=True,
+            nullable=False,
+        )
+        instance_id = Column(String(64), default="", index=True)  # "" until provisioned
+        payment_method = Column(String(32), default="x402", nullable=False)
+        amount_usd = Column(Float, nullable=False)
+        amount_atomic = Column(String(64), default="0", nullable=False)
+        chain = Column(String(32), default="", nullable=False)
+        pay_to = Column(String(128), default="", nullable=False)
+        asset = Column(String(16), default="USDC", nullable=False)
+        status = Column(
+            String(16), default="pending", nullable=False, index=True
+        )  # pending | submitted | paid | expired
+        expires_at = Column(DateTime, nullable=True, index=True)
+        payment = Column(JSON, default=dict)  # tx_hash / network / asset / authorization
+        x402_body = Column(JSON, default=dict)  # the 402 manifest body
+        credited_reference = Column(String(256), default="")  # ledger idempotency ref
+        created_at = Column(DateTime, default=_now, nullable=False)
+        updated_at = Column(DateTime, default=_now, onupdate=_now, nullable=False)
+        Index("ix_hosting_invoices_user_created", user_email, created_at.desc())
+
 else:  # pragma: no cover
     Base = None  # type: ignore

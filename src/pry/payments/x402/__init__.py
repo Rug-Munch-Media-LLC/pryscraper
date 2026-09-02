@@ -178,6 +178,8 @@ X402_NETWORK_WALLETS: dict[str, str] = {
     "eip155:42161": os.getenv("PRY_X402_WALLET_ARBITRUM", X402_WALLET),
     "eip155:10": os.getenv("PRY_X402_WALLET_OPTIMISM", X402_WALLET),
     "eip155:137": os.getenv("PRY_X402_WALLET_POLYGON", X402_WALLET),
+    "eip155:56": os.getenv("PRY_X402_WALLET_BNB", X402_WALLET),
+    "eip155:43114": os.getenv("PRY_X402_WALLET_AVALANCHE", X402_WALLET),
     "solana:mainnet": os.getenv("PRY_X402_WALLET_SOLANA", ""),
     "tron:mainnet": os.getenv("PRY_X402_WALLET_TRON", ""),
 }

@@ -49,7 +49,6 @@ import calendar
 import hashlib
 import logging
 import os
-import threading
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -57,7 +56,7 @@ from typing import Any
 
 from pry.commerce import billing_service
 from pry.core.db import models as _models
-from pry.core.db.session import get_session
+from pry.core.db.session import get_session, session_scope
 from pry.payments.x402 import (
     X402_DEFAULT_ASSET,
     X402_DEFAULT_NETWORK,
@@ -93,9 +92,77 @@ logger = logging.getLogger(__name__)
 ENV_HOSTING_INVOICE_TTL: str = "PRY_HOSTING_INVOICE_TTL"
 _DEFAULT_INVOICE_TTL: int = 86_400
 
-#: In-memory hosting invoice registry (keyed by invoice_id).
-_INVOICES: dict[str, dict[str, Any]] = {}
-_lock = threading.RLock()
+
+# ── Invoice persistence (hosting_invoices table — audit item #1) ────────────
+def _invoice_to_dict(row: Any) -> dict[str, Any]:
+    """Serialize a HostingInvoice row to the public invoice dict."""
+    return {
+        "invoice_id": row.invoice_id,
+        "kind": row.kind,
+        "plan_tier": row.plan_tier,
+        "user_email": row.user_email,
+        "user_id": row.user_id,
+        "instance_id": row.instance_id or "",
+        "payment_method": row.payment_method,
+        "amount_usd": row.amount_usd,
+        "amount_atomic": row.amount_atomic,
+        "chain": row.chain,
+        "pay_to": row.pay_to,
+        "asset": row.asset,
+        "expires_at": _utc_iso(_aware(row.expires_at)),
+        "status": row.status,
+        "credited_reference": row.credited_reference or "",
+        "payment": dict(row.payment or {}),
+        "x402_body": dict(row.x402_body or {}),
+        "created_at": _utc_iso(_aware(row.created_at)),
+    }
+
+
+def _save_invoice(record: dict[str, Any]) -> None:
+    """Insert or update a hosting invoice row from a record dict."""
+    with session_scope() as session:
+        row = (
+            session.query(_models.HostingInvoice).filter_by(invoice_id=record["invoice_id"]).first()
+        )
+        if row is None:
+            row = _models.HostingInvoice(invoice_id=record["invoice_id"])
+            session.add(row)
+        row.kind = str(record.get("kind", "signup"))
+        row.plan_tier = str(record["plan_tier"])
+        user_email = str(record.get("user_email") or "")
+        if not user_email and record.get("user_id"):
+            urow = session.query(_models.User).filter_by(user_id=str(record["user_id"])).first()
+            user_email = str(urow.email) if urow is not None else ""
+        row.user_email = user_email
+        row.user_id = str(record.get("user_id") or "")
+        row.instance_id = str(record.get("instance_id") or "")
+        row.payment_method = str(record.get("payment_method", "x402"))
+        row.amount_usd = float(record["amount_usd"])
+        row.amount_atomic = str(record.get("amount_atomic", "0"))
+        row.chain = str(record.get("chain", ""))
+        row.pay_to = str(record.get("pay_to", ""))
+        row.asset = str(record.get("asset", ""))
+        row.status = str(record.get("status", "pending"))
+        row.expires_at = _parse_iso(str(record["expires_at"]))
+        row.payment = dict(record.get("payment") or {})
+        row.x402_body = dict(record.get("x402_body") or {})
+
+
+def _load_invoice(invoice_id: str) -> dict[str, Any] | None:
+    """Fetch one invoice dict by id (None when unknown)."""
+    with session_scope() as session:
+        row = session.query(_models.HostingInvoice).filter_by(invoice_id=invoice_id).first()
+        return _invoice_to_dict(row) if row is not None else None
+
+
+def _set_invoice_fields(invoice_id: str, **fields: Any) -> None:
+    """Update scalar columns on an invoice row (no-op when unknown)."""
+    with session_scope() as session:
+        row = session.query(_models.HostingInvoice).filter_by(invoice_id=invoice_id).first()
+        if row is None:
+            return
+        for key, value in fields.items():
+            setattr(row, key, value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -353,8 +420,7 @@ def create_hosting_signup(user_email: str, plan_tier: str) -> dict[str, Any]:
         },
         "x402_body": body,
     }
-    with _lock:
-        _INVOICES[invoice_id] = record
+    _save_invoice(record)
     logger.info(
         "hosting_signup_invoice_created",
         extra={"invoice_id": invoice_id, "plan_tier": plan.tier, "user_id": user_id},
@@ -388,20 +454,23 @@ def submit_hosting_payment(
     """
     if not tx_hash or not tx_hash.strip():
         raise ValueError("tx_hash must be a non-empty transaction hash")
-    with _lock:
-        invoice = _INVOICES.get(invoice_id)
-        if invoice is None:
-            raise ValueError(f"unknown hosting invoice {invoice_id!r}")
-        payment = invoice["payment"]
-        payment["tx_hash"] = tx_hash.strip()
-        if network:
-            payment["network"] = normalize_network_id(network)
-        if asset:
-            payment["asset"] = asset.upper()
-        if authorization is not None:
-            payment["authorization"] = authorization
-        invoice["status"] = "submitted"
-    return dict(invoice)
+    invoice = _load_invoice(invoice_id)
+    if invoice is None:
+        raise ValueError(f"unknown hosting invoice {invoice_id!r}")
+    payment = dict(invoice["payment"] or {})
+    payment["tx_hash"] = tx_hash.strip()
+    if network:
+        payment["network"] = normalize_network_id(network)
+    if asset:
+        payment["asset"] = asset.upper()
+    if authorization is not None:
+        payment["authorization"] = authorization
+    with session_scope() as session:
+        row = session.query(_models.HostingInvoice).filter_by(invoice_id=invoice_id).first()
+        if row is not None:
+            row.payment = payment
+            row.status = "submitted"
+    return {**invoice, "payment": payment, "status": "submitted"}
 
 
 # ── Verification + settlement ───────────────────────────────────────────────
@@ -436,8 +505,7 @@ async def _verify_x402_async(invoice: dict[str, Any], *, expired: bool) -> dict[
         }
     )
     if verification.verified and not expired:
-        with _lock:
-            invoice["status"] = "paid"
+        _set_invoice_fields(str(invoice["invoice_id"]), status="paid")
         return {
             "paid": True,
             "tx_hash": str(tx_hash),
@@ -492,15 +560,14 @@ async def confirm_hosting_payment(
     """
     if not payment_proof or not payment_proof.strip():
         raise ValueError("payment_proof must be a non-empty transaction hash")
-    with _lock:
-        invoice = _INVOICES.get(invoice_id)
-        if invoice is None:
-            raise ValueError(f"unknown hosting invoice {invoice_id!r}")
-        plan_tier = str(invoice["plan_tier"])
-        kind = str(invoice.get("kind", "signup"))
-        user_id = str(invoice.get("user_id") or "")
-        instance_id = str(invoice.get("instance_id") or "")
-        amount_usd = float(invoice["amount_usd"])
+    invoice = _load_invoice(invoice_id)
+    if invoice is None:
+        raise ValueError(f"unknown hosting invoice {invoice_id!r}")
+    plan_tier = str(invoice["plan_tier"])
+    kind = str(invoice.get("kind", "signup"))
+    user_id = str(invoice.get("user_id") or "")
+    instance_id = str(invoice.get("instance_id") or "")
+    amount_usd = float(invoice["amount_usd"])
     try:
         expires_at = _parse_iso(str(invoice["expires_at"]))
     except ValueError:
@@ -510,8 +577,7 @@ async def confirm_hosting_payment(
     submit_hosting_payment(
         invoice_id, payment_proof, network=network, asset=asset, authorization=authorization
     )
-    with _lock:
-        invoice = _INVOICES[invoice_id]
+    invoice = _load_invoice(invoice_id) or invoice
     result = await _verify_x402_async(invoice, expired=expired)
     if not result["paid"]:
         if result.get("tx_hash"):
@@ -528,8 +594,7 @@ async def confirm_hosting_payment(
         }
 
     # ── On-chain settlement (funds move only here) ──
-    with _lock:
-        payment = dict(_INVOICES[invoice_id].get("payment") or {})
+    payment = dict(invoice.get("payment") or {})
     settle_tx = await _settle_onchain_async(
         {
             "payment_id": invoice_id,
@@ -551,20 +616,17 @@ async def confirm_hosting_payment(
         }
 
     reference = f"hosting:{invoice_id}:{settle_tx}"
-    with _lock:
-        already_credited = _INVOICES[invoice_id].get("credited_reference") == reference
+    already_credited = (invoice.get("credited_reference") or "") == reference
     if not already_credited:
         billing_service.credit(user_id, amount_usd, reason="deposit", reference=reference)
-        with _lock:
-            _INVOICES[invoice_id]["credited_reference"] = reference
+        _set_invoice_fields(invoice_id, credited_reference=reference)
 
     if kind == "renewal" and instance_id:
         instance = _extend_instance(instance_id, months=1)
         api_key = None
     else:
         instance, api_key = _provision_instance(user_id, plan_tier)
-        with _lock:
-            _INVOICES[invoice_id]["instance_id"] = instance["instance_id"]
+        _set_invoice_fields(invoice_id, instance_id=instance["instance_id"])
 
     logger.info(
         "hosting_payment_confirmed",
@@ -722,11 +784,10 @@ def _instance_payload(instance_id: str) -> dict[str, Any]:
 # ── Instance management ─────────────────────────────────────────────────────
 def get_hosting_invoice(invoice_id: str) -> dict[str, Any]:
     """Return a hosting invoice record (checkout page + portal lookups)."""
-    with _lock:
-        invoice = _INVOICES.get(invoice_id)
-        if invoice is None:
-            raise ValueError(f"unknown hosting invoice {invoice_id!r}")
-        return dict(invoice)
+    invoice = _load_invoice(invoice_id)
+    if invoice is None:
+        raise ValueError(f"unknown hosting invoice {invoice_id!r}")
+    return invoice
 
 
 def get_instance(instance_id: str) -> dict[str, Any]:
@@ -866,8 +927,7 @@ def renew_instance(instance_id: str) -> dict[str, Any]:
         },
         "x402_body": body,
     }
-    with _lock:
-        _INVOICES[invoice_id] = record
+    _save_invoice(record)
     logger.info(
         "hosting_renewal_invoice_created",
         extra={"invoice_id": invoice_id, "instance_id": instance_id},
@@ -888,6 +948,10 @@ def renew_instance(instance_id: str) -> dict[str, Any]:
 
 
 def reset_hosting_state() -> None:
-    """Clear the in-memory invoice registry (test/ops helper)."""
-    with _lock:
-        _INVOICES.clear()
+    """Reset the invoice registry (test/ops compat no-op).
+
+    Invoices now live in the ``hosting_invoices`` table — they survive
+    restarts by design, so there is nothing to clear in-process. Tests
+    isolate via a per-test SQLite DB (see tests/conftest.py).
+    """
+    return None
