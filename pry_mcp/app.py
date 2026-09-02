@@ -35,6 +35,7 @@ from pry_mcp.notifications import (
     register_mcp_notification_observer,
     unregister_mcp_notification_observer,
 )
+from pry_mcp.session_store import get_memory_store, get_session_store
 
 # Same CORS allow-list the main app uses; the MCP sub-app is mounted under the
 # same origin(s) and must accept the same browser clients.
@@ -54,7 +55,12 @@ _MCP_SERVER_INSTANCE: Any | None = None
 # session id only gates stateful clients per the spec; stateless requests
 # without an ``Mcp-Session-Id`` header remain fully supported and are the
 # default for one-shot integrations.
-_MCP_SESSIONS: set[str] = set()
+#
+# Backing store: Redis SET (shared across replicas) when ``PRY_REDIS_URL``
+# is set and reachable, else in-memory with TTL (see pry_mcp.session_store).
+# ``_MCP_SESSIONS`` is kept as the in-memory store's backing dict for
+# backward compatibility with tests that clear it directly.
+_MCP_SESSIONS: set[str] = get_memory_store()._sessions
 
 
 def _default_get_server() -> Any:
@@ -99,6 +105,10 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
         if get_server is not None:
             return get_server()
         return _default_get_server()
+
+    async def _store() -> Any:
+        """Resolve the session store (Redis when configured, else memory)."""
+        return await get_session_store()
 
     @app.post("/", tags=["MCP"], summary="MCP JSON-RPC endpoint (Streamable HTTP)")
     async def mcp_json_rpc(request: Request) -> Any:
@@ -172,7 +182,7 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
 
         # 4. Session management: reject unknown inbound sessions; issue a new
         session_id = request.headers.get("mcp-session-id", "")
-        if session_id and session_id not in _MCP_SESSIONS:
+        if session_id and not await (await _store()).exists(session_id):
             return JSONResponse(
                 status_code=404,
                 content={
@@ -185,7 +195,7 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
         response_headers: dict[str, str] = {"Cache-Control": "no-store"}
         if body.get("method") == "initialize" and not session_id:
             session_id = uuid.uuid4().hex
-            _MCP_SESSIONS.add(session_id)
+            await (await _store()).add(session_id)
             response_headers["Mcp-Session-Id"] = session_id
 
         # 5. Notifications (requests without id) never produce a response.
@@ -226,9 +236,9 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
                 status_code=400,
                 content={"detail": "Mcp-Session-Id header required for DELETE"},
             )
-        if session_id not in _MCP_SESSIONS:
+        if not await (await _store()).exists(session_id):
             return JSONResponse(status_code=404, content={"detail": "Unknown session"})
-        _MCP_SESSIONS.discard(session_id)
+        await (await _store()).remove(session_id)
         return Response(status_code=200)
 
     @app.get("/", tags=["MCP"], summary="MCP Streamable HTTP GET (SSE)")
@@ -247,7 +257,7 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
                 content={"detail": "Accept: text/event-stream is required for GET"},
             )
         session_id = request.headers.get("mcp-session-id", "")
-        if session_id and session_id not in _MCP_SESSIONS:
+        if session_id and not await (await _store()).exists(session_id):
             return JSONResponse(
                 status_code=404,
                 content={"detail": f"Unknown session: {session_id}"},
