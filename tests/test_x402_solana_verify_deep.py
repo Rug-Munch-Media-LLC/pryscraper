@@ -118,7 +118,7 @@ class TestIterSplInstructions:
         assert len(found) == 1
         assert found[0][0] == "transferChecked"
 
-    def test_inner_instructions_found(self) -> dict:
+    def test_inner_instructions_found(self) -> None:
         result = {
             "transaction": {"message": {"instructions": []}},
             "meta": {
@@ -129,8 +129,9 @@ class TestIterSplInstructions:
         }
         found = _iter_spl_instructions(result)
         assert len(found) == 1
+        assert found[0][0] == "transferChecked"
         assert found[0][1]["tokenAmount"]["amount"] == "500"
-        return {}
+        assert found[0][1]["tokenAmount"]["decimals"] == 6
 
     def test_non_spl_token_program_skipped(self) -> None:
         inst = _transfer_checked()

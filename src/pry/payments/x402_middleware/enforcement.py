@@ -401,6 +401,7 @@ class X402Middleware:
                             reason=attest_reason,
                         )
                         logger.warning(
+                            "x402_attestation_failed",
                             extra={
                                 "operation": operation,
                                 "path": path,

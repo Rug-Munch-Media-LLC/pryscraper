@@ -385,8 +385,6 @@ class EarningsTracker:
             return {"address": TREASURY_EVM, "error": str(exc)}
 
     def _evm_etherscan(self, api_key: str) -> float:
-        import httpx
-
         resp = httpx.get(
             ETHERSCAN_API,
             params={
@@ -405,8 +403,6 @@ class EarningsTracker:
         return round(int(data["result"]) / WEI, 8)
 
     def _evm_rpc_native(self) -> float:
-        import httpx
-
         resp = httpx.post(
             EVM_PUBLIC_RPC,
             json={
@@ -423,8 +419,6 @@ class EarningsTracker:
 
     def _evm_usdc(self, api_key: str) -> float | None:
         try:
-            import httpx
-
             resp = httpx.get(
                 ETHERSCAN_API,
                 params={
@@ -450,8 +444,6 @@ class EarningsTracker:
         if (hit := _cached(cache_key)) is not None:
             return hit
         try:
-            import httpx
-
             resp = httpx.post(
                 SOLANA_RPC,
                 json={
@@ -482,8 +474,6 @@ class EarningsTracker:
         if (hit := _cached(cache_key)) is not None:
             return hit
         try:
-            import httpx
-
             resp = httpx.get(
                 f"{TRONGRID_API}/v1/accounts/{TREASURY_TRON}",
                 timeout=TREASURY_TIMEOUT_S,

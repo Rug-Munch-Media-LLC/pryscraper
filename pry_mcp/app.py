@@ -60,7 +60,7 @@ _MCP_SERVER_INSTANCE: Any | None = None
 # is set and reachable, else in-memory with TTL (see pry_mcp.session_store).
 # ``_MCP_SESSIONS`` is kept as the in-memory store's backing dict for
 # backward compatibility with tests that clear it directly.
-_MCP_SESSIONS: set[str] = get_memory_store()._sessions
+_MCP_SESSIONS: dict[str, float] = get_memory_store()._sessions
 
 
 def _default_get_server() -> Any:

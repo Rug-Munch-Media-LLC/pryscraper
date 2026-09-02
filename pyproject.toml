@@ -256,6 +256,13 @@ exclude = [
     "dist/",
     ".git/",
     "__pycache__/",
+    # actor_factory/ holds 100+ independent standalone actor scripts, each
+    # with its own main.py. mypy cannot type-check multiple same-named
+    # modules in one invocation (duplicate-module error), and they are not
+    # part of the `pry` package namespace. Excluded from the single-run gate.
+    "actor_factory/",
+    # mutants/ is mutation-testing output (mutmut), not source.
+    "mutants/",
 ]
 warn_unused_ignores = false
 # TODO: Pry was built without strict typing; re-enable incrementally.

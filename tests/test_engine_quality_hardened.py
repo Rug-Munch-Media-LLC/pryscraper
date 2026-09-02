@@ -290,9 +290,11 @@ class TestRunQualityCheck:
 
     async def test_list_data_raises_in_compute_freshness(self) -> None:
         # [REVIEW] BUG: run_quality_check calls compute_freshness(data, ...)
-        # which does data.get(key). When data is a list this raises
+        # which does data.get(key). When data is a list this used to raise
         # AttributeError instead of being handled. The null_rate/schema
-        # guards only protect those two metrics, not freshness. This test
-        # documents the current (buggy) behavior so a fix is verifiable.
-        with pytest.raises(AttributeError):
-            await run_quality_check("https://example.com/list", [{"a": 1}])
+        # guards only protect those two metrics, not freshness. Now list
+        # input returns a neutral default instead of raising.
+        result = await run_quality_check("https://example.com/list", [{"a": 1}])
+        assert result["freshness"]["fresh"] is True
+        assert result["freshness"]["age_seconds"] is None
+        assert "cannot verify freshness" in result["freshness"]["note"]

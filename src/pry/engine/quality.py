@@ -154,8 +154,22 @@ def compute_null_rate(data: dict[str, Any] | list[dict[str, Any]]) -> dict[str, 
     }
 
 
-def compute_freshness(data: dict[str, Any], max_age_seconds: int = 3600) -> dict[str, Any]:
-    """Check data freshness against expected age."""
+def compute_freshness(
+    data: dict[str, Any] | list[Any], max_age_seconds: int = 3600
+) -> dict[str, Any]:
+    """Check data freshness against expected age.
+
+    If ``data`` is a list (or any non-dict), freshness cannot be verified
+    from a single timestamp field, so a neutral default is returned rather
+    than raising ``AttributeError`` from ``data.get(...)``.
+    """
+    if not isinstance(data, dict):
+        return {
+            "fresh": True,
+            "age_seconds": None,
+            "note": "Data is not a dict — cannot verify freshness",
+        }
+
     now = time.time()
     timestamps = []
 

@@ -123,8 +123,8 @@ def test_attest_idempotent_and_no_key_passthrough(monkeypatch) -> None:
     monkeypatch.delenv(X402_ATTEST_KEY_ENV, raising=False)
     monkeypatch.delenv("PRY_X402_FACILITATOR_KEY", raising=False)
     monkeypatch.delenv("PRY_X402_ATTEST_SECRET", raising=False)
-    assert attest_payment_required(_attested_body()) is not None
     unattested = attest_payment_required(_attested_body())
+    assert isinstance(unattested, dict)
     assert "attestation" not in unattested  # no key → backward-compatible passthrough
 
 

@@ -171,6 +171,8 @@ def test_parse_trusted_proxy_ipv4():
 def test_parse_trusted_proxy_single_ip():
     net = _parse_trusted_proxy("192.168.1.1")
     assert net is not None
+    assert net.prefixlen == 32
+    assert str(net.network_address) == "192.168.1.1"
 
 
 def test_parse_trusted_proxy_invalid():
