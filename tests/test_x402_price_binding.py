@@ -28,6 +28,7 @@ from pry.payments.x402.scheme import (
     AssetUsdQuote,
     attest_payment_required,
     attested_max_amount_required,
+    build_payment_required,
     clear_price_cache,
     verify_payment_required_attestation,
 )
@@ -307,3 +308,44 @@ async def test_attestation_signer_address_configured() -> None:
     from pry.payments.x402.scheme import attestation_signer_address
 
     assert attestation_signer_address() != ""
+
+
+# ── Header compaction: every configured family stays payable ────────────────
+
+
+def test_compaction_keeps_every_network_stablecoin_payable():
+    """The wire challenge must keep every configured network in accepts.
+
+    Regression: the 12KB budget tail-dropped Polygon + the whole Solana
+    family from the wire header even though both are fully configured and
+    verifiable. Stripping the heavy discovery tables from the header copy
+    (they ride in the response body + /v1/x402/pricing) frees the budget.
+    """
+    import base64
+    import json as _json
+
+    from pry.payments.x402_middleware.enforcement import (
+        X402_PAYMENT_HEADER_MAX_BYTES,
+        _compact_payment_required_header,
+    )
+
+    body = build_payment_required("scrape", multi_asset=True)
+    header = _compact_payment_required_header(body, X402_PAYMENT_HEADER_MAX_BYTES)
+    assert len(header.encode()) <= X402_PAYMENT_HEADER_MAX_BYTES
+    decoded = _json.loads(base64.b64decode(header).decode())
+    nets = {a["network"] for a in decoded["accepts"]}
+    # Every network that the full body offered must stay payable-from-header.
+    full_nets = {a["network"] for a in body["accepts"]}
+    assert nets == full_nets, f"families dropped from the wire: {full_nets - nets}"
+    # Stablecoin preferred per network.
+    for a in decoded["accepts"]:
+        assert a["asset"] in ("USDC", "USDT")
+    # Heavy discovery metadata is header-stripped (body + pricing endpoint
+    # still carry the full catalog).
+    assert "supported_assets" not in decoded
+    assert "networks" not in decoded
+    # The trimmed body is re-attested over exactly what is advertised.
+    from pry.payments.x402.scheme import verify_payment_required_attestation
+
+    verdict = verify_payment_required_attestation(decoded)
+    assert verdict["verified"] is True

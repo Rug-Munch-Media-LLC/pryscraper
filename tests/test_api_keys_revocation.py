@@ -109,3 +109,58 @@ def test_admin_revoke_endpoint(client, db) -> None:
 def test_admin_revoke_unknown_key_404(client, db) -> None:
     resp = client.delete(f"{ADMIN_PREFIX}/v1/admin/keys/key_unknown")
     assert resp.status_code == 404
+
+
+# ── Admin RBAC in remote mode (audit item #5) ───────────────────────────────
+
+
+def test_remote_admin_requires_admin_role(tmp_path, monkeypatch):
+    """PRY_ADMIN_LOOPBACK_ONLY=false + non-ADMIN user's key → 403 fail closed.
+
+    Regression: with loopback-only disabled, ANY valid API key could reach
+    the admin surface. Remote mode now requires the key's owner to hold the
+    ADMIN role in the users table.
+    """
+    from fastapi import HTTPException
+    from sqlalchemy import create_engine
+
+    import pry.api.routers.core.admin as admin_mod
+    import pry.core.api_keys_service as aks
+    import pry.core.db.models as models
+    from pry.api.routers.core.admin import _check_admin_access
+
+    monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/rbac.db")
+    # ADMIN_LOOPBACK_ONLY is read at import time — patch the module constant.
+    monkeypatch.setattr(admin_mod, "ADMIN_LOOPBACK_ONLY", False)
+    import pry.core.db as db_pkg
+    import pry.core.db.session as session_mod
+
+    monkeypatch.setattr(db_pkg, "_engine", None, raising=False)
+    monkeypatch.setattr(session_mod, "_engine", None, raising=False)
+    engine = create_engine(f"sqlite:///{tmp_path}/rbac.db")
+    models.Base.metadata.create_all(engine)
+
+    # Non-loopback client with NO key → 403
+    req = type("R", (), {"client": type("C", (), {"host": "10.1.2.3"})(), "headers": {}})()
+    with pytest.raises(HTTPException) as exc:
+        _check_admin_access(req)  # type: ignore[arg-type]
+    assert exc.value.status_code == 403
+
+    # Valid key owned by a NON-admin user → 403
+    from pry.core.db.session import get_session
+
+    with get_session() as session:
+        session.add(models.User(user_id="u_nonadmin", email="na@x.io", password_hash="x"))
+        session.commit()
+    issued = aks.issue_key(user_id="u_nonadmin", name="t")
+    key = issued["plaintext"] if isinstance(issued, dict) and "plaintext" in issued else str(issued)
+
+    class _Req:
+        def __init__(self) -> None:
+            self.client = type("C", (), {"host": "10.1.2.3"})()
+            self.headers = {"authorization": f"Bearer {key}"}
+
+    with pytest.raises(HTTPException) as exc2:
+        _check_admin_access(_Req())
+    assert "ADMIN role" in exc2.value.detail
+    engine.dispose()

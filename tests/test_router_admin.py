@@ -76,11 +76,79 @@ class TestLoopbackGate:
         assert "loopback-only" in r.json()["detail"].lower()
 
     def test_remote_allowed_when_loopback_only_disabled(
-        self, remote_client: TestClient, monkeypatch: pytest.MonkeyPatch
+        self, remote_client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
+        """Remote mode: an ADMIN-role user's key passes the gate."""
+        from sqlalchemy import create_engine
+
+        import pry.core.api_keys_service as aks
+        import pry.core.db.models as models
+        from pry.core.db.session import get_session
+
+        monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/rbac-remote.db")
+        import pry.core.db as db_pkg
+        import pry.core.db.session as session_mod
+
+        monkeypatch.setattr(db_pkg, "_engine", None, raising=False)
+        monkeypatch.setattr(session_mod, "_engine", None, raising=False)
+        engine = create_engine(f"sqlite:///{tmp_path}/rbac-remote.db")
+        models.Base.metadata.create_all(engine)
+        with get_session() as session:
+            session.add(
+                models.User(user_id="u_admin", email="admin@x.io", password_hash="x", role="ADMIN")
+            )
+            session.commit()
+        issued = aks.issue_key(user_id="u_admin", name="t")
+        plaintext = (
+            issued["plaintext"]
+            if isinstance(issued, dict) and "plaintext" in issued
+            else str(issued)
+        )
         monkeypatch.setattr(admin_module, "ADMIN_LOOPBACK_ONLY", False)
-        r = remote_client.post(f"{ADMIN_PREFIX}/v1/admin/ping", json={})
+        r = remote_client.post(
+            f"{ADMIN_PREFIX}/v1/admin/ping",
+            json={},
+            headers={"authorization": f"Bearer {plaintext}"},
+        )
         assert r.status_code == 200
+        engine.dispose()
+
+    def test_remote_rejects_non_admin_key_when_loopback_only_disabled(
+        self, remote_client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """RBAC: a NON-admin user's valid key must NOT reach remote admin."""
+        from sqlalchemy import create_engine
+
+        import pry.core.api_keys_service as aks
+        import pry.core.db.models as models
+        from pry.core.db.session import get_session
+
+        monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/rbac-nonadmin.db")
+        import pry.core.db as db_pkg
+        import pry.core.db.session as session_mod
+
+        monkeypatch.setattr(db_pkg, "_engine", None, raising=False)
+        monkeypatch.setattr(session_mod, "_engine", None, raising=False)
+        engine = create_engine(f"sqlite:///{tmp_path}/rbac-nonadmin.db")
+        models.Base.metadata.create_all(engine)
+        with get_session() as session:
+            session.add(models.User(user_id="u_plain", email="p@x.io", password_hash="x"))
+            session.commit()
+        issued = aks.issue_key(user_id="u_nonadmin", name="t")
+        plaintext = (
+            issued["plaintext"]
+            if isinstance(issued, dict) and "plaintext" in issued
+            else str(issued)
+        )
+        monkeypatch.setattr(admin_module, "ADMIN_LOOPBACK_ONLY", False)
+        r = remote_client.post(
+            f"{ADMIN_PREFIX}/v1/admin/ping",
+            json={},
+            headers={"authorization": f"Bearer {plaintext}"},
+        )
+        assert r.status_code == 403
+        assert "ADMIN role" in r.json()["detail"]
+        engine.dispose()
 
     def test_gate_applies_to_every_endpoint(self, remote_client: TestClient) -> None:
         for path in (

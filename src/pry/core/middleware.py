@@ -45,6 +45,7 @@ from typing import Any, cast
 
 from starlette.routing import Mount as StarletteMount, Route as StarletteRoute
 
+from pry.core.audit import audit_event
 from pry.core.deps import ratelimiter, user_ratelimiter
 from pry.core.jwt_auth import is_jwt, validate_rmi_jwt
 from pry.core.observability import (
@@ -462,6 +463,16 @@ class PryHttpMiddleware:
             path.startswith(p + "/") for p in _AUTH_PUBLIC_PATHS if p != "/"
         )
         if not is_public and not request_authorized(scope):
+            # Audit (item #21): 401 with a key presented = invalid/revoked key.
+            _presented = self._get_header(scope, b"authorization")
+            if _presented.startswith("Bearer "):
+                audit_event(
+                    "auth_failure_401",
+                    actor=_presented[7:][:64],
+                    path=path,
+                    ip=ip,
+                    request_id=request_id,
+                )
             body = json.dumps(
                 {
                     "type": "/errors/unauthorized",
@@ -552,6 +563,14 @@ class PryHttpMiddleware:
 
         if not allowed:
             elapsed = time.time() - start
+            audit_event(
+                "rate_limit_429",
+                actor=api_key[:64] if api_key else ip,
+                path=path,
+                ip=ip,
+                reason=stats.get("reason", "rate_limited"),
+                request_id=request_id,
+            )
             logger.warning(
                 "rate_limit_blocked",
                 extra={

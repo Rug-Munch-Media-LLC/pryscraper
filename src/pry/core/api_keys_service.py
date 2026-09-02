@@ -25,6 +25,7 @@ import secrets
 from datetime import UTC, datetime
 from typing import Any
 
+from pry.core.audit import audit_event
 from pry.core.db import models as _models
 from pry.core.db.session import get_session
 
@@ -141,6 +142,13 @@ def revoke_key(key_id: str, *, user_id: str | None = None) -> bool:
             return False
         row.is_active = False
         session.commit()
+        audit_event(
+            "api_key_revoked",
+            actor=user_id or "system",
+            path=f"api_keys/{key_id}",
+            key_id=key_id,
+            owner_user_id=row.user_id,
+        )
         return True
 
 

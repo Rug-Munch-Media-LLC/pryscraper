@@ -462,5 +462,16 @@ if _HAS_SA:
         updated_at = Column(DateTime, default=_now, onupdate=_now, nullable=False)
         Index("ix_hosting_invoices_user_created", user_email, created_at.desc())
 
+    # ── Audit log (security events — audit item #21) ──
+    class AuditEvent(Base):
+        __tablename__ = "audit_events"
+        id = Column(Integer, primary_key=True)
+        event_type = Column(String(64), index=True, nullable=False)
+        actor = Column(String(128), default="", index=True)  # key_id / ip / "system"
+        path = Column(String(256), default="", nullable=False)
+        detail = Column(JSON, default=dict)
+        created_at = Column(DateTime, default=_now, index=True, nullable=False)
+        Index("ix_audit_events_type_created", event_type, created_at.desc())
+
 else:  # pragma: no cover
     Base = None  # type: ignore
