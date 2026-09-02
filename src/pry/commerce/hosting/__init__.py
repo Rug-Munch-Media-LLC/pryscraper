@@ -505,7 +505,6 @@ async def _verify_x402_async(invoice: dict[str, Any], *, expired: bool) -> dict[
         }
     )
     if verification.verified and not expired:
-        _set_invoice_fields(str(invoice["invoice_id"]), status="paid")
         return {
             "paid": True,
             "tx_hash": str(tx_hash),
@@ -620,8 +619,15 @@ async def confirm_hosting_payment(
     if not already_credited:
         billing_service.credit(user_id, amount_usd, reason="deposit", reference=reference)
         _set_invoice_fields(invoice_id, credited_reference=reference)
+    # Funds settled — the invoice is now paid.
+    _set_invoice_fields(invoice_id, status="paid")
 
-    if kind == "renewal" and instance_id:
+    if already_credited and instance_id:
+        # Idempotent replay: the same proof already settled + provisioned.
+        # Return the existing instance without re-crediting or re-provisioning.
+        instance = _instance_payload(instance_id)
+        api_key = None
+    elif kind == "renewal" and instance_id:
         instance = _extend_instance(instance_id, months=1)
         api_key = None
     else:

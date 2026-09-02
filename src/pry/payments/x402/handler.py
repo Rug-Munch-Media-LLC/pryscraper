@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -48,6 +49,25 @@ from pry.payments.x402.scheme import (
 )
 
 logger = logging.getLogger(__name__)
+
+SETTLEMENT_WEBHOOK_URL_ENV = "PRY_SETTLEMENT_WEBHOOK_URL"
+
+
+async def fire_settlement_webhook(settlement: dict[str, Any]) -> None:
+    """Best-effort settlement webhook (audit item #8).
+
+    When ``PRY_SETTLEMENT_WEBHOOK_URL`` is configured (non-empty), POST the
+    settlement receipt to that URL via the shared webhook delivery service
+    (HMAC-signed, retried, dead-lettered). Empty/unset = disabled — no
+    behavior change when unset. Never raises into the payment flow: callers
+    wrap this in try/except and log ``x402_settlement_webhook_error``.
+    """
+    url = os.getenv(SETTLEMENT_WEBHOOK_URL_ENV, "").strip()
+    if not url:
+        return
+    from pry.api.webhook_delivery import WebhookDelivery
+
+    await WebhookDelivery().deliver(url, dict(settlement), "x402.settlement")
 
 
 class X402Handler:
@@ -340,6 +360,17 @@ class X402Handler:
         if record.get("success") is True and key:
             self._settled_txs.setdefault(key, record)
         self._record_settlement(record)
+        # Customer notification (audit item #8): fire the settlement webhook
+        # ONLY for genuinely new settlements — the idempotent-cache hit path
+        # above returns early, so a replayed settle never re-notifies.
+        if record.get("success") is True:
+            try:
+                await fire_settlement_webhook(record)
+            except Exception as e:  # noqa: BLE001 — best-effort, never break settle
+                logger.warning(
+                    "x402_settlement_webhook_error",
+                    extra={"payment_id": payment_id, "error": str(e)},
+                )
         return settlement
 
     def require_payment(
