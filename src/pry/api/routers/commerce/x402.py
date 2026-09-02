@@ -79,7 +79,34 @@ ENGINE_TOOLS: dict[str | None, str] = {
 
 @router.get("/v1/x402/pricing", tags=["x402"], summary="Get x402 pricing for all paid operations")
 async def x402_pricing() -> dict[str, Any]:
-    """Get the price list for pay-per-scrape operations."""
+    """Get the price list for pay-per-scrape operations.
+
+    Returns the per-operation USD price, the supported networks/assets, and
+    the configured per-chain treasury wallets that a client pays into.
+
+    **Response**
+
+    ```json
+    {
+      "success": true,
+      "data": {
+        "operations": {
+          "scrape": {"price_usd": 0.01, "description": "Scrape a single URL"},
+          "crawl": {"price_usd": 0.05, "description": "Crawl a site"}
+        },
+        "wallets": {
+          "ethereum": "0x...",
+          "solana": "G1uZ..."
+        }
+      }
+    }
+    ```
+
+    **x402 payment**: this pricing endpoint is free. The operations it lists
+    are paid — call `POST /v1/x402/payment` to create a payment request, pay
+    the returned wallet, then submit the tx via `POST /v1/x402/verify` (or
+    `POST /v1/x402/pay` to receive an access token).
+    """
     from pry.payments.x402 import X402Handler
     from pry.payments.x402.scheme import treasury_wallets
 

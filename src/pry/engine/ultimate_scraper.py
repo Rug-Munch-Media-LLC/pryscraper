@@ -34,6 +34,33 @@ _RNG = random.SystemRandom()
 
 logger = logging.getLogger(__name__)
 
+# Per-domain concurrency throttle: cap the number of simultaneous scrapes to
+# the SAME domain so a single caller (or a burst of callers) cannot hammer one
+# target site with unbounded parallel requests. This protects both the target
+# site (good citizenship / avoiding IP bans) and our own outbound resources.
+# The limit is per-domain, not global — different domains proceed in parallel.
+_DOMAIN_MAX_CONCURRENCY = 10
+_domain_semaphores: dict[str, Any] = {}
+_domain_semaphores_lock = threading.Lock()
+
+
+def _domain_semaphore(domain: str) -> Any:
+    """Return a per-domain asyncio.Semaphore, creating it on first use.
+
+    Thread-safe creation (the semaphore registry is shared across the event
+    loop and any worker threads). asyncio.Semaphore is not thread-safe to
+    create concurrently, so creation is serialized under a lock.
+    """
+    with _domain_semaphores_lock:
+        sem = _domain_semaphores.get(domain)
+        if sem is None:
+            import asyncio
+
+            sem = asyncio.Semaphore(_DOMAIN_MAX_CONCURRENCY)
+            _domain_semaphores[domain] = sem
+        return sem
+
+
 # Try importing optional bypass libraries
 _has_cloudscraper = importlib.util.find_spec("cloudscraper") is not None
 _has_undetected = importlib.util.find_spec("undetected_chromedriver") is not None
@@ -326,15 +353,26 @@ class UltimateScraper:
         Thin public entry: emits the ``scrape.request`` parent span (with
         final method/success attributes) around ``_scrape_with_fallbacks``,
         which tries up to 10 strategies until one succeeds.
+
+        Per-domain concurrency throttle: at most ``_DOMAIN_MAX_CONCURRENCY``
+        scrapes may run against the same domain at once. This prevents a
+        single caller (or a burst of callers) from hammering one target site
+        with unbounded parallel requests — an abuse vector that would get the
+        target (and our egress IPs) rate-limited or banned. Different domains
+        proceed in parallel; only same-domain concurrency is bounded.
         """
-        with span("scrape.request", {"http.url": url}) as request_span:
-            result = await self._scrape_with_fallbacks(url, options)
-            if request_span is not None and isinstance(result, dict):
-                request_span.set_attribute("pry.method", str(result.get("method", "")))
-                request_span.set_attribute("pry.success", result.get("status") == "success")
-                if isinstance(result.get("attempts"), list):
-                    request_span.set_attribute("pry.attempts", len(result["attempts"]))
-            return result
+        parsed = urlparse(url)
+        domain = parsed.netloc or "unknown"
+        sem = _domain_semaphore(domain)
+        async with sem:
+            with span("scrape.request", {"http.url": url}) as request_span:
+                result = await self._scrape_with_fallbacks(url, options)
+                if request_span is not None and isinstance(result, dict):
+                    request_span.set_attribute("pry.method", str(result.get("method", "")))
+                    request_span.set_attribute("pry.success", result.get("status") == "success")
+                    if isinstance(result.get("attempts"), list):
+                        request_span.set_attribute("pry.attempts", len(result["attempts"]))
+                return result
 
     async def _scrape_with_fallbacks(
         self, url: str, options: dict[str, Any] | None = None

@@ -154,6 +154,44 @@ async def find_emails(url: str = Body(...)) -> dict[str, Any]:
 
 @router.post("/v1/extract", tags=["Extraction"], summary="Extract structured fields from a URL")
 async def extract_stable(data: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Extract structured fields from a URL using an LLM.
+
+    Scrapes the target URL (with Cloudflare bypass) and extracts the requested
+    fields into a structured JSON object.
+
+    **Request body**
+
+    ```json
+    {
+      "url": "https://example.com/products",
+      "fields": {
+        "product_name": "The name of the product",
+        "price": "The price in USD",
+        "in_stock": "Whether the product is in stock"
+      }
+    }
+    ```
+
+    **Response**
+
+    ```json
+    {
+      "success": true,
+      "data": {
+        "url": "https://example.com/products",
+        "fields": {
+          "product_name": "Acme Widget",
+          "price": "$19.99",
+          "in_stock": true
+        }
+      }
+    }
+    ```
+
+    **x402 payment**: this endpoint is free and always public. For LLM-heavy
+    extraction at scale, paid operations are gated behind x402 micropayments —
+    see `GET /v1/x402/pricing`.
+    """
     url = data.get("url", "")
     fields = data.get("fields", {})
     result = await scraper.scrape(url, {"bypass_cloudflare": True})
@@ -206,11 +244,17 @@ async def extract_css(
     # before it reaches the cssselect engine.
     base_selector = schema.get("base_selector")
     if base_selector:
-        _validate_css_selector(base_selector)
+        try:
+            _validate_css_selector(base_selector)
+        except ValueError as e:
+            raise InvalidRequestError(f"Invalid base selector: {e}") from e
     for field in schema.get("fields", []):
         field_selector = field.get("selector", "")
         if field_selector:
-            _validate_css_selector(field_selector)
+            try:
+                _validate_css_selector(field_selector)
+            except ValueError as e:
+                raise InvalidRequestError(f"Invalid field selector: {e}") from e
 
     strategy = JsonCssExtractionStrategy(schema)
     data = strategy.extract(html)

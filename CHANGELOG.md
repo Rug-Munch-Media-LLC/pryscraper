@@ -5,6 +5,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] — 2026-09
+
+Next release on top of 3.0.0: hardening the MCP server's security posture,
+eliminating blocking I/O in the scraping engine, and expanding the quality
+gates (mypy strict ratchet, critical-path test coverage, container supply-chain
+checks). No breaking API changes.
+
+### Added
+
+- **CSS ReDoS guard** — regex-based denial-of-service protection on CSS
+  selector parsing.
+- **Browser pooling** — shared browser instances reused across requests,
+  saving 1–3s per request.
+- **OTEL collector + Jaeger** — OpenTelemetry trace export wired to a
+  collector and Jaeger for distributed tracing.
+- **Project docs** — `DECISIONS.md`, `STATUS.md`, and `PLAN.md` added.
+- **Tests** — Shopify OAuth, proxy referral, CSS selector guard, browser
+  pool, MCP auth gate, DB migration, and DB `import_json` test suites.
+- **CI gates** — hadolint (Dockerfile lint) and grype (container
+  vulnerability scan) added to the pipeline.
+- **`.critical-paths` expansion** — AI Test Oracle critical-path list
+  extended to cover auth, payments (x402), scraping endpoints, MCP tools,
+  and DB migrations.
+- **mypy strict expansion** — strict-typed module ratchet grown from 13 to
+  21 modules (block_detection, dedup, errors, extraction, freshness, parser,
+  paths, quality, ratelimit, resilience, retry, sessions, url_guard, plus
+  pry.core.audit, pry.core.client, pry.core.config_validation,
+  pry.compliance.gdpr, pry.engine.network, pry.core.secrets_backend,
+  pry.core.settings, pry.engine.websocket_scraper).
+
+### Changed
+
+- **`pry.core.client`** — pooled HTTP client consolidated into
+  `pry.core.client` (disambiguated from `pry.api.client`).
+- **Healthcheck probes reconciled** — Dockerfile and docker-compose use the
+  same `/health` probe.
+- **cosign wired to env var** — container signing uses `COSIGN_EXPERIMENTAL`
+  env var in CI.
+
+### Fixed
+
+- **MCP auth bypass on `/mcp/messages`** — authentication gate now enforced
+  on the SSE message transport.
+- **`_tier_cloudscraper` blocking in async** — blocking call removed from
+  the async fallback path.
+- **`get_client()` race condition** — pooled client creation made
+  race-safe.
+- **GDPR substring matching** — GDPR compliance matching now uses exact
+  matching instead of substring matching.
+- **`db_health_async` bug** — async DB health check corrected.
+- **Test-ordering state bleed** — test isolation fixed so tests no longer
+  leak state across runs.
+- **x402 tautological test asserts** — self-referential test assertions
+  replaced with meaningful checks.
+- **Stale `.coverage` file** — outdated coverage artifact removed.
+
+### Security
+
+- **SSRF defense verified** — `resolve_dns` always `True` on URL resolution.
+- **CSS selector ReDoS guard** — regex DoS protection on selector parsing.
+- **MCP auth gate on SSE transport** — `/mcp/messages` now authenticated.
+- **systemd unit hardened** — `User=pry`, `ProtectSystem=strict`.
+
+### Performance
+
+- **Pooled httpx client in 6 fallback tiers** — connection reuse across the
+  adaptive fallback chain.
+- **Async DNS wrapper** — non-blocking DNS resolution.
+- **ResponseCache payload cap (5MB)** — cache entries bounded to prevent
+  unbounded memory growth.
+- **LIMIT on unbounded queries** — database queries capped.
+- **Browser pooling** — 1–3s saved per request via browser reuse.
+
 ## [3.0.0] — 2026-09
 
 Major release: the MCP server becomes the primary product surface, x402

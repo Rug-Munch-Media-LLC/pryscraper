@@ -10,15 +10,22 @@ points where user selectors enter the system.
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
+from fastapi.testclient import TestClient
 
 from extraction.css import (
     JsonCssExtractionStrategy,
     _validate_css_selector,
     extract_structured,
 )
+from pry.api.api import app
 from pry_mcp.tools.scraping import validate_schema_selectors
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 # ── valid selectors pass ──
 
@@ -169,3 +176,113 @@ def test_strategy_extract_rejects_unsafe_base_selector() -> None:
     )
     with pytest.raises(ValueError, match="repeated-character bomb"):
         strategy.extract("<html><body><h3>hi</h3></body></html>")
+
+
+# ── Full-path HTTP integration: malicious selector → 400 ──────────────
+#
+# The guard is wired into POST /v1/extract/css (extraction router), which
+# validates every user-supplied selector in the schema. These tests exercise
+# the FULL HTTP path. The endpoint is x402-gated, so the payment middleware
+# is bypassed to reach the guard logic.
+
+
+@pytest.fixture(autouse=True)
+def bypass_x402_middleware() -> Iterator[None]:
+    """Disable x402 payment gating so the extraction endpoint can be tested."""
+    with patch(
+        "pry.payments.x402_middleware.X402Middleware.__call__",
+        lambda self, scope, receive, send: self.app(scope, receive, send),
+    ):
+        yield
+
+
+@pytest.fixture
+def http_client() -> TestClient:
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def _post_extract_css(client: TestClient, schema: dict) -> object:
+    """POST a schema to /v1/extract/css and return the response."""
+    return client.post(
+        "/v1/extract/css",
+        json={"url": "https://example.com", "schema": schema},
+    )
+
+
+@pytest.mark.parametrize(
+    ("schema", "reason"),
+    [
+        (
+            {
+                "name": "products",
+                "base_selector": "(?:a{100}){100}",
+                "fields": [{"name": "title", "selector": "h3", "type": "text"}],
+            },
+            "nested quantifiers",
+        ),
+        (
+            {
+                "name": "products",
+                "base_selector": ".product",
+                "fields": [{"name": "title", "selector": "a" * 60, "type": "text"}],
+            },
+            "repeated-character bomb",
+        ),
+        (
+            {
+                "name": "products",
+                "base_selector": " > ".join(["div"] * 26),
+                "fields": [{"name": "title", "selector": "h3", "type": "text"}],
+            },
+            "too many combinators",
+        ),
+        (
+            {
+                "name": "products",
+                "base_selector": ".product",
+                "fields": [{"name": "title", "selector": "(a){100}", "type": "text"}],
+            },
+            "quantified group",
+        ),
+    ],
+)
+def test_malicious_selector_returns_400(http_client: TestClient, schema: dict, reason: str) -> None:
+    """A malicious selector in the schema is rejected with HTTP 400.
+
+    [REVIEW] This test currently FAILS: the endpoint returns 500, not 400.
+    ``_validate_css_selector`` raises ``ValueError`` which is not converted to
+    a 400 ``InvalidRequestError`` in ``extract_css``, so it surfaces as an
+    unhandled 500. The guard fires (the selector is rejected) but the error
+    status is wrong. Fix: catch ``ValueError`` in the endpoint and re-raise as
+    ``InvalidRequestError`` (400).
+    """
+    resp = _post_extract_css(http_client, schema)
+    assert resp.status_code == 400, (
+        f"expected 400 for {reason}, got {resp.status_code}: {resp.text[:200]}"
+    )
+
+
+def test_overly_long_selector_returns_400(http_client: TestClient) -> None:
+    schema = {
+        "name": "products",
+        "base_selector": ".a" * 300,  # 600 chars > 500 limit
+        "fields": [{"name": "title", "selector": "h3", "type": "text"}],
+    }
+    resp = _post_extract_css(http_client, schema)
+    assert resp.status_code == 400
+
+
+def test_safe_schema_is_not_rejected(http_client: TestClient) -> None:
+    """A benign schema must not be rejected by the guard."""
+    schema = {
+        "name": "products",
+        "base_selector": ".product-card",
+        "fields": [
+            {"name": "title", "selector": "h3", "type": "text"},
+            {"name": "price", "selector": ".price", "type": "text"},
+        ],
+    }
+    resp = _post_extract_css(http_client, schema)
+    # The guard passes; the request proceeds (may fail later on fetch, but
+    # must NOT be a 400 from the selector guard).
+    assert resp.status_code != 400

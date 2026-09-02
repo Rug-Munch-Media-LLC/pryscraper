@@ -38,6 +38,32 @@ async def ultimate_scrape(
     undetected-chromedriver → Playwright → Googlebot → Archive.org → Google Cache
 
     Returns the first successful result with the method used.
+
+    **Request body**
+
+    ```json
+    {
+      "url": "https://example.com"
+    }
+    ```
+
+    **Response**
+
+    ```json
+    {
+      "success": true,
+      "data": {
+        "url": "https://example.com",
+        "method": "direct",
+        "content": "<!DOCTYPE html>...",
+        "content_length": 12345
+      }
+    }
+    ```
+
+    **x402 payment**: this endpoint is free and always public. Paid scraping
+    operations (e.g. actor presets, domain data) are gated behind x402
+    micropayments — see `GET /v1/x402/pricing` for the price list.
     """
     from pry.engine.ultimate_scraper import UltimateScraper
 

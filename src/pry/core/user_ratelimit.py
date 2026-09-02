@@ -28,6 +28,11 @@ TIER_LIMITS = {
     "FREE": {"rpm": 60, "quota_monthly": 10_000, "burst": 100},
     "PRO": {"rpm": 300, "quota_monthly": 100_000, "burst": 500},
     "ENTERPRISE": {"rpm": 1200, "quota_monthly": 1_000_000, "burst": 2000},
+    # x402 pay-per-request: every call is already paid for on-chain, so the
+    # rate limit is a burst/abuse guard, not a revenue gate. Higher than FREE
+    # so a paying caller is never throttled below what they paid for, but
+    # still bounded so a single caller cannot hammer a target domain.
+    "X402": {"rpm": 600, "quota_monthly": 1_000_000, "burst": 1000},
 }
 
 

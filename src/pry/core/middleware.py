@@ -55,6 +55,7 @@ from pry.core.observability import (
     span,
 )
 from pry.core.settings import settings
+from pry.core.user_ratelimit import TIER_LIMITS
 
 try:
     from pry.core.logging_config import (
@@ -539,7 +540,41 @@ class PryHttpMiddleware:
         if auth_header.startswith("Bearer "):
             api_key = auth_header[7:]
 
-        if api_key and api_key != settings.api_key:
+        # x402 payment-verified requests carry NO Authorization header (the
+        # on-chain payment IS the credential). request_authorized() bound an
+        # identity with tier="X402" into scope["pry_api_key"]. Route them
+        # through the user rate limiter with the X402 tier so a paying caller
+        # gets the higher paid limit instead of being collapsed into the
+        # per-IP FREE bucket (which would throttle paid traffic behind a
+        # shared NAT/proxy and undercut what they paid for).
+        x402_verified = scope.get("x402_verified")
+
+        if x402_verified:
+            key_record = scope.get("pry_api_key") or {}
+            xv = x402_verified
+            # Bucket per caller (the paying wallet/agent), not per IP — a
+            # single payer behind many IPs must share one budget, and many
+            # payers behind one IP must not share a budget.
+            bucket_id = key_record.get("key_id") or f"x402:{xv.get('caller', 'unknown')}"
+            allowed, stats = user_ratelimiter.check(
+                api_key_id=bucket_id,
+                tier=key_record.get("tier", "X402"),
+                rpm=key_record.get("rate_limit_rpm"),
+                quota_monthly=key_record.get("quota_monthly"),
+                cost_usd=0.0,
+            )
+            effective_limit = (
+                key_record.get("rate_limit_rpm")
+                or TIER_LIMITS.get(key_record.get("tier", "X402"), TIER_LIMITS["X402"])["rpm"]
+            )
+            rate_limit_headers = {
+                "x-ratelimit-limit": str(stats.get("limit", effective_limit)),
+                "x-ratelimit-remaining": str(stats.get("remaining", 0)),
+                "x-ratelimit-reset": str(int(stats.get("quota_reset_at", time.time()))),
+                "x-ratelimit-quota-used": str(stats.get("quota_used", 0)),
+                "x-ratelimit-quota-limit": str(stats.get("quota_limit", 10000)),
+            }
+        elif api_key and api_key != settings.api_key:
             # DB-issued key (pry_...) already validated in request_authorized(),
             # which bound the authenticated record into scope["pry_api_key"].
             # Use ITS per-key rate_limit_rpm + quota (set at issue time) so

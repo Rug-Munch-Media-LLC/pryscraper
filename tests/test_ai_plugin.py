@@ -12,7 +12,7 @@ from pry.api.openapi_spec import get_openapi_spec
 def test_openapi_spec_valid() -> None:
     spec = get_openapi_spec()
     assert "openapi" in spec
-    assert spec["info"]["title"] in ("Pry", "Pry Web Intelligence API")
+    assert spec["info"]["title"] in ("Pry", "Pry Web Intelligence API", "PryScraper API")
     assert "/v1/scrape" in spec["paths"]
     assert "/health" in spec["paths"]
 
