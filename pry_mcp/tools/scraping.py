@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from extraction.css import _validate_css_selector
+
 PRY_TOOLS: list[dict[str, Any]] = [
     {
         "name": "pry_scrape",
@@ -535,3 +537,24 @@ PRY_SOURCE_TOOLS: list[dict[str, Any]] = [
         },
     },
 ]
+
+
+def validate_schema_selectors(schema: dict[str, Any]) -> dict[str, Any]:
+    """Validate every user-supplied CSS selector in an extraction schema.
+
+    ReDoS guard: ``pry_extract`` / ``pry_scrape`` accept a JSON schema whose
+    ``base_selector`` and per-field ``selector`` values are passed straight to
+    the cssselect engine. This validates them all up front (raising
+    ``ValueError`` on the first unsafe selector) so a crafted schema cannot
+    reach the extraction engine. Returns the schema unchanged when safe.
+    """
+    base_selector = schema.get("base_selector")
+    if base_selector:
+        _validate_css_selector(base_selector)
+    for field in schema.get("fields", []):
+        if not isinstance(field, dict):
+            continue
+        field_selector = field.get("selector", "")
+        if field_selector:
+            _validate_css_selector(field_selector)
+    return schema

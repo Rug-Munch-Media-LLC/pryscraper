@@ -16,6 +16,7 @@ from urllib.parse import urljoin, urlparse
 import httpx
 from fastapi import APIRouter, Body
 
+from extraction.css import _validate_css_selector
 from pry.api.client import get_client
 from pry.core.deps import advanced, scraper
 from pry.core.errors import InvalidRequestError, ScrapeError
@@ -200,6 +201,16 @@ async def extract_css(
 
     if not html:
         raise ScrapeError("No HTML content returned from scraper")
+
+    # ReDoS guard: validate every user-supplied CSS selector in the schema
+    # before it reaches the cssselect engine.
+    base_selector = schema.get("base_selector")
+    if base_selector:
+        _validate_css_selector(base_selector)
+    for field in schema.get("fields", []):
+        field_selector = field.get("selector", "")
+        if field_selector:
+            _validate_css_selector(field_selector)
 
     strategy = JsonCssExtractionStrategy(schema)
     data = strategy.extract(html)

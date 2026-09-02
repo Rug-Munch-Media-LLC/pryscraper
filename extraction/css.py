@@ -15,6 +15,55 @@ from lxml.etree import ParserError as _LxmlParserError
 
 logger = logging.getLogger(__name__)
 
+# --- CSS selector ReDoS guard -------------------------------------------------
+# User-supplied CSS selectors are passed straight to lxml's cssselect (which
+# compiles them into XPath). Crafted selectors can trigger catastrophic
+# backtracking / pathological matching (ReDoS). These limits reject the
+# overwhelmingly-malicious/accidental cases before they reach the engine.
+
+_MAX_SELECTOR_LENGTH = 500
+_MAX_COMBINATORS = 20
+
+# Nested quantifiers — catastrophic backtracking, e.g. ``(?:a{100}){100}``
+# or ``a{100}{100}`` (a ``{N}`` immediately followed by another ``{N}``,
+# optionally separated by a closing paren).
+_RE_NESTED_QUANTIFIER = re.compile(r"\{[0-9,]+\}\s*\)?\s*\{[0-9,]+\}")
+# Quantified groups, e.g. ``(a{100}){100}`` / ``(?:a{100}){100}`` — a group
+# whose repetition count is itself a bounded quantifier.
+_RE_QUANTIFIED_GROUP = re.compile(r"\([^)]*\)\{[0-9,]+\}")
+# Repeated-character bombs (51+ of the same char).
+_RE_CHAR_BOMB = re.compile(r"(.)\1{50,}")
+
+
+def _validate_css_selector(selector: str) -> str:
+    """Validate a user-supplied CSS selector to prevent ReDoS.
+
+    Returns the selector unchanged when safe; raises ``ValueError`` when the
+    selector is too long, too deeply nested, or matches a known catastrophic
+    backtracking / repeated-character pattern.
+    """
+    if not isinstance(selector, str):
+        raise ValueError("CSS selector must be a string")
+    if len(selector) > _MAX_SELECTOR_LENGTH:
+        raise ValueError(f"CSS selector exceeds max length of {_MAX_SELECTOR_LENGTH} chars")
+    # Count combinators (child '>' and descendant whitespace). Excessive
+    # nesting is a pathological-selector / ReDoS signal. Whitespace that is
+    # part of a ``>`` combinator (`` > ``) is not double-counted.
+    child = selector.count(">")
+    descendant = len(re.findall(r"\s+", re.sub(r"\s*>\s*", "", selector)))
+    combinators = child + descendant
+    if combinators > _MAX_COMBINATORS:
+        raise ValueError(
+            f"CSS selector has too many combinators ({combinators} > {_MAX_COMBINATORS})"
+        )
+    if _RE_NESTED_QUANTIFIER.search(selector):
+        raise ValueError("CSS selector contains nested quantifiers (ReDoS risk)")
+    if _RE_QUANTIFIED_GROUP.search(selector):
+        raise ValueError("CSS selector contains a quantified group (ReDoS risk)")
+    if _RE_CHAR_BOMB.search(selector):
+        raise ValueError("CSS selector contains a repeated-character bomb (ReDoS risk)")
+    return selector
+
 
 class JsonCssExtractionStrategy:
     """Extract structured JSON from HTML using CSS selectors / XPath.
@@ -47,6 +96,9 @@ class JsonCssExtractionStrategy:
         base_selector = self.schema.get("base_selector")
         fields = self.schema.get("fields", [])
 
+        if base_selector:
+            _validate_css_selector(base_selector)
+
         elements = tree.cssselect(base_selector) if base_selector else [tree]
 
         results = []
@@ -65,6 +117,9 @@ class JsonCssExtractionStrategy:
             selector = field.get("selector", "")
             attr = field.get("attribute", "")
             transform = field.get("transform", "")
+
+            if selector:
+                _validate_css_selector(selector)
 
             try:
                 if ftype == "nested":

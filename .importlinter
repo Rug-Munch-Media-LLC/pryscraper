@@ -54,6 +54,10 @@ ignore_imports =
     pry.engine.ultimate_scraper -> pry.engine.stealth_engine
     pry.api.routers.scraping.scraping_api -> pry.engine.ultimate_scraper
     pry.api.routers.core.signup -> pry.commerce.signup.engine
+    # api.py lifespan shutdown calls close_browsers() — shutdown-only, not a
+    # router thinness problem. Remove when pry.services.shutdown exists.
+    pry.api.api -> pry.engine.ultimate_scraper
+    pry.api.api -> pry.engine.camoufox_integration
 
 [importlinter:contract:3]
 name = Core stays pure (no API imports in core)

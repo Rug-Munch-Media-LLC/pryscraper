@@ -13,11 +13,26 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 
+from extraction.css import _validate_css_selector
 from pry.core.errors import InvalidRequestError, NotFoundError
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Structure"])
+
+
+def _validate_selectors(selectors: list[dict[str, Any]]) -> None:
+    """ReDoS guard: validate every user-supplied CSS selector in a list.
+
+    Raises ``ValueError`` on the first unsafe selector so a crafted selector
+    never reaches the cssselect engine.
+    """
+    for sel in selectors:
+        if not isinstance(sel, dict):
+            continue
+        selector_str = sel.get("selector", "")
+        if selector_str and sel.get("type", "css") == "css":
+            _validate_css_selector(selector_str)
 
 
 @router.post(
@@ -38,6 +53,7 @@ async def structure_check(
     """
     from pry.actors.structure_monitor import check_selectors
 
+    _validate_selectors(selectors)
     result = await check_selectors(url, selectors)
     return {"success": "error" not in result, "data": result}
 
@@ -59,6 +75,7 @@ async def structure_monitor(
     """
     from pry.actors.structure_monitor import monitor_page_structure
 
+    _validate_selectors(selectors)
     result = await monitor_page_structure(url, selectors, template_id)
     return {"success": "error" not in result, "data": result}
 

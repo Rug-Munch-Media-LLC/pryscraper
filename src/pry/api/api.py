@@ -295,6 +295,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
     logger.info("pry_shutdown")
     await close_client()
+    # Close pooled browsers (Playwright / undetected-chromedriver / Camoufox)
+    # so they don't leak on process exit. Lazy import avoids engine→api
+    # transitive boundary violation in import-linter.
+    with suppress(Exception):
+        from pry.engine.ultimate_scraper import close_browsers
+
+        await close_browsers()
+    with suppress(Exception):
+        from pry.engine.camoufox_integration import close_browsers as _close_camoufox
+
+        await _close_camoufox()
     for obj in [scraper, automator, extractor, advanced, queue]:
         if hasattr(obj, "close"):
             with suppress(Exception):

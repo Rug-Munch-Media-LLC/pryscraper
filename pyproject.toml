@@ -282,6 +282,20 @@ module = [
     "retry",
     "sessions",
     "url_guard",
+    # 2026-09-02 strict ratchet (audit win #7): modules verified clean under
+    # `mypy --strict`. Add modules here as they are cleaned up — never remove
+    # without an ADR. Fully-qualified names disambiguate modules that share a
+    # bare name across the dual src/ + top-level layout (e.g. `client` exists
+    # as both pry.api.client and pry.core.client; `gdpr` as compliance.gdpr,
+    # pry.compliance.gdpr, and pry.api.routers.integrations.gdpr).
+    "pry.core.audit",
+    "pry.core.client",
+    "pry.core.config_validation",
+    "pry.compliance.gdpr",
+    "pry.engine.network",
+    "pry.core.secrets_backend",
+    "pry.core.settings",
+    "pry.engine.websocket_scraper",
 ]
 strict = true
 
