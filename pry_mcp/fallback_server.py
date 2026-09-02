@@ -186,6 +186,43 @@ async def _call_domain_tool(
 
 
 async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    """Validated seam in front of the chained domain dispatchers.
+
+    Validates arguments against ``pry_mcp.validation.TOOL_REQUIREMENTS``
+    (top-20 high-risk tools) and converts validation/execution failures into
+    structured error dicts instead of propagating. ``_ToolNotHandled`` still
+    propagates so callers fall through to the REST proxy.
+    """
+    from pry_mcp.validation import ToolArgError, validate_tool_args
+
+    try:
+        validated = validate_tool_args(name, arguments)
+    except ToolArgError as exc:
+        logger.warning("mcp_tool_invalid_args", extra={"tool": name, "error": str(exc)})
+        return _structured_error(name, "invalid_args", str(exc))
+    try:
+        return await _combined_tool_executor_inner(name, validated)
+    except _ToolNotHandled:
+        raise
+    except Exception as e:  # noqa: BLE001 — structured error, not a crash
+        logger.warning("mcp_tool_failed", extra={"tool": name, "error": str(e)})
+        return _structured_error(name, "tool_failed", f"Tool {name} failed: {e}")
+
+
+def _structured_error(tool_name: str, code: str, message: str) -> dict[str, Any]:
+    """Build an error result readable by both transports.
+
+    Carries ``error`` (consumed by the SDK server's ``call_tool``) plus an
+    MCP ``content``/``isError`` shape (consumed by the fallback stdio server).
+    """
+    return {
+        "error": {"code": code, "message": message},
+        "content": [{"type": "text", "text": json.dumps({"error": message, "code": code})}],
+        "isError": True,
+    }
+
+
+async def _combined_tool_executor_inner(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Local MCP tool executor chaining every data-domain guarded dispatcher.
 
     Order: crypto-market, marketplace-intelligence, then the twenty-one
