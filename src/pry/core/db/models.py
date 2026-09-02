@@ -473,5 +473,42 @@ if _HAS_SA:
         created_at = Column(DateTime, default=_now, index=True, nullable=False)
         Index("ix_audit_events_type_created", event_type, created_at.desc())
 
+    # ── x402 ledger (payment + settlement records — audit item #2) ──
+    class X402PaymentRecord(Base):
+        __tablename__ = "x402_payment_records"
+        id = Column(Integer, primary_key=True)
+        payment_id = Column(String(128), index=True, nullable=False)
+        tx_hash = Column(String(80), index=True, default="")
+        network = Column(String(64), default="")
+        asset = Column(String(32), default="")
+        amount_usd = Column(Float, default=0.0)
+        required_amount_atomic = Column(String(64), default="")
+        operation = Column(String(64), index=True, default="")
+        verified = Column(Boolean, default=False, index=True)
+        verified_at = Column(DateTime, nullable=True)
+        expires_at = Column(DateTime, nullable=True, index=True)
+        facilitator = Column(String(64), default="")
+        caller_key = Column(String(128), default="")
+        reason = Column(Text, default="")
+        record = Column(JSON, default=dict)  # full original record (lossless)
+        created_at = Column(DateTime, default=_now, nullable=False, index=True)
+
+    class X402SettlementRecord(Base):
+        __tablename__ = "x402_settlement_records"
+        id = Column(Integer, primary_key=True)
+        settlement_key = Column(
+            String(256), unique=True, index=True, nullable=False
+        )  # tx:{network}:{tx_hash} | pid:{payment_id}
+        payment_id = Column(String(128), index=True, nullable=False)
+        tx_hash = Column(String(80), index=True, default="")
+        network = Column(String(64), default="")
+        asset = Column(String(32), default="")
+        amount_usd = Column(Float, default=0.0)
+        facilitator = Column(String(64), default="")
+        settled_at = Column(DateTime, nullable=True)
+        receipt = Column(JSON, default=dict)  # full settlement receipt (lossless)
+        success = Column(Boolean, default=True, index=True)
+        created_at = Column(DateTime, default=_now, nullable=False, index=True)
+
 else:  # pragma: no cover
     Base = None  # type: ignore
