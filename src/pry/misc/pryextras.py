@@ -132,21 +132,14 @@ class TransformEngine:
     """Transform scraped data into multiple output formats."""
 
     @staticmethod
-    def to_sql(data: dict, table: str = "scraped_data") -> str:
-        """Convert scraped data to SQL INSERT statement."""
+    def to_sql(data: dict, table: str = "scraped_data") -> tuple[str, tuple]:
+        """Returns (sql, params) tuple for parameterized execution."""
         columns = list(data.keys())
-        values = []
-        for v in data.values():
-            if isinstance(v, str):
-                escaped = v.replace("'", "''")
-                values.append(f"'{escaped}'")
-            elif v is None:
-                values.append("NULL")
-            else:
-                values.append(str(v))
+        placeholders = ", ".join(["%s"] * len(columns))
         cols = ", ".join(columns)
-        vals = ", ".join(values)
-        return f"INSERT INTO {table} ({cols}) VALUES ({vals});"  # noqa: S608 - table is caller-supplied const, values escaped above
+        params = tuple(data.values())
+        sql = f"INSERT INTO {table} ({cols}) VALUES ({placeholders});"  # noqa: S608 - table is caller-supplied const
+        return (sql, params)
 
     @staticmethod
     def to_csv(data: list[dict]) -> str:

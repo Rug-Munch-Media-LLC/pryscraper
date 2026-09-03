@@ -36,7 +36,7 @@ async def transform_data(
     if format == "csv":
         result = te.to_csv(data)
     elif format == "sql":
-        result = "\n".join(te.to_sql(row) for row in data)
+        result = "\n".join(te.to_sql(row)[0] for row in data)
     elif format == "html":
         result = te.to_html_table(data)
     elif format == "markdown":
@@ -59,7 +59,8 @@ async def data_pipeline(data: dict[str, Any] = Body(...)) -> dict[str, Any]:
         from pry.misc.pryextras import TransformEngine
 
         te = TransformEngine()
-        output = te.to_sql({"url": url, "title": title, "content": content[:50000]})
+        sql, params = te.to_sql({"url": url, "title": title, "content": content[:50000]})
+        output = f"{sql}  -- params: {params}"
     elif transform == "csv":
         import csv
         import io
