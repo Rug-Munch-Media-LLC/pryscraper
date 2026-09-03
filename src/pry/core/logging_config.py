@@ -213,13 +213,13 @@ def set_log_level(level: int | str) -> None:
         )
 
 
-def _add_service_name(_, __, event_dict: dict[str, Any]) -> dict[str, Any]:
+def _add_service_name(_: Any, __: Any, event_dict: dict[str, Any]) -> dict[str, Any]:
     """Add the service name to every log record (CONVENTIONS.md Part 5)."""
     event_dict.setdefault("service", SERVICE_NAME)
     return event_dict
 
 
-def _add_request_id_if_present(_, __, event_dict: dict[str, Any]) -> dict[str, Any]:
+def _add_request_id_if_present(_: Any, __: Any, event_dict: dict[str, Any]) -> dict[str, Any]:
     """Propagate request_id into every structured log record.
 
     Priority:
@@ -279,7 +279,7 @@ _RESERVED_LOGRECORD_KEYS = frozenset(
 )
 
 
-def _filter_reserved_extras(_, __, event_dict: dict[str, Any]) -> dict[str, Any]:
+def _filter_reserved_extras(_: Any, __: Any, event_dict: dict[str, Any]) -> dict[str, Any]:
     """Filter out reserved LogRecord keys from extra={...} in stdlib log calls.
 
     Without this, code like `logger.warning("x", extra={"name": "foo"})` would

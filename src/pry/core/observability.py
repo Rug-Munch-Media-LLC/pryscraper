@@ -14,12 +14,11 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace import SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.export import (
     ConsoleSpanExporter,
     SimpleSpanProcessor,
     SpanExporter,
-    SpanProcessor,  # type: ignore[attr-defined]
 )
 
 # Prometheus + OpenTelemetry are hard runtime dependencies
@@ -207,7 +206,7 @@ def set_span_attributes(attributes: dict[str, Any]) -> None:
 
 
 @contextmanager
-def track_request(endpoint: str, method: str = "GET"):
+def track_request(endpoint: str, method: str = "GET") -> Iterator[None]:
     """Context manager to track request metrics and timing.
 
     Increments ``pry_requests_total`` (with status) and observes
@@ -232,7 +231,7 @@ def track_request(endpoint: str, method: str = "GET"):
 
 
 @contextmanager
-def track_scrape(method: str = "direct"):
+def track_scrape(method: str = "direct") -> Iterator[None]:
     """Context manager to track scrape metrics."""
     start = time.time()
     status = "success"

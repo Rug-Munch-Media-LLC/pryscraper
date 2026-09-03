@@ -163,7 +163,7 @@ def render_prompt(name: str, **kwargs: Any) -> str:
         KeyError: if ``name`` is not a known prompt.
     """
     spec = PROMPTS[name]
-    return spec["user"].format(**kwargs)
+    return str(spec["user"].format(**kwargs))
 
 
 def get_prompt(name: str) -> dict[str, Any]:
