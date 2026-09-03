@@ -99,6 +99,9 @@ class TestCallCryptoTool:
         with _patch_module("crypto_market.token_launches", None):
             result = await mcp_tools.call_crypto_tool("pry_token_launches", {})
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is False
         text = _text(result)
         assert "not available" in text
@@ -110,6 +113,9 @@ class TestCallCryptoTool:
                 "pry_cex_listings", {"exchanges": ["binance"], "lookback_hours": 24}
             )
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is False
         assert "not available" in _text(result)
 
@@ -120,12 +126,18 @@ class TestCallCryptoTool:
                 {"chain": "solana", "address": "So11111111111111111111111111111111111111112"},
             )
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is False
         assert "not available" in _text(result)
 
     async def test_token_security_missing_arguments_is_error(self) -> None:
         result = await mcp_tools.call_crypto_tool("pry_token_security", {"chain": "solana"})
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is True
         assert "requires" in _text(result)
 
@@ -141,6 +153,9 @@ class TestCallCryptoTool:
                 "pry_token_launches", {"chain": "solana", "limit": 5}
             )
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is False
         payload = json.loads(_text(result))
         assert payload["data"]["items"][0]["symbol"] == "TEST"
@@ -160,6 +175,9 @@ class TestCallMarketplaceTool:
                 "pry_amazon_product", {"asin": "B08N5WRWNW"}
             )
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is False
         text = _text(result)
         assert "not available" in text
@@ -169,12 +187,18 @@ class TestCallMarketplaceTool:
         with _patch_module("pry.commerce.marketplace.tiktok_shop", None):
             result = await mcp_tools.call_marketplace_tool("pry_tiktok_trending", {"limit": 5})
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is False
         assert "not available" in _text(result)
 
     async def test_missing_required_argument_is_error(self) -> None:
         result = await mcp_tools.call_marketplace_tool("pry_amazon_product", {})
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is True
         assert "requires" in _text(result)
 
@@ -187,6 +211,9 @@ class TestCallMarketplaceTool:
                 "pry_amazon_product", {"asin": "B08N5WRWNW"}
             )
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is False
         payload = json.loads(_text(result))
         assert payload["data"]["asin"] == "B08N5WRWNW"
@@ -205,6 +232,9 @@ class TestCallLegalTool:
                 "pry_legal_dockets", {"query": "OpenAI copyright"}
             )
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is False
         text = _text(result)
         assert "not available" in text
@@ -213,6 +243,9 @@ class TestCallLegalTool:
     async def test_missing_required_argument_is_error(self) -> None:
         result = await mcp_tools.call_legal_tool("pry_legal_dockets", {})
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is True
         assert "requires query" in _text(result)
 
@@ -227,6 +260,9 @@ class TestCallLegalTool:
                 "pry_legal_dockets", {"query": "OpenAI", "limit": 2}
             )
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is False
         payload = json.loads(_text(result))
         assert payload["success"] is True
@@ -249,6 +285,9 @@ class TestCombinedToolExecutor:
         with _patch_module("crypto_market.token_launches", fake):
             result = await combined_tool_executor("pry_token_launches", {"chain": "all"})
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is False
         assert "items" in _text(result)
 
@@ -260,6 +299,9 @@ class TestCombinedToolExecutor:
                 "pry_legal_dockets", {"query": "OpenAI", "limit": 1}
             )
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is False
         assert json.loads(_text(result))["success"] is True
 
@@ -274,6 +316,9 @@ class TestCombinedToolExecutor:
                 "pry_legal_sec", {"ticker": "AAPL", "form_type": "8-K"}
             )
         assert result is not None
+        assert isinstance(result, dict)
+        assert isinstance(result["content"], list)
+        assert result["content"]
         assert result["isError"] is False
         assert "not available" in _text(result)
 
