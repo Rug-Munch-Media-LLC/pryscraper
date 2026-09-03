@@ -334,26 +334,24 @@ class TestFallbackServerRESTProxy:
 
     async def test_rest_proxy_success_returns_data(self) -> None:
         server = self._server()
-        mock_client = AsyncMock()
-        mock_client.__aenter__.return_value = mock_client
         mock_response = Mock()
         mock_response.raise_for_status = Mock()
         mock_response.json.return_value = {"success": True, "data": {"url": "https://example.com"}}
-        mock_client.post.return_value = mock_response
-        with patch("pry_mcp.fallback_server.httpx.AsyncClient", return_value=mock_client):
+        mock_client = AsyncMock()
+        mock_client.request.return_value = mock_response
+        with patch("pry_mcp.fallback_server.get_client", return_value=mock_client):
             result = await server.call_tool("pry_scrape", {"url": "https://example.com"})
         assert result["isError"] is False
         payload = json.loads(result["content"][0]["text"])
         assert payload["success"] is True
-        mock_client.post.assert_awaited_once()
+        mock_client.request.assert_awaited_once()
 
     async def test_rest_proxy_unreachable_returns_readable_message(self) -> None:
         """API down -> readable 'Would call ...' message, never a crash."""
         server = self._server()
         mock_client = AsyncMock()
-        mock_client.__aenter__.return_value = mock_client
-        mock_client.post.side_effect = httpx.ConnectError("connection refused")
-        with patch("pry_mcp.fallback_server.httpx.AsyncClient", return_value=mock_client):
+        mock_client.request.side_effect = httpx.ConnectError("connection refused")
+        with patch("pry_mcp.fallback_server.get_client", return_value=mock_client):
             result = await server.call_tool("pry_scrape", {"url": "https://example.com"})
         # Structured MCP tool error: isError=True + {"error", "code"} payload.
         assert result["isError"] is True
