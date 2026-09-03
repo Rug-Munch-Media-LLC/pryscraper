@@ -168,6 +168,16 @@ def pry_x402_ledger_isolation(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) ->
             monkeypatch.setattr(mod, "X402_DIR", scratch)
 
 
+@pytest.fixture(autouse=True)
+def pry_cache_isolation() -> None:
+    """Clear ResponseCache between tests to prevent order-dependent state bleed."""
+    from pry.core.deps import cache
+
+    # Reset the singleton cache state between tests
+    cache._cache.clear()  # type: ignore[attr-defined]
+    cache._total_bytes = 0  # type: ignore[attr-defined]
+
+
 @pytest.fixture
 def client() -> Generator[TestClient, None, None]:
     from fastapi.testclient import TestClient
