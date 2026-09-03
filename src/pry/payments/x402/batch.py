@@ -32,6 +32,12 @@ from pry.payments.x402.scheme import X402_PRICING, _to_atomic, build_payment_req
 
 logger = logging.getLogger(__name__)
 
+# ⚠️ MULTI-WORKER LIMITATION: The in-memory fallback dicts below are per-process.
+# Under uvicorn with multiple workers, a batch created in worker A is invisible to
+# worker B unless Redis is connected. Production deployments MUST set PRY_REDIS_URL
+# to ensure cross-worker batch state consistency. The Redis path is authoritative;
+# memory is a last-resort degradation only.
+
 # Active batch payment requests: batch_id -> {operations, total_usd, paid, tx_hash}
 # In-memory fallback store (used only when Redis is unreachable).
 _batch_payments: dict[str, dict[str, Any]] = {}
@@ -88,6 +94,10 @@ def _get_redis() -> Any:
         logger.warning(
             "x402_batch_redis_unavailable_falling_back_to_memory",
             extra={"error": str(e)[:160]},
+        )
+        logger.warning(
+            "x402_batch_multi_worker_risk",
+            extra={"hint": "Set PRY_REDIS_URL for cross-worker batch consistency"},
         )
         return None
 
