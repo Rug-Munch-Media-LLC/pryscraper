@@ -38,7 +38,8 @@ def test_scraper_rotate_ua_changes() -> None:
     s = PryScraper()
     ua1 = s._rotate_ua()
     ua2 = s._rotate_ua()
-    assert ua1 != ua2 or s._ua_index != 0
+    assert ua1 != ua2, f"UA rotation failed: both got {ua1}"
+    assert s._ua_index > 0
 
 
 def test_scraper_build_headers_shape() -> None:

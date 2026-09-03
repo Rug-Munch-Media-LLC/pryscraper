@@ -90,6 +90,8 @@ _RESERVED = frozenset(
 
 def _make_lenient_logrecord() -> None:
     """Monkey-patch LogRecord.__init__ to be tolerant of reserved extra keys."""
+    if os.getenv("PRY_LENIENT_LOG", "1").lower() not in ("1", "true", "yes"):
+        return  # allow opting out of the global patch via PRY_LENIENT_LOG=0
     if os.getenv("PRY_LOG_STRICT_EXTRAS", "").lower() in ("1", "true", "yes"):
         return  # honor strict mode if explicitly requested
     original_init = logging.LogRecord.__init__
