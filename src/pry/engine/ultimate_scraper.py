@@ -18,6 +18,7 @@ import random
 import re
 import threading
 import time
+from collections import OrderedDict
 from typing import Any, ClassVar
 from urllib.parse import quote, urlparse
 
@@ -45,7 +46,12 @@ logger = logging.getLogger(__name__)
 # site (good citizenship / avoiding IP bans) and our own outbound resources.
 # The limit is per-domain, not global — different domains proceed in parallel.
 _DOMAIN_MAX_CONCURRENCY = 10
-_domain_semaphores: dict[str, Any] = {}
+# Bounded LRU registry: cap the number of tracked per-domain semaphores so a
+# long-running process scraping many distinct domains cannot grow this dict
+# without bound. When the cap is exceeded, the least-recently-added entry is
+# evicted (OrderedDict.popitem(last=False)).
+_DOMAIN_SEMAPHORE_MAX = 500
+_domain_semaphores: OrderedDict[str, Any] = OrderedDict()
 _domain_semaphores_lock = threading.Lock()
 
 
@@ -63,6 +69,9 @@ def _domain_semaphore(domain: str) -> Any:
 
             sem = asyncio.Semaphore(_DOMAIN_MAX_CONCURRENCY)
             _domain_semaphores[domain] = sem
+            # LRU eviction: keep the registry bounded.
+            if len(_domain_semaphores) > _DOMAIN_SEMAPHORE_MAX:
+                _domain_semaphores.popitem(last=False)
         return sem
 
 
@@ -914,7 +923,9 @@ class UltimateScraper:
             import aiohttp
             from aiohttp_socks import ProxyConnector
 
-            connector = ProxyConnector.from_url("socks5://127.0.0.1:9050")
+            tor_host = os.getenv("TOR_SOCKS5_HOST", "127.0.0.1")
+            tor_port = os.getenv("TOR_SOCKS5_PORT", "9050")
+            connector = ProxyConnector.from_url(f"socks5://{tor_host}:{tor_port}")
             async with (
                 aiohttp.ClientSession(connector=connector) as session,
                 session.get(
