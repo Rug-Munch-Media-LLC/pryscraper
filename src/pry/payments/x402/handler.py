@@ -111,16 +111,32 @@ class X402Handler:
             and bool(os.environ.get("PRY_DATABASE_URL"))
             and _ledger_available()
         )
-        self._load_payments()
+        # Lazy loading (perf): payment records are only read from the ledger /
+        # audit file on first use (``is_paid`` / ``_tx_consumed``), not at
+        # construction. A fresh handler per request therefore avoids loading up
+        # to 10k records it may never need.
+        self._loaded = False
+        self._consumed_txs: set[str] = set()
         self._load_settlements()
+
+    def _ensure_loaded(self) -> None:
+        """Load payment records on first use (idempotent)."""
+        if self._loaded:
+            return
+        self._load_payments()
+        self._loaded = True
 
     def _load_payments(self) -> None:
         self.payments: list[dict[str, Any]] = []
+        self._consumed_txs = set()
         if self._use_db:
             try:
                 from pry.payments.x402.ledger_store import get_payments
 
                 self.payments = get_payments()
+                self._consumed_txs = {
+                    p["tx_hash"] for p in self.payments if p.get("tx_hash") and p.get("verified")
+                }
                 return
             except Exception as e:  # noqa: BLE001 — degrade to file mode
                 logger.warning("x402_ledger_db_read_failed", extra={"error": str(e)[:160]})
@@ -128,7 +144,10 @@ class X402Handler:
             try:
                 for line in self.payments_file.read_text().splitlines():
                     if line.strip():
-                        self.payments.append(json.loads(line))
+                        p = json.loads(line)
+                        self.payments.append(p)
+                        if p.get("tx_hash") and p.get("verified"):
+                            self._consumed_txs.add(p["tx_hash"])
             except (json.JSONDecodeError, OSError):
                 pass
 
@@ -151,6 +170,8 @@ class X402Handler:
         except OSError as e:
             logger.warning("x402_payment_record_failed", extra={"error": str(e)})
         self.payments.append(payment)
+        if payment.get("tx_hash") and payment.get("verified"):
+            self._consumed_txs.add(payment["tx_hash"])
 
     def refresh(self) -> None:
         """Reload payment records from the audit file.
@@ -160,6 +181,7 @@ class X402Handler:
         ``is_paid()`` on the gate path so a just-issued payment_id is visible.
         """
         self._load_payments()
+        self._loaded = True
 
     def _record_settlement(self, settlement: dict[str, Any]) -> None:
         """Persist a settlement: DB (source of truth) + JSONL (audit trail).
@@ -242,7 +264,8 @@ class X402Handler:
         """
         if not tx_hash:
             return False
-        return any(p.get("tx_hash") == tx_hash and p.get("verified") for p in self.payments)
+        self._ensure_loaded()
+        return tx_hash in self._consumed_txs
 
     def create_payment_required(
         self,
@@ -493,6 +516,7 @@ class X402Handler:
         verified/unexpired/caller contract.
         """
         now = datetime.now(UTC)
+        self._ensure_loaded()
         for p in self.payments:
             if p.get("payment_id") != payment_id or not p.get("verified"):
                 continue
@@ -550,12 +574,14 @@ class X402Handler:
         return paid_atomic >= required_atomic
 
     def get_payment(self, payment_id: str) -> dict[str, Any] | None:
+        self._ensure_loaded()
         for p in self.payments:
             if p["payment_id"] == payment_id:
                 return p
         return None
 
     def get_stats(self) -> dict[str, Any]:
+        self._ensure_loaded()
         return {
             "total_payments": len(self.payments),
             "wallet": self.wallet,

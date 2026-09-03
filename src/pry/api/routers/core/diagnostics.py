@@ -17,14 +17,30 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from pry.engine import fallback_telemetry
+
+
+def _require_auth(request: Request) -> None:
+    """Fail-closed guard matching the middleware auth pattern."""
+    from pry.api.api import request_authorized
+
+    if not request_authorized(request.scope):
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized: valid API key required (or loopback client when no key is configured)",
+        )
+
 
 router = APIRouter(tags=["Diagnostics"])
 
 
-@router.get("/v1/diagnostics", summary="Fallback telemetry diagnostics")
+@router.get(
+    "/v1/diagnostics",
+    summary="Fallback telemetry diagnostics",
+    dependencies=[Depends(_require_auth)],
+)
 async def diagnostics() -> dict[str, Any]:
     """Snapshot of fallback-telemetry state (why tiers won/lost)."""
     return {"success": True, "data": {"fallback": fallback_telemetry.snapshot()}}

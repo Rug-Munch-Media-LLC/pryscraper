@@ -48,14 +48,17 @@ import json
 import logging
 import re
 import time
-import xml.etree.ElementTree as ET
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin, urlparse
 
 import httpx
+from defusedxml import ElementTree as ET  # noqa: N817
 
 from pry.core.errors import InvalidRequestError
 from pry.engine.url_guard import safe_get, validate_redirect_url, validate_url
+
+if TYPE_CHECKING:
+    from xml.etree.ElementTree import Element as _ETElement
 
 logger = logging.getLogger(__name__)
 
@@ -596,7 +599,7 @@ def _localname(tag: str) -> str:
     return tag
 
 
-def _rss_entries(root: ET.Element) -> list[dict[str, str]]:
+def _rss_entries(root: _ETElement) -> list[dict[str, str]]:
     """Extract RSS 2.0 ``<item>`` entries as flat dicts."""
     channel = next((child for child in root if _localname(child.tag) == "channel"), None)
     if channel is None:
@@ -621,7 +624,7 @@ def _rss_entries(root: ET.Element) -> list[dict[str, str]]:
     return entries
 
 
-def _atom_entries(root: ET.Element) -> list[dict[str, str]]:
+def _atom_entries(root: _ETElement) -> list[dict[str, str]]:
     """Extract Atom ``<entry>`` elements as flat dicts."""
     entries: list[dict[str, str]] = []
     for child in root:
@@ -665,8 +668,8 @@ def parse_feed(url: str) -> list[dict[str, str]]:
         return []
     try:
         # Feed XML is untrusted; parsing is best-effort and failures return [].
-        # (stdlib xml.etree mandated by spec — no defusedxml dep.)
-        root = ET.fromstring(response.text)  # noqa: S314
+        # (defusedxml used for safe XML parsing of untrusted input.)
+        root = ET.fromstring(response.text)
     except (ET.ParseError, ValueError):
         return []
     root_name = _localname(root.tag)
@@ -730,8 +733,8 @@ def _walk_sitemap(url: str, out: list[str], seen: set[str], *, depth: int) -> No
         return
     try:
         # Sitemap XML is untrusted; parsing is best-effort and bounded.
-        # (stdlib xml.etree mandated by spec — no defusedxml dep.)
-        root = ET.fromstring(response.text)  # noqa: S314
+        # (defusedxml used for safe XML parsing of untrusted input.)
+        root = ET.fromstring(response.text)
     except (ET.ParseError, ValueError):
         return
     locs = [
