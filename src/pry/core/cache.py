@@ -134,7 +134,7 @@ class ResponseCache:
 
     def _payload_bytes(self, data: dict) -> int:
         """Serialized byte size of a payload (used for size accounting)."""
-        return len(str(data).encode())
+        return len(json.dumps(data, default=str).encode())
 
     # ── Synchronous in-memory API (unchanged behavior) ──────────────────────
 
@@ -291,7 +291,7 @@ class ResponseCache:
 
     def _decrement_bytes(self, entry: dict) -> None:
         """Decrement total byte accounting for a removed entry."""
-        self._total_bytes -= len(str(entry["data"]).encode())
+        self._total_bytes -= len(json.dumps(entry["data"], default=str).encode())
         if self._total_bytes < 0:
             self._total_bytes = 0
 
