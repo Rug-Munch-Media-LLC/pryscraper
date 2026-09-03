@@ -5,6 +5,8 @@
 # Licensed under MIT. See LICENSE.
 import time
 
+import pytest
+
 from pry.core.cache import ResponseCache
 
 
@@ -66,3 +68,46 @@ def test_cache_clear() -> None:
     c.clear()
     assert c.stats()["size"] == 0
     assert c.stats()["hits"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Async read-through cache path (aget / aset)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_async_cache_set_and_get() -> None:
+    c = ResponseCache(capacity=10)
+    data = {"content": "hello", "url": "https://example.com"}
+    await c.aset("https://example.com", data)
+    hit = await c.aget("https://example.com")
+    assert hit is not None
+    assert hit["content"] == "hello"
+
+
+@pytest.mark.asyncio
+async def test_async_cache_miss() -> None:
+    c = ResponseCache(capacity=10)
+    miss = await c.aget("https://nonexistent.com")
+    assert miss is None
+
+
+@pytest.mark.asyncio
+async def test_async_cache_invalidate() -> None:
+    c = ResponseCache(capacity=10)
+    data = {"data": 1, "url": "https://example.com"}
+    await c.aset("https://example.com", data)
+    assert await c.aget("https://example.com") is not None
+    c.invalidate("https://example.com")
+    assert await c.aget("https://example.com") is None
+
+
+@pytest.mark.asyncio
+async def test_async_cache_with_options() -> None:
+    c = ResponseCache(capacity=10)
+    options = {"headers": {"Accept": "application/json"}}
+    data = {"content": "json", "url": "https://example.com"}
+    await c.aset("https://example.com", data, options=options)
+    hit = await c.aget("https://example.com", options=options)
+    assert hit is not None
+    assert hit["content"] == "json"
