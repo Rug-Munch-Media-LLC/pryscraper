@@ -299,7 +299,7 @@ services:
     restart: unless-stopped
     init: true
     environment:
-      - DATA_SOURCE_NAME=postgresql://pry:pry@postgres:5432/pry?sslmode=disable
+      - DATA_SOURCE_NAME=postgresql://pry:${POSTGRES_PASSWORD}@postgres:5432/pry?sslmode=disable
     deploy:
       resources:
         limits:
