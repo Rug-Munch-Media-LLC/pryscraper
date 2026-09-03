@@ -86,7 +86,9 @@ async def test_fetch_passes_impersonate_to_session() -> None:
 
     with (
         patch.object(tls_fingerprint, "_has_curl_cffi", True),
-        patch("pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session) as mock_cls,
+        patch(
+            "pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session
+        ) as mock_cls,
     ):
         result = await TLSScraper(default_impersonate="firefox132").fetch(
             "https://example.com", impersonate="chrome124"
@@ -116,7 +118,9 @@ async def test_fetch_invalid_impersonate_falls_back_to_chrome() -> None:
 
     with (
         patch.object(tls_fingerprint, "_has_curl_cffi", True),
-        patch("pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session) as mock_cls,
+        patch(
+            "pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session
+        ) as mock_cls,
     ):
         result = await TLSScraper().fetch("https://example.com", impersonate="bad-ua")
 
@@ -137,7 +141,9 @@ async def test_fetch_merges_custom_headers() -> None:
 
     with (
         patch.object(tls_fingerprint, "_has_curl_cffi", True),
-        patch("pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session) as mock_cls,
+        patch(
+            "pry.engine.tls_fingerprint.AsyncSession", create=True, return_value=session
+        ) as mock_cls,
     ):
         await TLSScraper().fetch("https://example.com", headers={"X-Custom": "yes"})
 

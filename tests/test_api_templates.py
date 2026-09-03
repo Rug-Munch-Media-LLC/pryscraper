@@ -68,7 +68,9 @@ async def test_get_template_not_found(client: TestClient) -> None:
 @pytest.mark.asyncio
 async def test_execute_template(client: TestClient) -> None:
     result = {"success": True, "data": {"title": "Widget"}}
-    with patch("pry.api.routers.core.templates.execute_template", new=AsyncMock(return_value=result)):
+    with patch(
+        "pry.api.routers.core.templates.execute_template", new=AsyncMock(return_value=result)
+    ):
         resp = client.post(
             "/v1/templates/execute",
             json={"template_id": "amazon_product", "url": "https://example.com"},
@@ -87,7 +89,9 @@ async def test_batch_execute_templates(client: TestClient) -> None:
         {"template_id": "amazon_product", "url": "https://example.com/1"},
         {"template_id": "github_repo", "url": "https://example.com/2"},
     ]
-    with patch("pry.api.routers.core.templates.execute_template", new=AsyncMock(return_value=result)):
+    with patch(
+        "pry.api.routers.core.templates.execute_template", new=AsyncMock(return_value=result)
+    ):
         resp = client.post("/v1/templates/batch", json=items)
 
     assert resp.status_code == 200

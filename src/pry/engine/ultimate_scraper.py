@@ -27,11 +27,14 @@ import httpx
 
 from pry.core.errors import InvalidRequestError
 from pry.core.observability import SCRAPE_LATENCY, span
-from pry.engine.browser_pool import (  # noqa: F401  (re-exported for backward compat)
+from pry.engine.browser_pool import (
     BrowserPool,
     close_browsers,
     get_browser_pool,
 )
+
+__all__ = ["BrowserPool", "UltimateScraper", "close_browsers", "get_browser_pool"]
+
 from pry.engine.resilience import registry
 from pry.engine.retry import RetryConfig, async_retry
 from pry.engine.url_guard import safe_get, validate_url

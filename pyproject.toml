@@ -421,7 +421,7 @@ per_rule_ignores = {"DEP001" = ["camelot"]}
 exclude = ["tests", "datasets", ".venv"]
 
 [tool.interrogate]
-fail-under = 40
+fail-under = 60
 ignore-init-method = true
 ignore-init-module = true
 exclude = ["tests/*", "setup.py", "browser-extension/*", "shopify-app/*", "mutants/*"]

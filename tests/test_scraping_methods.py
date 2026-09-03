@@ -581,7 +581,9 @@ def test_parse_sitemap_index_recurses() -> None:
     index = httpx.Response(200, text=SITEMAP_INDEX_FIXTURE)
     posts = httpx.Response(200, text=SITEMAP_URLSET_FIXTURE)
     pages = httpx.Response(200, text=SITEMAP_PAGES_FIXTURE)
-    with patch("pry.engine.scraping_methods._sync_get", side_effect=[index, posts, pages]) as mock_get:
+    with patch(
+        "pry.engine.scraping_methods._sync_get", side_effect=[index, posts, pages]
+    ) as mock_get:
         urls = parse_sitemap("https://example.com/sitemap.xml")
     assert mock_get.call_count == 3
     assert "https://example.com/about" in urls
@@ -714,7 +716,9 @@ def test_paginated_fetch_collects_until_empty() -> None:
     page1 = httpx.Response(200, json=[{"id": 1}, {"id": 2}])
     page2 = httpx.Response(200, json=[{"id": 3}])
     page3 = httpx.Response(200, json=[])
-    with patch("pry.engine.scraping_methods._sync_get", side_effect=[page1, page2, page3]) as mock_get:
+    with patch(
+        "pry.engine.scraping_methods._sync_get", side_effect=[page1, page2, page3]
+    ) as mock_get:
         results = paginated_fetch(
             "https://example.com/api/items",
             page_param="offset_page",

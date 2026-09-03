@@ -10,6 +10,8 @@ from typing import Any
 
 from pry.payments.x402 import X402_PRICING
 
+__all__ = ["X402_GATE_MISCONFIGURED", "X402_PRICING"]
+
 X402_GATE_MISCONFIGURED: Any | None
 try:
     from prometheus_client import Counter as _PcCounter
@@ -386,5 +388,3 @@ _NEW_DOMAIN_PRICE_TIERS: dict[str, dict[str, Any]] = {
 }
 for _operation, _tier in _NEW_DOMAIN_PRICE_TIERS.items():
     X402_PRICING.setdefault(_operation, _tier)
-
-

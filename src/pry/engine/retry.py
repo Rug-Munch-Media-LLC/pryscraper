@@ -171,7 +171,9 @@ async def async_retry(
 
     for attempt in range(total_attempts):
         # If a circuit breaker is configured and open, skip immediately.
-        if cfg.circuit_breaker and not _resilience_mod.registry.is_service_allowed(cfg.circuit_breaker):
+        if cfg.circuit_breaker and not _resilience_mod.registry.is_service_allowed(
+            cfg.circuit_breaker
+        ):
             logger.debug(
                 "retry_circuit_open",
                 extra={

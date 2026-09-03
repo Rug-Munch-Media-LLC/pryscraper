@@ -68,9 +68,12 @@ from pry.core.middleware import (
     _LOOPBACK_OR_TEST_HOSTS,  # noqa: F401
     PryHttpMiddleware,
     _path_exists,  # noqa: F401
-    is_loopback_client,  # noqa: F401
-    request_authorized,  # noqa: F401  (imported by routers/proxy.py, routers/config.py)
+    is_loopback_client,
+    request_authorized,
 )
+
+__all__ = ["PryHttpMiddleware", "is_loopback_client", "request_authorized"]
+
 from pry.core.observability import setup_tracing
 from pry_mcp import make_fallback_server, register_all
 from pry_mcp.app import create_mcp_app

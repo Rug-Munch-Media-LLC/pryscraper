@@ -125,8 +125,6 @@ jobs:
         run: source .venv/bin/activate && ruff check . --exit-non-zero-on-fix
 
       - name: Format check (ruff)
-        # TODO: Fix 59 files needing reformat
-        continue-on-error: true
         run: source .venv/bin/activate && ruff format --check .
 
   typecheck:

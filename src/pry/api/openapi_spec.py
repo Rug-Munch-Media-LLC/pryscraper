@@ -18,7 +18,7 @@ contract breaks.
 # Licensed under MIT. See LICENSE.
 
 import logging
-from typing import Any, cast
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ def get_openapi_spec() -> dict[str, Any]:
         # couple this module to the full app (and risk a circular import).
         from pry.api.api import app
 
-        return cast("dict[str, Any]", app.openapi())
+        return app.openapi()
     except Exception as e:  # noqa: BLE001
         logger.error("openapi_spec_generation_failed", extra={"error": str(e)})
         return {"error": "OpenAPI spec not found"}

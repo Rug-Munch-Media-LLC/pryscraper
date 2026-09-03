@@ -522,7 +522,8 @@ class TestTransport:
     async def test_proxy_success_returns_parsed_json(self) -> None:
         with (
             patch(
-                "datasets.sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
+                "datasets.sports_data.us_books.next_webshare_proxy",
+                return_value="http://u:p@1.2.3.4:8080",
             ),
             patch("aiohttp.ClientSession", _fake_aiohttp_session(status=200, text='{"ok": 1}')),
         ):
@@ -535,7 +536,8 @@ class TestTransport:
     async def test_geo_block_403_degrades_to_none(self) -> None:
         with (
             patch(
-                "datasets.sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
+                "datasets.sports_data.us_books.next_webshare_proxy",
+                return_value="http://u:p@1.2.3.4:8080",
             ),
             patch("aiohttp.ClientSession", _fake_aiohttp_session(status=403, text="forbidden")),
         ):
@@ -549,7 +551,8 @@ class TestTransport:
         body = "<html>Checking your browser before accessing this site...</html>"
         with (
             patch(
-                "datasets.sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
+                "datasets.sports_data.us_books.next_webshare_proxy",
+                return_value="http://u:p@1.2.3.4:8080",
             ),
             patch("aiohttp.ClientSession", _fake_aiohttp_session(status=200, text=body)),
         ):
@@ -562,7 +565,8 @@ class TestTransport:
     async def test_transport_error_never_raises(self) -> None:
         with (
             patch(
-                "datasets.sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
+                "datasets.sports_data.us_books.next_webshare_proxy",
+                return_value="http://u:p@1.2.3.4:8080",
             ),
             patch(
                 "aiohttp.ClientSession",
@@ -578,7 +582,8 @@ class TestTransport:
     async def test_malformed_json_never_raises(self) -> None:
         with (
             patch(
-                "datasets.sports_data.us_books.next_webshare_proxy", return_value="http://u:p@1.2.3.4:8080"
+                "datasets.sports_data.us_books.next_webshare_proxy",
+                return_value="http://u:p@1.2.3.4:8080",
             ),
             patch("aiohttp.ClientSession", _fake_aiohttp_session(status=200, text="not json {{{")),
         ):
@@ -603,7 +608,8 @@ class TestFetchers:
     @staticmethod
     def _patch_transport(payload: Any):
         return patch(
-            "datasets.sports_data.us_books._fetch_json_via_proxy", new=AsyncMock(return_value=payload)
+            "datasets.sports_data.us_books._fetch_json_via_proxy",
+            new=AsyncMock(return_value=payload),
         )
 
     @pytest.mark.anyio
@@ -733,7 +739,9 @@ class TestHealthTracking:
 
     @pytest.mark.anyio
     async def test_failure_marks_blocked(self) -> None:
-        with patch("datasets.sports_data.us_books._fetch_json_via_proxy", new=AsyncMock(return_value=None)):
+        with patch(
+            "datasets.sports_data.us_books._fetch_json_via_proxy", new=AsyncMock(return_value=None)
+        ):
             await us.fetch_caesars("nba")
         status = us.book_status()["caesars"]["availability"]
         assert status["blocked"] is True

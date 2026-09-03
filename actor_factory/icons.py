@@ -400,6 +400,7 @@ def render_icon(spec: Any) -> str:
     # all 94 icons are visually distinct even within one category, plus an
     # initial-monogram badge corner.
     import hashlib as _hl
+
     _h = int(_hl.sha256(spec.name.encode()).hexdigest(), 16)
     _shift = _h % 36  # +/-18 degrees hue variation
     """Render a deterministic store-quality SVG icon for the spec."""
