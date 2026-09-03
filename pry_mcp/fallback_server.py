@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from pry.core.client import get_client
 from pry_mcp.constants import DEFAULT_BASE_URL, MCP_PROTOCOL_VERSION, SERVER_NAME, SERVER_VERSION
 from pry_mcp.notifications import (
     _attach_mcp_logging,
@@ -277,8 +278,6 @@ def make_fallback_server(
                 }
             method, path = tool_map[name]
 
-            method, path = tool_map[name]
-
             # Try to call the Pry API directly. Server-to-server auth: the
             # MCP server runs beside the API and must present the API key,
             # or the x402 gate 402s its own tools (402-challenge loop).
@@ -287,18 +286,26 @@ def make_fallback_server(
             api_key = os.getenv("PRY_API_KEY", "")
             headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
             try:
-                async with httpx.AsyncClient(timeout=60) as client:
-                    if method == "GET":
-                        response = await client.get(
-                            f"{self.base_url}{path}", params=arguments, headers=headers
-                        )
-                    else:
-                        response = await client.post(
-                            f"{self.base_url}{path}", json=arguments, headers=headers
-                        )
-                    response.raise_for_status()
-                    data = response.json()
-                    return self._tool_result_to_content(data, name)
+                client = await get_client()
+                if method == "GET":
+                    response = await client.request(
+                        method,
+                        f"{self.base_url}{path}",
+                        params=arguments,
+                        headers=headers,
+                        timeout=60,
+                    )
+                else:
+                    response = await client.request(
+                        method,
+                        f"{self.base_url}{path}",
+                        json=arguments,
+                        headers=headers,
+                        timeout=60,
+                    )
+                response.raise_for_status()
+                data = response.json()
+                return self._tool_result_to_content(data, name)
             except (httpx.HTTPError, httpx.RequestError) as e:
                 logger.warning("mcp_tool_api_call_failed", extra={"tool": name, "error": str(e)})
                 return {
