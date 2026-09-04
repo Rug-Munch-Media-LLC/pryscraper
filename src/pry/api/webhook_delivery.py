@@ -103,8 +103,8 @@ class WebhookDelivery:
                 for line in self.delivery_log.read_text().splitlines():
                     if line.strip():
                         self.log.append(json.loads(line))
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("webhook_log_load_failed", extra={"error": str(e)[:160]})
 
     def sign_payload(self, payload: dict, timestamp: str = "", event_type: str = "") -> str:
         if not self.signing_secret:
@@ -233,8 +233,8 @@ class WebhookDelivery:
                 for line in self.dead_letter.read_text().splitlines():
                     if line.strip():
                         items.append(json.loads(line))
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("webhook_log_load_failed", extra={"error": str(e)[:160]})
         return items
 
     def retry_dead_letter(self) -> dict[str, Any]:

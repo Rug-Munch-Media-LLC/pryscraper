@@ -247,8 +247,8 @@ def process_deletion(user_id: str) -> dict[str, Any]:
                 if url and _word_boundary_match(user_id, url):
                     path.unlink()
                     deleted_records += 1
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("gdpr_deletion_scan_failed", extra={"error": str(e)[:160]})
 
     # Delete sessions associated with this user
     sessions_dir = Path(os.path.expanduser("~/.pry/sessions"))
@@ -267,8 +267,8 @@ def process_deletion(user_id: str) -> dict[str, Any]:
                 if _word_boundary_match(user_id, json.dumps(meta)):
                     path.unlink()
                     deleted_records += 1
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("gdpr_deletion_scan_failed", extra={"error": str(e)[:160]})
 
     logger.info(
         "deletion_processed", extra={"user_hash": user_hash, "deleted_records": deleted_records}

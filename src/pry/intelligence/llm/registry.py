@@ -357,8 +357,8 @@ class LLMRegistry:
                 self._referral_tracker = ReferralTracker()
             # Estimate revenue at 5% of user cost (typical affiliate share)
             self._referral_tracker.track_in_app_usage(response.provider, response.cost_usd * 0.05)
-        except ImportError:
-            pass
+        except ImportError as e:
+            logger.debug("llm_referral_import_unavailable", extra={"error": str(e)[:160]})
         except Exception as e:  # noqa: BLE001 - metering must not break serving
             logger.debug("llm_referral_track_failed", extra={"error": str(e)[:160]})
         # Persist daily
@@ -396,8 +396,8 @@ class LLMRegistry:
                         u["input_tokens"] += r.get("input_tokens", 0)
                         u["output_tokens"] += r.get("output_tokens", 0)
                         u["cost_usd"] += r.get("cost_usd", 0.0)
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("llm_usage_load_failed", extra={"error": str(e)[:160]})
 
     def get_stats(self) -> dict[str, Any]:
         return {

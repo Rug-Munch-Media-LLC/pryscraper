@@ -75,23 +75,23 @@ try:
     from playwright.async_api import async_playwright
 
     _HAS_PLAYWRIGHT = True
-except ImportError:  # pragma: no cover - optional dependency
-    pass
+except ImportError as e:  # pragma: no cover - optional dependency
+    logger.debug("scraping_methods_optional_import_unavailable", extra={"error": str(e)[:160]})
 
 try:
     from camoufox import AsyncCamoufox as _CamoufoxAsyncClass
 
     AsyncCamoufox = _CamoufoxAsyncClass
     _HAS_CAMOUFOX = True
-except ImportError:  # pragma: no cover - optional dependency
-    pass
+except ImportError as e:  # pragma: no cover - optional dependency
+    logger.debug("scraping_methods_optional_import_unavailable", extra={"error": str(e)[:160]})
 
 try:
     from pry.engine.camoufox_integration import CamoufoxBrowser
 
     _HAS_CAMOUFOX_INTEGRATION = True
-except ImportError:  # pragma: no cover - optional dependency
-    pass
+except ImportError as e:  # pragma: no cover - optional dependency
+    logger.debug("scraping_methods_optional_import_unavailable", extra={"error": str(e)[:160]})
 
 _DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

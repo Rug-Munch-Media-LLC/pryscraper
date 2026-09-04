@@ -364,8 +364,8 @@ async def run_quality_check(
         try:
             prev = json.loads(history_path.read_text())
             previous_data = prev.get("data")
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("quality_history_load_failed", extra={"error": str(e)[:160]})
 
     # Compute metrics
     completeness = compute_completeness(data, schema)

@@ -155,8 +155,8 @@ class X402Handler:
                         self.payments.append(p)
                         if p.get("tx_hash") and p.get("verified"):
                             self._consumed_txs.add(p["tx_hash"])
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("x402_state_load_failed", extra={"error": str(e)[:160]})
 
     def _record_payment(self, payment: dict[str, Any]) -> None:
         """Persist a payment record: DB (source of truth) + JSONL (audit trail).
@@ -251,8 +251,8 @@ class X402Handler:
                         key = self._settlement_key(rec)
                         if key:
                             self._settled_txs.setdefault(key, rec)
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("x402_state_load_failed", extra={"error": str(e)[:160]})
 
     def _settlement_key(self, rec: dict[str, Any] | None) -> str:
         """Stable idempotency key for a settlement receipt.

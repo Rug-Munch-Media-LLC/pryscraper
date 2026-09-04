@@ -310,8 +310,8 @@ class ProxyManager:
         if self.config_file.exists():
             try:
                 return ProxyConfig(**json.loads(self.config_file.read_text()))
-            except (json.JSONDecodeError, TypeError):
-                pass
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning("proxy_state_load_failed", extra={"error": str(e)[:160]})
         return ProxyConfig()
 
     def _load_credentials(self) -> dict[str, ProxyConfig]:
@@ -319,8 +319,8 @@ class ProxyManager:
             try:
                 data = json.loads(self.creds_file.read_text())
                 return {k: ProxyConfig(**v) for k, v in data.items()}
-            except (json.JSONDecodeError, TypeError):
-                pass
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning("proxy_state_load_failed", extra={"error": str(e)[:160]})
         return {}
 
     def _save_config(self) -> None:
@@ -346,8 +346,8 @@ class ProxyManager:
                     data.setdefault("proxies", {})
                     data.setdefault("affinity", {})
                     return data
-            except (json.JSONDecodeError, TypeError):
-                pass
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning("proxy_state_load_failed", extra={"error": str(e)[:160]})
         return {"version": 1, "proxies": {}, "affinity": {}}
 
     def _save_health(self) -> None:

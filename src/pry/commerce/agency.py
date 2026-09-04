@@ -240,8 +240,8 @@ def get_agency_analytics(agency_id: str) -> dict[str, Any]:
                     active_clients += 1
                 if data.get("usage_this_month", 0) >= data.get("monthly_quota", 0):
                     exceeded_clients += 1
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("agency_client_usage_load_failed", extra={"error": str(e)[:160]})
 
     return {
         "agency_id": agency_id,

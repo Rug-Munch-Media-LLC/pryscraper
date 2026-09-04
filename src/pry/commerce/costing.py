@@ -79,8 +79,8 @@ def _load_cost_table() -> dict[str, float]:
         try:
             overrides = json.loads(path.read_text())
             table.update(overrides)
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("costing_load_failed", extra={"error": str(e)[:160]})
     return table
 
 
@@ -253,8 +253,8 @@ def get_cost_dashboard() -> dict[str, Any]:
                     r = json.loads(line)
                     day_cost += r.get("cost", 0)
                     day_ops += 1
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("costing_load_failed", extra={"error": str(e)[:160]})
         daily_totals.append(
             {
                 "date": prefix,

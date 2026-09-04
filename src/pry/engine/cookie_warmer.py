@@ -190,6 +190,6 @@ class CookieWarmer:
                         "cookie_count": len(data.get("cookies", [])),
                     }
                 )
-            except (json.JSONDecodeError, ValueError):
-                pass
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.warning("cookie_warmer_session_load_failed", extra={"error": str(e)[:160]})
         return sessions

@@ -375,8 +375,8 @@ def check_session_health(session_id: str) -> dict[str, Any]:
         try:
             saved_dt = datetime.fromisoformat(saved_at)
             age_hours = (datetime.now(UTC) - saved_dt).total_seconds() / 3600
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            logger.warning("auth_session_age_parse_failed", extra={"error": str(e)[:160]})
 
     healthy = valid_cookies > 0 and age_hours < 24
 

@@ -62,8 +62,8 @@ async def check_content_changed(url: str, content: str) -> dict[str, Any]:
             result["last_changed"] = previous.get("last_changed", "")
             result["is_new"] = False
             result["changed"] = current_hash != previous.get("hash")
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("freshness_state_load_failed", extra={"error": str(e)[:160]})
 
     # Save current fingerprint
     with suppress(OSError):
@@ -129,8 +129,8 @@ def calculate_adaptive_frequency(
             change_history = history.get("changes", [])[-volatility_window:]
             total_checks = len(change_history)
             changes = sum(1 for c in change_history if c)
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("freshness_state_load_failed", extra={"error": str(e)[:160]})
 
     # Store current check
     # (this is called after a scrape, so we record the result)
@@ -201,8 +201,10 @@ def get_staleness_dashboard() -> dict[str, Any]:
                 try:
                     checked_dt = datetime.fromisoformat(last_checked)
                     age_hours = (datetime.now(UTC) - checked_dt).total_seconds() / 3600
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as e:
+                    logger.warning(
+                        "freshness_last_checked_parse_failed", extra={"error": str(e)[:160]}
+                    )
 
             is_stale = age_hours > max_age_hours
 

@@ -27,8 +27,8 @@ try:
     from playwright.async_api import async_playwright
 
     _has_playwright = True
-except ImportError:
-    pass
+except ImportError as e:
+    logger.debug("ai_visual_scraper_playwright_unavailable", extra={"error": str(e)[:160]})
 
 # Availability probe only — the name is imported locally where used
 # (_extract_with_llm), so no module-level binding is needed.
