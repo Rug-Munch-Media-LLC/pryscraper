@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### x402 Competition-Sourced Features (2026-09)
+- **Pre-settle + post-settle hooks** — register callbacks before/after settlement (from JS @x402/server)
+- **6-point lifecycle hooks** — verify before/after/onFailure + settle before/after (from JS @x402/server)
+- **Weighted random facilitator selection** — prevents thundering herd (from Coinbase x402-py)
+- **Latency-aware health scoring** — health score factors avg response time (from Coinbase x402-py)
+- **Exponential backoff retry** — 3 attempts with 0.5*2^attempt delay (from Coinbase x402-py)
+- **Retry-After header parsing** — honors HTTP Retry-After, 1s→30s cap (from JS @x402/server)
+- **Typed error hierarchy** — VerifyError, SettleError, FacilitatorTimeoutError (from JS @x402/server)
+- **Dynamic scheme negotiation** — select best scheme based on client capabilities (from Coinbase x402-py)
+- **Auth-capture scheme** — authorize/capture/void flow (from JS @x402/auth-capture)
+- **Auth-capture escrow PaymentInfo** — EIP-712 with expiry windows + fee bounds (from JS @x402/auth-capture)
+- **Extension mutation policy** — validate extensions can't weaken security (from JS @x402/server)
+- **EVM RPC fallback chain** — 2 fallback RPCs per network + retry (from Coinbase x402-py)
+- **Solana payer binding** — validate on-chain authority matches expected payer
+- **Health-score routing** — facilitators sorted by successes - failures*2 (from Coinbase x402-py)
+- **On-chain batch channels** — voucher/claim/refund model with max_claims cap (from JS @x402/batch-settlement)
+- **register_facilitator plugin point** — custom facilitator per-network (from Coinbase x402-py)
+
 ## [3.1.0] — 2026-09
 
 Next release on top of 3.0.0: hardening the MCP server's security posture,
