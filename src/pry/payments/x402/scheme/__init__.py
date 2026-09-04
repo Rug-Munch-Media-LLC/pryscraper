@@ -148,6 +148,33 @@ def validate_scheme_extension(
     return None
 
 
+def build_multi_payment_required(
+    operation: str,
+    resource: str,
+    networks: list[dict[str, Any]] | None = None,
+    amount_usd: float = 0.01,
+) -> list[dict[str, Any]]:
+    """Build payment requirements for multiple networks so payer can choose chain."""
+    if not networks:
+        networks = [
+            {"network": "eip155:8453", "asset": "USDC", "address": ""},
+            {"network": "solana:mainnet", "asset": "USDC", "address": ""},
+            {"network": "tron:mainnet", "asset": "USDC", "address": ""},
+        ]
+    return [
+        {
+            "scheme": "exact",
+            "network": net["network"],
+            "asset": net["asset"],
+            "amount": str(amount_usd),
+            "payToAddress": net.get("address", ""),
+            "resource": resource,
+            "description": operation,
+        }
+        for net in networks
+    ]
+
+
 @dataclass
 class PaymentInfo:
     """EIP-712 PaymentInfo for auth-capture escrow scheme."""
@@ -234,6 +261,7 @@ __all__ = [
     "attestation_signer_address",
     "attested_max_amount_required",
     "build_multi_asset_accepts",
+    "build_multi_payment_required",
     "build_payment_required",
     "clear_price_cache",
     "create_payment_request",
