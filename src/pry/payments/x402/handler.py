@@ -152,7 +152,17 @@ class X402Handler:
         # to 10k records it may never need.
         self._loaded = False
         self._consumed_txs: set[str] = set()
+        self._pre_settle_hooks: list = []
+        self._post_settle_hooks: list = []
         self._load_settlements()
+
+    def on_pre_settle(self, hook):
+        """Register a hook executed before settlement. Can abort by returning {"abort": True, "reason": "..."}."""
+        self._pre_settle_hooks.append(hook)
+
+    def on_post_settle(self, hook):
+        """Register a hook executed after successful settlement."""
+        self._post_settle_hooks.append(hook)
 
     def _ensure_loaded(self) -> None:
         """Load payment records on first use (idempotent)."""
@@ -517,6 +527,20 @@ class X402Handler:
                 logger.info("x402_settle_idempotent", extra={"settle_key": key})
                 return self._settled_txs[key]
 
+            for hook in self._pre_settle_hooks:
+                result = hook(
+                    payment_id=payment_id,
+                    tx_hash=tx_hash,
+                    network=network,
+                    asset=asset,
+                    amount_usd=amount_usd,
+                )
+                if isinstance(result, dict) and result.get("abort"):
+                    return {
+                        "success": False,
+                        "error": result.get("reason", "aborted by pre-settle hook"),
+                    }
+
             settlement = await self.router.settle(
                 payment_id=payment_id,
                 tx_hash=tx_hash,
@@ -534,6 +558,14 @@ class X402Handler:
             # Only index successful settles so a failed attempt can be retried.
             if record.get("success") is True and key:
                 self._settled_txs.setdefault(key, record)
+            for hook in self._post_settle_hooks:
+                try:
+                    hook(record)
+                except Exception as e:  # noqa: BLE001 — best-effort, never break settle
+                    logger.debug(
+                        "x402_post_settle_hook_error",
+                        extra={"payment_id": payment_id, "error": str(e)},
+                    )
 
         self._record_settlement(record)
         # Customer notification (audit item #8): fire the settlement webhook
