@@ -81,18 +81,32 @@ def test_run_migrations_is_idempotent(temp_data_dir, monkeypatch):
     assert tables_after == tables_before
 
 
-@pytest.mark.skip(reason="structlog intercepts log before caplog when alembic is installed")
 def test_run_migrations_when_alembic_missing_logs_warning(temp_data_dir, monkeypatch, caplog):
     """If alembic is not installed, run_migrations logs a warning and returns None."""
     import logging
 
     import pry.core.db.migrations as mig
 
-    # Setting modules to None in sys.modules causes `from alembic.config import Config`
-    # to raise ImportError ("import of alembic halted; None in sys.modules").
-    for mod_name in list(sys.modules):
-        if mod_name.startswith("alembic"):
-            monkeypatch.setitem(sys.modules, mod_name, None)
+    # Simulate alembic not being installed. Setting the module to None in
+    # sys.modules makes `from alembic.config import Config` raise ImportError
+    # ("import of alembic halted; None in sys.modules"). We set the top-level
+    # package AND the submodule so the import is halted regardless of which is
+    # resolved first. (The old loop only nulled modules already present in
+    # sys.modules, but alembic is imported lazily inside run_migrations(), so
+    # it was never there and the ImportError branch was never exercised.)
+    monkeypatch.setitem(sys.modules, "alembic", None)
+    monkeypatch.setitem(sys.modules, "alembic.config", None)
+
+    # Ensure the stdlib logger is enabled and propagates to caplog's root
+    # handler so the warning is captured. Earlier tests in this file run real
+    # Alembic migrations, and alembic/env.py calls logging.config.fileConfig()
+    # (disable_existing_loggers=True), which DISABLES every logger not listed
+    # in alembic.ini — including this one. Re-enable it and force propagation
+    # so the record reaches caplog (structlog's bridge can otherwise swallow
+    # it too).
+    _mig_logger = logging.getLogger("pry.core.db.migrations")
+    _mig_logger.disabled = False
+    _mig_logger.propagate = True
 
     with caplog.at_level(logging.WARNING, logger="pry.core.db.migrations"):
         result = mig.run_migrations()

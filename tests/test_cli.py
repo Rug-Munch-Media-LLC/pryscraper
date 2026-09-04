@@ -4,6 +4,7 @@ Tests helpers, command functions, and Click CLI group.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import tempfile
@@ -451,7 +452,7 @@ def test_cmd_completions_unknown_shell(mock_print):
 # ── Click CLI group ──
 
 
-@pytest.mark.skipif("click" not in dir(), reason="click not installed")
+@pytest.mark.skipif(importlib.util.find_spec("click") is None, reason="click not installed")
 def test_cli_group():
     from pry.misc.cli import main
 
