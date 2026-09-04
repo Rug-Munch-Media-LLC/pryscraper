@@ -23,6 +23,7 @@ Split into per-concern modules (behavior unchanged):
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from pry.payments.x402 import (
@@ -147,6 +148,36 @@ def validate_scheme_extension(
     return None
 
 
+@dataclass
+class PaymentInfo:
+    """EIP-712 PaymentInfo for auth-capture escrow scheme."""
+
+    payer: str
+    payee: str
+    amount_usd: float
+    asset: str
+    network: str
+    pre_approval_expiry: int
+    authorization_expiry: int
+    refund_expiry: int
+    min_fee_bps: int = 0
+    max_fee_bps: int = 100
+    capture_authorizer: str = ""
+
+    def is_expired(self, ts: int = 0) -> bool:
+        import time
+
+        return (ts or int(time.time())) > self.authorization_expiry
+
+    def can_refund(self, ts: int = 0) -> bool:
+        import time
+
+        return (ts or int(time.time())) > self.refund_expiry
+
+    def validate_fee(self, fee_bps: int) -> bool:
+        return self.min_fee_bps <= fee_bps <= self.max_fee_bps
+
+
 # Mutable per-process cache of the resolved attestation key. Lives on the
 # package (not a submodule) so tests that patch
 # ``pry.payments.x402.scheme._attest_key_cache`` keep working after the
@@ -181,6 +212,7 @@ __all__ = [
     "_NATIVE_ASSETS",
     "_STABLECOIN_ASSETS",
     "AssetUsdQuote",
+    "PaymentInfo",
     "X402Asset",
     "X402Network",
     "X402Scheme",
