@@ -15,13 +15,20 @@ import socket
 import urllib.parse
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends
-
-from pry.api.api import request_authorized
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Webhooks"])
+
+
+async def _require_auth(request: Request) -> None:
+    """Inline auth check — import from core.middleware to avoid cross-domain boundary."""
+    from pry.core.middleware import request_authorized
+
+    if not request_authorized(request.scope):
+        raise HTTPException(status_code=401, detail="unauthorized")
+
 
 # Cap concurrent webhook test deliveries: each can hold a worker for up to
 # the delivery timeout (~15s), so unbounded concurrency risks worker exhaustion.
@@ -90,7 +97,7 @@ async def webhook_test_route(
     tags=["Webhooks"],
     summary="Get failed webhook deliveries",
 )
-async def get_dead_letter(_: bool = Depends(request_authorized)) -> dict[str, Any]:
+async def get_dead_letter(_: None = Depends(_require_auth)) -> dict[str, Any]:
     """Get the dead letter queue of failed webhook deliveries."""
     from pry.api.webhook_delivery import WebhookDelivery
 
