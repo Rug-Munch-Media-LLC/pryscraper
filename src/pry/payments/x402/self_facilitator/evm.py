@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 from eth_account import Account
-from eth_keys import keys
+from eth_keys import keys  # type: ignore[attr-defined]
 from eth_keys.datatypes import PrivateKey
-from eth_utils import to_checksum_address
+from eth_utils import to_checksum_address  # type: ignore[attr-defined]
 
 from pry.payments.x402 import (
     X402_DEFAULT_ASSET,

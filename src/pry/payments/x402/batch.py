@@ -117,7 +117,7 @@ def _load_batch(batch_id: str) -> dict[str, Any] | None:
         try:
             raw = client.get(_batch_redis_key(batch_id))
             if raw:
-                return json.loads(raw)
+                return json.loads(raw)  # type: ignore[no-any-return]
         except Exception as e:  # noqa: BLE001 — degrade to memory, never raise
             logger.warning("x402_batch_redis_read_failed", extra={"error": str(e)[:160]})
     with _batch_lock:
