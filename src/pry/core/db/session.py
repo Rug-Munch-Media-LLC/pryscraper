@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 try:
     from sqlalchemy import create_engine, event
+    from sqlalchemy.engine import make_url
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
     from sqlalchemy.orm import Session, sessionmaker
     from sqlalchemy.pool import NullPool
@@ -167,9 +168,15 @@ def get_engine() -> Engine:
                 _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
                 logger.info(
                     "db_engine_initialized",
-                    extra={"url": url.split("@")[-1] if "@" in url else url},
+                    extra={"url": make_url(url).render_as_string(hide_password=True)},
                 )
     return _engine
+
+
+def init_db() -> None:
+    """Create all tables. Call from FastAPI lifespan startup, not per-request."""
+    engine = get_engine()
+    Base.metadata.create_all(engine)
 
 
 def get_session() -> Session:
@@ -246,7 +253,7 @@ def get_async_engine() -> Any:
                 )
                 logger.info(
                     "db_async_engine_initialized",
-                    extra={"url": url.split("@")[-1] if "@" in url else url},
+                    extra={"url": make_url(url).render_as_string(hide_password=True)},
                 )
     return _async_engine
 
