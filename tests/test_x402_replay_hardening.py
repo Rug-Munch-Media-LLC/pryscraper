@@ -62,6 +62,7 @@ def _payment_record(
 def test_replay_cheap_payment_rejected_on_expensive_operation() -> None:
     """A $0.001 'scrape' payment must NOT unlock the $0.01 'crawl' gate."""
     h = X402Handler()
+    h._ensure_loaded()  # mark loaded so the in-memory seed below isn't wiped
     h.payments = [
         _payment_record("cheap1", operation="scrape", required_amount_atomic=1000, caller_key="ip")
     ]
@@ -107,12 +108,14 @@ def test_replay_cheap_payment_rejected_at_middleware_gate(monkeypatch) -> None:
 def test_underpayment_in_atoms_rejected_but_overpayment_allowed() -> None:
     """Paid 500 units (< current 1000 for scrape) rejected; 1500 allowed."""
     under = X402Handler()
+    under._ensure_loaded()  # mark loaded so the in-memory seed below isn't wiped
     under.payments = [
         _payment_record("under1", operation="scrape", required_amount_atomic=500, caller_key="ip")
     ]
     assert under.is_paid("under1", "ip", operation="scrape") is False
 
     over = X402Handler()
+    over._ensure_loaded()  # mark loaded so the in-memory seed below isn't wiped
     over.payments = [
         _payment_record("over1", operation="scrape", required_amount_atomic=1500, caller_key="ip")
     ]
@@ -122,6 +125,7 @@ def test_underpayment_in_atoms_rejected_but_overpayment_allowed() -> None:
 def test_gated_operation_without_stored_atomics_fails_closed() -> None:
     """Pre-hardening records (no operation/amount) can't satisfy a gated op."""
     h = X402Handler()
+    h._ensure_loaded()  # mark loaded so the in-memory seed below isn't wiped
     h.payments = [
         {"payment_id": "old1", "verified": True, "expires_at": _FUTURE, "caller_key": "ip"}
     ]
