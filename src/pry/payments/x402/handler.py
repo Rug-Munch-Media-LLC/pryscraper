@@ -164,6 +164,10 @@ class X402Handler:
         DB is authoritative when reachable; the file append is best-effort
         and never blocks the payment flow.
         """
+        # Ensure the in-memory payment index is loaded before appending —
+        # ``verify_payment`` records a payment without a prior ``is_paid`` /
+        # ``_tx_consumed`` read, so ``self.payments`` may not be initialized yet.
+        self._ensure_loaded()
         if self._use_db:
             try:
                 from pry.payments.x402.ledger_store import record_payment
