@@ -31,6 +31,14 @@ WEBHOOK_DIR = PRY_DATA_DIR / "webhooks"
 
 def _validate_url(url: str) -> str | None:
     """Validate webhook URL to prevent SSRF. Returns None if safe, reason string if not."""
+    # TODO(security): DNS-rebinding TOCTOU — the hostname is resolved here and
+    # the resulting IP is checked against private/loopback ranges, but httpx
+    # re-resolves the hostname at connect time. An attacker who controls DNS can
+    # return a public IP during validation and a private/loopback IP at connect
+    # time, bypassing the SSRF guard. Proper fix: pin the validated IP (resolve
+    # once, connect to the IP directly with extensions={"sni_hostname": host}).
+    # Mitigation in place: the shared httpx client uses retries=0 (see
+    # pry/core/client.py) so no automatic re-resolve/retry widens the window.
     try:
         parsed = urllib.parse.urlparse(url)
     except ValueError:

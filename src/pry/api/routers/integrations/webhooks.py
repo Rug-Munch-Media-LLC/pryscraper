@@ -15,7 +15,9 @@ import socket
 import urllib.parse
 from typing import Any
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends
+
+from pry.api.api import request_authorized
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +90,7 @@ async def webhook_test_route(
     tags=["Webhooks"],
     summary="Get failed webhook deliveries",
 )
-async def get_dead_letter() -> dict[str, Any]:
+async def get_dead_letter(_: bool = Depends(request_authorized)) -> dict[str, Any]:
     """Get the dead letter queue of failed webhook deliveries."""
     from pry.api.webhook_delivery import WebhookDelivery
 

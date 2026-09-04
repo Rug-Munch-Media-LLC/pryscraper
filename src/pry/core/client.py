@@ -52,6 +52,10 @@ async def get_client() -> httpx.AsyncClient:
             timeout=_default_timeout,
             limits=_default_limits,
             headers={"User-Agent": "pry/3.0"},
+            # retries=0: disable httpx's automatic retry-on-connection-error so
+            # the caller's own retry loop (e.g. WebhookDelivery.deliver) is the
+            # single source of retry behavior.
+            transport=httpx.AsyncHTTPTransport(retries=0),
         )
         return http_client
 
