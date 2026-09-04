@@ -215,7 +215,10 @@ class X402Middleware:
         self.network = network
         self.facilitator_url = facilitator_url
         self.handler = X402Handler(wallet=wallet, facilitator_url=facilitator_url)
-        self.payments: dict[str, dict[str, Any]] = {}
+        # NOTE: no per-instance payments cache here — payment state lives in
+        # X402Handler (persisted to payments.jsonl). A previous in-memory
+        # ``self.payments`` dict was write-only dead code (memory-leak audit
+        # HIGH finding) and has been removed.
         self.limiter = RateLimiter(
             default_rpm=X402_RATE_LIMIT_PER_MIN,
             burst=X402_RATE_LIMIT_PER_MIN,
