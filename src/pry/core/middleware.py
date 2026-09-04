@@ -391,8 +391,9 @@ def _resolve_client_ip(scope: Mapping[str, Any]) -> str:
 
     * Default: the socket peer IP (X-Forwarded-For is spoofable).
     * When the immediate socket peer is loopback or a configured trusted
-      proxy, honor X-Forwarded-For and use its leftmost entry — the original
-      client per standard proxy-chaining semantics.
+      proxy, honor X-Forwarded-For and use the rightmost non-trusted,
+      non-loopback hop — the first hop appended by our own proxy chain,
+      which cannot be spoofed by the client.
     """
     client = scope.get("client")
     peer = client[0] if client else ""
@@ -401,9 +402,14 @@ def _resolve_client_ip(scope: Mapping[str, Any]) -> str:
     if is_loopback_client(peer) or _is_trusted_proxy(peer):
         xff = PryHttpMiddleware._get_header(scope, b"x-forwarded-for")
         if xff:
-            first = xff.split(",")[0].strip()
-            if first:
-                return first
+            hops = [h.strip() for h in xff.split(",")]
+            for hop in reversed(hops):
+                if (
+                    hop
+                    and not is_loopback_client(hop)
+                    and hop not in ("127.0.0.1", "::1", "localhost")
+                ):
+                    return hop
     return peer
 
 

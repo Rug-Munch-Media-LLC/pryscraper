@@ -19,6 +19,7 @@ Two backends behind one interface:
 
 import logging
 import time
+from collections import OrderedDict
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ class RateLimiter:
     ):
         self.default_rpm = default_rpm
         self.burst = burst
-        self._buckets: dict[str, dict[str, Any]] = {}
+        self._buckets: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._cleanup_interval = 300  # 5 min cleanup
         self._last_cleanup = time.time()
 
@@ -150,6 +151,9 @@ class RateLimiter:
                 "total": 0,
                 "blocked": 0,
             }
+            if len(self._buckets) > 50000:
+                # Evict oldest entries to prevent memory DoS
+                self._buckets.popitem(last=False)
 
         bucket = self._buckets[ip]
 
@@ -179,9 +183,9 @@ class RateLimiter:
             }
 
     def _cleanup(self) -> None:
-        """Remove stale buckets older than 1 hour."""
+        """Remove stale buckets older than 10 minutes."""
         now = time.time()
-        stale = [ip for ip, b in self._buckets.items() if now - b["last_refill"] > 3600]
+        stale = [ip for ip, b in self._buckets.items() if now - b["last_refill"] > 600]
         for ip in stale:
             del self._buckets[ip]
         self._last_cleanup = now

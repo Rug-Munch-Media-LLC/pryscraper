@@ -237,9 +237,11 @@ def test_resolve_client_ip_loopback_xff():
 
 
 def test_resolve_client_ip_trusted_proxy_xff():
+    # Rightmost non-trusted, non-loopback hop wins — the client-supplied
+    # leftmost entry (203.0.113.5) is spoofable and must be ignored.
     scope = {"client": ["10.0.0.5", 0], "headers": [(b"x-forwarded-for", b"203.0.113.5, 10.0.0.1")]}
-    with patch("pry.core.middleware._is_trusted_proxy", return_value=True):
-        assert _resolve_client_ip(scope) == "203.0.113.5"
+    with patch("pry.core.middleware._is_trusted_proxy", side_effect=lambda ip: ip == "10.0.0.5"):
+        assert _resolve_client_ip(scope) == "10.0.0.1"
 
 
 def test_resolve_client_ip_no_client():
