@@ -34,6 +34,10 @@ def temp_data_dir(monkeypatch, tmp_path):
     # Reset the cached engine
     db._engine = None
     db._SessionLocal = None
+    # Create tables explicitly (moved from get_engine to lifespan startup)
+    from pry.core.db.session import init_db
+
+    init_db()
     yield tmp_path
     # Cleanup
     db._engine = None

@@ -259,6 +259,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("pry_startup", version="3.0.0")
     setup_tracing()
 
+    # Create database tables (moved from get_engine to avoid per-request DDL).
+    try:
+        from pry.core.db.session import init_db
+
+        init_db()
+    except Exception as e:  # noqa: BLE001 — DB init failure is non-fatal (alembic may handle it)
+        logger.warning("pry_init_db_skipped", extra={"error": str(e)[:200]})
+
     # x402 route-classification audit (fail-closed gate).
     # PRY_X402_AUDIT: strict (default) = raise on unclassified routes;
     # warn = log critical but boot; off = skip entirely.
