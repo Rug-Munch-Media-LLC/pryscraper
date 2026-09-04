@@ -32,7 +32,10 @@ def _validate_webhook_url(url: str) -> str | None:
     Returns ``None`` if the URL is safe, otherwise a human-readable reason
     describing why validation failed.
     """
-    parsed = urllib.parse.urlparse(url)
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except ValueError:
+        return "invalid URL"
 
     host = parsed.hostname
     if not host:

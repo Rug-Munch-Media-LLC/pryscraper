@@ -237,6 +237,7 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/enrich/tech-stack",
         "/v1/dedup/check",
         "/v1/links",
+        "/v1/thumbnail",
         "/v1/export",
         "/v1/run",
         "/v1/watch",

@@ -201,17 +201,20 @@ class WebhookDelivery:
     def _dead_letter(self, payload: dict, url: str, reason: str) -> None:
         try:
             with open(self.dead_letter, "a") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "payload": payload,
-                            "url": url,
-                            "reason": reason,
-                            "timestamp": datetime.now(UTC).isoformat(),
-                        }
-                    )
-                    + "\n"
-                )
+                record = {
+                    "payload": payload,
+                    "url": url,
+                    "reason": reason,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+                _safe_payload = {
+                    k: "***REDACTED***"
+                    if k.lower() in ("token", "secret", "password", "api_key", "authorization")
+                    else v
+                    for k, v in payload.items()
+                }
+                record["payload"] = _safe_payload
+                f.write(json.dumps(record) + "\n")
         except OSError as e:
             logger.warning("dead_letter_write_failed", extra={"error": str(e)})
 
