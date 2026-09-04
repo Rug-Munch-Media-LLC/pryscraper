@@ -26,11 +26,11 @@ from .networks import normalize_network_id
 # if the crypto deps are unavailable in a stripped runtime. Resolved lazily —
 # a mock/reload never has to re-import.
 try:  # pragma: no cover - depends on runtime deps
-    from eth_keys import (
-        keys as _eth_keys,  # type: ignore[attr-defined] # pyright: ignore[reportPrivateImportUsage]
+    from eth_keys import (  # type: ignore[attr-defined] # pyright: ignore[reportPrivateImportUsage]
+        keys as _eth_keys,
     )
-    from eth_utils import (
-        keccak as _keccak,  # type: ignore[attr-defined] # pyright: ignore[reportPrivateImportUsage]
+    from eth_utils import (  # type: ignore[attr-defined] # pyright: ignore[reportPrivateImportUsage]
+        keccak as _keccak,
     )
 except Exception:  # noqa: BLE001 - optional crypto dep; attestation disabled
     # (backward compatible) even when eth_keys/eth_utils are absent.
