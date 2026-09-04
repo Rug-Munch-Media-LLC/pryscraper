@@ -459,40 +459,46 @@ class X402Handler:
         key = self._settlement_key(
             {"payment_id": payment_id, "tx_hash": tx_hash, "network": network, "asset": asset}
         )
-        # DB-first idempotency: authoritative across processes AND hosts (the
-        # in-memory index only sees this process's settles).
-        if key and self._use_db:
-            try:
-                from pry.payments.x402.ledger_store import settlement_by_key
+        # Serialize the check-then-settle sequence under _verify_lock to prevent
+        # TOCTOU double-settle under concurrent requests (same lock as verify_payment).
+        with self._verify_lock:
+            # DB-first idempotency: authoritative across processes AND hosts (the
+            # in-memory index only sees this process's settles).
+            if key and self._use_db:
+                try:
+                    from pry.payments.x402.ledger_store import settlement_by_key
 
-                cached = settlement_by_key(key)
-                if cached is not None and cached.get("success") is True:
-                    self._settled_txs.setdefault(key, cached)
-                    logger.info("x402_settle_idempotent", extra={"settle_key": key})
-                    return cached
-            except Exception as e:  # noqa: BLE001 — fall through to memory
-                logger.warning("x402_settle_db_idempotency_failed", extra={"error": str(e)[:160]})
-        if key and key in self._settled_txs:
-            logger.info("x402_settle_idempotent", extra={"settle_key": key})
-            return self._settled_txs[key]
+                    cached = settlement_by_key(key)
+                    if cached is not None and cached.get("success") is True:
+                        self._settled_txs.setdefault(key, cached)
+                        logger.info("x402_settle_idempotent", extra={"settle_key": key})
+                        return cached
+                except Exception as e:  # noqa: BLE001 — fall through to memory
+                    logger.warning(
+                        "x402_settle_db_idempotency_failed", extra={"error": str(e)[:160]}
+                    )
+            if key and key in self._settled_txs:
+                logger.info("x402_settle_idempotent", extra={"settle_key": key})
+                return self._settled_txs[key]
 
-        settlement = await self.router.settle(
-            payment_id=payment_id,
-            tx_hash=tx_hash,
-            network=network,
-            asset=asset,
-            amount_usd=amount_usd,
-        )
-        # Enrich the settlement audit record with the identity fields so the
-        # JSONL ledger is self-describing (payment_id/tx_hash/network/asset).
-        record = dict(settlement or {})
-        record.setdefault("payment_id", payment_id)
-        record.setdefault("tx_hash", tx_hash)
-        record.setdefault("network", network)
-        record.setdefault("asset", asset)
-        # Only index successful settles so a failed attempt can be retried.
-        if record.get("success") is True and key:
-            self._settled_txs.setdefault(key, record)
+            settlement = await self.router.settle(
+                payment_id=payment_id,
+                tx_hash=tx_hash,
+                network=network,
+                asset=asset,
+                amount_usd=amount_usd,
+            )
+            # Enrich the settlement audit record with the identity fields so the
+            # JSONL ledger is self-describing (payment_id/tx_hash/network/asset).
+            record = dict(settlement or {})
+            record.setdefault("payment_id", payment_id)
+            record.setdefault("tx_hash", tx_hash)
+            record.setdefault("network", network)
+            record.setdefault("asset", asset)
+            # Only index successful settles so a failed attempt can be retried.
+            if record.get("success") is True and key:
+                self._settled_txs.setdefault(key, record)
+
         self._record_settlement(record)
         # Customer notification (audit item #8): fire the settlement webhook
         # ONLY for genuinely new settlements — the idempotent-cache hit path
