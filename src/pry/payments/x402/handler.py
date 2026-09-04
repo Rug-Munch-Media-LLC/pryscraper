@@ -174,6 +174,8 @@ class X402Handler:
         try:
             with open(self.payments_file, "a") as f:
                 f.write(json.dumps(payment) + "\n")
+                f.flush()
+                os.fsync(f.fileno())
         except OSError as e:
             logger.warning("x402_payment_record_failed", extra={"error": str(e)})
         self.payments.append(payment)
@@ -209,6 +211,8 @@ class X402Handler:
         try:
             with open(self.settlements_file, "a") as f:
                 f.write(json.dumps(settlement) + "\n")
+                f.flush()
+                os.fsync(f.fileno())
         except OSError as e:
             logger.warning("x402_settlement_record_failed", extra={"error": str(e)})
 
