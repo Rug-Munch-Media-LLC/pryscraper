@@ -55,12 +55,7 @@ class WebhookDelivery:
             )
         self.delivery_log = WEBHOOK_DIR / "deliveries.jsonl"
         self.dead_letter = WEBHOOK_DIR / "dead_letter.jsonl"
-        # In-memory mirror of the delivery log, used only for stats/display.
-        # Do NOT eagerly load the full deliveries.jsonl here: WebhookDelivery
-        # is constructed per-request in the webhook routes, and reading the
-        # whole file each time is O(filesize) latency per request. Call
-        # _load_log() explicitly when the log contents are needed.
-        self.log: list[dict] = []
+        self._load_log()
 
     @property
     def secret_configured(self) -> bool:
@@ -76,14 +71,15 @@ class WebhookDelivery:
             except (json.JSONDecodeError, OSError):
                 pass
 
-    def sign_payload(self, payload: dict) -> str:
+    def sign_payload(self, payload: dict, timestamp: str = "", event_type: str = "") -> str:
         if not self.signing_secret:
             raise WebhookSecretNotConfigured(
                 "webhook signing secret is not configured — refusing to produce "
                 "a forgeable signature. Set PRY_WEBHOOK_SECRET."
             )
         body = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-        return hmac.new(self.signing_secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+        signed = f"{timestamp}.{event_type}.{body}"
+        return hmac.new(self.signing_secret.encode(), signed.encode(), hashlib.sha256).hexdigest()
 
     async def deliver(
         self,
@@ -101,7 +97,8 @@ class WebhookDelivery:
         from pry.api.client import get_client
 
         try:
-            signature = self.sign_payload(payload)
+            ts = str(int(time.time()))
+            signature = self.sign_payload(payload, timestamp=ts, event_type=event_type)
         except WebhookSecretNotConfigured as e:
             logger.error(
                 "webhook_delivery_refused_unsigned",
@@ -112,7 +109,7 @@ class WebhookDelivery:
             "Content-Type": "application/json",
             "X-Pry-Event": event_type,
             "X-Pry-Signature": f"sha256={signature}",
-            "X-Pry-Timestamp": str(int(time.time())),
+            "X-Pry-Timestamp": ts,
         }
         client = await get_client()
         for attempt in range(1, max_retries + 1):
