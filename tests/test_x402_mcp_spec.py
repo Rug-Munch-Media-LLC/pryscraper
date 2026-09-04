@@ -387,9 +387,13 @@ def test_x402_handler_verify_and_settle(tmp_path) -> None:
         assert "PAYMENT-REQUIRED" in r.headers
 
         # Replay-dedup: a fresh tx_hash verifies once, then is single-use.
-        verify_once = asyncio.run(handler.verify_payment("test-pay-r1", "0xreplay1"))
+        verify_once = asyncio.run(
+            handler.verify_payment("test-pay-r1", "0xreplay1", operation="scrape", amount_usd=0.001)
+        )
         assert verify_once["verified"] is True
-        replay = asyncio.run(handler.verify_payment("test-pay-r2", "0xreplay1"))
+        replay = asyncio.run(
+            handler.verify_payment("test-pay-r2", "0xreplay1", operation="scrape", amount_usd=0.001)
+        )
         assert replay["verified"] is False
         assert replay["reason"] == "tx_hash already consumed"
     finally:

@@ -149,7 +149,7 @@ class TestVerifyPayment:
         handler = X402Handler(payments_file=tmp_path / "p.jsonl")
         handler.router = MagicMock()
         handler.router.verify = AsyncMock(side_effect=RuntimeError("facilitator down"))
-        result = await handler.verify_payment("pid", "tx123")
+        result = await handler.verify_payment("pid", "tx123", operation="scrape", amount_usd=0.001)
         assert result["verified"] is False
         assert "facilitator down" in result["reason"]
 
@@ -171,7 +171,9 @@ class TestVerifyPayment:
         handler.router.verify = AsyncMock(
             return_value={"verified": True, "reason": "", "facilitator": "test"}
         )
-        await handler.verify_payment("pid", "tx", caller_key="caller1")
+        await handler.verify_payment(
+            "pid", "tx", caller_key="caller1", operation="scrape", amount_usd=0.001
+        )
         assert len(handler.payments) == 1
         p = handler.payments[0]
         assert p["payment_id"] == "pid"

@@ -17,6 +17,7 @@ import json
 import logging
 import math
 import os
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -79,6 +80,12 @@ class X402Handler:
     - settle_payment: confirm settlement on-chain (via facilitator)
     - require_payment: convenience method that returns a full 402 response
     """
+
+    # Serializes the check-then-record sequence in ``verify_payment`` so two
+    # concurrent requests carrying the same tx_hash cannot both pass the
+    # ``_tx_consumed()`` replay check before either records the payment
+    # (double-spend race). Class-level so all handler instances share it.
+    _verify_lock = threading.Lock()
 
     def __init__(
         self,
@@ -349,7 +356,20 @@ class X402Handler:
                 return {"verified": False, "reason": reason, "settlement": None}
             amount_usd = resolve_price_usd(operation, network=network, asset=asset)
         if amount_usd <= 0:
-            amount_usd = X402_PRICING.get(payment_id, {}).get("price_usd", 0.001)
+            # Fail closed: never default to a hardcoded $0.001 price. If no
+            # server-authoritative price is resolvable (operation unknown),
+            # refuse the payment rather than accepting it at a made-up price.
+            amount_usd = X402_PRICING.get(payment_id, {}).get("price_usd", 0.0)
+            if amount_usd <= 0:
+                logger.warning(
+                    "x402_verify_pricing_unavailable",
+                    extra={"operation": operation, "payment_id": payment_id},
+                )
+                return {
+                    "verified": False,
+                    "reason": "unknown operation: pricing unavailable",
+                    "settlement": None,
+                }
 
         try:
             result = await self.router.verify(
@@ -368,35 +388,46 @@ class X402Handler:
         # Replay-hardening (fix #1): a tx_hash may only be consumed once. A payer
         # who swaps a fresh payment_id onto an already-verified tx_hash is trying
         # to mint unlimited payment_ids from one on-chain tx — refuse it.
-        if result.get("verified") and self._tx_consumed(tx_hash):
-            logger.warning(
-                "x402_verify_tx_replay_rejected",
-                extra={"payment_id": payment_id, "tx_hash": tx_hash},
-            )
-            return {"verified": False, "reason": "tx_hash already consumed", "settlement": None}
-        # Server-authoritative atomic pricing: the verified payment records the
-        # operation it was purchased for and the minimum amount (atomic units)
-        # the server required at verify time. ``is_paid()`` re-checks both so a
-        # cheap payment can never be replayed against a more expensive gated
-        # operation, and a payment that under-pays the CURRENT price is refused.
-        payment_record = {
-            "payment_id": payment_id,
-            "tx_hash": tx_hash,
-            "network": network,
-            "asset": asset,
-            "amount_usd": amount_usd,
-            "required_amount_atomic": asset_to_atomic(amount_usd, asset, network),
-            "operation": operation,
-            "verified": result["verified"],
-            "reason": result.get("reason", ""),
-            "facilitator": result.get("facilitator", ""),
-            "caller_key": caller_key or "",
-            "expires_at": (
-                datetime.now(UTC) + timedelta(seconds=PAYMENT_VALIDITY_SECONDS)
-            ).isoformat(),
-            "verified_at": datetime.now(UTC).isoformat(),
-        }
-        self._record_payment(payment_record)
+        #
+        # The check-then-record sequence is serialized under ``_verify_lock`` so
+        # two concurrent requests carrying the same tx_hash cannot both pass the
+        # ``_tx_consumed()`` check before either records the payment (double-spend
+        # race). The lock is class-level, so it is shared across the fresh handler
+        # instances created per request.
+        with self._verify_lock:
+            if result.get("verified") and self._tx_consumed(tx_hash):
+                logger.warning(
+                    "x402_verify_tx_replay_rejected",
+                    extra={"payment_id": payment_id, "tx_hash": tx_hash},
+                )
+                return {
+                    "verified": False,
+                    "reason": "tx_hash already consumed",
+                    "settlement": None,
+                }
+            # Server-authoritative atomic pricing: the verified payment records the
+            # operation it was purchased for and the minimum amount (atomic units)
+            # the server required at verify time. ``is_paid()`` re-checks both so a
+            # cheap payment can never be replayed against a more expensive gated
+            # operation, and a payment that under-pays the CURRENT price is refused.
+            payment_record = {
+                "payment_id": payment_id,
+                "tx_hash": tx_hash,
+                "network": network,
+                "asset": asset,
+                "amount_usd": amount_usd,
+                "required_amount_atomic": asset_to_atomic(amount_usd, asset, network),
+                "operation": operation,
+                "verified": result["verified"],
+                "reason": result.get("reason", ""),
+                "facilitator": result.get("facilitator", ""),
+                "caller_key": caller_key or "",
+                "expires_at": (
+                    datetime.now(UTC) + timedelta(seconds=PAYMENT_VALIDITY_SECONDS)
+                ).isoformat(),
+                "verified_at": datetime.now(UTC).isoformat(),
+            }
+            self._record_payment(payment_record)
         return result
 
     async def settle_payment(

@@ -122,10 +122,14 @@ async def test_handler_verify_payment(tmp_path):
             settlements_file=tmp_path / "settlements.jsonl",
         )
         # Replay-dedup: a fresh tx_hash verifies once…
-        result = await h.verify_payment("p1", "0xtx-fresh", network="base")
+        result = await h.verify_payment(
+            "p1", "0xtx-fresh", network="base", operation="scrape", amount_usd=0.001
+        )
         assert result["verified"] is True
         # …and the same tx_hash is single-use — the replay is rejected.
-        replay = await h.verify_payment("p2", "0xtx-fresh", network="base")
+        replay = await h.verify_payment(
+            "p2", "0xtx-fresh", network="base", operation="scrape", amount_usd=0.001
+        )
         assert replay["verified"] is False
         assert replay["reason"] == "tx_hash already consumed"
 
