@@ -336,3 +336,99 @@ def test_payment_info_validate_fee_out_of_bounds():
     """Fee above max_fee_bps fails validation."""
     info = _payment_info(min_fee_bps=0, max_fee_bps=100)
     assert info.validate_fee(150) is False
+
+
+# ---------------------------------------------------------------------------
+# SubscriptionManager lifecycle
+# ---------------------------------------------------------------------------
+
+
+def test_subscription_lifecycle():
+    """create → activate → grace states: active, pending (in grace), inactive."""
+    from pry.payments.x402.handler import SubscriptionManager
+
+    mgr = SubscriptionManager()
+    sub = mgr.create("sub1", tier="pro", monthly_cost=10.0, payee="0xpayee")
+    assert sub["state"] == "pending"
+    assert sub["grace_days"] == 0
+
+    sub = mgr.activate("sub1", days=30)
+    assert sub["state"] == "active"
+    assert sub["paid_until"] > 0
+    assert sub["grace_days"] == 0
+
+    # Not expired yet → still active
+    sub = mgr.check_grace("sub1", grace_period_days=7)
+    assert sub["state"] == "active"
+
+    # Expired but within grace → pending with remaining grace days
+    import time
+
+    sub = mgr.get("sub1")
+    sub["paid_until"] = int(time.time()) - 3 * 86400  # expired 3 days ago
+    sub = mgr.check_grace("sub1", grace_period_days=7)
+    assert sub["state"] == "pending"
+    assert sub["grace_days"] == 4
+
+    # Past grace → inactive (re-activate first: check_grace only runs on active subs)
+    mgr.activate("sub1", days=0)
+    sub = mgr.get("sub1")
+    sub["paid_until"] = int(time.time()) - 10 * 86400  # expired 10 days ago
+    sub = mgr.check_grace("sub1", grace_period_days=7)
+    assert sub["state"] == "inactive"
+
+
+# ---------------------------------------------------------------------------
+# UsageTracker
+# ---------------------------------------------------------------------------
+
+
+def test_usage_tracker_record():
+    """record accumulates settlement volume and averages response_ms."""
+    from pry.payments.x402.handler import UsageTracker
+
+    tracker = UsageTracker()
+    tracker.record("tok", amount_usd=1.0, response_ms=100)
+    tracker.record("tok", amount_usd=2.0, response_ms=200)
+    tracker.record("tok", amount_usd=3.0, response_ms=300)
+
+    stats = tracker.get_stats("tok")
+    assert stats["total_settlement_volume"] == pytest.approx(6.0)
+    assert stats["total_requests"] == 3
+    assert stats["avg_response_ms"] == 200
+
+
+def test_usage_tracker_by_endpoint():
+    """by_endpoint counts requests per endpoint."""
+    from pry.payments.x402.handler import UsageTracker
+
+    tracker = UsageTracker()
+    tracker.record("tok", endpoint="/scrape")
+    tracker.record("tok", endpoint="/scrape")
+    tracker.record("tok", endpoint="/crawl")
+
+    stats = tracker.get_stats("tok")
+    assert stats["by_endpoint"] == {"/scrape": 2, "/crawl": 1}
+
+
+def test_usage_tracker_empty():
+    """get_stats on an empty tracker returns {}."""
+    from pry.payments.x402.handler import UsageTracker
+
+    tracker = UsageTracker()
+    assert tracker.get_stats() == {}
+    assert tracker.get_stats("unknown") == {}
+
+
+def test_usage_tracker_specific_token():
+    """get_stats(token) returns only that token's stats."""
+    from pry.payments.x402.handler import UsageTracker
+
+    tracker = UsageTracker()
+    tracker.record("tok1", amount_usd=1.0)
+    tracker.record("tok2", amount_usd=5.0)
+
+    stats = tracker.get_stats("tok1")
+    assert stats["total_settlement_volume"] == pytest.approx(1.0)
+    assert stats["total_requests"] == 1
+    assert "tok2" not in tracker.get_stats("tok1")
