@@ -55,7 +55,12 @@ class WebhookDelivery:
             )
         self.delivery_log = WEBHOOK_DIR / "deliveries.jsonl"
         self.dead_letter = WEBHOOK_DIR / "dead_letter.jsonl"
-        self._load_log()
+        # In-memory mirror of the delivery log, used only for stats/display.
+        # Do NOT eagerly load the full deliveries.jsonl here: WebhookDelivery
+        # is constructed per-request in the webhook routes, and reading the
+        # whole file each time is O(filesize) latency per request. Call
+        # _load_log() explicitly when the log contents are needed.
+        self.log: list[dict] = []
 
     @property
     def secret_configured(self) -> bool:
