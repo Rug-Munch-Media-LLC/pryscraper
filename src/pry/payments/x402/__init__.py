@@ -390,6 +390,25 @@ from .solana_verifier import (  # noqa: E402
 # can never disagree again.
 EIP7702_TOKEN_ADDRESSES["base"]["USDT"] = SUPPORTED_ASSETS["eip155:8453"]["USDT"]["contract"]
 
+
+def _check_secret_permissions() -> None:
+    """Warn if secret files are world-readable."""
+    import os
+    import stat
+
+    wallet_file = os.getenv("X402_WALLET_FILE", "")
+    if wallet_file and os.path.exists(wallet_file):
+        mode = os.stat(wallet_file).st_mode
+        if mode & stat.S_IWGRP or mode & stat.S_IWOTH:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "x402_secret_file_world_readable", extra={"file": wallet_file}
+            )
+
+
+_check_secret_permissions()
+
 __all__ = [
     "ASSET_DECIMALS",
     "CAIP2_NETWORK_IDS",

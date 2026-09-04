@@ -14,6 +14,7 @@ come from the package root; scheme/facilitator helpers from their modules.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import math
@@ -51,6 +52,14 @@ from pry.payments.x402.scheme import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _extension_header(result: dict[str, Any]) -> str:
+    """Encode out-of-band extension data as base64 for EXTENSION-RESPONSES header."""
+    extras = {
+        k: v for k, v in result.items() if k not in ("verified", "reason", "success", "settlement")
+    }
+    return base64.b64encode(json.dumps(extras).encode()).decode()
 
 
 class VerifyError(Exception):
@@ -534,6 +543,7 @@ class X402Handler:
                 asset=asset,
                 reason=result.get("reason", "verification failed"),
             )
+        result["extension_responses"] = _extension_header(result)
         return result
 
     def _fire_verify_failure_hooks(
@@ -688,6 +698,8 @@ class X402Handler:
                     "x402_settlement_webhook_error",
                     extra={"payment_id": payment_id, "error": str(e)},
                 )
+        if settlement is not None:
+            settlement["extension_responses"] = _extension_header(settlement)
         return settlement
 
     async def verify_payment_strict(
