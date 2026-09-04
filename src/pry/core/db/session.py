@@ -17,6 +17,7 @@ Licensed under MIT. See LICENSE.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager, contextmanager, suppress
@@ -26,6 +27,7 @@ try:
     from sqlalchemy import create_engine, event
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
     from sqlalchemy.orm import Session, sessionmaker
+    from sqlalchemy.pool import NullPool
 except ImportError:  # pragma: no cover
     pass
 
@@ -128,9 +130,15 @@ def get_engine() -> Engine:
     if _engine is None:
         url = _resolve_database_url()
         connect_args: dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
         if url.startswith("sqlite"):
             connect_args["check_same_thread"] = False
-        _engine = create_engine(url, connect_args=connect_args, future=True, echo=False)
+            if ":memory:" not in url:
+                kwargs["poolclass"] = NullPool
+        else:
+            kwargs["pool_pre_ping"] = True
+            kwargs["pool_recycle"] = 300
+        _engine = create_engine(url, connect_args=connect_args, future=True, echo=False, **kwargs)
         # Enable foreign keys for SQLite (off by default)
         if url.startswith("sqlite"):
 
@@ -199,9 +207,24 @@ def get_async_engine() -> Any:
     if _async_engine is None:
         url = _resolve_async_database_url()
         connect_args: dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
         if url.startswith("sqlite"):
             connect_args["check_same_thread"] = False
-        _async_engine = create_async_engine(url, connect_args=connect_args, echo=False)
+            if ":memory:" not in url:
+                kwargs["poolclass"] = NullPool
+        else:
+            kwargs["pool_pre_ping"] = True
+            kwargs["pool_recycle"] = 300
+        _async_engine = create_async_engine(url, connect_args=connect_args, echo=False, **kwargs)
+        # Enable foreign keys for SQLite (off by default)
+        if url.startswith("sqlite"):
+
+            @event.listens_for(_async_engine.sync_engine, "connect")
+            def _enable_sqlite_fk_async(dbapi_conn: Any, _conn_record: Any) -> None:
+                cur = dbapi_conn.cursor()
+                cur.execute("PRAGMA foreign_keys=ON")
+                cur.close()
+
         _async_session_local = async_sessionmaker(
             bind=_async_engine, autoflush=False, expire_on_commit=False
         )
@@ -250,10 +273,12 @@ def dispose_engines() -> None:
     recreates fresh engines. Called from the FastAPI lifespan shutdown phase.
     """
     global _engine, _SessionLocal, _async_engine, _async_session_local
-    for eng in (_engine, _async_engine):
-        if eng is not None:
-            with suppress(Exception):
-                eng.dispose()
+    if _engine is not None:
+        with suppress(Exception):
+            _engine.dispose()
+    if _async_engine is not None:
+        with suppress(Exception):
+            asyncio.run(_async_engine.dispose())
     _engine = None
     _SessionLocal = None
     _async_engine = None
