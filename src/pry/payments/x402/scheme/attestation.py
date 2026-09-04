@@ -22,6 +22,8 @@ import time
 import uuid
 from typing import Any
 
+from pry.payments.x402.scheme.digest import _eth_keys
+
 from .digest import (
     X402_ATTEST_ALGORITHM,
     X402_ATTEST_DOMAIN,
@@ -31,7 +33,6 @@ from .digest import (
     X402_ATTEST_SECRET_ENV,
     X402_ATTEST_VERSION,
     _attestation_digest,
-    _eth_keys,
 )
 from .networks import normalize_network_id
 
@@ -88,7 +89,7 @@ def attestation_signer_address() -> str:
     key = _attestation_private_key()
     if key is None:
         return ""
-    return key.public_key.to_address()
+    return str(key.public_key.to_address())
 
 
 def attest_payment_required(body: dict[str, Any]) -> dict[str, Any]:
