@@ -768,6 +768,10 @@ class FacilitatorRouter:
         if X402_OFFLINE_MODE:
             return self._offline_settlement(payment_id, tx_hash, network)
 
+        network_id = normalize_network_id(network)
+        if not network_id:
+            return {"success": False, "error": "unsupported network"}
+
         # Self-hosted mode: settle locally instead of contacting the external
         # facilitator URLs (no Coinbase/CDP).
         if self.self_hosted or self._impl_for(network) is not None:
