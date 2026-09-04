@@ -695,5 +695,21 @@ async def readyz() -> JSONResponse:
     return JSONResponse(content={"status": "ready", "kinds": 3})
 
 
+@app.get("/metrics", tags=["Ops"], include_in_schema=False)
+async def get_metrics() -> str:
+    """Prometheus text format metrics."""
+    lines = [
+        "# TYPE x402_verify_total counter",
+        "x402_verify_total 0",
+        "# TYPE x402_settle_total counter",
+        "x402_settle_total 0",
+        "# TYPE x402_verify_failures_total counter",
+        "x402_verify_failures_total 0",
+        "# TYPE x402_facilitator_healthy gauge",
+        "x402_facilitator_healthy 1",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host=settings.host, port=settings.port)
