@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import threading
 from contextlib import asynccontextmanager, contextmanager, suppress
 from typing import TYPE_CHECKING, Any
 
@@ -81,6 +82,8 @@ def _resolve_database_url() -> str:
     """Resolve the database URL per the environment matrix above."""
     url = os.getenv(DATABASE_URL_ENV)
     if url:
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
         return url
 
     if _profile() in ("prod", "staging"):
@@ -104,7 +107,9 @@ def _resolve_async_database_url() -> str:
     ``sqlite+aiosqlite://...``.
     """
     url = _resolve_database_url()
-    if url.startswith("postgresql://"):
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
     elif url.startswith("postgresql+psycopg2://"):
         url = url.replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
@@ -115,6 +120,9 @@ def _resolve_async_database_url() -> str:
 
 _engine: Engine | None = None
 _SessionLocal: sessionmaker[Session] | None = None
+
+# Guards lazy engine creation so concurrent callers cannot create duplicates.
+_engine_lock = threading.Lock()
 
 # Async engine/session for use in async FastAPI endpoints.
 # These are lazily initialized alongside the sync engine.

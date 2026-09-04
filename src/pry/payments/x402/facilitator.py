@@ -52,6 +52,14 @@ from pry.payments.x402.scheme import (
 )
 from pry.payments.x402.self_facilitator import SelfFacilitator, VerifyResult
 
+if X402_OFFLINE_MODE:
+    import logging as _logging
+
+    _logging.getLogger(__name__).warning(
+        "x402_offline_mode_enabled",
+        extra={"hint": "All payments auto-verify. NEVER use in production."},
+    )
+
 # Reverse map: CAIP-2 ID -> short name (for EIP7702_RPC key lookup).
 # EIP7702_RPC uses legacy short names ("base", "ethereum", ...) but the
 # verify flow receives CAIP-2 IDs ("eip155:8453"). Without this lookup the
@@ -446,6 +454,10 @@ class FacilitatorRouter:
         """
         if X402_OFFLINE_MODE:
             return {"verified": True, "reason": "offline_mode", "settlement": None}
+
+        network_id = normalize_network_id(network)
+        if not network_id:
+            return {"verified": False, "reason": "unsupported network", "settlement": None}
 
         # Self-hosted mode: verify locally instead of contacting the external
         # facilitator URLs (no Coinbase/CDP). Registered per-network impls
