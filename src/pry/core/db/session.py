@@ -220,33 +220,37 @@ def get_async_engine() -> Any:
     if not _HAS_SA:
         raise RuntimeError("sqlalchemy is not installed; pip install 'sqlalchemy>=2.0'")
     if _async_engine is None:
-        url = _resolve_async_database_url()
-        connect_args: dict[str, Any] = {}
-        kwargs: dict[str, Any] = {}
-        if url.startswith("sqlite"):
-            connect_args["check_same_thread"] = False
-            if ":memory:" not in url:
-                kwargs["poolclass"] = NullPool
-        else:
-            kwargs["pool_pre_ping"] = True
-            kwargs["pool_recycle"] = 300
-        _async_engine = create_async_engine(url, connect_args=connect_args, echo=False, **kwargs)
-        # Enable foreign keys for SQLite (off by default)
-        if url.startswith("sqlite"):
+        with _engine_lock:
+            if _async_engine is None:
+                url = _resolve_async_database_url()
+                connect_args: dict[str, Any] = {}
+                kwargs: dict[str, Any] = {}
+                if url.startswith("sqlite"):
+                    connect_args["check_same_thread"] = False
+                    if ":memory:" not in url:
+                        kwargs["poolclass"] = NullPool
+                else:
+                    kwargs["pool_pre_ping"] = True
+                    kwargs["pool_recycle"] = 300
+                _async_engine = create_async_engine(
+                    url, connect_args=connect_args, echo=False, **kwargs
+                )
+                # Enable foreign keys for SQLite (off by default)
+                if url.startswith("sqlite"):
 
-            @event.listens_for(_async_engine.sync_engine, "connect")
-            def _enable_sqlite_fk_async(dbapi_conn: Any, _conn_record: Any) -> None:
-                cur = dbapi_conn.cursor()
-                cur.execute("PRAGMA foreign_keys=ON")
-                cur.close()
+                    @event.listens_for(_async_engine.sync_engine, "connect")
+                    def _enable_sqlite_fk_async(dbapi_conn: Any, _conn_record: Any) -> None:
+                        cur = dbapi_conn.cursor()
+                        cur.execute("PRAGMA foreign_keys=ON")
+                        cur.close()
 
-        _async_session_local = async_sessionmaker(
-            bind=_async_engine, autoflush=False, expire_on_commit=False
-        )
-        logger.info(
-            "db_async_engine_initialized",
-            extra={"url": url.split("@")[-1] if "@" in url else url},
-        )
+                _async_session_local = async_sessionmaker(
+                    bind=_async_engine, autoflush=False, expire_on_commit=False
+                )
+                logger.info(
+                    "db_async_engine_initialized",
+                    extra={"url": url.split("@")[-1] if "@" in url else url},
+                )
     return _async_engine
 
 
