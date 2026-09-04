@@ -404,12 +404,16 @@ def _resolve_client_ip(scope: Mapping[str, Any]) -> str:
         if xff:
             hops = [h.strip() for h in xff.split(",")]
             for hop in reversed(hops):
-                if (
-                    hop
-                    and not is_loopback_client(hop)
-                    and hop not in ("127.0.0.1", "::1", "localhost")
-                ):
-                    return hop
+                if not hop:
+                    continue
+                if _is_trusted_proxy(hop):
+                    continue
+                try:
+                    if ipaddress.ip_address(hop).is_loopback:
+                        continue
+                except ValueError:
+                    break  # non-IP hop — use it as-is (can't be loopback)
+                return hop
     return peer
 
 
