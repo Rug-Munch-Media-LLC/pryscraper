@@ -127,13 +127,16 @@ class RateLimiter:
 
     def check(self, ip: str, rpm: int | None = None) -> tuple[bool, dict[str, Any]]:
         """Check if request is allowed. Returns (allowed, stats)."""
-        rate = rpm or self.default_rpm
+        rate = self.default_rpm if rpm is None else rpm
 
         redis_result = self._check_redis(ip, rate)
         if redis_result is not None:
             return redis_result
 
-        return self._check_memory(ip, rate)
+        # Redis unavailable — apply degraded multiplier to prevent N-replica
+        # burst amplification (each replica independently allows full rate).
+        degraded_rate = max(1, rate // 2)
+        return self._check_memory(ip, degraded_rate)
 
     def _check_memory(self, ip: str, rate: int) -> tuple[bool, dict[str, Any]]:
         """Original per-process token bucket."""
