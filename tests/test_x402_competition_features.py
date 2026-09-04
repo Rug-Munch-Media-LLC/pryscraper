@@ -228,3 +228,111 @@ async def test_settle_retry_after_header_respected(hook_handler: X402Handler):
         result = await hook_handler.settle_payment(payment_id="p1", tx_hash="0xabc", amount_usd=1.0)
     assert result["success"] is True
     mock_sleep.assert_awaited_once_with(7)
+
+
+# ---------------------------------------------------------------------------
+# BatchChannel (create/claim/refund)
+# ---------------------------------------------------------------------------
+
+
+def test_create_channel():
+    """create_channel returns an open channel with a 16-char id."""
+    from pry.payments.x402.batch import create_channel
+
+    channel = create_channel("eip155:8453", "0x1234")
+    assert len(channel.channel_id) == 16
+    assert channel.status == "open"
+
+
+def test_claim_channel_success():
+    """A claim within the cap succeeds and reports the remaining balance."""
+    from pry.payments.x402.batch import claim_channel, create_channel
+
+    channel = create_channel("eip155:8453", "0x1234")
+    result = claim_channel(channel.channel_id, 50)
+    assert result["success"] is True
+    assert result["remaining"] == 50
+
+
+def test_claim_channel_overflow():
+    """A claim exceeding max_claims_per_batch fails."""
+    from pry.payments.x402.batch import claim_channel, create_channel
+
+    channel = create_channel("eip155:8453", "0x1234")
+    result = claim_channel(channel.channel_id, 150)
+    assert result["success"] is False
+
+
+def test_refund_channel():
+    """Refunding returns the remaining balance and marks the channel refunded."""
+    from pry.payments.x402.batch import claim_channel, create_channel, refund_channel
+
+    channel = create_channel("eip155:8453", "0x1234")
+    claim_channel(channel.channel_id, 30)
+    result = refund_channel(channel.channel_id)
+    assert result["remaining"] == 70
+    assert result["status"] == "refunded"
+
+
+def test_claim_after_refund_fails():
+    """Claims against a refunded channel fail."""
+    from pry.payments.x402.batch import claim_channel, create_channel, refund_channel
+
+    channel = create_channel("eip155:8453", "0x1234")
+    refund_channel(channel.channel_id)
+    result = claim_channel(channel.channel_id, 10)
+    assert result["success"] is False
+
+
+def _payment_info(**overrides):
+    """Build a PaymentInfo with sensible defaults for escrow expiry tests."""
+    from pry.payments.x402.scheme import PaymentInfo
+
+    defaults = {
+        "payer": "0xpayer",
+        "payee": "0xpayee",
+        "amount_usd": 1.0,
+        "asset": "usdc",
+        "network": "eip155:8453",
+        "pre_approval_expiry": 0,
+        "authorization_expiry": 100,
+        "refund_expiry": 100,
+    }
+    defaults.update(overrides)
+    return PaymentInfo(**defaults)
+
+
+def test_payment_info_not_expired():
+    """Authorization expiry in the future means not expired."""
+    info = _payment_info(authorization_expiry=200)
+    assert info.is_expired(100) is False
+
+
+def test_payment_info_expired():
+    """Authorization expiry in the past means expired."""
+    info = _payment_info(authorization_expiry=50)
+    assert info.is_expired(100) is True
+
+
+def test_payment_info_can_refund():
+    """Refund window closed (refund_expiry in past) allows refund."""
+    info = _payment_info(refund_expiry=50)
+    assert info.can_refund(100) is True
+
+
+def test_payment_info_cannot_refund():
+    """Refund window still open (refund_expiry in future) blocks refund."""
+    info = _payment_info(refund_expiry=200)
+    assert info.can_refund(100) is False
+
+
+def test_payment_info_validate_fee_ok():
+    """Fee within [min_fee_bps, max_fee_bps] validates."""
+    info = _payment_info(min_fee_bps=0, max_fee_bps=100)
+    assert info.validate_fee(50) is True
+
+
+def test_payment_info_validate_fee_out_of_bounds():
+    """Fee above max_fee_bps fails validation."""
+    info = _payment_info(min_fee_bps=0, max_fee_bps=100)
+    assert info.validate_fee(150) is False
