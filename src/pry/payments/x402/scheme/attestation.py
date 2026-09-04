@@ -22,7 +22,7 @@ import time
 import uuid
 from typing import Any
 
-from pry.payments.x402.scheme.digest import _eth_keys
+from pry.payments.x402.scheme.digest import _eth_keys  # type: ignore[attr-defined]
 
 from .digest import (
     X402_ATTEST_ALGORITHM,
