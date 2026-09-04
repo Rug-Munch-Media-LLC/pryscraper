@@ -13,6 +13,7 @@ come from the package root; scheme/facilitator helpers from their modules.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import math
@@ -154,6 +155,9 @@ class X402Handler:
         self._consumed_txs: set[str] = set()
         self._pre_settle_hooks: list = []
         self._post_settle_hooks: list = []
+        self._pre_verify_hooks: list = []
+        self._post_verify_hooks: list = []
+        self._on_verify_failure_hooks: list = []
         self._authorized_payments: dict[str, dict] = {}
         self._load_settlements()
 
@@ -164,6 +168,18 @@ class X402Handler:
     def on_post_settle(self, hook):
         """Register a hook executed after successful settlement."""
         self._post_settle_hooks.append(hook)
+
+    def on_pre_verify(self, hook):
+        """Register a hook executed before verification. Can abort by returning {"abort": True, "reason": "..."}."""
+        self._pre_verify_hooks.append(hook)
+
+    def on_post_verify(self, hook):
+        """Register a hook executed after successful verification."""
+        self._post_verify_hooks.append(hook)
+
+    def on_verify_failure(self, hook):
+        """Register a hook executed when verification fails (router error or unverified result)."""
+        self._on_verify_failure_hooks.append(hook)
 
     def _ensure_loaded(self) -> None:
         """Load payment records on first use (idempotent)."""
@@ -389,6 +405,25 @@ class X402Handler:
         """
         network = network or X402_DEFAULT_NETWORK
         asset = asset or X402_DEFAULT_ASSET
+        # Pre-verify hooks (before the lock): may abort verification outright.
+        for hook in self._pre_verify_hooks:
+            result = hook(
+                payment_id=payment_id,
+                tx_hash=tx_hash,
+                network=network,
+                asset=asset,
+                amount_usd=amount_usd,
+            )
+            if isinstance(result, dict) and result.get("abort"):
+                logger.info(
+                    "x402_verify_aborted_by_pre_verify_hook",
+                    extra={"payment_id": payment_id, "reason": result.get("reason", "")},
+                )
+                return {
+                    "verified": False,
+                    "reason": result.get("reason", "aborted by pre-verify hook"),
+                    "settlement": None,
+                }
         if operation:
             # Server-authoritative pricing, resolved per (operation, network,
             # asset) and compared in integer atoms. client-supplied
@@ -430,6 +465,13 @@ class X402Handler:
         except Exception as e:  # noqa: BLE001 — fail closed on facilitator error
             logger.warning(
                 "x402_verify_router_error", extra={"payment_id": payment_id, "error": str(e)}
+            )
+            self._fire_verify_failure_hooks(
+                payment_id=payment_id,
+                tx_hash=tx_hash,
+                network=network,
+                asset=asset,
+                reason=f"facilitator error: {e}",
             )
             return {"verified": False, "reason": f"facilitator error: {e}", "settlement": None}
         # Replay-hardening (fix #1): a tx_hash may only be consumed once. A payer
@@ -475,7 +517,43 @@ class X402Handler:
                 "verified_at": datetime.now(UTC).isoformat(),
             }
             self._record_payment(payment_record)
+        if result.get("verified"):
+            for hook in self._post_verify_hooks:
+                try:
+                    hook(payment_record)
+                except Exception as e:  # noqa: BLE001 — best-effort, never break verify
+                    logger.debug(
+                        "x402_post_verify_hook_error",
+                        extra={"payment_id": payment_id, "error": str(e)},
+                    )
+        else:
+            self._fire_verify_failure_hooks(
+                payment_id=payment_id,
+                tx_hash=tx_hash,
+                network=network,
+                asset=asset,
+                reason=result.get("reason", "verification failed"),
+            )
         return result
+
+    def _fire_verify_failure_hooks(
+        self, payment_id: str, tx_hash: str, network: str, asset: str, reason: str
+    ) -> None:
+        """Best-effort on-verify-failure hooks — never break the verify flow."""
+        for hook in self._on_verify_failure_hooks:
+            try:
+                hook(
+                    payment_id=payment_id,
+                    tx_hash=tx_hash,
+                    network=network,
+                    asset=asset,
+                    reason=reason,
+                )
+            except Exception as e:  # noqa: BLE001 — best-effort
+                logger.debug(
+                    "x402_verify_failure_hook_error",
+                    extra={"payment_id": payment_id, "error": str(e)},
+                )
 
     async def settle_payment(
         self,
@@ -542,13 +620,43 @@ class X402Handler:
                         "error": result.get("reason", "aborted by pre-settle hook"),
                     }
 
-            settlement = await self.router.settle(
-                payment_id=payment_id,
-                tx_hash=tx_hash,
-                network=network,
-                asset=asset,
-                amount_usd=amount_usd,
-            )
+            settlement = None
+            for attempt in range(4):
+                try:
+                    settlement = await self.router.settle(
+                        payment_id=payment_id,
+                        tx_hash=tx_hash,
+                        network=network,
+                        asset=asset,
+                        amount_usd=amount_usd,
+                    )
+                    break
+                except Exception as exc:
+                    # Parse Retry-After from httpx error responses when present.
+                    try:
+                        retry_after = int(
+                            (
+                                getattr(exc, "response", None)
+                                and exc.response.headers.get("Retry-After", "0")
+                            )
+                            or "0"
+                        )
+                    except (ValueError, TypeError):
+                        retry_after = 0
+                    delay = min(max(retry_after, 0.5 * 2**attempt), 30)
+                    if attempt >= 3:
+                        raise
+                    logger.warning(
+                        "x402_settle_retry",
+                        extra={
+                            "payment_id": payment_id,
+                            "attempt": attempt,
+                            "retry_after": retry_after,
+                            "delay": delay,
+                            "error": str(exc)[:160],
+                        },
+                    )
+                    await asyncio.sleep(delay)
             # Enrich the settlement audit record with the identity fields so the
             # JSONL ledger is self-describing (payment_id/tx_hash/network/asset).
             record = dict(settlement or {})
