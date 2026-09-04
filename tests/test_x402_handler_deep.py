@@ -80,6 +80,7 @@ class TestRecordPayment:
         """Write failure must be logged, not crash."""
         payments_file = tmp_path / "payments.jsonl"
         handler = X402Handler(payments_file=payments_file)
+        handler._ensure_loaded()
         # Make file a directory -> write fails
         payments_file.mkdir()
         with caplog.at_level("WARNING"):
@@ -101,6 +102,7 @@ class TestRecordSettlement:
     ) -> None:
         settlements_file = tmp_path / "settlements.jsonl"
         handler = X402Handler(settlements_file=settlements_file)
+        handler._ensure_loaded()
         settlements_file.mkdir()
         with caplog.at_level("WARNING"):
             handler._record_settlement({"payment_id": "p1"})
