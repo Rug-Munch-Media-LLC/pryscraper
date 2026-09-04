@@ -106,6 +106,28 @@ from .pricing import (
     validate_client_amount,
 )
 
+
+def negotiate_scheme(
+    client_schemes: list[str] | None = None, network: str = "", asset: str = ""
+) -> str:
+    """Select best payment scheme based on client capabilities and network.
+
+    Priority: exact-match > network-native > fallback to 'exact'.
+    """
+    if not client_schemes:
+        return "exact"
+
+    _native_map = {"eip155": "exact", "solana": "exact", "tron": "exact"}
+
+    native = _native_map.get(network.split(":")[0], "exact") if network else "exact"
+
+    if native in client_schemes:
+        return native
+    if "exact" in client_schemes:
+        return "exact"
+    return client_schemes[0] if client_schemes else "exact"
+
+
 # Mutable per-process cache of the resolved attestation key. Lives on the
 # package (not a submodule) so tests that patch
 # ``pry.payments.x402.scheme._attest_key_cache`` keep working after the
@@ -167,6 +189,7 @@ __all__ = [
     "flatten_supported_assets",
     "get_asset_usd_price",
     "is_asset_supported",
+    "negotiate_scheme",
     "network_family",
     "network_verification_status",
     "normalize_network_id",
