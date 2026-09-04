@@ -21,6 +21,8 @@ closed after use — never the browser itself.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import importlib.util
 import logging
 import threading
@@ -51,6 +53,7 @@ class BrowserPool:
         self._playwright_browser: Any = None
         self._uc_driver: Any = None
         self._uc_lock = threading.Lock()
+        self._pw_lock = asyncio.Lock()
         self._closed = False
 
     # -- Playwright -----------------------------------------------------
@@ -59,16 +62,25 @@ class BrowserPool:
         if self._closed:
             raise RuntimeError("browser pool is closed")
         if self._playwright_browser is None:
-            self._playwright = await async_playwright().start()
-            self._playwright_browser = await self._playwright.chromium.launch(
-                headless=True,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-web-security",
-                ],
-            )
+            async with self._pw_lock:
+                if self._playwright_browser is None:
+                    try:
+                        self._playwright = await async_playwright().start()
+                        self._playwright_browser = await self._playwright.chromium.launch(
+                            headless=True,
+                            args=[
+                                "--disable-blink-features=AutomationControlled",
+                                "--no-sandbox",
+                                "--disable-dev-shm-usage",
+                                "--disable-web-security",
+                            ],
+                        )
+                    except Exception:
+                        if self._playwright is not None:
+                            with contextlib.suppress(Exception):
+                                await self._playwright.stop()
+                            self._playwright = None
+                        raise
         return self._playwright_browser
 
     # -- undetected-chromedriver (synchronous) --------------------------
@@ -127,6 +139,7 @@ class BrowserPool:
 # Process-level singleton: ALL scraper instances (across workers / threads in
 # this process) share this one pool. Created lazily on first use.
 _pool: BrowserPool | None = None
+_pool_lock = threading.Lock()
 
 
 def get_browser_pool() -> BrowserPool:
@@ -138,7 +151,9 @@ def get_browser_pool() -> BrowserPool:
     """
     global _pool
     if _pool is None:
-        _pool = BrowserPool()
+        with _pool_lock:
+            if _pool is None:
+                _pool = BrowserPool()
     return _pool
 
 
