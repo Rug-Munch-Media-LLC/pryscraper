@@ -65,6 +65,10 @@ class PryError(Exception):
     def to_dict(self, request_id: str = "", instance: str = "") -> dict[str, Any]:
         """Return RFC 7807 Problem Details dict.
 
+        Security: This method only exposes the error message, code, status,
+        and optional details/request_id/instance. No stack traces, internal
+        paths, or exception internals are leaked. Safe for client responses.
+
         Args:
             request_id: Correlation ID for tracing.
             instance: URI of the request that triggered the error.
