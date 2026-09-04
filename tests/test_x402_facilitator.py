@@ -532,11 +532,12 @@ async def test_settle_via_external_facilitator(router: FacilitatorRouter):
             asset="USDC",
             amount_usd=1.0,
         )
-        # The first healthy facilitator (coinbase) returns success, so the
-        # normalized receipt must reflect the on-chain tx and the facilitator.
+        # Weighted random selection picks any healthy facilitator; all are
+        # mocked with the same success response, so the receipt must reflect
+        # the on-chain tx and one of the configured facilitator names.
         assert result["success"] is True
         assert result["transaction"] == "0xabc"
-        assert result["facilitator"] == "coinbase"
+        assert result["facilitator"] in {f.name for f in router.facilitators if f.settle_url}
 
 
 @respx.mock

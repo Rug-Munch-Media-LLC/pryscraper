@@ -19,6 +19,7 @@ import json
 import logging
 import math
 import os
+import random
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -226,6 +227,17 @@ class FacilitatorRouter:
         lats = self._latencies.get(name, [])
         avg_lat = sum(lats) / max(1, len(lats)) if lats else 0.0
         return successes - failures * 2 - avg_lat
+
+    def _select_facilitator(self, candidates: list[FacilitatorConfig]) -> FacilitatorConfig:
+        """Weighted random selection: higher health score = higher probability.
+
+        Spreads load across healthy facilitators instead of always hitting the
+        first one (prevents thundering herd on the highest-priority endpoint).
+        """
+        scores = [max(1, self._health_score(c.name)) for c in candidates]
+        total = sum(scores)
+        weights = [s / total for s in scores]
+        return random.SystemRandom().choices(candidates, weights=weights, k=1)[0]
 
     # ── Self-hosted / custom facilitator extension points ─────────────────────
 
@@ -500,44 +512,45 @@ class FacilitatorRouter:
         }
 
         last_error = "No facilitators available"
+        healthy = [f for f in self.facilitators if self._is_healthy(f)]
+        if not healthy:
+            return {"verified": False, "reason": "no healthy facilitator", "settlement": None}
+
+        # Weighted random: higher health score = higher probability
+        facilitator = self._select_facilitator(healthy)
         async with httpx.AsyncClient(timeout=X402_TIMEOUT_SECONDS) as client:
-            for facilitator in self.facilitators:
-                if not self._is_healthy(facilitator):
-                    continue
-                try:
-                    start_time = time.time()
-                    response: httpx.Response | None = None
-                    for attempt in range(3):
-                        try:
-                            response = await client.post(facilitator.verify_url, json=payload)
-                            response.raise_for_status()
-                            break
-                        except (TimeoutError, httpx.HTTPError):
-                            if attempt < 2:
-                                await asyncio.sleep(0.5 * (2**attempt))
-                            else:
-                                raise
-                    assert response is not None
-                    data = response.json()
-                    self._mark_success(facilitator, start_time=start_time)
-                    verified = bool(
-                        data.get("isValid") or data.get("verified") or data.get("success")
-                    )
-                    return {
-                        "verified": verified,
-                        "reason": data.get("error", data.get("reason", "")) if not verified else "",
-                        "settlement": data if verified else None,
-                        "facilitator": facilitator.name,
-                    }
-                except httpx.HTTPStatusError as e:
-                    last_error = f"{facilitator.name}: HTTP {e.response.status_code}"
-                    self._mark_failure(facilitator)
-                except httpx.RequestError as e:
-                    last_error = f"{facilitator.name}: {e}"
-                    self._mark_failure(facilitator)
-                except json.JSONDecodeError as e:
-                    last_error = f"{facilitator.name}: invalid JSON response - {e}"
-                    self._mark_failure(facilitator)
+            try:
+                start_time = time.time()
+                response: httpx.Response | None = None
+                for attempt in range(3):
+                    try:
+                        response = await client.post(facilitator.verify_url, json=payload)
+                        response.raise_for_status()
+                        break
+                    except (TimeoutError, httpx.HTTPError):
+                        if attempt < 2:
+                            await asyncio.sleep(0.5 * (2**attempt))
+                        else:
+                            raise
+                assert response is not None
+                data = response.json()
+                self._mark_success(facilitator, start_time=start_time)
+                verified = bool(data.get("isValid") or data.get("verified") or data.get("success"))
+                return {
+                    "verified": verified,
+                    "reason": data.get("error", data.get("reason", "")) if not verified else "",
+                    "settlement": data if verified else None,
+                    "facilitator": facilitator.name,
+                }
+            except httpx.HTTPStatusError as e:
+                last_error = f"{facilitator.name}: HTTP {e.response.status_code}"
+                self._mark_failure(facilitator)
+            except httpx.RequestError as e:
+                last_error = f"{facilitator.name}: {e}"
+                self._mark_failure(facilitator)
+            except json.JSONDecodeError as e:
+                last_error = f"{facilitator.name}: invalid JSON response - {e}"
+                self._mark_failure(facilitator)
 
         # EIP-7702 self-verify fallback for supported EVM chains
         if _eip7702_rpc_key(network) is not None:
@@ -821,12 +834,10 @@ class FacilitatorRouter:
         }
 
         last_error = "No facilitators available"
+        healthy = [f for f in self.facilitators if self._is_healthy(f) and f.settle_url]
+        facilitator = self._select_facilitator(healthy) if healthy else None
         async with httpx.AsyncClient(timeout=X402_TIMEOUT_SECONDS) as client:
-            for facilitator in self.facilitators:
-                if not self._is_healthy(facilitator):
-                    continue
-                if not facilitator.settle_url:
-                    continue
+            if facilitator is not None:
                 try:
                     response = await client.post(facilitator.settle_url, json=payload)
                     response.raise_for_status()
