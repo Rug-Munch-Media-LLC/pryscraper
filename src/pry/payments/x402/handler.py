@@ -51,6 +51,34 @@ from pry.payments.x402.scheme import (
 
 logger = logging.getLogger(__name__)
 
+
+class VerifyError(Exception):
+    """Payment verification failed."""
+
+    def __init__(self, reason: str, **extra: Any):
+        self.reason = reason
+        self.extra = extra
+        super().__init__(reason)
+
+
+class SettleError(Exception):
+    """Payment settlement failed."""
+
+    def __init__(self, reason: str, **extra: Any):
+        self.reason = reason
+        self.extra = extra
+        super().__init__(reason)
+
+
+class FacilitatorTimeoutError(Exception):
+    """Facilitator timed out."""
+
+    def __init__(self, facilitator: str = "", **extra: Any):
+        self.facilitator = facilitator
+        self.extra = extra
+        super().__init__(f"facilitator {facilitator} timed out")
+
+
 SETTLEMENT_WEBHOOK_URL_ENV = "PRY_SETTLEMENT_WEBHOOK_URL"
 
 
@@ -519,6 +547,76 @@ class X402Handler:
                     "x402_settlement_webhook_error",
                     extra={"payment_id": payment_id, "error": str(e)},
                 )
+        return settlement
+
+    async def verify_payment_strict(
+        self,
+        payment_id: str,
+        tx_hash: str,
+        network: str = "",
+        asset: str = "",
+        amount_usd: float = 0.0,
+        operation: str = "",
+        caller_key: str = "",
+        attested_required_atomic: int = 0,
+    ) -> dict[str, Any]:
+        """Verify a payment, raising :class:`VerifyError` on failure.
+
+        Thin wrapper over :meth:`verify_payment` for callers who prefer
+        try/except over inspecting the ``verified`` flag. On success the
+        underlying result dict is returned unchanged.
+        """
+        result = await self.verify_payment(
+            payment_id=payment_id,
+            tx_hash=tx_hash,
+            network=network,
+            asset=asset,
+            amount_usd=amount_usd,
+            operation=operation,
+            caller_key=caller_key,
+            attested_required_atomic=attested_required_atomic,
+        )
+        if not result.get("verified"):
+            raise VerifyError(
+                result.get("reason", "verification failed"),
+                payment_id=payment_id,
+                tx_hash=tx_hash,
+                network=network,
+                asset=asset,
+            )
+        return result
+
+    async def settle_payment_strict(
+        self,
+        payment_id: str,
+        tx_hash: str,
+        network: str = "",
+        asset: str = "",
+        amount_usd: float = 0.0,
+        operation: str = "",
+    ) -> dict[str, Any]:
+        """Settle a payment, raising :class:`SettleError` on failure.
+
+        Thin wrapper over :meth:`settle_payment` for callers who prefer
+        try/except over inspecting the ``success`` flag. On success the
+        settlement receipt dict is returned unchanged.
+        """
+        settlement = await self.settle_payment(
+            payment_id=payment_id,
+            tx_hash=tx_hash,
+            network=network,
+            asset=asset,
+            amount_usd=amount_usd,
+            operation=operation,
+        )
+        if not (settlement or {}).get("success"):
+            raise SettleError(
+                (settlement or {}).get("reason", "settlement failed"),
+                payment_id=payment_id,
+                tx_hash=tx_hash,
+                network=network,
+                asset=asset,
+            )
         return settlement
 
     def require_payment(
