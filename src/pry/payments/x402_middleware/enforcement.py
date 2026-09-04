@@ -6,14 +6,12 @@ import base64
 import json
 import logging
 import os
-from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from pry.core.audit import audit_event
 from pry.core.ratelimit import RateLimiter
 from pry.core.settings import settings
 from pry.payments.x402 import (
-    PAYMENT_VALIDITY_SECONDS,
     X402Handler,
     _encode_payment_required_body,
     attestation_signer_address,
@@ -366,7 +364,7 @@ class X402Middleware:
         if batch_id_header:
             from pry.payments.x402 import is_batch_paid
 
-            if is_batch_paid(batch_id_header):
+            if is_batch_paid(batch_id_header, caller_key=caller_key, operation=operation):
                 scope["x402_verified"] = {
                     "batch_id": batch_id_header,
                     "caller": caller_key,
@@ -481,15 +479,6 @@ class X402Middleware:
                             await self._send_payment_required(operation, path, send)
                             return
                         response_b64 = base64.b64encode(json.dumps(settlement).encode()).decode()
-                        self.payments[payment_id] = {
-                            "payment_id": payment_id,
-                            "tx_hash": tx_hash,
-                            "caller_key": caller_key,
-                            "expires_at": (
-                                datetime.now(UTC) + timedelta(seconds=PAYMENT_VALIDITY_SECONDS)
-                            ).isoformat(),
-                            "verified_at": datetime.now(UTC).isoformat(),
-                        }
 
                         response_b64_bytes = response_b64.encode()
 

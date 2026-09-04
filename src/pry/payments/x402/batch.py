@@ -313,16 +313,20 @@ async def verify_batch_payment(
     }
 
 
-def is_batch_paid(batch_id: str, caller_key: str = "") -> bool:
+def is_batch_paid(batch_id: str, caller_key: str = "", operation: str = "") -> bool:
     """Check whether a batch payment has been verified and is still valid.
 
     Batch payments expire after PAYMENT_VALIDITY_SECONDS; expired batches
     fail closed (client must create a new batch payment). When the batch was
     bound to a ``caller_key`` at verify time, only that caller may use it —
-    a mismatched or missing caller fails closed (replay hardening).
+    a mismatched or missing caller fails closed (replay hardening). When an
+    ``operation`` is supplied, the batch must cover that operation — a batch
+    that does not list it fails closed (operation gating).
     """
     batch = _load_batch(batch_id)
     if not batch or not batch.get("paid"):
+        return False
+    if operation and operation not in batch.get("operations", []):
         return False
     expires_at = batch.get("expires_at")
     if expires_at:
