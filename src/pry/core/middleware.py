@@ -187,6 +187,8 @@ _AUTH_PUBLIC_PATHS: set[str] = {
     "/healthz",
     "/live",
     "/ready",
+    "/readyz",
+    "/supported",
     "/metrics",
     "/docs",
     "/openapi.json",

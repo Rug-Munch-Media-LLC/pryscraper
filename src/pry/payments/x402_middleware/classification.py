@@ -34,6 +34,8 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/healthz",
         "/live",
         "/ready",
+        "/readyz",
+        "/supported",
         "/docs",
         "/docs/oauth2-redirect",
         "/redoc",
