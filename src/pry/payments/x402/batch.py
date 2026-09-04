@@ -18,6 +18,8 @@ can never back both an individual and a batch payment, nor two batches.
 
 from __future__ import annotations
 
+import dataclasses
+import hashlib
 import json
 import logging
 import threading
@@ -45,6 +47,27 @@ _batch_lock = threading.Lock()
 
 # Consumed tx hashes (in-memory fallback for the Redis SETNX replay guard).
 _consumed_txs: set[str] = set()
+
+
+@dataclasses.dataclass
+class BatchChannel:
+    """On-chain batch settlement channel (voucher/claim/refund model).
+
+    A depositor funds a channel; claims draw it down up to
+    ``max_claims_per_batch``; a refund closes the channel and returns the
+    remaining balance.
+    """
+
+    channel_id: str
+    chain_id: str
+    depositor: str
+    cumulative_claimed: int = 0
+    max_claims_per_batch: int = 100
+    status: str = "open"
+
+
+# On-chain batch settlement channels: channel_id -> BatchChannel.
+_channels: dict[str, BatchChannel] = {}
 
 # Redis key prefixes + TTL. Batches live slightly longer than their validity
 # window so is_batch_paid can still observe the (expired → fail-closed) record.
@@ -108,6 +131,63 @@ def _batch_redis_key(batch_id: str) -> str:
 
 def _tx_redis_key(network: str, tx_hash: str) -> str:
     return f"{_TX_KEY_PREFIX}{network}:{tx_hash}"
+
+
+def create_channel(chain_id: str, depositor: str) -> BatchChannel:
+    """Open a new on-chain batch settlement channel for a depositor."""
+    channel_id = hashlib.sha256(f"{chain_id}:{depositor}:{time.time()}".encode()).hexdigest()[:16]
+    channel = BatchChannel(channel_id=channel_id, chain_id=chain_id, depositor=depositor)
+    with _batch_lock:
+        _channels[channel_id] = channel
+    return channel
+
+
+def claim_channel(channel_id: str, amount: int) -> dict[str, Any]:
+    """Claim ``amount`` against a channel, respecting the per-batch cap."""
+    with _batch_lock:
+        channel = _channels.get(channel_id)
+        if channel is None:
+            return {"success": False, "reason": "Channel not found"}
+        if channel.status != "open":
+            return {"success": False, "reason": f"Channel is {channel.status}"}
+        if channel.cumulative_claimed + amount > channel.max_claims_per_batch:
+            return {
+                "success": False,
+                "reason": "Claim exceeds max_claims_per_batch",
+                "cumulative_claimed": channel.cumulative_claimed,
+                "max_claims_per_batch": channel.max_claims_per_batch,
+            }
+        channel.cumulative_claimed += amount
+        return {
+            "success": True,
+            "channel_id": channel_id,
+            "cumulative_claimed": channel.cumulative_claimed,
+            "remaining": channel.max_claims_per_batch - channel.cumulative_claimed,
+        }
+
+
+def refund_channel(channel_id: str) -> dict[str, Any]:
+    """Refund a channel: mark it refunded and return the remaining balance."""
+    with _batch_lock:
+        channel = _channels.get(channel_id)
+        if channel is None:
+            return {"success": False, "reason": "Channel not found"}
+        if channel.status != "open":
+            return {"success": False, "reason": f"Channel is {channel.status}"}
+        channel.status = "refunded"
+        remaining = channel.max_claims_per_batch - channel.cumulative_claimed
+        return {
+            "success": True,
+            "channel_id": channel_id,
+            "status": channel.status,
+            "remaining": remaining,
+        }
+
+
+def get_channel(channel_id: str) -> BatchChannel | None:
+    """Return a channel by id, or None."""
+    with _batch_lock:
+        return _channels.get(channel_id)
 
 
 def _load_batch(batch_id: str) -> dict[str, Any] | None:
