@@ -790,6 +790,7 @@ class X402Handler:
         # ONLY for genuinely new settlements — the idempotent-cache hit path
         # above returns early, so a replayed settle never re-notifies.
         if record.get("success") is True:
+            self.usage.record(payment_id, amount_usd=amount_usd, network=network)
             try:
                 await fire_settlement_webhook(record)
             except Exception as e:  # noqa: BLE001 — best-effort, never break settle
