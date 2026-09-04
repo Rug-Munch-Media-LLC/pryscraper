@@ -9,10 +9,13 @@ Reliable webhook delivery with retries, signing (HMAC), and dead letter queue.""
 import asyncio
 import hashlib
 import hmac
+import ipaddress
 import json
 import logging
 import os
+import socket
 import time
+import urllib.parse
 from datetime import UTC, datetime
 from typing import Any
 
@@ -24,6 +27,30 @@ from pry.core.settings import settings
 logger = logging.getLogger(__name__)
 
 WEBHOOK_DIR = PRY_DATA_DIR / "webhooks"
+
+
+def _validate_url(url: str) -> str | None:
+    """Validate webhook URL to prevent SSRF. Returns None if safe, reason string if not."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except ValueError:
+        return "invalid URL"
+    if not parsed.hostname:
+        return "missing hostname"
+    scheme = parsed.scheme.lower()
+    if scheme not in ("https", "http"):
+        return f"unsupported scheme: {scheme}"
+    if scheme == "http" and parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
+        return "http only allowed for localhost"
+    try:
+        infos = socket.getaddrinfo(parsed.hostname, None)
+        for info in infos:
+            ip = ipaddress.ip_address(info[4][0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local:
+                return f"host resolves to private/loopback IP: {ip}"
+    except (socket.gaierror, ValueError):
+        return "hostname unresolvable"
+    return None
 
 
 class WebhookSecretNotConfigured(RuntimeError):
@@ -55,7 +82,7 @@ class WebhookDelivery:
             )
         self.delivery_log = WEBHOOK_DIR / "deliveries.jsonl"
         self.dead_letter = WEBHOOK_DIR / "dead_letter.jsonl"
-        self._load_log()
+        self.log: list[dict] = []  # lazy-loaded by _load_log() on demand
 
     @property
     def secret_configured(self) -> bool:
@@ -96,6 +123,12 @@ class WebhookDelivery:
         """
         from pry.api.client import get_client
 
+        # SSRF guard: reject private/loopback/invalid URLs before any network I/O
+        rejection = _validate_url(url)
+        if rejection:
+            logger.warning("webhook_url_rejected", extra={"url": url, "reason": rejection})
+            return {"success": False, "error": f"URL rejected: {rejection}"}
+
         try:
             ts = str(int(time.time()))
             signature = self.sign_payload(payload, timestamp=ts, event_type=event_type)
@@ -112,33 +145,48 @@ class WebhookDelivery:
             "X-Pry-Timestamp": ts,
         }
         client = await get_client()
-        for attempt in range(1, max_retries + 1):
-            try:
-                resp = await client.post(url, json=payload, headers=headers, timeout=10)
-                record = {
-                    "url": url,
-                    "event": event_type,
-                    "attempt": attempt,
-                    "status": resp.status_code,
-                    "success": resp.is_success,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                }
-                self._log(record)
-                if resp.is_success:
-                    return {"success": True, "status": resp.status_code, "attempts": attempt}
-                if resp.status_code < 500:
-                    self._dead_letter(payload, url, f"HTTP {resp.status_code}")
-                    return {"success": False, "status": resp.status_code, "error": "Client error"}
-            except (httpx.HTTPError, httpx.RequestError) as e:
-                record = {
-                    "url": url,
-                    "attempt": attempt,
-                    "error": str(e)[:200],
-                    "timestamp": datetime.now(UTC).isoformat(),
-                }
-                self._log(record)
-            if attempt < max_retries:
-                await asyncio.sleep(retry_delay * (2 ** (attempt - 1)))
+        try:
+            async with asyncio.timeout(15):
+                for attempt in range(1, max_retries + 1):
+                    try:
+                        resp = await client.post(
+                            url, json=payload, headers=headers, timeout=10, follow_redirects=False
+                        )
+                        record = {
+                            "url": url,
+                            "event": event_type,
+                            "attempt": attempt,
+                            "status": resp.status_code,
+                            "success": resp.is_success,
+                            "timestamp": datetime.now(UTC).isoformat(),
+                        }
+                        self._log(record)
+                        if resp.is_success:
+                            return {
+                                "success": True,
+                                "status": resp.status_code,
+                                "attempts": attempt,
+                            }
+                        if resp.status_code < 500:
+                            self._dead_letter(payload, url, f"HTTP {resp.status_code}")
+                            return {
+                                "success": False,
+                                "status": resp.status_code,
+                                "error": "Client error",
+                            }
+                    except (httpx.HTTPError, httpx.RequestError) as e:
+                        record = {
+                            "url": url,
+                            "attempt": attempt,
+                            "error": str(e)[:200],
+                            "timestamp": datetime.now(UTC).isoformat(),
+                        }
+                        self._log(record)
+                    if attempt < max_retries:
+                        await asyncio.sleep(retry_delay * (2 ** (attempt - 1)))
+        except TimeoutError:
+            self._dead_letter(payload, url, "Delivery timeout (15s)")
+            return {"success": False, "error": "delivery timeout", "url": url}
         self._dead_letter(payload, url, "Max retries exceeded")
         return {"success": False, "error": "Max retries exceeded", "delivered": False}
 

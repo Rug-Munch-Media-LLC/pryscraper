@@ -26,6 +26,7 @@ def wh(tmp_path: Path) -> WebhookDelivery:
     with (
         patch("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks"),
         patch("pry.api.webhook_delivery.settings.webhook_secret", "test-secret"),
+        patch("pry.api.webhook_delivery._validate_url", return_value=None),
     ):
         w = WebhookDelivery(signing_secret="test-key")
         yield w
@@ -134,8 +135,8 @@ def test_retry_dead_letter_returns_items(wh: WebhookDelivery):
 @respx.mock
 @pytest.mark.asyncio
 async def test_deliver_success(wh: WebhookDelivery):
-    respx.post("http://hook.example.com").mock(return_value=httpx.Response(200, json={"ok": True}))
-    result = await wh.deliver("http://hook.example.com", {"event": "test"})
+    respx.post("https://hook.example.com").mock(return_value=httpx.Response(200, json={"ok": True}))
+    result = await wh.deliver("https://hook.example.com", {"event": "test"})
     assert result["success"] is True
     assert result["status"] == 200
 
@@ -144,10 +145,10 @@ async def test_deliver_success(wh: WebhookDelivery):
 @pytest.mark.asyncio
 async def test_deliver_retries_on_500(wh: WebhookDelivery):
     """Server errors (500+) should be retried."""
-    route = respx.post("http://hook.example.com")
+    route = respx.post("https://hook.example.com")
     route.mock(return_value=httpx.Response(500, json={"error": "internal"}))
     result = await wh.deliver(
-        "http://hook.example.com", {"event": "test"}, max_retries=2, retry_delay=0.01
+        "https://hook.example.com", {"event": "test"}, max_retries=2, retry_delay=0.01
     )
     assert result["success"] is False
     assert result["error"] == "Max retries exceeded"
@@ -157,10 +158,10 @@ async def test_deliver_retries_on_500(wh: WebhookDelivery):
 @pytest.mark.asyncio
 async def test_deliver_client_error_no_retry(wh: WebhookDelivery):
     """4xx errors should not be retried — sent to dead letter immediately."""
-    route = respx.post("http://hook.example.com")
+    route = respx.post("https://hook.example.com")
     route.mock(return_value=httpx.Response(400, json={"error": "bad request"}))
     result = await wh.deliver(
-        "http://hook.example.com", {"event": "test"}, max_retries=3, retry_delay=0.01
+        "https://hook.example.com", {"event": "test"}, max_retries=3, retry_delay=0.01
     )
     assert result["success"] is False
     assert "Client error" in result.get("error", "")
@@ -175,7 +176,7 @@ async def test_deliver_client_error_no_retry(wh: WebhookDelivery):
 @pytest.mark.asyncio
 async def test_deliver_network_error_retries(wh: WebhookDelivery):
     """Network errors should be retried."""
-    route = respx.post("http://hook.example.com")
+    route = respx.post("https://hook.example.com")
     route.mock(
         side_effect=[
             httpx.ConnectError("connection refused"),
@@ -183,7 +184,7 @@ async def test_deliver_network_error_retries(wh: WebhookDelivery):
         ]
     )
     result = await wh.deliver(
-        "http://hook.example.com", {"event": "test"}, max_retries=2, retry_delay=0.01
+        "https://hook.example.com", {"event": "test"}, max_retries=2, retry_delay=0.01
     )
     assert result["success"] is True
     assert result["attempts"] == 2
@@ -193,10 +194,10 @@ async def test_deliver_network_error_retries(wh: WebhookDelivery):
 @pytest.mark.asyncio
 async def test_deliver_all_retries_fail(wh: WebhookDelivery):
     """All retries exhausted should go to dead letter."""
-    route = respx.post("http://hook.example.com")
+    route = respx.post("https://hook.example.com")
     route.mock(side_effect=httpx.ConnectError("always down"))
     result = await wh.deliver(
-        "http://hook.example.com", {"event": "test"}, max_retries=2, retry_delay=0.01
+        "https://hook.example.com", {"event": "test"}, max_retries=2, retry_delay=0.01
     )
     assert result["success"] is False
     assert result["error"] == "Max retries exceeded"
@@ -214,10 +215,10 @@ async def test_deliver_all_retries_fail(wh: WebhookDelivery):
 @respx.mock
 @pytest.mark.asyncio
 async def test_deliver_includes_signing_headers(wh: WebhookDelivery):
-    route = respx.post("http://hook.example.com")
+    route = respx.post("https://hook.example.com")
     route.mock(return_value=httpx.Response(200, json={"ok": True}))
 
-    await wh.deliver("http://hook.example.com", {"event": "test"})
+    await wh.deliver("https://hook.example.com", {"event": "test"})
 
     sent = route.calls[0].request
     assert "X-Pry-Signature" in sent.headers
@@ -235,10 +236,10 @@ async def test_deliver_includes_signing_headers(wh: WebhookDelivery):
 @respx.mock
 @pytest.mark.asyncio
 async def test_deliver_custom_event_type(wh: WebhookDelivery):
-    route = respx.post("http://hook.example.com")
+    route = respx.post("https://hook.example.com")
     route.mock(return_value=httpx.Response(200, json={"ok": True}))
 
-    await wh.deliver("http://hook.example.com", {"event": "test"}, event_type="custom.event")
+    await wh.deliver("https://hook.example.com", {"event": "test"}, event_type="custom.event")
     assert route.calls[0].request.headers["X-Pry-Event"] == "custom.event"
 
 
@@ -268,11 +269,12 @@ async def test_deliver_empty_secret_refused(tmp_path: Path):
     with (
         patch("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks3"),
         patch("pry.api.webhook_delivery.settings.webhook_secret", ""),
+        patch("pry.api.webhook_delivery._validate_url", return_value=None),
     ):
         w = WebhookDelivery()
-        route = respx.post("http://hook.example.com")
+        route = respx.post("https://hook.example.com")
         route.mock(return_value=httpx.Response(200, json={"ok": True}))
-        result = await w.deliver("http://hook.example.com", {"event": "test"})
+        result = await w.deliver("https://hook.example.com", {"event": "test"})
         assert result["success"] is False
         assert result.get("refused") is True
         assert "secret" in result["error"].lower()
