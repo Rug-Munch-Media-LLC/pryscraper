@@ -11,6 +11,7 @@ Beats Cloudflare, DataDome, Akamai, Imperva, PerimeterX, and generic blocks."""
 
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import logging
 import os
@@ -403,92 +404,101 @@ class UltimateScraper:
         }
 
         i = 0
-        while i < len(tier_order):
-            tier_name, tier_fn = tier_order[i]
-            # Skip external tiers whose circuit breaker is open.
-            breaker_name = breaker_for_tier.get(tier_name)
-            if breaker_name and not registry.is_service_allowed(breaker_name):
-                logger.debug(
-                    "tier_skipped_circuit_open", extra={"tier": tier_name, "domain": domain}
-                )
-                errors.append(f"{tier_name}: circuit_open")
-                i += 1
-                continue
-
-            start = time.time()
-            try:
-                retry_cfg = self._RETRY_CONFIGS.get(tier_name, self._DEFAULT_RETRY)
-                # Child span per tier attempt — the trace shows exactly which
-                # bypass strategies a target needed and what each cost.
-                with span("scrape.tier", {"pry.tier": tier_name, "http.url": url}):
-                    if tier_name == "premium_proxy":
-                        html = await async_retry(tier_fn, url, proxy_url, opts, config=retry_cfg)
-                    else:
-                        html = await async_retry(
-                            tier_fn, url, opts, proxy_url=proxy_url, config=retry_cfg
+        try:
+            async with asyncio.timeout(45):
+                while i < len(tier_order):
+                    tier_name, tier_fn = tier_order[i]
+                    # Skip external tiers whose circuit breaker is open.
+                    breaker_name = breaker_for_tier.get(tier_name)
+                    if breaker_name and not registry.is_service_allowed(breaker_name):
+                        logger.debug(
+                            "tier_skipped_circuit_open", extra={"tier": tier_name, "domain": domain}
                         )
-            except InvalidRequestError:
-                # SSRF rejection (e.g. redirect to a private/metadata IP) is not a
-                # tier failure — abort the whole chain instead of falling through
-                # to other tiers that would hit the same unsafe target.
-                raise
-            except Exception as e:
-                logger.debug("tier_exception", extra={"tier": tier_name, "error": str(e)[:50]})
-                html = None
+                        errors.append(f"{tier_name}: circuit_open")
+                        i += 1
+                        continue
 
-            latency = time.time() - start
+                    start = time.time()
+                    try:
+                        retry_cfg = self._RETRY_CONFIGS.get(tier_name, self._DEFAULT_RETRY)
+                        # Child span per tier attempt — the trace shows exactly which
+                        # bypass strategies a target needed and what each cost.
+                        with span("scrape.tier", {"pry.tier": tier_name, "http.url": url}):
+                            if tier_name == "premium_proxy":
+                                html = await async_retry(
+                                    tier_fn, url, proxy_url, opts, config=retry_cfg
+                                )
+                            else:
+                                html = await async_retry(
+                                    tier_fn, url, opts, proxy_url=proxy_url, config=retry_cfg
+                                )
+                    except InvalidRequestError:
+                        # SSRF rejection (e.g. redirect to a private/metadata IP) is not a
+                        # tier failure — abort the whole chain instead of falling through
+                        # to other tiers that would hit the same unsafe target.
+                        raise
+                    except Exception as e:
+                        logger.debug(
+                            "tier_exception", extra={"tier": tier_name, "error": str(e)[:50]}
+                        )
+                        html = None
 
-            # Block detection: classify the tier response (or failure) so the
-            # next tier choice can escalate intelligently. Tiers expose only the
-            # body, so status/headers default to 200/{} — body markers drive the
-            # classification. A block page is not content: even if it passes
-            # _is_valid (e.g. a long WAF challenge), it does not count as success
-            # and the chain escalates to the preferred tier family.
-            signal = self._detect_block_signal(html)
-            success = bool(html and self._is_valid(html))
-            if signal is not None and signal.kind != "none":
-                latest_signal = self._signal_to_dict(signal)
-                preferred = self._PREFER_ON_BLOCK.get(signal.kind, ())
-                if preferred and i + 1 < len(tier_order):
-                    remaining = tier_order[i + 1 :]
-                    preferred_tiers = [t for t in remaining if t[0] in preferred]
-                    if preferred_tiers:
-                        tier_order[i + 1 :] = preferred_tiers + [
-                            t for t in remaining if t[0] not in preferred
-                        ]
-                success = False
+                    latency = time.time() - start
 
-            registry.record_domain_tier_result(domain, tier_name, success, latency)
-            if breaker_name:
-                registry.record_service_result(breaker_name, success)
-            if SCRAPE_LATENCY:
-                SCRAPE_LATENCY.labels(method=tier_name).observe(latency)
+                    # Block detection: classify the tier response (or failure) so the
+                    # next tier choice can escalate intelligently. Tiers expose only the
+                    # body, so status/headers default to 200/{} — body markers drive the
+                    # classification. A block page is not content: even if it passes
+                    # _is_valid (e.g. a long WAF challenge), it does not count as success
+                    # and the chain escalates to the preferred tier family.
+                    signal = self._detect_block_signal(html)
+                    success = bool(html and self._is_valid(html))
+                    if signal is not None and signal.kind != "none":
+                        latest_signal = self._signal_to_dict(signal)
+                        preferred = self._PREFER_ON_BLOCK.get(signal.kind, ())
+                        if preferred and i + 1 < len(tier_order):
+                            remaining = tier_order[i + 1 :]
+                            preferred_tiers = [t for t in remaining if t[0] in preferred]
+                            if preferred_tiers:
+                                tier_order[i + 1 :] = preferred_tiers + [
+                                    t for t in remaining if t[0] not in preferred
+                                ]
+                        success = False
 
-            if success:
-                method = "premium_proxy" if tier_name == "premium_proxy" else tier_name
-                assert isinstance(html, str)
-                attempts.append(
-                    {
-                        "tier": tier_name,
-                        "success": True,
-                        "error": None,
-                        "duration_ms": round(latency * 1000, 2),
-                    }
-                )
-                self._record_telemetry(
-                    domain, ordered_names, attempts, method, True, scrape_start, errors
-                )
-                return self._result(url, html, method, block_signal=latest_signal)
-            errors.append(f"{tier_name}_failed")
-            attempts.append(
-                {
-                    "tier": tier_name,
-                    "success": False,
-                    "error": f"{tier_name}_failed",
-                    "duration_ms": round(latency * 1000, 2),
-                }
-            )
-            i += 1
+                    registry.record_domain_tier_result(domain, tier_name, success, latency)
+                    if breaker_name:
+                        registry.record_service_result(breaker_name, success)
+                    if SCRAPE_LATENCY:
+                        SCRAPE_LATENCY.labels(method=tier_name).observe(latency)
+
+                    if success:
+                        method = "premium_proxy" if tier_name == "premium_proxy" else tier_name
+                        if not isinstance(html, str):
+                            continue
+                        attempts.append(
+                            {
+                                "tier": tier_name,
+                                "success": True,
+                                "error": None,
+                                "duration_ms": round(latency * 1000, 2),
+                            }
+                        )
+                        self._record_telemetry(
+                            domain, ordered_names, attempts, method, True, scrape_start, errors
+                        )
+                        return self._result(url, html, method, block_signal=latest_signal)
+                    errors.append(f"{tier_name}_failed")
+                    attempts.append(
+                        {
+                            "tier": tier_name,
+                            "success": False,
+                            "error": f"{tier_name}_failed",
+                            "duration_ms": round(latency * 1000, 2),
+                        }
+                    )
+                    i += 1
+        except TimeoutError:
+            errors.append("timeout_45s")
 
         self._record_telemetry(domain, ordered_names, attempts, None, False, scrape_start, errors)
         last_err = errors[-1] if errors else "all_tiers_failed"
