@@ -18,6 +18,7 @@ import json
 import logging
 import math
 import os
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -162,7 +163,7 @@ class FacilitatorRouter:
             [f for f in (facilitators or DEFAULT_FACILITATORS) if f.enabled and f.verify_url],
             key=lambda f: f.priority,
         )
-        self._failures: dict[str, int] = {}
+        self._failures: dict[str, tuple[int, float]] = {}
         self.self_hosted = X402_SELF_FACILITATE if self_hosted is None else bool(self_hosted)
         self._self_facilitator: SelfFacilitator | None = None
         self._network_facilitators: dict[str, Any] = {}
@@ -172,17 +173,30 @@ class FacilitatorRouter:
         return facilitator.name
 
     def _is_healthy(self, facilitator: FacilitatorConfig) -> bool:
-        return self._failures.get(self._health_key(facilitator), 0) < 3
+        entry = self._failures.get(self._health_key(facilitator))
+        if entry is None:
+            return True
+        count, last_failure = entry
+        if time.time() - last_failure > 60:
+            return True  # half-open: allow a recovery attempt
+        return count < 3
 
     def _mark_failure(self, facilitator: FacilitatorConfig) -> None:
         key = self._health_key(facilitator)
-        self._failures[key] = self._failures.get(key, 0) + 1
+        count, _ = self._failures.get(key, (0, 0.0))
+        self._failures[key] = (count + 1, time.time())
         logger.warning("x402_facilitator_failure", extra={"facilitator": facilitator.name})
 
     def _mark_success(self, facilitator: FacilitatorConfig) -> None:
         key = self._health_key(facilitator)
-        if key in self._failures:
-            del self._failures[key]
+        entry = self._failures.get(key)
+        if entry is not None:
+            count, last_failure = entry
+            decayed = max(0, count - 1)
+            if decayed == 0:
+                self._failures.pop(key, None)
+            else:
+                self._failures[key] = (decayed, last_failure)
 
     # ── Self-hosted / custom facilitator extension points ─────────────────────
 
@@ -297,7 +311,7 @@ class FacilitatorRouter:
             # Price binding (audit #7): the attested challenge amount is the
             # authoritative required amount for volatile-asset comparison.
             payment["attested_required_atomic"] = int(attested_required_atomic)
-        auth = self._pending_auths.get(payment_id)
+        auth = self._pending_auths.pop(payment_id, None)
         if auth:
             payment["authorization"] = auth
         return payment
