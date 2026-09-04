@@ -89,6 +89,50 @@ async def analyze_links(url: str = Body(...)) -> dict[str, Any]:
     }
 
 
+@router.post("/v1/thumbnail", tags=["Extraction"], summary="Extract og:image/thumbnail from a URL")
+async def extract_thumbnail(url: str = Body(...)) -> dict[str, Any]:
+    """Extract the og:image, twitter:image, or first img src from a page.
+    Uses Cloudflare bypass when needed. Returns the thumbnail URL or None."""
+    try:
+        result = await scraper.scrape(url, {"bypass_cloudflare": True})
+        html = result.get("raw_html", "")
+        if not html:
+            client = await get_client()
+            resp = await client.get(url, headers={"User-Agent": "Pry/3.0"}, timeout=15)
+            html = resp.text
+    except Exception:  # noqa: BLE001 — thumbnail is best-effort; any failure yields None
+        return {"success": False, "data": {"thumbnail": None}}
+
+    import re
+
+    # Try og:image first
+    og = re.search(r'<meta\s+property="og:image"\s+content="([^"]+)"', html, re.I)
+    if og:
+        return {"success": True, "data": {"thumbnail": og.group(1), "source": "og:image"}}
+
+    # Try twitter:image
+    tw = re.search(r'<meta\s+name="twitter:image"\s+content="([^"]+)"', html, re.I)
+    if tw:
+        return {"success": True, "data": {"thumbnail": tw.group(1), "source": "twitter:image"}}
+
+    # Try twitter:image:src
+    tws = re.search(r'<meta\s+name="twitter:image:src"\s+content="([^"]+)"', html, re.I)
+    if tws:
+        return {"success": True, "data": {"thumbnail": tws.group(1), "source": "twitter:image:src"}}
+
+    # Try first img tag
+    img = re.search(r'<img\s[^>]*src="([^"]+)"', html, re.I)
+    if img:
+        src = img.group(1)
+        if src.startswith("/"):
+            from urllib.parse import urljoin
+
+            src = urljoin(url, src)
+        return {"success": True, "data": {"thumbnail": src, "source": "first-img"}}
+
+    return {"success": True, "data": {"thumbnail": None}}
+
+
 @router.post("/v1/seo", tags=["Extraction"], summary="SEO analysis of a page")
 async def analyze_seo(url: str = Body(...)) -> dict[str, Any]:
     """SEO analysis of a page: title, description, headings, images, keywords, readability.

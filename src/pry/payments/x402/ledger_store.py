@@ -56,11 +56,11 @@ def _iso(value: Any) -> str:
     if isinstance(value, datetime):
         if value.tzinfo is None:
             value = value.replace(tzinfo=UTC)
-        return value.isoformat()
+        return str(value.isoformat())
     return str(value)
 
 
-def record_payment(record: dict) -> None:
+def record_payment(record: dict[str, Any]) -> None:
     """Insert-or-update a payment record keyed by (payment_id, tx_hash)."""
     from pry.core.db.models import X402PaymentRecord
     from pry.core.db.session import session_scope
@@ -80,24 +80,24 @@ def record_payment(record: dict) -> None:
                 tx_hash=str(record.get("tx_hash", "")),
             )
             session.add(row)
-        row.network = str(record.get("network", ""))
-        row.asset = str(record.get("asset", ""))
+        row.network = str(record.get("network", ""))  # type: ignore[assignment]
+        row.asset = str(record.get("asset", ""))  # type: ignore[assignment]
         try:
-            row.amount_usd = float(record.get("amount_usd", 0.0))
+            row.amount_usd = float(record.get("amount_usd", 0.0))  # type: ignore[assignment]
         except (TypeError, ValueError):
-            row.amount_usd = 0.0
-        row.required_amount_atomic = str(record.get("required_amount_atomic", ""))
-        row.operation = str(record.get("operation", ""))
-        row.verified = bool(record.get("verified", False))
+            row.amount_usd = 0.0  # type: ignore[assignment]
+        row.required_amount_atomic = str(record.get("required_amount_atomic", ""))  # type: ignore[assignment]
+        row.operation = str(record.get("operation", ""))  # type: ignore[assignment]
+        row.verified = bool(record.get("verified", False))  # type: ignore[assignment]
         row.verified_at = _parse_dt(record.get("verified_at"))
         row.expires_at = _parse_dt(record.get("expires_at"))
-        row.facilitator = str(record.get("facilitator", ""))
-        row.caller_key = str(record.get("caller_key", ""))
-        row.reason = str(record.get("reason", ""))
-        row.record = dict(record)
+        row.facilitator = str(record.get("facilitator", ""))  # type: ignore[assignment]
+        row.caller_key = str(record.get("caller_key", ""))  # type: ignore[assignment]
+        row.reason = str(record.get("reason", ""))  # type: ignore[assignment]
+        row.record = dict(record)  # type: ignore[assignment]
 
 
-def get_payments(limit: int = _LEDGER_LIMIT) -> list[dict]:
+def get_payments(limit: int = _LEDGER_LIMIT) -> list[dict[str, Any]]:
     """Payment records, most-recent-first."""
     from pry.core.db.models import X402PaymentRecord
     from pry.core.db.session import session_scope
@@ -112,7 +112,7 @@ def get_payments(limit: int = _LEDGER_LIMIT) -> list[dict]:
         return [dict(r.record or {}) for r in rows]
 
 
-def payments_for(payment_id: str) -> list[dict]:
+def payments_for(payment_id: str) -> list[dict[str, Any]]:
     """All records for one payment_id (id + tx variants)."""
     from pry.core.db.models import X402PaymentRecord
     from pry.core.db.session import session_scope
@@ -127,7 +127,7 @@ def payments_for(payment_id: str) -> list[dict]:
         return [dict(r.record or {}) for r in rows]
 
 
-def record_settlement(receipt: dict, settle_key: str) -> dict:
+def record_settlement(receipt: dict[str, Any], settle_key: str) -> dict[str, Any]:
     """Insert-or-return-existing a settlement receipt (DB-enforced idempotency).
 
     A UNIQUE index on ``settlement_key`` makes a concurrent duplicate insert
@@ -169,7 +169,7 @@ def record_settlement(receipt: dict, settle_key: str) -> dict:
     return dict(receipt)
 
 
-def settlement_by_key(settle_key: str) -> dict | None:
+def settlement_by_key(settle_key: str) -> dict[str, Any] | None:
     from pry.core.db.models import X402SettlementRecord
     from pry.core.db.session import session_scope
 
@@ -178,7 +178,7 @@ def settlement_by_key(settle_key: str) -> dict | None:
         return dict(row.receipt or {}) if row is not None else None
 
 
-def get_settlements(limit: int = _LEDGER_LIMIT) -> list[dict]:
+def get_settlements(limit: int = _LEDGER_LIMIT) -> list[dict[str, Any]]:
     from pry.core.db.models import X402SettlementRecord
     from pry.core.db.session import session_scope
 
