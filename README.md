@@ -7,7 +7,7 @@
 **Self-hosted web scraping & browser automation API with native x402 micropayments**
 
 [![CI](https://img.shields.io/badge/CI-passing-brightgreen)](https://codeberg.org/RugMunchMedia/pryscraper/actions)
-[![Tests](https://img.shields.io/badge/tests-218_files-brightgreen)](https://codeberg.org/RugMunchMedia/pryscraper)
+[![Tests](https://img.shields.io/badge/tests-237_files-brightgreen)](https://codeberg.org/RugMunchMedia/pryscraper)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![x402](https://img.shields.io/badge/payments-x402%20%2F%20USDC%20%2F%20SOL%20%2F%20TRX-blueviolet)](https://docs.x402.org/)
@@ -463,6 +463,8 @@ Solana/TRON slot.
 ## Registry Listings
 
 Pry is listed on all major MCP marketplaces:
+
+> **Note:** Registry submissions are in progress. Pry works standalone — these listings are for marketplace discovery only.
 
 | Registry | Status | URL |
 |----------|--------|-----|
