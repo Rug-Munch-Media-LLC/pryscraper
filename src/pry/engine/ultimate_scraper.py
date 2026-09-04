@@ -439,7 +439,7 @@ class UltimateScraper:
                         raise
                     except Exception as e:
                         logger.debug(
-                            "tier_exception", extra={"tier": tier_name, "error": str(e)[:50]}
+                            "tier_exception", extra={"tier": tier_name, "error": str(e)[:200]}
                         )
                         html = None
 
@@ -675,7 +675,7 @@ class UltimateScraper:
             if r.is_success:
                 return r.text
         except (httpx.HTTPError, httpx.RequestError) as e:
-            logger.debug("direct_failed", extra={"error": str(e)[:50]})
+            logger.debug("direct_failed", extra={"error": str(e)[:200]})
         return None
 
     async def _tier_premium_proxy(
@@ -692,7 +692,7 @@ class UltimateScraper:
                 if r.is_success:
                     return r.text
         except (httpx.HTTPError, httpx.RequestError) as e:
-            logger.debug("premium_proxy_failed", extra={"error": str(e)[:50]})
+            logger.debug("premium_proxy_failed", extra={"error": str(e)[:200]})
         return None
 
     async def _tier_cloudscraper(
@@ -719,7 +719,7 @@ class UltimateScraper:
 
             return await asyncio.to_thread(_do_fetch)
         except Exception as e:
-            logger.debug("cloudscraper_failed", extra={"error": str(e)[:50]})
+            logger.debug("cloudscraper_failed", extra={"error": str(e)[:200]})
         return None
 
     async def _tier_flaresolverr(
@@ -739,7 +739,7 @@ class UltimateScraper:
                 if solution.get("status") == 200:
                     return solution["response"]
         except (httpx.HTTPError, httpx.RequestError) as e:
-            logger.debug("flaresolverr_failed", extra={"error": str(e)[:50]})
+            logger.debug("flaresolverr_failed", extra={"error": str(e)[:200]})
         return None
 
     async def _tier_undetected(
@@ -777,7 +777,7 @@ class UltimateScraper:
 
             return await asyncio.to_thread(_do_fetch)
         except Exception as e:
-            logger.debug("undetected_failed", extra={"error": str(e)[:50]})
+            logger.debug("undetected_failed", extra={"error": str(e)[:200]})
         return None
 
     async def _tier_playwright(
@@ -820,7 +820,7 @@ class UltimateScraper:
                 except Exception:
                     logger.debug("playwright_context_close_failed", exc_info=True)
         except OSError as e:
-            logger.debug("playwright_failed", extra={"error": str(e)[:50]})
+            logger.debug("playwright_failed", extra={"error": str(e)[:200]})
         return None
 
     async def _tier_tls_fingerprint(
@@ -839,7 +839,7 @@ class UltimateScraper:
             if result.get("success") and result.get("status_code", 0) < 400:
                 return result.get("text", "")
         except Exception as e:
-            logger.debug("tls_fingerprint_failed", extra={"error": str(e)[:50]})
+            logger.debug("tls_fingerprint_failed", extra={"error": str(e)[:200]})
         return None
 
     async def _tier_camoufox(
@@ -857,7 +857,7 @@ class UltimateScraper:
             if result.get("success"):
                 return result.get("content", "")
         except Exception as e:
-            logger.debug("camoufox_failed", extra={"error": str(e)[:50]})
+            logger.debug("camoufox_failed", extra={"error": str(e)[:200]})
         return None
 
     async def _tier_googlebot(
@@ -880,7 +880,7 @@ class UltimateScraper:
             if r.is_success:
                 return r.text
         except (httpx.HTTPError, httpx.RequestError) as e:
-            logger.debug("googlebot_failed", extra={"error": str(e)[:50]})
+            logger.debug("googlebot_failed", extra={"error": str(e)[:200]})
         return None
 
     async def _tier_archive(
@@ -905,7 +905,7 @@ class UltimateScraper:
                     if ar.is_success:
                         return ar.text
         except (httpx.HTTPError, httpx.RequestError) as e:
-            logger.debug("archive_failed", extra={"error": str(e)[:50]})
+            logger.debug("archive_failed", extra={"error": str(e)[:200]})
         return None
 
     async def _tier_google_cache(
@@ -921,7 +921,7 @@ class UltimateScraper:
             if r.is_success:
                 return r.text
         except (httpx.HTTPError, httpx.RequestError) as e:
-            logger.debug("google_cache_failed", extra={"error": str(e)[:50]})
+            logger.debug("google_cache_failed", extra={"error": str(e)[:200]})
         return None
 
     async def _tier_tor(
@@ -950,7 +950,7 @@ class UltimateScraper:
                 if resp.status == 200:
                     return await resp.text()
         except aiohttp.ClientError as e:
-            logger.debug("tor_failed", extra={"error": str(e)[:50]})
+            logger.debug("tor_failed", extra={"error": str(e)[:200]})
         return None
 
     async def _tier_ai_visual(
@@ -962,7 +962,7 @@ class UltimateScraper:
         try:
             return await _ai_visual.scrape(url, opts)
         except Exception as e:
-            logger.debug("ai_visual_failed", extra={"error": str(e)[:50]})
+            logger.debug("ai_visual_failed", extra={"error": str(e)[:200]})
         return None
 
     async def _tier_mobile_app(
@@ -974,7 +974,7 @@ class UltimateScraper:
         try:
             return await _mobile_scraper.scrape(url, opts)
         except Exception as e:
-            logger.debug("mobile_app_failed", extra={"error": str(e)[:50]})
+            logger.debug("mobile_app_failed", extra={"error": str(e)[:200]})
         return None
 
     async def _tier_graphql(
@@ -986,5 +986,5 @@ class UltimateScraper:
         try:
             return await _graphql_scraper.scrape(url, opts)
         except Exception as e:
-            logger.debug("graphql_failed", extra={"error": str(e)[:50]})
+            logger.debug("graphql_failed", extra={"error": str(e)[:200]})
         return None

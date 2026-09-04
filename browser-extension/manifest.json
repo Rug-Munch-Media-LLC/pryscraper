@@ -6,6 +6,9 @@
 	"permissions": ["activeTab", "storage", "scripting", "notifications"],
 	"host_permissions": [],
 	"optional_host_permissions": ["https://api.pryscraper.com/*"],
+	"content_security_policy": {
+		"extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://api.pryscraper.com https://localhost:8002 http://localhost:8002"
+	},
 	"action": {
 		"default_popup": "popup.html",
 		"default_icon": {

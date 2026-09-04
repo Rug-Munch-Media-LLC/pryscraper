@@ -59,7 +59,7 @@ function loadSettings() {
 		["pryServerUrl", "pryApiKey", "defaultDest"],
 		(result) => {
 			document.getElementById("pry-server-url").value =
-				result.pryServerUrl || "http://localhost:8002";
+				result.pryServerUrl || "https://localhost:8002";
 			document.getElementById("pry-api-key").value = result.pryApiKey || "";
 			if (result.defaultDest) {
 				document.getElementById("default-destination").value =
@@ -107,7 +107,7 @@ function scrapeCurrentPage() {
 		showStatus("scrape-status", "Scraping...", "loading");
 
 		chrome.storage.sync.get(["pryServerUrl", "pryApiKey"], async (config) => {
-			const serverUrl = config.pryServerUrl || "http://localhost:8002";
+			const serverUrl = config.pryServerUrl || "https://localhost:8002";
 			if (!(await ensureHostPermission(serverUrl))) return;
 			try {
 				const response = await fetch(`${serverUrl}/v1/scrape`, {
@@ -273,6 +273,7 @@ async function sendToDestination(dest, content, config) {
 		});
 	} catch (err) {
 		console.error("Failed to send to destination:", err);
+		showStatus("scrape-status", `Send failed: ${err.message}`, "error");
 	}
 }
 
