@@ -128,6 +128,25 @@ def negotiate_scheme(
     return client_schemes[0] if client_schemes else "exact"
 
 
+_IMMUTABLE_FIELDS = {"scheme", "network", "asset", "max_timeout_seconds"}
+_RESERVED_EXTRA_KEYS = {"paymentFlow", "assetTransferMethod"}
+
+
+def validate_scheme_extension(
+    baseline: dict[str, Any], enriched: dict[str, Any], extension_key: str = ""
+) -> str | None:
+    """Validate that a scheme extension only enriches, never weakens. Returns None if OK, error string if violated."""
+    if len(baseline.get("accepts", [])) != len(enriched.get("accepts", [])):
+        return f"extension {extension_key} changed accepts length"
+    for field in _IMMUTABLE_FIELDS:
+        if baseline.get(field) != enriched.get(field):
+            return f"extension {extension_key} modified immutable field: {field}"
+    for key in _RESERVED_EXTRA_KEYS:
+        if key in baseline.get("extra", {}) and key not in enriched.get("extra", {}):
+            return f"extension {extension_key} removed reserved key: {key}"
+    return None
+
+
 # Mutable per-process cache of the resolved attestation key. Lives on the
 # package (not a submodule) so tests that patch
 # ``pry.payments.x402.scheme._attest_key_cache`` keep working after the
@@ -202,5 +221,6 @@ __all__ = [
     "treasury_wallets",
     "usd_per_unit_for",
     "validate_client_amount",
+    "validate_scheme_extension",
     "verify_payment_required_attestation",
 ]
