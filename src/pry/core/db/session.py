@@ -136,35 +136,42 @@ def get_engine() -> Engine:
     if not _HAS_SA:
         raise RuntimeError("sqlalchemy is not installed; pip install 'sqlalchemy>=2.0'")
     if _engine is None:
-        url = _resolve_database_url()
-        connect_args: dict[str, Any] = {}
-        kwargs: dict[str, Any] = {}
-        if url.startswith("sqlite"):
-            connect_args["check_same_thread"] = False
-            if ":memory:" not in url:
-                kwargs["poolclass"] = NullPool
-        else:
-            kwargs["pool_pre_ping"] = True
-            kwargs["pool_recycle"] = 300
-        _engine = create_engine(url, connect_args=connect_args, future=True, echo=False, **kwargs)
-        # Enable foreign keys for SQLite (off by default)
-        if url.startswith("sqlite"):
+        with _engine_lock:
+            if _engine is None:
+                url = _resolve_database_url()
+                connect_args: dict[str, Any] = {}
+                kwargs: dict[str, Any] = {}
+                if url.startswith("sqlite"):
+                    connect_args["check_same_thread"] = False
+                    if ":memory:" not in url:
+                        kwargs["poolclass"] = NullPool
+                else:
+                    kwargs["pool_pre_ping"] = True
+                    kwargs["pool_recycle"] = 300
+                _engine = create_engine(
+                    url, connect_args=connect_args, future=True, echo=False, **kwargs
+                )
+                # Enable foreign keys for SQLite (off by default)
+                if url.startswith("sqlite"):
 
-            @event.listens_for(_engine, "connect")
-            def _enable_sqlite_fk(dbapi_conn: sqlite3.Connection, _conn_record: Any) -> None:
-                cur = dbapi_conn.cursor()
-                cur.execute("PRAGMA foreign_keys=ON")
-                cur.close()
+                    @event.listens_for(_engine, "connect")
+                    def _enable_sqlite_fk(
+                        dbapi_conn: sqlite3.Connection, _conn_record: Any
+                    ) -> None:
+                        cur = dbapi_conn.cursor()
+                        cur.execute("PRAGMA foreign_keys=ON")
+                        cur.close()
 
-        _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
-        # Auto-create tables on first import (idempotent).
-        # Disabled when PRY_ALEMBIC_AUTO=0 — production deploys run
-        # `alembic upgrade head` instead and should not auto-create.
-        if os.environ.get("PRY_ALEMBIC_AUTO", "1") == "1":
-            Base.metadata.create_all(_engine)
-        logger.info(
-            "db_engine_initialized", extra={"url": url.split("@")[-1] if "@" in url else url}
-        )
+                _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
+                # Auto-create tables on first import (idempotent).
+                # Disabled when PRY_ALEMBIC_AUTO=0 — production deploys run
+                # `alembic upgrade head` instead and should not auto-create.
+                if os.environ.get("PRY_ALEMBIC_AUTO", "1") == "1":
+                    Base.metadata.create_all(_engine)
+                logger.info(
+                    "db_engine_initialized",
+                    extra={"url": url.split("@")[-1] if "@" in url else url},
+                )
     return _engine
 
 
