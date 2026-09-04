@@ -76,6 +76,7 @@ class _FakeRouter:
 def test_handler_adopts_db_when_configured(db, monkeypatch) -> None:
     h = X402Handler()
     assert h._use_db is True
+    h._ensure_loaded()
     assert h.payments == []
 
 
