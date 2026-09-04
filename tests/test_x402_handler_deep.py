@@ -33,12 +33,14 @@ class TestConstructorAndLoad:
         payments_file = tmp_path / "payments.jsonl"
         payments_file.write_text("{not json at all")
         handler = X402Handler(payments_file=payments_file)
+        handler._ensure_loaded()
         assert handler.payments == []
 
     def test_load_payments_empty_file(self, tmp_path: Path) -> None:
         payments_file = tmp_path / "payments.jsonl"
         payments_file.write_text("")
         handler = X402Handler(payments_file=payments_file)
+        handler._ensure_loaded()
         assert handler.payments == []
 
     def test_load_payments_valid_entries(self, tmp_path: Path) -> None:
@@ -47,6 +49,7 @@ class TestConstructorAndLoad:
             '{"payment_id": "p1", "verified": true}\n{"payment_id": "p2", "verified": false}\n'
         )
         handler = X402Handler(payments_file=payments_file)
+        handler._ensure_loaded()
         assert len(handler.payments) == 2
         assert handler.payments[0]["payment_id"] == "p1"
 
@@ -223,6 +226,7 @@ class TestIsPaid:
     ) -> None:
         handler = X402Handler(payments_file=tmp_path / "p.jsonl")
         future = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
+        handler._ensure_loaded()
         handler.payments = [
             {
                 "payment_id": "pid",
