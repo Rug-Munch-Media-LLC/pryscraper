@@ -8,6 +8,7 @@ Auto-extracted from api.py during the router-split refactor.
 
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import logging
 import socket
@@ -19,6 +20,10 @@ from fastapi import APIRouter, Body
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Webhooks"])
+
+# Cap concurrent webhook test deliveries: each can hold a worker for up to
+# the delivery timeout (~15s), so unbounded concurrency risks worker exhaustion.
+_webhook_test_sem = asyncio.Semaphore(3)
 
 
 def _validate_webhook_url(url: str) -> str | None:
@@ -71,7 +76,8 @@ async def webhook_test_route(
         return {"success": False, "error": f"URL validation failed: {reason}"}
 
     w = WebhookDelivery()
-    return await w.deliver(url, payload or {"test": True, "timestamp": "now"}, "test.event")
+    async with _webhook_test_sem:
+        return await w.deliver(url, payload or {"test": True, "timestamp": "now"}, "test.event")
 
 
 @router.get(
