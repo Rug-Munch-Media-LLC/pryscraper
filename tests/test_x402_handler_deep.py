@@ -83,7 +83,12 @@ class TestRecordPayment:
         handler._ensure_loaded()
         # Make file a directory -> write fails
         payments_file.mkdir()
-        with caplog.at_level("WARNING"):
+        import logging as _logging
+
+        _handler_logger = _logging.getLogger("pry.payments.x402.handler")
+        _handler_logger.disabled = False
+        _handler_logger.propagate = True
+        with caplog.at_level("WARNING", logger="pry.payments.x402.handler"):
             handler._record_payment({"payment_id": "p1"})
         assert any("x402_payment_record_failed" in r.message for r in caplog.records)
 
@@ -104,7 +109,12 @@ class TestRecordSettlement:
         handler = X402Handler(settlements_file=settlements_file)
         handler._ensure_loaded()
         settlements_file.mkdir()
-        with caplog.at_level("WARNING"):
+        import logging as _logging
+
+        _handler_logger = _logging.getLogger("pry.payments.x402.handler")
+        _handler_logger.disabled = False
+        _handler_logger.propagate = True
+        with caplog.at_level("WARNING", logger="pry.payments.x402.handler"):
             handler._record_settlement({"payment_id": "p1"})
         assert any("x402_settlement_record_failed" in r.message for r in caplog.records)
 
