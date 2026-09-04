@@ -173,8 +173,8 @@ class PaymentAnalytics:
                                 payments.append(p)
                         except (ValueError, TypeError):
                             continue
-        except OSError:
-            pass
+        except OSError as e:
+            logger.warning("analytics_load_failed", extra={"error": str(e)[:160]})
         return payments
 
     def _load_settlements(self, days: int) -> list[dict[str, Any]]:
@@ -198,8 +198,8 @@ class PaymentAnalytics:
                                 settlements.append(s)
                         except (ValueError, TypeError):
                             continue
-        except OSError:
-            pass
+        except OSError as e:
+            logger.warning("analytics_load_failed", extra={"error": str(e)[:160]})
         return settlements
 
 
