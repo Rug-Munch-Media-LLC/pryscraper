@@ -53,8 +53,10 @@ async def _get_pooled_camoufox(config: dict[str, Any]) -> Any:
     if _pooled_camoufox is not None and _pooled_camoufox_config == config:
         return _pooled_camoufox
     if _pooled_camoufox is not None:
-        with contextlib.suppress(Exception):
+        try:
             await _pooled_camoufox.__aexit__(None, None, None)
+        except Exception:
+            logger.debug("browser_cleanup_failed", exc_info=True)
         _pooled_camoufox = None
     _pooled_camoufox = await AsyncCamoufox(**config).__aenter__()
     _pooled_camoufox_config = config
@@ -65,8 +67,10 @@ async def close_browsers() -> None:
     """Close the pooled Camoufox browser (graceful shutdown)."""
     global _pooled_camoufox, _pooled_camoufox_config
     if _pooled_camoufox is not None:
-        with contextlib.suppress(Exception):
+        try:
             await _pooled_camoufox.__aexit__(None, None, None)
+        except Exception:
+            logger.debug("browser_cleanup_failed", exc_info=True)
         _pooled_camoufox = None
         _pooled_camoufox_config = None
 
@@ -187,8 +191,10 @@ class CamoufoxBrowser:
                         page, url, wait_selector, wait_time, cookies, profile_name, start
                     )
                 finally:
-                    with contextlib.suppress(Exception):
+                    try:
                         await page.close()
+                    except Exception:
+                        logger.debug("browser_cleanup_failed", exc_info=True)
             if not proxy:
                 # No proxy: reuse the module-level pooled browser (launched
                 # once) instead of launching a fresh Firefox per request.
@@ -199,8 +205,10 @@ class CamoufoxBrowser:
                         page, url, wait_selector, wait_time, cookies, profile_name, start
                     )
                 finally:
-                    with contextlib.suppress(Exception):
+                    try:
                         await page.close()
+                    except Exception:
+                        logger.debug("browser_cleanup_failed", exc_info=True)
             async with AsyncCamoufox(**config) as browser:
                 page = await browser.new_page()
                 try:
@@ -208,9 +216,11 @@ class CamoufoxBrowser:
                         page, url, wait_selector, wait_time, cookies, profile_name, start
                     )
                 finally:
-                    with contextlib.suppress(Exception):
+                    try:
                         await page.close()
-        except Exception as e:  # noqa: BLE001
+                    except Exception:
+                        logger.debug("browser_cleanup_failed", exc_info=True)
+        except Exception as e:
             return {"success": False, "error": str(e)[:300], "url": url}
 
     async def _fetch_page(
@@ -284,7 +294,7 @@ class CamoufoxBrowser:
                     content = await page.content()
                     result["content"] = content
                     result["raw_html"] = content
-            except Exception:  # noqa: BLE001, S110 - fallback: return whatever partial result exists
+            except Exception:  # noqa: S110 - fallback: return whatever partial result exists
                 pass
         return result
 

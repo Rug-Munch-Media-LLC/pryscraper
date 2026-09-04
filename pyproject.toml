@@ -232,6 +232,10 @@ extend-ignore = ["N815", "A002", "RUF006"]
 # out of ultimate_scraper into the process-level singleton pool.
 "src/pry/engine/browser_pool.py" = ["BLE001"]
 "src/pry/engine/scraping_methods.py" = ["BLE001"]
+# camoufox_integration.py: intentional blind-except browser cleanup handlers
+# (page.close / pooled __aexit__) log at debug with exc_info and must never
+# raise into the scrape loop, so zombie browsers are surfaced not swallowed.
+"src/pry/engine/camoufox_integration.py" = ["BLE001"]
 "src/pry/api/capabilities.py" = ["BLE001"]
 # Scraper fallback paths: any failure (network, parse, decode) must be
 # swallowed + logged at debug so the scrape loop degrades instead of raising.
