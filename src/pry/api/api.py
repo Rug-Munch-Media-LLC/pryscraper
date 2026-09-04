@@ -474,15 +474,17 @@ def add_error_handlers(app: FastAPI) -> None:
             "Service Unavailable": 503,
         }
         title = {v: k for k, v in titles.items()}.get(status, "Error")
+        detail = exc.detail if isinstance(exc.detail, str) else "Bad Request"
         return JSONResponse(
             status_code=status,
+            media_type="application/problem+json",
             content={
                 "type": "/errors/" + title.lower().replace(" ", "-")
                 if status != 500
                 else "about:blank",
                 "title": title,
                 "status": status,
-                "detail": exc.detail if isinstance(exc.detail, str) else str(exc.detail),
+                "detail": detail,
                 "request_id": req_id,
                 "instance": str(request.url),
                 "timestamp": datetime.now(UTC).isoformat(),
@@ -497,6 +499,7 @@ def add_error_handlers(app: FastAPI) -> None:
 
         return JSONResponse(
             status_code=500,
+            media_type="application/problem+json",
             content={
                 "type": "about:blank",
                 "title": "Internal Server Error",
