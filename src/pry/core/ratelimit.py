@@ -18,8 +18,9 @@ Two backends behind one interface:
 # Licensed under MIT. See LICENSE.
 
 import logging
+import threading
 import time
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -214,3 +215,35 @@ class RateLimiter:
             "default_rpm": self.default_rpm,
             "burst": self.burst,
         }
+
+
+class DualWindowLimiter:
+    """Per-token rate limiter with independent minute and day quotas."""
+
+    def __init__(self, per_minute: int = 60, per_day: int = 10000):
+        self._minute_windows: dict[str, deque] = {}
+        self._day_windows: dict[str, deque] = {}
+        self._lock = threading.Lock()
+        self.per_minute = per_minute
+        self.per_day = per_day
+
+    def allow(self, token: str) -> tuple[bool, dict]:
+        import time
+
+        now = time.time()
+        with self._lock:
+            minute = self._minute_windows.setdefault(token, deque())
+            day = self._day_windows.setdefault(token, deque())
+            while minute and now - minute[0] > 60:
+                minute.popleft()
+            while day and now - day[0] > 86400:
+                day.popleft()
+            minute_ok = len(minute) < self.per_minute
+            day_ok = len(day) < self.per_day
+            if minute_ok and day_ok:
+                minute.append(now)
+                day.append(now)
+            return minute_ok and day_ok, {
+                "X-RateLimit-Remaining-Minute": str(max(0, self.per_minute - len(minute))),
+                "X-RateLimit-Remaining-Day": str(max(0, self.per_day - len(day))),
+            }
