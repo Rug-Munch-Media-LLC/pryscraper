@@ -62,37 +62,24 @@ def test_rate_limiter_get_stats_shape() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _FakePipeline:
-    def __init__(self, store: dict, key: str, fail: bool = False) -> None:
+class _FakeScript:
+    """Mimics a registered Lua script: atomic INCR + EXPIRE-on-first."""
+
+    def __init__(self, store: dict, fail: bool = False) -> None:
         self._store = store
-        self._key = key
         self._fail = fail
-        self._ops: list[tuple[str, tuple]] = []
 
-    def incr(self, key: str, amount: int = 1):
-        self._ops.append(("incr", (key, amount)))
-        return self
-
-    def ttl(self, key: str):
-        self._ops.append(("ttl", (key,)))
-        return self
-
-    def execute(self) -> list:
+    def __call__(self, keys=None, args=None):
         if self._fail:
-            raise ConnectionError("redis down mid-pipeline")
-        results = []
-        for op, args in self._ops:
-            if op == "incr":
-                key, amount = args
-                self._store[key] = self._store.get(key, 0) + amount
-                results.append(self._store[key])
-            elif op == "ttl":
-                results.append(60)  # pretend key always has TTL
-        return results
+            raise ConnectionError("redis down mid-script")
+        key = keys[0]
+        count = self._store.get(key, 0) + 1
+        self._store[key] = count
+        return count
 
 
 class _FakeRedis:
-    """Minimal redis double: pipeline INCR/TTL + EXPIRE + PING."""
+    """Minimal redis double: register_script (atomic INCR+EXPIRE) + PING."""
 
     def __init__(self) -> None:
         self.store: dict[str, int] = {}
@@ -103,33 +90,8 @@ class _FakeRedis:
             raise ConnectionError("redis down")
         return True
 
-    def pipeline(self):
-        # last key used is tracked via incr calls; simple single-key pipe
-        return _FakePipeProxy(self)
-
-    def expire(self, key: str, seconds: int) -> bool:
-        return True
-
-
-class _FakePipeProxy:
-    """Routes pipeline() to a per-call pipeline bound on first incr."""
-
-    def __init__(self, client: _FakeRedis) -> None:
-        self._client = client
-        self._inner: _FakePipeline | None = None
-
-    def incr(self, key: str, amount: int = 1):
-        if self._inner is None:
-            self._inner = _FakePipeline(self._client.store, key, fail=self._client.fail)
-        return self._inner.incr(key, amount)
-
-    def ttl(self, key: str):
-        assert self._inner is not None
-        return self._inner.ttl(key)
-
-    def execute(self) -> list:
-        assert self._inner is not None
-        return self._inner.execute()
+    def register_script(self, script: str):
+        return _FakeScript(self.store, fail=self.fail)
 
 
 def test_redis_backend_shared_counter_limits_across_instances() -> None:

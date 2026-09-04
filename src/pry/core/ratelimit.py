@@ -26,6 +26,17 @@ logger = logging.getLogger(__name__)
 
 _REDIS_RETRY_SECONDS = 30.0
 
+# Atomically INCR a key and set its TTL only on first increment. This avoids
+# the non-atomic INCR-then-EXPIRE race where a process dying between the two
+# leaves a rate-limit key with no TTL that lives forever.
+_INCR_EXPIRE_LUA = """
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+    redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return count
+"""
+
 
 class RateLimiter:
     """Token-bucket (memory) / fixed-window (Redis) rate limiter per IP.
@@ -50,6 +61,8 @@ class RateLimiter:
         self._redis: Any = None
         self._redis_failed_at = 0.0
         self.backend = "memory"
+        # Lua script registered lazily once a Redis client exists.
+        self._incr_expire: Any = None
 
     # ── Redis backend ────────────────────────────────────────────────────────
 
@@ -93,14 +106,9 @@ class RateLimiter:
         try:
             window = int(time.time()) // 60
             key = f"pry:rl:{ip}:{window}"
-            pipe = client.pipeline()
-            pipe.incr(key)
-            pipe.ttl(key)
-            count, ttl = pipe.execute()
-            if int(ttl) < 0:
-                client.expire(key, 60)
-                ttl = 60
-            count = int(count)
+            if self._incr_expire is None:
+                self._incr_expire = client.register_script(_INCR_EXPIRE_LUA)
+            count = int(self._incr_expire(keys=[key], args=[60]))
             allowed = count <= rate
             stats: dict[str, Any] = {
                 "remaining": max(0, rate - count),
@@ -109,7 +117,7 @@ class RateLimiter:
                 "window_reset": int((window + 1) * 60),
             }
             if not allowed:
-                stats["retry_after"] = float(max(1, int(ttl)))
+                stats["retry_after"] = float(max(1, 60))
             return allowed, stats
         except Exception as e:  # noqa: BLE001 — same availability rule mid-flight
             # Backend broke mid-flight: drop the connection, cool down, fall
