@@ -330,7 +330,10 @@ class TestDatabaseProfileResolution:
         monkeypatch.delenv("PRY_DATABASE_URL", raising=False)
         monkeypatch.setenv("PRY_ENVIRONMENT", "prod")
         monkeypatch.setenv("PRY_ALLOW_SQLITE_PROD", "1")
-        with caplog.at_level(logging.WARNING, logger="db.session"):
+        _session_logger = logging.getLogger("pry.core.db.session")
+        _session_logger.disabled = False
+        _session_logger.propagate = True
+        with caplog.at_level(logging.WARNING, logger="pry.core.db.session"):
             url = self._resolve(monkeypatch)
         assert url.startswith("sqlite:///")
         assert any(r.message == "sqlite_in_production_allowed" for r in caplog.records)
