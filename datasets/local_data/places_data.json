@@ -1,0 +1,55 @@
+{
+	"business_types": [
+		"LocalBusiness",
+		"Restaurant",
+		"CafeOrCoffeeShop",
+		"TouristAttraction",
+		"Place",
+		"Store",
+		"BarOrPub",
+		"FoodEstablishment",
+		"LodgingBusiness",
+		"BeautySalon",
+		"HealthClub",
+		"AutomotiveBusiness",
+		"ShoppingCenter",
+		"NightClub",
+		"Bakery",
+		"Dentist",
+		"Doctor",
+		"Hospital",
+		"School",
+		"Library",
+		"Museum",
+		"Park",
+		"MovieTheater",
+		"BowlingAlley"
+	],
+	"day_names": [
+		"Sunday",
+		"Monday",
+		"Tuesday",
+		"Wednesday",
+		"Thursday",
+		"Friday",
+		"Saturday"
+	],
+	"short_day": {
+		"Monday": "Mon",
+		"Tuesday": "Tue",
+		"Wednesday": "Wed",
+		"Thursday": "Thu",
+		"Friday": "Fri",
+		"Saturday": "Sat",
+		"Sunday": "Sun"
+	},
+	"anti_bot_signals": [
+		"unusual traffic",
+		"are you a robot",
+		"enable javascript",
+		"not a robot",
+		"recaptcha",
+		"captcha",
+		"consent.google.com"
+	]
+}
