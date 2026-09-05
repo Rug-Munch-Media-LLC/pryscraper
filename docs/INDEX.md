@@ -6,7 +6,7 @@ CODE_OF_CONDUCT, AGENTS (agent contract), RADICLE (P2P mirror), SKILL.
 ## Strategy (`docs/strategy/`)
 | Doc | What it covers |
 |---|---|
-| ACTOR-FACTORY.md | How the 79-Actor factory works end to end |
+| ACTOR-FACTORY.md | How the 112-Actor factory works end to end |
 | ACTOR-STANDARDS.md | Store-readiness rules every Actor must pass |
 | ACTOR-STORE-STRATEGY.md | Apify launch + growth plan |
 | LICENSING_PRICING_STRATEGY.md | Dual-license + PPE tier rationale |
@@ -26,7 +26,10 @@ CODE_OF_CONDUCT, AGENTS (agent contract), RADICLE (P2P mirror), SKILL.
 | Doc | What it covers |
 |---|---|
 | ARCHITECTURE.md | System architecture (components, 15-tier engine, middleware order, data flow) |
-| TOOLS-CATALOG.md | Full 76-tool / 33-category breakdown with per-category pricing |
+| TOOLS-CATALOG.md | Full 104-tool / 35+-category breakdown with per-category pricing |
+| SITE-MAPPING.md | Site mapping, crawl-to-markdown, and RAG crawl workflows |
+| CONTENT-FILTERING.md | Content filtering, main-content extraction, RAG chunking |
+| SPORTS-BETTING-INTELLIGENCE.md | Sharp money, live analytics, player intelligence, game context |
 | API-REFERENCE.md | REST + MCP endpoint surface, x402 payment-gated flow |
 | PAYMENTS.md | x402 model, 7-chain treasuries, packs vs subscription, security |
 | DEPLOYMENT.md | Deploy + operations (env var reference, scaling, self-host vs cloud) |

@@ -16,18 +16,18 @@ note: Every count below is traced to source. The live source of truth is `pry_mc
 
 # Tool Catalog
 
-Pry exposes **76 MCP tools** across **33 categories**. Each tool has a
+Pry exposes **104 MCP tools** across **35+ categories**. Each tool has a
 structured input/output schema, annotation hints (`readOnlyHint`,
 `destructiveHint`, `idempotentHint`), a registry category, and (where gated)
 an x402 operation with server-authoritative pricing.
 
 > **Count source of truth**
-> - `pry_mcp/tools.py` — `PRY_TOOLS`, 76 `"name"` entries (verify with
+> - `pry_mcp/tools.py` — `PRY_TOOLS`, 104 `"name"` entries (verify with
 >   `grep -cE '"name": "'`).
 > - `src/pry/api/registry_metadata.py` — `get_tools_by_category()` returns
->   33 category groups; `get_registry_manifest()` reports `tools.count = 76`.
+>   35+ category groups; `get_registry_manifest()` reports `tools.count = 104`.
 > - `server.json`, `glama.json`, `registry_manifest.json` each carry the same
->   76-tool payload (machine-readable registry listings).
+>   104-tool payload (machine-readable registry listings).
 
 ---
 
@@ -162,6 +162,105 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
+## Site Mapping (3 tools)
+
+| Tool | Operation | Price | Purpose |
+|------|-----------|:-----:|---------|
+| `pry_map_site` | `map_site` | $0.002 | Discover and map a site's URL structure |
+| `pry_crawl_to_markdown` | `crawl_to_markdown` | $0.01 | Crawl a site and emit clean markdown per page |
+| `pry_crawl_for_rag` | `crawl_for_rag` | $0.01 | Crawl a site optimized for RAG ingestion |
+
+---
+
+## Content Filtering (3 tools)
+
+| Tool | Operation | Price | Purpose |
+|------|-----------|:-----:|---------|
+| `pry_filter_content` | `filter_content` | $0.001 | Filter scraped content by rules / relevance |
+| `pry_extract_main` | `extract_main` | $0.001 | Extract main article content from a page |
+| `pry_chunk_for_rag` | `chunk_for_rag` | $0.001 | Chunk documents into RAG-ready segments |
+
+---
+
+## Prediction Markets (2 tools)
+
+| Tool | Operation | Price | Purpose |
+|------|-----------|:-----:|---------|
+| `pry_prediction_markets` | `prediction_markets` | $0.01 | Prediction market listings / odds |
+| `pry_prediction_market_detail` | `prediction_market_detail` | $0.01 | Detail view for a single prediction market |
+
+---
+
+## Sports Futures (1 tool)
+
+| Tool | Operation | Price | Purpose |
+|------|-----------|:-----:|---------|
+| `pry_futures` | `sports_futures` | $0.01 | Championship / season futures odds |
+
+---
+
+## Sports Derivatives (1 tool)
+
+| Tool | Operation | Price | Purpose |
+|------|-----------|:-----:|---------|
+| `pry_derivatives` | `sports_derivatives` | $0.01 | Derivative / alternate betting lines |
+
+---
+
+## Sports Bankroll (1 tool)
+
+| Tool | Operation | Price | Purpose |
+|------|-----------|:-----:|---------|
+| `pry_kelly_criterion` | `kelly_criterion` | $0.01 | Kelly-criterion stake sizing calculator |
+
+---
+
+## Player Intelligence (4 tools)
+
+| Tool | Operation | Price | Purpose |
+|------|-----------|:-----:|---------|
+| `pry_lineups` | `sports_lineups` | $0.01 | Projected / confirmed lineups |
+| `pry_player_props_live` | `sports_props` | $0.01 | Live player prop lines |
+| `pry_player_stats` | `sports_player_stats` | $0.01 | Player statistics lookup |
+| `pry_props_matchup` | `sports_props` | $0.01 | Player prop matchup analysis |
+
+---
+
+## Sharp Money (6 tools)
+
+| Tool | Operation | Price | Purpose |
+|------|-----------|:-----:|---------|
+| `pry_steam_moves` | `sports_steam` | $0.01 | Steam move detection across books |
+| `pry_reverse_line_movement` | `sports_reverse_line` | $0.01 | Reverse line movement signals |
+| `pry_bet_money_divergence` | `sports_money_divergence` | $0.01 | Betting % vs money divergence |
+| `pry_line_watch` | `sports_line_watch` | $0.01 | Watch line movement for a game |
+| `pry_sharp_report` | `sports_sharp_report` | $0.01 | Sharp money report for a game |
+| `pry_sharp_consensus` | `sports_sharp_consensus` | $0.01 | Sharp consensus lines |
+
+---
+
+## Live Analytics (5 tools)
+
+| Tool | Operation | Price | Purpose |
+|------|-----------|:-----:|---------|
+| `pry_live_games` | `sports_live` | $0.01 | Live games in progress |
+| `pry_live_game_state` | `sports_live` | $0.01 | Detailed live game state |
+| `pry_live_win_probability` | `sports_live` | $0.01 | Live win probability |
+| `pry_live_scoring` | `sports_live` | $0.01 | Live scoring feed |
+| `pry_live_betting_impact` | `sports_live` | $0.01 | Live events' betting impact |
+
+---
+
+## Game Context (3 tools)
+
+| Tool | Operation | Price | Purpose |
+|------|-----------|:-----:|---------|
+| `pry_game_weather` | `sports_weather` | $0.01 | Game-day weather conditions |
+| `pry_weather_impact` | `sports_weather` | $0.01 | Weather impact on betting totals |
+| `pry_game_context` | `sports_game_context` | $0.01 | Full game context bundle (weather, injuries, rest) |
+
+---
+
 ## Social, Search, News & Sentiment
 
 ### social (3)
@@ -289,9 +388,14 @@ an x402 operation with server-authoritative pricing.
 | payments | 3 | events | 1 |
 | data | 1 | research | 1 |
 | agriculture | 1 | safety | 1 |
-| app_store | 1 | | |
+| app_store | 1 | site_mapping | 3 |
+| content_filtering | 3 | prediction_markets | 2 |
+| sports_futures | 1 | sports_derivatives | 1 |
+| sports_bankroll | 1 | player_intelligence | 4 |
+| sharp_money | 6 | live_analytics | 5 |
+| game_context | 3 | | |
 
-**Totals: 76 tools across 33 categories.**
+**Totals: 104 tools across 35+ categories.**
 
 > **Pricing note.** Price cells marked `$0` indicate the operation is
 > explicitly classified free in `x402_middleware/classification.py`

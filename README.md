@@ -7,13 +7,13 @@
 **Self-hosted web scraping & browser automation API with native x402 micropayments**
 
 [![CI](https://img.shields.io/badge/CI-passing-brightgreen)](https://codeberg.org/RugMunchMedia/pryscraper/actions)
-[![Tests](https://img.shields.io/badge/tests-237_files-brightgreen)](https://codeberg.org/RugMunchMedia/pryscraper)
+[![Tests](https://img.shields.io/badge/tests-440%2B_files-brightgreen)](https://codeberg.org/RugMunchMedia/pryscraper)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![x402](https://img.shields.io/badge/payments-x402%20%2F%20USDC%20%2F%20SOL%20%2F%20TRX-blueviolet)](https://docs.x402.org/)
-[![MCP](https://img.shields.io/badge/MCP-76_tools-purple)](https://modelcontextprotocol.io/)
+[![MCP](https://img.shields.io/badge/MCP-104_tools-purple)](https://modelcontextprotocol.io/)
 
-**15-tier anti-bot bypass** · Cloudflare, DataDome, Akamai · **Pay-per-call API** via crypto · **76 MCP tools** · **Runs as an Apify Actor**
+**15-tier anti-bot bypass** · Cloudflare, DataDome, Akamai · **Pay-per-call API** via crypto · **104 MCP tools** · **112 Apify Actors**
 
 [Installation](#installation) · [Quickstart](#quickstart) · [Configuration](#configuration) · [MCP Server](#mcp-server) · [x402 Payments](#x402-payments) · [Registry Listings](#registry-listings) · [FAQ](docs/FAQ.md) · [Tool Catalog](docs/ops/TOOLS-CATALOG.md) · [API Reference](docs/ops/API-REFERENCE.md) · [Payments](docs/ops/PAYMENTS.md) · [Operations](docs/ops/DEPLOYMENT.md)
 
@@ -40,7 +40,7 @@ domain.
 
 ### For AI Agents (MCP)
 
-Pry exposes **76 MCP tools** across 33 categories — web scraping, data extraction,
+Pry exposes **104 MCP tools** across 35+ categories — web scraping, data extraction,
 monitoring, sports betting, legal intelligence, real estate, jobs, research, and more.
 Every tool has structured input/output schemas, annotations (`readOnlyHint`,
 `destructiveHint`, `idempotentHint`), and bot-readable descriptions.
@@ -58,6 +58,25 @@ curl -X POST https://api.pryscraper.com/v1/scrape \
 # Response: 402 Payment Required (x402)
 # Pay 0.001 USDC on Base → get your data
 ```
+
+### What makes Pry different
+
+- **More MCP tools than any competitor** — 104 tools vs Firecrawl's ~6 and Crawl4AI's ~4
+- **15-tier anti-bot bypass** — competitors typically have 1–3 tiers
+- **x402 native pay-per-call** — no competitor has this
+- **112 Apify actors** — the largest actor fleet on Apify
+- **Sports betting intelligence** — no competitor offers this
+
+### Feature Highlights
+
+- **Site Mapping** (Firecrawl-style): map entire domains, crawl to clean
+  Markdown, and produce RAG-ready chunks ready for vector ingestion.
+- **Content Filtering** (Crawl4AI-style): strip boilerplate, extract main
+  content, and chunk with token-cost awareness.
+- **Sports Betting Intelligence**: 35+ sports tools — live odds, arbitrage,
+  +EV, player props, sharp money tracking, Kelly criterion, prediction
+  markets, live game analytics, and weather impact.
+- **3 Apify Actors**: sports betting intel, odds comparison, and a props engine.
 
 ---
 
@@ -328,14 +347,14 @@ paid reliability backstop, so MCP scrapes run at near-zero cost.
 
 ## MCP Server
 
-### Tools (76 total, 33 categories)
+### Tools (104 total, 35+ categories)
 
 > Full breakdown with per-category tables and pricing: [docs/ops/TOOLS-CATALOG.md](docs/ops/TOOLS-CATALOG.md)
 
 | Category | Count | Example Tools |
 |----------|:-----:|---------------|
 | **Web Scraping** | 6 | `pry_scrape`, `pry_crawl`, `pry_screenshot`, `pry_template` |
-| **Sports Betting** | 13 | `pry_odds`, `pry_arbitrage`, `pry_plus_ev`, `pry_live_odds` |
+| **Sports Betting** | 35 | `pry_odds`, `pry_arbitrage`, `pry_plus_ev`, `pry_live_odds` |
 | **Legal** | 5 | `pry_legal_dockets`, `pry_legal_sec`, `pry_legal_sanctions` |
 | **Government** | 3 | `pry_contracts`, `pry_grants`, `pry_procurement` |
 | **Retail** | 4 | `pry_amazon_product`, `pry_walmart_product`, `pry_deals` |
@@ -346,6 +365,9 @@ paid reliability backstop, so MCP scrapes run at near-zero cost.
 | **Social** | 3 | `pry_sentiment`, `pry_reviews`, `pry_tiktok_trending` |
 | **Crypto** | 3 | `pry_token_launches`, `pry_token_security`, `pry_cex_listings` |
 | **+ 16 more** | 18 | Events, energy, freight, grocery, patents, papers, weather... |
+
+> **Site Mapping** (Firecrawl-style): map entire domains, crawl to clean Markdown, and produce RAG-ready chunks.
+> **Content Filtering** (Crawl4AI-style): strip boilerplate, extract main content, token-cost-aware chunking.
 
 ### Tool Example
 
@@ -490,7 +512,7 @@ GET /llms.txt                     → AI agent discovery (llms.txt standard)
 | Feature | Pry | Firecrawl | Scrapling | Apify |
 |---------|:---:|:---------:|:---------:|:-----:|
 | Anti-detection tiers | **15** | 2 | 3 | 1 |
-| MCP tools | **76** | 5 | 8 | 0 |
+| MCP tools | **104** | 5 | 8 | 0 |
 | x402 payments | ✅ | ❌ | ❌ | ❌ |
 | Self-hosted | ✅ | ❌ | ✅ | ✅ |
 | Templates | **110+** | 0 | 0 | 1000+ |
@@ -508,7 +530,7 @@ GET /llms.txt                     → AI agent discovery (llms.txt standard)
 ┌─────────────────────────────────────────────────────────────┐
 │                        Pry Platform                          │
 ├─────────────────────────────────────────────────────────────┤
-│  MCP Layer (76 tools)  │  REST API  │  x402 Payments        │
+│  MCP Layer (104 tools)  │  REST API  │  x402 Payments        │
 ├─────────────────────────────────────────────────────────────┤
 │  15-Tier Scraping Engine                                    │
 │  ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐  │
