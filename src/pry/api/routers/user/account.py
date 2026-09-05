@@ -168,8 +168,8 @@ async def get_billing_history(request: Request) -> dict[str, Any]:
     """Payments made by the authenticated user.
 
     Combines prepaid ledger credits (deposits / packs / grants) with
-    x402 on-chain settlements whose payment_id was credited to the
-    caller's ledger.
+    x402 on-chain settlements attributed to the caller via
+    ``X402SettlementRecord.user_id``.
     """
     user_id = _request_user_id(request)
     with get_session() as session:
@@ -184,12 +184,12 @@ async def get_billing_history(request: Request) -> dict[str, Any]:
         )
         settlement_rows = (
             session.query(models_billing.X402SettlementRecord)
+            .filter(models_billing.X402SettlementRecord.user_id == user_id)
             .order_by(models_billing.X402SettlementRecord.created_at.desc())
             .limit(500)
             .all()
         )
 
-    credited_refs = {str(r.reference) for r in ledger_rows if r.reference}
     transactions: list[dict[str, Any]] = []
     total_spent = 0.0
 
@@ -214,8 +214,6 @@ async def get_billing_history(request: Request) -> dict[str, Any]:
             total_spent += abs(float(r.delta_usd))
 
     for s in settlement_rows:
-        if str(s.payment_id) not in credited_refs:
-            continue
         transactions.append(
             {
                 "id": f"x402:{s.id}",

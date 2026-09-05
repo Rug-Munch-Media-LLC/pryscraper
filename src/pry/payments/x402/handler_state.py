@@ -144,6 +144,17 @@ class StateMixin:
         self._load_payments()
         self._loaded = True
 
+    def _payment_caller_key(self, payment_id: str) -> str:
+        """Caller key (API key → user) recorded on the payment, if known."""
+        pid = str(payment_id or "").strip()
+        if not pid:
+            return ""
+        self._ensure_loaded()
+        for p in reversed(self.payments):
+            if str(p.get("payment_id") or "") == pid:
+                return str(p.get("caller_key") or "")
+        return ""
+
     def _record_settlement(self, settlement: dict[str, Any]) -> None:
         """Persist a settlement: DB (source of truth) + JSONL (audit trail).
 
@@ -151,6 +162,11 @@ class StateMixin:
         concurrent duplicate returns the existing receipt instead of writing
         a second row. Callers index the success path themselves.
         """
+        # Customer attribution: inherit the caller_key from the payment record
+        # so the settlement row can be queried by user_id directly.
+        settlement.setdefault(
+            "user_id", self._payment_caller_key(str(settlement.get("payment_id") or ""))
+        )
         if self._use_db:
             try:
                 from pry.payments.x402.ledger_store import record_settlement

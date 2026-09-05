@@ -93,6 +93,7 @@ def record_payment(record: dict[str, Any]) -> None:
         row.expires_at = _parse_dt(record.get("expires_at"))
         row.facilitator = str(record.get("facilitator", ""))  # type: ignore[assignment]
         row.caller_key = str(record.get("caller_key", ""))  # type: ignore[assignment]
+        row.user_id = str(record.get("user_id") or record.get("caller_key", ""))  # type: ignore[assignment]
         row.reason = str(record.get("reason", ""))  # type: ignore[assignment]
         row.record = dict(record)  # type: ignore[assignment]
 
@@ -149,6 +150,7 @@ def record_settlement(receipt: dict[str, Any], settle_key: str) -> dict[str, Any
                 X402SettlementRecord(
                     settlement_key=settle_key,
                     payment_id=str(receipt.get("payment_id", "")),
+                    user_id=str(receipt.get("user_id", "")),
                     tx_hash=str(receipt.get("tx_hash") or receipt.get("transaction") or ""),
                     network=str(receipt.get("network", "")),
                     asset=str(receipt.get("asset", "")),

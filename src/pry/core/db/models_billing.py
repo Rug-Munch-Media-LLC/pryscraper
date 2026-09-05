@@ -211,6 +211,8 @@ if Base is not None:
         expires_at = Column(DateTime, nullable=True, index=True)
         facilitator = Column(String(64), default="")
         caller_key = Column(String(128), default="")
+        # Customer attribution (indexed for user queries; caller_key is not).
+        user_id = Column(String(128), index=True, default="")
         reason = Column(Text, default="")
         record = Column(JSON, default=dict)  # full original record (lossless)
         created_at = Column(DateTime, default=_now, nullable=False, index=True)
@@ -222,6 +224,10 @@ if Base is not None:
             String(256), unique=True, index=True, nullable=False
         )  # tx:{network}:{tx_hash} | pid:{payment_id}
         payment_id = Column(String(128), index=True, nullable=False)
+        # Customer attribution: the caller_key (API key) that maps to a user.
+        # Migration: ALTER TABLE x402_settlement_records ADD COLUMN user_id VARCHAR(128) DEFAULT ''
+        #            CREATE INDEX idx_x402_settlement_user_id ON x402_settlement_records(user_id)
+        user_id = Column(String(128), index=True, default="")
         tx_hash = Column(String(80), index=True, default="")
         network = Column(String(64), default="")
         asset = Column(String(32), default="")
