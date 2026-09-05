@@ -1,0 +1,172 @@
+{
+	"_comment": "Static player-props tables for datasets/sports_data/props*.py (data, not code).",
+	"market_aliases": {
+		"points": "player_points",
+		"rebounds": "player_rebounds",
+		"assists": "player_assists",
+		"threes": "player_3pt_made",
+		"3pt": "player_3pt_made",
+		"3pm": "player_3pt_made",
+		"blocks": "player_blocks",
+		"steals": "player_steals",
+		"turnovers": "player_turnovers",
+		"pass_yds": "player_pass_yds",
+		"passing_yards": "player_pass_yds",
+		"pass_tds": "player_pass_tds",
+		"passing_tds": "player_pass_tds",
+		"rush_yds": "player_rush_yds",
+		"rushing_yards": "player_rush_yds",
+		"rush_attempts": "player_rush_attempts",
+		"recv_yds": "player_recv_yds",
+		"receiving_yards": "player_recv_yds",
+		"receptions": "player_receptions",
+		"anytime_td": "player_anytime_td",
+		"anytime_touchdown": "player_anytime_td",
+		"first_td": "player_first_td",
+		"home_runs": "player_home_runs",
+		"hits": "player_hits",
+		"rbis": "player_rbis",
+		"total_bases": "player_total_bases",
+		"strikeouts": "player_strikeouts",
+		"shots_on_goal": "player_shots_on_goal",
+		"shots_on_target": "player_shots_on_target",
+		"tackles": "player_tackles",
+		"saves": "player_saves",
+		"anytime_goal": "player_anytime_goal",
+		"sacks": "player_sacks",
+		"kills": "player_kills",
+		"aces": "player_aces",
+		"double_double": "player_double_double",
+		"dd": "player_double_double",
+		"triple_double": "player_triple_double",
+		"pra": "player_pra",
+		"points_rebounds_assists": "player_pra",
+		"recv_tds": "player_recv_tds",
+		"receiving_tds": "player_recv_tds",
+		"rush_tds": "player_rush_tds",
+		"rushing_tds": "player_rush_tds",
+		"interceptions": "player_interceptions",
+		"ints": "player_interceptions",
+		"solo_tackles": "player_solo_tackles",
+		"goals": "player_anytime_goal",
+		"goalscorer": "player_anytime_goal",
+		"clean_sheets": "player_clean_sheets"
+	},
+	"prop_labels": {
+		"player_points": "Player Points",
+		"player_rebounds": "Player Rebounds",
+		"player_assists": "Player Assists",
+		"player_3pt_made": "Made Threes",
+		"player_blocks": "Player Blocks",
+		"player_steals": "Player Steals",
+		"player_turnovers": "Player Turnovers",
+		"player_pass_yds": "Passing Yards",
+		"player_pass_tds": "Passing Touchdowns",
+		"player_rush_yds": "Rushing Yards",
+		"player_rush_attempts": "Rushing Attempts",
+		"player_recv_yds": "Receiving Yards",
+		"player_receptions": "Receptions",
+		"player_anytime_td": "Anytime Touchdown",
+		"player_first_td": "First Touchdown",
+		"player_home_runs": "Home Runs",
+		"player_hits": "Hits",
+		"player_rbis": "RBIs",
+		"player_total_bases": "Total Bases",
+		"player_strikeouts": "Strikeouts",
+		"player_shots_on_goal": "Shots on Goal",
+		"player_shots_on_target": "Shots on Target",
+		"player_tackles": "Tackles",
+		"player_saves": "Saves",
+		"player_anytime_goal": "Anytime Goal",
+		"player_sacks": "Sacks",
+		"player_kills": "Kills",
+		"player_aces": "Aces",
+		"player_double_double": "Double-Double",
+		"player_triple_double": "Triple-Double",
+		"player_pra": "Points + Rebounds + Assists",
+		"player_recv_tds": "Receiving Touchdowns",
+		"player_rush_tds": "Rushing Touchdowns",
+		"player_interceptions": "Interceptions",
+		"player_solo_tackles": "Solo Tackles",
+		"player_clean_sheets": "Clean Sheets"
+	},
+	"prop_markets": {
+		"nba": [
+			"player_points",
+			"player_rebounds",
+			"player_assists",
+			"player_3pt_made"
+		],
+		"nfl": [
+			"player_pass_yds",
+			"player_rush_yds",
+			"player_recv_yds",
+			"player_anytime_td"
+		],
+		"mlb": [
+			"player_home_runs",
+			"player_hits",
+			"player_rbis",
+			"player_total_bases"
+		],
+		"nhl": [
+			"player_points",
+			"player_shots_on_goal",
+			"player_assists",
+			"player_saves"
+		],
+		"epl": [
+			"player_anytime_goal",
+			"player_shots_on_target",
+			"player_assists",
+			"player_tackles"
+		],
+		"ncaab": ["player_points", "player_rebounds", "player_assists"],
+		"ncaaf": [
+			"player_pass_yds",
+			"player_rush_yds",
+			"player_recv_yds",
+			"player_anytime_td"
+		],
+		"wnba": ["player_points", "player_rebounds", "player_assists"],
+		"cfl": ["player_pass_yds", "player_rush_yds", "player_recv_yds"],
+		"ufc": []
+	},
+	"estimate_rules": {
+		"nba": [
+			["Points Per Game", "player_points"],
+			["Rebounds Per Game", "player_rebounds"],
+			["Assists Per Game", "player_assists"]
+		],
+		"nfl": [
+			["Passing Yards Per Game", "player_pass_yds"],
+			["Rushing Yards Per Game", "player_rush_yds"],
+			["Receiving Yards Per Game", "player_recv_yds"],
+			["Sacks", "player_sacks"]
+		],
+		"mlb": [
+			["Home Runs", "player_home_runs"],
+			["RBIs", "player_rbis"],
+			["Strikeouts", "player_strikeouts"]
+		],
+		"nhl": [
+			["Points Per Game", "player_points"],
+			["Assists Per Game", "player_assists"],
+			["Shots On Goal Per Game", "player_shots_on_goal"]
+		],
+		"ncaab": [
+			["Points Per Game", "player_points"],
+			["Rebounds Per Game", "player_rebounds"]
+		],
+		"ncaaf": [
+			["Passing Yards Per Game", "player_pass_yds"],
+			["Rushing Yards Per Game", "player_rush_yds"],
+			["Receiving Yards Per Game", "player_recv_yds"],
+			["Sacks", "player_sacks"]
+		],
+		"wnba": [
+			["Points Per Game", "player_points"],
+			["Rebounds Per Game", "player_rebounds"]
+		]
+	}
+}
