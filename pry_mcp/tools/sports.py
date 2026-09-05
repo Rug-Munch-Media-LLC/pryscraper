@@ -19,9 +19,23 @@ import json
 from typing import Any
 
 from ._common import _callable_accepts
+from .prediction_markets import _PREDICTION_TOOL_FNS as _PREDICTION_TOOL_FNS
 from .sports_analytics import _SPORTS_TOOL_FNS as _ANALYTICS_TOOL_FNS, PRY_TOOLS as _ANALYTICS_TOOLS
+from .sports_bankroll import _SPORTS_TOOL_FNS as _BANKROLL_TOOL_FNS
 from .sports_betting import _SPORTS_TOOL_FNS as _BETTING_TOOL_FNS, PRY_TOOLS as _BETTING_TOOLS
+from .sports_context import (  # noqa: F401
+    _SPORTS_TOOL_FNS as _CONTEXT_TOOL_FNS,
+    PRY_TOOLS as _CONTEXT_TOOLS,
+)
 from .sports_data import _SPORTS_TOOL_FNS as _DATA_TOOL_FNS, PRY_TOOLS as _DATA_TOOLS
+from .sports_derivatives import _DERIVATIVES_TOOL_FNS as _DERIVATIVES_TOOL_FNS
+from .sports_futures import _SPORTS_TOOL_FNS as _FUTURES_TOOL_FNS
+from .sports_live_intel import (  # noqa: F401
+    _SPORTS_TOOL_FNS as _LIVE_TOOL_FNS,
+    PRY_TOOLS as _LIVE_TOOLS,
+)
+from .sports_player_intel import _SPORTS_TOOL_FNS as _PLAYER_TOOL_FNS
+from .sports_sharp_intel import _SHARP_TOOL_FNS as _SHARP_TOOL_FNS
 
 # Merge the per-domain tool lists, preserving the exact tool order of the
 # former monolithic sports.py PRY_TOOLS list:
@@ -43,6 +57,14 @@ _SPORTS_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     **_BETTING_TOOL_FNS,
     **_DATA_TOOL_FNS,
     **_ANALYTICS_TOOL_FNS,
+    **_FUTURES_TOOL_FNS,
+    **_DERIVATIVES_TOOL_FNS,
+    **_BANKROLL_TOOL_FNS,
+    **_PLAYER_TOOL_FNS,
+    **_SHARP_TOOL_FNS,
+    **_LIVE_TOOL_FNS,
+    **_CONTEXT_TOOL_FNS,
+    **_PREDICTION_TOOL_FNS,
 }
 
 

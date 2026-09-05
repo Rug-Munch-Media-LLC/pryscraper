@@ -136,67 +136,6 @@ PRY_TOOLS: list[dict[str, Any]] = [
         },
     },
     {
-        "name": "pry_sharp_consensus",
-        "description": (
-            "Get the sharp consensus: the closing-line value and consensus price "
-            "from sharp books (Pinnacle, Circa, BetOnline) for the biggest games. "
-            "Use to identify where professional money is, e.g. 'what is the sharp "
-            "consensus on the Packers game?' or call with sport='nba' for the "
-            "sharpest lines across tonight's slate."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "sport": {
-                    "type": "string",
-                    "default": "all",
-                    "description": (
-                        "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, "
-                        "ufc, cfl, or 'all' (default)"
-                    ),
-                },
-                "sharp_books": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": (
-                        "Sharp books to aggregate (e.g., ['pinnacle', 'circa']); "
-                        "defaults to the configured sharp list"
-                    ),
-                },
-                "limit": {
-                    "type": "integer",
-                    "default": 20,
-                    "minimum": 1,
-                    "maximum": 100,
-                    "description": "Maximum number of consensus records (default: 20)",
-                },
-            },
-            "required": [],
-        },
-        "outputSchema": {
-            "type": "object",
-            "properties": {
-                "success": {"type": "boolean"},
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "sport": {"type": "string"},
-                            "event": {"type": "string"},
-                            "event_id": {"type": "string"},
-                            "consensus_price": {"type": "number"},
-                            "clv_pct": {"type": "number"},
-                            "books": {"type": "array", "items": {"type": "string"}},
-                        },
-                    },
-                },
-                "sport": {"type": "string"},
-            },
-            "required": ["success"],
-        },
-    },
-    {
         "name": "pry_alerts",
         "description": (
             "Get or manage money-printer alerts: significant line moves, sharp "

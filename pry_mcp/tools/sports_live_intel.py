@@ -199,3 +199,11 @@ PRY_TOOLS: list[dict[str, Any]] = [
         },
     },
 ]
+
+_SPORTS_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "pry_live_games": (("live_intel", ("get_live_games",)),),
+    "pry_live_game_state": (("live_intel", ("get_live_game_state",)),),
+    "pry_live_win_probability": (("live_intel", ("get_live_win_probability",)),),
+    "pry_live_scoring": (("live_intel", ("get_live_scoring_breakdown",)),),
+    "pry_live_betting_impact": (("live_intel", ("get_live_betting_impact",)),),
+}

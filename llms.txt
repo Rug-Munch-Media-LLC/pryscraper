@@ -13,7 +13,7 @@
 - URL: https://api.pryscraper.com/mcp/
 - Transport: SSE, Streamable HTTP, stdio
 - Auth: x402 pay-per-call (no account/API key for discovery; paid prefixes require an x402 payment signature or a paid-tier API key)
-- Tools: 76
+- Tools: 98
 - Categories: 33
 
 ## Categories
@@ -509,3 +509,112 @@ Category: data
 Get current x402 pay-per-call pricing for all Pry operations, showing the cost in USDC atomic units and supported networks for each tool. Use before a paid call to display the cost to the user, e.g. '
 
 Category: payments
+
+### pry_prediction_markets
+
+Get live prediction-market data merged from Polymarket (Gamma API) and Kalshi (public trade API v2) — no API keys required. Each record includes the market question, binary outcomes with 0-1 probabili
+
+
+### pry_prediction_market_detail
+
+Look up a single prediction market by id or ticker and return its full detail: question, outcome prices (0-1 probabilities), volume, liquidity, resolution date, and source URL. Accepts a Polymarket ma
+
+
+### pry_futures
+
+Get futures and championship odds across sportsbooks — Super Bowl winner, NBA MVP, league champions, award winners. Includes implied probability, best odds aggregation, and vig detection across all bo
+
+
+### pry_derivatives
+
+Price exotic bet derivatives — teasers, pleasers, if-bets, reverse bets, and round robins. Calculate adjusted lines, combined odds, payout scenarios, max win/loss, and breakeven points. Use to compare
+
+
+### pry_kelly_criterion
+
+Kelly criterion bankroll management — optimal bet sizing from win probability and odds. Includes full/half/quarter Kelly, CLV tracking, bankroll projections, and risk-of-ruin estimation. Use to size a
+
+
+### pry_lineups
+
+Get the active/projected lineup, injury report, and minutes projection for a team's next game, from ESPN. Returns starters, bench, probable pitchers (MLB), questionable/doubtful players (game-time dec
+
+
+### pry_player_props_live
+
+Get ALL live player prop lines for one player across every bookmaker (DraftKings, FanDuel, BetMGM, ...) with a cross-book line-movement signal. Each record includes the prop type (points, rebounds, as
+
+
+### pry_player_stats
+
+Get a player's last N games of stats with per-game lines, averages, and a hot/cold trend flag per stat versus his season average, from the ESPN game log. Use to check recent form before betting a prop
+
+
+### pry_props_matchup
+
+Get ALL player props for both teams in a matchup, annotated with defensive context: how the opposing defense ranks against each core prop type (points, rebounds, assists, yards, ...) with a 'tough' (t
+
+
+### pry_steam_moves
+
+Detect steam moves: lines that shifted across 3+ sportsbooks simultaneously inside a short lookback window — the loudest sharp money signal, since independent books rarely move in lockstep without a s
+
+
+### pry_reverse_line_movement
+
+Find reverse line movement (RLM): lines that moved TOWARD the side with LESS public betting percentage — the classic sign that sharp money is fading the public. Each record includes the event, side, p
+
+
+### pry_bet_money_divergence
+
+Find bet-percentage vs money-percentage divergence: when a large share of TICKETS is on one team but the MONEY (dollars) is on the other, big bettors are on the minority side. Each record includes the
+
+
+### pry_line_watch
+
+Lines worth watching for value: current vs opening line per event, which book currently holds the best number, total movement since the first recorded snapshot, and a value indicator (good_line / fair
+
+
+### pry_sharp_report
+
+Full sharp money intelligence report for a sport: aggregates steam moves, reverse line movement signals, top bet/money divergences, line-watch items, and an overall sharp-indicators ranking of which g
+
+
+### pry_live_games
+
+Every in-progress game on a sport's slate right now, from ESPN's free public scoreboard: event_id, home/away, live scores, quarter, time remaining, status. Entry point for the other live tools — grab 
+
+
+### pry_live_game_state
+
+Full live state for one game: score, quarter, clock, possession, momentum (last five possessions when available), pace, scoring rate, remaining timeouts. Example: 'who has the ball and how fast is thi
+
+
+### pry_live_win_probability
+
+Live win probability for one game: home/away chances (ESPN's model when published, else a lead-vs-time heuristic), projected final scores, projected total, over/under probability vs the posted total, 
+
+
+### pry_live_scoring
+
+Scoring breakdown for one live game: per-quarter scores for both teams, lead changes, ties and quarter-by-quarter scoring runs. Example: 'how many lead changes tonight?'
+
+
+### pry_live_betting_impact
+
+Live betting impact for one game: current margin vs the posted spread, pace-based total projection vs the posted total, and live value/arb opportunities (spread edge >= 3 pts, total edge >= 8 pts). Ex
+
+
+### pry_game_weather
+
+Get current weather at a game venue (temperature, wind, precipitation, humidity, visibility) via Open-Meteo. Use before lock to check outdoor-game conditions, e.g. 'how windy is it in Chicago right no
+
+
+### pry_weather_impact
+
+Translate venue weather into betting impact: wind/temp/precip bands, a total (points) adjustment, and pass-vs-run game lean. Use for NFL/NCAA outdoor totals and spread edges, e.g. 'does the wind favor
+
+
+### pry_game_context
+
+Full game-context bundle for a matchup: venue weather, weather impact on scoring, rest days / back-to-back flags (ESPN), and travel distance / time-zone / altitude change. Use for situational edges, e

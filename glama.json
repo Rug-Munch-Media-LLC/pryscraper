@@ -1,7 +1,7 @@
 {
 	"$schema": "https://glama.ai/mcp/schema.json",
 	"name": "io.rugmunch/pry",
-	"title": "Pry — Web Scraping, Browser Automation & Data Intelligence MCP",
+	"title": "Pry \u2014 Web Scraping, Browser Automation & Data Intelligence MCP",
 	"description": "Self-hosted web intelligence platform: scrape, crawl, extract, automate, and parse any website, plus ten data domains (crypto, marketplace, legal, real estate, jobs, travel, attention, local, gov, ip) monetized via x402 pay-per-call. Exposed as a Model Context Protocol server.",
 	"version": "3.0.0",
 	"license": "MIT",
@@ -29,785 +29,395 @@
 	"tools": [
 		{
 			"name": "pry_scrape",
-			"description": "Scrape a URL to clean markdown with 15-tier anti-bot bypass"
+			"description": "Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 15-tier fallback chain (direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver). Use when you need the text content of a page a plain HTTP request cannot fetch, e.g. a Cloudflare-protected article or a JS-heavy blog post."
 		},
 		{
 			"name": "pry_crawl",
-			"description": "Crawl a website from a starting URL up to max_pages"
+			"description": "Crawl a website from a seed URL, discovering and scraping linked pages with BFS/DFS traversal up to max_pages. Use to collect an entire docs site, blog, or directory \u2014 e.g. call with url='https://example.com' and include_paths=['/docs/'] to harvest every page under /docs/, or crawl up to 50 blog posts with max_pages=50. Constrain with include_paths/exclude_paths to stay inside the section you want."
 		},
 		{
 			"name": "pry_extract",
-			"description": "Extract structured data with CSS selectors"
+			"description": "Extract structured data from a URL using CSS selectors \u2014 10x cheaper than LLM extraction \u2014 and return JSON matching your schema. Use when you need specific fields like {title, price, image, availability} from product listings or search results pages."
 		},
 		{
 			"name": "pry_template",
-			"description": "Execute a pre-built scraper template"
+			"description": "Execute one of 110+ pre-built scraper templates (amazon-product, walmart-product, linkedin-profile, etc.) that return site-specific structured data. Use when scraping a known site that already has a template instead of hand-writing CSS selectors \u2014 e.g. 'amazon-product' for an Amazon product page."
 		},
 		{
 			"name": "pry_search_templates",
-			"description": "Search scraper templates"
+			"description": "Search the 110+ pre-built scraper template catalog by keyword, category, or site name, returning matching template_ids, their categories, and descriptions. Use before pry_template to discover which template fits a target site \u2014 e.g. call with q='walmart' to find 'walmart-product', or q='jobs' with category='careers' to list every job-board template."
 		},
 		{
 			"name": "pry_monitor",
-			"description": "Create a content-change monitor with webhook alerts"
+			"description": "Create a content-change monitor that notifies via webhook, Slack, or Discord when a page changes, using AI to judge whether changes are meaningful. Use to track competitor pricing or product availability over time, e.g. 'notify me when this price page changes'."
 		},
 		{
 			"name": "pry_compliance",
-			"description": "Compliance intelligence — URL legal-risk check (robots.txt, ToS, GDPR/CCPA) or regulatory records search by query/agency"
+			"description": "Compliance intelligence in two modes: pass a URL to check whether scraping it is legally safe (robots.txt, ToS, GDPR/CCPA, PII exposure -> green/yellow/red risk score with recommendations), or pass query/agency to search regulatory compliance records \u2014 enforcement actions, fines, sanctions, and watchlist entries, e.g. query='Binance' for its regulatory history. Use before scraping an uncertain site or when screening a company for compliance exposure."
 		},
 		{
 			"name": "pry_enrich",
-			"description": "Enrich a URL with company and tech intelligence"
+			"description": "Enrich a URL with company info, tech stack detection, social profiles, and competitive intelligence. Use to build a prospect profile from their website before outreach, e.g. discover what stack a startup runs and find their LinkedIn."
 		},
 		{
 			"name": "pry_parse_document",
-			"description": "Parse a PDF/DOCX/image into text and tables"
+			"description": "Parse a document (PDF, DOCX, image) and extract its text and tables using pdfplumber, Tesseract OCR, and python-docx. Use to pull content from a PDF spec, a scanned brochure, or a Word file, e.g. extract the pricing table from a vendor's PDF."
 		},
 		{
 			"name": "pry_screenshot",
-			"description": "Take a full-page screenshot as base64 PNG"
+			"description": "Render a URL in a headless browser and return a screenshot as a base64-encoded PNG with width, height, and content type. Use for visual verification or design QA of a rendered page \u2014 e.g. screenshot https://example.com/checkout with full_page=true to capture the whole checkout flow before launch. JavaScript is executed before capture so SPAs render correctly."
 		},
 		{
 			"name": "pry_x402_pricing",
-			"description": "Get x402 pay-per-call pricing"
-		},
-		{
-			"name": "pry_referrals",
-			"description": "Get the referral catalog"
-		},
-		{
-			"name": "pry_token_launches",
-			"description": "Discover new crypto token launches and liquidity pairs (crypto)"
+			"description": "Get current x402 pay-per-call pricing for all Pry operations, showing the cost in USDC atomic units and supported networks for each tool. Use before a paid call to display the cost to the user, e.g. 'how much does a pry_scrape cost?'."
 		},
 		{
 			"name": "pry_balance",
-			"description": "Read the prepaid balance of a Pry account (bulk scrape credits purchased via crypto). Pass your pry API key (e.g. api_key='pry_abc123_deadbeef...') or a user_id to see the USD balance + low-balance flag. Use before buyin"
+			"description": "Read the prepaid balance of a Pry account (bulk scrape credits purchased via crypto). Pass your pry API key (e.g. api_key='pry_abc123_deadbeef...') or a user_id to see the USD balance + low-balance flag. Use before buying a pack to confirm you can afford an operation, or after a purchase to confirm the credit landed (e.g. after a 5000-credit starter pack you should see ~5.00 USD). This is a free read of your own account \u2014 it does not spend credits."
 		},
 		{
 			"name": "pry_buy_pack",
-			"description": "Initiate a crypto purchase of a bulk scrape-credit pack. Pass a pack id (e.g. pack_id='starter' for $5/5,000 credits) and it returns a spec-compliant x402 PaymentRequired manifest with the real receiving wallet as payToA"
+			"description": "Initiate a crypto purchase of a bulk scrape-credit pack. Pass a pack id (e.g. pack_id='starter' for $5/5,000 credits) and it returns a spec-compliant x402 PaymentRequired manifest with the real receiving wallet as payToAddress and the server-authoritative price in atomic units. The agent/partner pays USDC on-chain (or the quoted asset, defaults to the configured network), then calls the confirm endpoint with the tx hash to credit the balance \u2014 and on first purchase an API key is minted. An empty payToAddress in the response means the operator hasn't configured a receiving wallet; never pay a placeholder address."
+		},
+		{
+			"name": "pry_referrals",
+			"description": "Get Pry's referral catalog \u2014 60+ providers across LLM, hosting, email, monitoring, proxies, and devtools \u2014 each link carrying our affiliate ID for revenue attribution. Use to find a revenue-share partner or pick a recommended provider, e.g. 'what proxy providers do you refer?'."
 		},
 		{
 			"name": "pry_kol_leaderboards",
-			"description": "Scrape KOL/crypto-influencer leaderboards for handles, wallets and P&L stats (crypto)"
+			"description": "Scrape KOL / crypto-influencer leaderboards for usernames (handles), wallets, followers and P&L / win-loss stats. Reads public trader leaderboards (kolscan.io Solana trader board; gmgn.ai and dexscreener smart-money boards are registered but Cloudflare/JS-gated and flagged [REVIEW]). Use to grow a KOL watchlist, e.g. 'pull the top KOL wallets from the kolscan leaderboard' or 'find new crypto influencer handles + wallets'."
+		},
+		{
+			"name": "pry_token_launches",
+			"description": "Discover new crypto token launches, new liquidity pairs, and trending tokens across chains (Solana, Ethereum, Base, ...) with optional age filtering. Use to find early-stage tokens before they hit mainstream trackers, e.g. 'what new Solana tokens launched in the last hour?' or 'show me trending tokens on Base'."
 		},
 		{
 			"name": "pry_cex_listings",
-			"description": "CEX listing and delisting signals for tokens (crypto)"
-		},
-		{
-			"name": "pry_token_security",
-			"description": "Token security scan: honeypot, mint authority, LP lock (crypto)"
+			"description": "Get recent centralized-exchange (CEX) listing and delisting signals \u2014 e.g. Binance, Coinbase, Kraken \u2014 aggregated over a configurable lookback window. Use to time research on tokens that just landed on a major exchange, e.g. 'what did Coinbase list in the last 24 hours?'."
 		},
 		{
 			"name": "pry_amazon_product",
-			"description": "Amazon product lookup by ASIN — price, stock, rating (marketplace)"
+			"description": "Look up a single Amazon product by its ASIN (e.g. 'B08N5WRWNW') and return current price, title, availability, rating, and listing details from the marketplace intelligence provider. Use to check a product's live price or stock, e.g. 'what does B0BLVMHNF1 cost right now?'."
 		},
 		{
 			"name": "pry_amazon_search",
-			"description": "Amazon keyword search — listings with price and ASIN (marketplace)"
+			"description": "Search Amazon products by keyword and return matching listings \u2014 title, price, rating, and ASIN for each result (up to limit). Use to compare prices or discover products, e.g. 'search Amazon for wireless mechanical keyboards'."
 		},
 		{
 			"name": "pry_walmart_product",
-			"description": "Walmart product lookup by ID — price, seller, rating (marketplace)"
+			"description": "Look up a single Walmart product by its product ID (e.g. '4JH7P89H7X5P') and return current price, title, availability, seller, and rating from the marketplace intelligence provider. Use to check a Walmart listing's live price or stock, e.g. 'what does Walmart product 4JH7P89H7X5P cost?'."
 		},
 		{
 			"name": "pry_tiktok_trending",
-			"description": "Trending TikTok Shop products by engagement (marketplace)"
+			"description": "Get currently trending products on TikTok Shop, ranked by engagement and sales velocity, with price, sales count, and shop info for each result (up to limit). Use to spot viral commerce opportunities, e.g. 'what's trending on TikTok Shop right now?'."
+		},
+		{
+			"name": "pry_token_security",
+			"description": "Run a security scan on a crypto token by chain and contract/mint address \u2014 checking for honeypots, hidden mints, ownership concentration, LP lock, and other rug-pull risk signals. Use before investing in or reporting on an unfamiliar token, e.g. 'scan So11111111111111111111111111111111111111112 on solana'."
 		},
 		{
 			"name": "pry_legal_dockets",
-			"description": "Search U.S. court dockets via CourtListener (legal)"
+			"description": "Search U.S. federal and state court dockets by full-text query using the free CourtListener REST API v4, returning docket titles, courts, and case numbers. Use to monitor litigation against a company, person, or trademark before it hits the news, e.g. 'what lawsuits involve OpenAI?' or 'show dockets mentioning this company name'. Results are best-effort: the free tier has no auth and degrades to an empty list on network or rate-limit failure."
 		},
 		{
 			"name": "pry_legal_sec",
-			"description": "Search SEC EDGAR filings by ticker and form type (legal)"
+			"description": "Search SEC EDGAR filings for a public company by ticker and form type, returning filing dates, form names, and EDGAR accession numbers. Use to track regulatory filings that move markets, e.g. 'recent 8-K filings for AAPL' or 'all 10-Q filings for TSLA this year'. Backed by the free EDGAR Full-Text Search and submissions feed; never raises and returns an empty list on failure."
 		},
 		{
 			"name": "pry_legal_sanctions",
-			"description": "Screen a name against the OFAC SDN sanctions list (legal)"
+			"description": "Screen a person or entity name against the OFAC Specially Designated Nationals (SDN) sanctions list, returning any matching records with their sanctions program and remarks. Use for compliance due diligence before onboarding a counterparty, partner, or wallet-linked entity, e.g. 'is Vladimir Potanin sanctioned?'. Backed by the free OFAC SDN XML downloads, cached in-process; returns an empty list when the name is clean or the feed is unreachable."
 		},
 		{
 			"name": "pry_realestate_search",
-			"description": "Search real-estate listings by location and status (real estate)"
+			"description": "Search real-estate listings by location and status (for_sale, for_rent, sold), returning address, price, beds/baths, square footage, and listing URLs. Use for market research, comps, or lead generation, e.g. 'what's for sale in Austin, TX under $500k?'. Scrapes Zillow search pages with a Redfin GIS API fallback (both free and keyless); never raises and returns an empty list when the source is unreachable."
 		},
 		{
 			"name": "pry_jobs_list",
-			"description": "List ATS job postings for a company (jobs)"
+			"description": "List current job postings for a company from its applicant-tracking system (Greenhouse, Lever, Ashby, or Workday), returning normalized titles, locations, remote flags, and application URLs. Use for talent-market intel or recruitment pipelines, e.g. 'what engineering roles is Stripe hiring for?'. Reads the free, public, keyless JSON boards; never raises and returns an empty list when the board is unreachable or the company slug is unknown."
 		},
 		{
 			"name": "pry_jobs_salary",
-			"description": "Salary bands for a company and role from Levels.fyi (jobs)"
+			"description": "Get per-level salary bands (total compensation, base, stock, bonus) for a company and role from Levels.fyi's public embedded data. Use to benchmark compensation offers or market rates, e.g. 'what does Google pay software engineers at L5?'. Scrapes the free Levels.fyi page with no auth; never raises and returns an empty object when the company or role is not found."
 		},
 		{
 			"name": "pry_flights_grid",
-			"description": "Cheapest flight per day over a date range (travel)"
+			"description": "Get the cheapest flight option per day between two dates for an origin and destination pair, using Google Flights' public tfs deep-link page. Use to find the cheapest day to fly on a trip, e.g. 'what's the cheapest day JFK\u2192CDG next month?'. Returns a per-day price grid; never raises and returns an empty grid when Google Flights blocks the scrape (embedded JSON drifts over time)."
 		},
 		{
 			"name": "pry_hotel_rates",
-			"description": "Per-night hotel rates for a stay window (travel)"
+			"description": "Get per-night hotel rates for a stay window from Google Hotels with a Booking.com fallback, both free and keyless page scrapes. Use to compare prices across sources for a specific property, e.g. 'what does the Ritz Paris cost for September 10-14?'. Returns per-night rate breakdowns; never raises and returns an empty object when neither source is reachable."
 		},
 		{
 			"name": "pry_serp",
-			"description": "Google SERP scrape: organic, AI Overview, PAA (attention)"
+			"description": "Scrape a Google search results page for a query, returning organic results, the AI Overview text when present, and People Also Ask questions. Use for SEO rank tracking or competitor SERP analysis, e.g. 'who ranks for best wireless keyboard?'. Built on the free public Google results page; never raises and returns an error payload when Google serves a consent or CAPTCHA wall."
 		},
 		{
 			"name": "pry_trends",
-			"description": "Google Trends interest timeline and related queries (attention)"
+			"description": "Measure Google Trends interest over time for a keyword, returning the daily interest timeline and related queries. Use to validate demand for a product, content topic, or token narrative before committing resources, e.g. 'is AI agents interest rising?'. Built on the free Trends public endpoint; never raises and returns an error payload when the endpoint is unreachable."
 		},
 		{
 			"name": "pry_places_search",
-			"description": "Google Maps local business search (local)"
+			"description": "Search Google Maps for local businesses matching a query and location, returning name, rating, review count, address, and place IDs for lead generation. Use to build prospect lists for outbound sales, e.g. 'find coffee shops in Austin TX'. Backed by the free Google Maps public search page; never raises and returns an empty list when the page is unreachable or blocked."
 		},
 		{
 			"name": "pry_reviews",
-			"description": "Google Maps / Yelp review history for a place (local)"
+			"description": "Get the full review history for a local business place from Google Maps or Yelp, going beyond the 5-review API cap. Use to analyze customer sentiment, common complaints, or reputation before outreach, e.g. 'what do customers say about this restaurant?'. Accepts a Google place CID/slug or a Yelp biz slug; never raises and returns an empty list when the source is unreachable."
 		},
 		{
 			"name": "pry_procurement",
-			"description": "U.S. federal procurement opportunities from SAM.gov (gov)"
+			"description": "Search U.S. federal procurement opportunities and contract awards from the public SAM.gov data feed, returning title, agency, notice type, and deadline. Use to find government business opportunities for a capability, e.g. 'what cybersecurity contracts are open?'. The gov_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring."
 		},
 		{
 			"name": "pry_recalls",
-			"description": "Recent CPSC/FDA product recalls (gov)"
+			"description": "Search recent product recalls from the U.S. CPSC public data feed, returning product name, hazard, recall date, and remedy. Use for consumer-safety monitoring or supply-chain due diligence, e.g. 'recent recalls for e-bike batteries'. The gov_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring."
 		},
 		{
 			"name": "pry_patents",
-			"description": "U.S. patent search via USPTO/Google Patents (ip)"
+			"description": "Search U.S. patents by keyword using the USPTO public data feeds, returning patent number, title, assignee, and grant date. Use for IP landscaping or freedom-to-operate checks, e.g. 'patents for blockchain identity'. The ip_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring."
 		},
 		{
 			"name": "pry_trademarks",
-			"description": "U.S. trademark search via USPTO (ip)"
+			"description": "Search U.S. trademarks by keyword or owner using the USPTO public data feeds, returning serial number, mark text, owner, and status. Use for brand clearance before launching a product or token name, e.g. 'is RugMunch trademarked?'. The ip_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring."
 		},
 		{
 			"name": "pry_odds",
-			"description": "Get live betting odds across major bookmakers (DraftKings, FanDuel, BetMGM, ESPN BET, ...) for one or more sports, backed by The Odds API (free tier via PRY_ODDS_API_KEY) with an ESPN scoreboard fallback. Each record includes the event label, market, bookmaker, and decimal odds for home/away. Use to compare lines before placing a bet or to power an odds aggregator, e.g. 'what are the current NBA moneyline odds across books?' or call with sport='nfl' to see the full NFL slate.",
-			"inputSchema": {
-				"type": "object",
-				"properties": {
-					"sport": {
-						"type": "string",
-						"default": "all",
-						"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default: nba + nfl + epl)"
-					},
-					"market": {
-						"type": "string",
-						"default": "h2h",
-						"description": "Betting market (e.g., 'h2h' moneyline, 'spreads', 'totals'); the default feed is h2h moneyline"
-					},
-					"book": {
-						"type": "string",
-						"description": "Bookmaker name filter (e.g., 'DraftKings', 'FanDuel', 'BetMGM'); omit for every book"
-					},
-					"event_query": {
-						"type": "string",
-						"description": "Substring filter on event label, e.g. 'celtics'"
-					},
-					"limit": {
-						"type": "integer",
-						"default": 20,
-						"minimum": 1,
-						"maximum": 100,
-						"description": "Maximum number of odds records (default: 20)"
-					}
-				},
-				"required": []
-			},
-			"outputSchema": {
-				"type": "object",
-				"properties": {
-					"success": {
-						"type": "boolean"
-					},
-					"data": {
-						"type": "array",
-						"items": {
-							"type": "object",
-							"properties": {
-								"sport": {
-									"type": "string"
-								},
-								"event": {
-									"type": "string"
-								},
-								"event_id": {
-									"type": "string"
-								},
-								"market": {
-									"type": "string"
-								},
-								"bookmaker": {
-									"type": "string"
-								},
-								"home_odds": {
-									"type": "number"
-								},
-								"away_odds": {
-									"type": "number"
-								},
-								"last_update": {
-									"type": "string"
-								},
-								"source": {
-									"type": "string"
-								}
-							}
-						}
-					},
-					"sport": {
-						"type": "string"
-					},
-					"limit": {
-						"type": "integer"
-					}
-				},
-				"required": ["success"]
-			},
-			"annotations": {
-				"readOnlyHint": true,
-				"destructiveHint": false,
-				"idempotentHint": true
-			}
+			"description": "Get live betting odds across major bookmakers (DraftKings, FanDuel, BetMGM, ESPN BET, ...) for one or more sports, backed by The Odds API (free tier via PRY_ODDS_API_KEY) with an ESPN scoreboard fallback. Each record includes the event label, market, bookmaker, and decimal odds for home/away. Use to compare lines before placing a bet or to power an odds aggregator, e.g. 'what are the current NBA moneyline odds across books?' or call with sport='nfl' to see the full NFL slate."
 		},
 		{
 			"name": "pry_arbitrage",
-			"description": "Scan sportsbook lines for guaranteed-profit arbitrage opportunities: the same event quoted at different books where the combined implied probabilities total under 100%. Use to find risk-free bets, e.g. 'show me NFL arbitrage opportunities with at least 0.8% yield' or call with sport='all' to sweep every tracked league.",
-			"inputSchema": {
-				"type": "object",
-				"properties": {
-					"sport": {
-						"type": "string",
-						"default": "all",
-						"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
-					},
-					"min_yield_pct": {
-						"type": "number",
-						"default": 0.5,
-						"minimum": 0,
-						"maximum": 100,
-						"description": "Minimum guaranteed yield in percent to report (default: 0.5)"
-					}
-				},
-				"required": []
-			},
-			"outputSchema": {
-				"type": "object",
-				"properties": {
-					"success": {
-						"type": "boolean"
-					},
-					"data": {
-						"type": "array",
-						"items": {
-							"type": "object",
-							"properties": {
-								"sport": {
-									"type": "string"
-								},
-								"event": {
-									"type": "string"
-								},
-								"event_id": {
-									"type": "string"
-								},
-								"yield_pct": {
-									"type": "number"
-								},
-								"legs": {
-									"type": "array",
-									"items": {
-										"type": "object"
-									}
-								}
-							}
-						}
-					},
-					"sport": {
-						"type": "string"
-					},
-					"min_yield_pct": {
-						"type": "number"
-					}
-				},
-				"required": ["success"]
-			},
-			"annotations": {
-				"readOnlyHint": true,
-				"destructiveHint": false,
-				"idempotentHint": true
-			}
+			"description": "Scan sportsbook lines for guaranteed-profit arbitrage opportunities: the same event quoted at different books where the combined implied probabilities total under 100%. Use to find risk-free bets, e.g. 'show me NFL arbitrage opportunities with at least 0.8% yield' or call with sport='all' to sweep every tracked league."
 		},
 		{
 			"name": "pry_plus_ev",
-			"description": "Find positive expected-value (+EV) betting opportunities by comparing market odds against a sharp book's line or consensus price. Use to identify bets where the market price is better than the fair probability implies, e.g. 'what are the best +EV bets right now?' or call with sharp_book='pinnacle' and min_ev_pct=2.0 to only see edges above 2%.",
-			"inputSchema": {
-				"type": "object",
-				"properties": {
-					"sharp_book": {
-						"type": "string",
-						"default": "pinnacle",
-						"description": "Sharp book to treat as the fair line reference (e.g., 'pinnacle', 'circa', 'betonline')"
-					},
-					"min_ev_pct": {
-						"type": "number",
-						"default": 1.0,
-						"minimum": 0,
-						"maximum": 100,
-						"description": "Minimum expected value in percent to report (default: 1.0)"
-					}
-				},
-				"required": []
-			},
-			"outputSchema": {
-				"type": "object",
-				"properties": {
-					"success": {
-						"type": "boolean"
-					},
-					"data": {
-						"type": "array",
-						"items": {
-							"type": "object",
-							"properties": {
-								"sport": {
-									"type": "string"
-								},
-								"event": {
-									"type": "string"
-								},
-								"event_id": {
-									"type": "string"
-								},
-								"ev_pct": {
-									"type": "number"
-								},
-								"sharp_book": {
-									"type": "string"
-								},
-								"best_book": {
-									"type": "string"
-								},
-								"price": {
-									"type": "number"
-								}
-							}
-						}
-					},
-					"sharp_book": {
-						"type": "string"
-					},
-					"min_ev_pct": {
-						"type": "number"
-					}
-				},
-				"required": ["success"]
-			},
-			"annotations": {
-				"readOnlyHint": true,
-				"destructiveHint": false,
-				"idempotentHint": true
-			}
+			"description": "Find positive expected-value (+EV) betting opportunities by comparing market odds against a sharp book's line or consensus price. Use to identify bets where the market price is better than the fair probability implies, e.g. 'what are the best +EV bets right now?' or call with sharp_book='pinnacle' and min_ev_pct=2.0 to only see edges above 2%."
 		},
 		{
 			"name": "pry_props",
-			"description": "Get player prop betting lines (points, rebounds, assists, yards, strikeouts, ...) for a player or sport, with the market and book prices. Use to research player props before betting or building a props dashboard, e.g. 'what are LeBron James points props tonight?' or call with sport='nfl' and market='passing_yards' to see QB yardage props.",
-			"inputSchema": {
-				"type": "object",
-				"properties": {
-					"player": {
-						"type": "string",
-						"description": "Player name, e.g. 'LeBron James'"
-					},
-					"sport": {
-						"type": "string",
-						"default": "all",
-						"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
-					},
-					"market": {
-						"type": "string",
-						"description": "Prop market (e.g., 'points', 'rebounds', 'passing_yards', 'strikeouts'); omit for every market"
-					}
-				},
-				"required": []
-			},
-			"outputSchema": {
-				"type": "object",
-				"properties": {
-					"success": {
-						"type": "boolean"
-					},
-					"data": {
-						"type": "array",
-						"items": {
-							"type": "object",
-							"properties": {
-								"player": {
-									"type": "string"
-								},
-								"sport": {
-									"type": "string"
-								},
-								"event": {
-									"type": "string"
-								},
-								"market": {
-									"type": "string"
-								},
-								"bookmaker": {
-									"type": "string"
-								},
-								"line": {
-									"type": "number"
-								},
-								"over_price": {
-									"type": "number"
-								},
-								"under_price": {
-									"type": "number"
-								}
-							}
-						}
-					},
-					"player": {
-						"type": "string"
-					},
-					"sport": {
-						"type": "string"
-					}
-				},
-				"required": ["success"]
-			},
-			"annotations": {
-				"readOnlyHint": true,
-				"destructiveHint": false,
-				"idempotentHint": true
-			}
+			"description": "Get player prop betting lines (points, rebounds, assists, yards, strikeouts, ...) for a player or sport, with the market and book prices. Use to research player props before betting or building a props dashboard, e.g. 'what are LeBron James points props tonight?' or call with sport='nfl' and market='passing_yards' to see QB yardage props."
 		},
 		{
 			"name": "pry_injuries",
-			"description": "Get the current injury report for a sport or team: player, team, injury detail, and status (out/questionable/active). Use to adjust betting models or fantasy lineups before lock, e.g. 'who is out for the Celtics tonight?' or call with sport='nfl' for the full league injury report.",
-			"inputSchema": {
-				"type": "object",
-				"properties": {
-					"sport": {
-						"type": "string",
-						"default": "all",
-						"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
-					},
-					"team": {
-						"type": "string",
-						"description": "Team name to filter by (e.g., 'Celtics', 'Chiefs'); omit for every team"
-					}
-				},
-				"required": []
-			},
-			"outputSchema": {
-				"type": "object",
-				"properties": {
-					"success": {
-						"type": "boolean"
-					},
-					"data": {
-						"type": "array",
-						"items": {
-							"type": "object",
-							"properties": {
-								"player": {
-									"type": "string"
-								},
-								"team": {
-									"type": "string"
-								},
-								"sport": {
-									"type": "string"
-								},
-								"injury": {
-									"type": "string"
-								},
-								"status": {
-									"type": "string"
-								}
-							}
-						}
-					},
-					"sport": {
-						"type": "string"
-					},
-					"team": {
-						"type": "string"
-					}
-				},
-				"required": ["success"]
-			},
-			"annotations": {
-				"readOnlyHint": true,
-				"destructiveHint": false,
-				"idempotentHint": true
-			}
+			"description": "Get the current injury report for a sport or team: player, team, injury detail, and status (out/questionable/active). Use to adjust betting models or fantasy lineups before lock, e.g. 'who is out for the Celtics tonight?' or call with sport='nfl' for the full league injury report."
 		},
 		{
 			"name": "pry_live_odds",
-			"description": "Get live in-play odds that update during games (moneyline, spreads, totals as they move). Use for live-betting research or game-flow monitoring, e.g. 'what are the live odds for the Lakers game right now?' or call with sport='nba' and limit=50 for the current in-play slate.",
-			"inputSchema": {
-				"type": "object",
-				"properties": {
-					"sport": {
-						"type": "string",
-						"default": "all",
-						"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default)"
-					},
-					"limit": {
-						"type": "integer",
-						"default": 20,
-						"minimum": 1,
-						"maximum": 100,
-						"description": "Maximum number of live odds records (default: 20)"
-					}
-				},
-				"required": []
-			},
-			"outputSchema": {
-				"type": "object",
-				"properties": {
-					"success": {
-						"type": "boolean"
-					},
-					"data": {
-						"type": "array",
-						"items": {
-							"type": "object",
-							"properties": {
-								"sport": {
-									"type": "string"
-								},
-								"event": {
-									"type": "string"
-								},
-								"event_id": {
-									"type": "string"
-								},
-								"market": {
-									"type": "string"
-								},
-								"bookmaker": {
-									"type": "string"
-								},
-								"home_odds": {
-									"type": "number"
-								},
-								"away_odds": {
-									"type": "number"
-								},
-								"last_update": {
-									"type": "string"
-								}
-							}
-						}
-					},
-					"sport": {
-						"type": "string"
-					},
-					"limit": {
-						"type": "integer"
-					}
-				},
-				"required": ["success"]
-			},
-			"annotations": {
-				"readOnlyHint": true,
-				"destructiveHint": false,
-				"idempotentHint": true
-			}
+			"description": "Get live in-play odds that update during games (moneyline, spreads, totals as they move). Use for live-betting research or game-flow monitoring, e.g. 'what are the live odds for the Lakers game right now?' or call with sport='nba' and limit=50 for the current in-play slate."
 		},
 		{
 			"name": "pry_scores",
-			"description": "Get final or live scores for one or more sports on a given day from ESPN public scoreboards (free, no quota, high-frequency safe). Use to check results or power a scores widget, e.g. 'what were the NBA scores on 20260815?' or call with sport='mlb' and date='today' for today's baseball scores.",
-			"inputSchema": {
-				"type": "object",
-				"properties": {
-					"sport": {
-						"type": "string",
-						"default": "all",
-						"description": "Sport: nba, nfl, mlb, nhl, ncaab, ncaaf, epl, mls, wnba, ufc, cfl, or 'all' (default: nba + nfl + epl)"
-					},
-					"date": {
-						"type": "string",
-						"default": "today",
-						"description": "Date: 'today' (default), YYYYMMDD, or YYYY-MM-DD"
-					}
-				},
-				"required": []
-			},
-			"outputSchema": {
-				"type": "object",
-				"properties": {
-					"success": {
-						"type": "boolean"
-					},
-					"data": {
-						"type": "array",
-						"items": {
-							"type": "object",
-							"properties": {
-								"sport": {
-									"type": "string"
-								},
-								"home": {
-									"type": "string"
-								},
-								"away": {
-									"type": "string"
-								},
-								"home_score": {
-									"type": "string"
-								},
-								"away_score": {
-									"type": "string"
-								},
-								"status": {
-									"type": "string"
-								}
-							}
-						}
-					},
-					"sport": {
-						"type": "string"
-					},
-					"date": {
-						"type": "string"
-					}
-				},
-				"required": ["success"]
-			},
-			"annotations": {
-				"readOnlyHint": true,
-				"destructiveHint": false,
-				"idempotentHint": true
-			}
+			"description": "Get final or live scores for one or more sports on a given day from ESPN public scoreboards (free, no quota, high-frequency safe). Use to check results or power a scores widget, e.g. 'what were the NBA scores on 20260815?' or call with sport='mlb' and date='today' for today's baseball scores."
 		},
 		{
 			"name": "pry_historical_odds",
-			"description": "Get historical betting odds for past events (closing/open lines, best available prices) from The Odds API history feed. Use to backtest betting models or audit line movement, e.g. closing NFL moneylines for a past date."
+			"description": "Get historical betting odds for past events from The Odds API history feed: the closing lines, opening lines, and best available prices for moneyline, spreads, and totals on a given date. Use to backtest betting models or audit how lines moved, e.g. 'what were the closing NFL moneylines on 20260810?' or call with sport='nba' and date='2026-08-01' for that day's historical slate."
 		},
 		{
 			"name": "pry_betting_percentages",
-			"description": "Get public betting percentages — the share of bets and share of money on each side of a game — across bookmakers. Use to spot sharp-side steam and contrarian plays, e.g. 'how much money is on the Chiefs tonight?'."
-		},
-		{
-			"name": "pry_sharp_consensus",
-			"description": "Get sharp consensus lines from sharp books (Pinnacle, Circa, BetOnline) with CLV estimates. Use to see where professional money is, e.g. sharp consensus for the Packers game."
+			"description": "Get public betting percentages (the share of bets and the share of money on each side of a game) across bookmakers, e.g. 'how much of the money is on the Chiefs tonight?' or call with sport='nfl' to see the whole slate. Use to spot sharp-side steam and contrarian plays where the public leans one way but the line is not moving."
 		},
 		{
 			"name": "pry_alerts",
-			"description": "Get money-printer alerts: significant line moves, sharp steam, and CLV spikes across sports. Use to stay on top of the market without polling, e.g. list the biggest recent line moves."
-		},
-		{
-			"name": "pry_weather",
-			"description": "Get current weather and short-range forecasts for a location (temperature, condition, humidity, wind, AQI). Use to enrich scraping jobs or model outdoor conditions, e.g. weather in Austin, TX right now."
-		},
-		{
-			"name": "pry_agri",
-			"description": "Get agricultural data: crop conditions, growing-degree days, soil moisture, and commodity-relevant climate indices. Use to model crop yield risk or monitor growing regions, e.g. corn conditions in Iowa."
-		},
-		{
-			"name": "pry_papers",
-			"description": "Search academic papers and preprints (arXiv, Semantic Scholar, PubMed) by keyword, author, or topic. Use for research pipelines needing scholarly grounding, e.g. recent papers on RAG."
-		},
-		{
-			"name": "pry_domain",
-			"description": "Get a domain intelligence report: WHOIS registration, SSL/TLS details, hosting provider, and technology fingerprint. Use to enrich leads or vet domains, e.g. what can you tell me about example.com?"
-		},
-		{
-			"name": "pry_events",
-			"description": "Search live event listings (concerts, sports, theater) by keyword and optionally location or date, e.g. 'what concerts are near Austin next month?'."
-		},
-		{
-			"name": "pry_resale",
-			"description": "Get resale ticket pricing for a specific event: asking prices, ticket counts, and section-level ranges across resale marketplaces."
-		},
-		{
-			"name": "pry_freight",
-			"description": "Get ocean container freight rates for a route: spot and contract rates per 40ft container across major trade lanes, plus FMC contract visibility."
-		},
-		{
-			"name": "pry_energy_lmp",
-			"description": "Get electricity locational marginal prices (LMP) for an ISO region and date, with day-ahead / real-time splits where available."
-		},
-		{
-			"name": "pry_grocery",
-			"description": "Get grocery prices for a product or category, optionally filtered by ZIP code for local store pricing."
-		},
-		{
-			"name": "pry_restaurant",
-			"description": "Get a restaurant's menu with prices: items, sections, and per-dish pricing for a named restaurant."
-		},
-		{
-			"name": "pry_imports",
-			"description": "Get U.S. customs import records for a company: shipment dates, commodity descriptions, suppliers, and origin countries."
-		},
-		{
-			"name": "pry_firmographics",
-			"description": "Get firmographic data for a company: employee count band, revenue range, founding year, headquarters, and industry."
+			"description": "Get or manage money-printer alerts: significant line moves, sharp steam, limit-up CLV, and bettor-facing notifications you subscribe to. Use to stay on top of the market without polling, e.g. 'what alerts are active right now?' or call with alert_type='line_move' to list the biggest recent line moves across all sports."
 		},
 		{
 			"name": "pry_books",
-			"description": "Aggregate odds across all 112 sportsbooks (US, offshore, EU, UK, Asian), scraped directly via intelligent fallback — no paid odds API."
+			"description": "Aggregate live odds for one sport/market across all 112 sportsbooks in Pry's registry (US, offshore, EU, UK, and Asian books) by scraping each book directly through Pry's intelligent fallback chain \u2014 no paid odds API, no API keys. Use to find the best price anywhere for a slate, e.g. call with sport='nba' and market='h2h' to see every reachable book's moneyline for tonight's games, or pass market='spreads' to sweep the point-spread market across the whole registry."
 		},
 		{
 			"name": "pry_book_coverage",
-			"description": "Sportsbook coverage-registry statistics: 112 books by category, extraction method, and geo-requirement."
+			"description": "Get sportsbook coverage-registry statistics: how many of the 112 sportsbooks Pry scrapes directly, broken down by category (US, offshore, EU, UK, Asian), extraction method, and geo-requirement. Use to verify the breadth of the no-paid-API odds network before relying on it, e.g. 'how many US books do you cover?' or to confirm the 112-book total and the per-category split in one call."
+		},
+		{
+			"name": "pry_prediction_markets",
+			"description": "Get live prediction-market data merged from Polymarket (Gamma API) and Kalshi (public trade API v2) \u2014 no API keys required. Each record includes the market question, binary outcomes with 0-1 probability prices (yes/no), 24h volume, liquidity, resolution/close date, and category. Use to gauge crowd consensus on future events, compare implied probabilities across platforms for arbitrage, or power event-probability widgets, e.g. 'what are the top crypto prediction markets right now?' or call with category='politics' to see election markets. Results are sorted by volume; both sources degrade independently, so a partial outage still returns the reachable side."
+		},
+		{
+			"name": "pry_prediction_market_detail",
+			"description": "Look up a single prediction market by id or ticker and return its full detail: question, outcome prices (0-1 probabilities), volume, liquidity, resolution date, and source URL. Accepts a Polymarket market id or slug (e.g. 'will-bitcoin-hit-100k') or a Kalshi market ticker (e.g. 'KXNBAMVP-26'). Use to drill into one market after a pry_prediction_markets listing, or to check the current crowd probability for a specific event, e.g. 'what is the market pricing for the Fed rate decision?'"
+		},
+		{
+			"name": "pry_futures",
+			"description": "Get futures and championship odds across sportsbooks \u2014 Super Bowl winner, NBA MVP, league champions, award winners. Includes implied probability, best odds aggregation, and vig detection across all books. Use for long-term market research, e.g. 'who is favored to win the Super Bowl and at what price across books?' or call with sport='nba' to see every NBA futures market."
+		},
+		{
+			"name": "pry_derivatives",
+			"description": "Price exotic bet derivatives \u2014 teasers, pleasers, if-bets, reverse bets, and round robins. Calculate adjusted lines, combined odds, payout scenarios, max win/loss, and breakeven points. Use to compare exotic bet structures before placing, e.g. 'price a 6-point teaser on these two spreads' or 'what does a 3-team round robin risk and pay?'. Pure math on the legs you supply \u2014 no live odds are fetched."
+		},
+		{
+			"name": "pry_kelly_criterion",
+			"description": "Kelly criterion bankroll management \u2014 optimal bet sizing from win probability and odds. Includes full/half/quarter Kelly, CLV tracking, bankroll projections, and risk-of-ruin estimation. Use to size a bet, e.g. 'how much should I stake on a 55% win probability at 2.10 odds with a $1000 bankroll?' or call with kelly_pct=0.25 for a very conservative quarter-Kelly stake."
+		},
+		{
+			"name": "pry_lineups",
+			"description": "Get the active/projected lineup, injury report, and minutes projection for a team's next game, from ESPN. Returns starters, bench, probable pitchers (MLB), questionable/doubtful players (game-time decisions), ruled-out players, and a per-player projected-minutes map (season MPG, haircut for players returning from injury, zero for ruled-out). Use before betting any player prop to confirm the player is actually starting and see his projected role, e.g. 'is LeBron James starting tonight and how many minutes is he projected?' or call with team='Celtics' to check the full rotation and injury list before the tip."
+		},
+		{
+			"name": "pry_player_props_live",
+			"description": "Get ALL live player prop lines for one player across every bookmaker (DraftKings, FanDuel, BetMGM, ...) with a cross-book line-movement signal. Each record includes the prop type (points, rebounds, assists, yards, ...), the line, over/under odds, the book, and movement ('up'/'down'/'steady' versus the consensus median line across books). Falls back to ESPN season-average projected lines when no Odds API key is configured (labelled 'ESPN Estimate', no odds). Use to shop a player's props across books and spot lines that have moved, e.g. 'show me every Jayson Tatum prop right now and which books moved his points line up' or call with sport='nfl' for a QB's passing props."
+		},
+		{
+			"name": "pry_player_stats",
+			"description": "Get a player's last N games of stats with per-game lines, averages, and a hot/cold trend flag per stat versus his season average, from the ESPN game log. Use to check recent form before betting a prop, e.g. 'how has Nikola Jokic been scoring over his last 10 games \u2014 hot or cold?' or call with games=5 for a short-form window. The trend map flags each stat 'hot' (recent avg >= 8% above season), 'cold' (>= 8% below), or 'steady'."
+		},
+		{
+			"name": "pry_props_matchup",
+			"description": "Get ALL player props for both teams in a matchup, annotated with defensive context: how the opposing defense ranks against each core prop type (points, rebounds, assists, yards, ...) with a 'tough' (top-8 defense), 'average', or 'soft' (bottom-8) grade. Use to find props the matchup favors, e.g. 'show me every prop for Celtics @ Lakers and which defense is soft against threes' \u2014 the single call that replaces checking the slate, the injury report, and five books separately."
+		},
+		{
+			"name": "pry_steam_moves",
+			"description": "Detect steam moves: lines that shifted across 3+ sportsbooks simultaneously inside a short lookback window \u2014 the loudest sharp money signal, since independent books rarely move in lockstep without a syndicate behind it. Each record includes the event, outcome, old/new line, books that moved, move direction and magnitude, and a confidence score (high when 5+ books moved together). Use to follow professional money in real time, e.g. 'any steam on tonight's NBA slate?' or call with lookback_minutes=30 right before tip-off to catch late sharp hits."
+		},
+		{
+			"name": "pry_reverse_line_movement",
+			"description": "Find reverse line movement (RLM): lines that moved TOWARD the side with LESS public betting percentage \u2014 the classic sign that sharp money is fading the public. Each record includes the event, side, public bet %, line movement direction, whether the RLM signal fired, and a strength rating based on % divergence and move size. Requires a configured public betting-percentage feed (PRY_SHARP_BET_FEED); without it no signal is fabricated. Use to bet against the public when the line agrees with sharps, e.g. 'show RLM signals on the NFL slate' or call with sport='nba' before lineups lock."
+		},
+		{
+			"name": "pry_bet_money_divergence",
+			"description": "Find bet-percentage vs money-percentage divergence: when a large share of TICKETS is on one team but the MONEY (dollars) is on the other, big bettors are on the minority side. Each record includes the event, side, bet %, money %, divergence (money minus bets), the identified sharp side, and a confidence rating. Requires a configured public betting-percentage feed (PRY_SHARP_BET_FEED). Use to spot where the wiseguy money disagrees with the public, e.g. 'where are sharps on the opposite side of the public in the NFL?' or call with sport='nba' for the full slate."
+		},
+		{
+			"name": "pry_line_watch",
+			"description": "Lines worth watching for value: current vs opening line per event, which book currently holds the best number, total movement since the first recorded snapshot, and a value indicator (good_line / fair_line / bad_line) comparing the best price against the market consensus. Use to shop for the best available number before betting, e.g. 'which book has the best NBA moneyline prices right now?' or call with sport='nfl' to build a line-shopping dashboard."
+		},
+		{
+			"name": "pry_sharp_report",
+			"description": "Full sharp money intelligence report for a sport: aggregates steam moves, reverse line movement signals, top bet/money divergences, line-watch items, and an overall sharp-indicators ranking of which games professional money is on. Use as a one-call daily briefing before betting, e.g. 'give me the sharp money report for tonight's NBA games' or call with sport='nfl' on Sunday morning for the week's sharpest angles."
+		},
+		{
+			"name": "pry_sharp_consensus",
+			"description": "Games where MULTIPLE sharp indicators align on the same side: steam moves, reverse line movement, and bet/money divergence all pointing at one team. Each record includes the event, which indicators fired, the consensus sharp pick, a confidence level (high when 3+ indicators agree), and a recommended bet summary. Use for the highest-conviction plays only, e.g. 'which games have the strongest sharp consensus tonight?' or call with sport='nba' to filter the slate down to multi-signal games."
+		},
+		{
+			"name": "pry_live_games",
+			"description": "Every in-progress game on a sport's slate right now, from ESPN's free public scoreboard: event_id, home/away, live scores, quarter, time remaining, status. Entry point for the other live tools \u2014 grab an event_id here. Example: 'what NBA games are live?'"
+		},
+		{
+			"name": "pry_live_game_state",
+			"description": "Full live state for one game: score, quarter, clock, possession, momentum (last five possessions when available), pace, scoring rate, remaining timeouts. Example: 'who has the ball and how fast is this game scoring?'"
+		},
+		{
+			"name": "pry_live_win_probability",
+			"description": "Live win probability for one game: home/away chances (ESPN's model when published, else a lead-vs-time heuristic), projected final scores, projected total, over/under probability vs the posted total, spread-cover probabilities. Example: 'who wins this game?'"
+		},
+		{
+			"name": "pry_live_scoring",
+			"description": "Scoring breakdown for one live game: per-quarter scores for both teams, lead changes, ties and quarter-by-quarter scoring runs. Example: 'how many lead changes tonight?'"
+		},
+		{
+			"name": "pry_live_betting_impact",
+			"description": "Live betting impact for one game: current margin vs the posted spread, pace-based total projection vs the posted total, and live value/arb opportunities (spread edge >= 3 pts, total edge >= 8 pts). Example: 'any live value on this game?'"
+		},
+		{
+			"name": "pry_game_weather",
+			"description": "Get current weather at a game venue (temperature, wind, precipitation, humidity, visibility) via Open-Meteo. Use before lock to check outdoor-game conditions, e.g. 'how windy is it in Chicago right now?'"
+		},
+		{
+			"name": "pry_weather_impact",
+			"description": "Translate venue weather into betting impact: wind/temp/precip bands, a total (points) adjustment, and pass-vs-run game lean. Use for NFL/NCAA outdoor totals and spread edges, e.g. 'does the wind favor the under tonight?'"
+		},
+		{
+			"name": "pry_game_context",
+			"description": "Full game-context bundle for a matchup: venue weather, weather impact on scoring, rest days / back-to-back flags (ESPN), and travel distance / time-zone / altitude change. Use for situational edges, e.g. 'any rest or travel edge for the Nuggets at the Lakers?'"
 		},
 		{
 			"name": "pry_scrape_methods",
-			"description": "Sportsbook scraping-method registry: JSON, __NEXT_DATA__, __NUXT__, __INITIAL_STATE__, HTML tables, browser rendering."
+			"description": "List the extraction methods Pry uses to scrape sportsbook odds pages directly: JSON endpoints, __NEXT_DATA__ (Next.js), __NUXT__, __INITIAL_STATE__ / _dida_config_, HTML tables, and browser rendering. Use to understand how each book in the 112-book registry is reached and which fallback tiers apply, e.g. 'which books need a browser?' or to audit the no-paid-API scraping layer before building on it."
 		},
 		{
 			"name": "pry_all_sources",
-			"description": "Aggregate one event's odds from every reachable source — The Odds API, ESPN, OddsPortal, Bovada, BetOnline, plus 112 sportsbooks."
+			"description": "Aggregate one event's odds from every reachable source at once: The Odds API (free tier), ESPN, OddsPortal, Bovada, BetOnline, and the 112-book sportsbook registry scraped directly via intelligent fallback \u2014 more sources than any other odds service, with no paid odds API. Use to get the complete multi-source picture for a single event, e.g. call with event_id='nba:bda33adc...' and sources='all' to compare every book and feed on one matchup; the merged result is deduped with the sharpest line winning conflicts."
+		},
+		{
+			"name": "pry_weather",
+			"description": "Get current weather and short-range forecasts for a location, built for research pipelines that need environmental context (rain, wind, temperature, AQI) alongside other data. Use to enrich scraping jobs or model outdoor conditions, e.g. 'what is the weather in Austin, TX right now?' or call with latitude/longitude to avoid geocoding."
+		},
+		{
+			"name": "pry_agri",
+			"description": "Get agricultural data: crop conditions, growing-degree days, soil moisture, and commodity-relevant climate indices for a region. Use to model crop yield risk or monitor growing regions, e.g. 'what are the corn growing conditions in Iowa?' or call with region='us' and crop='corn' for the USDA-style condition report."
+		},
+		{
+			"name": "pry_papers",
+			"description": "Search academic papers and preprints (arXiv, Semantic Scholar, PubMed) by keyword, author, or topic and return titles, abstracts, and citation counts. Use for research pipelines that need scholarly grounding, e.g. 'find recent papers on retrieval-augmented generation' or call with author='Smith' and limit=10 for recent works."
+		},
+		{
+			"name": "pry_domain",
+			"description": "Get a domain intelligence report: WHOIS registration, SSL/TLS details, hosting provider, and technology fingerprint for a website. Use to enrich leads, vet domains before scraping, or map a competitor's stack, e.g. 'what can you tell me about example.com?' or call with domain='rugmunch.io' for hosting and tech details."
+		},
+		{
+			"name": "pry_events",
+			"description": "Search live event listings (concerts, sports, theater) by keyword and optionally location or date, backed by Ticketmaster / SeatGeek class feeds. Use to find upcoming events for an artist or venue, e.g. 'what concerts are near Austin next month?' or call with query='Taylor Swift' and location='New York' for dated listings."
+		},
+		{
+			"name": "pry_resale",
+			"description": "Get resale ticket pricing for a specific event: asking prices, ticket counts, and section-level ranges across resale marketplaces. Use with an event_id from pry_events to size demand before buying, e.g. call with event_id from a sold-out concert to see floor and nosebleed asking ranges side by side."
+		},
+		{
+			"name": "pry_freight",
+			"description": "Get ocean container freight rates for a route: spot and contract rates per 40ft container across major trade lanes, plus FMC contract visibility where available. Use to model shipping costs, e.g. 'container rates from Shanghai to Los Angeles this week', or call with route='Far East to US West Coast' for the lane spread."
+		},
+		{
+			"name": "pry_energy_lmp",
+			"description": "Get electricity locational marginal prices (LMP) for an ISO region and date, with day-ahead / real-time splits where available. Use to model energy costs or spot volatility, e.g. 'LMP for ERCOT today', or call with region='PJM' and date='2026-08-16' for nodal pricing snapshots."
+		},
+		{
+			"name": "pry_grocery",
+			"description": "Get grocery prices for a product or category, optionally filtered by ZIP code for local store pricing. Use to compare staple costs across markets, e.g. 'price of a dozen eggs in 10001', or call with query='milk' and zip='78701' to see regional averages and store-level ranges."
+		},
+		{
+			"name": "pry_restaurant",
+			"description": "Get a restaurant's menu with prices: items, sections, and per-dish pricing for a named restaurant. Use to build cost-of-dining datasets or research competitors, e.g. call with name=\"Katz's Delicatessen\" and location='New York' for the full menu with prices."
+		},
+		{
+			"name": "pry_imports",
+			"description": "Get U.S. customs import records for a company: shipment dates, commodity descriptions, suppliers, and origin countries. Use to size a competitor's supply chain or vet suppliers, e.g. call with company='Tesla Inc' for recent bill-of-lading entries with quantities."
+		},
+		{
+			"name": "pry_firmographics",
+			"description": "Get firmographic data for a company: employee count band, revenue range, founding year, headquarters, industry, and company type. Use to segment leads or enrich CRM records, e.g. call with company='Rug Munch Media' for the standard firmographic profile with confidence scores."
 		},
 		{
 			"name": "pry_app_search",
-			"description": "App Store app search by keyword — name, bundle id, price, rating"
+			"description": "Search the Apple App Store by keyword and return matching apps \u2014 name, bundle id, price, rating, category, and store URL. Use to find apps by feature, compare pricing across categories, or feed app-market research, e.g. search query='crypto wallet' to list every mobile wallet on the store. Backed by the free public iTunes Search API; never raises and returns an empty list when the feed is unreachable."
 		},
 		{
 			"name": "pry_app_reviews",
-			"description": "App Store user reviews by app id — rating, title, body, author"
+			"description": "Get recent user reviews for an app by its store identifier \u2014 the numeric App Store id or bundle id, e.g. 'com.coinbase.app' \u2014 returning rating, title, body, author, and review date for each. Use to gauge app sentiment, triage support complaints, or feed product-research pipelines, e.g. reviews for '284910350' (Coinbase). Reads the free public App Store customer reviews feed; never raises and returns an empty list when the feed is unreachable."
 		},
 		{
 			"name": "pry_news",
-			"description": "News article search by keyword — title, source, date, URL"
+			"description": "Search news articles by keyword across public news feeds and aggregators, returning title, source, published date, and URL for each result. Use to monitor a brand, topic, or competitor in the press, e.g. query='crypto regulation' for the latest regulatory coverage. Best-effort over free public feeds; never raises and returns an empty list when a feed is unreachable or rate-limited."
 		},
 		{
 			"name": "pry_sentiment",
-			"description": "News sentiment analysis by keyword — positive/neutral/negative with confidence"
+			"description": "Score the sentiment of recent news about a keyword \u2014 positive / neutral / negative with a confidence score \u2014 using lightweight text analysis over the same public news feeds as pry_news. Use to gauge market or brand mood, e.g. query='Bitcoin ETF' before a trade or campaign. Degrades to a neutral score when no articles are found; never raises on feed failures."
 		},
 		{
 			"name": "pry_company_watch",
-			"description": "Company regulatory watch — enforcement actions, fines, sanctions, filings"
+			"description": "Return the regulatory watch record for a company \u2014 recent enforcement actions, fines, sanctions, and compliance filings \u2014 e.g. company='OpenAI' for its compliance exposure. Use for due diligence, vendor screening, or competitor risk monitoring before partnering or trading. Backed by free public regulatory feeds; degrades to an empty record when no data is found."
 		},
 		{
 			"name": "pry_deals",
-			"description": "Deals, discounts & promotions search by keyword — merchant, price, discount, expiry"
+			"description": "Search deals, discounts, and promotions by keyword across public deal feeds, returning merchant, product, price, discount percentage, and expiry for each result. Use to build deal trackers, power shopping comparisons, or feed coupon content, e.g. query='PS5' for current console offers. Best-effort over free public sources; never raises and returns an empty list on failure."
 		},
 		{
 			"name": "pry_drop_alert",
-			"description": "Product drop / restock alert check — availability windows and price drops"
+			"description": "Check for drop alerts / limited product restock or flash-sale signals for a product, returning availability windows, price drops, and the merchant for each signal, e.g. product='RTX 5090' to track GPU drops. Use to power restock-notification bots, supply monitoring, or scalper-resistant buying queues. Best-effort over public feeds; degrades to an empty list when no drop signal is found."
 		},
 		{
 			"name": "pry_contracts",
-			"description": "Government contract opportunities & awards search by keyword — agency, solicitation, value, deadline"
+			"description": "Search government contract opportunities and awards by keyword across public procurement feeds, returning agency, solicitation number, award value, status, and deadline for each result. Use to monitor public-sector RFPs and awarded contracts, e.g. query='cybersecurity' for current federal bidding data. Best-effort over free public sources; never raises and returns an empty list on failure."
 		},
 		{
 			"name": "pry_grants",
-			"description": "Government grant opportunities search by keyword — agency, funding amount, eligibility, deadline"
+			"description": "Search government grant opportunities by keyword across public grant feeds, returning agency, opportunity number, funding amount, eligibility, and deadline for each result. Use to find open funding programs for research, nonprofits, or businesses, e.g. query='small business innovation research'. Best-effort over free public sources; never raises and returns an empty list on failure."
 		},
 		{
 			"name": "pry_actor_catalog",
-			"description": "List every Pry Apify Store actor (109) with description, pricing events and per-event USD price. Store parity surface: anything runnable on Apify is discoverable here. Filter by optional 'domain' substring (e.g. 'monitor', 'crypto', 'seo')."
+			"description": "List every Pry Apify Store actor (109) with description, category, pricing events and per-event USD price. Store parity surface: anything runnable on Apify is discoverable here. Filter by optional 'domain' substring (e.g. 'monitor', 'crypto', 'seo'). Supports offset/limit pagination over the full catalog."
 		},
 		{
 			"name": "pry_actor_run",
-			"description": "Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors. Use after pry_actor_catalog: pass the actor name plus target urls; results are the same dataset items the Apify run would produce. Examples: actor='news-feed-monitor', actor='universal-scraper', actor='token-safety-scanner'."
+			"description": "Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors. Use after pry_actor_catalog: pass the actor name plus target urls; results are the same dataset items the Apify run would produce. x402 pay-per-call: each processed URL bills the actor's first PPE pricing event (see pry_actor_catalog / pry_x402_pricing for per-event USD prices). Examples: actor='news-feed-monitor', actor='universal-scraper', actor='token-safety-scanner'."
 		}
 	],
 	"tags": [

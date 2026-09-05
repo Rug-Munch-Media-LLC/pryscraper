@@ -153,3 +153,9 @@ PRY_TOOLS: list[dict[str, Any]] = [
         },
     },
 ]
+
+_SPORTS_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "pry_game_weather": (("game_context", ("get_game_weather",)),),
+    "pry_weather_impact": (("game_context", ("get_weather_impact",)),),
+    "pry_game_context": (("game_context", ("get_game_context",)),),
+}

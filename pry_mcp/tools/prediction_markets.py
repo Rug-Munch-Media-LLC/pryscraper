@@ -174,12 +174,12 @@ PRY_TOOLS: list[dict[str, Any]] = [
 # module/function the landed code actually exposes.
 _PREDICTION_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     "pry_prediction_markets": (
-        ("prediction_markets", ("get_prediction_markets",)),
+        ("prediction_markets_reexport", ("get_prediction_markets",)),
         ("polymarket", ("get_polymarket_markets",)),
         ("kalshi", ("get_kalshi_markets",)),
     ),
     "pry_prediction_market_detail": (
-        ("prediction_markets", ("get_prediction_market",)),
+        ("prediction_markets_reexport", ("get_prediction_market",)),
         ("polymarket", ("get_polymarket_market",)),
         ("kalshi", ("get_kalshi_market",)),
     ),
