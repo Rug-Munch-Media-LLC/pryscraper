@@ -219,6 +219,8 @@ extend-ignore = ["N815", "A002", "RUF006"]
 # validation scripts; anything else must log, not print.
 "src/pry/core/cli.py" = ["T201"]
 "src/pry/misc/cli.py" = ["T201"]
+"src/pry/misc/cli_helpers.py" = ["T201"]
+"src/pry/misc/cli_commands.py" = ["T201"]
 "templates/**" = ["T201"]
 "scripts/**" = ["T201"]
 # Template validation CLIs — operator-facing stdout IS the interface.
