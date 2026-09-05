@@ -58,6 +58,7 @@ import json
 import logging
 import os
 import re
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote, urlparse
 from urllib.robotparser import RobotFileParser
@@ -221,67 +222,41 @@ async def _fetch_redfin_json(params: dict[str, str]) -> dict[str, Any] | None:
         return None
 
 
+# ── Static config tables (loaded from listings.json) ──────────────────
+# Zillow robots.txt allows /homes/for_sale/, /homes/for_rent/ and
+# /homes/recently_sold/ browse paths for the generic agent; the modern
+# ``/homes/{location}_rb/`` and ``/homedetails/`` paths are not on the
+# allow-list, so the compliant URL forms are used here. Redfin GIS
+# ``status`` codes: 9 = active, 1 = rental, 11 = sold. Verified Redfin
+# region ids (``region_type=6``) live in the JSON too; extend via
+# PRY_REAL_ESTATE_REDFIN_REGION_IDS (JSON ``{"location": id}``).
+_DATA_PATH = Path(__file__).with_name("listings.json")
+
+
+def _load_data() -> dict[str, Any]:
+    """Load the static config tables from the sibling ``listings.json``."""
+    try:
+        with open(_DATA_PATH, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        logger.warning("real_estate_listings_data_unreadable", extra={"path": str(_DATA_PATH)})
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+_DATA = _load_data()
+_ZILLOW_STATUS_PATHS: dict[str, str] = _DATA.get("zillow_status_paths", {})
+_ZILLOW_STATUS_FILTERS: dict[str, dict[str, Any]] = _DATA.get("zillow_status_filters", {})
+_REDFIN_STATUS_CODES: dict[str, str] = _DATA.get("redfin_status_codes", {})
+_REDFIN_REGION_IDS: dict[str, int] = _DATA.get("redfin_region_ids", {})
+_REDFIN_REGION_ENV = "PRY_REAL_ESTATE_REDFIN_REGION_IDS"
+
+
 # ── URL builders ───────────────────────────────────────────────────────
 def _slugify(location: str) -> str:
     """``Austin, TX`` -> ``austin-tx`` (Zillow search-path style)."""
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", location.strip().lower()).strip("-")
     return quote(slug) if slug else ""
-
-
-# Zillow robots.txt allows /homes/for_sale/, /homes/for_rent/ and
-# /homes/recently_sold/ browse paths for the generic agent; the modern
-# ``/homes/{location}_rb/`` and ``/homedetails/`` paths are not on the
-# allow-list, so the compliant URL forms are used here.
-_ZILLOW_STATUS_PATHS = {
-    "for_sale": "for_sale",
-    "for_rent": "for_rent",
-    "sold": "recently_sold",
-}
-
-# Zillow filterState used to pin the search page to the requested status.
-_ZILLOW_STATUS_FILTERS = {
-    "for_sale": {
-        "fr": True,
-        "fsba": False,
-        "fsbo": False,
-        "nc": False,
-        "cmsn": False,
-        "auc": False,
-        "fore": False,
-    },
-    "for_rent": {
-        "fr": True,
-        "fsba": False,
-        "fsbo": False,
-        "nc": False,
-        "cmsn": False,
-        "auc": False,
-        "fore": False,
-    },
-    "sold": {
-        "fsba": False,
-        "fsbo": False,
-        "nc": False,
-        "cmsn": False,
-        "auc": False,
-        "fore": False,
-        "sold": True,
-    },
-}
-
-# Redfin GIS ``status`` codes: 9 = active, 1 = rental, 11 = sold.
-_REDFIN_STATUS_CODES = {"for_sale": "9", "for_rent": "1", "sold": "11"}
-
-# Verified Redfin region ids (``region_type=6``). Only region ids verified
-# against the live GIS endpoint are hardcoded; extend via
-# PRY_REAL_ESTATE_REDFIN_REGION_IDS (JSON ``{"location": id}``).
-_REDFIN_REGION_IDS: dict[str, int] = {
-    "seattle": 39430,
-    "seattle-wa": 39430,
-    "capitol-hill": 39430,
-    "capitol-hill-seattle": 39430,
-}
-_REDFIN_REGION_ENV = "PRY_REAL_ESTATE_REDFIN_REGION_IDS"
 
 
 def _redfin_region_id(location: str) -> int | None:

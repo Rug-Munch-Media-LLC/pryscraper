@@ -1,0 +1,48 @@
+{
+	"_comment": "Static configuration tables for datasets/real_estate/listings.py. Zillow robots.txt allows /homes/for_sale/, /homes/for_rent/ and /homes/recently_sold/ browse paths for the generic agent; the modern /homes/{location}_rb/ and /homedetails/ paths are not on the allow-list, so the compliant URL forms are used. Redfin GIS status codes: 9 = active, 1 = rental, 11 = sold. Redfin region ids (region_type=6) are only those verified against the live GIS endpoint; extend via PRY_REAL_ESTATE_REDFIN_REGION_IDS.",
+	"zillow_status_paths": {
+		"for_sale": "for_sale",
+		"for_rent": "for_rent",
+		"sold": "recently_sold"
+	},
+	"zillow_status_filters": {
+		"for_sale": {
+			"fr": true,
+			"fsba": false,
+			"fsbo": false,
+			"nc": false,
+			"cmsn": false,
+			"auc": false,
+			"fore": false
+		},
+		"for_rent": {
+			"fr": true,
+			"fsba": false,
+			"fsbo": false,
+			"nc": false,
+			"cmsn": false,
+			"auc": false,
+			"fore": false
+		},
+		"sold": {
+			"fsba": false,
+			"fsbo": false,
+			"nc": false,
+			"cmsn": false,
+			"auc": false,
+			"fore": false,
+			"sold": true
+		}
+	},
+	"redfin_status_codes": {
+		"for_sale": "9",
+		"for_rent": "1",
+		"sold": "11"
+	},
+	"redfin_region_ids": {
+		"seattle": 39430,
+		"seattle-wa": 39430,
+		"capitol-hill": 39430,
+		"capitol-hill-seattle": 39430
+	}
+}
