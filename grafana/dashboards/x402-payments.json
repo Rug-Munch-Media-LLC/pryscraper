@@ -1,0 +1,195 @@
+{
+	"title": "x402 Payments — Detailed",
+	"schemaVersion": 39,
+	"version": 1,
+	"uid": "x402-payments",
+	"tags": ["x402", "payments", "pry"],
+	"time": { "from": "now-6h", "to": "now" },
+	"refresh": "30s",
+	"panels": [
+		{
+			"id": 1,
+			"type": "stat",
+			"title": "Payment Volume (req/min)",
+			"gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+			"targets": [
+				{ "expr": "rate(x402_challenges_sent_total[1m])", "refId": "A" }
+			],
+			"fieldConfig": { "defaults": { "unit": "reqps" } }
+		},
+		{
+			"id": 2,
+			"type": "stat",
+			"title": "Verification Success Rate",
+			"gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+			"targets": [
+				{
+					"expr": "sum(rate(x402_verify_success_total[5m])) / sum(rate(x402_verify_total[5m])) * 100",
+					"refId": "A"
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "percent",
+					"thresholds": {
+						"steps": [
+							{ "color": "red", "value": null },
+							{ "color": "yellow", "value": 80 },
+							{ "color": "green", "value": 95 }
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": 3,
+			"type": "stat",
+			"title": "Settlement Success Rate",
+			"gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+			"targets": [
+				{
+					"expr": "sum(rate(x402_settle_success_total[5m])) / sum(rate(x402_settle_total[5m])) * 100",
+					"refId": "A"
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "percent",
+					"thresholds": {
+						"steps": [
+							{ "color": "red", "value": null },
+							{ "color": "yellow", "value": 80 },
+							{ "color": "green", "value": 95 }
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": 4,
+			"type": "stat",
+			"title": "Replay Attacks Detected",
+			"gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+			"targets": [
+				{ "expr": "increase(x402_replay_detected_total[1h])", "refId": "A" }
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "short",
+					"thresholds": {
+						"steps": [
+							{ "color": "green", "value": null },
+							{ "color": "red", "value": 1 }
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": 5,
+			"type": "timeseries",
+			"title": "Payment Volume (402 challenges/min)",
+			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+			"targets": [
+				{
+					"expr": "rate(x402_challenges_sent_total[1m]) * 60",
+					"legendFormat": "challenges/min",
+					"refId": "A"
+				}
+			]
+		},
+		{
+			"id": 6,
+			"type": "timeseries",
+			"title": "Verification Success vs Failure",
+			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+			"targets": [
+				{
+					"expr": "rate(x402_verify_success_total[1m]) * 60",
+					"legendFormat": "success/min",
+					"refId": "A"
+				},
+				{
+					"expr": "rate(x402_verify_failure_total[1m]) * 60",
+					"legendFormat": "failure/min",
+					"refId": "B"
+				}
+			]
+		},
+		{
+			"id": 7,
+			"type": "timeseries",
+			"title": "RPC Latency (p50, p95, p99)",
+			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+			"targets": [
+				{
+					"expr": "histogram_quantile(0.50, sum(rate(x402_rpc_latency_seconds_bucket[5m])) by (le))",
+					"legendFormat": "p50",
+					"refId": "A"
+				},
+				{
+					"expr": "histogram_quantile(0.95, sum(rate(x402_rpc_latency_seconds_bucket[5m])) by (le))",
+					"legendFormat": "p95",
+					"refId": "B"
+				},
+				{
+					"expr": "histogram_quantile(0.99, sum(rate(x402_rpc_latency_seconds_bucket[5m])) by (le))",
+					"legendFormat": "p99",
+					"refId": "C"
+				}
+			],
+			"fieldConfig": { "defaults": { "unit": "s" } }
+		},
+		{
+			"id": 8,
+			"type": "timeseries",
+			"title": "Settlement Volume (USD)",
+			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+			"targets": [
+				{
+					"expr": "increase(x402_settlement_volume_usd_total[1h])",
+					"legendFormat": "USD/hour",
+					"refId": "A"
+				}
+			],
+			"fieldConfig": { "defaults": { "unit": "currencyUSD" } }
+		},
+		{
+			"id": 9,
+			"type": "table",
+			"title": "Active Facilitators & Health",
+			"gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+			"targets": [
+				{
+					"expr": "x402_facilitator_health",
+					"format": "table",
+					"instant": true,
+					"refId": "A"
+				}
+			]
+		},
+		{
+			"id": 10,
+			"type": "timeseries",
+			"title": "Payment Flow: 402 → Verify → Settle",
+			"gridPos": { "h": 8, "w": 24, "x": 0, "y": 30 },
+			"targets": [
+				{
+					"expr": "rate(x402_challenges_sent_total[5m]) * 300",
+					"legendFormat": "402 challenges",
+					"refId": "A"
+				},
+				{
+					"expr": "rate(x402_verify_total[5m]) * 300",
+					"legendFormat": "verified",
+					"refId": "B"
+				},
+				{
+					"expr": "rate(x402_settle_total[5m]) * 300",
+					"legendFormat": "settled",
+					"refId": "C"
+				}
+			]
+		}
+	]
+}

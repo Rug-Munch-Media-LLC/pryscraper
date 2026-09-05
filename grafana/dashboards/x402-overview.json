@@ -1,0 +1,136 @@
+{
+	"title": "x402 Overview — Revenue & Health",
+	"schemaVersion": 39,
+	"version": 1,
+	"uid": "x402-overview",
+	"tags": ["x402", "payments", "pry", "overview"],
+	"time": { "from": "now-24h", "to": "now" },
+	"refresh": "1m",
+	"panels": [
+		{
+			"id": 1,
+			"type": "stat",
+			"title": "Total Revenue Today (USD)",
+			"gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+			"targets": [
+				{
+					"expr": "increase(x402_settlement_volume_usd_total[24h])",
+					"refId": "A"
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "currencyUSD",
+					"color": { "mode": "thresholds" },
+					"thresholds": {
+						"steps": [
+							{ "color": "red", "value": null },
+							{ "color": "yellow", "value": 1 },
+							{ "color": "green", "value": 10 }
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": 2,
+			"type": "stat",
+			"title": "Revenue This Week (USD)",
+			"gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+			"targets": [
+				{
+					"expr": "increase(x402_settlement_volume_usd_total[7d])",
+					"refId": "A"
+				}
+			],
+			"fieldConfig": { "defaults": { "unit": "currencyUSD" } }
+		},
+		{
+			"id": 3,
+			"type": "stat",
+			"title": "Payment Success Rate (24h)",
+			"gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+			"targets": [
+				{
+					"expr": "sum(rate(x402_verify_success_total[24h])) / sum(rate(x402_verify_total[24h])) * 100",
+					"refId": "A"
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "percent",
+					"thresholds": {
+						"steps": [
+							{ "color": "red", "value": null },
+							{ "color": "yellow", "value": 80 },
+							{ "color": "green", "value": 95 }
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": 4,
+			"type": "stat",
+			"title": "Active Chains",
+			"gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+			"targets": [{ "expr": "count(x402_chain_active == 1)", "refId": "A" }],
+			"fieldConfig": { "defaults": { "unit": "short" } }
+		},
+		{
+			"id": 5,
+			"type": "timeseries",
+			"title": "Revenue (USD/hour)",
+			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+			"targets": [
+				{
+					"expr": "increase(x402_settlement_volume_usd_total[1h])",
+					"legendFormat": "USD/hour",
+					"refId": "A"
+				}
+			],
+			"fieldConfig": { "defaults": { "unit": "currencyUSD" } }
+		},
+		{
+			"id": 6,
+			"type": "timeseries",
+			"title": "Error Rate by Chain",
+			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+			"targets": [
+				{
+					"expr": "rate(x402_verify_failure_total[5m]) by (chain)",
+					"legendFormat": "{{chain}}",
+					"refId": "A"
+				}
+			]
+		},
+		{
+			"id": 7,
+			"type": "table",
+			"title": "Top Operations by Volume",
+			"gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+			"targets": [
+				{
+					"expr": "topk(10, sum(increase(x402_operation_calls_total[1h])) by (operation))",
+					"format": "table",
+					"instant": true,
+					"refId": "A"
+				}
+			]
+		},
+		{
+			"id": 8,
+			"type": "timeseries",
+			"title": "Payment Success Rate Trend",
+			"gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+			"targets": [
+				{
+					"expr": "sum(rate(x402_verify_success_total[5m])) by (chain) / sum(rate(x402_verify_total[5m])) by (chain) * 100",
+					"legendFormat": "{{chain}}",
+					"refId": "A"
+				}
+			],
+			"fieldConfig": { "defaults": { "unit": "percent" } }
+		}
+	]
+}
