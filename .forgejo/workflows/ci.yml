@@ -332,7 +332,6 @@ jobs:
           else
             mutmut run --paths-to-mutate . 2>/dev/null && mutmut results || echo "Mutation gate noted"
           fi
-        continue-on-error: true
 
   secrets:
     name: Secret scan (gitleaks)
