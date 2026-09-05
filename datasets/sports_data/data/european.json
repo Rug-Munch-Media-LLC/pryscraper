@@ -1,0 +1,101 @@
+{
+	"EUROPEAN_BOOKS": {
+		"pinnacle": {
+			"title": "Pinnacle",
+			"base_url": "https://guest.api.pinnacle.com/v1",
+			"kind": "json",
+			"confidence": 0.8,
+			"notes": "Sharp book; semi-public guest API (leagues/fixtures/odds), no auth. Globally reachable."
+		},
+		"marathonbet": {
+			"title": "Marathonbet",
+			"base_url": "https://www.marathonbet.com/en/betting",
+			"kind": "html",
+			"confidence": 0.6,
+			"notes": "Server-rendered decimal-odds coupon pages. Globally reachable."
+		},
+		"1xbet": {
+			"title": "1xBet",
+			"base_url": "https://1xbet.com/service-api/LineFeed",
+			"kind": "json",
+			"confidence": 0.6,
+			"notes": "Internal LineFeed JSON endpoint (gzip/base64 payload). Globally reachable."
+		},
+		"betfair": {
+			"title": "Betfair",
+			"base_url": "https://www.betfair.com/www/sports/exchange/readonly/v1",
+			"kind": "exchange",
+			"confidence": 0.6,
+			"notes": "Public read-only Exchange API (no login); exchange back odds. Cloudflare-protected."
+		},
+		"betway": {
+			"title": "Betway",
+			"base_url": "https://www.betway.com/en/sports",
+			"kind": "embedded",
+			"confidence": 0.3,
+			"notes": "Server-rendered + embedded state; best-effort."
+		},
+		"10bet": {
+			"title": "10Bet",
+			"base_url": "https://www.10bet.com/en/sports",
+			"kind": "embedded",
+			"confidence": 0.3,
+			"notes": "Server-rendered + embedded state; best-effort."
+		},
+		"sbobet": {
+			"title": "SBOBet",
+			"base_url": "https://www.sbobet.com",
+			"kind": "embedded",
+			"confidence": 0.15,
+			"notes": "JS-heavy; hard geo-blocking of many countries. Likely blocked from EU egress."
+		},
+		"dafabet": {
+			"title": "Dafabet",
+			"base_url": "https://www.dafabet.com/en/sports",
+			"kind": "embedded",
+			"confidence": 0.2,
+			"notes": "JS-heavy SPA; best-effort."
+		},
+		"12bet": {
+			"title": "12Bet",
+			"base_url": "https://www.12bet.com/sports",
+			"kind": "embedded",
+			"confidence": 0.2,
+			"notes": "JS-heavy SPA; best-effort."
+		},
+		"w88": {
+			"title": "W88",
+			"base_url": "https://www.w88.com/sports",
+			"kind": "embedded",
+			"confidence": 0.2,
+			"notes": "JS-heavy SPA; best-effort."
+		}
+	},
+	"EUROPEAN_BOOK_ORDER": [
+		"pinnacle",
+		"marathonbet",
+		"1xbet",
+		"betfair",
+		"betway",
+		"10bet",
+		"sbobet",
+		"dafabet",
+		"12bet",
+		"w88"
+	],
+	"_EUROPEAN_SPORTS": {
+		"basketball_nba": ["basketball", "nba"],
+		"americanfootball_nfl": ["american-football", "nfl"],
+		"baseball_mlb": ["baseball", "mlb"],
+		"icehockey_nhl": ["ice-hockey", "nhl"],
+		"soccer_epl": ["soccer", "england-premier-league"],
+		"soccer_spain_la_liga": ["soccer", "spain-la-liga"],
+		"soccer_germany_bundesliga": ["soccer", "germany-bundesliga"],
+		"soccer_italy_serie_a": ["soccer", "italy-serie-a"],
+		"soccer_uefa_champions_league": ["soccer", "europe-uefa-champions-league"],
+		"tennis_atp": ["tennis", null],
+		"tennis_wta": ["tennis", null],
+		"mma_mixed_martial_arts": ["mma", null],
+		"boxing": ["boxing", null]
+	}
+}

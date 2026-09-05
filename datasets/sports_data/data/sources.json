@@ -1,0 +1,42 @@
+{
+	"the_odds_api": {
+		"kind": "api",
+		"base_url": "https://api.the-odds-api.com/v4",
+		"confidence": 0.95,
+		"requires_key": true,
+		"markets": ["h2h", "spreads", "totals", "outrights"],
+		"notes": "Official market-standard odds API; quota-bound free tier (500 req/mo)."
+	},
+	"espn": {
+		"kind": "api",
+		"base_url": "https://site.api.espn.com/apis/site/v2",
+		"confidence": 0.85,
+		"requires_key": false,
+		"markets": ["h2h", "spreads", "totals"],
+		"notes": "Public scoreboards publish a moneyline/spread/total odds block; no key, coverage varies by league."
+	},
+	"oddsportal": {
+		"kind": "scrape",
+		"base_url": "https://www.oddsportal.com",
+		"confidence": 0.4,
+		"requires_key": false,
+		"markets": ["h2h"],
+		"notes": "80+ books, all sports. Listing pages are server-rendered; per-match odds table is partly client-rendered and anti-bot protected - plain HTTP may miss rows."
+	},
+	"bovada": {
+		"kind": "api",
+		"base_url": "https://www.bovada.lv/services/sports/event/v2/events",
+		"confidence": 0.7,
+		"requires_key": false,
+		"markets": ["h2h", "spreads", "totals"],
+		"notes": "Offshore book's public JSON feed; unofficial, may geo-block non-US IPs."
+	},
+	"betonline": {
+		"kind": "scrape",
+		"base_url": "https://www.betonline.ag/sportsbook",
+		"confidence": 0.5,
+		"requires_key": false,
+		"markets": ["h2h"],
+		"notes": "No public JSON API; best-effort parse of sportsbook listing pages."
+	}
+}

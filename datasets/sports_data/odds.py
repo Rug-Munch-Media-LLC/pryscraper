@@ -128,11 +128,13 @@ Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
 import sys
 import time
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
@@ -141,6 +143,17 @@ import httpx
 from pry.engine.retry import RetryConfig, async_retry
 
 logger = logging.getLogger(__name__)
+
+# ── Data-driven registry loader ─────────────────────────────────────────
+# Static sports/books metadata lives as plain JSON (data, not code) under
+# ``data/odds.json``; this module loads it at import time.
+_DATA_DIR = Path(__file__).resolve().parent / "data"
+
+
+def _load_json(name: str) -> Any:
+    with (_DATA_DIR / name).open(encoding="utf-8") as fh:
+        return json.load(fh)
+
 
 # ── Markets ────────────────────────────────────────────────────────────
 _MARKET_H2H = "h2h"
@@ -175,48 +188,14 @@ _MARKET_ALIASES: dict[str, str] = {
 # ── Sports ─────────────────────────────────────────────────────────────
 # Canonical sport key (the Odds API key) -> ESPN (sport, league) fallback.
 # ``None`` ESPN means The Odds API is the only source for that sport.
+# Data-driven (JSON).
+_ODDS_DATA: dict[str, Any] = _load_json("odds.json")
 _CANONICAL_SPORTS: dict[str, tuple[str, str] | None] = {
-    "americanfootball_nfl": ("americanfootball", "nfl"),
-    "americanfootball_ncaaf": ("americanfootball", "college-football"),
-    "basketball_nba": ("basketball", "nba"),
-    "basketball_ncaab": ("basketball", "mens-college-basketball"),
-    "basketball_wnba": ("basketball", "wnba"),
-    "baseball_mlb": ("baseball", "mlb"),
-    "icehockey_nhl": ("icehockey", "nhl"),
-    "soccer_epl": ("soccer", "eng.1"),
-    "soccer_spain_la_liga": ("soccer", "esp.1"),
-    "soccer_germany_bundesliga": ("soccer", "ger.1"),
-    "soccer_italy_serie_a": ("soccer", "ita.1"),
-    "soccer_uefa_champions_league": ("soccer", "uefa.champions"),
-    "tennis_atp": ("tennis", "atp"),
-    "tennis_wta": ("tennis", "wta"),
-    "golf_pga": ("golf", "pga"),
-    "mma_mixed_martial_arts": ("mma", "ufc"),
-    "boxing": None,
-    "esports_csgo": None,
-    "esports_dota2": None,
-    "esports_league_of_legends": None,
-    "formula_1": ("racing", "f1"),
-    "cricket_international_t20": None,
-    # Legacy sports kept for backward compatibility with short aliases.
-    "soccer_usa_mls": ("soccer", "usa.1"),
-    "americanfootball_cfl": ("americanfootball", "cfl"),
+    k: (v[0], v[1]) if v is not None else None for k, v in _ODDS_DATA["_CANONICAL_SPORTS"].items()
 }
 
 # Legacy short aliases -> canonical key (backward compatibility).
-_SPORT_ALIASES: dict[str, str] = {
-    "nba": "basketball_nba",
-    "nfl": "americanfootball_nfl",
-    "mlb": "baseball_mlb",
-    "nhl": "icehockey_nhl",
-    "ncaab": "basketball_ncaab",
-    "ncaaf": "americanfootball_ncaaf",
-    "epl": "soccer_epl",
-    "mls": "soccer_usa_mls",
-    "wnba": "basketball_wnba",
-    "ufc": "mma_mixed_martial_arts",
-    "cfl": "americanfootball_cfl",
-}
+_SPORT_ALIASES: dict[str, str] = _ODDS_DATA["_SPORT_ALIASES"]
 
 
 def _build_sports_table() -> dict[str, tuple[str, tuple[str, str] | None]]:
@@ -233,44 +212,18 @@ _SPORTS: dict[str, tuple[str, tuple[str, str] | None]] = _build_sports_table()
 
 # The Odds API free tier is quota-bound (500 req/month); "all" never queries
 # the full sport list. These are the sports betting bots care about most.
-_DEFAULT_SPORTS: tuple[str, ...] = ("nba", "nfl", "epl")
+_DEFAULT_SPORTS: tuple[str, ...] = tuple(_ODDS_DATA["_DEFAULT_SPORTS"])
 
 # ── Books ──────────────────────────────────────────────────────────────
 # Canonical book slug -> the upstream identifiers that identify it.
 # The values are The Odds API ``bookmakers`` keys (valid for the upstream
 # request) — display titles live in ``_BOOK_TITLES`` below (normalization
-# only, never sent upstream).
-_BOOKS: dict[str, tuple[str, ...]] = {
-    "pinnacle": ("pinnacle",),
-    "draftkings": ("draftkings",),
-    "fanduel": ("fanduel",),
-    "betmgm": ("betmgm",),
-    "caesars": ("caesars",),
-    "pointsbet": ("pointsbetus", "pointsbet"),
-    "betrivers": ("betrivers",),
-    "bet365": ("bet365",),
-    "unibet": ("unibet",),
-    "williamhill": ("williamhill_us", "williamhill"),
-    "bovada": ("bovada",),
-    "betonline": ("betonlineag", "betonline"),
-}
+# only, never sent upstream). Data-driven (JSON).
+_BOOKS: dict[str, tuple[str, ...]] = {k: tuple(v) for k, v in _ODDS_DATA["_BOOKS"].items()}
 
 # Display titles (ESPN provider names etc.) -> canonical slug. Used for
 # normalization only — never sent upstream.
-_BOOK_TITLES: dict[str, str] = {
-    "pinnacle": "pinnacle",
-    "draftkings": "draftkings",
-    "fanduel": "fanduel",
-    "betmgm": "betmgm",
-    "caesars": "caesars",
-    "pointsbet": "pointsbet",
-    "betrivers": "betrivers",
-    "bet365": "bet365",
-    "unibet": "unibet",
-    "williamhill": "williamhill",
-    "bovada": "bovada",
-    "betonline": "betonline",
-}
+_BOOK_TITLES: dict[str, str] = _ODDS_DATA["_BOOK_TITLES"]
 
 # ── Endpoints / transport ──────────────────────────────────────────────
 _ODDS_BASE = "https://api.the-odds-api.com/v4/sports"

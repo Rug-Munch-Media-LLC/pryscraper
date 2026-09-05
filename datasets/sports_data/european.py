@@ -50,6 +50,7 @@ import logging
 import re
 import zlib
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
@@ -64,6 +65,17 @@ from datasets.sports_data.offshore import (
     _parse_embedded_state,
 )
 from datasets.sports_data.sources import _as_text, _to_float
+
+# ── Data-driven registry loader ─────────────────────────────────────────
+# Static book metadata + sport→path maps live as plain JSON (data, not
+# code) under ``data/european.json``; this module loads them at import.
+_DATA_DIR = Path(__file__).resolve().parent / "data"
+
+
+def _load_json(name: str) -> Any:
+    with (_DATA_DIR / name).open(encoding="utf-8") as fh:
+        return json.load(fh)
+
 
 # Guarded import: sports_data.odds is extended by a parallel agent; this
 # module is imported by the package during init, so degrade gracefully if
@@ -87,109 +99,17 @@ logger = logging.getLogger(__name__)
 # Canonical book slug -> {name (display), base_url, kind, confidence, notes}.
 # kind: "json" (internal JSON endpoint), "html" (server-rendered coupon),
 # "exchange" (Betfair read-only API), "embedded" (generic best-effort).
-EUROPEAN_BOOKS: dict[str, dict[str, Any]] = {
-    "pinnacle": {
-        "title": "Pinnacle",
-        "base_url": "https://guest.api.pinnacle.com/v1",
-        "kind": "json",
-        "confidence": 0.8,
-        "notes": "Sharp book; semi-public guest API (leagues/fixtures/odds), no auth. Globally reachable.",
-    },
-    "marathonbet": {
-        "title": "Marathonbet",
-        "base_url": "https://www.marathonbet.com/en/betting",
-        "kind": "html",
-        "confidence": 0.6,
-        "notes": "Server-rendered decimal-odds coupon pages. Globally reachable.",
-    },
-    "1xbet": {
-        "title": "1xBet",
-        "base_url": "https://1xbet.com/service-api/LineFeed",
-        "kind": "json",
-        "confidence": 0.6,
-        "notes": "Internal LineFeed JSON endpoint (gzip/base64 payload). Globally reachable.",
-    },
-    "betfair": {
-        "title": "Betfair",
-        "base_url": "https://www.betfair.com/www/sports/exchange/readonly/v1",
-        "kind": "exchange",
-        "confidence": 0.6,
-        "notes": "Public read-only Exchange API (no login); exchange back odds. Cloudflare-protected.",
-    },
-    "betway": {
-        "title": "Betway",
-        "base_url": "https://www.betway.com/en/sports",
-        "kind": "embedded",
-        "confidence": 0.3,
-        "notes": "Server-rendered + embedded state; best-effort.",
-    },
-    "10bet": {
-        "title": "10Bet",
-        "base_url": "https://www.10bet.com/en/sports",
-        "kind": "embedded",
-        "confidence": 0.3,
-        "notes": "Server-rendered + embedded state; best-effort.",
-    },
-    "sbobet": {
-        "title": "SBOBet",
-        "base_url": "https://www.sbobet.com",
-        "kind": "embedded",
-        "confidence": 0.15,
-        "notes": "JS-heavy; hard geo-blocking of many countries. Likely blocked from EU egress.",
-    },
-    "dafabet": {
-        "title": "Dafabet",
-        "base_url": "https://www.dafabet.com/en/sports",
-        "kind": "embedded",
-        "confidence": 0.2,
-        "notes": "JS-heavy SPA; best-effort.",
-    },
-    "12bet": {
-        "title": "12Bet",
-        "base_url": "https://www.12bet.com/sports",
-        "kind": "embedded",
-        "confidence": 0.2,
-        "notes": "JS-heavy SPA; best-effort.",
-    },
-    "w88": {
-        "title": "W88",
-        "base_url": "https://www.w88.com/sports",
-        "kind": "embedded",
-        "confidence": 0.2,
-        "notes": "JS-heavy SPA; best-effort.",
-    },
-}
+# The registry itself is data-driven (JSON).
+_EUROPEAN_DATA: dict[str, Any] = _load_json("european.json")
+EUROPEAN_BOOKS: dict[str, dict[str, Any]] = _EUROPEAN_DATA["EUROPEAN_BOOKS"]
 
 # Aggregate order (also used for book_status iteration).
-EUROPEAN_BOOK_ORDER: tuple[str, ...] = (
-    "pinnacle",
-    "marathonbet",
-    "1xbet",
-    "betfair",
-    "betway",
-    "10bet",
-    "sbobet",
-    "dafabet",
-    "12bet",
-    "w88",
-)
+EUROPEAN_BOOK_ORDER: tuple[str, ...] = tuple(_EUROPEAN_DATA["EUROPEAN_BOOK_ORDER"])
 
 # Canonical sport slug -> (book path slug, league path slug or None) used
-# by the generic (embedded/html) books.
+# by the generic (embedded/html) books. Data-driven.
 _EUROPEAN_SPORTS: dict[str, tuple[str, str | None]] = {
-    "basketball_nba": ("basketball", "nba"),
-    "americanfootball_nfl": ("american-football", "nfl"),
-    "baseball_mlb": ("baseball", "mlb"),
-    "icehockey_nhl": ("ice-hockey", "nhl"),
-    "soccer_epl": ("soccer", "england-premier-league"),
-    "soccer_spain_la_liga": ("soccer", "spain-la-liga"),
-    "soccer_germany_bundesliga": ("soccer", "germany-bundesliga"),
-    "soccer_italy_serie_a": ("soccer", "italy-serie-a"),
-    "soccer_uefa_champions_league": ("soccer", "europe-uefa-champions-league"),
-    "tennis_atp": ("tennis", None),
-    "tennis_wta": ("tennis", None),
-    "mma_mixed_martial_arts": ("mma", None),
-    "boxing": ("boxing", None),
+    k: (v[0], v[1]) for k, v in _EUROPEAN_DATA["_EUROPEAN_SPORTS"].items()
 }
 
 # ── Live availability tracking ──────────────────────────────────────────

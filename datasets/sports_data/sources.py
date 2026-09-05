@@ -56,6 +56,7 @@ import re
 import sys
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -63,6 +64,17 @@ import httpx
 from lxml import html as _lxml_html
 
 from pry.engine.retry import RetryConfig, async_retry
+
+# ── Data-driven registry loader ─────────────────────────────────────────
+# Static source metadata lives as plain JSON (data, not code) under
+# ``data/sources.json``; this module loads it at import time.
+_DATA_DIR = Path(__file__).resolve().parent / "data"
+
+
+def _load_json(name: str) -> Any:
+    with (_DATA_DIR / name).open(encoding="utf-8") as fh:
+        return json.load(fh)
+
 
 # Guarded import: sports_data.odds is extended by a parallel agent; this
 # module is imported by the package during init, so degrade gracefully if
@@ -103,49 +115,8 @@ SOURCE_PRIORITY: tuple[str, ...] = SOURCE_NAMES
 # is tracked separately and merged by source_status()/available_sources().
 # Confidence is a 0..1 estimate of how reliably the source yields clean odds
 # today — it deliberately drops for the scrape-based sources whose markup is
-# not a stable API contract.
-SOURCES: dict[str, dict[str, Any]] = {
-    "the_odds_api": {
-        "kind": "api",
-        "base_url": "https://api.the-odds-api.com/v4",
-        "confidence": 0.95,
-        "requires_key": True,
-        "markets": ["h2h", "spreads", "totals", "outrights"],
-        "notes": "Official market-standard odds API; quota-bound free tier (500 req/mo).",
-    },
-    "espn": {
-        "kind": "api",
-        "base_url": "https://site.api.espn.com/apis/site/v2",
-        "confidence": 0.85,
-        "requires_key": False,
-        "markets": ["h2h", "spreads", "totals"],
-        "notes": "Public scoreboards publish a moneyline/spread/total odds block; no key, coverage varies by league.",
-    },
-    "oddsportal": {
-        "kind": "scrape",
-        "base_url": "https://www.oddsportal.com",
-        "confidence": 0.4,
-        "requires_key": False,
-        "markets": ["h2h"],
-        "notes": "80+ books, all sports. Listing pages are server-rendered; per-match odds table is partly client-rendered and anti-bot protected - plain HTTP may miss rows.",
-    },
-    "bovada": {
-        "kind": "api",
-        "base_url": "https://www.bovada.lv/services/sports/event/v2/events",
-        "confidence": 0.7,
-        "requires_key": False,
-        "markets": ["h2h", "spreads", "totals"],
-        "notes": "Offshore book's public JSON feed; unofficial, may geo-block non-US IPs.",
-    },
-    "betonline": {
-        "kind": "scrape",
-        "base_url": "https://www.betonline.ag/sportsbook",
-        "confidence": 0.5,
-        "requires_key": False,
-        "markets": ["h2h"],
-        "notes": "No public JSON API; best-effort parse of sportsbook listing pages.",
-    },
-}
+# not a stable API contract. The registry itself is data-driven (JSON).
+SOURCES: dict[str, dict[str, Any]] = _load_json("sources.json")
 
 # ── Live availability tracking ──────────────────────────────────────────
 _HEALTH: dict[str, dict[str, Any]] = {

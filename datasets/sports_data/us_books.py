@@ -64,6 +64,7 @@ import re
 import sys
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
@@ -71,6 +72,17 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
+
+# ── Data-driven registry loader ─────────────────────────────────────────
+# Static book metadata + sport→upstream-id maps live as plain JSON (data,
+# not code) under ``data/us_books.json``; this module loads them at import.
+_DATA_DIR = Path(__file__).resolve().parent / "data"
+
+
+def _load_json(name: str) -> Any:
+    with (_DATA_DIR / name).open(encoding="utf-8") as fh:
+        return json.load(fh)
+
 
 # SystemRandom: crypto-grade entropy so stealth jitter is not predictable.
 _RNG = random.SystemRandom()
@@ -104,179 +116,20 @@ _MARKETS = (_MARKET_H2H, _MARKET_SPREADS, _MARKET_TOTALS)
 # Static per-book metadata. Confidence is a 0..1 estimate of how reliably
 # the book yields clean odds through a Webshare US residential proxy today
 # (not a hard promise) — see module docstring for the honesty notes.
-US_BOOKS: dict[str, dict[str, Any]] = {
-    "draftkings": {
-        "id": "draftkings",
-        "name": "DraftKings",
-        "category": "us",
-        "odds_url_template": (
-            "https://sportsbook.draftkings.com/sites/US-SB/api/v5/eventgroups"
-            "?categoryId={category_id}"
-        ),
-        "method": "json",
-        "geo_required": True,
-        "confidence": 0.7,
-        "notes": "Well-documented eventgroups JSON; US residential proxy usually enough, "
-        "sometimes an Akamai challenge needs a warmed session.",
-    },
-    "fanduel": {
-        "id": "fanduel",
-        "name": "FanDuel",
-        "category": "us",
-        "odds_url_template": (
-            "https://sportsbook.fanduel.com/api/eventGroup/{event_group_id}?regionCode=US&locale=en"
-        ),
-        "method": "json",
-        "geo_required": True,
-        "confidence": 0.5,
-        "notes": "Akamai-protected; group IDs are state/region dependent and drift. "
-        "Usually needs warm session cookies (cookie warmer / browser tier).",
-    },
-    "betmgm": {
-        "id": "betmgm",
-        "name": "BetMGM",
-        "category": "us",
-        "odds_url_template": (
-            "https://sports.va.betmgm.com/cds-api/offer-grouping/grid-view/all"
-            "?x-bwin-accessid={access_id}"
-        ),
-        "method": "json",
-        "geo_required": True,
-        "confidence": 0.25,
-        "notes": "CDS API family requires a client-generated x-bwin-accessid token; "
-        "effectively browser-tier (Camoufox) for now — URL is not buildable "
-        "without token discovery, so the fetcher honestly returns [].",
-    },
-    "caesars": {
-        "id": "caesars",
-        "name": "Caesars",
-        "category": "us",
-        "odds_url_template": "https://sportsbook.caesars.com/api/events/{sport}",
-        "method": "json",
-        "geo_required": True,
-        "confidence": 0.2,
-        "notes": "Undocumented, session-bound, changes on app updates; browser tier.",
-    },
-    "pointsbet": {
-        "id": "pointsbet",
-        "name": "PointsBet",
-        "category": "us",
-        "odds_url_template": (
-            "https://api.pointsbet.com/api/v2/competitions/{competition_id}"
-            "/events/featured?includeLive=false"
-        ),
-        "method": "json",
-        "geo_required": True,
-        "confidence": 0.65,
-        "notes": "Historically a public no-auth JSON feed (regional hosts); "
-        "Cloudflare may 403 datacenter IPs — Webshare residential usually passes.",
-    },
-    "betrivers": {
-        "id": "betrivers",
-        "name": "BetRivers",
-        "category": "us",
-        "odds_url_template": (
-            "https://il.betrivers.com/api/service/sportsbook/offering/listview/events"
-            "?pageNr=1&cageCode=847&groupId={group_id}&type=prematch&pageSize=20"
-        ),
-        "method": "json",
-        "geo_required": True,
-        "confidence": 0.5,
-        "notes": "Community-documented listview/details JSON; needs US geo, "
-        "plain Chrome UA usually enough via residential proxy.",
-    },
-    "barstool": {
-        "id": "barstool",
-        "name": "Barstool",
-        "category": "us",
-        "odds_url_template": "https://sportsbook.barstool.com/api/events/{sport}",
-        "method": "json",
-        "geo_required": True,
-        "confidence": 0.1,
-        "notes": "Platform largely folded into ESPN BET (2023-24); legacy surface, "
-        "browser tier required if anything is still live.",
-    },
-    "wynnbet": {
-        "id": "wynnbet",
-        "name": "WynnBET",
-        "category": "us",
-        "odds_url_template": "https://sportsbook.wynnbet.com/api/events/{sport}",
-        "method": "json",
-        "geo_required": True,
-        "confidence": 0.05,
-        "notes": "App shut down 2024; kept for historical parity, effectively dead.",
-    },
-    "betway_us": {
-        "id": "betway_us",
-        "name": "Betway US",
-        "category": "us",
-        "odds_url_template": "https://sports.betway.com/api/events/{sport}",
-        "method": "json",
-        "geo_required": True,
-        "confidence": 0.15,
-        "notes": "Limited US footprint, undocumented; browser tier.",
-    },
-    "hardrock": {
-        "id": "hardrock",
-        "name": "Hard Rock",
-        "category": "us",
-        "odds_url_template": "https://sportsbook.hardrock.bet/api/events/{sport}",
-        "method": "json",
-        "geo_required": True,
-        "confidence": 0.2,
-        "notes": "Kambi-powered frontend, undocumented; browser tier.",
-    },
-    "espnbet": {
-        "id": "espnbet",
-        "name": "ESPN BET",
-        "category": "us",
-        "odds_url_template": "https://sportsbook.espnbet.com/api/events/{sport}",
-        "method": "json",
-        "geo_required": True,
-        "confidence": 0.2,
-        "notes": "Penn internal API, undocumented, session-bound; browser tier.",
-    },
-}
+# The registry itself is data-driven (JSON).
+_US_BOOK_DATA: dict[str, Any] = _load_json("us_books.json")
+US_BOOKS: dict[str, dict[str, Any]] = _US_BOOK_DATA["US_BOOKS"]
 
 # Registry order also defines fetch_us_odds precedence when limit truncates.
 _US_BOOK_IDS: tuple[str, ...] = tuple(US_BOOKS.keys())
 
 # ── Per-book sport → upstream id maps (community-reverse-engineered) ───
 # These drift seasonally / by state; an unmapped sport simply yields no URL
-# and the fetcher returns [] (honest degrade, never a crash).
-_DK_CATEGORY_IDS: dict[str, int] = {
-    "americanfootball_nfl": 42891,
-    "americanfootball_ncaaf": 9059,
-    "basketball_nba": 42648,
-    "basketball_ncaab": 290345,
-    "basketball_wnba": 4698,
-    "baseball_mlb": 4219,
-    "icehockey_nhl": 4292,
-    "soccer_epl": 4912,
-    "soccer_usa_mls": 43894,
-    "mma_mixed_martial_arts": 2146,
-    "tennis_atp": 4247,
-    "tennis_wta": 4246,
-}
-
-_FD_EVENT_GROUP_IDS: dict[str, int] = {
-    "americanfootball_nfl": 1,
-    "basketball_nba": 2,
-    "baseball_mlb": 3,
-    "icehockey_nhl": 4,
-}
-
-_PB_COMPETITION_IDS: dict[str, int] = {
-    "americanfootball_nfl": 2,
-    "basketball_nba": 5,
-    "baseball_mlb": 14,
-}
-
-_BR_GROUP_IDS: dict[str, int] = {
-    "baseball_mlb": 1000093616,
-    "basketball_nba": 1000093652,
-    "americanfootball_nfl": 1000093656,
-}
+# and the fetcher returns [] (honest degrade, never a crash). Data-driven.
+_DK_CATEGORY_IDS: dict[str, int] = _US_BOOK_DATA["_DK_CATEGORY_IDS"]
+_FD_EVENT_GROUP_IDS: dict[str, int] = _US_BOOK_DATA["_FD_EVENT_GROUP_IDS"]
+_PB_COMPETITION_IDS: dict[str, int] = _US_BOOK_DATA["_PB_COMPETITION_IDS"]
+_BR_GROUP_IDS: dict[str, int] = _US_BOOK_DATA["_BR_GROUP_IDS"]
 
 _PB_DETAIL_TEMPLATE = "https://api.pointsbet.com/api/v2/events/{event_key}"
 
