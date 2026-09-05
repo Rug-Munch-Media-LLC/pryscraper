@@ -34,7 +34,7 @@ def _next_proxy() -> str | None:
         from pry.engine.webshare_proxy import next_webshare_proxy
 
         return next_webshare_proxy()
-    except Exception:
+    except Exception:  # noqa: BLE001 - proxy pool is best-effort
         return None
 
 

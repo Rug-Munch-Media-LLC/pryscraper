@@ -117,7 +117,7 @@ async def get_retail_product(store: str, product_id: str) -> dict[str, Any]:
             return {}
         record = _parse_product_page(store_key, html_text, product_id, url)
         return record or {}
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - never-raise public API
         logger.warning(
             "retail_get_product_failed",
             extra={"store": store, "product_id": str(product_id)[:64], "error": str(exc)[:160]},
@@ -134,7 +134,7 @@ async def _search_store(store_key: str, query: str, limit: int) -> list[dict[str
         if not html_text:
             return []
         return _parse_search_page(store_key, html_text, limit)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - never-raise public API
         logger.warning(
             "retail_store_search_failed",
             extra={"store": store_key, "query": query[:80], "error": str(exc)[:160]},
@@ -182,7 +182,7 @@ async def search_retail(query: str, store: str = "all", limit: int = 20) -> list
             return results
         logger.warning("retail_store_unknown", extra={"store": str(store)[:64]})
         return []
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - never-raise public API
         logger.warning(
             "retail_search_failed",
             extra={"query": text[:80], "store": str(store)[:64], "error": str(exc)[:160]},
