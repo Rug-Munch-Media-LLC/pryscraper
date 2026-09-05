@@ -41,6 +41,8 @@ from . import (
     sports_bankroll,
     sports_derivatives,
     sports_futures,
+    sports_player_intel,
+    sports_sharp_intel,
     sportsbooks,
     travel,
 )
@@ -186,6 +188,8 @@ PRY_TOOLS: list[dict[str, Any]] = [
     *sports_futures.PRY_TOOLS,
     *sports_derivatives.PRY_TOOLS,
     *sports_bankroll.PRY_TOOLS,
+    *sports_player_intel.PRY_TOOLS,
+    *sports_sharp_intel.PRY_TOOLS,
     *scraping.PRY_SOURCE_TOOLS,
     *climate.PRY_TOOLS,
     *research.PRY_TOOLS,

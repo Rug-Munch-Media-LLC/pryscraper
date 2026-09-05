@@ -1,0 +1,108 @@
+{
+	"actorSpecification": 1,
+	"fields": {
+		"type": "object",
+		"properties": {
+			"url": {
+				"type": "string",
+				"title": "URL"
+			},
+			"status": {
+				"type": "string",
+				"title": "Status"
+			},
+			"report_type": {
+				"type": "string",
+				"title": "Report Type"
+			},
+			"sport": {
+				"type": "string",
+				"title": "Sport"
+			},
+			"event_id": {
+				"type": "string",
+				"title": "Event ID"
+			},
+			"event_name": {
+				"type": "string",
+				"title": "Event Name"
+			},
+			"commence_time": {
+				"type": "string",
+				"title": "Commence Time"
+			},
+			"odds": {
+				"type": "object",
+				"title": "Odds",
+				"description": "Best available odds across books: moneyline, spread, total, with book counts and line history."
+			},
+			"arbitrage": {
+				"type": "object",
+				"title": "Arbitrage",
+				"description": "Detected arbitrage opportunities: legs, books, guaranteed ROI, stake split."
+			},
+			"ev": {
+				"type": "object",
+				"title": "Expected Value",
+				"description": "+EV opportunities: fair probability, best price, edge percentage, EV per unit."
+			},
+			"props": {
+				"type": "array",
+				"title": "Player Props",
+				"description": "Player prop markets with best lines across books."
+			},
+			"live_state": {
+				"type": "object",
+				"title": "Live State",
+				"description": "Live in-game analytics: score, clock, momentum, live odds movement."
+			},
+			"weather": {
+				"type": "object",
+				"title": "Weather",
+				"description": "Weather conditions and betting-impact assessment for outdoor events."
+			},
+			"sharp_intel": {
+				"type": "object",
+				"title": "Sharp Intel",
+				"description": "Sharp money signals: steam moves, reverse line movement, bet/money divergence."
+			},
+			"prediction_markets": {
+				"type": "object",
+				"title": "Prediction Markets",
+				"description": "Prediction market cross-reference: implied probabilities vs sportsbook odds."
+			},
+			"kelly_sizing": {
+				"type": "object",
+				"title": "Kelly Sizing",
+				"description": "Kelly criterion stake sizing: full Kelly, half Kelly, quarter Kelly recommendations."
+			},
+			"method": {
+				"type": "string",
+				"title": "Method"
+			},
+			"error": {
+				"type": "string",
+				"title": "Error"
+			},
+			"scraped_at": {
+				"type": "string",
+				"title": "Scraped at"
+			},
+			"metadata": {
+				"type": "object",
+				"title": "Metadata"
+			}
+		}
+	},
+	"views": {
+		"overview": {
+			"title": "Overview",
+			"transformation": {
+				"fields": ["event_name", "sport", "report_type", "status", "scraped_at"]
+			},
+			"display": {
+				"component": "table"
+			}
+		}
+	}
+}
