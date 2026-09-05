@@ -249,9 +249,9 @@ class TestScrapingMethodsGolden:
         assert entries[1]["published"] == "2026-01-02T00:00:00Z"
 
     def test_parse_feed_routes_rss_and_atom(self) -> None:
-        import pry.engine.scraping_methods as sm
+        import pry.engine.methods.feeds as sm
 
-        with patch.object(sm, "_sync_get") as get:
+        with patch.object(sm._common, "_sync_get") as get:
             get.return_value.text = self.RSS
             assert sm.parse_feed("http://x/feed.xml")[0]["title"] == "One"
             get.return_value.text = self.ATOM
@@ -260,9 +260,9 @@ class TestScrapingMethodsGolden:
             assert sm.parse_feed("http://x/nope") == []
 
     def test_parse_sitemap_dedupes_and_returns_locs(self) -> None:
-        import pry.engine.scraping_methods as sm
+        import pry.engine.methods.sitemaps as sm
 
-        with patch.object(sm, "_sync_get") as get:
+        with patch.object(sm._common, "_sync_get") as get:
             get.return_value.text = self.SITEMAP
             urls = sm.parse_sitemap("http://s.com/sitemap.xml")
         assert sorted(urls) == ["http://s.com/a", "http://s.com/b"]
