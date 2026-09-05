@@ -13,7 +13,7 @@
 - URL: https://api.pryscraper.com/mcp/
 - Transport: SSE, Streamable HTTP, stdio
 - Auth: x402 pay-per-call (no account/API key for discovery; paid prefixes require an x402 payment signature or a paid-tier API key)
-- Tools: 98
+- Tools: 104
 - Categories: 33
 
 ## Categories
@@ -618,3 +618,32 @@ Translate venue weather into betting impact: wind/temp/precip bands, a total (po
 ### pry_game_context
 
 Full game-context bundle for a matchup: venue weather, weather impact on scoring, rest days / back-to-back flags (ESPN), and travel distance / time-zone / altitude change. Use for situational edges, e
+
+### pry_map_site
+
+Map an entire domain: discover all URLs via sitemap.xml (including sitemap indexes) plus internal-link crawling, Firecrawl-style. Use before crawling or scraping a whole site to see its full URL struc
+
+
+### pry_crawl_to_markdown
+
+Crawl a site and convert every page to clean, chunked Markdown — Firecrawl-style output ready for vector databases. Maps the domain, fetches each page through the anti-bot fallback chain (Cloudflare/D
+
+
+### pry_crawl_for_rag
+
+Crawl a site and produce RAG-ready chunks for vector databases — each chunk carries provenance metadata (source URL, page title, chunk index, token estimate) so embeddings stay traceable to their orig
+
+
+### pry_filter_content
+
+Filter HTML to essential content, removing boilerplate and noise. Strips nav bars, footers, headers, asides, scripts, styles, cookie/GDPR banners, ad containers, social share widgets, newsletter forms
+
+
+### pry_extract_main
+
+Extract the main content block from a page using readability-style heuristics. Prioritizes <article>, <main>, [role=main], and common content containers (.post-content, .entry-content, .article-body);
+
+
+### pry_chunk_for_rag
+
+Filter HTML, convert to minimal Markdown, and chunk it for RAG / vector databases. Full pipeline: boilerplate removal -> minimal Markdown -> overlapping chunks split on paragraph boundaries. Returns t

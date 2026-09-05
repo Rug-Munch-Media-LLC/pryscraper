@@ -458,6 +458,37 @@ _DOMAIN_TOOLS: dict[str, tuple[str, tuple[str, ...], dict[str, Any]]] = {
         ("get_game_context",),
         {"lat": 40.0, "lon": -74.0, "home_team": "Giants", "away_team": "Cowboys"},
     ),
+    # ── Site mapping + content filtering (6 new tools, 2026-09-05) ──
+    "pry_map_site": (
+        "site_mapper",
+        ("map_site",),
+        {"url": "https://example.com"},
+    ),
+    "pry_crawl_to_markdown": (
+        "site_mapper",
+        ("crawl_to_markdown",),
+        {"url": "https://example.com"},
+    ),
+    "pry_crawl_for_rag": (
+        "site_mapper",
+        ("crawl_for_rag",),
+        {"url": "https://example.com"},
+    ),
+    "pry_filter_content": (
+        "content_filter",
+        ("filter_to_essential",),
+        {"html": "<html><body><p>test</p></body></html>"},
+    ),
+    "pry_extract_main": (
+        "content_filter",
+        ("extract_main_content",),
+        {"html": "<html><body><article><p>main</p></article></body></html>"},
+    ),
+    "pry_chunk_for_rag": (
+        "content_filter",
+        ("filter_and_chunk",),
+        {"html": "<html><body><p>test content</p></body></html>"},
+    ),
 }
 
 # REST-proxy tools: name -> sample arguments. The fallback server calls the

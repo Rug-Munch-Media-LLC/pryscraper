@@ -84,16 +84,16 @@
 			"description": "Get Pry's referral catalog \u2014 60+ providers across LLM, hosting, email, monitoring, proxies, and devtools \u2014 each link carrying our affiliate ID for revenue attribution. Use to find a revenue-share partner or pick a recommended provider, e.g. 'what proxy providers do you refer?'."
 		},
 		{
-			"name": "pry_kol_leaderboards",
-			"description": "Scrape KOL / crypto-influencer leaderboards for usernames (handles), wallets, followers and P&L / win-loss stats. Reads public trader leaderboards (kolscan.io Solana trader board; gmgn.ai and dexscreener smart-money boards are registered but Cloudflare/JS-gated and flagged [REVIEW]). Use to grow a KOL watchlist, e.g. 'pull the top KOL wallets from the kolscan leaderboard' or 'find new crypto influencer handles + wallets'."
-		},
-		{
 			"name": "pry_token_launches",
 			"description": "Discover new crypto token launches, new liquidity pairs, and trending tokens across chains (Solana, Ethereum, Base, ...) with optional age filtering. Use to find early-stage tokens before they hit mainstream trackers, e.g. 'what new Solana tokens launched in the last hour?' or 'show me trending tokens on Base'."
 		},
 		{
 			"name": "pry_cex_listings",
 			"description": "Get recent centralized-exchange (CEX) listing and delisting signals \u2014 e.g. Binance, Coinbase, Kraken \u2014 aggregated over a configurable lookback window. Use to time research on tokens that just landed on a major exchange, e.g. 'what did Coinbase list in the last 24 hours?'."
+		},
+		{
+			"name": "pry_kol_leaderboards",
+			"description": "Scrape KOL / crypto-influencer leaderboards for usernames (handles), wallets, followers and P&L / win-loss stats. Reads public trader leaderboards (kolscan.io Solana trader board; gmgn.ai and dexscreener smart-money boards are registered but Cloudflare/JS-gated and flagged [REVIEW]). Use to grow a KOL watchlist, e.g. 'pull the top KOL wallets from the kolscan leaderboard' or 'find new crypto influencer handles + wallets'."
 		},
 		{
 			"name": "pry_amazon_product",
@@ -318,6 +318,30 @@
 		{
 			"name": "pry_game_context",
 			"description": "Full game-context bundle for a matchup: venue weather, weather impact on scoring, rest days / back-to-back flags (ESPN), and travel distance / time-zone / altitude change. Use for situational edges, e.g. 'any rest or travel edge for the Nuggets at the Lakers?'"
+		},
+		{
+			"name": "pry_map_site",
+			"description": "Map an entire domain: discover all URLs via sitemap.xml (including sitemap indexes) plus internal-link crawling, Firecrawl-style. Use before crawling or scraping a whole site to see its full URL structure \u2014 e.g. call with url='https://example.com' and max_urls=100 to list every discoverable page on the domain. Sitemap-first discovery is fast and polite; link crawling fills any remaining budget when no sitemap exists."
+		},
+		{
+			"name": "pry_crawl_to_markdown",
+			"description": "Crawl a site and convert every page to clean, chunked Markdown \u2014 Firecrawl-style output ready for vector databases. Maps the domain, fetches each page through the anti-bot fallback chain (Cloudflare/DataDome bypass), prunes nav/footer/boilerplate noise, and splits content into ~chunk_size character chunks. Use to harvest an entire docs site or blog as structured Markdown \u2014 e.g. call with url='https://example.com/docs' and max_pages=50 to convert the docs section to Markdown chunks."
+		},
+		{
+			"name": "pry_crawl_for_rag",
+			"description": "Crawl a site and produce RAG-ready chunks for vector databases \u2014 each chunk carries provenance metadata (source URL, page title, chunk index, token estimate) so embeddings stay traceable to their origin. Uses overlapping chunks (chunk_overlap) to preserve context across boundaries. Use when building a RAG pipeline over a website \u2014 e.g. call with url='https://example.com' and chunk_size=1000, chunk_overlap=100 to get embedding-ready chunks."
+		},
+		{
+			"name": "pry_filter_content",
+			"description": "Filter HTML to essential content, removing boilerplate and noise. Strips nav bars, footers, headers, asides, scripts, styles, cookie/GDPR banners, ad containers, social share widgets, newsletter forms, related posts, and comment sections \u2014 then converts to minimal Markdown with redundant whitespace collapsed and empty headings dropped. Use before feeding scraped pages to an LLM to cut token costs by 60-90%: call with the raw HTML from pry_scrape and get back clean Markdown plus a token estimate and reduction percentage."
+		},
+		{
+			"name": "pry_extract_main",
+			"description": "Extract the main content block from a page using readability-style heuristics. Prioritizes <article>, <main>, [role=main], and common content containers (.post-content, .entry-content, .article-body); falls back to the largest text block on the page. Also returns the page title and how much boilerplate was stripped. Use when you want just the article body from a cluttered page \u2014 e.g. a news site with sidebars, related-article carousels, and cookie banners \u2014 without writing per-site selectors."
+		},
+		{
+			"name": "pry_chunk_for_rag",
+			"description": "Filter HTML, convert to minimal Markdown, and chunk it for RAG / vector databases. Full pipeline: boilerplate removal -> minimal Markdown -> overlapping chunks split on paragraph boundaries. Returns the chunks, total token estimate, chunk count, and reduction percentage. Use when indexing scraped pages into a vector DB or feeding long documents to an LLM with a context budget \u2014 e.g. call with chunk_size=1000 and chunk_overlap=100 to get retrieval-ready chunks with ~10% overlap for continuity."
 		},
 		{
 			"name": "pry_scrape_methods",
