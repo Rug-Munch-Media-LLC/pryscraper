@@ -48,6 +48,7 @@ __all__: list[str] = [
     "ai_router",
     "alerts_router",
     "analysis_router",
+    "analytics_router",
     "attention_router",
     "auth_api_router",
     "automation_router",

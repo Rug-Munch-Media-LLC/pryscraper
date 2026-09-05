@@ -49,6 +49,7 @@ from pry.api.routers.scraping.advanced import router as advanced_router
 from pry.api.routers.scraping.execute import router as execute_router
 from pry.api.routers.scraping.extraction import router as extraction_router
 from pry.api.routers.scraping.freshness import router as freshness_router
+from pry.api.routers.user.account import router as account_router
 from pry.api.routers.user.crm import router as crm_router
 
 # gov_data / ip_data routers land from parallel agents; import them guarded so
@@ -181,6 +182,7 @@ from pry.api.routers.commerce.reports import router as reports_router
 from pry.api.routers.commerce.review import router as review_router
 from pry.api.routers.commerce.training import router as training_router
 from pry.api.routers.commerce.x402 import router as x402_router
+from pry.api.routers.core.analytics import router as analytics_router
 from pry.api.routers.core.api_keys import router as api_keys_router
 from pry.api.routers.core.proxy import router as proxy_router
 from pry.api.routers.core.quality import router as quality_router
@@ -224,6 +226,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(analysis_router)
     app.include_router(automation_router)
     app.include_router(batch_router)
+    app.include_router(account_router)
     app.include_router(crm_router)
     app.include_router(crypto_market_router)
     app.include_router(circuit_breaker_router)
@@ -314,6 +317,7 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(well_known_router)
     app.include_router(sports_data_router)
     app.include_router(stats_router)
+    app.include_router(analytics_router)
     app.include_router(structure_router)
     app.include_router(system_router)
     app.include_router(training_router)
