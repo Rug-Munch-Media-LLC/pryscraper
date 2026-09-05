@@ -1,6 +1,11 @@
 """Pry — Ultimate Anti-Detection Scraper.
 Multi-strategy scraping with 10+ bypass methods and intelligent fallback.
-Beats Cloudflare, DataDome, Akamai, Imperva, PerimeterX, and generic blocks."""
+Beats Cloudflare, DataDome, Akamai, Imperva, PerimeterX, and generic blocks.
+
+The concrete tier implementations live in ``pry.engine.tiers`` (mixed in via
+``TierMixin``); the per-domain semaphore registry and the tier→breaker
+mapping live in ``pry.engine.circuit_breaker``.
+"""
 
 # SPDX-License-Identifier: BSL-1.1
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -15,16 +20,9 @@ import asyncio
 import importlib.util
 import logging
 import os
-import random
-import re
-import threading
 import time
-from collections import OrderedDict
 from typing import Any, ClassVar
-from urllib.parse import quote, urlparse
-
-# SystemRandom: crypto-grade entropy so stealth jitter is not predictable.
-import httpx
+from urllib.parse import urlparse
 
 from pry.core.errors import InvalidRequestError
 from pry.core.observability import SCRAPE_LATENCY, span
@@ -33,51 +31,15 @@ from pry.engine.browser_pool import (
     close_browsers,
     get_browser_pool,
 )
+from pry.engine.circuit_breaker import BREAKER_FOR_TIER, domain_semaphore
+from pry.engine.resilience import registry
+from pry.engine.retry import RetryConfig, async_retry
+from pry.engine.tiers import TierMixin
+from pry.engine.url_guard import validate_url
 
 __all__ = ["BrowserPool", "UltimateScraper", "close_browsers", "get_browser_pool"]
 
-from pry.engine.resilience import registry
-from pry.engine.retry import RetryConfig, async_retry
-from pry.engine.url_guard import safe_get, validate_url
-
-_RNG = random.SystemRandom()
-
 logger = logging.getLogger(__name__)
-
-# Per-domain concurrency throttle: cap the number of simultaneous scrapes to
-# the SAME domain so a single caller (or a burst of callers) cannot hammer one
-# target site with unbounded parallel requests. This protects both the target
-# site (good citizenship / avoiding IP bans) and our own outbound resources.
-# The limit is per-domain, not global — different domains proceed in parallel.
-_DOMAIN_MAX_CONCURRENCY = 10
-# Bounded LRU registry: cap the number of tracked per-domain semaphores so a
-# long-running process scraping many distinct domains cannot grow this dict
-# without bound. When the cap is exceeded, the least-recently-added entry is
-# evicted (OrderedDict.popitem(last=False)).
-_DOMAIN_SEMAPHORE_MAX = 500
-_domain_semaphores: OrderedDict[str, Any] = OrderedDict()
-_domain_semaphores_lock = threading.Lock()
-
-
-def _domain_semaphore(domain: str) -> Any:
-    """Return a per-domain asyncio.Semaphore, creating it on first use.
-
-    Thread-safe creation (the semaphore registry is shared across the event
-    loop and any worker threads). asyncio.Semaphore is not thread-safe to
-    create concurrently, so creation is serialized under a lock.
-    """
-    with _domain_semaphores_lock:
-        sem = _domain_semaphores.get(domain)
-        if sem is None:
-            import asyncio
-
-            sem = asyncio.Semaphore(_DOMAIN_MAX_CONCURRENCY)
-            _domain_semaphores[domain] = sem
-            # LRU eviction: keep the registry bounded.
-            if len(_domain_semaphores) > _DOMAIN_SEMAPHORE_MAX:
-                _domain_semaphores.popitem(last=False)
-        return sem
-
 
 # Try importing optional bypass libraries
 _has_cloudscraper = importlib.util.find_spec("cloudscraper") is not None
@@ -99,7 +61,7 @@ try:
 except ImportError:  # pragma: no cover - optional dependency
     _has_camoufox = False
 
-_stealth_engine: StealthEngine | None
+_stealth_engine: Any
 try:
     from pry.engine.stealth_engine import StealthEngine
 
@@ -112,8 +74,9 @@ except ImportError:
 _HAS_BLOCK_DETECTION = False
 _block_detect: Any = None
 try:
-    from pry.engine.block_detection import detect_block as _block_detect
+    import pry.engine.block_detection as _block_detection_mod
 
+    _block_detect = _block_detection_mod.detect_block
     _HAS_BLOCK_DETECTION = True
 except ImportError:  # pragma: no cover - optional dependency
     pass
@@ -157,13 +120,6 @@ except ImportError:
     _has_graphql = False
 
 
-async def _get_shared_client() -> httpx.AsyncClient:
-    """Lazy import to avoid engine→api boundary violation (import-linter)."""
-    from pry.core.client import get_client
-
-    return await get_client()
-
-
 # Process-level singleton browser pool. The pool itself lives in
 # ``pry.engine.browser_pool``; this module re-exports the singleton instance
 # (``_browser_pool``) and the ``close_browsers()`` shutdown hook for backward
@@ -172,7 +128,7 @@ async def _get_shared_client() -> httpx.AsyncClient:
 _browser_pool = get_browser_pool()
 
 
-class UltimateScraper:
+class UltimateScraper(TierMixin):
     """15-tier anti-detection scraper with automatic fallback.
 
     Tiers (tried in this order by default):
@@ -243,27 +199,6 @@ class UltimateScraper:
         "access_denied": ("tor", "premium_proxy"),
     }
 
-    def _rotate_ua(self) -> str:
-        ua = self.USER_AGENTS[self._ua_index % len(self.USER_AGENTS)]
-        self._ua_index += 1
-        return ua
-
-    def _build_headers(self, url: str) -> dict[str, str]:
-        parsed = urlparse(url)
-        return {
-            "User-Agent": self._rotate_ua(),
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": _RNG.choice(["en-US,en;q=0.9", "en-GB,en;q=0.8", "en-US,en;q=0.7"]),
-            "Referer": f"https://{parsed.netloc}/",
-            "DNT": "1",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-            "Sec-Fetch-Dest": "document",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Site": "none",
-            "Sec-Fetch-User": "?1",
-        }
-
     async def scrape(self, url: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
         """Scrape any URL with automatic bypass strategy selection.
 
@@ -271,16 +206,17 @@ class UltimateScraper:
         final method/success attributes) around ``_scrape_with_fallbacks``,
         which tries up to 10 strategies until one succeeds.
 
-        Per-domain concurrency throttle: at most ``_DOMAIN_MAX_CONCURRENCY``
-        scrapes may run against the same domain at once. This prevents a
-        single caller (or a burst of callers) from hammering one target site
-        with unbounded parallel requests — an abuse vector that would get the
-        target (and our egress IPs) rate-limited or banned. Different domains
-        proceed in parallel; only same-domain concurrency is bounded.
+        Per-domain concurrency throttle: at most
+        ``circuit_breaker.DOMAIN_MAX_CONCURRENCY`` scrapes may run against the
+        same domain at once. This prevents a single caller (or a burst of
+        callers) from hammering one target site with unbounded parallel
+        requests — an abuse vector that would get the target (and our egress
+        IPs) rate-limited or banned. Different domains proceed in parallel;
+        only same-domain concurrency is bounded.
         """
         parsed = urlparse(url)
         domain = parsed.netloc or "unknown"
-        sem = _domain_semaphore(domain)
+        sem = domain_semaphore(domain)
         async with sem:
             with span("scrape.request", {"http.url": url}) as request_span:
                 result = await self._scrape_with_fallbacks(url, options)
@@ -395,21 +331,13 @@ class UltimateScraper:
         ordered_names = registry.reorder_for_domain(domain, [name for name, _ in tier_order])
         tier_order = [(name, name_to_fn[name]) for name in ordered_names]
 
-        # External service tiers protected by circuit breakers.
-        breaker_for_tier = {
-            "flaresolverr": "flaresolverr",
-            "playwright": "playwright",
-            "camoufox": "camoufox",
-            "tls_fingerprint": "tls_fingerprint",
-        }
-
         i = 0
         try:
             async with asyncio.timeout(45):
                 while i < len(tier_order):
                     tier_name, tier_fn = tier_order[i]
                     # Skip external tiers whose circuit breaker is open.
-                    breaker_name = breaker_for_tier.get(tier_name)
+                    breaker_name = BREAKER_FOR_TIER.get(tier_name)
                     if breaker_name and not registry.is_service_allowed(breaker_name):
                         logger.debug(
                             "tier_skipped_circuit_open", extra={"tier": tier_name, "domain": domain}
@@ -556,435 +484,3 @@ class UltimateScraper:
         if block_signal is not None:
             result["block_signal"] = block_signal
         return result
-
-    @staticmethod
-    def _signal_to_dict(signal: Any) -> dict[str, Any]:
-        """Convert a BlockSignal dataclass into a JSON-safe dict."""
-        return {
-            "kind": signal.kind,
-            "confidence": signal.confidence,
-            "recommended_escalation": signal.recommended_escalation,
-            "evidence": list(signal.evidence),
-        }
-
-    def _detect_block_signal(self, html: str | None) -> Any:
-        """Run block detection on a tier response; ``None`` when unavailable.
-
-        Tiers expose only the body, so status/headers default to ``200``/``{}``
-        and body markers drive the classification. A failed tier (``html is
-        None``) yields an empty-body ``none`` signal — harmless, and it keeps
-        the detect-on-every-attempt contract explicit.
-        """
-        if not _HAS_BLOCK_DETECTION:
-            return None
-        if html is not None:
-            return _block_detect(html, 200, {})
-        return _block_detect("", 0, {})
-
-    def _record_telemetry(
-        self,
-        domain: str,
-        tier_order: list[str],
-        attempts: list[dict[str, Any]],
-        final_tier: str | None,
-        success: bool,
-        start: float,
-        errors: list[str],
-    ) -> None:
-        """Record the fallback journey via fallback_telemetry (best-effort).
-
-        Never raises: telemetry is observability, not a correctness path.
-        """
-        if not _HAS_FALLBACK_TELEMETRY:
-            return
-        try:
-            _record_fallback(
-                domain=domain,
-                tier_order=tier_order,
-                attempts=attempts,
-                final_tier=final_tier,
-                success=success,
-                duration_ms=round((time.time() - start) * 1000, 2),
-                error="; ".join(errors[-5:]) if (errors and not success) else None,
-            )
-        except Exception:
-            logger.debug("fallback_telemetry_record_failed", exc_info=True)
-
-    def _is_valid(self, html: str | None) -> bool:
-        if not html or len(html) < 500:
-            return False
-        lower = html.lower()
-        block_indicators = [
-            "cloudflare",
-            "attention required",
-            "just a moment",
-            "enable javascript",
-            "verify you are human",
-        ]
-        if any(i in lower for i in block_indicators) and len(html) < 5000:
-            return False
-        body = re.search(r"<body[^>]*>(.*?)</body>", html, re.DOTALL)
-        if body:
-            text = re.sub(r"<[^>]+>", " ", body.group(1)).strip()
-            if len(text) < 50:
-                return False
-        return True
-
-    def _extract_text(self, html: str) -> str:
-        """Extract readable text from HTML."""
-        try:
-            from trafilatura import extract
-
-            content = extract(
-                html, output_format="markdown", include_links=True, include_images=False
-            )
-            if content and len(content) > 100:
-                return content
-        except Exception:  # noqa: S110 - fallback: try the next extractor
-            pass
-        try:
-            from readability import Document
-
-            doc = Document(html)
-            content = doc.summary()
-            if content and len(content) > 100:
-                from markdownify import markdownify
-
-                return markdownify(content, heading_arrows=False, strip=["script", "style"])  # type: ignore[call-arg]  # markdownify supports heading_arrows at runtime
-        except Exception:  # noqa: S110 - fallback: strip tags as last resort
-            pass
-        # Last resort: strip HTML tags
-        text = re.sub(r"<[^>]+>", " ", html)
-        text = re.sub(r"\s+", " ", text).strip()
-        return text[:50000] if len(text) > 50000 else text
-
-    async def _tier_direct(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        try:
-            # Proxy is a client-level httpx config (not a per-request param), so
-            # a dedicated client is required only when a proxy is in play. The
-            # common no-proxy path reuses the shared pooled client (get_client)
-            # so connections are kept alive across requests.
-            if proxy_url:
-                async with httpx.AsyncClient(timeout=30, proxy=proxy_url) as c:
-                    r = await safe_get(c, url, headers=self._build_headers(url))
-            else:
-                c = await _get_shared_client()
-                r = await safe_get(c, url, headers=self._build_headers(url), timeout=30)
-            if r.is_success:
-                return r.text
-        except (httpx.HTTPError, httpx.RequestError) as e:
-            logger.debug("direct_failed", extra={"error": str(e)[:200]})
-        return None
-
-    async def _tier_premium_proxy(
-        self, url: str, proxy_url: str, opts: dict[str, Any]
-    ) -> str | None:
-        """Fetch via the configured premium residential/datacenter proxy."""
-        try:
-            # This tier exists solely to route through the premium proxy, and
-            # proxy is a client-level httpx config (not a per-request param).
-            # A dedicated client is therefore required here — the shared pooled
-            # client cannot carry a per-request proxy.
-            async with httpx.AsyncClient(timeout=45, proxy=proxy_url) as c:
-                r = await safe_get(c, url, headers=self._build_headers(url))
-                if r.is_success:
-                    return r.text
-        except (httpx.HTTPError, httpx.RequestError) as e:
-            logger.debug("premium_proxy_failed", extra={"error": str(e)[:200]})
-        return None
-
-    async def _tier_cloudscraper(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        if not _has_cloudscraper:
-            return None
-        try:
-            import asyncio
-
-            import cloudscraper
-
-            def _do_fetch() -> str | None:
-                # cloudscraper's API is synchronous/blocking (create_scraper +
-                # get). It runs inside asyncio.to_thread so it does not block
-                # the event loop — same pattern as _tier_undetected.
-                scraper = cloudscraper.create_scraper(
-                    browser={"browser": "chrome", "platform": "windows", "mobile": False}
-                )
-                resp = scraper.get(url, timeout=30, headers={"User-Agent": self._rotate_ua()})
-                if resp.status_code == 200:
-                    return resp.text
-                return None
-
-            return await asyncio.to_thread(_do_fetch)
-        except Exception as e:
-            logger.debug("cloudscraper_failed", extra={"error": str(e)[:200]})
-        return None
-
-    async def _tier_flaresolverr(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        from pry.core.settings import settings
-
-        if not settings.flaresolverr_url:
-            return None
-        try:
-            payload = {"cmd": "request.get", "url": url, "maxTimeout": 60000}
-            c = await _get_shared_client()
-            r = await c.post(settings.flaresolverr_url, json=payload, timeout=60)
-            if r.is_success:
-                data = r.json()
-                solution = data.get("solution", {})
-                if solution.get("status") == 200:
-                    return solution["response"]
-        except (httpx.HTTPError, httpx.RequestError) as e:
-            logger.debug("flaresolverr_failed", extra={"error": str(e)[:200]})
-        return None
-
-    async def _tier_undetected(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        if not _has_undetected:
-            return None
-        try:
-            import asyncio
-            import time
-
-            def _do_fetch() -> str:
-                # Reuse the pooled driver (launched once) instead of launching
-                # a fresh Chrome per request. The pool serializes access with a
-                # lock because a single driver can only navigate one page at a
-                # time.
-                driver = get_browser_pool().get_uc_driver()
-                try:
-                    driver.get(url)
-                    # Note: time.sleep is used inside a sync thread-pool task because
-                    # undetected_chromedriver's blocking API runs in asyncio.to_thread.
-                    # Replacing with asyncio.sleep would require restructuring the tier
-                    # to be fully async; this sync sleep is bounded and does not block
-                    # the event loop directly.
-                    time.sleep(_RNG.uniform(2, 4))
-                    return driver.page_source
-                finally:
-                    # The driver is pooled and must NOT be quit here — quitting
-                    # would discard the cached Chrome process. Only the page is
-                    # reset for the next request.
-                    try:
-                        driver.get("about:blank")
-                    except Exception:
-                        logger.debug("undetected_reset_failed", exc_info=True)
-
-            return await asyncio.to_thread(_do_fetch)
-        except Exception as e:
-            logger.debug("undetected_failed", extra={"error": str(e)[:200]})
-        return None
-
-    async def _tier_playwright(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        if not _has_playwright:
-            return None
-        try:
-            # Reuse the pooled browser (launched once) instead of launching a
-            # fresh Chromium per request. Each request gets an isolated context
-            # that is closed after use — the browser itself stays alive.
-            browser = await get_browser_pool().get_playwright_browser()
-            context = await browser.new_context(
-                viewport={
-                    "width": _RNG.choice([1920, 1366, 1440]),
-                    "height": _RNG.choice([1080, 768, 900]),
-                },
-                user_agent=self._rotate_ua(),
-                locale="en-US",
-                timezone_id="America/New_York",
-            )
-            try:
-                stealth_script = _stealth_engine.generate_all() if _stealth_engine else ""
-                if stealth_script:
-                    await context.add_init_script(stealth_script)
-                page = await context.new_page()
-                await page.goto(url, wait_until="domcontentloaded", timeout=60000)
-                await page.wait_for_timeout(_RNG.randint(1000, 3000))
-                for _ in range(_RNG.randint(2, 5)):
-                    await page.evaluate(f"window.scrollBy(0, {_RNG.randint(200, 500)})")
-                    await page.wait_for_timeout(_RNG.randint(300, 1000))
-                    await page.mouse.move(_RNG.randint(100, 1400), _RNG.randint(100, 800))
-                return await page.content()
-            finally:
-                # Always close the context — a page-goto timeout (up to 60s)
-                # or any other failure would otherwise leak a context per
-                # failed attempt. The pooled browser is NOT closed here.
-                try:
-                    await context.close()
-                except Exception:
-                    logger.debug("playwright_context_close_failed", exc_info=True)
-        except OSError as e:
-            logger.debug("playwright_failed", extra={"error": str(e)[:200]})
-        return None
-
-    async def _tier_tls_fingerprint(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        """Fetch using curl_cffi TLS fingerprint impersonation."""
-        if not self._tls_scraper or not self._tls_scraper.is_available():
-            return None
-        try:
-            result = await self._tls_scraper.fetch(
-                url,
-                headers=self._build_headers(url),
-                proxy=proxy_url or "",
-                timeout_s=opts.get("timeout", 30),
-            )
-            if result.get("success") and result.get("status_code", 0) < 400:
-                return result.get("text", "")
-        except Exception as e:
-            logger.debug("tls_fingerprint_failed", extra={"error": str(e)[:200]})
-        return None
-
-    async def _tier_camoufox(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        """Fetch using Camoufox anti-detection Firefox."""
-        if not self._camoufox or not self._camoufox.is_available():
-            return None
-        try:
-            result = await self._camoufox.fetch(
-                url,
-                wait_time=opts.get("wait_time", 3000),
-                proxy=proxy_url or "",
-            )
-            if result.get("success"):
-                return result.get("content", "")
-        except Exception as e:
-            logger.debug("camoufox_failed", extra={"error": str(e)[:200]})
-        return None
-
-    async def _tier_googlebot(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        try:
-            headers = self._build_headers(url)
-            headers["User-Agent"] = (
-                "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-            )
-            # Proxy is client-level httpx config; only a dedicated client is
-            # needed when a proxy is set. The no-proxy path reuses the shared
-            # pooled client (get_client).
-            if proxy_url:
-                async with httpx.AsyncClient(timeout=30, proxy=proxy_url) as c:
-                    r = await safe_get(c, url, headers=headers)
-            else:
-                c = await _get_shared_client()
-                r = await safe_get(c, url, headers=headers, timeout=30)
-            if r.is_success:
-                return r.text
-        except (httpx.HTTPError, httpx.RequestError) as e:
-            logger.debug("googlebot_failed", extra={"error": str(e)[:200]})
-        return None
-
-    async def _tier_archive(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        """Fetch from Wayback Machine CDX API for latest snapshot."""
-        try:
-            # URL-encode the target before embedding it in the CDX query param
-            # and the archive path. An unencoded query string (e.g. ?a=1&b=2)
-            # would corrupt the surrounding URL (the & becomes a param separator
-            # in the CDX call and breaks the /web/{ts}id_/ path entirely).
-            target = quote(url, safe="")
-            cdx_url = f"https://web.archive.org/cdx/search/cdx?url={target}&output=json&limit=1&fl=timestamp,original"
-            c = await _get_shared_client()
-            r = await c.get(cdx_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
-            if r.is_success:
-                data = r.json()
-                if len(data) > 1:
-                    timestamp = data[1][0]
-                    archive_url = f"https://web.archive.org/web/{timestamp}id_/{target}"
-                    ar = await safe_get(c, archive_url, timeout=30)
-                    if ar.is_success:
-                        return ar.text
-        except (httpx.HTTPError, httpx.RequestError) as e:
-            logger.debug("archive_failed", extra={"error": str(e)[:200]})
-        return None
-
-    async def _tier_google_cache(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        try:
-            # Same encoding requirement as the archive tier: an unencoded
-            # query string would be parsed as extra params of the cache URL.
-            target = quote(url, safe="")
-            cache_url = f"https://webcache.googleusercontent.com/search?q=cache:{target}"
-            c = await _get_shared_client()
-            r = await safe_get(c, cache_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
-            if r.is_success:
-                return r.text
-        except (httpx.HTTPError, httpx.RequestError) as e:
-            logger.debug("google_cache_failed", extra={"error": str(e)[:200]})
-        return None
-
-    async def _tier_tor(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        """Fetch via Tor SOCKS5 proxy."""
-        if not _has_tor:
-            return None
-        aiohttp: Any = None
-        ProxyConnector: Any = None  # noqa: N806 - class binding mirrors import
-        try:
-            import aiohttp
-            from aiohttp_socks import ProxyConnector
-
-            tor_host = os.getenv("TOR_SOCKS5_HOST", "127.0.0.1")
-            tor_port = os.getenv("TOR_SOCKS5_PORT", "9050")
-            connector = ProxyConnector.from_url(f"socks5://{tor_host}:{tor_port}")
-            async with (
-                aiohttp.ClientSession(connector=connector) as session,
-                session.get(
-                    url,
-                    headers=self._build_headers(url),
-                    timeout=aiohttp.ClientTimeout(total=60),
-                ) as resp,
-            ):
-                if resp.status == 200:
-                    return await resp.text()
-        except aiohttp.ClientError as e:
-            logger.debug("tor_failed", extra={"error": str(e)[:200]})
-        return None
-
-    async def _tier_ai_visual(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        """Tier 13: AI Visual Scraper — screenshot + LLM vision extraction."""
-        if not _has_ai_visual or not _ai_visual:
-            return None
-        try:
-            return await _ai_visual.scrape(url, opts)
-        except Exception as e:
-            logger.debug("ai_visual_failed", extra={"error": str(e)[:200]})
-        return None
-
-    async def _tier_mobile_app(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        """Tier 14: Mobile App API — impersonate mobile clients."""
-        if not _has_mobile or not _mobile_scraper:
-            return None
-        try:
-            return await _mobile_scraper.scrape(url, opts)
-        except Exception as e:
-            logger.debug("mobile_app_failed", extra={"error": str(e)[:200]})
-        return None
-
-    async def _tier_graphql(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        """Tier 15: GraphQL API Discovery — find and query GraphQL endpoints."""
-        if not _has_graphql or not _graphql_scraper:
-            return None
-        try:
-            return await _graphql_scraper.scrape(url, opts)
-        except Exception as e:
-            logger.debug("graphql_failed", extra={"error": str(e)[:200]})
-        return None
