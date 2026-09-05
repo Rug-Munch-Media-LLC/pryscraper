@@ -1,0 +1,206 @@
+"""Shared helpers and Prometheus metrics for the admin router modules.
+
+Path constants (PRY_DATA_DIR / ADMIN_DIR) live in the ``admin`` facade so
+tests can monkeypatch them there; helpers resolve them lazily at call time.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import json
+import logging
+import os
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from prometheus_client import Counter, Gauge, Histogram
+
+logger = logging.getLogger(__name__)
+
+# ── Prometheus metrics (prefixed with admin_ to avoid observability.py conflicts) ──
+SCRAPES_TOTAL = Counter("pry_admin_scrapes_total", "Total scrape requests", ["method"])
+SCRAPES_DURATION = Histogram("pry_admin_scrapes_duration_seconds", "Scrape duration", ["method"])
+PAYMENTS_TOTAL = Counter("pry_admin_payments_total", "Total x402 payments", ["chain", "asset"])
+PAYMENTS_AMOUNT = Gauge("pry_admin_payments_amount_usd", "Total x402 payment amount in USD")
+SCRAPES_ACTIVE = Gauge("pry_admin_scrapes_active", "Currently active scrapes")
+CACHE_HIT_RATIO = Gauge("pry_admin_cache_hit_ratio", "Cache hit ratio")
+REVENUE_TOTAL = Gauge("pry_admin_revenue_total_usd", "Total revenue in USD")
+COST_TOTAL = Gauge("pry_admin_cost_total_usd", "Total operating cost in USD")
+APIFY_PROFIT = Gauge("pry_admin_apify_profit_usd", "Apify platform profit in USD")
+
+
+def _data_dir() -> str:
+    """Resolve the data dir at call time (tests monkeypatch the facade)."""
+    from pry.api.routers.core import admin as _admin
+
+    return _admin.PRY_DATA_DIR
+
+
+# ── Helpers ──
+
+
+def _load_jsonl(path: str) -> list[dict[str, Any]]:
+    """Load a JSONL file, returning a list of records."""
+    records: list[dict[str, Any]] = []
+    if os.path.exists(path):
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    with contextlib.suppress(json.JSONDecodeError):
+                        records.append(json.loads(line))
+    return records
+
+
+def _parse_ts(raw: Any) -> datetime | None:
+    """Parse an ISO-8601-ish timestamp; None when absent/malformed."""
+    if not raw or not isinstance(raw, str):
+        return None
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _payment_amount(p: dict[str, Any]) -> float:
+    """Coerce a payment row's amount to float; corrupt rows count as 0."""
+    try:
+        return float(p.get("amount_usd", 0) or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _get_x402_payments(days: int = 30) -> list[dict[str, Any]]:
+    """Load x402 payments from the payments log within the lookback window."""
+    payments_file = os.path.join(_data_dir(), "x402", "payments.jsonl")
+    all_payments = _load_jsonl(payments_file)
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    filtered: list[dict[str, Any]] = []
+    for p in all_payments:
+        ts = _parse_ts(p.get("ts", ""))
+        # Rows without a parseable timestamp are kept only for the default
+        # full-window query so legacy logs still count toward totals.
+        if ts is None:
+            if days >= 30:
+                filtered.append(p)
+            continue
+        if ts >= cutoff:
+            filtered.append(p)
+    return filtered
+
+
+def _get_usage_costs(days: int = 30) -> dict[str, Any]:
+    """Get costing data for the last N days."""
+    from pry.commerce.costing import get_cost_dashboard
+
+    try:
+        dashboard = get_cost_dashboard()
+        return dashboard
+    except (OSError, KeyError, ValueError, TypeError):
+        # Costing is best-effort analytics — degrade to zeros, never fail the admin page.
+        return {"total_cost": 0, "by_operation": {}, "projected_monthly": 0}
+
+
+def _compute_profits(days: int = 30) -> dict[str, Any]:
+    """Compute profits from x402 payments minus operating costs."""
+    payments = _get_x402_payments(days)
+    x402_revenue = sum(_payment_amount(p) for p in payments)
+    x402_count = len(payments)
+
+    costs = _get_usage_costs(days)
+    total_cost = costs.get("total_cost", 0)
+    projected_cost = costs.get("projected_monthly", 0)
+
+    # Estimate x402 profit (revenue - 2% processing fee)
+    processing_fee = x402_revenue * 0.02
+    net_x402 = x402_revenue - processing_fee - total_cost
+
+    return {
+        "x402": {
+            "revenue_usd": round(x402_revenue, 2),
+            "payment_count": x402_count,
+            "processing_fee_usd": round(processing_fee, 2),
+            "net_profit_usd": round(net_x402, 2),
+        },
+        "costs": {
+            "total_operating_cost_usd": round(total_cost, 4),
+            "projected_monthly_usd": round(projected_cost, 4),
+        },
+        "period_days": days,
+    }
+
+
+def _get_apify_profits() -> dict[str, Any]:
+    """Fetch profit data from Apify API if configured."""
+    api_key = os.getenv("APIFY_API_KEY", "")
+    if not api_key:
+        return {
+            "configured": False,
+            "message": "Set APIFY_API_KEY to enable Apify profit tracking",
+            "actors": [],
+            "total_profit_usd": 0,
+        }
+    try:
+        import httpx
+
+        # Apify API: list actor runs and compute cost/profit
+        resp = httpx.get(
+            "https://api.apify.com/v2/actor-runs/",
+            params={"limit": 50, "status": "SUCCEEDED"},
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return {"configured": True, "error": f"Apify API: {resp.status_code}", "actors": []}
+
+        data = resp.json()
+        runs = data.get("data", [])
+        actors: dict[str, dict[str, Any]] = {}
+        total_profit = 0.0
+        for run in runs:
+            aid = run.get("actId", "unknown")
+            if aid not in actors:
+                actors[aid] = {
+                    "id": aid,
+                    "name": run.get("actName", aid),
+                    "runs": 0,
+                    "total_cost_usd": 0,
+                    "total_compute_units": 0,
+                }
+            actors[aid]["runs"] += 1
+            cost = run.get("usageTotalUsd", 0) or 0
+            actors[aid]["total_cost_usd"] += cost
+            actors[aid]["total_compute_units"] += run.get("usageTotalCu", 0) or 0
+            total_profit += cost
+
+        APIFY_PROFIT.set(total_profit)
+        return {
+            "configured": True,
+            "actors": list(actors.values()),
+            "total_profit_usd": round(total_profit, 2),
+            "total_runs": len(runs),
+        }
+    except (httpx.HTTPError, KeyError, ValueError, TypeError) as e:
+        logger.warning("apify_profit_fetch_failed", extra={"error": str(e)})
+        return {"configured": True, "error": str(e), "actors": []}
+
+
+def _earnings_source() -> tuple[Any, str]:
+    """Return (tracker, backend_name). Prefers EarningsTracker; falls back to
+    PaymentAnalytics (which exposes the same method surface) on any failure."""
+    try:
+        from pry.payments.earnings import get_earnings_tracker
+
+        return get_earnings_tracker(), "earnings_tracker"
+    except Exception as e:  # noqa: BLE001 - defensive fallback
+        logger.warning("earnings_tracker_unavailable", extra={"error": str(e)})
+        from pry.payments.analytics import get_analytics
+
+        return get_analytics(), "payment_analytics"
+
+
+def _fmt_usd(v: Any) -> str:
+    try:
+        return f"${float(v):,.2f}"
+    except (TypeError, ValueError):
+        return "$0.00"
