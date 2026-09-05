@@ -1,0 +1,31 @@
+{
+	"agencies": ["fda", "ftc", "cfpb", "sec", "epa", "osha", "doj"],
+	"agency_fallback": {
+		"epa": ["epa", "osha", "doj"],
+		"osha": ["osha", "doj"],
+		"doj": ["doj"]
+	},
+	"max_limit": 100,
+	"timeout_seconds": 20.0,
+	"retry": {
+		"max_retries": 2,
+		"base_delay": 0.4,
+		"max_delay": 1.6
+	},
+	"user_agent": "Mozilla/5.0 (compatible; pryscraper-compliance/1.0; +https://git.rugmunch.io/RugMunchMedia/pryscraper)",
+	"endpoints": {
+		"fda": [
+			"https://api.fda.gov/drug/enforcement.json",
+			"https://api.fda.gov/food/enforcement.json",
+			"https://api.fda.gov/device/enforcement.json"
+		],
+		"ftc_list": "https://www.ftc.gov/legal-library/browse/cases-proceedings",
+		"cfpb_search": "https://www.consumerfinance.gov/data-research/consumer-complaints/search/api/v1/",
+		"sec_admin": "https://www.sec.gov/enforcement-litigation/administrative-proceedings",
+		"sec_fts": "https://efts.sec.gov/LATEST/search-index",
+		"epa_echo_case": "https://echo.epa.gov/rest/enforcement/case_search",
+		"osha_establishment": "https://www.osha.gov/pls/imis/establishmentsearch.html",
+		"osha_detail": "https://www.osha.gov/pls/imis/establishment.html",
+		"doj_press_releases": "https://www.justice.gov/api/v1/press_releases.json"
+	}
+}
