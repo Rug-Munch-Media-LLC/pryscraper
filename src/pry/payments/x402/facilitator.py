@@ -6,8 +6,13 @@ router instance accessors. Config constants (``X402_WALLET``,
 ``X402_TIMEOUT_SECONDS``, ``EIP7702_RPC``, …) are imported from the package
 root; scheme helpers come from ``x402.scheme``.
 
-Chain-specific verification lives in cohesive sibling modules:
+Chain-specific verification and settlement helpers live in cohesive sibling
+modules:
 
+- ``facilitator_dispatch`` — per-network facilitator registration, pending
+  authorizations and the chain-specific verify delegates (Solana / TRON /
+  scaffolded non-EVM / EIP-7702).
+- ``facilitator_settle`` — settlement receipt normalization + offline stub.
 - ``facilitator_evm`` — EIP-7702 self-verify fallback (RPC key resolution,
   JSON-RPC calls, payTo/amount matching, settlement receipt).
 - ``facilitator_solana_tron`` — Solana (SPL RPC) and TRON (TRC-20 Grid)
@@ -45,6 +50,7 @@ from pry.payments.x402.facilitator_config import (  # noqa: F401
     NamedSigner,
     SignerRegistry,
 )
+from pry.payments.x402.facilitator_dispatch import DispatchMixin
 from pry.payments.x402.facilitator_evm import (  # noqa: F401
     _CAIP2_TO_SHORT,
     ERC20_TRANSFER_SELECTOR,
@@ -56,6 +62,7 @@ from pry.payments.x402.facilitator_evm import (  # noqa: F401
 )
 from pry.payments.x402.facilitator_health import FacilitatorHealthMixin
 from pry.payments.x402.facilitator_self_hosted import SelfHostedMixin
+from pry.payments.x402.facilitator_settle import SettleReceiptMixin
 from pry.payments.x402.facilitator_solana_tron import (  # noqa: F401
     SCAFFOLDED_NETWORKS,
     _scaffold_non_evm_verify,
@@ -83,7 +90,7 @@ if X402_OFFLINE_MODE:
 logger = logging.getLogger(__name__)
 
 
-class FacilitatorRouter(FacilitatorHealthMixin, SelfHostedMixin):
+class FacilitatorRouter(DispatchMixin, SettleReceiptMixin, FacilitatorHealthMixin, SelfHostedMixin):
     """Smart router that picks the best facilitator per chain/asset.
 
     Falls back through enabled facilitators. Records failures and retries
@@ -114,34 +121,6 @@ class FacilitatorRouter(FacilitatorHealthMixin, SelfHostedMixin):
         self._network_facilitators: dict[str, Any] = {}
         self._pending_auths: dict[str, dict[str, Any]] = {}
         self.signers = SignerRegistry()
-
-    def register_facilitator(self, network: str, impl: Any) -> None:
-        """Register a custom facilitator implementation for a network.
-
-        Extension point for custom verifiers (e.g. TRON, which is still
-        scaffolded): when an impl is registered for a network, verify/settle
-        are routed to it instead of the external facilitators or the built-in
-        SelfFacilitator. The impl must expose the SelfFacilitator contract:
-
-        - ``async verify(payment: dict) -> VerifyResult``
-        - ``async settle(payment: dict) -> str | None`` (tx hash or None)
-
-        ``network`` may be a legacy name ("solana"), a CAIP-2 id
-        ("solana:mainnet"), or a family ("solana", "tron", "evm").
-        """
-        network_id = normalize_network_id(network)
-        self._network_facilitators[network_id] = impl
-        if ":" not in network:
-            self._network_facilitators[network] = impl
-
-    def submit_authorization(self, payment_id: str, authorization: dict[str, Any]) -> None:
-        """Attach an EIP-3009 transferWithAuthorization to a pending payment.
-
-        Stored in memory keyed by ``payment_id`` so a later
-        ``verify(payment_id, ...)`` / ``settle(payment_id, ...)`` can
-        self-verify and self-settle it without an external facilitator.
-        """
-        self._pending_auths[payment_id] = authorization
 
     async def verify(
         self,
@@ -253,41 +232,6 @@ class FacilitatorRouter(FacilitatorHealthMixin, SelfHostedMixin):
 
         return {"verified": False, "reason": last_error, "settlement": None}
 
-    # ── Chain-specific verification (delegates to cohesive modules) ───────────
-
-    async def _verify_solana(
-        self,
-        payment_id: str,
-        tx_hash: str,
-        network: str,
-        asset: str,
-        amount_usd: float,
-    ) -> dict[str, Any]:
-        """Verify a Solana payment on-chain — see ``facilitator_solana_tron``."""
-        return await verify_solana(payment_id, tx_hash, network, asset, amount_usd)
-
-    async def _verify_tron(
-        self,
-        payment_id: str,
-        tx_hash: str,
-        network: str,
-        asset: str,
-        amount_usd: float,
-    ) -> dict[str, Any]:
-        """Verify a TRON TRC-20 payment on-chain — see ``facilitator_solana_tron``."""
-        return await verify_tron(payment_id, tx_hash, network, asset, amount_usd)
-
-    def _scaffold_non_evm_verify(
-        self,
-        payment_id: str,
-        tx_hash: str,
-        network: str,
-        asset: str,
-        amount_usd: float,
-    ) -> dict[str, Any]:
-        """[REVIEW] Scaffolded non-EVM acceptance — see ``facilitator_solana_tron``."""
-        return _scaffold_non_evm_verify(payment_id, tx_hash, network, asset, amount_usd)
-
     async def settle(
         self,
         payment_id: str,
@@ -365,81 +309,6 @@ class FacilitatorRouter(FacilitatorHealthMixin, SelfHostedMixin):
             "payment_id": payment_id,
             "reason": last_error,
         }
-
-    def _normalize_settlement(
-        self,
-        data: dict[str, Any],
-        payment_id: str,
-        tx_hash: str,
-        network: str,
-        facilitator: str,
-    ) -> dict[str, Any]:
-        """Normalize facilitator response into a standard settlement receipt."""
-        return {
-            "success": True,
-            "transaction": tx_hash,
-            "network": network,
-            "payment_id": payment_id,
-            "facilitator": facilitator,
-            "settled_at": datetime.now(UTC).isoformat(),
-            "block_number": data.get("blockNumber", data.get("block_number", "")),
-            "block_hash": data.get("blockHash", data.get("block_hash", "")),
-            "tx_index": data.get("transactionIndex", data.get("tx_index", "")),
-            "confirmations": data.get("confirmations", 0),
-            "amount_paid": data.get("amountPaid", data.get("amount_paid", "")),
-            "receipt": data,
-        }
-
-    def _offline_settlement(self, payment_id: str, tx_hash: str, network: str) -> dict[str, Any]:
-        return {
-            "success": True,
-            "transaction": tx_hash,
-            "network": network,
-            "payment_id": payment_id,
-            "facilitator": "offline",
-            "settled_at": datetime.now(UTC).isoformat(),
-            "note": "Offline mode — settlement not verified on-chain",
-        }
-
-    # ── EIP-7702 self-verify fallback (delegates to facilitator_evm) ──────────
-
-    async def _eip7702_verify(
-        self,
-        tx_hash: str,
-        network: str,
-        asset: str,
-        amount_usd: float,
-    ) -> dict[str, Any]:
-        """EIP-7702 self-verify: poll RPC for tx receipt AND check payTo/amount."""
-        return await eip7702_verify(tx_hash, network, asset, amount_usd)
-
-    async def _rpc_call(
-        self,
-        client: httpx.AsyncClient,
-        rpc: str,
-        method: str,
-        params: list[Any],
-    ) -> dict[str, Any] | None:
-        """Issue a JSON-RPC call and return the ``result`` dict (or None)."""
-        return await rpc_call(client, rpc, method, params)
-
-    def _eip7702_matches(
-        self,
-        tx: dict[str, Any],
-        network: str,
-        asset: str,
-        amount_usd: float,
-    ) -> tuple[bool, str]:
-        """Verify an EIP-7702 tx actually paid OUR wallet at least the price."""
-        return eip7702_matches(tx, network, asset, amount_usd)
-
-    def _eip7702_settlement(
-        self,
-        payment_id: str,
-        tx_hash: str,
-        network: str,
-    ) -> dict[str, Any]:
-        return eip7702_settlement(payment_id, tx_hash, network)
 
 
 # Global router instance (can be overridden in tests)
