@@ -1,37 +1,37 @@
 {
-  "supported_chains": [
-    "ethereum",
-    "solana",
-    "base",
-    "bsc",
-    "arbitrum",
-    "polygon"
-  ],
-  "birdeye_chain_ids": {
-    "ethereum": "ethereum",
-    "solana": "solana",
-    "base": "base",
-    "bsc": "bsc",
-    "arbitrum": "arbitrum",
-    "polygon": "polygon"
-  },
-  "coingecko_platforms": {
-    "ethereum": "ethereum",
-    "solana": "solana",
-    "base": "base",
-    "bsc": "binance-smart-chain",
-    "arbitrum": "arbitrum-one",
-    "polygon": "polygon-pos"
-  },
-  "cmc_platform_aliases": {
-    "ethereum": "ethereum",
-    "solana": "solana",
-    "base": "base",
-    "bnb": "bsc",
-    "binance-smart-chain": "bsc",
-    "arbitrum": "arbitrum",
-    "arbitrum-one": "arbitrum",
-    "polygon-pos": "polygon",
-    "polygon": "polygon"
-  }
+	"supported_chains": [
+		"ethereum",
+		"solana",
+		"base",
+		"bsc",
+		"arbitrum",
+		"polygon"
+	],
+	"birdeye_chain_ids": {
+		"ethereum": "ethereum",
+		"solana": "solana",
+		"base": "base",
+		"bsc": "bsc",
+		"arbitrum": "arbitrum",
+		"polygon": "polygon"
+	},
+	"coingecko_platforms": {
+		"ethereum": "ethereum",
+		"solana": "solana",
+		"base": "base",
+		"bsc": "binance-smart-chain",
+		"arbitrum": "arbitrum-one",
+		"polygon": "polygon-pos"
+	},
+	"cmc_platform_aliases": {
+		"ethereum": "ethereum",
+		"solana": "solana",
+		"base": "base",
+		"bnb": "bsc",
+		"binance-smart-chain": "bsc",
+		"arbitrum": "arbitrum",
+		"arbitrum-one": "arbitrum",
+		"polygon-pos": "polygon",
+		"polygon": "polygon"
+	}
 }
