@@ -27,6 +27,7 @@ import respx
 
 import datasets.commerce_data as commerce_data
 import datasets.commerce_data.marketplaces as marketplaces
+import pry.commerce.marketplace._retail_transport as retail_transport
 import pry.commerce.marketplace.retail as retail
 
 RETAIL_SCHEMA_KEYS = {
@@ -59,9 +60,9 @@ def _hermetic_retail(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PRY_MARKETPLACE_HTTP_RETRIES", "1")
     monkeypatch.setenv("PRY_SECRET_BACKEND", "env")
     monkeypatch.delenv("WEBSHARE_PROXY_LIST", raising=False)
-    monkeypatch.setattr(retail, "RETRY_BASE", 0.0)
-    monkeypatch.setattr(retail, "MAX_BACKOFF", 0.0)
-    monkeypatch.setattr(retail, "_next_proxy", lambda: None)
+    monkeypatch.setattr(retail_transport, "RETRY_BASE", 0.0)
+    monkeypatch.setattr(retail_transport, "MAX_BACKOFF", 0.0)
+    monkeypatch.setattr(retail_transport, "_next_proxy", lambda: None)
 
 
 # ── Fixture HTML builders ──────────────────────────────────────────────

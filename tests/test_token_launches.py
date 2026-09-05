@@ -56,8 +56,8 @@ def _hermetic_crypto_market(monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.delenv("PRY_BIRDEYE_API_KEY", raising=False)
     import crypto_market.token_launches as tl
 
-    monkeypatch.setattr(tl, "RETRY_BASE", 0.0)
-    monkeypatch.setattr(tl, "MAX_BACKOFF", 0.0)
+    monkeypatch.setattr(tl._http, "RETRY_BASE", 0.0)
+    monkeypatch.setattr(tl._http, "MAX_BACKOFF", 0.0)
     _clear_cache()
     yield
     _clear_cache()
