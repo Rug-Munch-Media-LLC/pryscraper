@@ -313,7 +313,7 @@ def cmd_completions(shell="bash"):
 
 
 def main():
-    if len(sys.argv) >= 2 and sys.argv[1] == "proxy" and click is not None:
+    if len(sys.argv) >= 2 and sys.argv[1] in ("proxy", "wallets") and click is not None:
         cli.main(standalone_mode=False)
         return
     if len(sys.argv) < 2:
@@ -444,6 +444,17 @@ if click is not None:
         click.echo("")
         click.echo("Or run directly: pry mcp serve")
         click.echo("Or: python -m mcp_production")
+
+    @cli.group()
+    def wallets() -> None:
+        """Configure receiving payment wallets for the x402 pay gate."""
+
+    # Register the wallet subcommands (init/show/validate/test) from the
+    # wallet_setup module so the CLI stays thin and the logic is testable.
+    from pry.payments.wallet_setup import wallets as _wallets_group
+
+    for _cmd in _wallets_group.commands.values():
+        wallets.add_command(_cmd)
 
     @cli.group()
     def proxy() -> None:
