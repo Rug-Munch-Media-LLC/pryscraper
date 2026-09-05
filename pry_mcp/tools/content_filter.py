@@ -25,7 +25,8 @@ PRY_FILTER_TOOLS: list[dict[str, Any]] = [
             "redundant whitespace collapsed and empty headings dropped. "
             "Use before feeding scraped pages to an LLM to cut token costs by 60-90%: "
             "call with the raw HTML from pry_scrape and get back clean Markdown plus "
-            "a token estimate and reduction percentage."
+            "a token estimate and reduction percentage, e.g. filter_content(html='<html>...<nav>...</nav><article>main text</article>...</html>') "
+            "returns just the article text."
         ),
         "inputSchema": {
             "type": "object",

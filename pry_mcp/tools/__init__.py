@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import (
+    actions,
     actor,
     appstore,
     attention,
@@ -49,6 +50,7 @@ from . import (
     sports_sharp_intel,
     sportsbooks,
     travel,
+    web_search,
 )
 from ._common import (
     _apply_offset,
@@ -198,6 +200,8 @@ PRY_TOOLS: list[dict[str, Any]] = [
     *sports_context.PRY_TOOLS,
     *site_mapping.PRY_TOOLS,
     *content_filter.PRY_FILTER_TOOLS,
+    *web_search.PRY_SEARCH_TOOLS,
+    *actions.PRY_TOOLS,
     *scraping.PRY_SOURCE_TOOLS,
     *climate.PRY_TOOLS,
     *research.PRY_TOOLS,

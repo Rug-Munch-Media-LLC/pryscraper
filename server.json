@@ -343,6 +343,22 @@
 			"description": "Filter HTML, convert to minimal Markdown, and chunk it for RAG / vector databases. Full pipeline: boilerplate removal -> minimal Markdown -> overlapping chunks split on paragraph boundaries. Returns the chunks, total token estimate, chunk count, and reduction percentage. Use when indexing scraped pages into a vector DB or feeding long documents to an LLM with a context budget \u2014 e.g. call with chunk_size=1000 and chunk_overlap=100 to get retrieval-ready chunks with ~10% overlap for continuity."
 		},
 		{
+			"name": "pry_search",
+			"description": "Search the web and get the FULL page content of each result \u2014 Firecrawl-style search, not a plain SERP scraper. Each result carries the complete scraped content and clean markdown of its page, fetched through the 15-tier anti-bot fallback chain (direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver). Use when you need to research a topic and read the actual pages, e.g. search_and_scrape(query='best rust web frameworks 2026', num_results=5) returns five full articles ready for analysis or RAG ingestion."
+		},
+		{
+			"name": "pry_search_web",
+			"description": "Quick web search returning titles and snippets only \u2014 no page scraping. Fast and cheap: uses self-hosted SearXNG (free, no API key) with a DuckDuckGo HTML fallback. Use when you just need to find URLs or get an overview of what's out there, e.g. search_web(query='site:docs.example.com auth', num_results=10). For full page content use pry_search instead."
+		},
+		{
+			"name": "pry_search_extract",
+			"description": "Search the web, scrape each result page, and extract structured JSON data from every page using your schema \u2014 pattern extraction first, LLM fallback for complex schemas. Use when you need specific fields from many pages found via search, e.g. search_and_extract(query='python job postings remote', schema={'company': 'company name', 'salary': 'salary range', 'location': 'job location'}, num_results=5) returns structured records from each result page."
+		},
+		{
+			"name": "pry_scrape_with_actions",
+			"description": "Scrape a page after performing browser actions before extraction \u2014 Firecrawl-style interactions for dynamic pages. Specify a sequence of actions (click elements, type text into inputs, scroll, wait for elements or fixed delays, press keys, run JavaScript, select dropdown options, check/uncheck checkboxes, hover, focus) that are executed in order on the loaded page, then the page content is extracted. Use when a plain scrape cannot reach the content: dismissing cookie banners, logging in or submitting search forms, infinite-scroll loading, expanding collapsed sections, or paginating before capture. Example: [{type: 'click', selector: '#cookie-accept'}, {type: 'wait', ms: 1000}, {type: 'scroll', direction: 'down', amount: 2000}, {type: 'wait', selector: '.results'}]."
+		},
+		{
 			"name": "pry_scrape_methods",
 			"description": "List the extraction methods Pry uses to scrape sportsbook odds pages directly: JSON endpoints, __NEXT_DATA__ (Next.js), __NUXT__, __INITIAL_STATE__ / _dida_config_, HTML tables, and browser rendering. Use to understand how each book in the 112-book registry is reached and which fallback tiers apply, e.g. 'which books need a browser?' or to audit the no-paid-API scraping layer before building on it."
 		},

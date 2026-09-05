@@ -458,37 +458,8 @@ _DOMAIN_TOOLS: dict[str, tuple[str, tuple[str, ...], dict[str, Any]]] = {
         ("get_game_context",),
         {"lat": 40.0, "lon": -74.0, "home_team": "Giants", "away_team": "Cowboys"},
     ),
-    # ── Site mapping + content filtering (6 new tools, 2026-09-05) ──
-    "pry_map_site": (
-        "site_mapper",
-        ("map_site",),
-        {"url": "https://example.com"},
-    ),
-    "pry_crawl_to_markdown": (
-        "site_mapper",
-        ("crawl_to_markdown",),
-        {"url": "https://example.com"},
-    ),
-    "pry_crawl_for_rag": (
-        "site_mapper",
-        ("crawl_for_rag",),
-        {"url": "https://example.com"},
-    ),
-    "pry_filter_content": (
-        "content_filter",
-        ("filter_to_essential",),
-        {"html": "<html><body><p>test</p></body></html>"},
-    ),
-    "pry_extract_main": (
-        "content_filter",
-        ("extract_main_content",),
-        {"html": "<html><body><article><p>main</p></article></body></html>"},
-    ),
-    "pry_chunk_for_rag": (
-        "content_filter",
-        ("filter_and_chunk",),
-        {"html": "<html><body><p>test content</p></body></html>"},
-    ),
+    # ── Web search + browser actions (4 new tools, 2026-09-05) ──
+    # These go through REST proxy, not domain dispatchers
 }
 
 # REST-proxy tools: name -> sample arguments. The fallback server calls the
@@ -517,6 +488,20 @@ _REST_PROXY_TOOLS: dict[str, dict[str, Any]] = {
     "pry_buy_pack": {"pack_id": "starter"},
     "pry_referrals": {"category": "proxies"},
     "pry_scrape_methods": {},
+    # ── Site mapping + content filtering + web search + actions (10 new REST tools) ──
+    "pry_map_site": {"url": "https://example.com"},
+    "pry_crawl_to_markdown": {"url": "https://example.com"},
+    "pry_crawl_for_rag": {"url": "https://example.com"},
+    "pry_filter_content": {"html": "<html><body><p>test</p></body></html>"},
+    "pry_extract_main": {"html": "<html><body><article><p>main</p></article></body></html>"},
+    "pry_chunk_for_rag": {"html": "<html><body><p>test content</p></body></html>"},
+    "pry_search": {"query": "test"},
+    "pry_search_web": {"query": "test"},
+    "pry_search_extract": {"query": "test", "schema": {"name": "string"}},
+    "pry_scrape_with_actions": {
+        "url": "https://example.com",
+        "actions": [{"type": "wait", "ms": 100}],
+    },
 }
 
 # Local actor-parity tools: name -> sample arguments. Executed through

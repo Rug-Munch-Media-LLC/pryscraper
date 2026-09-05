@@ -13,7 +13,7 @@
 - URL: https://api.pryscraper.com/mcp/
 - Transport: SSE, Streamable HTTP, stdio
 - Auth: x402 pay-per-call (no account/API key for discovery; paid prefixes require an x402 payment signature or a paid-tier API key)
-- Tools: 104
+- Tools: 108
 - Categories: 33
 
 ## Categories
@@ -647,3 +647,22 @@ Extract the main content block from a page using readability-style heuristics. P
 ### pry_chunk_for_rag
 
 Filter HTML, convert to minimal Markdown, and chunk it for RAG / vector databases. Full pipeline: boilerplate removal -> minimal Markdown -> overlapping chunks split on paragraph boundaries. Returns t
+
+### pry_search
+
+Search the web and get the FULL page content of each result — Firecrawl-style search, not a plain SERP scraper. Each result carries the complete scraped content and clean markdown of its page, fetched
+
+
+### pry_search_web
+
+Quick web search returning titles and snippets only — no page scraping. Fast and cheap: uses self-hosted SearXNG (free, no API key) with a DuckDuckGo HTML fallback. Use when you just need to find URLs
+
+
+### pry_search_extract
+
+Search the web, scrape each result page, and extract structured JSON data from every page using your schema — pattern extraction first, LLM fallback for complex schemas. Use when you need specific fie
+
+
+### pry_scrape_with_actions
+
+Scrape a page after performing browser actions before extraction — Firecrawl-style interactions for dynamic pages. Specify a sequence of actions (click elements, type text into inputs, scroll, wait fo

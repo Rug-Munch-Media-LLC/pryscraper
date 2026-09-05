@@ -103,4 +103,16 @@ TOOL_ROUTES: dict[str, tuple[str, str]] = {
     "pry_company_watch": ("GET", "/v1/compliance/watch/"),
     "pry_deals": ("GET", "/v1/deals/search"),
     "pry_drop_alert": ("GET", "/v1/deals/drops/check"),
+    # Site mapping + content filtering REST routes
+    "pry_map_site": ("POST", "/v1/site/map"),
+    "pry_crawl_to_markdown": ("POST", "/v1/site/crawl"),
+    "pry_crawl_for_rag": ("POST", "/v1/site/rag"),
+    "pry_filter_content": ("POST", "/v1/content/filter"),
+    "pry_extract_main": ("POST", "/v1/content/extract-main"),
+    "pry_chunk_for_rag": ("POST", "/v1/content/chunk"),
+    # Web search + browser actions REST routes
+    "pry_search": ("POST", "/v1/search"),
+    "pry_search_web": ("GET", "/v1/search"),
+    "pry_search_extract": ("POST", "/v1/search/extract"),
+    "pry_scrape_with_actions": ("POST", "/v1/scrape/actions"),
 }
