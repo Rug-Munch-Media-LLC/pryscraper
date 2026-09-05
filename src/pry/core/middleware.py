@@ -1,29 +1,26 @@
-"""Pry — ASGI middleware for auth, rate limiting, timing, and request logging.
+"""Pry — ASGI middleware facade: auth, rate limiting, timing, logging.
 
-Extracted from api.py during the api-slim refactor so the composition root
-(api.py) stays focused on wiring routers and the MCP sub-app.
+Thin facade re-exporting the focused middleware modules. It also owns the
+*stateful* trusted-proxy configuration block: tests ``importlib.reload()``
+this module after setting ``PRY_TRUSTED_PROXIES`` and patch
+``_TRUSTED_PROXY_NETWORKS`` / ``_is_trusted_proxy`` here, so the network
+tuple must be (re)computed in this module's namespace.
 
-Contains:
-
-* ``PryHttpMiddleware`` — pure-ASGI auth + rate-limit + timing + logging.
-  Implemented as ASGI (instead of @app.middleware('http')) so streaming
-  responses such as Server-Sent Events are not buffered/broken by
-  BaseHTTPMiddleware.
-* ``request_authorized`` / ``is_loopback_client`` — the fail-closed auth
-  policy. ``routers/proxy.py`` and ``routers/config.py`` import
-  ``request_authorized`` from api.py, which re-exports it from here.
-* ``_path_exists`` — route-existence check used to pass unknown paths to the
-  404 handler.
+* ``PryHttpMiddleware`` — pure-ASGI auth + rate-limit + timing + logging
+  (``middleware_http``).
+* ``request_authorized`` / ``is_loopback_client`` — fail-closed auth policy
+  (``middleware_auth``); routers/proxy.py and routers/config.py import it
+  from api.py, which re-exports it from here.
+* ``_path_exists`` — route-existence check for the unknown-path 404
+  pass-through (``middleware_common``).
 * ``_resolve_client_ip`` — trusted-proxy-aware client-IP resolution for the
   rate-limit bucket. ``X-Forwarded-For`` is honored ONLY when the immediate
   socket peer is loopback or listed in ``PRY_TRUSTED_PROXIES``; otherwise the
   socket peer is used, so clients cannot spoof a different rate-limit bucket
-  when the service sits behind nginx.
+  behind nginx.
 
-Trusted proxies are configured with the ``PRY_TRUSTED_PROXIES`` environment
-variable: a comma/space-separated list of IPs or CIDR blocks
-(e.g. ``PRY_TRUSTED_PROXIES="10.0.0.0/8,192.168.1.10"``). Loopback peers are
-always trusted, matching the pre-existing testclient/loopback behavior.
+Trusted proxies: ``PRY_TRUSTED_PROXIES`` env var, comma/space-separated IPs
+or CIDR blocks. Loopback peers are always trusted.
 """
 
 # SPDX-License-Identifier: MIT
@@ -32,322 +29,30 @@ always trusted, matching the pre-existing testclient/loopback behavior.
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
-import hmac
 import ipaddress
-import json
 import os
-import re
-import time
-import uuid
-from collections.abc import Mapping, MutableMapping
-from datetime import UTC, datetime
-from typing import Any, cast
+from collections.abc import Mapping
+from typing import Any
 
-from starlette.routing import Mount as StarletteMount, Route as StarletteRoute
-
-from pry.core.audit import audit_event
 from pry.core.deps import ratelimiter, user_ratelimiter
-from pry.core.jwt_auth import is_jwt, validate_rmi_jwt
-from pry.core.observability import (
-    REQUEST_COUNT,
-    REQUEST_LATENCY,
-    set_span_attributes,
-    span,
+from pry.core.middleware_auth import (
+    _AUTH_PUBLIC_PATHS,
+    _LOOPBACK_OR_TEST_HOSTS,
+    is_loopback_client,
+    request_authorized,
 )
+from pry.core.middleware_common import (
+    _SECURITY_HEADERS,
+    _get_header,
+    _path_exists,
+    _route_table_root,
+    bind_request_id,
+    clear_request_id,
+    logger,
+)
+from pry.core.middleware_http import PryHttpMiddleware
+from pry.core.middleware_usage import _USAGE_FLUSH_SIZE, _flush_usage, _record_usage, _usage_queue
 from pry.core.settings import settings
-from pry.core.user_ratelimit import TIER_LIMITS
-
-try:
-    from pry.core.logging_config import (
-        bind_request_id,
-        clear_request_id,
-        get_logger as _get_logger,
-        setup_logging,
-    )
-
-    setup_logging()
-    logger = _get_logger(__name__)
-except ImportError:  # pragma: no cover
-    import logging
-
-    def bind_request_id(_request_id: str) -> None:  # no-op fallback
-        return None
-
-    def clear_request_id() -> None:
-        return None
-
-    logger = logging.getLogger(__name__)
-
-
-_usage_queue: list[dict[str, Any]] = []
-_USAGE_FLUSH_SIZE = 50
-
-
-def _record_usage(
-    key_record: dict[str, Any],
-    *,
-    operation: str,
-    status: str,
-    duration_ms: int,
-    ip: str,
-) -> None:
-    """Queue a Usage row; flush to the DB in batches.
-
-    Never raises: metering must not take the API down. Batching keeps the
-    per-request cost at list-append level; the flush happens inline every
-    N requests (simple + dependency-free; swap for a background task when
-    write volume justifies it).
-    """
-    try:
-        _usage_queue.append(
-            {
-                "user_id": key_record["user_id"],
-                "api_key_id": key_record["key_id"],
-                "operation": operation[:64],
-                "status": status,
-                "duration_ms": duration_ms,
-                "ip": ip[:64],
-            }
-        )
-        if len(_usage_queue) >= _USAGE_FLUSH_SIZE:
-            _flush_usage()
-    except Exception as e:  # noqa: BLE001 - metering must never break serving
-        logger.debug("usage_record_failed", extra={"error": str(e)[:80]})
-
-
-def _flush_usage() -> int:
-    """Persist queued usage rows. Returns the number of rows written."""
-    if not _usage_queue:
-        return 0
-    batch, _usage_queue[:] = _usage_queue[:], []
-    try:
-        from pry.core.db import models as _models
-        from pry.core.db.session import get_session
-
-        with get_session() as session:
-            for item in batch:
-                session.add(_models.Usage(**item))  # type: ignore[union-attr]
-            session.commit()
-        return len(batch)
-    except Exception as e:  # noqa: BLE001 - drop-on-failure keeps API alive
-        logger.warning("usage_flush_failed", extra={"error": str(e)[:120], "dropped": len(batch)})
-        return 0
-
-
-def _route_table_root(app: Any) -> Any:
-    """Walk the ASGI middleware chain until a node exposing ``.routes``.
-
-    ``PryHttpMiddleware.app`` points at the NEXT middleware layer (e.g.
-    X402Middleware), which has no route table. Checking path existence
-    against that layer silently returned False for every request, which
-    routed ALL traffic through the unknown-path pass-through — disabling
-    rate limiting, request logging, and Prometheus metrics in production.
-    """
-    node: Any = app
-    for _ in range(10):
-        if node is None:
-            return None
-        if hasattr(node, "routes"):
-            return node
-        node = getattr(node, "app", None)
-    return None
-
-
-def _path_exists(path: str, app) -> bool:
-    """Check if a path matches any registered route."""
-    root = _route_table_root(app)
-    routes = getattr(root, "routes", []) or []
-
-    for route in routes:
-        if isinstance(route, StarletteMount):
-            if route.path == "" or route.path == "/":
-                # Root mount — check all sub-routes
-                if route.routes and _path_exists(path, route):
-                    return True
-                continue
-            if path == route.path or path.startswith(route.path.rstrip("/") + "/"):
-                if route.routes:
-                    sub_path = path[len(route.path) :] if route.path != "/" else path
-                    if _path_exists(sub_path, route):
-                        return True
-                # Mounts without sub-routes catch-all under prefix
-                return True
-        elif isinstance(route, StarletteRoute):
-            route_path = getattr(route, "path", "")
-            if route_path:
-                # Convert path template to regex
-                pattern = "^" + re.sub(r"\{[^}]+\}", "[^/]+", route_path) + "$"
-                if re.match(pattern, path):
-                    return True
-    return False
-
-
-_AUTH_PUBLIC_PATHS: set[str] = {
-    "/health",
-    "/healthz",
-    "/live",
-    "/ready",
-    "/readyz",
-    "/supported",
-    "/metrics",
-    "/docs",
-    "/openapi.json",
-    # MCP sub-app is public (AI agents must discover tools without API key).
-    # SECURITY: /mcp/messages and /mcp/sse are public at the middleware layer
-    # because the SSE transport requires unauthenticated reachability for
-    # discovery.  tools/call (the dangerous operation) is auth-gated INSIDE
-    # both mcp_post_message (mcp_sse.py) and the Streamable HTTP handler
-    # (pry_mcp/app.py) — an unauthenticated caller gets a JSON-RPC -32001
-    # Unauthorized error, not tool execution.
-    "/mcp",
-    "/mcp/health",
-    "/mcp/sse",
-    "/mcp/messages",
-    # Well-known discovery endpoints (public for AI agent discovery)
-    "/.well-known/agent.json",
-    "/.well-known/server.json",
-    "/.well-known/x402.json",
-    "/.well-known/x402-bazaar.json",
-    "/llms.txt",
-    # x402 discovery: agents must be able to price calls without a key
-    # (the 402 challenge itself is the auth for paid calls).
-    "/v1/x402/pricing",
-    "/v1/x402/catalog",
-    # Human checkout + customer portal (pre-auth surfaces: the human IS
-    # the payer — the checkout page renders the 402 manifest; the portal
-    # authenticates via a signed magic-link token carried in the query
-    # string, verified inside the endpoint — 401 without a valid token).
-    # POST /v1/hosting/portal/request is the rate-limited magic-link
-    # request flow (public by design; the rate limit is the protection).
-    "/v1/hosting/checkout",
-    "/v1/hosting/portal",
-    # Email verification link target (humans click it from mail clients —
-    # no API key exists yet; the code in the link IS the proof).
-    "/v1/hosting/verify",
-    # Hosting signup + tx confirm — the FIRST steps of the human rail.
-    # A prospective customer has no API key yet (the payment IS the auth,
-    # same doctrine as the x402 402-challenge). Prefix match also covers
-    # POST /v1/hosting/signup/{invoice_id}/confirm. Keyless requests stay
-    # under the IP-based rate limiter, bounding invoice spam.
-    "/v1/hosting/signup",
-}
-
-
-# ── Security headers (defense-in-depth) ────────────────────────────
-# nginx already sets these at the edge; setting them again at the app
-# level guarantees a browser/API client behind any proxy still gets
-# them (HTML injection / clickjacking / referrer-leak mitigation).
-_SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
-    (b"x-content-type-options", b"nosniff"),
-    (b"x-frame-options", b"DENY"),
-    (b"referrer-policy", b"strict-origin-when-cross-origin"),
-    (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
-    # Relax-but-not-open CSP. API responses are JSON; the policy only
-    # constrains any rendered HTML. Feasible and safe at the app layer.
-    (
-        b"content-security-policy",
-        b"default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data:; 'sandbox'",
-    ),
-)
-
-# ── Fail-closed auth policy ──
-# Shared by PryHttpMiddleware and the sensitive configuration routers
-# (routers/proxy.py, routers/config.py) so every egress-mutating endpoint
-# enforces the same rule as the middleware:
-#
-#   * PRY_API_KEY configured -> a valid Bearer credential (API key or rmi JWT)
-#     is required from EVERY source, loopback included.
-#   * PRY_API_KEY unset      -> only loopback clients are allowed; every other
-#     source is rejected with 401. This keeps a keyless instance from being
-#     exposed to the internet (e.g. when the Docker port mapping is public).
-#
-# "testclient" is the peer host Starlette's TestClient reports; tests run from
-# localhost without a key and must keep passing.
-_LOOPBACK_OR_TEST_HOSTS: frozenset[str] = frozenset(
-    {"127.0.0.1", "::1", "::ffff:127.0.0.1", "testclient"}
-)
-
-
-def is_loopback_client(ip: str) -> bool:
-    """Return True when the peer address is loopback (or the ASGI test client)."""
-    if not ip or ip == "unknown":
-        return False
-    return ip in _LOOPBACK_OR_TEST_HOSTS or ip.startswith(
-        ("127.", "::ffff:127.")  # 127.0.0.0/8 loopback range
-    )
-
-
-def request_authorized(scope: MutableMapping[str, Any]) -> bool:
-    """Apply the fail-closed auth policy to an ASGI request scope.
-
-    * key configured -> valid Bearer PRY_API_KEY or rmi JWT required
-    * no key         -> loopback client only
-
-    Auth always binds to the socket peer (never X-Forwarded-For): spoofed
-    forwarding headers must not let a remote client impersonate loopback.
-    """
-    api_key = settings.api_key
-    auth = PryHttpMiddleware._get_header(scope, b"authorization")
-    token = auth[7:] if auth.startswith("Bearer ") else ""
-
-    # x402 payment-verified requests: the PAYMENT is the credential. The
-    # outer X402Middleware verified on-chain settlement and marked the
-    # scope; bind a metering identity so usage/billing still record.
-    if scope.get("x402_verified"):
-        xv = scope["x402_verified"]
-        scope["pry_api_key"] = {
-            "key_id": f"x402:{xv.get('payment_id') or xv.get('batch_id', '')}",
-            "user_id": f"x402:{xv.get('caller', 'unknown')}",
-            "name": "x402-paid",
-            "scopes": ["scrape", "crawl", "extract", "monitor"],
-            "tier": "X402",
-        }
-        return True
-
-    # DB-issued keys (pry_...) authenticate against the api_keys table.
-    # They are valid in BOTH modes (key configured or keyless loopback) and
-    # carry their own identity for rate limiting + metering + billing.
-    if token.startswith("pry_"):
-        try:
-            from pry.core.api_keys_service import authenticate as authenticate_db_key
-
-            record = authenticate_db_key(token)
-        except Exception:  # noqa: BLE001 - auth store outage must not 500
-            logger.warning("api_key_store_unavailable")
-            record = None
-        if record is None:
-            return False
-        # Bind the authenticated key identity INTO the live scope so
-        # downstream metering/billing (scope["pry_api_key"]) sees it.
-        # ASGI scope is a mutable dict; a local copy here would be discarded
-        # and usage would never be recorded (regression from src-layout move).
-        scope["pry_api_key"] = record
-        return True
-
-    if api_key:
-        # Legacy global key, or a JWT issued by rmi-backend.
-        # Timing-safe compare (constant-time) for the legacy global key.
-        # A plain == comparison leaks the key length/prefix through
-        # per-byte timing, letting a remote attacker binary-search the key.
-        if hmac.compare_digest(token.encode("utf-8"), api_key.encode("utf-8")):
-            # The operator's master key is the bootstrap admin credential:
-            # bind a full-scope identity so admin endpoints (/v1/keys
-            # issuance) work before any DB key exists. Without this, key
-            # issuance deadlocks — remote callers need an admin-scoped key,
-            # and the loopback bypass never fires through Docker's published
-            # port (ASGI peer is the bridge gateway, e.g. 172.25.0.1).
-            scope["pry_api_key"] = {
-                "key_id": "legacy-master",
-                "user_id": "operator",
-                "name": "master-key",
-                "scopes": ["admin", "scrape", "crawl", "extract", "monitor"],
-                "tier": "ENTERPRISE",
-            }
-            return True
-        return bool(is_jwt(token) and validate_rmi_jwt(token))
-    client = scope.get("client")
-    first_hop = client[0] if isinstance(client, (list, tuple)) and client else ""
-    return is_loopback_client(str(first_hop))
 
 
 # ── Trusted-proxy aware rate-limit key ───────────────────────────
@@ -402,7 +107,7 @@ def _resolve_client_ip(scope: Mapping[str, Any]) -> str:
     if not peer or peer == "unknown":
         return "unknown"
     if is_loopback_client(peer) or _is_trusted_proxy(peer):
-        xff = PryHttpMiddleware._get_header(scope, b"x-forwarded-for")
+        xff = _get_header(scope, b"x-forwarded-for")
         if xff:
             hops = [h.strip() for h in xff.split(",")]
             for hop in reversed(hops):
@@ -419,318 +124,28 @@ def _resolve_client_ip(scope: Mapping[str, Any]) -> str:
     return peer
 
 
-# Middleware: auth + rate limit + timing + request logging
-class PryHttpMiddleware:
-    """Pure-ASGI middleware for auth, rate limiting, timing, and logging.
-
-    Implemented as ASGI (instead of @app.middleware('http')) so streaming
-    responses such as Server-Sent Events are not buffered/broken by
-    BaseHTTPMiddleware.
-    """
-
-    def __init__(self, app: Any) -> None:
-        self.app = app
-
-    @staticmethod
-    def _get_header(scope: Mapping[str, Any], name: bytes) -> str:
-        for key, value in scope.get("headers", []):
-            if key.lower() == name.lower():
-                return cast("bytes", value).decode("latin-1")
-        return ""
-
-    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        # OpenTelemetry: one span per HTTP request (name "METHOD path").
-        # Attributes (status, duration) are attached inside _handle_http via
-        # set_span_attributes; tracing is a no-op when OTel is disabled.
-        method = scope.get("method", "GET")
-        path = scope.get("path", "")
-        start = time.time()
-        with span(f"{method} {path}", {"http.method": method, "http.target": path}):
-            try:
-                await self._handle_http(scope, receive, send)
-            finally:
-                set_span_attributes({"duration_ms": int((time.time() - start) * 1000)})
-
-    async def _handle_http(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
-        # CORS preflight: OPTIONS requests carry no credentials and must reach
-        # CORSMiddleware without auth/rate-limit gating so browsers can probe
-        # cross-origin access before sending the real request.
-        if scope.get("method") == "OPTIONS":
-            await self.app(scope, receive, send)
-            return
-
-        start = time.time()
-        request_id = self._get_header(scope, b"x-request-id") or uuid.uuid4().hex[:12]
-        # Bind request_id into structlog contextvars so EVERY log line emitted
-        # during this request (including downstream modules) carries it at the
-        # top level of the JSON record. Cleared at every exit path below.
-        bind_request_id(request_id)
-        path = scope.get("path", "")
-        method = scope.get("method", "GET")
-        ip = _resolve_client_ip(scope)
-        response_status = 200
-
-        # Authentication check — fail closed.
-        # Runs BEFORE the unknown-path pass-through: a keyless instance must
-        # reject every non-loopback source (even for unknown paths) with 401,
-        # and a configured key must be presented from every source. The
-        # route-existence check below only decides whether an *authorized*
-        # request is passed to the router (which 404s unknown paths).
-        # Public paths support exact match or prefix match (e.g. /mcp/*).
-        is_public = path in _AUTH_PUBLIC_PATHS or any(
-            path.startswith(p + "/") for p in _AUTH_PUBLIC_PATHS if p != "/"
-        )
-        if not is_public and not request_authorized(scope):
-            # Audit (item #21): 401 with a key presented = invalid/revoked key.
-            _presented = self._get_header(scope, b"authorization")
-            if _presented.startswith("Bearer "):
-                audit_event(
-                    "auth_failure_401",
-                    actor=_presented[7:][:64],
-                    path=path,
-                    ip=ip,
-                    request_id=request_id,
-                )
-            body = json.dumps(
-                {
-                    "type": "/errors/unauthorized",
-                    "title": "Unauthorized",
-                    "status": 401,
-                    "detail": "Invalid or missing API key",
-                    "request_id": request_id,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "code": "unauthorized",
-                }
-            ).encode()
-            await send(
-                {
-                    "type": "http.response.start",
-                    "status": 401,
-                    "headers": [
-                        (b"content-type", b"application/json"),
-                        (b"content-length", str(len(body)).encode()),
-                        (b"x-request-id", request_id.encode()),
-                        *_SECURITY_HEADERS,
-                    ],
-                }
-            )
-            await send({"type": "http.response.body", "body": body})
-            set_span_attributes({"http.status_code": 401})
-            clear_request_id()
-            return
-
-        # Check if route exists — pass through unknown paths to 404 handler
-        _app = getattr(self, "app", None)
-        if _app and not _path_exists(path, _app):
-            # Still count unmatched requests (scanner noise included) under a
-            # fixed label — otherwise 404 traffic is invisible to monitoring.
-            passthrough_status = 200
-
-            async def passthrough_send(message: dict[str, Any]) -> None:
-                nonlocal passthrough_status
-                if message["type"] == "http.response.start":
-                    passthrough_status = message.get("status", 200)
-                await send(message)
-
-            await _app(scope, receive, passthrough_send)
-            set_span_attributes({"http.status_code": passthrough_status})
-            if REQUEST_COUNT and REQUEST_LATENCY:
-                REQUEST_COUNT.labels(
-                    method=method, endpoint="unmatched", status=str(passthrough_status)
-                ).inc()
-                REQUEST_LATENCY.labels(endpoint="unmatched").observe(time.time() - start)
-            clear_request_id()
-            return
-
-        # Rate limiting: use user rate limiter if API key present, else IP-based
-        auth_header = self._get_header(scope, b"authorization")
-        api_key = None
-        if auth_header.startswith("Bearer "):
-            api_key = auth_header[7:]
-
-        # x402 payment-verified requests carry NO Authorization header (the
-        # on-chain payment IS the credential). request_authorized() bound an
-        # identity with tier="X402" into scope["pry_api_key"]. Route them
-        # through the user rate limiter with the X402 tier so a paying caller
-        # gets the higher paid limit instead of being collapsed into the
-        # per-IP FREE bucket (which would throttle paid traffic behind a
-        # shared NAT/proxy and undercut what they paid for).
-        x402_verified = scope.get("x402_verified")
-
-        if x402_verified:
-            key_record = scope.get("pry_api_key") or {}
-            xv = x402_verified
-            # Bucket per caller (the paying wallet/agent), not per IP — a
-            # single payer behind many IPs must share one budget, and many
-            # payers behind one IP must not share a budget.
-            bucket_id = key_record.get("key_id") or f"x402:{xv.get('caller', 'unknown')}"
-            allowed, stats = user_ratelimiter.check(
-                api_key_id=bucket_id,
-                tier=key_record.get("tier", "X402"),
-                rpm=key_record.get("rate_limit_rpm"),
-                quota_monthly=key_record.get("quota_monthly"),
-                cost_usd=0.0,
-            )
-            effective_limit = (
-                key_record.get("rate_limit_rpm")
-                or TIER_LIMITS.get(key_record.get("tier", "X402"), TIER_LIMITS["X402"])["rpm"]
-            )
-            rate_limit_headers = {
-                "x-ratelimit-limit": str(stats.get("limit", effective_limit)),
-                "x-ratelimit-remaining": str(stats.get("remaining", 0)),
-                "x-ratelimit-reset": str(int(stats.get("quota_reset_at", time.time()))),
-                "x-ratelimit-quota-used": str(stats.get("quota_used", 0)),
-                "x-ratelimit-quota-limit": str(stats.get("quota_limit", 10000)),
-            }
-        elif api_key and api_key != settings.api_key:
-            # DB-issued key (pry_...) already validated in request_authorized(),
-            # which bound the authenticated record into scope["pry_api_key"].
-            # Use ITS per-key rate_limit_rpm + quota (set at issue time) so
-            # PRY_RATE_LIMIT_RPM / api_keys_service per-key quotas apply, instead
-            # of the previous hardcoded "FREE" tier default.
-            key_record = scope.get("pry_api_key") or {}
-            allowed, stats = user_ratelimiter.check(
-                api_key_id=key_record.get("key_id", api_key[:12]),
-                tier=key_record.get("tier", "FREE"),
-                rpm=key_record.get("rate_limit_rpm"),
-                quota_monthly=key_record.get("quota_monthly"),
-                cost_usd=0.0,
-            )
-            effective_limit = key_record.get("rate_limit_rpm") or ratelimiter.default_rpm
-            rate_limit_headers = {
-                "x-ratelimit-limit": str(stats.get("limit", effective_limit)),
-                "x-ratelimit-remaining": str(stats.get("remaining", 0)),
-                "x-ratelimit-reset": str(int(stats.get("quota_reset_at", time.time()))),
-                "x-ratelimit-quota-used": str(stats.get("quota_used", 0)),
-                "x-ratelimit-quota-limit": str(stats.get("quota_limit", 10000)),
-            }
-        else:
-            # Legacy global key or no key — use IP-based rate limiter
-            allowed, stats = ratelimiter.check(ip)
-            rate_limit_headers = {
-                "x-ratelimit-limit": str(ratelimiter.default_rpm),
-                "x-ratelimit-remaining": str(stats.get("remaining", 0)),
-                "x-ratelimit-reset": str(stats.get("retry_after", 1)),
-            }
-
-        if not allowed:
-            elapsed = time.time() - start
-            audit_event(
-                "rate_limit_429",
-                actor=api_key[:64] if api_key else ip,
-                path=path,
-                ip=ip,
-                reason=stats.get("reason", "rate_limited"),
-                request_id=request_id,
-            )
-            logger.warning(
-                "rate_limit_blocked",
-                extra={
-                    "request_id": request_id,
-                    "ip": ip,
-                    "path": path,
-                    "retry_after": stats.get("retry_after", 1),
-                    "reason": stats.get("reason", "rate_limited"),
-                },
-            )
-
-            body = json.dumps(
-                {
-                    "type": "/errors/rate_limit_exceeded",
-                    "title": "Too Many Requests",
-                    "status": 429,
-                    "detail": stats.get("reason", "Rate limit exceeded"),
-                    "request_id": request_id,
-                    "instance": path,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "code": "rate_limit_exceeded",
-                    "retry_after": stats.get(
-                        "retry_after", stats.get("quota_reset_at", time.time()) - time.time()
-                    ),
-                }
-            ).encode()
-            headers = [
-                (b"content-type", b"application/json"),
-                (b"content-length", str(len(body)).encode()),
-                (b"x-request-id", request_id.encode()),
-                *_SECURITY_HEADERS,
-            ]
-            # Add rate limit headers
-            for k, v in rate_limit_headers.items():
-                headers.append((k.encode(), str(v).encode()))
-            # RFC 6585 Retry-After: seconds the client should wait before retrying.
-            headers.append((b"retry-after", str(int(float(stats.get("retry_after", 1)))).encode()))
-            await send({"type": "http.response.start", "status": 429, "headers": headers})
-            await send({"type": "http.response.body", "body": body})
-            set_span_attributes({"http.status_code": 429})
-            clear_request_id()
-            return
-
-        logger.info(
-            "request_start",
-            extra={
-                "request_id": request_id,
-                "method": scope.get("method", "GET"),
-                "path": path,
-                "ip": ip,
-            },
-        )
-
-        ratelimit_limit = rate_limit_headers["x-ratelimit-limit"].encode()
-        ratelimit_remaining = rate_limit_headers["x-ratelimit-remaining"].encode()
-        ratelimit_reset = rate_limit_headers["x-ratelimit-reset"].encode()
-        request_id_bytes = request_id.encode()
-
-        async def wrapped_send(message: dict[str, Any]) -> None:
-            nonlocal response_status
-            if message["type"] == "http.response.start":
-                response_status = message.get("status", 200)
-                headers = list(message.get("headers", []))
-                headers.extend(_SECURITY_HEADERS)
-                headers.append((b"x-ratelimit-limit", ratelimit_limit))
-                headers.append((b"x-ratelimit-remaining", ratelimit_remaining))
-                headers.append((b"x-ratelimit-reset", ratelimit_reset))
-                headers.append((b"x-request-id", request_id_bytes))
-                message["headers"] = headers
-            await send(message)
-
-        await self.app(scope, receive, wrapped_send)
-
-        elapsed = time.time() - start
-        set_span_attributes({"http.status_code": response_status})
-        # Route TEMPLATE as the label (e.g. /v1/job/{job_id}), never the
-        # raw path — raw paths give every unique URL its own Prometheus
-        # series and explode cardinality. Unmatched routes (404s from
-        # scanners hitting random paths) bucket under a fixed label.
-        route = scope.get("route")
-        endpoint: str = getattr(route, "path", "") or (
-            "unmatched" if response_status == 404 else path
-        )
-        if REQUEST_COUNT and REQUEST_LATENCY:
-            REQUEST_COUNT.labels(
-                method=method, endpoint=endpoint, status=str(response_status)
-            ).inc()
-            REQUEST_LATENCY.labels(endpoint=endpoint).observe(elapsed)
-        if scope.get("pry_api_key"):
-            _record_usage(
-                scope["pry_api_key"],
-                operation=endpoint,
-                status="success" if response_status < 400 else "error",
-                duration_ms=int(elapsed * 1000),
-                ip=ip,
-            )
-        logger.info(
-            "request_end",
-            extra={
-                "request_id": request_id,
-                "method": method,
-                "path": path,
-                "status": response_status,
-                "duration": f"{elapsed:.3f}s",
-            },
-        )
-        clear_request_id()
+__all__ = [
+    "_AUTH_PUBLIC_PATHS",
+    "_LOOPBACK_OR_TEST_HOSTS",
+    "_SECURITY_HEADERS",
+    "_TRUSTED_PROXY_NETWORKS",
+    "_USAGE_FLUSH_SIZE",
+    "PryHttpMiddleware",
+    "_flush_usage",
+    "_get_header",
+    "_is_trusted_proxy",
+    "_parse_trusted_proxy",
+    "_path_exists",
+    "_record_usage",
+    "_resolve_client_ip",
+    "_route_table_root",
+    "_usage_queue",
+    "bind_request_id",
+    "clear_request_id",
+    "is_loopback_client",
+    "logger",
+    "ratelimiter",
+    "request_authorized",
+    "settings",
+    "user_ratelimiter",
+]
