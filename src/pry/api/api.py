@@ -697,18 +697,23 @@ async def readyz() -> JSONResponse:
 
 @app.get("/metrics", tags=["Ops"], include_in_schema=False)
 async def get_metrics() -> str:
-    """Prometheus text format metrics."""
-    lines = [
-        "# TYPE x402_verify_total counter",
-        "x402_verify_total 0",
-        "# TYPE x402_settle_total counter",
-        "x402_settle_total 0",
-        "# TYPE x402_verify_failures_total counter",
-        "x402_verify_failures_total 0",
-        "# TYPE x402_facilitator_healthy gauge",
-        "x402_facilitator_healthy 1",
-    ]
-    return "\n".join(lines) + "\n"
+    """Prometheus text format metrics (real registry + x402 fallbacks)."""
+    try:
+        from prometheus_client import generate_latest
+
+        return generate_latest().decode("utf-8")
+    except Exception:  # noqa: BLE001 — fall back to static stubs
+        lines = [
+            "# TYPE x402_verify_total counter",
+            "x402_verify_total 0",
+            "# TYPE x402_settle_total counter",
+            "x402_settle_total 0",
+            "# TYPE x402_verify_failures_total counter",
+            "x402_verify_failures_total 0",
+            "# TYPE x402_facilitator_healthy gauge",
+            "x402_facilitator_healthy 1",
+        ]
+        return "\n".join(lines) + "\n"
 
 
 if __name__ == "__main__":
