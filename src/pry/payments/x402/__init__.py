@@ -3,9 +3,10 @@
 Implements the x402 v1 spec from https://github.com/coinbase/x402
 
 This package was split out of the original ``x402.py`` god module. The
-secrets/env-backed configuration lives here (package root) so that
-``importlib.reload(x402)`` recomputes constants such as ``X402_WALLET``
-when tests patch ``secrets_backend.get_secret``. Domain code lives in:
+secrets/env-backed configuration lives in ``x402._config``; the package
+``__init__`` reloads that module so ``importlib.reload(x402)`` recomputes
+constants such as ``X402_WALLET`` when tests patch
+``secrets_backend.get_secret``. Domain code lives in:
 
 - ``x402.scheme``      — scheme/offer/pricing helpers (+ legacy payment requests)
 - ``x402.facilitator`` — FacilitatorRouter + EIP-7702 self-verify
@@ -59,264 +60,55 @@ out-of-band ``expected_signer`` trust requirement.
 
 from __future__ import annotations
 
-import logging
-import os
-import re
+import importlib
+import sys
 
-from pry.core.paths import PRY_DATA_DIR
+# Reload-recomputable config: when this package is reloaded (tests patch
+# secrets_backend.get_secret / env vars then call importlib.reload(x402)),
+# re-execute _config so the secrets/env-backed constants are recomputed.
+# On first import _config is not yet in sys.modules — the plain import below
+# executes it exactly once.
+if "pry.payments.x402._config" in sys.modules:
+    importlib.reload(sys.modules["pry.payments.x402._config"])
 
-logger = logging.getLogger(__name__)
-
-X402_DIR = PRY_DATA_DIR / "x402"
-X402_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def _env_flag(name: str) -> bool:
-    """Parse a common truthy env-var flag."""
-    return os.getenv(name, "false").lower() in ("1", "true", "yes")
-
-
-# Prefer gopass for the x402 wallet and facilitator URL. Env vars override only
-# if the backend returns an empty string. This lets you:
-#   gopass insert -m pry/x402_wallet               # persistent across restarts
-#   PRY_X402_WALLET=0x...                          # one-off override (CI, dev)
-#
-# Kept at the package root (not in a submodule) so importlib.reload(x402)
-# recomputes the secrets-backed values — tests patch secrets_backend.get_secret
-# and reload the package to assert the new values.
-# The shared EVM treasury receiving address is sourced from gopass under the
-# secret name `evm_treasury_address` (see .env.example). Reference the NAME
-# only — never hardcode a wallet value into source. Every EVM network shares
-# this treasury; Solana/TRON use DISTINCT base58 addresses and must be
-# configured separately (PRY_X402_WALLET_SOLANA / PRY_X402_WALLET_TRON).
-# This is a secret NAME, never a value.
-EVM_TREASURY_SECRET = "evm_treasury_address"  # noqa: S105
-
-try:
-    from pry.core.secrets_backend import get_secret as _gs
-
-    # Receive-wallet precedence: an explicit x402 wallet first (gopass
-    # `x402_wallet` / PRY_X402_WALLET), then the shared EVM treasury (gopass
-    # `evm_treasury_address` / PRY_EVM_TREASURY_ADDRESS). Never hardcoded;
-    # unresolved stays "" and is treated as unconfigured (fail closed — the
-    # accept builders never emit a placeholder payTo).
-    X402_WALLET: str = (
-        _gs("x402_wallet") or _gs(EVM_TREASURY_SECRET) or os.getenv("PRY_X402_WALLET", "")
-    )
-    X402_FACILITATOR_URL: str = _gs("x402_facilitator") or os.getenv(
-        "PRY_X402_FACILITATOR", "https://x402.org/facilitator"
-    )
-except ImportError:
-    X402_WALLET = os.getenv("PRY_X402_WALLET", "") or os.getenv("PRY_EVM_TREASURY_ADDRESS", "")
-    X402_FACILITATOR_URL = os.getenv("PRY_X402_FACILITATOR", "https://x402.org/facilitator")
-
-# Sentinel payTo address used until an operator configures a real wallet.
-# Verification fails closed while this placeholder is in effect. Backported
-# from x402-coffer (same value) so the two vendored copies share one sentinel.
-X402_UNCONFIGURED_WALLET: str = "coffer-unconfigured-wallet"
-
-# Wallets that are NEVER a real receiving address. The self-facilitator and the
-# accept builders treat these as "not configured" and fail closed rather than
-# silently emitting a fake payTo. Kept at the package root so
-# importlib.reload(x402) recomputes nothing but the sentinel is stable.
-#
-# NOTE (2026-08-30): "0x1E3AC01d0fdb976179790BDD02823196A92705C9" is the REAL
-# operator-confirmed EVM treasury (all eip155 chains). It was previously
-# mistaken for coffer's CONFIGURED_WALLET sentinel and listed here as a
-# placeholder — it is NOT. Do not re-add it. Placeholder entries are only the
-# genuine sentinels below (empty string + dev/test markers).
-#
-# ``X402_UNCONFIGURED_WALLET`` is the canonical sentinel; the legacy
-# ``"pry-default-wallet"`` / ``"pry-default"`` strings are kept as
-# backward-compatible dev/test markers so pre-existing configs still fail
-# closed.
-X402_PLACEHOLDER_WALLETS: frozenset[str] = frozenset(
-    {
-        "",
-        X402_UNCONFIGURED_WALLET,
-        "pry-default-wallet",
-        "pry-default",
-        "0xRMI_PLATFORM_WALLET",
-    }
+from ._config import (
+    EIP7702_RPC,
+    EVM_TREASURY_SECRET,
+    PAYMENT_VALIDITY_SECONDS,
+    X402_DEBUG_MODE,
+    X402_DEFAULT_ASSET,
+    X402_DEFAULT_NETWORK,
+    X402_DIR,
+    X402_FACILITATOR_URL,
+    X402_NETWORK_WALLETS,
+    X402_OFFLINE_FORCE,
+    X402_OFFLINE_MODE,
+    X402_PLACEHOLDER_WALLETS,
+    X402_SELF_FACILITATE,
+    X402_SELF_FACILITATOR_KEY,
+    X402_SELF_FACILITATOR_RPC,
+    X402_TIMEOUT_SECONDS,
+    X402_UNCONFIGURED_WALLET,
+    X402_WALLET,
+    logger,
+    wallet_configured,
 )
+from .addresses import is_evm_address, is_solana_address, is_tron_address
 
-
-def wallet_configured(wallet: str) -> bool:
-    """True only when ``wallet`` is a real, non-placeholder receiving address."""
-    return bool(wallet and wallet not in X402_PLACEHOLDER_WALLETS)
-
-
-# ── Address-format validation ──────────────────────────────────────────────
-# Family-specific address shapes used by the payTo resolver so an EVM hex
-# address can NEVER occupy a Solana/TRON slot (and vice-versa). Formats:
-#   EVM    — 0x + 40 hex chars (42 total)
-#   Solana — base58, 44 chars (ed25519 pubkey)
-#   TRON   — base58check, 34 chars, starts with 'T'
-_EVM_ADDRESS_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
-_SOLANA_ADDRESS_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{44}$")
-_TRON_ADDRESS_RE = re.compile(r"^T[1-9A-HJ-NP-Za-km-z]{33}$")
-
-
-def is_evm_address(addr: str) -> bool:
-    """True when ``addr`` is a 0x-prefixed 40-hex EVM address (42 chars)."""
-    return bool(addr and _EVM_ADDRESS_RE.fullmatch(addr.strip()))
-
-
-def is_solana_address(addr: str) -> bool:
-    """True when ``addr`` is a 44-char base58 Solana address."""
-    return bool(addr and _SOLANA_ADDRESS_RE.fullmatch(addr.strip()))
-
-
-def is_tron_address(addr: str) -> bool:
-    """True when ``addr`` is a 34-char T-prefixed TRON base58 address."""
-    return bool(addr and _TRON_ADDRESS_RE.fullmatch(addr.strip()))
-
-
-# NOTE: literal defaults are equal to X402Network.BASE.value and
-# X402Asset.USDC.value; the enums live in x402.scheme which is imported after
-# this config block so the constants stay reload-recomputable.
-X402_DEFAULT_NETWORK: str = os.getenv("PRY_X402_NETWORK", "base")
-X402_DEFAULT_ASSET: str = os.getenv("PRY_X402_ASSET", "USDC")
-
-# Per-network receiving wallets (CAIP-2 keyed). A Solana/TRON receiving
-# address is NOT the same as the EVM wallet, so operators MUST configure
-# these before accepting real payments on those chains. EVM networks share
-# the resolved treasury (X402_WALLET — itself gopass `evm_treasury_address`
-# by default); solana/tron stay "" (fail closed) until explicitly configured.
-X402_NETWORK_WALLETS: dict[str, str] = {
-    "eip155:8453": os.getenv("PRY_X402_WALLET_BASE", X402_WALLET),
-    "eip155:1": os.getenv("PRY_X402_WALLET_ETHEREUM", X402_WALLET),
-    "eip155:42161": os.getenv("PRY_X402_WALLET_ARBITRUM", X402_WALLET),
-    "eip155:10": os.getenv("PRY_X402_WALLET_OPTIMISM", X402_WALLET),
-    "eip155:137": os.getenv("PRY_X402_WALLET_POLYGON", X402_WALLET),
-    "eip155:56": os.getenv("PRY_X402_WALLET_BNB", X402_WALLET),
-    "eip155:43114": os.getenv("PRY_X402_WALLET_AVALANCHE", X402_WALLET),
-    "solana:mainnet": os.getenv("PRY_X402_WALLET_SOLANA", ""),
-    "tron:mainnet": os.getenv("PRY_X402_WALLET_TRON", ""),
-}
-
-# Offline mode is a DEV-ONLY bypass: it makes every verify/settle succeed
-# without touching a facilitator. It must NEVER be active in production, so
-# it requires BOTH PRY_X402_OFFLINE=true AND DEBUG=true (or PRY_DEBUG=true).
-# Without the debug gate a bare PRY_X402_OFFLINE=true is ignored loudly.
-X402_DEBUG_MODE: bool = _env_flag("DEBUG") or _env_flag("PRY_DEBUG")
-X402_OFFLINE_MODE: bool = _env_flag("PRY_X402_OFFLINE") and X402_DEBUG_MODE
-if _env_flag("PRY_X402_OFFLINE") and not X402_DEBUG_MODE:
-    logger.warning(
-        "PRY_X402_OFFLINE=true IGNORED: offline mode requires DEBUG=true (or PRY_DEBUG=true) "
-        "and is intended for local development only."
-    )
-if X402_OFFLINE_MODE:
-    logger.warning(
-        "x402_offline_mode_active: ALL payment verification is BYPASSED — "
-        "dev-only setting. DO NOT run with PRY_X402_OFFLINE=true in production."
-    )
-
-# Production guard (quality audit #4): PRY_DATABASE_URL is the production
-# indicator (dev defaults to embedded SQLite — see pry.core.db.session). If
-# offline mode is somehow active while a database is configured, auto-disable
-# it — a stale DEBUG=true in prod must never auto-verify all payments.
-# Escape hatch: PRY_X402_OFFLINE_FORCE=true keeps offline mode on (for
-# testing against a configured DB) but still logs a warning.
-X402_OFFLINE_FORCE: bool = _env_flag("PRY_X402_OFFLINE_FORCE")
-if X402_OFFLINE_MODE and bool(os.getenv("PRY_DATABASE_URL")):
-    if X402_OFFLINE_FORCE:
-        logger.warning(
-            "X402_OFFLINE_MODE forced ON in production (PRY_DATABASE_URL is set) "
-            "via PRY_X402_OFFLINE_FORCE=true — ALL payment verification is BYPASSED."
-        )
-    else:
-        X402_OFFLINE_MODE = False
-        logger.critical("X402_OFFLINE_MODE auto-disabled in production (PRY_DATABASE_URL is set)")
-X402_TIMEOUT_SECONDS: float = float(os.getenv("PRY_X402_TIMEOUT", "15"))
-
-# How long a verified payment_id stays valid for replay (access reuse).
-# After this window the client must pay again. Payments recorded before this
-# setting existed (no expires_at) are treated as expired (fail closed).
-PAYMENT_VALIDITY_SECONDS: int = int(os.getenv("PRY_X402_PAYMENT_TTL", "3600"))
-
-# EIP-7702 self-verify RPC endpoints (public defaults, override via env)
-EIP7702_RPC: dict[str, str] = {
-    "base": os.getenv("PRY_X402_BASE_RPC", "https://mainnet.base.org"),
-    "ethereum": os.getenv("PRY_X402_ETH_RPC", "https://eth.llamarpc.com"),
-    "polygon": os.getenv("PRY_X402_POLYGON_RPC", "https://polygon.drpc.org"),
-    "arbitrum": os.getenv("PRY_X402_ARBITRUM_RPC", "https://arb1.arbitrum.io/rpc"),
-    "optimism": os.getenv("PRY_X402_OPTIMISM_RPC", "https://mainnet.optimism.io"),
-    "bnb": os.getenv("PRY_X402_BNB_RPC", "https://bsc-dataseed.binance.org"),
-    "avalanche": os.getenv("PRY_X402_AVALANCHE_RPC", "https://api.avax.network/ext/bc/C/rpc"),
-    "base-sepolia": os.getenv("PRY_X402_BASE_SEPOLIA_RPC", "https://sepolia.base.org"),
-}
-
-# Canonical ERC-20 token addresses used to validate EIP-7702 self-verify txs.
-# A successful receipt alone is NOT proof of payment — the tx must have been
-# sent TO one of these token contracts with a transfer() to our wallet for at
-# least the server-side price. Addresses are well-known mainnet addresses.
-#
-# NOTE — Base USDT single source: the Base USDT entry is derived below from
-# SUPPORTED_ASSETS (x402/scheme.py) so the two tables can never disagree.
-# The V1 table previously hardcoded 0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb
-# for Base USDT — an error: that contract is DAI on Base ("Dai Stablecoin",
-# 18 decimals, confirmed via eth_call), not USDT. The authoritative address is
-# the official bridged Tether USD 0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2.
-EIP7702_TOKEN_ADDRESSES: dict[str, dict[str, str]] = {
-    "base": {
-        "USDC": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-        # USDT derived from SUPPORTED_ASSETS below (single source of truth).
-    },
-    "ethereum": {
-        "USDC": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-        "USDT": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-    },
-    "polygon": {
-        "USDC": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
-        "USDT": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
-    },
-    "arbitrum": {
-        "USDC": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
-        "USDT": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
-    },
-    "optimism": {
-        "USDC": "0x0b2C639c533813f4Aa9D7837CAf62653d097F85F",
-        "USDT": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
-    },
-    "bnb": {
-        "USDC": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
-        "USDT": "0x55d398326f99059fF775485246999027B3197955",
-    },
-    "avalanche": {
-        "USDC": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
-        "USDT": "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7",
-    },
-    "base-sepolia": {
-        "USDC": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-    },
-}
-
-# Self-hosted x402 facilitator (no external facilitator / Coinbase CDP).
-# Opt-in: PRY_X402_SELF_FACILITATE=1 switches the FacilitatorRouter to the
-# local SelfFacilitator. PRY_X402_FACILITATOR_KEY is the EVM private key used
-# to pay gas when broadcasting settlement; PRY_X402_FACILITATOR_RPC is the
-# JSON-RPC endpoint. See x402/self_facilitator.py.
-X402_SELF_FACILITATE: bool = _env_flag("PRY_X402_SELF_FACILITATE")
-X402_SELF_FACILITATOR_KEY: str = os.getenv("PRY_X402_FACILITATOR_KEY", "")
-X402_SELF_FACILITATOR_RPC: str = os.getenv("PRY_X402_FACILITATOR_RPC", "")
-if X402_SELF_FACILITATE and not (X402_SELF_FACILITATOR_KEY and X402_SELF_FACILITATOR_RPC):
-    logger.warning(
-        "PRY_X402_SELF_FACILITATE=1 but PRY_X402_FACILITATOR_KEY and/or "
-        "PRY_X402_FACILITATOR_RPC are missing: verify works, settle will be unavailable."
-    )
+from .helpers import _check_secret_permissions  # isort: skip
+from .tokens import EIP7702_TOKEN_ADDRESSES  # isort: skip
 
 # Re-export the full public surface. Submodules import their config from this
 # package root (constants above), so these imports must come AFTER the config
 # block to avoid circular initialization.
-from .batch import (  # noqa: E402
+from .batch import (
     _batch_lock,
     _batch_payments,
     create_batch_payment,
     is_batch_paid,
     verify_batch_payment,
 )
-from .facilitator import (  # noqa: E402
+from .facilitator import (
     DEFAULT_FACILITATORS,
     ERC20_TRANSFER_SELECTOR,
     FacilitatorConfig,
@@ -326,8 +118,8 @@ from .facilitator import (  # noqa: E402
     register_facilitator,
     set_facilitator_router,
 )
-from .handler import X402Handler  # noqa: E402
-from .scheme import (  # noqa: E402
+from .handler import X402Handler
+from .scheme import (
     _NATIVE_ASSETS,
     ASSET_DECIMALS,
     CAIP2_NETWORK_IDS,
@@ -379,7 +171,7 @@ from .scheme import (  # noqa: E402
     validate_client_amount,
     verify_payment_required_attestation,
 )
-from .self_facilitator import (  # noqa: E402
+from .self_facilitator import (
     CHAIN_ID_BY_NETWORK,
     NonceStore,
     SelfFacilitator,
@@ -387,7 +179,7 @@ from .self_facilitator import (  # noqa: E402
     SettleOutcome,
     VerifyResult,
 )
-from .solana_verifier import (  # noqa: E402
+from .solana_verifier import (
     DEFAULT_SOLANA_RPC_URL,
     SOLANA_RPC_TIMEOUT_SECONDS,
     SOLANA_USDC_MINT,
@@ -400,23 +192,6 @@ from .solana_verifier import (  # noqa: E402
 # not USDT (verified via eth_call name()/symbol()). Derive it so the tables
 # can never disagree again.
 EIP7702_TOKEN_ADDRESSES["base"]["USDT"] = SUPPORTED_ASSETS["eip155:8453"]["USDT"]["contract"]
-
-
-def _check_secret_permissions() -> None:
-    """Warn if secret files are world-readable."""
-    import os
-    import stat
-
-    wallet_file = os.getenv("X402_WALLET_FILE", "")
-    if wallet_file and os.path.exists(wallet_file):
-        mode = os.stat(wallet_file).st_mode
-        if mode & stat.S_IWGRP or mode & stat.S_IWOTH:
-            import logging
-
-            logging.getLogger(__name__).warning(
-                "x402_secret_file_world_readable", extra={"file": wallet_file}
-            )
-
 
 _check_secret_permissions()
 
