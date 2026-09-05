@@ -1,0 +1,101 @@
+{
+	"actorSpecification": 1,
+	"name": "sports-odds-comparison",
+	"title": "Pry Sports Odds Comparison",
+	"description": "Real-time sports odds comparison across 112+ sportsbooks. Find the best line on every bet, detect arbitrage opportunities, and identify +EV bets with closing line value analysis. Covers NFL, NBA, MLB, NHL, NCAA, soccer, tennis, golf, MMA, and more. Updates every minute with line movement tracking.",
+	"version": "1.0",
+	"buildTag": "latest",
+	"meta": {
+		"templateId": "pry-actor-factory"
+	},
+	"dockerfile": "./Dockerfile",
+	"minMemoryMbytes": 512,
+	"maxMemoryMbytes": 2048,
+	"input": {
+		"title": "Input schema for Pry Sports Odds Comparison",
+		"description": "Real-time sports odds comparison across 112+ sportsbooks: best lines, arbitrage detection, and +EV opportunities with line movement tracking.",
+		"type": "object",
+		"schemaVersion": 1,
+		"properties": {
+			"urls": {
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process (ESPN / odds API endpoints to scrape).",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+					}
+				],
+				"example": [
+					{
+						"url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+					}
+				]
+			},
+			"sport": {
+				"title": "Sport",
+				"type": "string",
+				"description": "Sport filter: all, nfl, nba, mlb, nhl, ncaaf, ncaab, soccer, mma, tennis, or any supported league key.",
+				"editor": "string",
+				"default": "all",
+				"example": "nfl"
+			},
+			"market_types": {
+				"title": "Market Types",
+				"type": "array",
+				"description": "Which markets to compare: h2h (moneyline), spreads, totals.",
+				"editor": "stringList",
+				"items": {
+					"type": "string"
+				},
+				"default": ["h2h", "spreads", "totals"],
+				"example": ["h2h", "spreads", "totals"]
+			},
+			"include_arbitrage": {
+				"title": "Include Arbitrage Detection",
+				"type": "boolean",
+				"description": "Detect arbitrage opportunities across books: legs, books, guaranteed ROI, stake split.",
+				"editor": "boolean",
+				"default": true,
+				"example": true
+			},
+			"include_ev": {
+				"title": "Include +EV Bets",
+				"type": "boolean",
+				"description": "Identify +EV opportunities: fair probability, best price, edge percentage, EV per unit.",
+				"editor": "boolean",
+				"default": true,
+				"example": true
+			},
+			"max_items": {
+				"title": "Max items (cost cap)",
+				"type": "integer",
+				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+				"sectionCaption": "Advanced",
+				"editor": "number",
+				"default": 100,
+				"minimum": 1,
+				"example": 100
+			},
+			"proxy_configuration": {
+				"title": "Proxy configuration",
+				"type": "object",
+				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+				"sectionCaption": "Advanced",
+				"editor": "hidden",
+				"prefill": {
+					"useApifyProxy": true
+				},
+				"example": {
+					"useApifyProxy": true
+				}
+			}
+		},
+		"required": ["urls"]
+	},
+	"output": "./output_schema.json",
+	"storages": {
+		"dataset": "./dataset_schema.json"
+	}
+}
