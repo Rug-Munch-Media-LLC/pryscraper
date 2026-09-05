@@ -37,6 +37,7 @@ from pry.payments.x402 import (
     X402_SELF_FACILITATOR_KEY,
     X402_SELF_FACILITATOR_RPC,
     X402_TIMEOUT_SECONDS,
+    X402_UNCONFIGURED_WALLET,
     X402_WALLET,
     is_solana_address,
     is_tron_address,
@@ -663,7 +664,11 @@ class FacilitatorRouter:
                 "network": network_id,
             }
         recipient = (X402_NETWORK_WALLETS.get(network_id) or "").strip()
-        if not recipient or recipient == "pry-default-wallet" or not is_solana_address(recipient):
+        if (
+            not recipient
+            or recipient == X402_UNCONFIGURED_WALLET
+            or not is_solana_address(recipient)
+        ):
             return {
                 "verified": False,
                 "reason": (
@@ -755,7 +760,7 @@ class FacilitatorRouter:
                 "network": network_id,
             }
         recipient = (X402_NETWORK_WALLETS.get(network_id) or "").strip()
-        if not recipient or recipient == "pry-default-wallet" or not is_tron_address(recipient):
+        if not recipient or recipient == X402_UNCONFIGURED_WALLET or not is_tron_address(recipient):
             return {
                 "verified": False,
                 "reason": (
@@ -1043,7 +1048,7 @@ class FacilitatorRouter:
         value directly to the server wallet. Unknown assets fail closed.
         """
         pay_to = (resolve_pay_to(network) or "").lower()
-        if not pay_to or pay_to == "pry-default-wallet":
+        if not pay_to or pay_to == X402_UNCONFIGURED_WALLET:
             return False, "server wallet not configured"
         tx_to = str(tx.get("to") or "").lower()
         tokens = EIP7702_TOKEN_ADDRESSES.get(_eip7702_rpc_key(network) or network, {})

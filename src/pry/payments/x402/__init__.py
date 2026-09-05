@@ -110,6 +110,11 @@ except ImportError:
     X402_WALLET = os.getenv("PRY_X402_WALLET", "") or os.getenv("PRY_EVM_TREASURY_ADDRESS", "")
     X402_FACILITATOR_URL = os.getenv("PRY_X402_FACILITATOR", "https://x402.org/facilitator")
 
+# Sentinel payTo address used until an operator configures a real wallet.
+# Verification fails closed while this placeholder is in effect. Backported
+# from x402-coffer (same value) so the two vendored copies share one sentinel.
+X402_UNCONFIGURED_WALLET: str = "coffer-unconfigured-wallet"
+
 # Wallets that are NEVER a real receiving address. The self-facilitator and the
 # accept builders treat these as "not configured" and fail closed rather than
 # silently emitting a fake payTo. Kept at the package root so
@@ -120,9 +125,15 @@ except ImportError:
 # mistaken for coffer's CONFIGURED_WALLET sentinel and listed here as a
 # placeholder — it is NOT. Do not re-add it. Placeholder entries are only the
 # genuine sentinels below (empty string + dev/test markers).
+#
+# ``X402_UNCONFIGURED_WALLET`` is the canonical sentinel; the legacy
+# ``"pry-default-wallet"`` / ``"pry-default"`` strings are kept as
+# backward-compatible dev/test markers so pre-existing configs still fail
+# closed.
 X402_PLACEHOLDER_WALLETS: frozenset[str] = frozenset(
     {
         "",
+        X402_UNCONFIGURED_WALLET,
         "pry-default-wallet",
         "pry-default",
         "0xRMI_PLATFORM_WALLET",
@@ -449,6 +460,7 @@ __all__ = [
     "X402_SELF_FACILITATOR_KEY",
     "X402_SELF_FACILITATOR_RPC",
     "X402_TIMEOUT_SECONDS",
+    "X402_UNCONFIGURED_WALLET",
     "X402_WALLET",
     "_NATIVE_ASSETS",
     "AssetUsdQuote",

@@ -74,7 +74,7 @@ class SelfFacilitator:
     Args:
         pay_to: Receiving wallet. Must equal the authorization's ``to``.
             Defaults to ``X402_WALLET``; verification fails closed while the
-            wallet is the ``pry-default-wallet`` placeholder.
+            wallet is the ``X402_UNCONFIGURED_WALLET`` placeholder.
         facilitator_key: EVM private key used to pay gas when broadcasting
             settlement. Optional for verify; required for settle.
         rpc_url: JSON-RPC endpoint for settlement broadcast (optional; verify
