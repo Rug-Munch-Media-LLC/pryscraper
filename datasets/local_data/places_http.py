@@ -78,7 +78,7 @@ async def _http_get(
             await asyncio.sleep(delay)
             attempt += 1
             continue
-        return resp
+        return resp  # type: ignore[no-any-return]
 
 
 # ── robots.txt (best-effort, fail-open) ──────────────────────────────────

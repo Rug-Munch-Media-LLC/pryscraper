@@ -76,7 +76,7 @@ def _opt_float(value: Any) -> float | None:
     if value is None:
         return None
     try:
-        return float(value)
+        return float(value)  # type: ignore[no-any-return]
     except (TypeError, ValueError):
         return None
 
