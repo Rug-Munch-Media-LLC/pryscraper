@@ -335,3 +335,163 @@ async def admin_config() -> dict[str, Any]:
 async def admin_ping(body: dict[str, Any] = Body(default={})) -> dict[str, Any]:
     """Simple ping-pong for monitoring."""
     return {"success": True, "pong": True, "echo": body}
+
+
+@router.get(
+    "/v1/admin/earnings/combined",
+    summary="Combined earnings from all revenue streams",
+)
+async def admin_earnings_combined(
+    days: int = Query(30, description="Lookback period in days"),
+) -> dict[str, Any]:
+    """Earnings across x402 payments, subscriptions, actors, and packs."""
+    from pry.api.routers.core.admin_shared import _earnings_source
+
+    tracker, backend = _earnings_source()
+    try:
+        total = tracker.get_total_earnings(days)
+        daily = tracker.get_daily_earnings(days)
+        by_stream = total.get("by_stream", {})
+        revenue_by_source = {
+            "x402": round(float(by_stream.get("x402", 0)), 2),
+            "subscription": round(float(by_stream.get("subscriptions", 0)), 2),
+            "actor": round(float(by_stream.get("apify_actors", 0)), 2),
+            "pack": round(float(by_stream.get("packs", 0)), 2),
+        }
+        return {
+            "success": True,
+            "backend": backend,
+            "x402_revenue": revenue_by_source["x402"],
+            "subscription_revenue": revenue_by_source["subscription"],
+            "actor_revenue": revenue_by_source["actor"],
+            "pack_revenue": revenue_by_source["pack"],
+            "total_revenue": round(float(total.get("total_usd", 0)), 2),
+            "revenue_by_day": daily,
+            "revenue_by_source": revenue_by_source,
+            "period_days": days,
+        }
+    except Exception as e:
+        logger.warning("combined_earnings_fetch_failed", extra={"error": str(e)})
+        raise HTTPException(status_code=503, detail=f"earnings unavailable: {e}") from e
+
+
+@router.get(
+    "/v1/admin/earnings/apify",
+    summary="Apify actor earnings: per-actor revenue and run volume",
+)
+async def admin_earnings_apify() -> dict[str, Any]:
+    """Actor earnings from the actors table plus run volume from scrape_jobs."""
+    from datetime import UTC, datetime
+
+    from sqlalchemy import func as sa_func
+
+    from pry.core.db.models import Actor, ScrapeJob
+    from pry.core.db.session import get_session
+
+    now = datetime.now(UTC)
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start = day_start.replace(day=1)
+    try:
+        with get_session() as session:
+            revenue_by_actor_rows = (
+                session.query(Actor.actor_id, Actor.name, Actor.revenue_usd)
+                .order_by(Actor.revenue_usd.desc())
+                .all()
+            )
+            runs_today = (
+                session.query(sa_func.count())
+                .select_from(ScrapeJob)
+                .filter(ScrapeJob.created_at >= day_start)
+                .scalar()
+                or 0
+            )
+            runs_this_month = (
+                session.query(sa_func.count())
+                .select_from(ScrapeJob)
+                .filter(ScrapeJob.created_at >= month_start)
+                .scalar()
+                or 0
+            )
+        revenue_by_actor = {
+            actor_id: round(float(rev or 0), 2) for actor_id, _name, rev in revenue_by_actor_rows
+        }
+        top = [
+            {"actor_id": actor_id, "name": name, "revenue_usd": round(float(rev or 0), 2)}
+            for actor_id, name, rev in revenue_by_actor_rows[:10]
+        ]
+        return {
+            "success": True,
+            "total_actor_revenue": round(sum(revenue_by_actor.values()), 2),
+            "revenue_by_actor": revenue_by_actor,
+            "runs_today": int(runs_today),
+            "runs_this_month": int(runs_this_month),
+            "top_earning_actors": top,
+        }
+    except Exception as e:
+        logger.warning("apify_earnings_fetch_failed", extra={"error": str(e)})
+        raise HTTPException(status_code=503, detail=f"actor earnings unavailable: {e}") from e
+
+
+@router.get(
+    "/v1/admin/earnings/cloud",
+    summary="Cloud subscription earnings: MRR, ARR, tiers, churn, LTV",
+)
+async def admin_earnings_cloud() -> dict[str, Any]:
+    """Subscription economics from the earnings tracker's MRR view."""
+    from pry.api.routers.core.admin_shared import _earnings_source
+
+    tracker, backend = _earnings_source()
+    try:
+        mrr_data = tracker.get_mrr()
+        mrr = float(mrr_data.get("mrr_usd", 0))
+        active = int(mrr_data.get("active_subscriptions", 0))
+        by_tier_raw = mrr_data.get("by_tier", {})
+        subscribers_by_tier = {
+            tier: int(by_tier_raw.get(tier, 0)) for tier in ("free", "scout", "hunter", "pro")
+        }
+        # Churn is not tracked yet (no cancellation ledger); report 0.0 until a
+        # real churn source exists. LTV assumes a 12-month average lifetime.
+        # [REVIEW] wire both to real cancellation/invoice history.
+        churn_rate = 0.0
+        avg_monthly = mrr / active if active else 0.0
+        ltv_estimate = round(avg_monthly * 12, 2)
+        return {
+            "success": True,
+            "backend": backend,
+            "mrr": round(mrr, 2),
+            "arr": round(mrr * 12, 2),
+            "subscribers_active": active,
+            "subscribers_by_tier": subscribers_by_tier,
+            "churn_rate": churn_rate,
+            "ltv_estimate": ltv_estimate,
+        }
+    except Exception as e:
+        logger.warning("cloud_earnings_fetch_failed", extra={"error": str(e)})
+        raise HTTPException(
+            status_code=503, detail=f"subscription earnings unavailable: {e}"
+        ) from e
+
+
+@router.get(
+    "/v1/admin/issues",
+    summary="Outstanding customer issues and unresolved payments",
+)
+async def admin_issues() -> dict[str, Any]:
+    """Support ticket summary from the in-memory issue tracker."""
+    from pry.api.routers.core.admin_shared import _issue_summary
+
+    return {"success": True, **_issue_summary()}
+
+
+@router.post(
+    "/v1/admin/issues/{issue_id}/resolve",
+    summary="Mark a support issue as resolved",
+)
+async def admin_issue_resolve(issue_id: str) -> dict[str, Any]:
+    """Resolve an issue by ID."""
+    from pry.api.routers.core.admin_shared import _resolve_issue
+
+    issue = _resolve_issue(issue_id)
+    if issue is None:
+        raise HTTPException(status_code=404, detail=f"issue '{issue_id}' not found")
+    return {"success": True, "issue": issue}
