@@ -222,7 +222,7 @@ async def test_settle_retry_after_header_respected(hook_handler: X402Handler):
     """Retry-After from the facilitator error response overrides backoff delay."""
     hook_handler.router.settle = AsyncMock(side_effect=[_RetryAfterError("7"), {"success": True}])
     with (
-        patch("pry.payments.x402.handler.asyncio.sleep", new=AsyncMock()) as mock_sleep,
+        patch("pry.payments.x402.handler_settle.asyncio.sleep", new=AsyncMock()) as mock_sleep,
         patch("pry.payments.x402.handler.fire_settlement_webhook", new=AsyncMock()),
     ):
         result = await hook_handler.settle_payment(payment_id="p1", tx_hash="0xabc", amount_usd=1.0)

@@ -110,7 +110,6 @@ class VerifyMixin:
                     "reason": result.get("reason", "aborted by pre-verify hook"),
                     "settlement": None,
                 }
-            record_verify_failure(network, result.get("reason", "aborted by pre-verify hook"))
         if operation:
             # Server-authoritative pricing, resolved per (operation, network,
             # asset) and compared in integer atoms. client-supplied

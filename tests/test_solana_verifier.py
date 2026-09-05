@@ -396,7 +396,8 @@ async def test_facilitator_routes_solana_to_rpc_verifier(monkeypatch) -> None:
         )
     )
     monkeypatch.setattr(
-        "pry.payments.x402.facilitator.X402_NETWORK_WALLETS", {"solana:mainnet": RECIPIENT}
+        "pry.payments.x402.facilitator_solana_tron.X402_NETWORK_WALLETS",
+        {"solana:mainnet": RECIPIENT},
     )
     router = FacilitatorRouter(self_hosted=True)
     result = await router.verify("pid-1", "sig-abc", "solana:mainnet", "USDC", 1.0)
@@ -409,7 +410,7 @@ async def test_facilitator_routes_solana_to_rpc_verifier(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_facilitator_solana_fails_closed_without_wallet(monkeypatch) -> None:
-    monkeypatch.setattr("pry.payments.x402.facilitator.X402_NETWORK_WALLETS", {})
+    monkeypatch.setattr("pry.payments.x402.facilitator_solana_tron.X402_NETWORK_WALLETS", {})
     monkeypatch.setattr("pry.payments.x402.facilitator.X402_WALLET", "pry-default-wallet")
     router = FacilitatorRouter(self_hosted=True)
     result = await router.verify("pid-1", "sig-abc", "solana:mainnet", "USDC", 1.0)
@@ -429,7 +430,8 @@ async def test_facilitator_solana_underpayment_reflects_onchain(monkeypatch) -> 
         )
     )
     monkeypatch.setattr(
-        "pry.payments.x402.facilitator.X402_NETWORK_WALLETS", {"solana:mainnet": RECIPIENT}
+        "pry.payments.x402.facilitator_solana_tron.X402_NETWORK_WALLETS",
+        {"solana:mainnet": RECIPIENT},
     )
     router = FacilitatorRouter(self_hosted=True)
     result = await router.verify("pid-1", "sig-abc", "solana", "USDC", 1.0)

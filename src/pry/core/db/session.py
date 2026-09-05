@@ -146,7 +146,11 @@ def get_engine() -> Engine:
                 kwargs: dict[str, Any] = {}
                 if url.startswith("sqlite"):
                     connect_args["check_same_thread"] = False
-                    if ":memory:" not in url:
+                    # NullPool is only safe for file-backed SQLite. Bare
+                    # "sqlite://" is the in-memory URL (no ":memory:" token)
+                    # and must keep the default pool so the schema created
+                    # by create_all survives across connections.
+                    if ":memory:" not in url and url != "sqlite://":
                         kwargs["poolclass"] = NullPool
                 else:
                     kwargs["pool_pre_ping"] = True
@@ -166,6 +170,11 @@ def get_engine() -> Engine:
                         cur.close()
 
                 _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
+                # Auto-create tables on first engine init (idempotent).
+                # Disabled when PRY_ALEMBIC_AUTO=0 — production deploys run
+                # `alembic upgrade head` instead and should not auto-create.
+                if os.environ.get("PRY_ALEMBIC_AUTO", "1") == "1":
+                    Base.metadata.create_all(_engine)
                 logger.info(
                     "db_engine_initialized",
                     extra={"url": make_url(url).render_as_string(hide_password=True)},
@@ -231,7 +240,11 @@ def get_async_engine() -> Any:
                 kwargs: dict[str, Any] = {}
                 if url.startswith("sqlite"):
                     connect_args["check_same_thread"] = False
-                    if ":memory:" not in url:
+                    # NullPool is only safe for file-backed SQLite. Bare
+                    # "sqlite://" is the in-memory URL (no ":memory:" token)
+                    # and must keep the default pool so the schema created
+                    # by create_all survives across connections.
+                    if ":memory:" not in url and url != "sqlite://":
                         kwargs["poolclass"] = NullPool
                 else:
                     kwargs["pool_pre_ping"] = True
