@@ -4,15 +4,12 @@ Google Flights has no public search API, so this module drives the public
 search deep-link page directly:
 
 1. Encode the search (origin, destination, date) into the ``tfs`` query
-   parameter — a Base64-encoded protobuf payload. The wire format is
-   reverse-engineered from the current ``fast-flights`` encoder and
-   verified byte-for-byte against a known-good round-trip example
-   (``CBwQAh...AZgBAQ`` for TPE→MYJ 2024-05-28).
+   parameter — a Base64-encoded protobuf payload (see ``flights_tfs``).
 2. GET ``https://www.google.com/travel/flights/flights`` with that ``tfs``.
 3. Extract the ``AF_initDataCallback({...})`` JSON payloads embedded in the
    page and locate flight-option-like records with a defensive signature
-   search (price + airline + duration), because the exact array layout
-   drifts frequently.
+   search (see ``flights_parse``), because the exact array layout drifts
+   frequently.
 
 Contract
 --------
@@ -28,7 +25,7 @@ Contract
 Reliability (read before shipping)
 ----------------------------------
 The embedded ``AF_initDataCallback`` JSON on Google Flights is an
-unversioned, frequently-changing internal format. Extraction here is
+unversioned, frequently-changing internal format. Extraction is
 signature-based and best-effort: when the layout shifts, results silently
 degrade to ``[]`` (never an exception). Google also rate-limits aggressive
 page hits — keep grids bounded (``_MAX_GRID_DAYS``, default 30) and respect
@@ -46,17 +43,27 @@ Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
 import asyncio
-import base64
-import json
 import logging
-import re
-from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import httpx
 
-if TYPE_CHECKING:
-    from collections.abc import Iterable
+from datasets.travel.flights_common import (
+    _MAX_GRID_DAYS,  # noqa: F401  (re-exported for tests/back-compat)
+    _MAX_RESULTS,
+    _date_range,
+    _normalize_code,
+    _valid_date,
+)
+from datasets.travel.flights_parse import (
+    _extract_af_callbacks,
+    _extract_duration,  # noqa: F401  (re-exported for tests/back-compat)
+    _extract_stops,  # noqa: F401  (re-exported for tests/back-compat)
+    _find_flight_options,
+)
+from datasets.travel.flights_tfs import _build_tfs
+
+__all__ = ["cheapest_date_grid", "search_flights"]
 
 logger = logging.getLogger(__name__)
 
@@ -79,106 +86,8 @@ RETRY_BASE = 0.5
 MAX_BACKOFF = 2.0
 MAX_RETRIES = 2
 
-# Grid bounds: never fetch more than this many days in one call, and cap
-# per-day option scans so a single grid run stays within sane HTTP volume.
-_MAX_GRID_DAYS = 30
+# Grid concurrency: max parallel per-day fetches in cheapest_date_grid.
 _GRID_CONCURRENCY = 4
-_MAX_RESULTS = 200
-
-_AIRLINE_RE = re.compile(r"^[A-Za-z][A-Za-z .&'\-]{1,39}$")
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-_CODE_RE = re.compile(r"^[A-Z]{3}$")
-_DURATION_STR_RE = re.compile(
-    r"(?:(\d+)\s*(?:hr|h|hour)s?)?\s*(?:(\d+)\s*(?:min|m))?", re.IGNORECASE
-)
-
-
-# ── tfs protobuf encoder (wire format, hand-rolled — no protobuf dep) ──
-def _varint(value: int) -> bytes:
-    """Encode an unsigned LEB128 varint (protobuf wire format)."""
-    out = bytearray()
-    while True:
-        byte = value & 0x7F
-        value >>= 7
-        if value:
-            out.append(byte | 0x80)
-        else:
-            out.append(byte)
-            return bytes(out)
-
-
-def _field(num: int, payload: bytes) -> bytes:
-    """Encode a length-delimited protobuf field (tag + length + payload)."""
-    return _varint((num << 3) | 2) + _varint(len(payload)) + payload
-
-
-def _encode_airport(code: str) -> bytes:
-    """Encode an ``Airport { f1: 1, f2: <IATA> }`` message."""
-    return b"\x08\x01" + _field(2, code.encode())
-
-
-def _encode_leg(date: str, origin: str, dest: str) -> bytes:
-    """Encode one ``FlightInfo`` leg (f3 of the top-level message)."""
-    payload = _field(2, date.encode())
-    payload += _field(13, _encode_airport(origin))
-    payload += _field(14, _encode_airport(dest))
-    return _field(3, payload)
-
-
-def _build_tfs(legs: Iterable[tuple[str, str, str]]) -> str:
-    """Build the Base64url ``tfs`` search parameter for the given legs.
-
-    Each leg is a ``(date, origin, dest)`` tuple with ``date`` as
-    ``YYYY-MM-DD`` and 3-letter IATA codes. The fixed header/tail bytes are
-    the values emitted by the current ``fast-flights`` encoder for a
-    one-way economy search with 1 adult (verified byte-for-byte).
-    """
-    full = b"\x08\x1c\x10\x02"
-    for date, origin, dest in legs:
-        full += _encode_leg(date, origin, dest)
-    full += b"\x40\x01\x48\x01\x70\x01"
-    full += b"\x82\x01\x0b\x08\xff\xff\xff\xff\xf0\x19\x80\x10\x10"
-    return base64.urlsafe_b64encode(full).decode("ascii").rstrip("=")
-
-
-# ── date / airport-code validation ─────────────────────────────────────
-def _valid_date(value: str) -> bool:
-    if not isinstance(value, str):
-        return False
-    if not _DATE_RE.fullmatch(value):
-        return False
-    try:
-        datetime.strptime(value, "%Y-%m-%d")
-        return True
-    except ValueError:
-        return False
-
-
-def _normalize_code(value: str) -> str:
-    if not isinstance(value, str):
-        return ""
-    code = value.strip().upper()
-    return code if _CODE_RE.fullmatch(code) else ""
-
-
-def _date_range(start_date: str, end_date: str) -> list[str]:
-    """List ``YYYY-MM-DD`` strings in ``[start_date, end_date]`` (bounded)."""
-    if not _valid_date(start_date) or not _valid_date(end_date):
-        return []
-    try:
-        start = datetime.strptime(start_date, "%Y-%m-%d").date()
-        end = datetime.strptime(end_date, "%Y-%m-%d").date()
-    except ValueError:
-        return []
-    if end < start:
-        return []
-    end = min(end, start + timedelta(days=_MAX_GRID_DAYS - 1))
-    days: list[str] = []
-    cursor = start
-    while cursor <= end:
-        days.append(cursor.strftime("%Y-%m-%d"))
-        cursor += timedelta(days=1)
-    return days
 
 
 # ── HTTP layer ─────────────────────────────────────────────────────────
@@ -209,322 +118,6 @@ async def _fetch_page(tfs: str) -> str:
             await _sleep_backoff(attempt)
     logger.warning("flights_fetch_failed", extra={"error": last_error})
     return ""
-
-
-# ── embedded JSON extraction ───────────────────────────────────────────
-def _match_paren(text: str, open_idx: int) -> int:
-    """Index of the ``)`` matching the ``(`` at ``open_idx`` (or -1)."""
-    depth = 0
-    in_string = False
-    quote = ""
-    i = open_idx
-    while i < len(text):
-        ch = text[i]
-        if in_string:
-            if ch == "\\":
-                i += 2
-                continue
-            if ch == quote:
-                in_string = False
-        elif ch in "'\"":
-            in_string = True
-            quote = ch
-        elif ch == "(":
-            depth += 1
-        elif ch == ")":
-            depth -= 1
-            if depth == 0:
-                return i
-        i += 1
-    return -1
-
-
-def _quotes_to_json(text: str) -> str:
-    """Convert Google's single-quoted JS object literal to strict JSON.
-
-    Google's ``AF_initDataCallback`` payloads use single quotes for keys and
-    string values and bare identifiers for object keys (``key: 'ds:1'``).
-    This normalizes quote style (single -> double, outside existing double
-    strings) and then quotes bare identifiers used as object keys.
-    Flight/hotel payloads are made of airport codes, dates, prices and
-    airline names — apostrophes inside strings are not expected, so the
-    wholesale normalization is safe here. Callers must treat this as
-    best-effort; a failed parse simply skips that callback.
-    """
-    # Pass 1: normalize single-quoted strings to double-quoted (outside
-    # existing double-quoted strings, which are copied verbatim).
-    normalized: list[str] = []
-    i = 0
-    n = len(text)
-    while i < n:
-        ch = text[i]
-        if ch == "'":
-            normalized.append('"')
-            i += 1
-            while i < n:
-                c = text[i]
-                if c == "\\":
-                    normalized.append(c)
-                    if i + 1 < n:
-                        normalized.append(text[i + 1])
-                        i += 2
-                    continue
-                if c == "'":
-                    normalized.append('"')
-                    i += 1
-                    break
-                normalized.append(c)
-                i += 1
-            continue
-        if ch == '"':
-            normalized.append(ch)
-            i += 1
-            while i < n:
-                c = text[i]
-                normalized.append(c)
-                if c == "\\" and i + 1 < n:
-                    normalized.append(text[i + 1])
-                    i += 2
-                    continue
-                if c == '"':
-                    i += 1
-                    break
-                i += 1
-            continue
-        normalized.append(ch)
-        i += 1
-
-    # Pass 2: quote bare identifiers followed by ':' (object keys).
-    body = "".join(normalized)
-    out: list[str] = []
-    i = 0
-    n = len(body)
-    in_string = False
-    while i < n:
-        ch = body[i]
-        if in_string:
-            out.append(ch)
-            if ch == "\\" and i + 1 < n:
-                out.append(body[i + 1])
-                i += 2
-                continue
-            if ch == '"':
-                in_string = False
-            i += 1
-            continue
-        if ch == '"':
-            in_string = True
-            out.append(ch)
-            i += 1
-            continue
-        if ch.isalpha() or ch in "_$":
-            j = i
-            while j < n and (body[j].isalnum() or body[j] in "_$"):
-                j += 1
-            k = j
-            while k < n and body[k].isspace():
-                k += 1
-            if k < n and body[k] == ":":
-                out.append('"')
-                out.append(body[i:j])
-                out.append('"')
-                i = j
-                continue
-            out.append(ch)
-            i += 1
-            continue
-        out.append(ch)
-        i += 1
-    return "".join(out)
-
-
-def _extract_af_callbacks(html: str) -> list[dict[str, Any]]:
-    """Extract every ``AF_initDataCallback({...})`` payload from a page.
-
-    Returns a list of ``{"key": ..., "hash": ..., "data": ..., ...}`` dicts.
-    Malformed callbacks are skipped — this never raises.
-    """
-    results: list[dict[str, Any]] = []
-    start = 0
-    marker = "AF_initDataCallback("
-    while True:
-        idx = html.find(marker, start)
-        if idx == -1:
-            break
-        open_idx = idx + len(marker) - 1
-        end = _match_paren(html, open_idx)
-        if end == -1:
-            # Malformed callback — keep scanning for later ones.
-            start = open_idx + 1
-            continue
-        body = html[open_idx + 1 : end]
-        try:
-            obj = json.loads(_quotes_to_json(body))
-        except (json.JSONDecodeError, ValueError, TypeError):
-            start = end + 1
-            continue
-        if isinstance(obj, dict):
-            results.append(obj)
-        start = end + 1
-    return results
-
-
-# ── flight-option detection (signature-based, layout-tolerant) ─────────
-def _walk_dicts(value: Any) -> Iterable[dict[str, Any]]:
-    """Depth-first walk yielding every dict nested in ``value``."""
-    if isinstance(value, dict):
-        yield value
-        for child in value.values():
-            yield from _walk_dicts(child)
-    elif isinstance(value, list):
-        for child in value:
-            yield from _walk_dicts(child)
-
-
-def _extract_price(obj: dict[str, Any]) -> int | None:
-    """Best-effort price (USD int) from a candidate record."""
-    fallback: int | None = None
-    for key, value in obj.items():
-        if not isinstance(value, int) or not (10 <= value <= 100_000):
-            continue
-        if isinstance(key, str):
-            if re.search(r"price|cost|total|amount", key, re.IGNORECASE):
-                return value
-            # Duration/timestamp ints (e.g. a 380-minute flight) must not
-            # masquerade as a price in the fallback path.
-            if re.search(r"dur|time|stop|hour|minute|epoch", key, re.IGNORECASE):
-                continue
-        if fallback is None:
-            fallback = value
-    return fallback
-
-
-def _extract_airline(obj: dict[str, Any]) -> str | None:
-    """Best-effort airline name/code from a candidate record."""
-    for key, value in obj.items():
-        if (
-            isinstance(value, str)
-            and isinstance(key, str)
-            and re.search(r"airline|carrier|operator", key, re.IGNORECASE)
-        ):
-            candidate = value.strip()
-            if _AIRLINE_RE.fullmatch(candidate):
-                return candidate
-    for value in obj.values():
-        if not isinstance(value, str):
-            continue
-        candidate = value.strip()
-        if not _AIRLINE_RE.fullmatch(candidate):
-            continue
-        if _DATE_RE.fullmatch(candidate):
-            continue
-        if len(candidate) <= 4 and candidate.isupper():
-            continue  # airport code, not an airline
-        return candidate
-    return None
-
-
-def _extract_duration(obj: dict[str, Any]) -> int | None:
-    """Best-effort flight duration in minutes from a candidate record."""
-    # Prefer keys that explicitly reference duration / time.
-    for key, value in obj.items():
-        if (
-            isinstance(value, int)
-            and 30 <= value <= 86_400
-            and isinstance(key, str)
-            and re.search(r"dur|time|total|flight", key, re.IGNORECASE)
-        ):
-            return value
-    # Fallback: any plausible minute count — but never a price/amount int.
-    for key, value in obj.items():
-        if isinstance(value, int) and 30 <= value <= 86_400:
-            if isinstance(key, str) and re.search(
-                r"price|cost|amount|currency|stops?", key, re.IGNORECASE
-            ):
-                continue
-            return value
-    for value in obj.values():
-        if isinstance(value, str):
-            match = _DURATION_STR_RE.search(value)
-            if match and (match.group(1) or match.group(2)):
-                hours = int(match.group(1) or 0)
-                minutes = int(match.group(2) or 0)
-                if hours or minutes:
-                    return hours * 60 + minutes
-    return None
-
-
-def _extract_stops(obj: dict[str, Any]) -> int:
-    """Best-effort stop count from a candidate record (default 0)."""
-    for key, value in obj.items():
-        if (
-            isinstance(value, int)
-            and 0 <= value <= 5
-            and isinstance(key, str)
-            and re.search(r"stop", key, re.IGNORECASE)
-        ):
-            return value
-    for value in obj.values():
-        if isinstance(value, str):
-            if re.fullmatch(r"Non-?stop", value, re.IGNORECASE):
-                return 0
-            match = re.fullmatch(r"(\d+)\s*stops?", value, re.IGNORECASE)
-            if match:
-                return int(match.group(1))
-    return 0
-
-
-def _child_dicts(obj: dict[str, Any]) -> Iterable[dict[str, Any]]:
-    """Yield the direct dict children of ``obj`` (values and list items)."""
-    for value in obj.values():
-        if isinstance(value, dict):
-            yield value
-        elif isinstance(value, list):
-            for item in value:
-                if isinstance(item, dict):
-                    yield item
-
-
-def _find_flight_options(data: Any) -> list[dict[str, Any]]:
-    """Locate flight-option-like records in embedded data (never raises).
-
-    Scans every nested dict for a price + airline + duration signature and
-    returns normalized, de-duplicated records sorted by price ascending.
-    Real Google payloads often split the signature across a parent dict
-    (price) and a direct child dict (airline / duration), so those are
-    merged before acceptance.
-    """
-    candidates: list[dict[str, Any]] = []
-    seen: set[tuple[int, str, int, int]] = set()
-
-    def _emit(price: int, airline: str, duration: int, stops: int) -> None:
-        key = (price, airline, duration, stops)
-        if key in seen:
-            return
-        seen.add(key)
-        candidates.append(
-            {"price": price, "airline": airline, "duration": duration, "stops": stops}
-        )
-
-    for obj in _walk_dicts(data):
-        price = _extract_price(obj)
-        if price is None:
-            continue
-        airline = _extract_airline(obj)
-        duration = _extract_duration(obj)
-        if airline is None or duration is None:
-            for child in _child_dicts(obj):
-                if airline is None:
-                    airline = _extract_airline(child)
-                if duration is None:
-                    duration = _extract_duration(child)
-                if airline is not None and duration is not None:
-                    break
-        if airline is None or duration is None:
-            continue
-        _emit(price, airline, duration, _extract_stops(obj))
-    candidates.sort(key=lambda entry: (entry["price"], entry["airline"]))
-    return candidates
 
 
 # ── public API ─────────────────────────────────────────────────────────
