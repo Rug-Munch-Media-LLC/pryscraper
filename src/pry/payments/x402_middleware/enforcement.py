@@ -1,4 +1,6 @@
-"""x402 ASGI enforcement middleware (audit E41 split)."""
+"""x402 ASGI enforcement middleware (audit E41 split).
+``X402Middleware``/``X402_RATE_LIMIT_PER_MIN`` stay here (tests monkeypatch
+this module); verify/response helpers are re-exported for compatibility."""
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -11,14 +13,7 @@ from typing import Any
 from pry.core.audit import audit_event
 from pry.core.ratelimit import RateLimiter
 from pry.core.settings import settings
-from pry.payments.x402 import (
-    X402Handler,
-    _encode_payment_required_body,
-    attestation_signer_address,
-    attested_max_amount_required,
-    validate_client_amount,
-    verify_payment_required_attestation,
-)
+from pry.payments.x402 import X402Handler, validate_client_amount
 from pry.payments.x402_middleware import config as _pricing_config
 from pry.payments.x402_middleware.classification import (
     DEFAULT_FREE_PATHS,
@@ -27,14 +22,18 @@ from pry.payments.x402_middleware.classification import (
     _caller_key_from_scope,
     resolve_operation,
 )
-from pry.payments.x402_middleware.config import (
-    X402_GATE_MISCONFIGURED,
+from pry.payments.x402_middleware.config import X402_GATE_MISCONFIGURED
+from pry.payments.x402_middleware.enforcement_response import (
+    X402_PAYMENT_HEADER_MAX_BYTES,
+    _compact_payment_required_header,
+)
+from pry.payments.x402_middleware.enforcement_verify import (
+    _attested_required_atomic,
+    _decode_presented_payment_required,  # noqa: F401
+    _verify_presented_attestation,
 )
 
 logger = logging.getLogger(__name__)
-
-# full acceptance surface; only the header is compacted under this budget.
-X402_PAYMENT_HEADER_MAX_BYTES = 12_000
 
 # Per-IP rate limit for the x402 gate itself (402 challenges + settle
 # attempts). X402Middleware sits OUTERMOST (api.py), so it runs BEFORE
@@ -43,147 +42,6 @@ X402_PAYMENT_HEADER_MAX_BYTES = 12_000
 # unthrottled. Redis-backed via settings.redis_url (degrades to per-process
 # token bucket when Redis is down — see pry/core/ratelimit.py).
 X402_RATE_LIMIT_PER_MIN = int(os.getenv("X402_RATE_LIMIT_PER_MIN", "120"))
-
-
-def _decode_presented_payment_required(raw: Any) -> dict[str, Any] | None:
-    """Decode a client-echoed payment-required body (audit #1 gate).
-
-    The PAYMENT-SIGNATURE payload may carry the attested 402 body the client
-    actually received (so a MITM that rewrote ``payToAddress``/amount/network
-    in the challenge is caught at settle time). The field is OPTIONAL and
-    accepted as a parsed dict, a raw JSON string, or the Base64
-    ``PAYMENT-REQUIRED`` header value. Returns None when absent/unparseable.
-    """
-    if isinstance(raw, dict):
-        return raw
-    if not isinstance(raw, str) or not raw.strip():
-        return None
-    text = raw.strip()
-    try:
-        decoded = json.loads(text)
-        return decoded if isinstance(decoded, dict) else None
-    except (ValueError, TypeError):
-        pass
-    try:
-        decoded = json.loads(base64.b64decode(text).decode())
-        return decoded if isinstance(decoded, dict) else None
-    except (ValueError, TypeError, OSError):
-        return None
-
-
-def _verify_presented_attestation(payload: dict[str, Any]) -> tuple[bool, str, dict[str, Any]]:
-    """Verify the server attestation on a client-presented 402 body.
-
-    Returns ``(ok, reason, body)`` for the audit #1 payTo-tamper gate:
-
-    - ``(True, "", body)`` when the payload carries no ``payment_required``
-      body or the body is UNATTESTED — backward compatible (a legacy body
-      emitted with no server attestation key configured still passes).
-      ``body`` is the decoded body (or ``{}`` when absent/unparseable-but-
-      tolerated).
-    - ``(False, reason, body)`` when the body IS attested but the signature
-      does not validate against the server's own attestation signer (tampered
-      payTo/amount/network) — FAIL CLOSED so a forged challenge can never
-      steer a payment to an attacker-controlled address.
-    """
-    raw = payload.get("payment_required")
-    if raw is None:
-        return True, "", {}
-    body = _decode_presented_payment_required(raw)
-    if not isinstance(body, dict):
-        logger.warning("x402_attestation_undecodable_body", extra={"field": "payment_required"})
-        return False, "echoed payment-required body could not be decoded", {}
-    if not isinstance(body.get("attestation"), dict):
-        # Unattested challenge (no key configured at issue time) — legacy path.
-        return True, "", body
-    expected = attestation_signer_address()
-    if not expected:
-        # We have no attestation key, so we can never have issued an attested
-        # body. A presented one is forged or from a different server.
-        return False, "attested body presented but no local attestation key configured", body
-    result = verify_payment_required_attestation(body, expected_signer=expected)
-    if result.get("verified"):
-        return True, "", body
-    return False, str(result.get("reason") or "invalid attestation"), body
-
-
-def _attested_required_atomic(
-    body: dict[str, Any],
-    network: str,
-    asset: str,
-) -> int:
-    """Price binding (audit #7): the SIGNED required amount for this payment.
-
-    Given an ALREADY-VERIFIED attested payment-required body, extract the
-    ``maxAmountRequired`` (atomic) of the accept matching (network, asset).
-    Returns 0 when the body is unattested (legacy path — no binding, the
-    live-quote comparison applies) or no accept matches, so callers fall
-    back to the previous behavior. The attestation itself was verified by
-    :func:`_verify_presented_attestation` before this is consulted.
-    """
-    if not isinstance(body, dict) or not isinstance(body.get("attestation"), dict):
-        return 0
-    return attested_max_amount_required(body, network, asset)
-
-
-def _compact_payment_required_header(body: dict[str, Any], max_bytes: int) -> str:
-    """Return a base64 PAYMENT-REQUIRED payload that fits ``max_bytes``.
-
-    Pass 1 keeps ONE accept per network (stablecoin preferred) — every chain
-    stays payable-from-the-header, which is a documented agent-facing
-    contract. Pass 1.5 strips the heavy optional discovery metadata
-    (``networks`` / ``supported_assets`` tables) from the HEADER copy only:
-    the full body — tables included — is still returned as the response
-    body and via ``/v1/x402/pricing``, so no information is lost; the
-    header just stops paying the byte tax for what the body already says.
-    That alone typically frees enough budget to keep EVERY family's
-    stablecoin accept on the wire. Pass 2 drops networks from the tail
-    only if still over budget. Always keeps at least one accept so the
-    challenge stays valid for spec-compliant clients.
-    """
-    encoded = _encode_payment_required_body(body)
-    if len(encoded.encode()) <= max_bytes:
-        return encoded
-    accepts = body.get("accepts") or []
-    by_network: dict[str, dict[str, Any]] = {}
-    ordered_networks: list[str] = []
-    for a in accepts:
-        net = a.get("network", "")
-        if net not in by_network:
-            by_network[net] = a
-            ordered_networks.append(net)
-        elif a.get("asset") in ("USDC", "USDT") and by_network[net].get("asset") not in (
-            "USDC",
-            "USDT",
-        ):
-            by_network[net] = a
-    kept = [by_network[k] for k in ordered_networks]
-    trimmed = {**body, "accepts": kept}
-    # Pass 1.5 — header-only metadata strip (discovery tables live in the
-    # response body and at /v1/x402/pricing; they cost ~10KB per challenge).
-    trimmed.pop("networks", None)
-    trimmed.pop("supported_assets", None)
-    encoded = _encode_payment_required_body(trimmed)
-    while kept and len(encoded.encode()) > max_bytes:
-        kept = kept[:-1]
-        encoded = _encode_payment_required_body({**trimmed, "accepts": kept})
-    if not kept:
-        # Never emit an empty accepts array — fall back to the first entry.
-        kept = accepts[:1]
-        encoded = _encode_payment_required_body({**trimmed, "accepts": kept})
-    logger.warning(
-        "x402_payment_header_compacted",
-        extra={
-            "accepts_total": len(accepts),
-            "accepts_in_header": len(kept),
-            "header_bytes": len(encoded.encode()),
-        },
-    )
-    return encoded
-
-
-# Fail-closed gate firings (paid prefix without pricing). Prometheus-optional:
-# the middleware must work without the metrics client installed.
 
 
 class X402Middleware:
