@@ -1,0 +1,304 @@
+{
+	"_comment": "Static board configuration for datasets/jobs/ats.py. Each entry describes one ATS board: HTTP method + URL template ({company}, {site}, {job_id}), where the job list lives ('container' dot-paths, 'root_list' when the payload itself is the list), the raw id key used for find-in-list lookups, and declarative field mappings ('fields' for the listing schema, 'detail' for the detail schema). Field spec verbs: 'path' = dot-path; 'any' = first truthy key (lists are comma-joined); 'join_keys' = comma-join of flat keys; 'structured' = Workable structured location rebuild; 'sr' = SmartRecruiters location dict; remote keys/str_keys/nested/metadata_remote/location_hint; url 'field'+'template' fallback with {company}/{v}/{job_id}; posted_at = first truthy of the listed keys, normalized to ISO-8601 UTC. Detail 'wrap' names a response envelope key (Recruitee 'offer').",
+	"search_companies": [
+		["stripe", "greenhouse"],
+		["netlify", "greenhouse"],
+		["leverdemo", "lever"],
+		["linear", "ashby"],
+		["ramp", "ashby"],
+		["replit", "ashby"]
+	],
+	"boards": {
+		"greenhouse": {
+			"method": "GET",
+			"url": "https://boards-api.greenhouse.io/v1/boards/{company}/jobs",
+			"container": ["jobs"],
+			"id_key": "id",
+			"detail_url": "https://boards-api.greenhouse.io/v1/boards/{company}/jobs/{job_id}",
+			"fields": {
+				"id": "id",
+				"title": "title",
+				"location": { "path": "location.name" },
+				"remote": {
+					"keys": ["is_remote"],
+					"metadata_remote": true,
+					"location_hint": true
+				},
+				"url": { "any": ["absolute_url"] },
+				"posted_at": ["first_published", "updated_at"]
+			},
+			"detail": {
+				"title": "title",
+				"location": { "path": "location.name" },
+				"description": { "html_any": ["content"] },
+				"requirements": null,
+				"compensation": { "type": "metadata_scan" },
+				"url": { "any": ["absolute_url"] }
+			}
+		},
+		"lever": {
+			"method": "GET",
+			"url": "https://api.lever.co/v0/postings/{company}?mode=json",
+			"root_list": true,
+			"id_key": "id",
+			"fields": {
+				"id": "id",
+				"title": "text",
+				"location": {
+					"any": ["categories.location", "categories.allLocations"]
+				},
+				"remote": { "str_keys": ["workplaceType"], "location_hint": true },
+				"url": { "any": ["hostedUrl"] },
+				"posted_at": ["createdAt"]
+			},
+			"detail": {
+				"title": "text",
+				"location": {
+					"any": ["categories.location", "categories.allLocations"]
+				},
+				"description": {
+					"plain": "descriptionPlain",
+					"html_any": ["description"]
+				},
+				"requirements": { "type": "lists_scan" },
+				"compensation": {
+					"type": "range",
+					"path": "salaryRange",
+					"min": "min",
+					"max": "max",
+					"currency": "currency",
+					"period": "interval"
+				},
+				"url": { "any": ["hostedUrl"] }
+			}
+		},
+		"ashby": {
+			"method": "GET",
+			"url": "https://api.ashbyhq.com/posting-api/job-board/{company}?includeCompensation=true",
+			"container": ["jobs"],
+			"id_key": "id",
+			"fields": {
+				"id": "id",
+				"title": "title",
+				"location": { "path": "location" },
+				"remote": { "keys": ["remote"] },
+				"url": { "any": ["jobUrl"] },
+				"posted_at": ["publishedAt"]
+			},
+			"detail": {
+				"title": "title",
+				"location": { "path": "location" },
+				"description": {
+					"plain": "descriptionPlain",
+					"html_any": ["descriptionHtml"]
+				},
+				"requirements": { "type": "additional_scan" },
+				"compensation": {
+					"type": "keys",
+					"path": "compensation",
+					"keys": [
+						"compensationTierSummary",
+						"scrapeableCompensationSalarySummary"
+					]
+				},
+				"url": { "any": ["jobUrl"] }
+			}
+		},
+		"workday": {
+			"method": "POST",
+			"url": "https://{company}.wd1.myworkdayjobs.com/wday/cxs/{company}/{site}/jobs",
+			"container": ["jobPostings"],
+			"id_key": "jobPostingId",
+			"fields": {
+				"id": ["jobPostingId", "externalPath"],
+				"title": "title",
+				"location": { "path": "locationsText" },
+				"remote": { "keys": ["remote", "workdayRemote"] },
+				"url": {
+					"field": "externalPath",
+					"template": "https://{company}.wd1.myworkdayjobs.com{v}"
+				},
+				"posted_at": ["postedOn"]
+			},
+			"detail": {
+				"title": "title",
+				"location": { "path": "locationsText" },
+				"description": null,
+				"requirements": null,
+				"compensation": null,
+				"url": {
+					"field": "externalPath",
+					"template": "https://{company}.wd1.myworkdayjobs.com{v}"
+				}
+			}
+		},
+		"workable": {
+			"method": "GET",
+			"url": "https://apply.workable.com/api/v3/accounts/{company}/jobs",
+			"root_list": true,
+			"container": ["jobs"],
+			"id_key": "id",
+			"fields": {
+				"id": ["id", "shortcode"],
+				"title": "title",
+				"location": { "structured": true },
+				"remote": {
+					"keys": ["remote"],
+					"str_keys": ["workplace", "workplace_type"],
+					"location_hint": true
+				},
+				"url": {
+					"any": ["url", "application_url", "shortlink"],
+					"field": "shortcode",
+					"template": "https://apply.workable.com/{company}/j/{v}/"
+				},
+				"posted_at": ["published", "created_at", "published_on"]
+			},
+			"detail": {
+				"title": "title",
+				"location": { "structured": true },
+				"description": {
+					"plain_any": ["description", "full_description"],
+					"html_any": ["description_html"]
+				},
+				"requirements": { "type": "field", "any": ["requirements"] },
+				"compensation": { "type": "field", "any": ["salary", "compensation"] },
+				"url": { "any": ["url", "application_url"] }
+			}
+		},
+		"breezy": {
+			"method": "GET",
+			"url": "https://{company}.breezy.hr/json",
+			"root_list": true,
+			"container": ["postings", "jobs"],
+			"id_key": "posting_id",
+			"fields": {
+				"id": ["posting_id", "id"],
+				"title": "title",
+				"location": {
+					"join_keys": ["location_city", "location_state", "location_country"]
+				},
+				"remote": { "keys": ["is_remote", "remote"] },
+				"url": {
+					"any": ["apply_url", "url"],
+					"field": "posting_id",
+					"template": "https://{company}.breezy.hr/p/{v}"
+				},
+				"posted_at": ["published_date", "published_at", "created_at"]
+			},
+			"detail": {
+				"title": "title",
+				"location": {
+					"join_keys": ["location_city", "location_state", "location_country"]
+				},
+				"description": null,
+				"requirements": null,
+				"compensation": { "type": "field", "any": ["salary"] },
+				"url": { "any": ["apply_url", "url"] }
+			}
+		},
+		"smartrecruiters": {
+			"method": "GET",
+			"url": "https://api.smartrecruiters.com/v1/companies/{company}/postings",
+			"container": ["content"],
+			"id_key": "id",
+			"detail_url": "https://api.smartrecruiters.com/v1/companies/{company}/postings/{job_id}",
+			"fields": {
+				"id": "id",
+				"title": "name",
+				"location": { "sr": true },
+				"remote": {
+					"nested": "location.remote",
+					"keys": ["remote"],
+					"location_hint": true
+				},
+				"url": {
+					"any": ["applyUrl"],
+					"field": "id",
+					"template": "https://jobs.smartrecruiters.com/{company}/{v}"
+				},
+				"posted_at": ["releasedDate"]
+			},
+			"detail": {
+				"title": "name",
+				"location": { "sr": true },
+				"description": { "html_any": ["jobAd.sections.jobDescription.text"] },
+				"requirements": { "html_any": ["jobAd.sections.qualifications.text"] },
+				"compensation": {
+					"type": "range",
+					"path": "compensation",
+					"min": "min",
+					"max": "max",
+					"currency": "currency",
+					"period": "salaryPeriod"
+				},
+				"url": {
+					"any": ["applyUrl"],
+					"field": "id",
+					"template": "https://jobs.smartrecruiters.com/{company}/{v}"
+				}
+			}
+		},
+		"recruitee": {
+			"method": "GET",
+			"url": "https://{company}.recruitee.com/api/offers",
+			"container": ["offers"],
+			"id_key": "id",
+			"detail_url": "https://{company}.recruitee.com/api/offers/{job_id}",
+			"wrap": "offer",
+			"fields": {
+				"id": "id",
+				"title": "title",
+				"location": { "any": ["location"], "join_keys": ["city", "country"] },
+				"remote": { "keys": ["remote"], "location_hint": true },
+				"url": { "any": ["careers_url"] },
+				"posted_at": ["published_at"]
+			},
+			"detail": {
+				"title": "title",
+				"location": { "path": "location" },
+				"description": { "html_any": ["description"] },
+				"requirements": { "html_any": ["requirements"] },
+				"compensation": {
+					"type": "recruitee_range",
+					"min": "salary_min",
+					"max": "salary_max",
+					"currency": "salary_currency",
+					"period": "salary_period"
+				},
+				"url": {
+					"any": ["careers_url"],
+					"template": "https://{company}.recruitee.com/o/{job_id}"
+				}
+			}
+		},
+		"jobvite": {
+			"method": "GET",
+			"url": "https://{company}.jobvite.com/api/v1/jobs",
+			"container": ["requisitions"],
+			"id_key": "id",
+			"fields": {
+				"id": "id",
+				"title": "title",
+				"location": {
+					"any": ["location"],
+					"join_keys": ["city", "state", "country"]
+				},
+				"remote": { "str_keys": ["remote"], "location_hint": true },
+				"url": { "any": ["applyUrl"] },
+				"posted_at": ["date"]
+			},
+			"detail": {
+				"title": "title",
+				"location": {
+					"any": ["location"],
+					"join_keys": ["city", "state", "country"]
+				},
+				"description": { "html_any": ["jobDescription"] },
+				"requirements": null,
+				"compensation": null,
+				"url": { "any": ["applyUrl"] }
+			}
+		}
+	}
+}
