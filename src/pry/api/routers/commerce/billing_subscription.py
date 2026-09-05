@@ -40,6 +40,8 @@ verify variant.
 from __future__ import annotations
 
 import logging
+import math
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException
@@ -48,8 +50,10 @@ from pydantic import BaseModel, Field
 from pry.commerce.billing import (
     activate_subscription,
     create_subscription_invoice,
+    get_tier,
     settle_subscription_payment,
     submit_subscription_payment,
+    subscription_status,
     verify_subscription_payment,
 )
 from pry.payments.x402 import wallet_configured
@@ -61,6 +65,14 @@ router = APIRouter(tags=["billing"])
 #: Invoice ids already activated in this process (idempotency guard). Mirrors
 #: the in-memory contract of the subscription library's own registries.
 _ACTIVATED: dict[str, dict[str, Any]] = {}
+
+#: Auto-renewal flags per api_key (default True). Mirrors the in-memory
+#: contract of the subscription library's own registries — cancel flips the
+#: flag; access is kept until the paid period ends.
+_AUTO_RENEW: dict[str, bool] = {}
+
+#: Pending tier changes per api_key (downgrades applied at next renewal).
+_PENDING_TIER: dict[str, str] = {}
 
 
 class SubscriptionInvoiceRequest(BaseModel):
@@ -205,5 +217,228 @@ def billing_subscription_confirm(
             "tier": record["tier"],
             "months": record["months"],
             "subscription": activation,
+        },
+    }
+
+
+class SubscriptionCancelRequest(BaseModel):
+    """Cancel a subscription (stops auto-renewal, keeps access until period end)."""
+
+    api_key: str = Field(..., description="API key whose subscription is cancelled")
+
+
+class SubscriptionRenewRequest(BaseModel):
+    """Create a renewal invoice for the next subscription period."""
+
+    api_key: str = Field(..., description="API key whose subscription is renewed")
+    months: int = Field(1, description="Number of months to renew (>= 1)")
+
+
+class SubscriptionChangeTierRequest(BaseModel):
+    """Change the subscription tier (upgrades prorate; downgrades defer)."""
+
+    api_key: str = Field(..., description="API key whose subscription changes tier")
+    new_tier: str = Field(..., description="Target tier id (pro / team)")
+
+
+@router.get(
+    "/v1/billing/subscription/status",
+    summary="Get the current subscription status for an API key",
+    description=(
+        "Reports the subscription tier, lifecycle status (active / cancelled / expired), "
+        "current period end, months remaining, and auto-renewal flag. Unknown keys "
+        "report the FREE tier with no expiry."
+    ),
+)
+def billing_subscription_status(api_key: str) -> dict[str, Any]:
+    """Report subscription state for *api_key*."""
+    state = subscription_status(api_key)
+    expires_at = state.get("expires_at")
+    active = bool(state.get("active"))
+    auto_renew = _AUTO_RENEW.get(api_key, True)
+
+    if not active:
+        status = "expired"
+    elif not auto_renew:
+        status = "cancelled"
+    else:
+        status = "active"
+
+    months_remaining = 0
+    if expires_at and active:
+        try:
+            remaining = datetime.fromisoformat(str(expires_at)) - datetime.now(UTC)
+            months_remaining = max(0, math.ceil(remaining.total_seconds() / (30 * 24 * 3600)))
+        except ValueError:
+            months_remaining = 0
+
+    return {
+        "success": True,
+        "data": {
+            "tier": state.get("tier", "free"),
+            "status": status,
+            "current_period_end": expires_at,
+            "months_remaining": months_remaining,
+            "auto_renew": auto_renew,
+        },
+    }
+
+
+@router.post(
+    "/v1/billing/subscription/cancel",
+    summary="Cancel a subscription (stops auto-renewal, keeps access until period end)",
+    description=(
+        "Flips the auto-renewal flag off for the subscription. Access to the paid tier "
+        "is preserved until the current period ends; no refund is issued."
+    ),
+)
+def billing_subscription_cancel(payload: SubscriptionCancelRequest) -> dict[str, Any]:
+    """Cancel auto-renewal for *api_key*, keeping access until period end."""
+    state = subscription_status(payload.api_key)
+    if not state.get("active"):
+        raise HTTPException(status_code=404, detail="no active subscription for this api_key")
+
+    _AUTO_RENEW[payload.api_key] = False
+    access_until = state.get("expires_at")
+    logger.info("subscription_cancelled", extra={"api_key": payload.api_key})
+    return {
+        "success": True,
+        "data": {
+            "success": True,
+            "message": "auto-renewal stopped — access continues until the period ends",
+            "access_until": access_until,
+        },
+    }
+
+
+@router.post(
+    "/v1/billing/subscription/renew",
+    summary="Create a renewal invoice for the next subscription period",
+    description=(
+        "Creates a new x402 invoice for the next period of the CURRENT tier (same "
+        "response shape as POST /v1/billing/subscription/invoice). The client pays "
+        "on-chain, then confirms via the invoice confirm route to extend the expiry."
+    ),
+)
+def billing_subscription_renew(payload: SubscriptionRenewRequest) -> dict[str, Any]:
+    """Create a renewal invoice for the current tier of *api_key*."""
+    state = subscription_status(payload.api_key)
+    tier = str(state.get("tier", "free"))
+    resolved = get_tier(tier)
+    if resolved.price_usd_monthly is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"tier {tier!r} has no fixed monthly price — cannot renew",
+        )
+
+    try:
+        invoice = create_subscription_invoice(tier, payload.api_key, payload.months)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    pay_to = invoice.get("payment_address") or ""
+    if not wallet_configured(pay_to):
+        logger.error("subscription_renew_wallet_unconfigured", extra={"tier": tier})
+        raise HTTPException(
+            status_code=503,
+            detail="no real receiving wallet configured — refusing to emit a placeholder payTo",
+        )
+
+    return {
+        "success": True,
+        "data": {
+            "status_code": 402,
+            "invoice_id": invoice["invoice_id"],
+            "tier": invoice["tier"],
+            "months": payload.months,
+            "amount_usd": invoice["amount_usd"],
+            "amount_atomic": invoice["amount_asset"],
+            "chain": invoice["chain"],
+            "pay_to": pay_to,
+            "asset": invoice["asset"],
+            "expires_at": invoice["expires_at"],
+            "payment_method": invoice["payment_method"],
+        },
+    }
+
+
+@router.post(
+    "/v1/billing/subscription/change-tier",
+    summary="Change the subscription tier",
+    description=(
+        "Upgrades take effect immediately: the remaining paid time is converted to "
+        "months of the new tier and the price difference is prorated (positive "
+        "``price_adjustment`` = additional charge due). Downgrades are deferred: they "
+        "apply at the next renewal with no immediate charge."
+    ),
+)
+def billing_subscription_change_tier(payload: SubscriptionChangeTierRequest) -> dict[str, Any]:
+    """Change the subscription tier for *api_key*."""
+    state = subscription_status(payload.api_key)
+    if not state.get("active"):
+        raise HTTPException(status_code=404, detail="no active subscription for this api_key")
+
+    current_tier = str(state.get("tier", "free"))
+    current = get_tier(current_tier)
+    new = get_tier(payload.new_tier)
+    if new.price_usd_monthly is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"tier {new.name!r} has no fixed monthly price — cannot change to it",
+        )
+    if new.name == current.name:
+        raise HTTPException(status_code=400, detail="already subscribed to this tier")
+
+    expires_at = state.get("expires_at")
+    months_remaining = 1
+    if expires_at:
+        try:
+            remaining = datetime.fromisoformat(str(expires_at)) - datetime.now(UTC)
+            months_remaining = max(1, math.ceil(remaining.total_seconds() / (30 * 24 * 3600)))
+        except ValueError:
+            months_remaining = 1
+
+    if (new.price_usd_monthly or 0.0) > (current.price_usd_monthly or 0.0):
+        # Upgrade: prorate the difference over the remaining period and switch
+        # immediately (activation restarts the expiry from now on tier change,
+        # so we credit the converted remaining months of the new tier).
+        price_adjustment = round(
+            ((new.price_usd_monthly or 0.0) - (current.price_usd_monthly or 0.0))
+            * months_remaining,
+            2,
+        )
+        activation = activate_subscription(payload.api_key, new.name, months_remaining)
+        _PENDING_TIER.pop(payload.api_key, None)
+        logger.info(
+            "subscription_tier_upgraded",
+            extra={"api_key": payload.api_key, "tier": new.name},
+        )
+        return {
+            "success": True,
+            "data": {
+                "success": True,
+                "message": (
+                    f"upgraded to {new.name} — prorated charge of "
+                    f"${price_adjustment:.2f} due for {months_remaining} month(s)"
+                ),
+                "new_tier": new.name,
+                "price_adjustment": price_adjustment,
+                "expires_at": activation["expires_at"],
+            },
+        }
+
+    # Downgrade: defer to next renewal — no immediate charge, no immediate switch.
+    _PENDING_TIER[payload.api_key] = new.name
+    logger.info(
+        "subscription_tier_downgrade_scheduled",
+        extra={"api_key": payload.api_key, "tier": new.name},
+    )
+    return {
+        "success": True,
+        "data": {
+            "success": True,
+            "message": (f"downgrade to {new.name} scheduled — applies at the next renewal"),
+            "new_tier": new.name,
+            "price_adjustment": 0.0,
         },
     }
