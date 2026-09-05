@@ -1,0 +1,1032 @@
+[
+	{
+		"name": "pry-broken-links-auditor",
+		"title": "Pry Broken Links Auditor",
+		"description": "Crawl a site and report every broken internal or external link with HTTP status, source page and anchor text. Site-health audits that used to need desktop tooling now run on a schedule.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.wikipedia.org"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "check_externals",
+				"title": "Check external links",
+				"type": "boolean",
+				"description": "Also verify links leaving the domain.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Audit settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "page-audited",
+				"title": "Page audited",
+				"description": "One page crawled with all links status-checked.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "audit"
+	},
+	{
+		"name": "pry-ssl-cert-monitor",
+		"title": "Pry SSL Certificate Monitor",
+		"description": "Watch TLS certificate health across your domains: expiry countdowns, issuer changes and handshake failures - caught by connection-level probes before browsers scare your visitors.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.cloudflare.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "warn_days",
+				"title": "Warn before expiry (days)",
+				"type": "integer",
+				"description": "Emit a warning item when expiry is within this window.",
+				"editor": "number",
+				"prefill": null,
+				"default": 14,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 90,
+				"section_caption": "Monitor settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "cert-checked",
+				"title": "Certificate checked",
+				"description": "One domain's TLS certificate probed.",
+				"price_usd": 0.003
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 1024,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": null
+	},
+	{
+		"name": "pry-wayback-diff",
+		"title": "Pry Wayback Diff",
+		"description": "Compare any live page against its last archive.org snapshot and emit a structured diff: what changed, when it changed and how similar the versions are (SimHash similarity score included).",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://web.archive.org"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as rewritten (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Diff settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "page-compared",
+				"title": "Page compared",
+				"description": "One live-vs-archive comparison computed.",
+				"price_usd": 0.001
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-podcast-feed-miner",
+		"title": "Pry Podcast Feed Miner",
+		"description": "Mine podcast RSS feeds into structured episode datasets: titles, descriptions, durations, publish dates and audio URLs - perfect for media monitoring and transcript pipeline feeds.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://podcasts.apple.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_episodes",
+				"title": "Max episodes per feed",
+				"type": "integer",
+				"description": "Cap per feed to control cost.",
+				"editor": "number",
+				"prefill": null,
+				"default": 50,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 200,
+				"section_caption": "Feed settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "episode-extracted",
+				"title": "Episode extracted",
+				"description": "One podcast episode extracted to the dataset.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 1024,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "news"
+	},
+	{
+		"name": "pry-newsletter-archive-miner",
+		"title": "Pry Newsletter Archive Miner",
+		"description": "Extract newsletter archives and email digest pages into clean structured datasets - issues, subjects, senders and body content for competitive content intelligence.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.stratechery.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "include_body_text",
+				"title": "Include body text",
+				"type": "boolean",
+				"description": "Extract full issue bodies, not just metadata.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Extract settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "issue-extracted",
+				"title": "Issue extracted",
+				"description": "One newsletter issue extracted.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "news"
+	},
+	{
+		"name": "pry-accessibility-scanner",
+		"title": "Pry Accessibility Scanner",
+		"description": "WCAG-oriented accessibility signals for every page: images missing alt text, heading hierarchy violations, missing page titles and language declarations - prioritized issue lists per crawl.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.gov.uk"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "fail_on_missing_alt",
+				"title": "Flag missing alt text",
+				"type": "boolean",
+				"description": "Report every image without an alt attribute.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Audit settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "page-scanned",
+				"title": "Page scanned",
+				"description": "One page scanned for accessibility signals.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "audit"
+	},
+	{
+		"name": "pry-outbound-link-harvester",
+		"title": "Pry Outbound Link Harvester",
+		"description": "Harvest external outbound links per page across a site: which domains a site links to, how often, and from where - prospecting data for SEO outreach and partnership research.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://en.wikipedia.org"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "exclude_domains",
+				"title": "Excluded domains",
+				"type": "array",
+				"description": "Domains to skip (e.g. social widgets).",
+				"editor": "stringList",
+				"prefill": ["facebook.com", "twitter.com", "x.com"],
+				"default": null,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Harvest settings",
+				"item_type": "string"
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "page-harvested",
+				"title": "Page harvested",
+				"description": "One page's outbound link profile harvested.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "backlinks"
+	},
+	{
+		"name": "pry-onion-site-monitor",
+		"title": "Pry Onion Site Monitor",
+		"description": "Monitor .onion services over Tor - brand abuse, leak-site watch and dark-web mention tracking. Pry ships Tor as a first-class tier; almost no competitor can reach these sources at all.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.torproject.org"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "keyword_filter",
+				"title": "Keyword filter",
+				"type": "string",
+				"description": "Only emit pages matching this keyword.",
+				"editor": null,
+				"prefill": null,
+				"default": "",
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Monitor settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "onion-page-checked",
+				"title": "Onion page checked",
+				"description": "One .onion page fetched through the Tor tier.",
+				"price_usd": 0.001
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "news"
+	},
+	{
+		"name": "pry-gdpr-cookie-checker",
+		"title": "Pry GDPR Cookie Checker",
+		"description": "Check pages for cookie-consent banners, privacy-policy links and consent-management platforms - compliance evidence collection for audits across hundreds of properties at once.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.bbc.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "require_privacy_link",
+				"title": "Require privacy link",
+				"type": "boolean",
+				"description": "Flag pages without a privacy-policy link.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Check settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "page-checked",
+				"title": "Page checked",
+				"description": "One page checked for consent/privacy markers.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "audit"
+	},
+	{
+		"name": "pry-social-card-auditor",
+		"title": "Pry Social Card Auditor",
+		"description": "Audit Open Graph and social preview tags across every page of a site: missing og:title/og:image, thin descriptions and canonical conflicts - fix link previews before your next campaign.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.theverge.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "require_og_image",
+				"title": "Require og:image",
+				"type": "boolean",
+				"description": "Flag pages missing a social preview image.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Audit settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "page-audited",
+				"title": "Page audited",
+				"description": "One page audited for social preview tags.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "audit"
+	},
+	{
+		"name": "pry-sitemap-diff",
+		"title": "Pry Sitemap Diff",
+		"description": "Track sitemap changes between runs: new URLs, removed URLs and lastmod shifts - the fastest way to catch competitor site launches and content strategy moves.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.sitemaps.org"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "emit_all",
+				"title": "Emit full URL list",
+				"type": "boolean",
+				"description": "Push every URL found, not just the summary.",
+				"editor": null,
+				"prefill": null,
+				"default": false,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Diff settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "sitemap-scanned",
+				"title": "Sitemap scanned",
+				"description": "One sitemap scanned and diffed against prior state.",
+				"price_usd": 0.001
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 1024,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-tech-stack-detector",
+		"title": "Pry Tech Stack Detector",
+		"description": "Detect the technology behind any website - frameworks, analytics, CMS, hosting signals - enriched with contact discovery for sales prospecting by stack.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.shopify.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "include_headers",
+				"title": "Inspect response headers",
+				"type": "boolean",
+				"description": "Fingerprint servers and CDNs from headers.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Detect settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "stack-detected",
+				"title": "Stack detected",
+				"description": "One site's technology stack detected.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "tech"
+	},
+	{
+		"name": "pry-contact-form-finder",
+		"title": "Pry Contact Form Finder",
+		"description": "Find contact forms, mailto links and submission endpoints across prospect sites - the first step of automated outreach done respectfully: know exactly where to reach a business.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.mozilla.org"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "probe_contact_pages",
+				"title": "Probe /contact paths",
+				"type": "boolean",
+				"description": "Also try common contact-page paths.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Finder settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "site-probed",
+				"title": "Site probed",
+				"description": "One site probed for contact channels.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "leads"
+	},
+	{
+		"name": "pry-blog-post-extractor",
+		"title": "Pry Blog Post Extractor",
+		"description": "Extract complete blog archives: post URLs, titles, publish dates and full markdown bodies - content-gap analysis and editorial research in one dataset.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://blog.rust-lang.org"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "full_text",
+				"title": "Extract full text",
+				"type": "boolean",
+				"description": "Fetch and extract complete post bodies.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Extract settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "post-extracted",
+				"title": "Post extracted",
+				"description": "One blog post extracted to the dataset.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "news"
+	},
+	{
+		"name": "pry-event-listings-aggregator",
+		"title": "Pry Event Listings Aggregator",
+		"description": "Aggregate event listings from conference, meetup and event-calenda sites: names, dates, venues, organizers and registration links - normalized for calendar and intel products.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.eventbrite.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "upcoming_only",
+				"title": "Upcoming only",
+				"type": "boolean",
+				"description": "Drop events that already started.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Filter settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "event-extracted",
+				"title": "Event extracted",
+				"description": "One event listing extracted.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "news"
+	}
+]

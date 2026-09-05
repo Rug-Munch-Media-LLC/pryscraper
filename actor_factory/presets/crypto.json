@@ -1,0 +1,438 @@
+[
+	{
+		"name": "pry-fx-rate-monitor",
+		"title": "Pry FX Rate Monitor",
+		"description": "Monitor foreign-exchange rates pulled via free public rate APIs - daily currency snapshots and drift alerts for finance teams, e-commerce pricing and invoicing.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.ecb.europa.eu"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "rates-pulled",
+				"title": "Rates pulled",
+				"description": "One rates snapshot pulled.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-crypto-market-monitor",
+		"title": "Pry Crypto Market Monitor",
+		"description": "Pull crypto market caps, prices and volume shifts pulled from public market APIs - scheduled snapshots for portfolios, dashboards and alerting without exchange API keys.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://api.coingecko.com/api/v3/coins/markets"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "market-pulled",
+				"title": "Market snapshot pulled",
+				"description": "One market snapshot pulled.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-prediction-market-monitor",
+		"title": "Pry Prediction Market Monitor",
+		"description": "Pull prediction market contract snapshots on Polymarket and Kalshi via their public Gamma/API endpoints - pulled prices, volumes and resolution status for elections, crypto, sports and macro events as clean structured rows.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://polymarket.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "market-snapshot-pulled",
+				"title": "Market snapshot pulled",
+				"description": "One prediction-market snapshot pulled.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-sports-odds-best-line",
+		"title": "Pry Sports Odds Best-Line Finder",
+		"description": "Pull live sportsbook odds feeds (Bovada-style public JSON) and compare prices across books - best available line, hold and vig for any market, delivered as normalized comparison rows.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.oddsportal.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "sport_slug",
+				"title": "Sport slug",
+				"type": "string",
+				"description": "Sport path segment in the feed URL (e.g. basketball/nba).",
+				"editor": null,
+				"prefill": null,
+				"default": "",
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Feed settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "line-compared",
+				"title": "Line compared",
+				"description": "One odds feed compared.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-token-unlock-monitor",
+		"title": "Pry Token Unlock Monitor",
+		"description": "Monitor token unlock and vesting schedules from public tokenomics endpoints - upcoming supply shocks, cliff dates and circulating supply changes for traders and treasury teams.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://cryptorank.io/unlocks"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "unlock-checked",
+				"title": "Unlock schedule checked",
+				"description": "One unlock schedule checked.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-defi-yield-monitor",
+		"title": "Pry DeFi Yield Monitor",
+		"description": "DeFi lending and LP pool yields pulled from public DefiLlama endpoints - APYs, TVL and pool metadata across chains for yield farmers, treasuries and dashboards.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://defillama.com/yields"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "pools-pulled",
+				"title": "Yield pools pulled",
+				"description": "One yield pool feed pulled.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-chain-tvl-monitor",
+		"title": "Pry Chain TVL Monitor",
+		"description": "Total value locked per chain and protocol pulled from public DefiLlama endpoints - chain dominance trends, protocol flows and historical TVL for analysts and researchers.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://defillama.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "tvl-pulled",
+				"title": "TVL pulled",
+				"description": "One TVL snapshot pulled.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-stablecoin-flow-monitor",
+		"title": "Pry Stablecoin Flow Monitor",
+		"description": "Stablecoin market caps, chains and flow shifts pulled from public public pegged-asset endpoints - mint/burn signals and depeg watch for risk teams and traders.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://defillama.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "flows-pulled",
+				"title": "Stablecoin flows pulled",
+				"description": "One stablecoin flow snapshot pulled.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-whale-transfer-monitor",
+		"title": "Pry Whale Transfer Monitor",
+		"description": "Watch large on-chain transfers via public blockchain explorer APIs - whale movements for BTC/ETH and major tokens delivered as structured alerts-ready records.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://etherscan.io"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "transfers-scanned",
+				"title": "Transfers scanned",
+				"description": "One transfer page scanned.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-gas-fee-monitor",
+		"title": "Pry Gas Fee Monitor",
+		"description": "Ethereum gas prices pulled via public oracle endpoints - base fee tiers and historical context for wallet apps, bridges and cost-aware automation.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://etherscan.io/gastracker"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "gas-pulled",
+				"title": "Gas snapshot pulled",
+				"description": "One gas snapshot pulled.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	}
+]

@@ -1,0 +1,1280 @@
+[
+	{
+		"name": "pry-scholarship-grants-finder",
+		"title": "Pry Scholarship & Grants Finder",
+		"description": "Aggregate scholarship, grant and funding opportunities from education funding portals: amounts, deadlines, eligibility and application links - normalized for counseling platforms and search products.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.grants.gov"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "deadline_within_days",
+				"title": "Deadline within (days)",
+				"type": "integer",
+				"description": "Only emit opportunities closing within this window.",
+				"editor": "number",
+				"prefill": null,
+				"default": 90,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 365,
+				"section_caption": "Filter settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "opportunity-extracted",
+				"title": "Opportunity extracted",
+				"description": "One scholarship or grant extracted.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "news"
+	},
+	{
+		"name": "pry-course-catalog-extractor",
+		"title": "Pry Course Catalog Extractor",
+		"description": "Extract online course catalogs: titles, instructors, prices, ratings, durations and syllabi outlines from any course platform - market research for edtech and aggregation products.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.coursera.org"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "include_curriculum",
+				"title": "Include curriculum outline",
+				"type": "boolean",
+				"description": "Extract module/lesson lists when present.",
+				"editor": null,
+				"prefill": null,
+				"default": false,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Extract settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "course-extracted",
+				"title": "Course extracted",
+				"description": "One course listing normalized into the dataset.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "extract"
+	},
+	{
+		"name": "pry-weather-data-collector",
+		"title": "Pry Weather Data Collector",
+		"description": "Collect weather observations and forecasts from any forecast page - temperature, precipitation and condition signals normalized into flat rows for analytics and alerting pipelines.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://open-meteo.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "location_label",
+				"title": "Location label",
+				"type": "string",
+				"description": "Tag every row with this location identifier.",
+				"editor": null,
+				"prefill": null,
+				"default": "",
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Collection settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "observation-collected",
+				"title": "Observation collected",
+				"description": "One weather observation collected.",
+				"price_usd": 0.001
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 1024,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-air-quality-monitor",
+		"title": "Pry Air Quality Monitor",
+		"description": "Monitor air-quality indices and pollutant readings from public monitoring pages - AQI, PM2.5/PM10 and trend direction for health, insurance and smart-city datasets.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.airnow.gov"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "aqi_threshold",
+				"title": "AQI alert threshold",
+				"type": "integer",
+				"description": "Emit an alert item when AQI exceeds this value.",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 500,
+				"section_caption": "Alert settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "reading-collected",
+				"title": "Reading collected",
+				"description": "One air-quality reading collected.",
+				"price_usd": 0.001
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 1024,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-electricity-price-watch",
+		"title": "Pry Electricity Price Watch",
+		"description": "Track electricity tariff and spot-price publications from utility and exchange pages - day-ahead prices normalized per MWh for energy analysts and cost modelers.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.eia.gov"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "unit",
+				"title": "Price unit",
+				"type": "string",
+				"description": "Normalization unit for captured prices.",
+				"editor": "select",
+				"prefill": null,
+				"default": "EUR/MWh",
+				"required": false,
+				"enum": ["EUR/MWh", "USD/MWh", "c/kWh"],
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Price settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "tariff-captured",
+				"title": "Tariff captured",
+				"description": "One electricity price point captured.",
+				"price_usd": 0.001
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 1024,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "price"
+	},
+	{
+		"name": "pry-press-release-monitor",
+		"title": "Pry Press Release Monitor",
+		"description": "Monitor company and wire-service press releases: headlines, datelines and full announcement text - PR intelligence and media monitoring without manual source checking.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.prnewswire.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "keyword_filter",
+				"title": "Keyword filter",
+				"type": "string",
+				"description": "Only emit releases matching this keyword.",
+				"editor": null,
+				"prefill": null,
+				"default": "",
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Monitor settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "release-extracted",
+				"title": "Release extracted",
+				"description": "One press release extracted.",
+				"price_usd": 0.001
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "news"
+	},
+	{
+		"name": "pry-research-paper-watch",
+		"title": "Pry Research Paper Watch",
+		"description": "Watch academic preprint and journal listing pages for new papers by topic: titles, authors, abstracts and PDF links - literature surveillance for R&D and AI labs.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://arxiv.org"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "topic_keywords",
+				"title": "Topic keywords",
+				"type": "array",
+				"description": "Only emit papers matching these topic keywords.",
+				"editor": "stringList",
+				"prefill": ["LLM", "reinforcement learning"],
+				"default": null,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Topic settings",
+				"item_type": "string"
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "paper-detected",
+				"title": "Paper detected",
+				"description": "One new paper detected and emitted.",
+				"price_usd": 0.001
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "news"
+	},
+	{
+		"name": "pry-cve-advisory-watch",
+		"title": "Pry CVE Advisory Watch",
+		"description": "Watch security advisory sources for new CVEs affecting your stack - severity, affected versions and remediation links in one feed. Vulnerability surveillance for engineering and compliance teams.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://nvd.nist.gov"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "min_severity",
+				"title": "Minimum severity",
+				"type": "string",
+				"description": "Only emit advisories at or above this severity.",
+				"editor": "select",
+				"prefill": null,
+				"default": "high",
+				"required": false,
+				"enum": ["low", "medium", "high", "critical"],
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Filter settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "advisory-detected",
+				"title": "Advisory detected",
+				"description": "One new security advisory detected.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 1024,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "news"
+	},
+	{
+		"name": "pry-terms-policy-watch",
+		"title": "Pry Terms & Policy Watch",
+		"description": "Monitor Terms of Service and Privacy Policy pages for silent changes - diff-aware emit-on-change semantics so legal and compliance teams catch rewrites the day they happen.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.tiktok.com/legal/terms-of-service"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "section_filter",
+				"title": "Section keywords",
+				"type": "array",
+				"description": "Only emit changes touching these sections.",
+				"editor": "stringList",
+				"prefill": ["arbitration", "data sharing", "liability"],
+				"default": null,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Watch settings",
+				"item_type": "string"
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "policy-checked",
+				"title": "Policy checked",
+				"description": "One ToS/privacy page checked for changes.",
+				"price_usd": 0.001
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 1024,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "news"
+	},
+	{
+		"name": "pry-forum-discussion-miner",
+		"title": "Pry Forum Discussion Miner",
+		"description": "Mine forum threads and discussion boards: titles, authors, reply counts and top posts across public communities - voice-of-customer and pain-point research at scale.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://news.ycombinator.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "min_replies",
+				"title": "Min replies",
+				"type": "integer",
+				"description": "Only keep threads with at least this many replies.",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": null,
+				"section_caption": "Filter settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "thread-extracted",
+				"title": "Thread extracted",
+				"description": "One forum thread extracted.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "news"
+	},
+	{
+		"name": "pry-changelog-tracker",
+		"title": "Pry Changelog Tracker",
+		"description": "Track competitor product changelogs and release notes pages - new features, fixes and pricing-page edits detected between runs so product teams never miss a competitor move.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://github.com/facebook/react/releases"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "emit_unchanged",
+				"title": "Emit unchanged runs",
+				"type": "boolean",
+				"description": "Push a no-change item for continuous tracking history.",
+				"editor": null,
+				"prefill": null,
+				"default": false,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Track settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "changelog-scanned",
+				"title": "Changelog scanned",
+				"description": "One changelog source scanned for updates.",
+				"price_usd": 0.001
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 1024,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "news"
+	},
+	{
+		"name": "pry-api-docs-diff",
+		"title": "Pry API Docs Diff",
+		"description": "Watch public API documentation pages for endpoint changes - new routes, renamed fields, deprecation notices - so integrations break before your customers notice, not after.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://docs.stripe.com/api"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "watch_paths",
+				"title": "Docs paths",
+				"type": "array",
+				"description": "Doc URL paths to monitor.",
+				"editor": "stringList",
+				"prefill": ["/reference", "/changelog"],
+				"default": null,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Watch settings",
+				"item_type": "string"
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "docs-scanned",
+				"title": "Docs scanned",
+				"description": "One documentation source scanned.",
+				"price_usd": 0.001
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 1024,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "news"
+	},
+	{
+		"name": "pry-status-page-aggregator",
+		"title": "Pry Status Page Aggregator",
+		"description": "Aggregate vendor status pages into one incident feed: ongoing incidents, maintenance windows and resolution history across every service your operations depend on.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.githubstatus.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "active_only",
+				"title": "Active incidents only",
+				"type": "boolean",
+				"description": "Drop resolved incidents from the dataset.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Feed settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "status-checked",
+				"title": "Status checked",
+				"description": "One status page checked.",
+				"price_usd": 0.001
+			}
+		],
+		"min_memory_mbytes": 256,
+		"max_memory_mbytes": 1024,
+		"build_tag": "latest",
+		"uses_browser": false,
+		"processor": "news"
+	},
+	{
+		"name": "pry-restaurant-menu-extractor",
+		"title": "Pry Restaurant Menu Extractor",
+		"description": "Extract restaurant menus from public pages: items, descriptions, prices and sections - normalized data for food delivery, nutrition and local discovery products.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.starbucks.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "currency_hint",
+				"title": "Currency hint",
+				"type": "string",
+				"description": "Expected ISO currency code.",
+				"editor": null,
+				"prefill": null,
+				"default": "USD",
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Extract settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "menu-extracted",
+				"title": "Menu extracted",
+				"description": "One restaurant menu extracted.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "price"
+	},
+	{
+		"name": "pry-recipe-miner",
+		"title": "Pry Recipe Miner",
+		"description": "Mine recipe sites for structured cooking data: ingredients, steps, prep/cook times and nutrition claims - content pipelines for meal-planning and grocery products.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.allrecipes.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "include_nutrition",
+				"title": "Include nutrition claims",
+				"type": "boolean",
+				"description": "Capture nutrition facts when present.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Extract settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "recipe-extracted",
+				"title": "Recipe extracted",
+				"description": "One recipe extracted to the dataset.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "extract"
+	},
+	{
+		"name": "pry-product-data-extractor",
+		"title": "Pry Product Data Extractor",
+		"description": "Extract structured product data from any e-commerce page: name, price, currency, availability, brand and images - powered by schema.org JSON-LD that Shopify, WooCommerce and Magento stores already embed. Feed price intelligence, catalog syncs and competitor monitoring.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.bestbuy.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "include_variants",
+				"title": "Include variant offers",
+				"type": "boolean",
+				"description": "Capture multiple offers when a product has variants.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Extract settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "product-extracted",
+				"title": "Product extracted",
+				"description": "One product extracted to the dataset.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "extract"
+	},
+	{
+		"name": "pry-ecommerce-catalog-crawler",
+		"title": "Pry E-commerce Catalog Crawler",
+		"description": "Crawl an entire online store and extract every product with prices, availability and categories - full catalog exports for market research, dropshipping feeds and competitor price tracking across Shopify, WooCommerce and custom platforms.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.ikea.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "category_filter",
+				"title": "Category URL contains",
+				"type": "string",
+				"description": "Only crawl product URLs matching this path fragment.",
+				"editor": null,
+				"prefill": null,
+				"default": "",
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Crawl scope",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "product-extracted",
+				"title": "Product extracted",
+				"description": "One product extracted to the dataset.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "extract"
+	},
+	{
+		"name": "pry-knowledge-base-miner",
+		"title": "Pry Knowledge Base Miner",
+		"description": "Turn help centers and FAQ pages into clean question-answer pairs using FAQPage and HowTo structured data - training data for support chatbots, AI agents and self-service knowledge bases.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://support.apple.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			},
+			{
+				"name": "min_answer_chars",
+				"title": "Minimum answer length",
+				"type": "integer",
+				"description": "Skip answers shorter than this many characters.",
+				"editor": "number",
+				"prefill": null,
+				"default": 80,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Extract settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "faq-pair-extracted",
+				"title": "FAQ pair extracted",
+				"description": "One question-answer pair extracted to the dataset.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "extract"
+	},
+	{
+		"name": "pry-local-business-schema-auditor",
+		"title": "Pry Local Business Schema Auditor",
+		"description": "Audit LocalBusiness structured data on any business website: name, address, phone, opening hours and geo coordinates as schema.org JSON-LD - validate your own markup or prospect businesses with missing or broken local SEO schema.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.yelp.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "require_geo",
+				"title": "Require geo coordinates",
+				"type": "boolean",
+				"description": "Flag listings missing latitude/longitude.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Audit rules",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "business-audited",
+				"title": "Business audited",
+				"description": "One business listing audited.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "extract"
+	}
+]

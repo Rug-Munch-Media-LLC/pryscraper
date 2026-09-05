@@ -1,0 +1,1164 @@
+[
+	{
+		"name": "pry-steam-game-stats",
+		"title": "Pry Steam Game Stats",
+		"description": "Game details, pricing and player counts pulled from Steam's public store API - release data, genres and concurrent-player context for market research and gaming analytics.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://store.steampowered.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "game-stats-pulled",
+				"title": "Game stats pulled",
+				"description": "One game stats record pulled.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-producthunt-launch-monitor",
+		"title": "Pry Product Hunt Launch Monitor",
+		"description": "Monitor Product Hunt launches via its public RSS/Atom feeds - new products, taglines and vote context for competitive intel, launch tracking and maker research.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.producthunt.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "launches-scanned",
+				"title": "Launches scanned",
+				"description": "One launch feed scanned.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-app-store-rank-watch",
+		"title": "Pry App Store Rank Watch",
+		"description": "Track app keyword rank snapshots on the Apple App Store and Google Play - position per keyword, version churn and category movement - each rank snapshot pulled on schedule for ASO teams and competitive app intel.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://apps.apple.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "keywords",
+				"title": "Keywords to track",
+				"type": "array",
+				"description": "Keyword list; each store page is checked per keyword.",
+				"editor": "stringList",
+				"prefill": null,
+				"default": [],
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Rank settings",
+				"item_type": "string"
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "rank-snapshot-pulled",
+				"title": "Rank snapshot pulled",
+				"description": "One app rank snapshot pulled for a keyword. Billed per keyword tracked: total run cost scales with the keyword count (each keyword requires its own store page check), so a 50-keyword app costs 50x the single-keyword PPE price.",
+				"price_usd": 0.01
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-appexchange-marketplace-watch",
+		"title": "Pry AppExchange Marketplace Watch",
+		"description": "Extract B2B marketplace listings - Salesforce AppExchange, Atlassian Marketplace, HubSpot marketplace - with pricing tiers, review counts and install trends for competitive SaaS intelligence.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://appexchange.salesforce.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "include_reviews",
+				"title": "Include review counts",
+				"type": "boolean",
+				"description": "Capture rating and review-count signals per listing.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Listing settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "listing-extracted",
+				"title": "Listing extracted",
+				"description": "One marketplace listing with pricing tiers extracted.",
+				"price_usd": 0.02
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "extract"
+	},
+	{
+		"name": "pry-ai-model-pricing-watch",
+		"title": "Pry AI Model Pricing Watch",
+		"description": "Monitor LLM provider pricing pages - OpenAI, Anthropic, DeepInfra, Together - capturing each pricing card with context windows, token rates and rate limits so AI buyers never miss a price change.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://openrouter.ai/models"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "providers",
+				"title": "Provider filter",
+				"type": "array",
+				"description": "Only emit pricing cards for these provider names.",
+				"editor": "stringList",
+				"prefill": null,
+				"default": [],
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Pricing settings",
+				"item_type": "string"
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "price-card-parsed",
+				"title": "Price card parsed",
+				"description": "One model pricing card parsed with context and rates.",
+				"price_usd": 0.005
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-gpu-cloud-price-watch",
+		"title": "Pry GPU Cloud Price Watch",
+		"description": "Track GPU rental prices and availability - H100, A100, H200 - across RunPod, Lambda, Vast.ai and CoreWeave. GPU price snapshots pulled hourly for ML cost optimization and capacity planning.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.runpod.io"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "gpu_models",
+				"title": "GPU models",
+				"type": "array",
+				"description": "Filter to these GPU model names (e.g. H100, A100).",
+				"editor": "stringList",
+				"prefill": null,
+				"default": [],
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "GPU settings",
+				"item_type": "string"
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "gpu-price-pulled",
+				"title": "GPU price pulled",
+				"description": "One GPU offer price pulled from a cloud provider.",
+				"price_usd": 0.005
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-chargepoint-ev-station-watch",
+		"title": "Pry ChargePoint EV Station Watch",
+		"description": "Monitor EV charging station status - availability, pricing and outages - across ChargePoint, PlugShare-style public pages. Station status snapshots pulled per venue for fleet ops and charging analytics.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.chargepoint.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "include_pricing",
+				"title": "Include pricing",
+				"type": "boolean",
+				"description": "Capture per-kWh pricing when published on the page.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Station settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "station-status-pulled",
+				"title": "Station status pulled",
+				"description": "One charging station status pulled with availability.",
+				"price_usd": 0.005
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-insurance-rate-compare",
+		"title": "Pry Insurance Rate Compare",
+		"description": "Capture auto and home insurance quote-page rates and coverage tiers from insurer quote funnels behind Akamai-grade bot walls - normalized quote rows for rate shopping and market benchmarking.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.geico.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "coverage_types",
+				"title": "Coverage types",
+				"type": "array",
+				"description": "Coverage tier labels to extract (e.g. liability, comprehensive).",
+				"editor": "stringList",
+				"prefill": null,
+				"default": [],
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Quote settings",
+				"item_type": "string"
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "quote-captured",
+				"title": "Quote captured",
+				"description": "One insurance quote captured with rate and coverage.",
+				"price_usd": 0.03
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "extract"
+	},
+	{
+		"name": "pry-telecom-plan-monitor",
+		"title": "Pry Telecom Plan Monitor",
+		"description": "Monitor carrier plan pricing, data caps and promotional offers on mobile and broadband pages behind PerimeterX defenses - every plan scraped into structured rows for telecom price benchmarking.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.t-mobile.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "track_promos",
+				"title": "Track promotions",
+				"type": "boolean",
+				"description": "Flag limited-time promo pricing and gift-card offers.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Plan settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "plan-scraped",
+				"title": "Plan scraped",
+				"description": "One carrier plan scraped with price and data cap.",
+				"price_usd": 0.01
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-utility-tariff-watch",
+		"title": "Pry Utility Tariff Watch",
+		"description": "Watch retail electricity and gas tariff pages by region - rate schedules, standing charges and unit rates parsed from utility portals that geo-block generic scrapers. Energy procurement intel.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.eia.gov"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "region",
+				"title": "Region filter",
+				"type": "string",
+				"description": "Only emit tariffs for this region or service territory.",
+				"editor": null,
+				"prefill": null,
+				"default": "",
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Tariff settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "tariff-parsed",
+				"title": "Tariff parsed",
+				"description": "One utility tariff parsed with unit rates and charges.",
+				"price_usd": 0.01
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-pharma-pipeline-watch",
+		"title": "Pry Pharma Pipeline Watch",
+		"description": "Track drug pipeline milestones - FDA approvals, orphan-drug designations, trial phase transitions - across fda.gov and company pipeline pages. Every milestone detected becomes a dataset row for pharma competitive intelligence.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://clinicaltrials.gov"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "milestone_types",
+				"title": "Milestone types",
+				"type": "array",
+				"description": "Filter milestone kinds (e.g. approval, designation, phase).",
+				"editor": "stringList",
+				"prefill": null,
+				"default": [],
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Pipeline settings",
+				"item_type": "string"
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "milestone-detected",
+				"title": "Milestone detected",
+				"description": "One pipeline milestone detected with source and date.",
+				"price_usd": 0.02
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-esg-scorecard-extractor",
+		"title": "Pry ESG Scorecard Extractor",
+		"description": "Extract ESG and sustainability metrics from corporate report pages and PDFs - emissions figures, diversity ratios, governance scores - each metric extracted into structured rows for compliance reporting.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.microsoft.com/investor"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "pdf_fallback",
+				"title": "PDF extraction",
+				"type": "boolean",
+				"description": "Parse linked sustainability-report PDFs with OCR fallback.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Extraction settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "metric-extracted",
+				"title": "Metric extracted",
+				"description": "One ESG metric extracted with value, unit and source.",
+				"price_usd": 0.03
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 8192,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "extract"
+	},
+	{
+		"name": "pry-restaurant-availability-watch",
+		"title": "Pry Restaurant Availability Watch",
+		"description": "Check reservation-slot availability and waitlists on OpenTable and Resy pages protected by DataDome - each slot checked per venue, date and party size for concierge and dining-alert services.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.opentable.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "party_size",
+				"title": "Party size",
+				"type": "integer",
+				"description": "Dining party size used for availability checks.",
+				"editor": "number",
+				"prefill": null,
+				"default": 2,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 20,
+				"section_caption": "Slot settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "slot-checked",
+				"title": "Slot checked",
+				"description": "One reservation slot checked for availability.",
+				"price_usd": 0.005
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-ticket-resale-price-watch",
+		"title": "Pry Ticket Resale Price Watch",
+		"description": "Track resale ticket prices across StubHub, SeatGeek and Ticketmaster event pages - every resale price captured per section and row for arbitrage analysis and dynamic-pricing research.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.stubhub.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "min_section_price",
+				"title": "Min section price (USD)",
+				"type": "integer",
+				"description": "Skip listings below this price to cut noise.",
+				"editor": "number",
+				"prefill": null,
+				"default": 0,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": null,
+				"section_caption": "Resale settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "resale-price-captured",
+				"title": "Resale price captured",
+				"description": "One resale ticket price captured with section detail.",
+				"price_usd": 0.01
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-shipment-carrier-rate-watch",
+		"title": "Pry Shipment Carrier Rate Watch",
+		"description": "Parse FedEx, UPS and DHL published rate tables and surcharge pages - each rate table parsed into normalized rows with fuel and residential surcharges for logistics cost benchmarking.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.fedex.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "include_surcharges",
+				"title": "Include surcharges",
+				"type": "boolean",
+				"description": "Also parse surcharge and accessorials pages.",
+				"editor": null,
+				"prefill": null,
+				"default": true,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Rate settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "rate-table-parsed",
+				"title": "Rate table parsed",
+				"description": "One carrier rate table parsed with surcharges.",
+				"price_usd": 0.01
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-ngo-grant-deadline-watch",
+		"title": "Pry NGO Grant Deadline Watch",
+		"description": "Monitor grants.gov and foundation grant pages for new funding opportunities - every grant deadline detected with amount, eligibility and close date, so NGO teams never miss a submission.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.grants.gov"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "eligibility_filter",
+				"title": "Eligibility filter",
+				"type": "array",
+				"description": "Only emit grants matching these eligibility keywords.",
+				"editor": "stringList",
+				"prefill": null,
+				"default": [],
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Grant settings",
+				"item_type": "string"
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "grant-deadline-detected",
+				"title": "Grant deadline detected",
+				"description": "One grant deadline detected with eligibility detail.",
+				"price_usd": 0.01
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-supplier-risk-signal-watch",
+		"title": "Pry Supplier Risk Signal Watch",
+		"description": "Composite supplier-distress monitoring: sanctions hits, court filings, recall events and financial signals scored per supplier into a single risk signal for procurement resilience teams.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.reuters.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "signal_sources",
+				"title": "Signal sources",
+				"type": "array",
+				"description": "Signal categories to include (sanctions, court, recall, financial).",
+				"editor": "stringList",
+				"prefill": null,
+				"default": [],
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Risk settings",
+				"item_type": "string"
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "risk-signal-scored",
+				"title": "Risk signal scored",
+				"description": "One supplier risk signal scored from source events.",
+				"price_usd": 0.025
+			}
+		],
+		"min_memory_mbytes": 1024,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	}
+]

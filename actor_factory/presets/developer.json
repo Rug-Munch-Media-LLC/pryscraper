@@ -1,0 +1,660 @@
+[
+	{
+		"name": "pry-app-store-review-miner",
+		"title": "Pry App Store Review Miner",
+		"description": "Mine Apple App Store reviews and app metadata via Apple's public iTunes API - user sentiment, ratings and feature requests for competitor analysis, product research and support triage.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://apps.apple.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "country_store",
+				"title": "App Store country",
+				"type": "string",
+				"description": "ISO store code for reviews feed (e.g. us, gb, de).",
+				"editor": null,
+				"prefill": null,
+				"default": "us",
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Source settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "review-mined",
+				"title": "Review mined",
+				"description": "One review or metadata record extracted.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-github-release-monitor",
+		"title": "Pry GitHub Release Monitor",
+		"description": "Monitor GitHub repositories for new releases, tags and changelog entries via the public GitHub API - track competitors, dependencies and open-source projects without watching manually.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://github.com/vercel/next.js/releases"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "include_prereleases",
+				"title": "Include pre-releases",
+				"type": "boolean",
+				"description": "Keep draft/pre-release entries in the dataset.",
+				"editor": null,
+				"prefill": null,
+				"default": false,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Monitor settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "release-checked",
+				"title": "Release checked",
+				"description": "One repository release feed checked.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-npm-package-stats",
+		"title": "Pry npm Package Stats",
+		"description": "Pull npm package metadata and download statistics pulled from the public npm registry - track adoption curves, compare packages and power devtools marketing analytics.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.npmjs.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "package-stats-pulled",
+				"title": "Package stats pulled",
+				"description": "One package stats record extracted.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-pypi-package-stats",
+		"title": "Pry PyPI Package Stats",
+		"description": "Extract Python package metadata, releases and dependency info pulled from the public PyPI JSON API - supply-chain monitoring, dependency audits and ecosystem research.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://pypi.org"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "package-stats-pulled",
+				"title": "Package stats pulled",
+				"description": "One package stats record extracted.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-hacker-news-monitor",
+		"title": "Pry Hacker News Monitor",
+		"description": "Search and monitor Hacker News stories, comments and keyword mentions via the public Algolia HN API - brand tracking, launch feedback and market-signal detection for founders.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://news.ycombinator.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "min_points",
+				"title": "Minimum points",
+				"type": "integer",
+				"description": "Only keep stories with at least this many points.",
+				"editor": "number",
+				"prefill": null,
+				"default": 10,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Filter settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "hn-page-scanned",
+				"title": "HN page scanned",
+				"description": "One search result page scanned.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-youtube-rss-monitor",
+		"title": "Pry YouTube Channel Monitor",
+		"description": "Monitor YouTube channels through their public RSS feeds - new video titles, links and publish dates for competitor tracking and content calendars, no API key required.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.youtube.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "channel-checked",
+				"title": "Channel checked",
+				"description": "One channel feed checked for new videos.",
+				"price_usd": 0.001
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-rss-feed-monitor",
+		"title": "Pry RSS Feed Monitor",
+		"description": "Watch any RSS or Atom feed for new entries - newsrooms, blogs, podcasts, changelogs and press pages delivered as structured items with change detection between runs.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "change_threshold",
+				"title": "Change threshold",
+				"type": "integer",
+				"description": "SimHash bit distance above this counts as changed (0 = any difference, 3 default, 10+ only major rewrites).",
+				"editor": "number",
+				"prefill": null,
+				"default": 3,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 0,
+				"maximum": 64,
+				"section_caption": "Watch settings",
+				"item_type": null
+			},
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://hnrss.org"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "feed-checked",
+				"title": "Feed checked",
+				"description": "One feed checked for new entries.",
+				"price_usd": 0.001
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "monitor"
+	},
+	{
+		"name": "pry-rdap-domain-watch",
+		"title": "Pry RDAP Domain Watch",
+		"description": "Track domain registration data via the public RDAP protocol - expiry dates, status flags and nameservers for portfolio management, expiry sniping and brand protection.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://rdap.verisign.com/com/v1/domain/example.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "domain-checked",
+				"title": "Domain checked",
+				"description": "One domain's RDAP record pulled.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-arxiv-paper-monitor",
+		"title": "Pry arXiv Paper Monitor",
+		"description": "Monitor arXiv for new papers by category or author via the public arXiv API - research tracking for AI labs, analysts and R&D teams without manual searches.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://arxiv.org"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "papers-scanned",
+				"title": "Papers scanned",
+				"description": "One arXiv query page scanned.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-json-api-monitor",
+		"title": "Pry JSON API Monitor",
+		"description": "Monitor any JSON API endpoint for availability, payload changes and field-level drift - uptime plus content assertions for your own APIs or third-party integrations you depend on.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://api.github.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "data_path",
+				"title": "Data path",
+				"type": "string",
+				"description": "Dot-path to the array of interest (e.g. data.items).",
+				"editor": null,
+				"prefill": null,
+				"default": "",
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": "Parse settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "endpoint-checked",
+				"title": "Endpoint checked",
+				"description": "One API endpoint checked.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-pdf-invoice-extractor",
+		"title": "Pry PDF Invoice Extractor",
+		"description": "Extract accounting fields from invoice PDFs - vendor, invoice number, dates and totals into clean structured rows for bookkeeping automation and accounts-payable pipelines.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.irs.gov"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "invoice-extracted",
+				"title": "Invoice extracted",
+				"description": "One invoice extracted to the dataset.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "invoice"
+	},
+	{
+		"name": "pry-startup-funding-monitor",
+		"title": "Pry Startup Funding Monitor",
+		"description": "Track funding announcements across tech news sources - rounds, investors and amounts for sales prospecting, VC research and market intelligence.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://techcrunch.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			},
+			{
+				"name": "max_pages",
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Hard cap on processed pages (runaway protection).",
+				"editor": "number",
+				"prefill": null,
+				"default": 100,
+				"required": false,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": 1,
+				"maximum": 10000,
+				"section_caption": "Scraping settings",
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "funding-news-scanned",
+				"title": "Funding news scanned",
+				"description": "One funding article scanned.",
+				"price_usd": 0.0015
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 4096,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "news"
+	},
+	{
+		"name": "pry-podcast-review-miner",
+		"title": "Pry Podcast Review Miner",
+		"description": "Mine podcast reviews and ratings from Apple Podcasts public feeds - audience sentiment and episode feedback for shows, networks and advertiser research.",
+		"version": "1.1",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://podcasts.apple.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "review-mined",
+				"title": "Review mined",
+				"description": "One review extracted.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	}
+]

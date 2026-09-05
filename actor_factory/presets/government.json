@@ -1,0 +1,212 @@
+[
+	{
+		"name": "pry-usaspending-contracts",
+		"title": "Pry USAspending Contract Tracker",
+		"description": "Federal contract awards searched via the public USAspending API - awardee, agency, amount and dates for gov-contract prospecting, journalism and market research.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.usaspending.gov"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "contracts-searched",
+				"title": "Contracts searched",
+				"description": "One award search executed.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-fda-recall-monitor",
+		"title": "Pry FDA Recall Monitor",
+		"description": "Monitor food, drug and device recalls via the public openFDA API - classification, affected products and dates for compliance teams, retailers and consumer safety trackers.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.fda.gov"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "recalls-scanned",
+				"title": "Recalls scanned",
+				"description": "One recall feed scanned.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-uspto-patent-monitor",
+		"title": "Pry USPTO Patent Monitor",
+		"description": "Track new patent applications and grants via the public PatentsView API - competitor IP activity, technology landscapes and inventor networks for R&D and legal teams.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://www.uspto.gov"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "patents-scanned",
+				"title": "Patents scanned",
+				"description": "One patent search executed.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-earthquake-alert-monitor",
+		"title": "Pry Earthquake Alert Monitor",
+		"description": "Monitor seismic events via the public USGS GeoJSON feeds - magnitude, location and depth with threshold filtering for news rooms, insurers and emergency tooling.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://earthquake.usgs.gov"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "seismic-scanned",
+				"title": "Seismic feed scanned",
+				"description": "One seismic feed scanned.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	},
+	{
+		"name": "pry-space-launch-monitor",
+		"title": "Pry Space Launch Monitor",
+		"description": "Track upcoming rocket launches via the public Launch Library 2 API - providers, payloads, pads and windows for space industry watchers, newsrooms and calendar apps.",
+		"version": "1.0",
+		"category": "SCRAPER",
+		"inputs": [
+			{
+				"name": "urls",
+				"title": "Target URLs",
+				"type": "array",
+				"description": "One or more https:// URLs to process.",
+				"editor": "requestListSources",
+				"prefill": [
+					{
+						"url": "https://ll.thespacedevs.com"
+					}
+				],
+				"default": null,
+				"required": true,
+				"enum": null,
+				"enum_titles": null,
+				"minimum": null,
+				"maximum": null,
+				"section_caption": null,
+				"item_type": null
+			}
+		],
+		"pricing_events": [
+			{
+				"name": "launches-scanned",
+				"title": "Launches scanned",
+				"description": "One launch feed scanned.",
+				"price_usd": 0.0005
+			}
+		],
+		"min_memory_mbytes": 512,
+		"max_memory_mbytes": 2048,
+		"build_tag": "latest",
+		"uses_browser": true,
+		"processor": "jsondata"
+	}
+]
