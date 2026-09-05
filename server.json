@@ -332,7 +332,7 @@
 		},
 		{
 			"name": "pry_filter_content",
-			"description": "Filter HTML to essential content, removing boilerplate and noise. Strips nav bars, footers, headers, asides, scripts, styles, cookie/GDPR banners, ad containers, social share widgets, newsletter forms, related posts, and comment sections \u2014 then converts to minimal Markdown with redundant whitespace collapsed and empty headings dropped. Use before feeding scraped pages to an LLM to cut token costs by 60-90%: call with the raw HTML from pry_scrape and get back clean Markdown plus a token estimate and reduction percentage."
+			"description": "Filter HTML to essential content, removing boilerplate and noise. Strips nav bars, footers, headers, asides, scripts, styles, cookie/GDPR banners, ad containers, social share widgets, newsletter forms, related posts, and comment sections \u2014 then converts to minimal Markdown with redundant whitespace collapsed and empty headings dropped. Use before feeding scraped pages to an LLM to cut token costs by 60-90%: call with the raw HTML from pry_scrape and get back clean Markdown plus a token estimate and reduction percentage, e.g. filter_content(html='<html>...<nav>...</nav><article>main text</article>...</html>') returns just the article text."
 		},
 		{
 			"name": "pry_extract_main",
@@ -357,6 +357,22 @@
 		{
 			"name": "pry_scrape_with_actions",
 			"description": "Scrape a page after performing browser actions before extraction \u2014 Firecrawl-style interactions for dynamic pages. Specify a sequence of actions (click elements, type text into inputs, scroll, wait for elements or fixed delays, press keys, run JavaScript, select dropdown options, check/uncheck checkboxes, hover, focus) that are executed in order on the loaded page, then the page content is extracted. Use when a plain scrape cannot reach the content: dismissing cookie banners, logging in or submitting search forms, infinite-scroll loading, expanding collapsed sections, or paginating before capture. Example: [{type: 'click', selector: '#cookie-accept'}, {type: 'wait', ms: 1000}, {type: 'scroll', direction: 'down', amount: 2000}, {type: 'wait', selector: '.results'}]."
+		},
+		{
+			"name": "pry_extract_schema",
+			"description": "Extract structured data from a URL using a JSON schema \u2014 no CSS selectors needed. You describe WHAT you want (e.g. {\"product_name\": \"the product title\", \"price\": \"current price in USD\", \"reviews\": \"customer reviews\"}) and the engine figures out WHERE it lives on the page: JSON-LD structured data first, then meta tags, then AI extraction for anything left over. Works across any page structure. Example: pry_extract_schema(url='https://store.example.com/widget', schema={'name': 'product name', 'price': 'price', 'rating': 'average rating'}) \u2192 {'url': ..., 'data': {'name': 'Widget', 'price': '$9.99', 'rating': '4.5'}, 'method': 'pattern', 'confidence': 1.0}."
+		},
+		{
+			"name": "pry_extract_batch",
+			"description": "Extract structured data from MULTIPLE URLs using the same JSON schema, with bounded concurrency (asyncio semaphore). Ideal for scraping a product catalog, a list of blog posts, or comparison pages. Example: pry_extract_batch(urls=['https://store.example.com/a', 'https://store.example.com/b'], schema={'name': 'product name', 'price': 'price'}, max_concurrent=5) \u2192 [{'url': ..., 'data': {'name': 'A', 'price': '$5'}, ...}, ...]. Results are returned in input order; each entry has the same shape as pry_extract_schema output."
+		},
+		{
+			"name": "pry_extract_prompt",
+			"description": "Extract data using a natural-language prompt instead of a schema \u2014 ScrapeGraphAI-style smart extraction. Describe what you want in plain English and the LLM finds it on the page. Example: pry_extract_prompt(url='https://blog.example.com/post', prompt='Extract the article title, author, publish date, and a 2-sentence summary') \u2192 {'url': ..., 'data': {'title': ..., 'author': ..., 'date': ..., 'summary': ...}, 'method': 'ai', 'confidence': 0.85}. Optionally pass a schema to constrain the output shape. Slower than pry_extract_schema (uses the LLM) but handles vague or open-ended requests."
+		},
+		{
+			"name": "pry_adaptive_scrape",
+			"description": "Scrape a page with adaptive selectors that auto-relocate when pages change (Scrapling-style). Provide a mapping of field names to CSS selectors; each selector is matched against the page, and if a selector breaks because the site was redesigned, the engine uses previously captured context (text content, tag name, attributes, parent/sibling structure) to find the element again and report a confidence score (1.0 = exact CSS match, 0.5 = relocated by context, 0.0 = not found). Pass old_html (a previously fetched version of the same page) to enable relocation against the new markup. Use when you scrape the same site repeatedly and want extraction to survive layout changes without manually updating selectors."
 		},
 		{
 			"name": "pry_scrape_methods",

@@ -502,6 +502,23 @@ _REST_PROXY_TOOLS: dict[str, dict[str, Any]] = {
         "url": "https://example.com",
         "actions": [{"type": "wait", "ms": 100}],
     },
+    # ── Schema extraction + adaptive selectors (4 new tools) ──
+    "pry_extract_schema": {
+        "url": "https://example.com",
+        "schema": {"name": "string", "price": "number"},
+    },
+    "pry_extract_batch": {
+        "urls": ["https://example.com"],
+        "schema": {"name": "string"},
+    },
+    "pry_extract_prompt": {
+        "url": "https://example.com",
+        "prompt": "Extract the product name and price",
+    },
+    "pry_adaptive_scrape": {
+        "url": "https://example.com",
+        "selectors": {"title": "h1"},
+    },
 }
 
 # Local actor-parity tools: name -> sample arguments. Executed through

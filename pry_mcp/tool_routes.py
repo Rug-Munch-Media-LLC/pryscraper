@@ -115,4 +115,9 @@ TOOL_ROUTES: dict[str, tuple[str, str]] = {
     "pry_search_web": ("GET", "/v1/search"),
     "pry_search_extract": ("POST", "/v1/search/extract"),
     "pry_scrape_with_actions": ("POST", "/v1/scrape/actions"),
+    # Schema extraction + adaptive selectors
+    "pry_extract_schema": ("POST", "/v1/extract/schema"),
+    "pry_extract_batch": ("POST", "/v1/extract/batch"),
+    "pry_extract_prompt": ("POST", "/v1/extract/prompt"),
+    "pry_adaptive_scrape": ("POST", "/v1/scrape/adaptive"),
 }

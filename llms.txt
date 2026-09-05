@@ -13,7 +13,7 @@
 - URL: https://api.pryscraper.com/mcp/
 - Transport: SSE, Streamable HTTP, stdio
 - Auth: x402 pay-per-call (no account/API key for discovery; paid prefixes require an x402 payment signature or a paid-tier API key)
-- Tools: 108
+- Tools: 112
 - Categories: 33
 
 ## Categories
@@ -666,3 +666,22 @@ Search the web, scrape each result page, and extract structured JSON data from e
 ### pry_scrape_with_actions
 
 Scrape a page after performing browser actions before extraction — Firecrawl-style interactions for dynamic pages. Specify a sequence of actions (click elements, type text into inputs, scroll, wait fo
+
+### pry_extract_schema
+
+Extract structured data from a URL using a JSON schema — no CSS selectors needed. You describe WHAT you want (e.g. {"product_name": "the product title", "price": "current price in USD", "reviews": "cu
+
+
+### pry_extract_batch
+
+Extract structured data from MULTIPLE URLs using the same JSON schema, with bounded concurrency (asyncio semaphore). Ideal for scraping a product catalog, a list of blog posts, or comparison pages. Ex
+
+
+### pry_extract_prompt
+
+Extract data using a natural-language prompt instead of a schema — ScrapeGraphAI-style smart extraction. Describe what you want in plain English and the LLM finds it on the page. Example: pry_extract_
+
+
+### pry_adaptive_scrape
+
+Scrape a page with adaptive selectors that auto-relocate when pages change (Scrapling-style). Provide a mapping of field names to CSS selectors; each selector is matched against the page, and if a sel
