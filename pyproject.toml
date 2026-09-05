@@ -230,10 +230,15 @@ extend-ignore = ["N815", "A002", "RUF006"]
 # (telemetry record, undetected driver quit, playwright browser close)
 # log at debug with exc_info and must never raise into the scrape loop.
 "src/pry/engine/ultimate_scraper.py" = ["BLE001"]
-# tiers.py: the tier implementations moved out of ultimate_scraper keep the
-# same intentional blind-except fallback handlers (any tier failure must be
-# swallowed + logged at debug so the scrape loop degrades instead of raising).
+# tiers.py + tiers_*.py: the tier implementations moved out of
+# ultimate_scraper keep the same intentional blind-except fallback handlers
+# (any tier failure must be swallowed + logged at debug so the scrape loop
+# degrades instead of raising).
 "src/pry/engine/tiers.py" = ["BLE001"]
+"src/pry/engine/tiers_base.py" = ["BLE001"]
+"src/pry/engine/tiers_http.py" = ["BLE001"]
+"src/pry/engine/tiers_browser.py" = ["BLE001"]
+"src/pry/engine/tiers_special.py" = ["BLE001"]
 # browser_pool.py: the same intentional blind-except cleanup handlers moved
 # out of ultimate_scraper into the process-level singleton pool.
 "src/pry/engine/browser_pool.py" = ["BLE001"]
