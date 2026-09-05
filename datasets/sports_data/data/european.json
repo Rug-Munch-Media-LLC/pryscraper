@@ -97,5 +97,75 @@
 		"tennis_wta": ["tennis", null],
 		"mma_mixed_martial_arts": ["mma", null],
 		"boxing": ["boxing", null]
+	},
+	"_PINNACLE_SPORTS": {
+		"americanfootball_nfl": 4,
+		"baseball_mlb": 5,
+		"basketball_nba": 6,
+		"icehockey_nhl": 16,
+		"soccer_epl": 29,
+		"soccer_spain_la_liga": 29,
+		"soccer_germany_bundesliga": 29,
+		"soccer_italy_serie_a": 29,
+		"soccer_uefa_champions_league": 29,
+		"tennis_atp": 33,
+		"mma_mixed_martial_arts": 45,
+		"boxing": 49
+	},
+	"_PINNACLE_LEAGUE_KEYWORDS": {
+		"soccer_epl": "premier league",
+		"soccer_spain_la_liga": "la liga",
+		"soccer_germany_bundesliga": "bundesliga",
+		"soccer_italy_serie_a": "serie a",
+		"soccer_uefa_champions_league": "champions league"
+	},
+	"_MARATHON_SPORTS": {
+		"americanfootball_nfl": "American-Football",
+		"baseball_mlb": "Baseball",
+		"basketball_nba": "Basketball",
+		"icehockey_nhl": "Ice-Hockey",
+		"soccer_epl": "Football",
+		"soccer_spain_la_liga": "Football",
+		"soccer_germany_bundesliga": "Football",
+		"soccer_italy_serie_a": "Football",
+		"soccer_uefa_champions_league": "Football",
+		"tennis_atp": "Tennis",
+		"mma_mixed_martial_arts": "MMA",
+		"boxing": "Boxing"
+	},
+	"_1XBET_SPORTS": {
+		"soccer_epl": 1,
+		"soccer_spain_la_liga": 1,
+		"soccer_germany_bundesliga": 1,
+		"soccer_italy_serie_a": 1,
+		"soccer_uefa_champions_league": 1,
+		"tennis_atp": 2,
+		"baseball_mlb": 3,
+		"basketball_nba": 4,
+		"icehockey_nhl": 5,
+		"americanfootball_nfl": 7,
+		"boxing": 9,
+		"mma_mixed_martial_arts": 10
+	},
+	"_1XBET_LEAGUE_KEYWORDS": {
+		"soccer_epl": "premier league",
+		"soccer_spain_la_liga": "la liga",
+		"soccer_germany_bundesliga": "bundesliga",
+		"soccer_italy_serie_a": "serie a",
+		"soccer_uefa_champions_league": "champions league"
+	},
+	"_BETFAIR_SPORTS": {
+		"americanfootball_nfl": "american-football",
+		"baseball_mlb": "baseball",
+		"basketball_nba": "basketball",
+		"icehockey_nhl": "ice-hockey",
+		"soccer_epl": "football",
+		"soccer_spain_la_liga": "football",
+		"soccer_germany_bundesliga": "football",
+		"soccer_italy_serie_a": "football",
+		"soccer_uefa_champions_league": "football",
+		"tennis_atp": "tennis",
+		"mma_mixed_martial_arts": "mma",
+		"boxing": "boxing"
 	}
 }
