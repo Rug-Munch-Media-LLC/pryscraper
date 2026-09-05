@@ -16,18 +16,18 @@ note: Every count below is traced to source. The live source of truth is `pry_mc
 
 # Tool Catalog
 
-Pry exposes **104 MCP tools** across **35+ categories**. Each tool has a
+Pry exposes **112 MCP tools** across **35+ categories**. Each tool has a
 structured input/output schema, annotation hints (`readOnlyHint`,
 `destructiveHint`, `idempotentHint`), a registry category, and (where gated)
 an x402 operation with server-authoritative pricing.
 
 > **Count source of truth**
-> - `pry_mcp/tools.py` — `PRY_TOOLS`, 104 `"name"` entries (verify with
+> - `pry_mcp/tools.py` — `PRY_TOOLS`, 112 `"name"` entries (verify with
 >   `grep -cE '"name": "'`).
 > - `src/pry/api/registry_metadata.py` — `get_tools_by_category()` returns
->   35+ category groups; `get_registry_manifest()` reports `tools.count = 104`.
+>   35+ category groups; `get_registry_manifest()` reports `tools.count = 112`.
 > - `server.json`, `glama.json`, `registry_manifest.json` each carry the same
->   104-tool payload (machine-readable registry listings).
+>   112-tool payload (machine-readable registry listings).
 
 ---
 
@@ -179,6 +179,24 @@ an x402 operation with server-authoritative pricing.
 | `pry_filter_content` | `filter_content` | $0.001 | Filter scraped content by rules / relevance |
 | `pry_extract_main` | `extract_main` | $0.001 | Extract main article content from a page |
 | `pry_chunk_for_rag` | `chunk_for_rag` | $0.001 | Chunk documents into RAG-ready segments |
+
+---
+
+## Schema Extraction (3 tools)
+
+| Tool | Operation | Price | Purpose |
+|------|-----------|:-----:|---------|
+| `pry_extract_schema` | `extract_schema` | $0.003 | Schema-based AI extraction — define a JSON schema, get structured data (no CSS selectors) |
+| `pry_extract_batch` | `extract_batch` | $0.003 | Batch schema extraction across multiple URLs |
+| `pry_extract_prompt` | `extract_prompt` | $0.003 | Natural-language prompt extraction — describe what you want in plain English |
+
+---
+
+## Adaptive Selectors (1 tool)
+
+| Tool | Operation | Price | Purpose |
+|------|-----------|:-----:|---------|
+| `pry_adaptive_scrape` | `adaptive_scrape` | $0.002 | Adaptive scraping with auto-relocating selectors — survives site redesigns via context capture (text, structure, attributes) and confidence scoring |
 
 ---
 
@@ -390,12 +408,13 @@ an x402 operation with server-authoritative pricing.
 | agriculture | 1 | safety | 1 |
 | app_store | 1 | site_mapping | 3 |
 | content_filtering | 3 | prediction_markets | 2 |
+| schema_extraction | 3 | adaptive_selectors | 1 |
 | sports_futures | 1 | sports_derivatives | 1 |
 | sports_bankroll | 1 | player_intelligence | 4 |
 | sharp_money | 6 | live_analytics | 5 |
 | game_context | 3 | | |
 
-**Totals: 104 tools across 35+ categories.**
+**Totals: 112 tools across 35+ categories.**
 
 > **Pricing note.** Price cells marked `$0` indicate the operation is
 > explicitly classified free in `x402_middleware/classification.py`

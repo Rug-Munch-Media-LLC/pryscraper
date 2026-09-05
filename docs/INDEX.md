@@ -26,7 +26,7 @@ CODE_OF_CONDUCT, AGENTS (agent contract), RADICLE (P2P mirror), SKILL.
 | Doc | What it covers |
 |---|---|
 | ARCHITECTURE.md | System architecture (components, 15-tier engine, middleware order, data flow) |
-| TOOLS-CATALOG.md | Full 104-tool / 35+-category breakdown with per-category pricing |
+| TOOLS-CATALOG.md | Full 112-tool / 35+-category breakdown with per-category pricing |
 | SITE-MAPPING.md | Site mapping, crawl-to-markdown, and RAG crawl workflows |
 | CONTENT-FILTERING.md | Content filtering, main-content extraction, RAG chunking |
 | SPORTS-BETTING-INTELLIGENCE.md | Sharp money, live analytics, player intelligence, game context |
