@@ -1,0 +1,12 @@
+{
+	"actorOutputSchemaVersion": 1,
+	"title": "Output of Pry Sports Props Engine",
+	"properties": {
+		"results": {
+			"type": "string",
+			"title": "Results",
+			"description": "One item per processed event/player: url, status, sport, team, player_name, props, lineup_data, recent_stats, streaks, defensive_context, scraped_at.",
+			"template": "{{links.apiDefaultDatasetUrl}}/items"
+		}
+	}
+}
