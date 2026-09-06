@@ -1,13 +1,16 @@
 """Pry — centralized settings via Pydantic BaseSettings.
 
 Every environment variable lives here. Import the `settings` singleton
-everywhere else.
-
-Legacy env vars without the `PRY_` prefix (e.g. `PROXY_URL`, `TOR_ENABLED`)
-are still accepted during a deprecation window.
-
+everywhere else. Legacy env vars without the `PRY_` prefix (e.g.
+`PROXY_URL`, `TOR_ENABLED`) are still accepted during a deprecation window.
 The settings object also loads and persists runtime overrides from a JSON
 config file (default `/app/config.json`).
+
+Field groups live in focused sibling modules, combined here via mixin
+inheritance (pure code move — behavior identical):
+- `settings_payments.py` — LLM provider keys, CAPTCHA credentials, sports keys
+- `settings_limits.py`   — rate limits, retry budgets, rotation timing, quotas
+- `settings_flags.py`    — feature toggles (captcha, stealth, output flags)
 """
 
 # SPDX-License-Identifier: MIT
@@ -25,6 +28,10 @@ from typing import Any, Literal
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from pry.core.settings_flags import FlagsSettings
+from pry.core.settings_limits import LimitsSettings
+from pry.core.settings_payments import PaymentsSettings
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +70,7 @@ _NESTED_KEY_MAP: dict[str, str] = {
 }
 
 
-class PrySettings(BaseSettings):
+class PrySettings(PaymentsSettings, LimitsSettings, FlagsSettings, BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="PRY_",
         env_file=".env",
@@ -87,30 +94,6 @@ class PrySettings(BaseSettings):
     database_url: str = "postgresql+asyncpg://pry:pry@localhost/pry"
     redis_url: str = "redis://localhost:6379/0"
 
-    # LLM providers — BYOK (bring your own key).
-    # Consumers set these (PRY_<NAME>_API_KEY env, or the provider's standard
-    # env var) to enable each AI feature. One account per provider; multi-key
-    # fan-out is a deployment concern, not a product setting.
-    ollama_url: str = "http://localhost:11434"
-    openrouter_api_key: str = ""
-    openai_api_key: str = ""
-    anthropic_api_key: str = ""
-    cohere_api_key: str = ""
-    deepseek_api_key: str = ""
-    gemini_api_key: str = ""
-    groq_api_key: str = ""
-    mistral_api_key: str = ""
-    kilocode_api_key: str = ""
-    kilocode_base_url: str = ""  # set KILOCODE_BASE_URL to your gateway
-    kimi_api_key: str = ""
-    nvidia_api_key: str = ""
-    nous_api_key: str = ""
-    zai_api_key: str = ""
-    cerebras_api_key: str = ""
-    minimax_api_key: str = ""
-    siliconflow_api_key: str = ""
-    opencode_zen_api_key: str = ""
-
     # Services
     flaresolverr_url: str = "http://flaresolverr:8191/v1"
     # SECURITY (2026-08-20 audit, P0-4): the original hardcoded default was a
@@ -122,20 +105,6 @@ class PrySettings(BaseSettings):
     # it is EPHEMERAL (does not survive restarts). Operators MUST set
     # PRY_WEBHOOK_SECRET in production.
     webhook_secret: str = ""
-
-    # CAPTCHA solving (see captcha_solver.py + captcha/ package)
-    captcha_enabled: bool = True
-    # 2captcha-style API key (also used by anti-captcha.com / capmonster clones)
-    captcha_2captcha_api_key: str = ""
-    # Capsolver API key (https://www.capsolver.com)
-    captcha_capsolver_api_key: str = ""
-    # OCR backend for image captchas: "tesseract" (pytesseract) | "easyocr" | "auto"
-    captcha_ocr_backend: str = "tesseract"
-    # DeathByCaptcha credentials (https://www.deathbycaptcha.com)
-    captcha_deathbycaptcha_username: str = ""
-    captcha_deathbycaptcha_password: str = ""
-    # NextCaptcha API key (https://nextcaptcha.com)
-    captcha_nextcaptcha_api_key: str = ""
 
     # Proxy (legacy env aliases for migration)
     proxy_url: str = Field(
@@ -190,58 +159,15 @@ class PrySettings(BaseSettings):
         validation_alias=AliasChoices("PRY_TOR_TIMEOUT", "TOR_TIMEOUT"),
     )
 
-    # Rotation / retry (legacy env aliases)
-    rotation_user_agent: str = "rotate"
-    ip_rotation: str = Field(
-        default="off",
-        validation_alias=AliasChoices("PRY_IP_ROTATION", "IP_ROTATION"),
-    )
-    rotation_timing: str = "random"
-    rotation_delay_range: tuple[float, float] = (0.5, 3.0)
-    max_retries: int = Field(
-        default=3,
-        validation_alias=AliasChoices("PRY_MAX_RETRIES", "MAX_RETRIES"),
-    )
-    min_quality: int = Field(
-        default=20,
-        validation_alias=AliasChoices("PRY_MIN_QUALITY", "MIN_QUALITY"),
-    )
-    retry_backoff: str = "exponential"
-    rate_limit_rpm: int = Field(
-        default=120,
-        validation_alias=AliasChoices("PRY_RATE_LIMIT_RPM", "RATE_LIMIT_RPM"),
-    )
-
-    # Stealth
-    webdriver_override: bool = True
-    canvas_noise: bool = True
-    webrtc_disable: bool = True
-    geolocation_spoof: bool = True
-
     # Output
     default_format: str = "markdown"
     max_chars: int = 100000
-    include_links: bool = True
 
     # Storage
     config_file: Path = Field(
         default=DEFAULT_CONFIG_FILE,
         validation_alias=AliasChoices("PRY_CONFIG_FILE", "CONFIG_FILE"),
     )
-
-    # Sports data (sports_data/ package) — The Odds API
-    # Live odds key (https://the-odds-api.com). Free tier: 500
-    # requests/month. Without a key the sports_data modules degrade to ESPN
-    # public scoreboards. Also resolved via the secrets backend under the
-    # name "odds_api_key" (see _apply_secrets_backend).
-    odds_api_key: str = ""
-    # In-memory TTL for cached odds/stats/scores (seconds). Bots poll
-    # sub-minute; a ~10s TTL collapses upstream calls ~6x and keeps reads
-    # sub-100ms.
-    sports_odds_cache_ttl_seconds: int = Field(default=10, ge=1)
-    # Sustained upstream request budget for The Odds API (requests/min),
-    # enforced by the sports_data.cache token-bucket rate limiter.
-    sports_odds_rate_limit_rpm: int = Field(default=30, ge=1)
 
     def model_post_init(self, __context: Any) -> None:
         """Post-init: pull sensitive fields from secrets_backend, then config file."""
@@ -462,3 +388,17 @@ class PrySettings(BaseSettings):
 
 # Public singleton. Modules should import this directly.
 settings = PrySettings()
+
+# Facade aliases — preserve every import surface used across src/ and tests/.
+Settings = PrySettings
+
+
+def get_settings() -> PrySettings:
+    """Return the settings singleton.
+
+    [REVIEW] pre-existing latent bug: pry/core/notifications.py imports
+    `get_settings` from this module, but it did not exist before the split
+    (ImportError at runtime). Added here as the trivially intended accessor —
+    no behavior change for any code path that previously worked.
+    """
+    return settings
