@@ -18,7 +18,7 @@ last_updated: 2026-07-01
 | 1 | Fix MCP `tools/call` response format | **Done** | `mcp_production.py` returns `{"content": [...], "isError": bool}` |
 | 2 | Add `prompts/list` and `prompts/get` | **Done** | 7 real prompts with argument injection |
 | 3 | Real x402 facilitator integration | **Done** | `x402.py` calls Coinbase + PayAI `/verify` and `/settle` |
-| 4 | Multi-chain x402 support | **Done** | 13 chains, asset-aware `accepts` array |
+| 4 | Multi-chain x402 support | **Done** | 13 payment rails, asset-aware `accepts` array |
 | 5 | MCP `outputSchema` for every tool | **Done** | All 12 tools declare output schemas |
 | 6 | x402 `PaymentRequirements` with multiple `accepts` | **Done** | Per-chain USDC/USDT/DAI/etc. options |
 | 7 | Smithery + Glama + PulseMCP directory listings | **Done** | `smithery.yaml`, `glama.json`, `pulsemcp.json` |
@@ -75,7 +75,7 @@ last_updated: 2026-07-01
 | `PAYMENT-REQUIRED` header (Base64 JSON) | ✅ | OK |
 | `PAYMENT-RESPONSE` header on success | ✅ Settlement receipt | OK |
 | Facilitator integration (`/verify`, `/settle`) | ✅ Coinbase + PayAI | OK |
-| Multiple chains | ✅ 13 chains | OK |
+| Multiple chains | ✅ 13 payment rails | OK |
 | USDC amounts in atomic units (6 decimals) | ✅ | OK |
 | `network` per chain | ✅ | OK |
 | `scheme: "exact"` | ✅ | OK |
@@ -97,7 +97,7 @@ last_updated: 2026-07-01
 | 1 | **Fix MCP `tools/call` response format** — Return `{"content": [{"type": "text", "text": "..."}]}` not raw dict | AI agents can't parse our responses. One-line fix. | 1h |
 | 2 | **Add `prompts/list` and `prompts/get`** — Pre-built prompt templates like "research a company", "compare products", "extract all emails" | Prompts are how AI users discover server capabilities. RMI doesn't have these. | 4h |
 | 3 | **Real x402 facilitator integration** — Call real Coinbase/PayAI facilitator to verify + settle payments | Without this, payments don't actually work. The current "verify" just records a payment. | 1d |
-| 4 | **Multi-chain x402 support** — Match RMI's 13 chains (Base, Solana, ETH, Polygon, Arbitrum, TRON, BTC, etc.) | Each chain is a market. Currently we only have Base. | 1d |
+| 4 | **Multi-chain x402 support** — Match RMI's 13 payment rails (Base, Solana, ETH, Polygon, Arbitrum, TRON, BTC, etc.) | Each chain is a market. Currently we only have Base. | 1d |
 | 5 | **MCP `outputSchema` for every tool** — Declare what each tool returns | AI agents can validate responses. Standard requirement. | 4h |
 | 6 | **x402 `PaymentRequirements` with multiple `accepts`** — Per-call chain selection | Customers want to pay in their preferred token. One chain = lost revenue. | 4h |
 

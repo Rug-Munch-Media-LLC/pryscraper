@@ -228,7 +228,7 @@ WalletPress is **THREE products** that need different strategies:
 | Layer | License |
 |-------|---------|
 | RUI Core (8 basic detectors, public API) | MIT |
-| RUI Pro (32 detectors, x402, MCP, RAG) | Commercial |
+| RUI Pro (70+ security engines, x402, MCP, RAG) | Commercial |
 | RUI Enterprise (on-premise) | BSL 1.1 |
 | RUI Cloud (managed) | SaaS |
 | Detector framework (community-built) | MIT |
@@ -265,7 +265,7 @@ WalletPress is **THREE products** that need different strategies:
 
 | Tool | Price | Description |
 |------|-------|-------------|
-| `rugmunch_scan_token` | $0.001 | Full token scan (32 detectors) |
+| `rugmunch_scan_token` | $0.001 | Full token scan (70+ security engines) |
 | `rugmunch_wallet_forensics` | $0.01 | Wallet behavior analysis |
 | `rugmunch_rug_probability` | $0.005 | AI rug prediction |
 | `rugmunch_contract_audit` | $0.05 | Smart contract security |
@@ -451,7 +451,7 @@ WalletPress is **THREE products** that need different strategies:
 |------------|---------------|
 | GoPlus | Open core = verifiable, x402 = AI agents |
 | De.Fi | Open source = trustworthy |
-| Token Sniffer | 32 detectors vs their 5, 16 chains |
+| Token Sniffer | 70+ security engines vs their 5, 16 chains |
 | Chainalysis | 100x cheaper |
 
 ---
