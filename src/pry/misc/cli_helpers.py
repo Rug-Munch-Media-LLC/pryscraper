@@ -70,7 +70,9 @@ def _spinner(label: str):
         for c in itertools.cycle(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]):
             if stop:
                 break
-            print(f"  {CYAN}{c}{NC} {label}...  ", end="\r", flush=True)
+            # Status output goes to stderr so stdout carries ONLY the payload
+            # (markdown or JSON) — `--json` output must be clean for piping.
+            print(f"  {CYAN}{c}{NC} {label}...  ", end="\r", file=sys.stderr, flush=True)
             # CLI spinner runs in a daemon thread; sync sleep is acceptable here.
             time.sleep(0.1)
 

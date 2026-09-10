@@ -30,7 +30,7 @@ def cmd_open(url, output_json=False, schema_path=None, timeout=30):
         data = _req("POST", "/v1/scrape", payload, timeout + 10)
     finally:
         done()
-    print(f"{GREEN}✓{NC} Pry opened {url}\n", end="")
+    print(f"{GREEN}✓{NC} Pry opened {url}\n", end="", file=sys.stderr)
     if output_json or schema_path:
         print(json.dumps(data, indent=2))
     else:
