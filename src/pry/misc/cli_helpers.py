@@ -31,11 +31,19 @@ def _req(method: str, path: str, data: dict | None = None, timeout=30):
     import httpx
 
     url = f"{_api()}{path}"
+    # Credentialed requests bypass the x402 payment gate (the gate exists to
+    # monetize KEYLESS agent traffic). When PRY_API_KEY is set we send it as a
+    # Bearer token so self-hosted/operator use is free and metered instead of
+    # payment-challenged.
+    headers = {}
+    api_key = os.getenv("PRY_API_KEY", "").strip()
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
     try:
         if method == "GET":
-            resp = httpx.get(url, timeout=timeout)
+            resp = httpx.get(url, headers=headers, timeout=timeout)
         else:
-            resp = httpx.post(url, json=data or {}, timeout=timeout)
+            resp = httpx.post(url, json=data or {}, headers=headers, timeout=timeout)
         resp.raise_for_status()
         return resp.json()
     except httpx.ConnectError:
