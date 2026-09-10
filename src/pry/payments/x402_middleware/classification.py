@@ -67,6 +67,12 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         # API-key management (operator surface; auth-gated separately)
         "/v1/keys",
         "/v1/keys/{key_id}",
+        # Account surface (auth-gated separately)
+        "/v1/account/api-keys/stats",
+        "/v1/account/balance",
+        "/v1/account/billing-history",
+        "/v1/account/subscription",
+        "/v1/account/usage",
         "/v1/keys/{key_id}/balance",
         "/v1/keys/{key_id}/credit",
         "/v1/keys/{key_id}/ledger",
@@ -80,6 +86,11 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/billing/subscription/invoice/{invoice_id}/confirm",
         "/v1/billing/signup",
         "/v1/billing/balance",
+        # Subscription control-plane (auth-gated separately)
+        "/v1/billing/subscription/cancel",
+        "/v1/billing/subscription/change-tier",
+        "/v1/billing/subscription/renew",
+        "/v1/billing/subscription/status",
         # Cloud hosting signup + instance management (control plane — the
         # monetary gate is the 402 payment manifest, not the middleware).
         "/v1/hosting/plans",
@@ -115,6 +126,8 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/auth/credentials/{credential_id}",
         "/v1/auth/session/health",
         "/v1/auth/sso",
+        "/v1/auth/reset-password",
+        "/v1/auth/reset-password/confirm",
         # Circuit breaker / diagnostics
         "/v1/breaker/reset",
         "/v1/breaker/status",
@@ -291,6 +304,10 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/llms.txt",
         # Payment analytics dashboard (public for transparency)
         "/v1/analytics/payments",
+        "/v1/analytics/api-popularity",
+        "/v1/analytics/funnel",
+        "/v1/analytics/track",
+        "/v1/analytics/visitors",
         # Crypto payment endpoints (free — part of payment flow)
         "/v1/payments/crypto/charge",
         "/v1/payments/crypto/providers",

@@ -22,6 +22,7 @@ Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 from typing import Any
 
@@ -53,6 +54,9 @@ class ScrapeRequest(BaseModel):
     bypassCloudflare: bool | None = True
     jsRender: bool | None = False
     jsonSchema: dict[str, str] | None = None
+    # Window into the extracted markdown (for paging very large bodies).
+    offset: int = 0
+    limit: int = 100000
 
 
 class CrawlRequest(BaseModel):
@@ -105,8 +109,13 @@ async def scrape(request: ScrapeRequest) -> dict[str, Any]:
     cache_opts = {"bypass_cloudflare": request.bypassCloudflare, "js_render": request.jsRender}
     cached = cache.get(request.url, cache_opts)
     if cached:
-        cached["_cached"] = True
-        return cached
+        out = copy.deepcopy(cached)
+        md = out.get("data", {}).get("markdown", "")
+        out["data"]["markdown"] = md[request.offset : request.offset + request.limit]
+        out["data"]["metadata"]["offset"] = request.offset
+        out["data"]["metadata"]["total"] = len(md)
+        out["_cached"] = True
+        return out
 
     try:
         with track_scrape(method="direct"):
@@ -122,10 +131,11 @@ async def scrape(request: ScrapeRequest) -> dict[str, Any]:
         if result.get("status") != "ok":
             raise ScrapeError(result.get("error", "Scrape failed"))
 
+        content = result.get("content", "")
         response: dict[str, Any] = {
             "success": True,
             "data": {
-                "markdown": result.get("content", ""),
+                "markdown": content,
                 "metadata": {
                     "url": request.url,
                     "method": result.get("method", "unknown"),
@@ -135,13 +145,19 @@ async def scrape(request: ScrapeRequest) -> dict[str, Any]:
             },
         }
 
-        # JSON schema extraction if requested
+        # JSON schema extraction if requested (always over the full content)
         if request.jsonSchema:
-            extracted = await extractor.extract(result.get("content", ""), request.jsonSchema)
+            extracted = await extractor.extract(content, request.jsonSchema)
             response["data"]["json"] = extracted
 
         cache.set(request.url, response, cache_opts)
-        return response
+
+        # Window the markdown for this request without mutating the cached copy.
+        out = copy.deepcopy(response)
+        out["data"]["markdown"] = content[request.offset : request.offset + request.limit]
+        out["data"]["metadata"]["offset"] = request.offset
+        out["data"]["metadata"]["total"] = len(content)
+        return out
     except PryError:
         raise
     except Exception as e:

@@ -19,9 +19,13 @@ from pry.misc.cli_click import cli
 from pry.misc.cli_helpers import BOLD, CYAN, GREEN, NC, RED, VERSION, YELLOW, _req, _spinner
 
 
-def cmd_open(url, output_json=False, schema_path=None, timeout=30):
-    """Scrape a URL and print clean markdown or JSON."""
-    payload = {"url": url, "timeout": timeout}
+def cmd_open(url, output_json=False, schema_path=None, timeout=30, offset=0, limit=100000):
+    """Scrape a URL and print clean markdown or JSON.
+
+    ``offset``/``limit`` window the extracted markdown so very large bodies
+    (e.g. API JSON responses) can be paged in chunks.
+    """
+    payload = {"url": url, "timeout": timeout, "offset": offset, "limit": limit}
     if schema_path:
         with open(schema_path) as f:
             payload["jsonSchema"] = json.load(f)
@@ -258,6 +262,10 @@ def main():
                 opts["schema_path"] = sys.argv[sys.argv.index("--schema") + 1]
             if "--timeout" in sys.argv:
                 opts["timeout"] = int(sys.argv[sys.argv.index("--timeout") + 1])
+            if "--offset" in sys.argv:
+                opts["offset"] = int(sys.argv[sys.argv.index("--offset") + 1])
+            if "--limit" in sys.argv:
+                opts["limit"] = int(sys.argv[sys.argv.index("--limit") + 1])
             cmd_open(url, **opts)
 
         elif cmd == "watch":

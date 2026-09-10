@@ -271,7 +271,7 @@ class PryScraper:
         from markdownify import markdownify
 
         content = markdownify(raw_html, heading_arrows=False, strip=["script", "style"])  # type: ignore[call-arg]  # markdownify supports heading_arrows at runtime
-        content = re.sub(r"\n{3,}", "\n\n", content)[:100000]
+        content = re.sub(r"\n{3,}", "\n\n", content)[:5_000_000]  # windowed by API offset/limit
         result["content"] = content
         return result
 
