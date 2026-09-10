@@ -199,7 +199,7 @@ def _send_pry_mail(
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE  # loopback/tailscale SMTP hop
-        s = smtplib.SMTP("100.104.130.92", 587, timeout=15)
+        s = smtplib.SMTP("[INTERNAL_IP]", 587, timeout=15)
         s.starttls(context=ctx)
         s.login("biz@pryscraper.com", os.getenv("PRY_MAIL_PASSWORD", ""))
         msg = EmailMessage()

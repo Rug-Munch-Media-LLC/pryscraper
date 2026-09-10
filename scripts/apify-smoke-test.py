@@ -252,7 +252,7 @@ def _resolve_token() -> str:
         print("ERROR: set APIFY_TOKEN or install gopass", file=sys.stderr)
         raise SystemExit(2)
     proc = subprocess.run(  # noqa: S603 - resolved absolute path, fixed argv
-        [gopass, "show", "-o", "rmi/infra/apify_org_token"],
+        [gopass, "show", "-o", "[INTERNAL_SECRET_PATH]"],
         capture_output=True,
         text=True,
         check=False,

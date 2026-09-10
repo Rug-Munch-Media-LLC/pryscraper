@@ -11,7 +11,7 @@ LOG_TAG="[pry-apify-export]"
 # secret store. Never hardcode or reference secret-store paths here:
 # this file ships in a public repository.
 TOKEN="${APIFY_TOKEN:-}"
-OUT_ROOT="/srv/data/backups/pry-apify-state"
+OUT_ROOT="/srv/[INTERNAL_DATA_DIR]/backups/pry-apify-state"
 STAMP="$(date -u +%Y%m%d-%H%M%S)"
 
 if [ -z "$TOKEN" ]; then
