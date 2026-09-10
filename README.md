@@ -13,6 +13,8 @@
 [![x402](https://img.shields.io/badge/payments-x402%20%2F%20USDC%20%2F%20SOL%20%2F%20TRX-blueviolet)](https://docs.x402.org/)
 [![MCP](https://img.shields.io/badge/MCP-112_tools-purple)](https://modelcontextprotocol.io/)
 
+**Status: Live** — hosted at [api.pryscraper.com](https://api.pryscraper.com), self-hostable.
+
 **15-tier anti-bot bypass** · Cloudflare, DataDome, Akamai · **Pay-per-call API** via crypto · **112 MCP tools** · **112 Apify Actors**
 
 [Installation](#installation) · [Quickstart](#quickstart) · [Configuration](#configuration) · [MCP Server](#mcp-server) · [x402 Payments](#x402-payments) · [Registry Listings](#registry-listings) · [FAQ](docs/FAQ.md) · [Tool Catalog](docs/ops/TOOLS-CATALOG.md) · [API Reference](docs/ops/API-REFERENCE.md) · [Payments](docs/ops/PAYMENTS.md) · [Operations](docs/ops/DEPLOYMENT.md)
@@ -82,7 +84,8 @@ curl -X POST https://api.pryscraper.com/v1/scrape \
 - **Sports Betting Intelligence**: 35+ sports tools — live odds, arbitrage,
   +EV, player props, sharp money tracking, Kelly criterion, prediction
   markets, live game analytics, and weather impact.
-- **3 Apify Actors**: sports betting intel, odds comparison, and a props engine.
+- **112 Apify Actors** (verified `actor_factory/actors/`): including sports
+  betting intel, odds comparison, best-line, and a props engine.
 
 ---
 

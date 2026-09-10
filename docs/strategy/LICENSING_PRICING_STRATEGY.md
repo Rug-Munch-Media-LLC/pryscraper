@@ -451,7 +451,7 @@ WalletPress is **THREE products** that need different strategies:
 |------------|---------------|
 | GoPlus | Open core = verifiable, x402 = AI agents |
 | De.Fi | Open source = trustworthy |
-| Token Sniffer | 32 detectors vs their 5, 96 chains |
+| Token Sniffer | 32 detectors vs their 5, 16 chains |
 | Chainalysis | 100x cheaper |
 
 ---
