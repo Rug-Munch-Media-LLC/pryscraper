@@ -18,7 +18,10 @@ import logging
 import math
 import os
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from pry.payments.x402 import (
     PAYMENT_VALIDITY_SECONDS,
@@ -54,23 +57,40 @@ class StateMixin:
     ``_settled_txs``, ``_authorized_payments`` and the hook lists).
     """
 
-    def on_pre_settle(self, hook):
+    # Host-supplied state (declared here for type-checking only; the concrete
+    # ``X402Handler.__init__`` assigns them). Bare annotations create no
+    # runtime attributes, so mixin behaviour is unchanged.
+    wallet: str
+    facilitator_url: str
+    payments_file: Path
+    settlements_file: Path
+    _use_db: bool
+    _loaded: bool
+    _consumed_txs: set[str]
+    _settled_txs: dict[str, dict[str, Any]]
+    _pre_settle_hooks: list[Any]
+    _post_settle_hooks: list[Any]
+    _pre_verify_hooks: list[Any]
+    _post_verify_hooks: list[Any]
+    _on_verify_failure_hooks: list[Any]
+
+    def on_pre_settle(self, hook: Any) -> None:
         """Register a hook executed before settlement. Can abort by returning {"abort": True, "reason": "..."}."""
         self._pre_settle_hooks.append(hook)
 
-    def on_post_settle(self, hook):
+    def on_post_settle(self, hook: Any) -> None:
         """Register a hook executed after successful settlement."""
         self._post_settle_hooks.append(hook)
 
-    def on_pre_verify(self, hook):
+    def on_pre_verify(self, hook: Any) -> None:
         """Register a hook executed before verification. Can abort by returning {"abort": True, "reason": "..."}."""
         self._pre_verify_hooks.append(hook)
 
-    def on_post_verify(self, hook):
+    def on_post_verify(self, hook: Any) -> None:
         """Register a hook executed after successful verification."""
         self._post_verify_hooks.append(hook)
 
-    def on_verify_failure(self, hook):
+    def on_verify_failure(self, hook: Any) -> None:
         """Register a hook executed when verification fails (router error or unverified result)."""
         self._on_verify_failure_hooks.append(hook)
 

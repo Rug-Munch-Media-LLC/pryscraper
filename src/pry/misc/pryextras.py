@@ -18,18 +18,18 @@ from typing import Any
 class StreamManager:
     """Manages WebSocket connections for real-time data streaming."""
 
-    def __init__(self):
-        self._connections: dict[str, set] = {}
+    def __init__(self) -> None:
+        self._connections: dict[str, set[Any]] = {}
 
-    def register(self, job_id: str, websocket):
+    def register(self, job_id: str, websocket: Any) -> None:
         if job_id not in self._connections:
             self._connections[job_id] = set()
         self._connections[job_id].add(websocket)
 
-    def unregister(self, job_id: str, websocket):
+    def unregister(self, job_id: str, websocket: Any) -> None:
         self._connections.get(job_id, set()).discard(websocket)
 
-    async def broadcast(self, job_id: str, data: dict):
+    async def broadcast(self, job_id: str, data: dict[str, Any]) -> None:
         for ws in self._connections.get(job_id, set()).copy():
             try:
                 await ws.send_json(data)
@@ -44,8 +44,12 @@ class BatchProcessor:
     """Process URLs from a file with a template selector."""
 
     async def from_file(
-        self, filepath: str, template: dict, timeout_s: int = 30, max_urls: int = 1000
-    ) -> list[dict]:
+        self,
+        filepath: str,
+        template: dict[str, Any],
+        timeout_s: int = 30,
+        max_urls: int = 1000,
+    ) -> list[dict[str, Any]]:
         from pry.engine.scraper import PryScraper
 
         s = PryScraper()
@@ -85,13 +89,13 @@ class BatchProcessor:
 class Recorder:
     """Record browser interactions and export as automation scripts."""
 
-    def __init__(self):
-        self._recordings: dict[str, list[dict]] = {}
+    def __init__(self) -> None:
+        self._recordings: dict[str, list[dict[str, Any]]] = {}
 
-    def start(self, session_id: str):
+    def start(self, session_id: str) -> None:
         self._recordings[session_id] = []
 
-    def record(self, session_id: str, action: str, selector: str = "", value: str = ""):
+    def record(self, session_id: str, action: str, selector: str = "", value: str = "") -> None:
         if session_id not in self._recordings:
             self._recordings[session_id] = []
         self._recordings[session_id].append(
@@ -121,7 +125,7 @@ class Recorder:
             return {"steps": steps}
         return steps
 
-    def clear(self, session_id: str):
+    def clear(self, session_id: str) -> None:
         self._recordings.pop(session_id, None)
 
 
@@ -132,7 +136,7 @@ class TransformEngine:
     """Transform scraped data into multiple output formats."""
 
     @staticmethod
-    def to_sql(data: dict, table: str = "scraped_data") -> tuple[str, tuple]:
+    def to_sql(data: dict[str, Any], table: str = "scraped_data") -> tuple[str, tuple[Any, ...]]:
         """Returns (sql, params) tuple for parameterized execution."""
         columns = list(data.keys())
         placeholders = ", ".join(["%s"] * len(columns))
@@ -142,7 +146,7 @@ class TransformEngine:
         return (sql, params)
 
     @staticmethod
-    def to_csv(data: list[dict]) -> str:
+    def to_csv(data: list[dict[str, Any]]) -> str:
         """Convert list of dicts to CSV string."""
         if not data:
             return ""
@@ -153,7 +157,7 @@ class TransformEngine:
         return buf.getvalue()
 
     @staticmethod
-    def to_html_table(data: list[dict]) -> str:
+    def to_html_table(data: list[dict[str, Any]]) -> str:
         """Convert list of dicts to HTML table."""
         if not data:
             return "<table></table>"
@@ -164,7 +168,7 @@ class TransformEngine:
         return f"<table>\n  <tr>{''.join(f'<th>{c}</th>' for c in cols)}</tr>\n{rows}\n</table>"
 
     @staticmethod
-    def to_markdown_table(data: list[dict]) -> str:
+    def to_markdown_table(data: list[dict[str, Any]]) -> str:
         if not data:
             return ""
         cols = list(data[0].keys())

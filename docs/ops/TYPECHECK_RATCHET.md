@@ -44,3 +44,24 @@ core/cache.py (18), commerce/hosting/persistence.py (17), actors/automator.py (1
 - Never remove a code from `disable_error_code` wholesale without a plan.
 - Never add a module to the strict list without `mypy --strict <module>` passing locally.
 - Tests/datasets re-enter gate scope only after their annotations are cleaned.
+
+## Phase 1 progress (2026-09-12)
+
+Measured with the phase-1 codes re-enabled (`--enable-error-code` for
+`no-untyped-def`, `type-arg`, `no-any-return`, `no-untyped-call`,
+`untyped-decorator`, `attr-defined`, `has-type`, `assignment`, `unused-ignore`,
+`arg-type`, `no-redef`, `call-overload`, `call-arg`, `return-value`, `misc`,
+`union-attr`). The repo gate (`mypy src/ pry_mcp/`) stays green throughout.
+
+| File | Before | After | Fixed |
+|---|---|---|---|
+| `src/pry/misc/pryextras.py` | 24 | 2 | `no-untyped-def` ×10, `type-arg` ×10, `no-untyped-call` ×2 |
+| `src/pry/payments/x402/handler_state.py` | 23 | 0 | `attr-defined` ×17, `no-untyped-def` ×5, `has-type` ×1 |
+| `src/pry/misc/cli_commands.py` | 22 | 0 | `no-untyped-def` ×11, `no-untyped-call` ×10, `type-arg` ×1 |
+
+Remaining (2, `pryextras.py`): `no-untyped-call` on `PryScraper()` and
+`SchemaExtractor()` — their `__init__` is untyped in `engine/scraper.py` /
+`engine/extractor.py`; fix requires annotating those modules (out of scope for
+this phase). `handler_state.py` used the mixin pattern: host-supplied attributes
+are declared as bare class-level annotations on `StateMixin` (no runtime effect).
+

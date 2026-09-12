@@ -20,7 +20,14 @@ from pry.misc.cli_click import cli
 from pry.misc.cli_helpers import BOLD, CYAN, GREEN, NC, RED, VERSION, YELLOW, _req, _spinner
 
 
-def cmd_open(url, output_json=False, schema_path=None, timeout=30, offset=0, limit=100000):
+def cmd_open(
+    url: str,
+    output_json: bool = False,
+    schema_path: str | None = None,
+    timeout: int = 30,
+    offset: int = 0,
+    limit: int = 100000,
+) -> None:
     """Scrape a URL and print clean markdown or JSON.
 
     ``offset``/``limit`` window the extracted markdown so very large bodies
@@ -43,7 +50,7 @@ def cmd_open(url, output_json=False, schema_path=None, timeout=30, offset=0, lim
         print(md[:100000] if md else f"{YELLOW}(no content extracted){NC}")
 
 
-def cmd_watch(url, webhook="", interval=3600):
+def cmd_watch(url: str, webhook: str = "", interval: int = 3600) -> None:
     """Register a page for change monitoring."""
     done = _spinner(f"Registering {url[:50]} for monitoring")
     try:
@@ -59,7 +66,7 @@ def cmd_watch(url, webhook="", interval=3600):
         print(f"{RED}✖ {data.get('error', 'Watch failed')}{NC}")
 
 
-def cmd_crawl(url, max_pages=10, output=None, timeout=120):
+def cmd_crawl(url: str, max_pages: int = 10, output: str | None = None, timeout: int = 120) -> None:
     """Crawl multiple pages from a starting URL."""
     done = _spinner(f"Crawling {url[:50]} (up to {max_pages} pages)")
     try:
@@ -80,7 +87,7 @@ def cmd_crawl(url, max_pages=10, output=None, timeout=120):
             print(f"  ... and {len(pages) - 5} more")
 
 
-def cmd_batch(filepath, template_str="", timeout=30):
+def cmd_batch(filepath: str, template_str: str = "", timeout: int = 30) -> None:
     """Scrape URLs from a file using a template."""
     if not os.path.exists(filepath):
         print(f"{RED}✖ File not found: {filepath}{NC}")
@@ -107,7 +114,7 @@ def cmd_batch(filepath, template_str="", timeout=30):
         print(f"  {YELLOW}Errors: {err}{NC}")
 
 
-def cmd_parse(url, timeout=60):
+def cmd_parse(url: str, timeout: int = 60) -> None:
     """Parse a document to text."""
     done = _spinner(f"Parsing {url[:50]}")
     try:
@@ -121,7 +128,7 @@ def cmd_parse(url, timeout=60):
     print(text[:50000])
 
 
-def cmd_screenshot(url, output=None, timeout=30):
+def cmd_screenshot(url: str, output: str | None = None, timeout: int = 30) -> None:
     """Take a screenshot."""
     done = _spinner(f"Capturing {url[:50]}")
     try:
@@ -140,7 +147,7 @@ def cmd_screenshot(url, output=None, timeout=30):
         print(f"{GREEN}✓{NC} Screenshot: {len(b64)} bytes (base64)")
 
 
-def cmd_migrate():
+def cmd_migrate() -> None:
     """Run pending database migrations (alembic upgrade head)."""
     from pry.core.db import run_migrations
 
@@ -148,7 +155,7 @@ def cmd_migrate():
     print(f"{GREEN}✓{NC} Migrations up to date")
 
 
-def cmd_run(pryfile_path="pry.yml"):
+def cmd_run(pryfile_path: str = "pry.yml") -> None:
     """Execute jobs defined in pry.yml."""
     if not os.path.exists(pryfile_path):
         print(f"{RED}✖ No {pryfile_path} found{NC}")
@@ -172,7 +179,7 @@ def cmd_run(pryfile_path="pry.yml"):
             print(f"  {RED}✖{NC} {name} — {j.get('error', 'failed')}{NC}")
 
 
-def cmd_serve(host="127.0.0.1", port=8005):
+def cmd_serve(host: str = "127.0.0.1", port: int = 8005) -> None:
     """Start the Pry API server."""
     print(f"{CYAN}🔧 Starting Pry v{VERSION} on {host}:{port}{NC}")
     print(f"  Dashboard: http://localhost:{port}/dashboard")
@@ -180,7 +187,7 @@ def cmd_serve(host="127.0.0.1", port=8005):
     os.execvp("uvicorn", ["uvicorn", "api:app", "--host", host, "--port", str(port)])  # noqa: S606 S607 - execvp replaces the process; "uvicorn" resolved from PATH intentionally
 
 
-def cmd_completions(shell="bash"):
+def cmd_completions(shell: str = "bash") -> None:
     """Print shell-autocomplete installation instructions.
 
     Pry does not currently ship a `_PRY_COMPLETE` env-var handler, so we do
@@ -260,7 +267,7 @@ def _int_opt_value(flag: str, default: int) -> int:
 def _dispatch_open_like(args: list[str]) -> None:
     """``open`` | ``get`` | ``scrape``"""
     url = args[0] if args else input("URL: ")
-    opts: dict = {"output_json": "--json" in sys.argv, "timeout": 30}
+    opts: dict[str, Any] = {"output_json": "--json" in sys.argv, "timeout": 30}
     if "--schema" in sys.argv:
         opts["schema_path"] = sys.argv[sys.argv.index("--schema") + 1]
     if "--timeout" in sys.argv:
@@ -346,7 +353,7 @@ _COMMANDS: dict[str, Any] = {
 }
 
 
-def main():
+def main() -> None:
     if len(sys.argv) >= 2 and sys.argv[1] in ("proxy", "wallets") and click is not None:
         cli.main(standalone_mode=False)
         return
