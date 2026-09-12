@@ -137,8 +137,22 @@ def validate_config(settings: Any) -> list[str]:
     object exposing the same attributes (tests use SimpleNamespace).
     """
     issues: list[str] = []
+    _check_api_key_bind(settings, issues)
+    _check_rate_limit(settings, issues)
+    _check_proxy(settings, issues)
+    _check_x402(settings, issues)
+    _check_db_cache_urls(settings, issues)
+    _check_port(settings, issues)
+    _check_output_bounds(settings, issues)
+    return issues
 
-    # ── API key vs. bind address (fail-fast) ─────────────────────────
+
+# ── Topic checkers (extracted from validate_config — audit P2) ──────────────
+# Each appends zero or more issues to the shared list.
+
+
+def _check_api_key_bind(settings: Any, issues: list[str]) -> None:
+    """API key vs. bind address (fail-fast)."""
     host = getattr(settings, "host", "127.0.0.1") or "127.0.0.1"
     api_key = getattr(settings, "api_key", "") or ""
     if not api_key:
@@ -155,7 +169,9 @@ def validate_config(settings: Any) -> list[str]:
                 "before exposing the service."
             )
 
-    # ── Rate limit (fail-fast on unparseable/absurd values) ──────────
+
+def _check_rate_limit(settings: Any, issues: list[str]) -> None:
+    """Rate limit (fail-fast on unparseable/absurd values)."""
     rpm = _as_int(getattr(settings, "rate_limit_rpm", 120), "rate_limit_rpm")
     if rpm is None:
         issues.append(
@@ -178,7 +194,9 @@ def validate_config(settings: Any) -> list[str]:
             f"(>{RATE_LIMIT_RPM_WARN_ABOVE}); verify this is intentional."
         )
 
-    # ── Proxy (fail-fast on unusable URLs) ───────────────────────────
+
+def _check_proxy(settings: Any, issues: list[str]) -> None:
+    """Proxy (fail-fast on unusable URLs)."""
     proxy_url = getattr(settings, "proxy_url", "") or ""
     proxy_enabled = bool(getattr(settings, "proxy_enabled", False))
     if proxy_url:
@@ -204,7 +222,9 @@ def validate_config(settings: Any) -> list[str]:
             "configured; scraping will fall back to direct connections."
         )
 
-    # ── x402 (fail-fast when enabled without a real wallet) ──────────
+
+def _check_x402(settings: Any, issues: list[str]) -> None:
+    """x402 (fail-fast when enabled without a real wallet)."""
     if _x402_enabled(settings):
         wallet = _x402_wallet(settings)
         if wallet in _PLACEHOLDER_WALLETS:
@@ -220,7 +240,9 @@ def validate_config(settings: Any) -> list[str]:
                 "it must be an http(s) URL."
             )
 
-    # ── Database / cache URLs (warnings — boot is possible) ──────────
+
+def _check_db_cache_urls(settings: Any, issues: list[str]) -> None:
+    """Database / cache URLs (warnings — boot is possible)."""
     db_url = getattr(settings, "database_url", "") or ""
     if db_url:
         scheme = db_url.split("://", 1)[0].lower() if "://" in db_url else ""
@@ -239,20 +261,22 @@ def validate_config(settings: Any) -> list[str]:
                 "redis:// or rediss://; the cache layer will not connect."
             )
 
-    # ── Port sanity ──────────────────────────────────────────────────
+
+def _check_port(settings: Any, issues: list[str]) -> None:
+    """Port sanity."""
     port = _as_int(getattr(settings, "port", 8002), "port")
     if port is not None and not (1 <= port <= 65535):
         issues.append(f"{ERROR_PREFIX} PRY_PORT={port} is outside 1-65535.")
 
-    # ── Output bounds (warnings) ─────────────────────────────────────
+
+def _check_output_bounds(settings: Any, issues: list[str]) -> None:
+    """Output bounds (warnings)."""
     max_chars = _as_int(getattr(settings, "max_chars", 100000), "max_chars")
     if max_chars is not None and max_chars <= 0:
         issues.append(
             f"{ERROR_PREFIX} PRY_MAX_CHARS={max_chars} must be positive; "
             "content extraction would be truncated to nothing."
         )
-
-    return issues
 
 
 def has_errors(issues: list[str]) -> bool:

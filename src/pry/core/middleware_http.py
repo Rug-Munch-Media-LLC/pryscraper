@@ -110,66 +110,179 @@ class PryHttpMiddleware:
             path.startswith(p + "/") for p in _AUTH_PUBLIC_PATHS if p != "/"
         )
         if not is_public and not _facade.request_authorized(scope):
-            # Audit (item #21): 401 with a key presented = invalid/revoked key.
-            _presented = self._get_header(scope, b"authorization")
-            if _presented.startswith("Bearer "):
-                audit_event(
-                    "auth_failure_401",
-                    actor=_presented[7:][:64],
-                    path=path,
-                    ip=ip,
-                    request_id=request_id,
-                )
-            body = json.dumps(
-                {
-                    "type": "/errors/unauthorized",
-                    "title": "Unauthorized",
-                    "status": 401,
-                    "detail": "Invalid or missing API key",
-                    "request_id": request_id,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "code": "unauthorized",
-                }
-            ).encode()
-            await send(
-                {
-                    "type": "http.response.start",
-                    "status": 401,
-                    "headers": [
-                        (b"content-type", b"application/json"),
-                        (b"content-length", str(len(body)).encode()),
-                        (b"x-request-id", request_id.encode()),
-                        *_SECURITY_HEADERS,
-                    ],
-                }
-            )
-            await send({"type": "http.response.body", "body": body})
-            set_span_attributes({"http.status_code": 401})
-            clear_request_id()
+            await self._reject_unauthorized(scope, send, request_id, path, ip)
             return
 
         # Check if route exists — pass through unknown paths to 404 handler
         _app = getattr(self, "app", None)
         if _app and not _facade._path_exists(path, _app):
-            # Still count unmatched requests (scanner noise included) under a
-            # fixed label — otherwise 404 traffic is invisible to monitoring.
-            passthrough_status = 200
-
-            async def passthrough_send(message: dict[str, Any]) -> None:
-                nonlocal passthrough_status
-                if message["type"] == "http.response.start":
-                    passthrough_status = message.get("status", 200)
-                await send(message)
-
-            await _app(scope, receive, passthrough_send)
-            set_span_attributes({"http.status_code": passthrough_status})
-            if REQUEST_COUNT and REQUEST_LATENCY:
-                REQUEST_COUNT.labels(
-                    method=method, endpoint="unmatched", status=str(passthrough_status)
-                ).inc()
-                REQUEST_LATENCY.labels(endpoint="unmatched").observe(time.time() - start)
-            clear_request_id()
+            await self._passthrough_unmatched(scope, receive, send, method=method, start=start)
             return
+
+        allowed, stats, rate_limit_headers, api_key = self._resolve_rate_limit(scope, ip)
+        if not allowed:
+            await self._reject_rate_limited(
+                send,
+                request_id=request_id,
+                path=path,
+                ip=ip,
+                api_key=api_key,
+                stats=stats,
+                rate_limit_headers=rate_limit_headers,
+            )
+            return
+
+        logger.info(
+            "request_start",
+            extra={
+                "request_id": request_id,
+                "method": scope.get("method", "GET"),
+                "path": path,
+                "ip": ip,
+            },
+        )
+
+        ratelimit_limit = rate_limit_headers["x-ratelimit-limit"].encode()
+        ratelimit_remaining = rate_limit_headers["x-ratelimit-remaining"].encode()
+        ratelimit_reset = rate_limit_headers["x-ratelimit-reset"].encode()
+        request_id_bytes = request_id.encode()
+
+        async def wrapped_send(message: dict[str, Any]) -> None:
+            nonlocal response_status
+            if message["type"] == "http.response.start":
+                response_status = message.get("status", 200)
+                headers = list(message.get("headers", []))
+                headers.extend(_SECURITY_HEADERS)
+                headers.append((b"x-ratelimit-limit", ratelimit_limit))
+                headers.append((b"x-ratelimit-remaining", ratelimit_remaining))
+                headers.append((b"x-ratelimit-reset", ratelimit_reset))
+                headers.append((b"x-request-id", request_id_bytes))
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, wrapped_send)
+
+        elapsed = time.time() - start
+        set_span_attributes({"http.status_code": response_status})
+        # Route TEMPLATE as the label (e.g. /v1/job/{job_id}), never the
+        # raw path — raw paths give every unique URL its own Prometheus
+        # series and explode cardinality. Unmatched routes (404s from
+        # scanners hitting random paths) bucket under a fixed label.
+        route = scope.get("route")
+        endpoint: str = getattr(route, "path", "") or (
+            "unmatched" if response_status == 404 else path
+        )
+        if REQUEST_COUNT and REQUEST_LATENCY:
+            REQUEST_COUNT.labels(
+                method=method, endpoint=endpoint, status=str(response_status)
+            ).inc()
+            REQUEST_LATENCY.labels(endpoint=endpoint).observe(elapsed)
+        if scope.get("pry_api_key"):
+            _record_usage(
+                scope["pry_api_key"],
+                operation=endpoint,
+                status="success" if response_status < 400 else "error",
+                duration_ms=int(elapsed * 1000),
+                ip=ip,
+            )
+        logger.info(
+            "request_end",
+            extra={
+                "request_id": request_id,
+                "method": method,
+                "path": path,
+                "status": response_status,
+                "duration": f"{elapsed:.3f}s",
+            },
+        )
+        clear_request_id()
+
+    # ── Extracted blocks (audit P2) ─────────────────────────────────────────
+
+    async def _reject_unauthorized(
+        self,
+        scope: dict[str, Any],
+        send: Any,
+        request_id: str,
+        path: str,
+        ip: str,
+    ) -> None:
+        """Audit + send the 401 JSON response for a failed auth check."""
+        # Audit (item #21): 401 with a key presented = invalid/revoked key.
+        _presented = self._get_header(scope, b"authorization")
+        if _presented.startswith("Bearer "):
+            audit_event(
+                "auth_failure_401",
+                actor=_presented[7:][:64],
+                path=path,
+                ip=ip,
+                request_id=request_id,
+            )
+        body = json.dumps(
+            {
+                "type": "/errors/unauthorized",
+                "title": "Unauthorized",
+                "status": 401,
+                "detail": "Invalid or missing API key",
+                "request_id": request_id,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "code": "unauthorized",
+            }
+        ).encode()
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 401,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(body)).encode()),
+                    (b"x-request-id", request_id.encode()),
+                    *_SECURITY_HEADERS,
+                ],
+            }
+        )
+        await send({"type": "http.response.body", "body": body})
+        set_span_attributes({"http.status_code": 401})
+        clear_request_id()
+
+    async def _passthrough_unmatched(
+        self,
+        scope: dict[str, Any],
+        receive: Any,
+        send: Any,
+        *,
+        method: str,
+        start: float,
+    ) -> None:
+        """Pass unknown paths through to the router (404 handler + metrics)."""
+        _app = getattr(self, "app", None)
+        # Still count unmatched requests (scanner noise included) under a
+        # fixed label — otherwise 404 traffic is invisible to monitoring.
+        passthrough_status = 200
+
+        async def passthrough_send(message: dict[str, Any]) -> None:
+            nonlocal passthrough_status
+            if message["type"] == "http.response.start":
+                passthrough_status = message.get("status", 200)
+            await send(message)
+
+        await _app(scope, receive, passthrough_send)
+        set_span_attributes({"http.status_code": passthrough_status})
+        if REQUEST_COUNT and REQUEST_LATENCY:
+            REQUEST_COUNT.labels(
+                method=method, endpoint="unmatched", status=str(passthrough_status)
+            ).inc()
+            REQUEST_LATENCY.labels(endpoint="unmatched").observe(time.time() - start)
+        clear_request_id()
+
+    def _resolve_rate_limit(
+        self, scope: dict[str, Any], ip: str
+    ) -> tuple[bool, dict[str, Any], dict[str, str], str | None]:
+        """Pick the right limiter (x402 / DB key / legacy IP) and check it.
+
+        Returns ``(allowed, stats, rate_limit_headers, api_key)``.
+        """
+        from pry.core import middleware as _facade
 
         # Rate limiting: use user rate limiter if API key present, else IP-based
         auth_header = self._get_header(scope, b"authorization")
@@ -244,121 +357,66 @@ class PryHttpMiddleware:
                 "x-ratelimit-remaining": str(stats.get("remaining", 0)),
                 "x-ratelimit-reset": str(stats.get("retry_after", 1)),
             }
+        return allowed, stats, rate_limit_headers, api_key
 
-        if not allowed:
-            elapsed = time.time() - start
-            audit_event(
-                "rate_limit_429",
-                actor=api_key[:64] if api_key else ip,
-                path=path,
-                ip=ip,
-                reason=stats.get("reason", "rate_limited"),
-                request_id=request_id,
-            )
-            logger.warning(
-                "rate_limit_blocked",
-                extra={
-                    "request_id": request_id,
-                    "ip": ip,
-                    "path": path,
-                    "retry_after": stats.get("retry_after", 1),
-                    "reason": stats.get("reason", "rate_limited"),
-                },
-            )
-
-            body = json.dumps(
-                {
-                    "type": "/errors/rate_limit_exceeded",
-                    "title": "Too Many Requests",
-                    "status": 429,
-                    "detail": stats.get("reason", "Rate limit exceeded"),
-                    "request_id": request_id,
-                    "instance": path,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "code": "rate_limit_exceeded",
-                    "retry_after": stats.get(
-                        "retry_after", stats.get("quota_reset_at", time.time()) - time.time()
-                    ),
-                }
-            ).encode()
-            headers = [
-                (b"content-type", b"application/json"),
-                (b"content-length", str(len(body)).encode()),
-                (b"x-request-id", request_id.encode()),
-                *_SECURITY_HEADERS,
-            ]
-            # Add rate limit headers
-            for k, v in rate_limit_headers.items():
-                headers.append((k.encode(), str(v).encode()))
-            # RFC 6585 Retry-After: seconds the client should wait before retrying.
-            headers.append((b"retry-after", str(int(float(stats.get("retry_after", 1)))).encode()))
-            await send({"type": "http.response.start", "status": 429, "headers": headers})
-            await send({"type": "http.response.body", "body": body})
-            set_span_attributes({"http.status_code": 429})
-            clear_request_id()
-            return
-
-        logger.info(
-            "request_start",
+    async def _reject_rate_limited(
+        self,
+        send: Any,
+        *,
+        request_id: str,
+        path: str,
+        ip: str,
+        api_key: str | None,
+        stats: dict[str, Any],
+        rate_limit_headers: dict[str, str],
+    ) -> None:
+        """Audit + send the 429 JSON response for a blocked request."""
+        audit_event(
+            "rate_limit_429",
+            actor=api_key[:64] if api_key else ip,
+            path=path,
+            ip=ip,
+            reason=stats.get("reason", "rate_limited"),
+            request_id=request_id,
+        )
+        logger.warning(
+            "rate_limit_blocked",
             extra={
                 "request_id": request_id,
-                "method": scope.get("method", "GET"),
-                "path": path,
                 "ip": ip,
-            },
-        )
-
-        ratelimit_limit = rate_limit_headers["x-ratelimit-limit"].encode()
-        ratelimit_remaining = rate_limit_headers["x-ratelimit-remaining"].encode()
-        ratelimit_reset = rate_limit_headers["x-ratelimit-reset"].encode()
-        request_id_bytes = request_id.encode()
-
-        async def wrapped_send(message: dict[str, Any]) -> None:
-            nonlocal response_status
-            if message["type"] == "http.response.start":
-                response_status = message.get("status", 200)
-                headers = list(message.get("headers", []))
-                headers.extend(_SECURITY_HEADERS)
-                headers.append((b"x-ratelimit-limit", ratelimit_limit))
-                headers.append((b"x-ratelimit-remaining", ratelimit_remaining))
-                headers.append((b"x-ratelimit-reset", ratelimit_reset))
-                headers.append((b"x-request-id", request_id_bytes))
-                message["headers"] = headers
-            await send(message)
-
-        await self.app(scope, receive, wrapped_send)
-
-        elapsed = time.time() - start
-        set_span_attributes({"http.status_code": response_status})
-        # Route TEMPLATE as the label (e.g. /v1/job/{job_id}), never the
-        # raw path — raw paths give every unique URL its own Prometheus
-        # series and explode cardinality. Unmatched routes (404s from
-        # scanners hitting random paths) bucket under a fixed label.
-        route = scope.get("route")
-        endpoint: str = getattr(route, "path", "") or (
-            "unmatched" if response_status == 404 else path
-        )
-        if REQUEST_COUNT and REQUEST_LATENCY:
-            REQUEST_COUNT.labels(
-                method=method, endpoint=endpoint, status=str(response_status)
-            ).inc()
-            REQUEST_LATENCY.labels(endpoint=endpoint).observe(elapsed)
-        if scope.get("pry_api_key"):
-            _record_usage(
-                scope["pry_api_key"],
-                operation=endpoint,
-                status="success" if response_status < 400 else "error",
-                duration_ms=int(elapsed * 1000),
-                ip=ip,
-            )
-        logger.info(
-            "request_end",
-            extra={
-                "request_id": request_id,
-                "method": method,
                 "path": path,
-                "status": response_status,
-                "duration": f"{elapsed:.3f}s",
+                "retry_after": stats.get("retry_after", 1),
+                "reason": stats.get("reason", "rate_limited"),
             },
         )
+
+        body = json.dumps(
+            {
+                "type": "/errors/rate_limit_exceeded",
+                "title": "Too Many Requests",
+                "status": 429,
+                "detail": stats.get("reason", "Rate limit exceeded"),
+                "request_id": request_id,
+                "instance": path,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "code": "rate_limit_exceeded",
+                "retry_after": stats.get(
+                    "retry_after", stats.get("quota_reset_at", time.time()) - time.time()
+                ),
+            }
+        ).encode()
+        headers = [
+            (b"content-type", b"application/json"),
+            (b"content-length", str(len(body)).encode()),
+            (b"x-request-id", request_id.encode()),
+            *_SECURITY_HEADERS,
+        ]
+        # Add rate limit headers
+        for k, v in rate_limit_headers.items():
+            headers.append((k.encode(), str(v).encode()))
+        # RFC 6585 Retry-After: seconds the client should wait before retrying.
+        headers.append((b"retry-after", str(int(float(stats.get("retry_after", 1)))).encode()))
+        await send({"type": "http.response.start", "status": 429, "headers": headers})
+        await send({"type": "http.response.body", "body": body})
+        set_span_attributes({"http.status_code": 429})
         clear_request_id()

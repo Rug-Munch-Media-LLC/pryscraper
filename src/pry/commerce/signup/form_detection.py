@@ -72,6 +72,23 @@ def classify_role(
         " ".join([name, control_id, placeholder, aria_label, autocomplete, label])
     )
 
+    role = _classify_by_type(ctype, tag, haystack)
+    if role:
+        return role
+    role = _classify_by_autocomplete(autocomplete.lower())
+    if role:
+        return role
+    role = _classify_by_tag(tag)
+    if role:
+        return role
+    return _classify_by_text(haystack)
+
+
+# ── Classification stages (extracted from classify_role — audit P2) ─────────
+
+
+def _classify_by_type(ctype: str, tag: str, haystack: str) -> str | None:
+    """Explicit control-type hints win over every other signal."""
     if ctype == "password":
         if any(word in haystack for word in ("confirm", "repeat", "again", "match")):
             return ROLE_CONFIRM_PASSWORD
@@ -87,9 +104,13 @@ def classify_role(
     if ctype == "radio":
         return ROLE_RADIO
     if ctype == "file":
+        # File inputs are intentionally opaque: heuristics are skipped.
         return ROLE_TEXT
+    return None
 
-    ac = autocomplete.lower()
+
+def _classify_by_autocomplete(ac: str) -> str | None:
+    """Autocomplete attribute hints (standard values)."""
     if ac == "email":
         return ROLE_EMAIL
     if ac == "username":
@@ -100,13 +121,20 @@ def classify_role(
         return ROLE_PASSWORD
     if ac == "new-password":
         return ROLE_PASSWORD
+    return None
 
+
+def _classify_by_tag(tag: str) -> str | None:
+    """Bare element-type hints (select / textarea)."""
     if tag == "select":
         return ROLE_SELECT
     if tag == "textarea":
         return ROLE_TEXTAREA
+    return None
 
-    # Name/id/placeholder/label-text heuristics.
+
+def _classify_by_text(haystack: str) -> str:
+    """Name/id/placeholder/label-text heuristics (last resort)."""
     if "email" in haystack or "mail" in haystack:
         return ROLE_EMAIL
     if "pass" in haystack or "pwd" in haystack:

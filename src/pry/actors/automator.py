@@ -21,7 +21,7 @@ import os
 import time
 import uuid
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -139,121 +139,19 @@ class PryAutomator:
 
         session = await self._get_or_create_session(session_id, headless, viewport)
         page = session.page
-        results = []
+        results: list[dict[str, Any]] = []
 
         try:
             for step in steps:
                 action = step.get("action", "")
-                result = {"action": action, "status": "ok"}
+                result: dict[str, Any] = {"action": action, "status": "ok"}
 
-                if action == "navigate":
-                    url = str(step.get("url", "")).strip()
-                    if not url or not url.startswith(("http://", "https://", "file://")):
-                        result["status"] = "error"
-                        result["error"] = "Invalid URL"
-                    else:
-                        wait_until = step.get("wait_until", "networkidle")
-                        timeout = min(int(step.get("timeout", 30000)), 120000)
-                        await page.goto(url, wait_until=wait_until, timeout=timeout)
-                        result["url"] = page.url
-                        result["title"] = await page.title()
-
-                elif action == "click":
-                    selector = str(step.get("selector", ""))
-                    if not selector:
-                        result["status"] = "error"
-                        result["error"] = "No selector provided"
-                    else:
-                        timeout = min(int(step.get("timeout", 10000)), 30000)
-                        await page.wait_for_selector(selector, timeout=timeout)
-                        await page.click(selector)
-
-                elif action == "type":
-                    selector = str(step.get("selector", ""))
-                    value = str(step.get("value", ""))
-                    if not selector:
-                        result["status"] = "error"
-                        result["error"] = "No selector provided"
-                    else:
-                        timeout = min(int(step.get("timeout", 10000)), 30000)
-                        await page.wait_for_selector(selector, timeout=timeout)
-                        await page.fill(selector, value)
-
-                elif action == "select":
-                    selector = str(step.get("selector", ""))
-                    value = str(step.get("value", ""))
-                    if selector:
-                        await page.select_option(selector, value)
-                    else:
-                        result["status"] = "error"
-                        result["error"] = "No selector"
-
-                elif action == "wait":
-                    ms = max(100, min(int(step.get("timeout", 2000)), 60000))
-                    await asyncio.sleep(ms / 1000)
-
-                elif action == "wait_for_selector":
-                    selector = str(step.get("selector", ""))
-                    if selector:
-                        timeout = min(int(step.get("timeout", 30000)), 60000)
-                        await page.wait_for_selector(selector, timeout=timeout)
-                    else:
-                        result["status"] = "error"
-                        result["error"] = "No selector"
-
-                elif action == "screenshot":
-                    full_page = bool(step.get("full_page", True))
-                    screenshot_bytes = await page.screenshot(full_page=full_page)
-                    b64 = base64.b64encode(screenshot_bytes).decode()
-                    result["screenshot"] = b64
-
-                elif action == "extract":
-                    selector = str(step.get("selector", ""))
-                    extract_type = step.get("extract", "text")
-                    attribute = step.get("attribute")
-                    if not selector:
-                        result["status"] = "error"
-                        result["error"] = "No selector"
-                    else:
-                        elements = await page.query_selector_all(selector)
-                        if extract_type == "text":
-                            result["texts"] = [await el.inner_text() for el in elements]
-                        elif extract_type == "html":
-                            result["htmls"] = [await el.inner_html() for el in elements]
-                        elif extract_type == "attribute" and attribute:
-                            result["values"] = [
-                                await el.get_attribute(attribute) for el in elements
-                            ]
-                    result["title"] = await page.title()
-                    result["url"] = page.url
-
-                elif action == "scroll":
-                    dx = int(step.get("dx", 0))
-                    dy = int(step.get("dy", 500))
-                    # Scroll values are safely cast to int — no injection possible
-                    await page.evaluate(f"window.scrollBy({dx}, {dy})")
-                    await asyncio.sleep(0.3)
-
-                elif action == "submit":
-                    selector = str(step.get("selector", ""))
-                    if selector:
-                        await page.wait_for_selector(selector, timeout=5000)
-                        await page.click(selector)
-                    else:
-                        await page.keyboard.press("Enter")
-
-                elif action == "evaluate":
-                    js = str(step.get("script", ""))
-                    if js:
-                        return_val = await page.evaluate(js)
-                        result["return"] = return_val
-                    else:
-                        result["status"] = "error"
-                        result["error"] = "No script provided"
-
-                else:
+                handler = self._STEP_HANDLERS.get(action)
+                if handler is None:
                     result["status"] = "error"
                     result["error"] = f"Unknown action: {action}"
+                else:
+                    await handler(self, page, step, result)
 
                 results.append(result)
 
@@ -282,6 +180,130 @@ class PryAutomator:
                 "error": str(e),
                 "final_url": page.url if page else "",
             }
+
+    # ── Step handlers (extracted from run_steps — audit P2) ─────────────────
+    # Each mutates ``result`` exactly like the previous inline if/elif branch.
+
+    async def _step_navigate(self, page: Any, step: dict[str, Any], result: dict[str, Any]) -> None:
+        url = str(step.get("url", "")).strip()
+        if not url or not url.startswith(("http://", "https://", "file://")):
+            result["status"] = "error"
+            result["error"] = "Invalid URL"
+            return
+        wait_until = step.get("wait_until", "networkidle")
+        timeout = min(int(step.get("timeout", 30000)), 120000)
+        await page.goto(url, wait_until=wait_until, timeout=timeout)
+        result["url"] = page.url
+        result["title"] = await page.title()
+
+    async def _step_click(self, page: Any, step: dict[str, Any], result: dict[str, Any]) -> None:
+        selector = str(step.get("selector", ""))
+        if not selector:
+            result["status"] = "error"
+            result["error"] = "No selector provided"
+            return
+        timeout = min(int(step.get("timeout", 10000)), 30000)
+        await page.wait_for_selector(selector, timeout=timeout)
+        await page.click(selector)
+
+    async def _step_type(self, page: Any, step: dict[str, Any], result: dict[str, Any]) -> None:
+        selector = str(step.get("selector", ""))
+        value = str(step.get("value", ""))
+        if not selector:
+            result["status"] = "error"
+            result["error"] = "No selector provided"
+            return
+        timeout = min(int(step.get("timeout", 10000)), 30000)
+        await page.wait_for_selector(selector, timeout=timeout)
+        await page.fill(selector, value)
+
+    async def _step_select(self, page: Any, step: dict[str, Any], result: dict[str, Any]) -> None:
+        selector = str(step.get("selector", ""))
+        value = str(step.get("value", ""))
+        if selector:
+            await page.select_option(selector, value)
+        else:
+            result["status"] = "error"
+            result["error"] = "No selector"
+
+    async def _step_wait(self, page: Any, step: dict[str, Any], result: dict[str, Any]) -> None:
+        ms = max(100, min(int(step.get("timeout", 2000)), 60000))
+        await asyncio.sleep(ms / 1000)
+
+    async def _step_wait_for_selector(
+        self, page: Any, step: dict[str, Any], result: dict[str, Any]
+    ) -> None:
+        selector = str(step.get("selector", ""))
+        if selector:
+            timeout = min(int(step.get("timeout", 30000)), 60000)
+            await page.wait_for_selector(selector, timeout=timeout)
+        else:
+            result["status"] = "error"
+            result["error"] = "No selector"
+
+    async def _step_screenshot(
+        self, page: Any, step: dict[str, Any], result: dict[str, Any]
+    ) -> None:
+        full_page = bool(step.get("full_page", True))
+        screenshot_bytes = await page.screenshot(full_page=full_page)
+        b64 = base64.b64encode(screenshot_bytes).decode()
+        result["screenshot"] = b64
+
+    async def _step_extract(self, page: Any, step: dict[str, Any], result: dict[str, Any]) -> None:
+        selector = str(step.get("selector", ""))
+        extract_type = step.get("extract", "text")
+        attribute = step.get("attribute")
+        if not selector:
+            result["status"] = "error"
+            result["error"] = "No selector"
+        else:
+            elements = await page.query_selector_all(selector)
+            if extract_type == "text":
+                result["texts"] = [await el.inner_text() for el in elements]
+            elif extract_type == "html":
+                result["htmls"] = [await el.inner_html() for el in elements]
+            elif extract_type == "attribute" and attribute:
+                result["values"] = [await el.get_attribute(attribute) for el in elements]
+        result["title"] = await page.title()
+        result["url"] = page.url
+
+    async def _step_scroll(self, page: Any, step: dict[str, Any], result: dict[str, Any]) -> None:
+        dx = int(step.get("dx", 0))
+        dy = int(step.get("dy", 500))
+        # Scroll values are safely cast to int — no injection possible
+        await page.evaluate(f"window.scrollBy({dx}, {dy})")
+        await asyncio.sleep(0.3)
+
+    async def _step_submit(self, page: Any, step: dict[str, Any], result: dict[str, Any]) -> None:
+        selector = str(step.get("selector", ""))
+        if selector:
+            await page.wait_for_selector(selector, timeout=5000)
+            await page.click(selector)
+        else:
+            await page.keyboard.press("Enter")
+
+    async def _step_evaluate(self, page: Any, step: dict[str, Any], result: dict[str, Any]) -> None:
+        js = str(step.get("script", ""))
+        if js:
+            return_val = await page.evaluate(js)
+            result["return"] = return_val
+        else:
+            result["status"] = "error"
+            result["error"] = "No script provided"
+
+    _STEP_HANDLERS: ClassVar[dict[str, Any]] = {
+        "navigate": _step_navigate,
+        "click": _step_click,
+        "type": _step_type,
+        "select": _step_select,
+        "wait": _step_wait,
+        "wait_for_selector": _step_wait_for_selector,
+        "screenshot": _step_screenshot,
+        "extract": _step_extract,
+        "scroll": _step_scroll,
+        "submit": _step_submit,
+        "evaluate": _step_evaluate,
+    }
 
     async def create_session(
         self, url: str, cookies: list | None = None, persist: bool = True

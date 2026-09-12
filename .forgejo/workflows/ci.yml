@@ -843,12 +843,14 @@ jobs:
         # (solana_transfer.verify_solana_payment F54->C11,
         # evm_verify.EVMVerifyMixin.verify F42->C17, cli_commands.main
         # F41->C11, scraper_orchestrate._scrape_with_fallbacks F46->C20) —
-        # threshold tightened to E/C/A. Next targets: the 4 remaining E-rank
-        # blocks (config_validation, middleware_http, form_detection,
-        # automator) -> then D/C, then C/C.
+        # Ratchet 3 (2026-09-12): the last 4 E-rank blocks refactored
+        # (form_detection.classify_role E37, automator.run_steps E33,
+        # config_validation.validate_config E31, middleware_http._handle_http
+        # E31) — threshold tightened to D/C/A. 18 D-rank blocks remain;
+        # next targets. Then C/C/A.
         run: |
-          xenon --max-absolute E --max-modules C --max-average A src/ || {
-            echo "❌ Complexity gate failed: block exceeded E rank, module exceeded C, or repo average slipped"
+          xenon --max-absolute D --max-modules C --max-average A src/ || {
+            echo "❌ Complexity gate failed: block exceeded D rank, module exceeded C, or repo average slipped"
             exit 1
           }
 
