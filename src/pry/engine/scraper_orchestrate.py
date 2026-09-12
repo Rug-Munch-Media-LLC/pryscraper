@@ -139,81 +139,23 @@ class ScrapeOrchestrator(TierMixin):
         # Default is False: paid proxy is a LAST resort, tried after Tor.
         premium_first = opts.get("use_premium_proxy_first", False)
         if proxy_url and premium_first:
-            start = time.time()
-            html = await self._tier_premium_proxy(url, proxy_url, opts)
-            latency = time.time() - start
-            signal = self._detect_block_signal(html)
-            success = bool(html and self._is_valid(html))
-            if signal is not None and signal.kind != "none":
-                latest_signal = self._signal_to_dict(signal)
-                success = False
-            if success:
-                assert isinstance(html, str)
-                attempts.append(
-                    {
-                        "tier": "premium_proxy",
-                        "success": True,
-                        "error": None,
-                        "duration_ms": round(latency * 1000, 2),
-                    }
-                )
-                self._record_telemetry(
-                    domain, ["premium_proxy"], attempts, "premium_proxy", True, scrape_start, errors
-                )
-                return self._result(url, html, "premium_proxy", block_signal=latest_signal)
-            errors.append("premium_proxy_failed")
-            attempts.append(
-                {
-                    "tier": "premium_proxy",
-                    "success": False,
-                    "error": "premium_proxy_failed",
-                    "duration_ms": round(latency * 1000, 2),
-                }
+            premium_result, latest_signal = await self._premium_first(
+                url=url,
+                proxy_url=proxy_url,
+                opts=opts,
+                domain=domain,
+                scrape_start=scrape_start,
+                attempts=attempts,
+                errors=errors,
+                latest_signal=latest_signal,
             )
+            if premium_result is not None:
+                return premium_result
 
-        # Build tier list. Trusted cheap tiers first, then Tor (anonymous,
-        # free), then the paid premium proxy LAST, then cached-version
-        # fallbacks as the absolute last resort.
-        # Note: _tier_premium_proxy has signature (url, proxy_url, opts) while
-        # other tiers use (url, opts, proxy_url). This is handled at call site.
-        tier_order: list[tuple[str, Any]] = [
-            ("direct", self._tier_direct),
-            ("tls_fingerprint", self._tier_tls_fingerprint),
-            ("cloudscraper", self._tier_cloudscraper),
-            ("flaresolverr", self._tier_flaresolverr),
-            ("undetected", self._tier_undetected),
-            ("camoufox", self._tier_camoufox),
-            ("playwright", self._tier_playwright),
-            ("googlebot", self._tier_googlebot),
-            # Tor mid-chain: anonymous fallback tried before we pay for a
-            # premium proxy, but after the trusted cheap methods.
-            ("tor", self._tier_tor),
-        ]
-
-        # Premium proxy — the LAST paid resort, after Tor. Only added when it
-        # was not already tried first above.
-        if proxy_url and not premium_first:
-            tier_order.append(("premium_proxy", self._tier_premium_proxy))
-
-        tier_order.extend(
-            [
-                ("archive", self._tier_archive),
-                ("google_cache", self._tier_google_cache),
-            ]
-        )
-
-        # Tier 13: AI Visual Scraper (screenshot + LLM vision)
-        ai_visual = _us_flag("_ai_visual")
-        if _us_flag("_has_ai_visual") and ai_visual and ai_visual.is_available():
-            tier_order.append(("ai_visual", self._tier_ai_visual))
-
-        # Tier 14: Mobile App API Scraper
-        if _us_flag("_has_mobile") and _us_flag("_mobile_scraper"):
-            tier_order.append(("mobile_app", self._tier_mobile_app))
-
-        # Tier 15: GraphQL API Discovery
-        if _us_flag("_has_graphql") and _us_flag("_graphql_scraper"):
-            tier_order.append(("graphql", self._tier_graphql))
+        # Trusted cheap tiers first, then Tor (anonymous, free), then the
+        # paid premium proxy LAST, then cached-version fallbacks as the
+        # absolute last resort.
+        tier_order = self._build_tier_order(proxy_url, premium_first)
 
         # Adaptive ordering: promote the domain's proven-best tier to the
         # front and demote/skip tiers that have been failing recently. Each
@@ -238,32 +180,9 @@ class ScrapeOrchestrator(TierMixin):
                         i += 1
                         continue
 
-                    start = time.time()
-                    try:
-                        retry_cfg = self._RETRY_CONFIGS.get(tier_name, self._DEFAULT_RETRY)
-                        # Child span per tier attempt — the trace shows exactly which
-                        # bypass strategies a target needed and what each cost.
-                        with span("scrape.tier", {"pry.tier": tier_name, "http.url": url}):
-                            if tier_name == "premium_proxy":
-                                html = await async_retry(
-                                    tier_fn, url, proxy_url, opts, config=retry_cfg
-                                )
-                            else:
-                                html = await async_retry(
-                                    tier_fn, url, opts, proxy_url=proxy_url, config=retry_cfg
-                                )
-                    except InvalidRequestError:
-                        # SSRF rejection (e.g. redirect to a private/metadata IP) is not a
-                        # tier failure — abort the whole chain instead of falling through
-                        # to other tiers that would hit the same unsafe target.
-                        raise
-                    except Exception as e:  # noqa: BLE001
-                        logger.debug(
-                            "tier_exception", extra={"tier": tier_name, "error": str(e)[:200]}
-                        )
-                        html = None
-
-                    latency = time.time() - start
+                    html, latency = await self._attempt_tier(
+                        tier_name, tier_fn, url, proxy_url, opts
+                    )
 
                     # Block detection: classify the tier response (or failure) so the
                     # next tier choice can escalate intelligently. Tiers expose only the
@@ -275,38 +194,29 @@ class ScrapeOrchestrator(TierMixin):
                     success = bool(html and self._is_valid(html))
                     if signal is not None and signal.kind != "none":
                         latest_signal = self._signal_to_dict(signal)
-                        preferred = self._PREFER_ON_BLOCK.get(signal.kind, ())
-                        if preferred and i + 1 < len(tier_order):
-                            remaining = tier_order[i + 1 :]
-                            preferred_tiers = [t for t in remaining if t[0] in preferred]
-                            if preferred_tiers:
-                                tier_order[i + 1 :] = preferred_tiers + [
-                                    t for t in remaining if t[0] not in preferred
-                                ]
+                        self._promote_preferred_tiers(tier_order, i, signal.kind)
                         success = False
 
-                    registry.record_domain_tier_result(domain, tier_name, success, latency)
-                    if breaker_name:
-                        registry.record_service_result(breaker_name, success)
-                    if SCRAPE_LATENCY:
-                        SCRAPE_LATENCY.labels(method=tier_name).observe(latency)
+                    self._record_tier_outcome(
+                        registry, breaker_name, domain, tier_name, success, latency
+                    )
 
                     if success:
-                        method = "premium_proxy" if tier_name == "premium_proxy" else tier_name
-                        if not isinstance(html, str):
+                        success_result = self._record_tier_success(
+                            domain=domain,
+                            tier_name=tier_name,
+                            ordered_names=ordered_names,
+                            attempts=attempts,
+                            scrape_start=scrape_start,
+                            errors=errors,
+                            html=html,
+                            latency=latency,
+                            latest_signal=latest_signal,
+                            url=url,
+                        )
+                        if success_result is None:
                             continue
-                        attempts.append(
-                            {
-                                "tier": tier_name,
-                                "success": True,
-                                "error": None,
-                                "duration_ms": round(latency * 1000, 2),
-                            }
-                        )
-                        self._record_telemetry(
-                            domain, ordered_names, attempts, method, True, scrape_start, errors
-                        )
-                        return self._result(url, html, method, block_signal=latest_signal)
+                        return success_result
                     errors.append(f"{tier_name}_failed")
                     attempts.append(
                         {
@@ -376,3 +286,202 @@ class ScrapeOrchestrator(TierMixin):
         if block_signal is not None:
             result["block_signal"] = block_signal
         return result
+
+    def _build_tier_order(
+        self, proxy_url: str | None, premium_first: bool
+    ) -> list[tuple[str, Any]]:
+        """Build the fallback chain (cheap tiers -> Tor -> premium -> cached).
+
+        Note: ``_tier_premium_proxy`` has signature (url, proxy_url, opts)
+        while other tiers use (url, opts, proxy_url) — handled at the call
+        site in :meth:`_attempt_tier`.
+        """
+        tier_order: list[tuple[str, Any]] = [
+            ("direct", self._tier_direct),
+            ("tls_fingerprint", self._tier_tls_fingerprint),
+            ("cloudscraper", self._tier_cloudscraper),
+            ("flaresolverr", self._tier_flaresolverr),
+            ("undetected", self._tier_undetected),
+            ("camoufox", self._tier_camoufox),
+            ("playwright", self._tier_playwright),
+            ("googlebot", self._tier_googlebot),
+            # Tor mid-chain: anonymous fallback tried before we pay for a
+            # premium proxy, but after the trusted cheap methods.
+            ("tor", self._tier_tor),
+        ]
+
+        # Premium proxy — the LAST paid resort, after Tor. Only added when it
+        # was not already tried first above.
+        if proxy_url and not premium_first:
+            tier_order.append(("premium_proxy", self._tier_premium_proxy))
+
+        tier_order.extend(
+            [
+                ("archive", self._tier_archive),
+                ("google_cache", self._tier_google_cache),
+            ]
+        )
+
+        # Tier 13: AI Visual Scraper (screenshot + LLM vision)
+        ai_visual = _us_flag("_ai_visual")
+        if _us_flag("_has_ai_visual") and ai_visual and ai_visual.is_available():
+            tier_order.append(("ai_visual", self._tier_ai_visual))
+
+        # Tier 14: Mobile App API Scraper
+        if _us_flag("_has_mobile") and _us_flag("_mobile_scraper"):
+            tier_order.append(("mobile_app", self._tier_mobile_app))
+
+        # Tier 15: GraphQL API Discovery
+        if _us_flag("_has_graphql") and _us_flag("_graphql_scraper"):
+            tier_order.append(("graphql", self._tier_graphql))
+
+        return tier_order
+
+    async def _attempt_tier(
+        self,
+        tier_name: str,
+        tier_fn: Any,
+        url: str,
+        proxy_url: str | None,
+        opts: dict[str, Any],
+    ) -> tuple[Any, float]:
+        """Run one tier attempt with its retry config + trace span.
+
+        Returns ``(html, latency_seconds)`` — html is None on any failure.
+        ``InvalidRequestError`` (SSRF rejection) is re-raised so the whole
+        chain aborts instead of falling through to other tiers that would
+        hit the same unsafe target.
+        """
+        start = time.time()
+        try:
+            retry_cfg = self._RETRY_CONFIGS.get(tier_name, self._DEFAULT_RETRY)
+            # Child span per tier attempt — the trace shows exactly which
+            # bypass strategies a target needed and what each cost.
+            with span("scrape.tier", {"pry.tier": tier_name, "http.url": url}):
+                if tier_name == "premium_proxy":
+                    html = await async_retry(tier_fn, url, proxy_url, opts, config=retry_cfg)
+                else:
+                    html = await async_retry(
+                        tier_fn, url, opts, proxy_url=proxy_url, config=retry_cfg
+                    )
+        except InvalidRequestError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            logger.debug("tier_exception", extra={"tier": tier_name, "error": str(e)[:200]})
+            html = None
+        latency = time.time() - start
+        return html, latency
+
+    def _record_tier_outcome(
+        self,
+        registry: Any,
+        breaker_name: str | None,
+        domain: str,
+        tier_name: str,
+        success: bool,
+        latency: float,
+    ) -> None:
+        """Feed one tier outcome to the registry + latency metric."""
+        registry.record_domain_tier_result(domain, tier_name, success, latency)
+        if breaker_name:
+            registry.record_service_result(breaker_name, success)
+        if SCRAPE_LATENCY:
+            SCRAPE_LATENCY.labels(method=tier_name).observe(latency)
+
+    def _promote_preferred_tiers(
+        self, tier_order: list[tuple[str, Any]], i: int, kind: str
+    ) -> None:
+        """Promote the preferred tier family for a detected block signal (in place)."""
+        preferred = self._PREFER_ON_BLOCK.get(kind, ())
+        if preferred and i + 1 < len(tier_order):
+            remaining = tier_order[i + 1 :]
+            preferred_tiers = [t for t in remaining if t[0] in preferred]
+            if preferred_tiers:
+                tier_order[i + 1 :] = preferred_tiers + [
+                    t for t in remaining if t[0] not in preferred
+                ]
+
+    def _record_tier_success(
+        self,
+        *,
+        domain: str,
+        tier_name: str,
+        ordered_names: list[str],
+        attempts: list[dict[str, Any]],
+        scrape_start: float,
+        errors: list[str],
+        html: Any,
+        latency: float,
+        latest_signal: dict[str, Any] | None,
+        url: str,
+    ) -> dict[str, Any] | None:
+        """Record telemetry + build the success result.
+
+        Returns None when html isn't a str (defensive — caller continues).
+        """
+        if not isinstance(html, str):
+            return None
+        attempts.append(
+            {
+                "tier": tier_name,
+                "success": True,
+                "error": None,
+                "duration_ms": round(latency * 1000, 2),
+            }
+        )
+        self._record_telemetry(
+            domain, ordered_names, attempts, tier_name, True, scrape_start, errors
+        )
+        return self._result(url, html, tier_name, block_signal=latest_signal)
+
+    async def _premium_first(
+        self,
+        *,
+        url: str,
+        proxy_url: str,
+        opts: dict[str, Any],
+        domain: str,
+        scrape_start: float,
+        attempts: list[dict[str, Any]],
+        errors: list[str],
+        latest_signal: dict[str, Any] | None,
+    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+        """Run the premium-proxy-first attempt when the caller requested it.
+
+        Returns ``(result, latest_signal)`` — result is None when the premium
+        attempt failed (caller proceeds with the regular chain).
+        """
+        start = time.time()
+        html = await self._tier_premium_proxy(url, proxy_url, opts)
+        latency = time.time() - start
+        signal = self._detect_block_signal(html)
+        success = bool(html and self._is_valid(html))
+        if signal is not None and signal.kind != "none":
+            latest_signal = self._signal_to_dict(signal)
+            success = False
+        if success:
+            assert isinstance(html, str)
+            attempts.append(
+                {
+                    "tier": "premium_proxy",
+                    "success": True,
+                    "error": None,
+                    "duration_ms": round(latency * 1000, 2),
+                }
+            )
+            self._record_telemetry(
+                domain, ["premium_proxy"], attempts, "premium_proxy", True, scrape_start, errors
+            )
+            return self._result(
+                url, html, "premium_proxy", block_signal=latest_signal
+            ), latest_signal
+        errors.append("premium_proxy_failed")
+        attempts.append(
+            {
+                "tier": "premium_proxy",
+                "success": False,
+                "error": "premium_proxy_failed",
+                "duration_ms": round(latency * 1000, 2),
+            }
+        )
+        return None, latest_signal

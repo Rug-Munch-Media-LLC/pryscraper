@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import Query
 from fastapi.responses import HTMLResponse
@@ -27,79 +28,27 @@ async def admin_html_dashboard(
     days: int = Query(30, description="Number of days to look back"),
 ) -> HTMLResponse:
     """Server-rendered admin dashboard (pryscraper.com visual language)."""
-    profits = _compute_profits(days)
-    apify = _get_apify_profits()
-    cache_stats = cache.stats()
-    rate_stats = ratelimiter.get_stats()
-
-    # Earnings (tracker with analytics fallback)
-    try:
-        tracker, backend = _earnings_source()
-        total_earnings = tracker.get_total_earnings(days)
-        mrr = tracker.get_mrr()
-        growth = tracker.get_growth_rate(days)
-        treasury = tracker.get_treasury_balances()
-    except Exception as e:  # noqa: BLE001 - dashboard must never 500
-        logger.warning("dashboard_earnings_failed", extra={"error": str(e)})
-        total_earnings = {"total_usd": 0, "by_stream": {}, "counts": {}}
-        mrr = {"mrr_usd": 0}
-        growth = {"growth_pct": 0}
-        treasury = {}
-        backend = "unavailable"
-
-    # Top payers + network breakdown + recent payments (analytics over payments.jsonl)
-    try:
-        from pry.payments.analytics import get_analytics
-
-        analytics = get_analytics()
-        top_payers = analytics.get_top_payers(10)
-        networks = analytics.get_network_breakdown(days)
-    except Exception:  # noqa: BLE001 - dashboard must never 500
-        top_payers, networks = [], {}
-    recent = _get_x402_payments(days=days)
-    recent.sort(
-        key=lambda p: _parse_ts(p.get("ts", "")) or datetime.min.replace(tzinfo=UTC),
-        reverse=True,
-    )
-    recent = recent[:15]
+    d = _gather_dashboard_data(days)
+    profits = d["profits"]
+    apify = d["apify"]
+    cache_stats = d["cache_stats"]
+    rate_stats = d["rate_stats"]
+    total_earnings = d["total_earnings"]
+    mrr = d["mrr"]
+    growth = d["growth"]
+    backend = d["backend"]
+    top_payers = d["top_payers"]
+    networks = d["networks"]
+    recent = d["recent"]
 
     now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     net = profits["x402"]["net_profit_usd"]
     growth_pct = growth.get("growth_pct", 0) if isinstance(growth, dict) else 0
 
-    network_rows = (
-        "".join(
-            f"<tr><td>{n}</td><td>{d.get('count', 0)}</td><td>{_fmt_usd(d.get('total_usd', 0))}</td></tr>"
-            for n, d in networks.items()
-        )
-        or "<tr><td colspan='3' class='empty'>No payments yet</td></tr>"
-    )
-    treasury_rows = (
-        "".join(
-            f"<tr><td>{chain.upper()}</td><td>{_fmt_usd(b.get('balance_usd', b.get('total_usd', 0)))}</td>"
-            f"<td class='muted'>{b.get('address', b.get('wallet', '') or '—')}</td></tr>"
-            for chain, b in treasury.items()
-            if isinstance(b, dict)
-        )
-        or "<tr><td colspan='3' class='empty'>Treasury not configured</td></tr>"
-    )
-    recent_rows = (
-        "".join(
-            f"<tr><td class='muted'>{(p.get('ts', '') or '')[:19]}</td>"
-            f"<td>{p.get('network', '?')}</td><td>{p.get('asset', '?')}</td>"
-            f"<td>{_fmt_usd(p.get('amount_usd', 0))}</td>"
-            f"<td><span class='badge {'badge-ok' if p.get('verified') else 'badge-err'}'>"
-            f"{'verified' if p.get('verified') else 'failed'}</span></td></tr>"
-            for p in recent
-        )
-        or "<tr><td colspan='5' class='empty'>No payments yet</td></tr>"
-    )
-    payer_rows = (
-        "".join(
-            f"<tr><td>{p['payer']}</td><td>{_fmt_usd(p['total_usd'])}</td></tr>" for p in top_payers
-        )
-        or "<tr><td colspan='2' class='empty'>No payers yet</td></tr>"
-    )
+    network_rows = _network_rows(networks)
+    treasury_rows = _treasury_rows(d["treasury"])
+    recent_rows = _recent_rows(recent)
+    payer_rows = _payer_rows(top_payers)
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -176,3 +125,105 @@ footer {{ margin-top:2rem; font-size:.72rem; color:#475569; }}
 </body>
 </html>"""
     return HTMLResponse(content=html)
+
+
+# ── Private helpers (extracted from admin_html_dashboard — audit P2) ────────
+
+
+def _gather_dashboard_data(days: int) -> dict[str, Any]:
+    """Collect every dashboard data source, degrading instead of 500ing."""
+    profits = _compute_profits(days)
+    apify = _get_apify_profits()
+    cache_stats = cache.stats()
+    rate_stats = ratelimiter.get_stats()
+
+    # Earnings (tracker with analytics fallback)
+    try:
+        tracker, backend = _earnings_source()
+        total_earnings = tracker.get_total_earnings(days)
+        mrr = tracker.get_mrr()
+        growth = tracker.get_growth_rate(days)
+        treasury = tracker.get_treasury_balances()
+    except Exception as e:  # noqa: BLE001 - dashboard must never 500
+        logger.warning("dashboard_earnings_failed", extra={"error": str(e)})
+        total_earnings = {"total_usd": 0, "by_stream": {}, "counts": {}}
+        mrr = {"mrr_usd": 0}
+        growth = {"growth_pct": 0}
+        treasury = {}
+        backend = "unavailable"
+
+    # Top payers + network breakdown + recent payments (analytics over payments.jsonl)
+    try:
+        from pry.payments.analytics import get_analytics
+
+        analytics = get_analytics()
+        top_payers = analytics.get_top_payers(10)
+        networks = analytics.get_network_breakdown(days)
+    except Exception:  # noqa: BLE001 - dashboard must never 500
+        top_payers, networks = [], {}
+    recent = _get_x402_payments(days=days)
+    recent.sort(
+        key=lambda p: _parse_ts(p.get("ts", "")) or datetime.min.replace(tzinfo=UTC),
+        reverse=True,
+    )
+    recent = recent[:15]
+
+    return {
+        "profits": profits,
+        "apify": apify,
+        "cache_stats": cache_stats,
+        "rate_stats": rate_stats,
+        "total_earnings": total_earnings,
+        "mrr": mrr,
+        "growth": growth,
+        "treasury": treasury,
+        "backend": backend,
+        "top_payers": top_payers,
+        "networks": networks,
+        "recent": recent,
+    }
+
+
+def _network_rows(networks: dict) -> str:
+    return (
+        "".join(
+            f"<tr><td>{n}</td><td>{d.get('count', 0)}</td><td>{_fmt_usd(d.get('total_usd', 0))}</td></tr>"
+            for n, d in networks.items()
+        )
+        or "<tr><td colspan='3' class='empty'>No payments yet</td></tr>"
+    )
+
+
+def _treasury_rows(treasury: dict) -> str:
+    return (
+        "".join(
+            f"<tr><td>{chain.upper()}</td><td>{_fmt_usd(b.get('balance_usd', b.get('total_usd', 0)))}</td>"
+            f"<td class='muted'>{b.get('address', b.get('wallet', '') or '—')}</td></tr>"
+            for chain, b in treasury.items()
+            if isinstance(b, dict)
+        )
+        or "<tr><td colspan='3' class='empty'>Treasury not configured</td></tr>"
+    )
+
+
+def _recent_rows(recent: list) -> str:
+    return (
+        "".join(
+            f"<tr><td class='muted'>{(p.get('ts', '') or '')[:19]}</td>"
+            f"<td>{p.get('network', '?')}</td><td>{p.get('asset', '?')}</td>"
+            f"<td>{_fmt_usd(p.get('amount_usd', 0))}</td>"
+            f"<td><span class='badge {'badge-ok' if p.get('verified') else 'badge-err'}'>"
+            f"{'verified' if p.get('verified') else 'failed'}</span></td></tr>"
+            for p in recent
+        )
+        or "<tr><td colspan='5' class='empty'>No payments yet</td></tr>"
+    )
+
+
+def _payer_rows(top_payers: list) -> str:
+    return (
+        "".join(
+            f"<tr><td>{p['payer']}</td><td>{_fmt_usd(p['total_usd'])}</td></tr>" for p in top_payers
+        )
+        or "<tr><td colspan='2' class='empty'>No payers yet</td></tr>"
+    )

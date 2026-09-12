@@ -838,15 +838,17 @@ jobs:
           radon cc src/ -a -nc --min=B || echo "WARN: complexity below B grade found"
       - name: Xenon complexity gate (ratcheted thresholds)
         # Audit 2026-09-11 P0.7: the old B/A/A gate sat at 266 violations and
-        # had never passed — it gated nothing. Ratcheted to F/F/A: blocks may
-        # not exceed F, modules may not exceed F average, repo average must
-        # stay A. Known F-rank modules (payments/x402/solana_transfer.py,
-        # payments/x402/self_facilitator/evm_verify.py — payment-critical
-        # verifiers) are the refactor targets; tighten --max-modules
-        # F -> D -> C -> B as modules are refactored.
+        # had never passed — it gated nothing. First ratchet F/F/A (green).
+        # Ratchet 2 (2026-09-12): the last 4 F-rank blocks were refactored
+        # (solana_transfer.verify_solana_payment F54->C11,
+        # evm_verify.EVMVerifyMixin.verify F42->C17, cli_commands.main
+        # F41->C11, scraper_orchestrate._scrape_with_fallbacks F46->C20) —
+        # threshold tightened to E/C/A. Next targets: the 4 remaining E-rank
+        # blocks (config_validation, middleware_http, form_detection,
+        # automator) -> then D/C, then C/C.
         run: |
-          xenon --max-absolute F --max-modules F --max-average A src/ || {
-            echo "❌ Complexity gate failed: module/block exceeded F rank or repo average slipped"
+          xenon --max-absolute E --max-modules C --max-average A src/ || {
+            echo "❌ Complexity gate failed: block exceeded E rank, module exceeded C, or repo average slipped"
             exit 1
           }
 

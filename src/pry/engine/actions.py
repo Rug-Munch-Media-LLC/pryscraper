@@ -131,89 +131,122 @@ async def execute_action(page: Any, action: dict) -> bool:
         return False
     action_type = action.get("type")
     selector = action.get("selector")
-
-    try:
-        if action_type == "click":
-            if not selector:
-                return False
-            await page.click(selector, timeout=_ACTION_TIMEOUT * 1000)
-            return True
-
-        if action_type == "type":
-            if not selector or "text" not in action:
-                return False
-            await page.fill(selector, str(action["text"]), timeout=_ACTION_TIMEOUT * 1000)
-            return True
-
-        if action_type == "scroll":
-            direction = action.get("direction", "down")
-            amount = int(action.get("amount", 500))
-            sign = -1 if direction == "up" else 1
-            await page.evaluate(f"window.scrollBy(0, {sign * amount})")
-            return True
-
-        if action_type == "wait":
-            if action.get("selector"):
-                await page.wait_for_selector(action["selector"], timeout=_ACTION_TIMEOUT * 1000)
-                return True
-            if "ms" in action:
-                ms = min(int(action["ms"]), 30_000)
-                await asyncio.sleep(ms / 1000)
-                return True
-            return False
-
-        if action_type == "press":
-            key = action.get("key")
-            if not key:
-                return False
-            await page.keyboard.press(str(key))
-            return True
-
-        if action_type == "screenshot":
-            await page.screenshot(full_page=True)
-            return True
-
-        if action_type == "evaluate":
-            script = action.get("script")
-            if not script:
-                return False
-            await page.evaluate(script)
-            return True
-
-        if action_type == "select":
-            if not selector or "value" not in action:
-                return False
-            await page.select_option(selector, str(action["value"]), timeout=_ACTION_TIMEOUT * 1000)
-            return True
-
-        if action_type == "check":
-            if not selector:
-                return False
-            await page.check(selector, timeout=_ACTION_TIMEOUT * 1000)
-            return True
-
-        if action_type == "uncheck":
-            if not selector:
-                return False
-            await page.uncheck(selector, timeout=_ACTION_TIMEOUT * 1000)
-            return True
-
-        if action_type == "hover":
-            if not selector:
-                return False
-            await page.hover(selector, timeout=_ACTION_TIMEOUT * 1000)
-            return True
-
-        if action_type == "focus":
-            if not selector:
-                return False
-            await page.focus(selector, timeout=_ACTION_TIMEOUT * 1000)
-            return True
-
+    handler = _ACTION_HANDLERS.get(action_type)
+    if handler is None:
         return False
+    try:
+        return await handler(page, action, selector)
     except Exception as e:  # noqa: BLE001 — contract: never raise
         logger.debug(
             "action_failed",
             extra={"type": str(action_type), "error": str(e)[:120]},
         )
         return False
+
+
+# ── Per-action handlers (extracted from execute_action — audit P2) ──────────
+
+
+async def _action_click(page: Any, action: dict, selector: Any) -> bool:
+    if not selector:
+        return False
+    await page.click(selector, timeout=_ACTION_TIMEOUT * 1000)
+    return True
+
+
+async def _action_type(page: Any, action: dict, selector: Any) -> bool:
+    if not selector or "text" not in action:
+        return False
+    await page.fill(selector, str(action["text"]), timeout=_ACTION_TIMEOUT * 1000)
+    return True
+
+
+async def _action_scroll(page: Any, action: dict, selector: Any) -> bool:
+    direction = action.get("direction", "down")
+    amount = int(action.get("amount", 500))
+    sign = -1 if direction == "up" else 1
+    await page.evaluate(f"window.scrollBy(0, {sign * amount})")
+    return True
+
+
+async def _action_wait(page: Any, action: dict, selector: Any) -> bool:
+    if action.get("selector"):
+        await page.wait_for_selector(action["selector"], timeout=_ACTION_TIMEOUT * 1000)
+        return True
+    if "ms" in action:
+        ms = min(int(action["ms"]), 30_000)
+        await asyncio.sleep(ms / 1000)
+        return True
+    return False
+
+
+async def _action_press(page: Any, action: dict, selector: Any) -> bool:
+    key = action.get("key")
+    if not key:
+        return False
+    await page.keyboard.press(str(key))
+    return True
+
+
+async def _action_screenshot(page: Any, action: dict, selector: Any) -> bool:
+    await page.screenshot(full_page=True)
+    return True
+
+
+async def _action_evaluate(page: Any, action: dict, selector: Any) -> bool:
+    script = action.get("script")
+    if not script:
+        return False
+    await page.evaluate(script)
+    return True
+
+
+async def _action_select(page: Any, action: dict, selector: Any) -> bool:
+    if not selector or "value" not in action:
+        return False
+    await page.select_option(selector, str(action["value"]), timeout=_ACTION_TIMEOUT * 1000)
+    return True
+
+
+async def _action_check(page: Any, action: dict, selector: Any) -> bool:
+    if not selector:
+        return False
+    await page.check(selector, timeout=_ACTION_TIMEOUT * 1000)
+    return True
+
+
+async def _action_uncheck(page: Any, action: dict, selector: Any) -> bool:
+    if not selector:
+        return False
+    await page.uncheck(selector, timeout=_ACTION_TIMEOUT * 1000)
+    return True
+
+
+async def _action_hover(page: Any, action: dict, selector: Any) -> bool:
+    if not selector:
+        return False
+    await page.hover(selector, timeout=_ACTION_TIMEOUT * 1000)
+    return True
+
+
+async def _action_focus(page: Any, action: dict, selector: Any) -> bool:
+    if not selector:
+        return False
+    await page.focus(selector, timeout=_ACTION_TIMEOUT * 1000)
+    return True
+
+
+_ACTION_HANDLERS: dict[str, Any] = {
+    "click": _action_click,
+    "type": _action_type,
+    "scroll": _action_scroll,
+    "wait": _action_wait,
+    "press": _action_press,
+    "screenshot": _action_screenshot,
+    "evaluate": _action_evaluate,
+    "select": _action_select,
+    "check": _action_check,
+    "uncheck": _action_uncheck,
+    "hover": _action_hover,
+    "focus": _action_focus,
+}

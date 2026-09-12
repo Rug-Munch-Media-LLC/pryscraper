@@ -12,6 +12,7 @@ import base64
 import json
 import os
 import sys
+from typing import Any
 
 import click
 
@@ -243,6 +244,108 @@ def _print_usage() -> None:
     print("    PRY_URL=http://localhost:8005    (default)")
 
 
+# ── Per-command dispatch helpers (extracted from main() — audit P2) ─────────
+
+
+def _opt_value(flag: str, default: str | None = None) -> str | None:
+    """Value of ``--flag <value>`` from sys.argv, or ``default``."""
+    return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
+
+
+def _int_opt_value(flag: str, default: int) -> int:
+    """Int value of ``--flag <value>`` from sys.argv, or ``default``."""
+    return int(sys.argv[sys.argv.index(flag) + 1]) if flag in sys.argv else default
+
+
+def _dispatch_open_like(args: list[str]) -> None:
+    """``open`` | ``get`` | ``scrape``"""
+    url = args[0] if args else input("URL: ")
+    opts: dict = {"output_json": "--json" in sys.argv, "timeout": 30}
+    if "--schema" in sys.argv:
+        opts["schema_path"] = sys.argv[sys.argv.index("--schema") + 1]
+    if "--timeout" in sys.argv:
+        opts["timeout"] = int(sys.argv[sys.argv.index("--timeout") + 1])
+    if "--offset" in sys.argv:
+        opts["offset"] = int(sys.argv[sys.argv.index("--offset") + 1])
+    if "--limit" in sys.argv:
+        opts["limit"] = int(sys.argv[sys.argv.index("--limit") + 1])
+    cmd_open(url, **opts)
+
+
+def _dispatch_watch(args: list[str]) -> None:
+    url = args[0] if args else input("URL: ")
+    webhook = sys.argv[sys.argv.index("--webhook") + 1] if "--webhook" in sys.argv else ""
+    cmd_watch(url, webhook)
+
+
+def _dispatch_crawl(args: list[str]) -> None:
+    url = args[0] if args else input("URL: ")
+    max_p = _int_opt_value("--max-pages", 10)
+    out = _opt_value("-o")
+    cmd_crawl(url, max_p, out)
+
+
+def _dispatch_batch(args: list[str]) -> None:
+    fp = args[0] if args else input("File: ")
+    tmpl = _opt_value("--template", "") or ""
+    cmd_batch(fp, tmpl)
+
+
+def _dispatch_parse(args: list[str]) -> None:
+    url = args[0] if args else input("URL: ")
+    cmd_parse(url)
+
+
+def _dispatch_screenshot(args: list[str]) -> None:
+    url = args[0] if args else input("URL: ")
+    out = _opt_value("-o")
+    cmd_screenshot(url, out)
+
+
+def _dispatch_run(args: list[str]) -> None:
+    cmd_run(args[0] if args else "pry.yml")
+
+
+def _dispatch_serve(args: list[str]) -> None:
+    port = _int_opt_value("--port", 8005)
+    cmd_serve(port=port)
+
+
+def _dispatch_migrate(args: list[str]) -> None:
+    cmd_migrate()
+
+
+def _dispatch_completions(args: list[str]) -> None:
+    shell = args[0] if args else "bash"
+    cmd_completions(shell)
+
+
+def _dispatch_proxy(args: list[str]) -> None:
+    if click is None:
+        print(f"{RED}✖ click is not installed. Run: pip install click{NC}")
+        sys.exit(1)
+    cli.main(standalone_mode=False)
+
+
+_COMMANDS: dict[str, Any] = {
+    "open": _dispatch_open_like,
+    "get": _dispatch_open_like,
+    "scrape": _dispatch_open_like,
+    "watch": _dispatch_watch,
+    "crawl": _dispatch_crawl,
+    "batch": _dispatch_batch,
+    "parse": _dispatch_parse,
+    "ss": _dispatch_screenshot,
+    "screenshot": _dispatch_screenshot,
+    "run": _dispatch_run,
+    "serve": _dispatch_serve,
+    "migrate": _dispatch_migrate,
+    "db": _dispatch_migrate,
+    "completions": _dispatch_completions,
+    "autocomplete": _dispatch_completions,
+}
+
+
 def main():
     if len(sys.argv) >= 2 and sys.argv[1] in ("proxy", "wallets") and click is not None:
         cli.main(standalone_mode=False)
@@ -255,79 +358,19 @@ def main():
     args = sys.argv[2:]
 
     try:
-        if cmd == "open" or cmd == "get" or cmd == "scrape":
-            url = args[0] if args else input("URL: ")
-            opts = {"output_json": "--json" in sys.argv, "timeout": 30}
-            if "--schema" in sys.argv:
-                opts["schema_path"] = sys.argv[sys.argv.index("--schema") + 1]
-            if "--timeout" in sys.argv:
-                opts["timeout"] = int(sys.argv[sys.argv.index("--timeout") + 1])
-            if "--offset" in sys.argv:
-                opts["offset"] = int(sys.argv[sys.argv.index("--offset") + 1])
-            if "--limit" in sys.argv:
-                opts["limit"] = int(sys.argv[sys.argv.index("--limit") + 1])
-            cmd_open(url, **opts)
-
-        elif cmd == "watch":
-            url = args[0] if args else input("URL: ")
-            webhook = sys.argv[sys.argv.index("--webhook") + 1] if "--webhook" in sys.argv else ""
-            cmd_watch(url, webhook)
-
-        elif cmd == "crawl":
-            url = args[0] if args else input("URL: ")
-            max_p = (
-                int(sys.argv[sys.argv.index("--max-pages") + 1])
-                if "--max-pages" in sys.argv
-                else 10
-            )
-            out = sys.argv[sys.argv.index("-o") + 1] if "-o" in sys.argv else None
-            cmd_crawl(url, max_p, out)
-
-        elif cmd == "batch":
-            fp = args[0] if args else input("File: ")
-            tmpl = sys.argv[sys.argv.index("--template") + 1] if "--template" in sys.argv else ""
-            cmd_batch(fp, tmpl)
-
-        elif cmd == "parse":
-            url = args[0] if args else input("URL: ")
-            cmd_parse(url)
-
-        elif cmd in ("ss", "screenshot"):
-            url = args[0] if args else input("URL: ")
-            out = sys.argv[sys.argv.index("-o") + 1] if "-o" in sys.argv else None
-            cmd_screenshot(url, out)
-
-        elif cmd == "run":
-            cmd_run(args[0] if args else "pry.yml")
-
-        elif cmd == "serve":
-            port = int(sys.argv[sys.argv.index("--port") + 1]) if "--port" in sys.argv else 8005
-            cmd_serve(port=port)
-
-        elif cmd in ("migrate", "db"):
-            cmd_migrate()
-
-        elif cmd in ("completions", "autocomplete"):
-            shell = args[0] if args else "bash"
-            cmd_completions(shell)
-
-        elif cmd in ("-v", "--version", "version"):
+        if cmd in ("-v", "--version", "version"):
             print(f"Pry v{VERSION}")
-
         elif cmd in ("-h", "--help", "help"):
             _print_usage()
-
         elif cmd == "proxy":
-            if click is None:
-                print(f"{RED}✖ click is not installed. Run: pip install click{NC}")
-                sys.exit(1)
-            cli.main(standalone_mode=False)
-            return
-
+            _dispatch_proxy(args)
         else:
-            print(f"{RED}Unknown command: {cmd}{NC}")
-            print(f"Run {CYAN}pry{NC} without arguments for help.")
-            sys.exit(1)
+            handler = _COMMANDS.get(cmd)
+            if handler is None:
+                print(f"{RED}Unknown command: {cmd}{NC}")
+                print(f"Run {CYAN}pry{NC} without arguments for help.")
+                sys.exit(1)
+            handler(args)
 
     except IndexError:
         print(f"{YELLOW}Missing argument for '{cmd}'{NC}")
