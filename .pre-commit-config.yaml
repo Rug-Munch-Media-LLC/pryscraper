@@ -31,8 +31,12 @@ repos:
     hooks:
       - id: bandit
         # -ll: medium+ only — matches the CI bandit gate (LOW findings like
-        # B404/B603/B311 are intentionally not gating).
+        # B404/B603/B311 are intentionally not gating). The `exclude` field
+        # (not just -x) is required: pre-commit passes explicit file paths as
+        # args and -x does not filter explicit args, so tests/ fixtures were
+        # being scanned and failed the hook (audit 2026-09-12).
         args: [-r, -ll, -x, "./tests/*,./.venv/*,./__pycache__/*,./website/*,./actor_factory/*"]
+        exclude: ^(tests/|website/|actor_factory/|mutants/)
         stages: [pre-commit]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

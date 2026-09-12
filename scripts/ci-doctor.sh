@@ -44,16 +44,20 @@ if [ -z "$TASKS_JSON" ]; then
 fi
 
 # Parse the newest run: group tasks by head_sha of the newest run, print
-# "id name conclusion". JSON passed via env (avoids SC2259 heredoc-vs-pipe).
+# "id name conclusion". JSON goes via temp file (env is too small for large
+# task lists; heredoc avoids the SC2259 pipe conflict).
+printf '%s' "$TASKS_JSON" >"$TMP_DIR/tasks.json"
 mapfile -t TASKS < <(
-    TASKS_JSON="$TASKS_JSON" python3 - <<'PY'
-import json, os, sys
-data = json.loads(os.environ["TASKS_JSON"])
+    python3 - "$TMP_DIR/tasks.json" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
 tasks = data.get("workflow_runs", data if isinstance(data, list) else [])
 if not tasks:
     sys.exit(0)
-newest = max(t.get("run_started_at", "") for t in tasks)
-run = [t for t in tasks if t.get("run_started_at", "") == newest]
+# Group by run_number — every job in one run shares it (run_started_at
+# differs per job and cannot be used for grouping).
+run_number = max(int(t.get("run_number") or 0) for t in tasks)
+run = [t for t in tasks if int(t.get("run_number") or 0) == run_number]
 for t in sorted(run, key=lambda x: x.get("name", "")):
     print(f"{t.get('id')}\t{t.get('name')}\t{t.get('conclusion') or t.get('status')}")
 PY
