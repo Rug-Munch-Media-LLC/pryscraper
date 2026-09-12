@@ -38,6 +38,12 @@ jobs:
     container:
       image: node:22-bookworm-slim
     steps:
+      - name: Install git
+        # Audit 2026-09-12: slim image has no git — checkout fell back to a
+        # tarball download and commitlint died with `spawn git ENOENT`.
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends git ca-certificates
+          rm -rf /var/lib/apt/lists/*
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0  # Need full history to check all commits in PR
@@ -77,7 +83,7 @@ jobs:
             --exclude='actor_factory/' \
             --sarif=semgrep.sarif \
             .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
           name: semgrep-report
           path: semgrep.sarif
@@ -369,18 +375,25 @@ jobs:
       - name: Bandit (high+medium severity)
         run: source /tmp/bandit-venv/bin/activate && bandit -r . -x tests/,.venv,__pycache__ -ll -f json -o bandit-report.json
       - name: Upload report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: bandit-report
           path: bandit-report.json
         if: always()
 
   shellcheck:
+    # Audit 2026-09-12: was localhost/ci-alpine-node:3.19 — custom images get
+    # pruned by fleet cleanup and the runner then fails to pull them (404).
+    # Use the cached standard image + distro shellcheck instead.
     runs-on: docker-x64
     container:
-      image: localhost/ci-alpine-node:3.19
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install shellcheck
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends shellcheck
+          rm -rf /var/lib/apt/lists/*
       - name: ShellCheck all shell scripts
         run: |
           find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.venv/*" -not -path "*/sdks/*" -exec shellcheck -x {} +
@@ -409,12 +422,16 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Run hadolint on Dockerfile (blocking on ERROR)
+        # Audit 2026-09-12: was `docker run` inside the job container, which
+        # has no docker CLI → "docker: command not found". Use the static
+        # hadolint binary instead (no docker dependency).
         run: |
-          docker run --rm -v "$PWD":/workdir -w /workdir \
-            hadolint/hadolint:latest-alpine hadolint \
-            --config .hadolint.yaml \
-            --failure-threshold error \
-            Dockerfile
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          curl -sSL -o /usr/local/bin/hadolint \
+            https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+          chmod +x /usr/local/bin/hadolint
+          hadolint --config .hadolint.yaml --failure-threshold error Dockerfile
 
   trivy-scan:
     runs-on: docker-x64
@@ -435,7 +452,7 @@ jobs:
         run: |
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
           grype app:${{ github.sha }} --fail-on critical
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
           name: trivy-results
           path: trivy-results.sarif
@@ -496,7 +513,7 @@ jobs:
           k6 run tests/k6/smoke.js \
             -e BASE_URL=${{ vars.K6_TARGET_URL || 'https://api.pryscraper.com' }} \
             --summary-export=tests/k6/results/smoke-summary.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: k6-smoke-report
@@ -526,7 +543,7 @@ jobs:
           source .venv/bin/activate
           HYPOTHESIS_PROFILE=ci python -m pytest tests/fuzz/ -v --tb=short || echo "Fuzz tests noted (non-blocking)"
         continue-on-error: true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: fuzz-results
@@ -556,7 +573,7 @@ jobs:
           source .venv/bin/activate
           python -m pytest tests/contract/ -v --tb=short
       - name: Upload pact files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: pacts
@@ -580,7 +597,7 @@ jobs:
             echo "❌ SBOM file not generated"
             exit 1
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
           name: sbom
           path: sbom.spdx.json
@@ -679,7 +696,7 @@ jobs:
           fi
         continue-on-error: true
       - name: Upload OCR report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: ocr-review-report
           path: |
@@ -688,16 +705,24 @@ jobs:
         continue-on-error: true
 
   archfit:
+    # Audit 2026-09-12: was localhost/ci-golang-node:1.22 (pruned custom image
+    # → runner pull 404). Runs on the standard image; installs Go only if the
+    # distro provides it and degrades to a skip otherwise (advisory job).
     runs-on: docker-x64
     container:
-      image: localhost/ci-golang-node:1.22
+      image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Install archfit
-        run: go install github.com/alexei-led/archfit/cmd/archfit@latest || echo "archfit install skipped"
+      - name: Install Go + archfit (best effort)
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends golang-go ca-certificates
+          rm -rf /var/lib/apt/lists/*
+          export GOPATH="$HOME/go" PATH="$PATH:$HOME/go/bin"
+          go install github.com/alexei-led/archfit/cmd/archfit@latest || echo "archfit install skipped"
         continue-on-error: true
       - name: Run architecture fitness check
         run: |
+          export PATH="$PATH:$HOME/go/bin"
           if command -v archfit &>/dev/null; then
             archfit analyze
           else
@@ -763,7 +788,7 @@ jobs:
           PY
         # Report upload stays non-blocking; the gate above is the blocking step.
       - name: Upload report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: mutmut-report
           path: mutmut-report.txt

@@ -3,17 +3,23 @@
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 repos:
+  # Revs kept in lockstep with pyproject dev extras (audit 2026-09-12:
+  # v0.11.0 flagged UP038 — a rule removed in modern ruff — and mypy v1.15.0
+  # rejected the `untyped-decorator` disable_error_code).
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.0
+    rev: v0.16.7
     hooks:
       - id: ruff
         args: [--fix]
       - id: ruff-format
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
+    rev: v2.3.1
     hooks:
       - id: mypy
-        args: [--python-version, "3.12", --strict, --ignore-missing-imports]
+        # Same scope + leniency as the CI typecheck job (pyproject [tool.mypy]
+        # carries the ratchet). Never --strict: the repo is not strict-typed.
+        args: [src/, pry_mcp/, --python-version, "3.12", --ignore-missing-imports]
+        pass_filenames: false
         additional_dependencies:
           - types-setuptools
   - repo: https://github.com/gitleaks/gitleaks
@@ -24,7 +30,9 @@ repos:
     rev: 1.8.3
     hooks:
       - id: bandit
-        args: [-r, -x, "tests/,.venv,__pycache__"]
+        # -ll: medium+ only — matches the CI bandit gate (LOW findings like
+        # B404/B603/B311 are intentionally not gating).
+        args: [-r, -ll, -x, "tests/,.venv,__pycache__,website,actor_factory"]
         stages: [pre-commit]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

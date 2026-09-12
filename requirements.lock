@@ -2,7 +2,9 @@
 # Copyright (c) 2026 Rug Munch Media LLC
 # Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Fully pinned from the tested venv (3,422 tests green 2026-08-23).
-# Regenerate: .venv/bin/pip freeze > requirements.lock
+# Regenerate (filter the project's own editable lines — CI installs
+# the project separately via `uv pip install -e ".[dev]"`):
+#   .venv/bin/pip freeze | grep -vE "^-e git\+.*#egg=pry" > requirements.lock
 # Dockerfile and CI install THIS file — requirements.txt is the loose
 # range manifest generated from pyproject.toml (dependency declaration,
 # not an install source).
@@ -131,8 +133,6 @@ prometheus_client==0.26.0
 prompt_toolkit==3.0.51
 propcache==0.5.2
 Protego==0.6.2
--e git+ssh://git@git.rugmunch.io/RugMunchMedia/pryscraper.git@8ccafb30f568bb89133edf16d304fb6d297cd7ca#egg=pry
--e git+ssh://git@git.rugmunch.io/RugMunchMedia/pryscraper.git@8ccafb30f568bb89133edf16d304fb6d297cd7ca#egg=pryscraper_mcp
 psutil==7.2.2
 psycopg2-binary==2.9.12
 pycparser==3.0
