@@ -29,6 +29,7 @@ from __future__ import annotations
 from datasets.news_data.headlines_article import (  # noqa: F401 — test back-compat
     _extract_authors,
     _extract_published,
+    _get_scraper,
     _keywords,
     _summarize,
     get_article,

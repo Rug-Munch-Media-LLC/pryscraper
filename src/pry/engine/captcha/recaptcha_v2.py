@@ -39,7 +39,6 @@ class RecaptchaV2Provider(CaptchaProvider):
             sitekey=sitekey,
             url=url,
         )
-        return None
 
 
 register(RecaptchaV2Provider())

@@ -61,6 +61,9 @@ Licensed under MIT. See LICENSE.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+# Test seam re-export (tests monkeypatch alt_lines._RETRY_CONFIG to disable
+# retry backoff; the split moved the constant to alt_lines_common).
+from datasets.sports_data.alt_lines_common import _RETRY_CONFIG  # noqa: F401
 from datasets.sports_data.alt_lines_fetchers import get_alt_lines
 
 __all__ = ["get_alt_lines"]

@@ -17,7 +17,14 @@ from pry.core.db import Base, _resolve_database_url
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers=False: fileConfig's default (True) DISABLES
+    # every logger not listed in alembic.ini. In-process migration runs
+    # (pry.core.db.migrations.run_migrations) would then silently kill
+    # application logging for the rest of the process — and blind any
+    # caplog-based tests that run after a migration test (found via the
+    # 2026-09-11 full-suite bisect: test_db_migrations disabled the
+    # pry.payments.x402 logger, breaking offline-guard caplog asserts).
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 
 # Always use the same URL resolution logic as the application, then force a

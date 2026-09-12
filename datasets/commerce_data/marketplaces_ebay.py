@@ -91,7 +91,7 @@ async def _ebay_search(query: str, limit: int) -> list[dict[str, Any]]:
     if not raw:
         return []
     try:
-        root = ET.fromstring(raw)  # noqa: S314 - vetted HTTPS response; stdlib ET never resolves external entities
+        root = ET.fromstring(raw)  # nosec B314 — vetted HTTPS response; stdlib ET never resolves external entities
     except ET.ParseError:
         logger.warning("ebay_search_parse_failed")
         return []
@@ -125,7 +125,7 @@ async def _ebay_get(product_id: str) -> dict[str, Any]:
     if not raw:
         return {}
     try:
-        root = ET.fromstring(raw)  # noqa: S314 - vetted HTTPS response; stdlib ET never resolves external entities
+        root = ET.fromstring(raw)  # nosec B314 — vetted HTTPS response; stdlib ET never resolves external entities
     except ET.ParseError:
         logger.warning("ebay_get_parse_failed")
         return {}

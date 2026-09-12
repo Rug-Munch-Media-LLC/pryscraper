@@ -29,36 +29,48 @@ logger = logging.getLogger(__name__)
 WEBHOOK_DIR = PRY_DATA_DIR / "webhooks"
 
 
-def _validate_url(url: str) -> str | None:
-    """Validate webhook URL to prevent SSRF. Returns None if safe, reason string if not."""
-    # TODO(security): DNS-rebinding TOCTOU — the hostname is resolved here and
-    # the resulting IP is checked against private/loopback ranges, but httpx
-    # re-resolves the hostname at connect time. An attacker who controls DNS can
-    # return a public IP during validation and a private/loopback IP at connect
-    # time, bypassing the SSRF guard. Proper fix: pin the validated IP (resolve
-    # once, connect to the IP directly with extensions={"sni_hostname": host}).
-    # Mitigation in place: the shared httpx client uses retries=0 (see
-    # pry/core/client.py) so no automatic re-resolve/retry widens the window.
+def _validate_url(url: str) -> tuple[None, str] | tuple[str, None]:
+    """Validate webhook URL to prevent SSRF.
+
+    Returns ``(url, None)`` if safe — the returned URL has its hostname
+    replaced by the PINNED validated IP, closing the DNS-rebinding TOCTOU
+    window (validate-then-connect would otherwise re-resolve at connect
+    time). Returns ``(None, reason)`` when rejected.
+    """
     try:
         parsed = urllib.parse.urlparse(url)
     except ValueError:
-        return "invalid URL"
+        return None, "invalid URL"
     if not parsed.hostname:
-        return "missing hostname"
+        return None, "missing hostname"
     scheme = parsed.scheme.lower()
     if scheme not in ("https", "http"):
-        return f"unsupported scheme: {scheme}"
+        return None, f"unsupported scheme: {scheme}"
     if scheme == "http" and parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
-        return "http only allowed for localhost"
+        return None, "http only allowed for localhost"
     try:
         infos = socket.getaddrinfo(parsed.hostname, None)
-        for info in infos:
-            ip = ipaddress.ip_address(info[4][0])
-            if ip.is_private or ip.is_loopback or ip.is_link_local:
-                return f"host resolves to private/loopback IP: {ip}"
-    except (socket.gaierror, ValueError):
-        return "hostname unresolvable"
-    return None
+    except socket.gaierror:
+        return None, "hostname unresolvable"
+    # Resolve once, validate every address, and pin the FIRST address.
+    # httpx connects to the pinned IP; the original hostname is preserved
+    # for TLS SNI + the Host header via extensions below.
+    validated_ip: str | None = None
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local:
+            return None, f"host resolves to private/loopback IP: {ip}"
+        if validated_ip is None:
+            validated_ip = str(ip)
+    if validated_ip is None:
+        return None, "hostname unresolvable"
+    # Rebuild the URL against the pinned IP. IPv6 literals need brackets.
+    host_literal = f"[{validated_ip}]" if ":" in validated_ip else validated_ip
+    netloc = host_literal
+    if parsed.port:
+        netloc = f"{host_literal}:{parsed.port}"
+    pinned = parsed._replace(netloc=netloc).geturl()
+    return pinned, None
 
 
 class WebhookSecretNotConfigured(RuntimeError):
@@ -131,8 +143,11 @@ class WebhookDelivery:
         """
         from pry.api.client import get_client
 
-        # SSRF guard: reject private/loopback/invalid URLs before any network I/O
-        rejection = _validate_url(url)
+        # SSRF guard: reject private/loopback/invalid URLs before any network
+        # I/O. _validate_url returns a PINNED URL (hostname replaced by the
+        # validated IP) so httpx cannot be rebinding-attacked between
+        # validation and connect. SNI/Host keep the original hostname for TLS.
+        pinned_url, rejection = _validate_url(url)
         if rejection:
             logger.warning("webhook_url_rejected", extra={"url": url, "reason": rejection})
             return {"success": False, "error": f"URL rejected: {rejection}"}
@@ -158,7 +173,12 @@ class WebhookDelivery:
                 for attempt in range(1, max_retries + 1):
                     try:
                         resp = await client.post(
-                            url, json=payload, headers=headers, timeout=10, follow_redirects=False
+                            pinned_url,
+                            json=payload,
+                            headers=headers,
+                            timeout=10,
+                            follow_redirects=False,
+                            extensions={"sni_hostname": urllib.parse.urlparse(url).hostname or ""},
                         )
                         record = {
                             "url": url,

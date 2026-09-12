@@ -138,7 +138,7 @@ class TransformEngine:
         placeholders = ", ".join(["%s"] * len(columns))
         cols = ", ".join(columns)
         params = tuple(data.values())
-        sql = f"INSERT INTO {table} ({cols}) VALUES ({placeholders});"  # noqa: S608 - table is caller-supplied const
+        sql = f"INSERT INTO {table} ({cols}) VALUES ({placeholders});"  # nosec B608 — table is caller-supplied const; values parameterized
         return (sql, params)
 
     @staticmethod

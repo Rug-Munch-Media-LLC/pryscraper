@@ -103,7 +103,7 @@ def _parse_rss(text: str) -> list[dict[str, Any]]:
     generic news feeds share the same item-level fields.
     """
     try:
-        root = ET.fromstring(text)  # noqa: S314 — stdlib xml.etree (no defusedxml dep); read-only
+        root = ET.fromstring(text)  # nosec B314 — stdlib ET, read-only parse of fetched text
     except (ET.ParseError, ValueError):
         return []
     out: list[dict[str, Any]] = []

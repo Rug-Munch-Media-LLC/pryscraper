@@ -9,7 +9,6 @@ from typing import Any
 from pry.payments.x402_middleware import config as _pricing_config
 from pry.payments.x402_middleware.config import (
     PAID_ENDPOINTS,
-    X402_PRICING as _X402_PRICING_REF,  # noqa: F401
 )
 
 # ── Route classification (fail-closed gate) ──────────────────────────────────

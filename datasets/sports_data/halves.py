@@ -64,6 +64,7 @@ from typing import Any
 from datasets.sports_data.halves_common import (  # noqa: F401
     _PERIOD_LABELS,
     _PERIOD_MARKETS,
+    _RETRY_CONFIG,
     _SPORTS,
     _api_key,
     _as_text,

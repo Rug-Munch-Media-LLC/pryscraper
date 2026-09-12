@@ -67,6 +67,8 @@ from typing import Any
 from datasets.travel.flights import _extract_af_callbacks
 from datasets.travel.hotels_booking import _find_booking_rates
 from datasets.travel.hotels_common import (
+    MAX_BACKOFF,  # noqa: F401 — test seam (tests monkeypatch hotels.MAX_BACKOFF)
+    RETRY_BASE,  # noqa: F401 — test seam (tests monkeypatch hotels.RETRY_BASE)
     _aggregate_site_rates,
     _empty_result,
     _fetch_page,

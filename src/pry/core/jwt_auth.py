@@ -79,8 +79,8 @@ def _fetch_public_key() -> str | None:
         if not _JWKS_URL.startswith(("http://", "https://")):
             logger.warning("JWKS URL uses unsupported scheme; refusing to fetch")
             return None
-        req = urllib.request.Request(_JWKS_URL, method="GET")  # noqa: S310 - scheme guard above restricts to http/https
-        with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310 - scheme guard above restricts to http/https
+        req = urllib.request.Request(_JWKS_URL, method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310 — scheme guard above restricts to http/https
             data = json.loads(resp.read().decode())
         if "pem" in data:
             _jwks_cache["key"] = data["pem"]

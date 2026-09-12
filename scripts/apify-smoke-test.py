@@ -269,14 +269,14 @@ def _request(
     token: str, path: str, method: str = "GET", payload: dict | None = None
 ) -> tuple[int, dict | str]:
     data = json.dumps(payload).encode() if payload is not None else None
-    req = urllib.request.Request(  # noqa: S310 - fixed https base
+    req = urllib.request.Request(
         f"{API_BASE}{path}",
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         method=method,
         data=data,
     )
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=60) as resp:  # nosec B310 — fixed https base URL
             return resp.status, json.loads(resp.read().decode("utf-8", "replace") or "{}")
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read().decode("utf-8", "replace")[:300]

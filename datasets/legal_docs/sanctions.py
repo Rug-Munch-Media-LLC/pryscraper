@@ -157,7 +157,7 @@ def _parse_xml_entries(raw: str) -> list[dict[str, Any]] | None:
     try:
         # ET.fromstring on the trusted treasury.gov SDN download. ElementTree
         # never resolves external entities; defusedxml is not a dependency.
-        root = ET.fromstring(raw)  # noqa: S314
+        root = ET.fromstring(raw)  # nosec B314 — vetted HTTPS response; stdlib ET never resolves external entities
     except ET.ParseError:
         return None
     if _xml_local(root.tag) != "sdnList":

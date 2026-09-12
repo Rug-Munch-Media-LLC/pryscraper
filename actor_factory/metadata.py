@@ -231,7 +231,7 @@ def _request(
     path: str, method: str, token: str, payload: dict[str, Any] | None = None
 ) -> tuple[int, dict[str, Any] | str]:
     data = json.dumps(payload).encode() if payload is not None else None
-    req = urllib.request.Request(  # noqa: S310 - fixed https base URL
+    req = urllib.request.Request(
         f"{API_BASE}{path}",
         headers={
             "Authorization": f"Bearer {token}",
@@ -241,7 +241,7 @@ def _request(
         data=data,
     )
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=60) as resp:  # nosec B310 — fixed https base URL
             body = resp.read().decode("utf-8", "replace")
             return resp.status, json.loads(body) if body else {}
     except urllib.error.HTTPError as exc:

@@ -56,6 +56,7 @@ Licensed under MIT. See LICENSE.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+from datasets.legal_docs.dockets_http import _RETRY_CONFIG  # noqa: F401 — test seam
 from datasets.legal_docs.dockets_search import get_docket, search_dockets
 
 __all__ = ["get_docket", "search_dockets"]
