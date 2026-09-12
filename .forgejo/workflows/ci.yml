@@ -227,8 +227,9 @@ jobs:
           POSTGRES_USER: pry
           POSTGRES_PASSWORD: pry
           POSTGRES_DB: pry
-        ports:
-          - 5432:5432
+        # No host port mapping: the job container reaches the service via
+        # its network alias (postgres:5432). Host mappings conflicted with
+        # production containers (6379 = rmi-valkey) and broke service startup.
         options: >-
           --health-cmd "pg_isready -U pry -d pry"
           --health-interval 10s
@@ -236,8 +237,6 @@ jobs:
           --health-retries 5
       redis:
         image: redis:7-alpine
-        ports:
-          - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -286,8 +285,9 @@ jobs:
           POSTGRES_USER: pry
           POSTGRES_PASSWORD: pry
           POSTGRES_DB: pry
-        ports:
-          - 5432:5432
+        # No host port mapping: the job container reaches the service via
+        # its network alias (postgres:5432). Host mappings conflicted with
+        # production containers (6379 = rmi-valkey) and broke service startup.
         options: >-
           --health-cmd "pg_isready -U pry -d pry"
           --health-interval 10s
@@ -295,8 +295,6 @@ jobs:
           --health-retries 5
       redis:
         image: redis:7-alpine
-        ports:
-          - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
