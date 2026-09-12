@@ -44,6 +44,135 @@ from pry.payments.x402.self_facilitator import SelfFacilitator
 logger = logging.getLogger("pry.commerce.hosting")
 
 
+def _unpaid_receipt(invoice_id: str, reason: str, **extra: Any) -> dict[str, Any]:
+    """Standard unpaid receipt shape."""
+    receipt = {
+        "paid": False,
+        "invoice_id": invoice_id,
+        "instance": None,
+        "api_key": None,
+        "reason": reason,
+    }
+    receipt.update(extra)
+    return receipt
+
+
+def _load_invoice_context(
+    invoice_id: str,
+) -> tuple[dict[str, Any], str, str, str, str, float, bool]:
+    """Load the invoice and derive (invoice, plan_tier, kind, user_id,
+    instance_id, amount_usd, expired)."""
+    invoice = _load_invoice(invoice_id)
+    if invoice is None:
+        raise ValueError(f"unknown hosting invoice {invoice_id!r}")
+    plan_tier = str(invoice["plan_tier"])
+    kind = str(invoice.get("kind", "signup"))
+    user_id = str(invoice.get("user_id") or "")
+    instance_id = str(invoice.get("instance_id") or "")
+    amount_usd = float(invoice["amount_usd"])
+    try:
+        expires_at = _parse_iso(str(invoice["expires_at"]))
+    except ValueError:
+        expires_at = _now()
+    expired = _now() >= expires_at
+    return invoice, plan_tier, kind, user_id, instance_id, amount_usd, expired
+
+
+def _email_gate_receipt(invoice_id: str) -> dict[str, Any]:
+    """Email-verification gate (audit item #4): the portal is keyed by
+    user_email + instance id, so an unverified signup email must never
+    reach provisioning — otherwise a bad actor could sign up with someone
+    else's email and control the portal/receipt after paying. Fail closed
+    with an actionable reason. Renewal invoices are bound to an already
+    provisioned (hence verified) instance and skip the gate. [REVIEW]"""
+    return _unpaid_receipt(
+        invoice_id,
+        "email not verified — check your inbox for the verification link",
+    )
+
+
+def _settlement_payment(
+    invoice_id: str,
+    result: dict[str, Any],
+    invoice: dict[str, Any],
+    amount_usd: float,
+) -> dict[str, Any]:
+    """Build the on-chain settlement payment payload."""
+    payment = dict(invoice.get("payment") or {})
+    return {
+        "payment_id": invoice_id,
+        "tx_hash": str(result["tx_hash"]),
+        "network": str(payment.get("network") or X402_DEFAULT_NETWORK),
+        "asset": str(payment.get("asset") or X402_DEFAULT_ASSET),
+        "amount_usd": amount_usd,
+        "authorization": payment.get("authorization"),
+    }
+
+
+def _credit_ledger(
+    invoice_id: str,
+    invoice: dict[str, Any],
+    user_id: str,
+    amount_usd: float,
+    reference: str,
+) -> None:
+    """Credit the prepaid ledger once per settlement reference."""
+    already_credited = (invoice.get("credited_reference") or "") == reference
+    if not already_credited:
+        billing_service.credit(user_id, amount_usd, reason="deposit", reference=reference)
+        _set_invoice_fields(invoice_id, credited_reference=reference)
+    # Funds settled — the invoice is now paid.
+    _set_invoice_fields(invoice_id, status="paid")
+
+
+def _provision_or_extend(
+    invoice_id: str,
+    kind: str,
+    user_id: str,
+    plan_tier: str,
+    instance_id: str,
+    already_credited: bool,
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Idempotent replay / renewal extension / fresh provisioning."""
+    if already_credited and instance_id:
+        # Idempotent replay: the same proof already settled + provisioned.
+        # Return the existing instance without re-crediting or re-provisioning.
+        return _instance_payload(instance_id), None
+    if kind == "renewal" and instance_id:
+        return _extend_instance(instance_id, months=1), None
+    instance, api_key = _provision_instance(user_id, plan_tier)
+    _set_invoice_fields(invoice_id, instance_id=instance["instance_id"])
+    return instance, api_key
+
+
+def _send_receipt(
+    invoice: dict[str, Any],
+    invoice_id: str,
+    plan_tier: str,
+    amount_usd: float,
+    settle_tx: str,
+    api_key: str | None,
+    instance: dict[str, Any] | None,
+) -> None:
+    """Human receipt: email the customer (never fails the provisioning flow)."""
+    try:
+        from pry.commerce.hosting.checkout import send_hosting_receipt
+
+        user_email = str(invoice.get("user_email") or "")
+        if user_email:
+            send_hosting_receipt(
+                to_email=user_email,
+                invoice_id=invoice_id,
+                plan_tier=plan_tier,
+                amount_usd=amount_usd,
+                tx_hash=str(settle_tx),
+                api_key=api_key,
+                instance_id=instance["instance_id"] if instance else None,
+            )
+    except Exception as e:  # noqa: BLE001 — receipt is best-effort
+        logger.warning("hosting_receipt_error", extra={"error": str(e)[:120]})
+
+
 # ── Verification + settlement ───────────────────────────────────────────────
 async def _verify_x402_async(invoice: dict[str, Any], *, expired: bool) -> dict[str, Any]:
     """Verify the invoice's reported tx via the self-facilitator."""
@@ -130,34 +259,12 @@ async def confirm_hosting_payment(
     """
     if not payment_proof or not payment_proof.strip():
         raise ValueError("payment_proof must be a non-empty transaction hash")
-    invoice = _load_invoice(invoice_id)
-    if invoice is None:
-        raise ValueError(f"unknown hosting invoice {invoice_id!r}")
-    plan_tier = str(invoice["plan_tier"])
-    kind = str(invoice.get("kind", "signup"))
-    user_id = str(invoice.get("user_id") or "")
-    instance_id = str(invoice.get("instance_id") or "")
-    amount_usd = float(invoice["amount_usd"])
-    try:
-        expires_at = _parse_iso(str(invoice["expires_at"]))
-    except ValueError:
-        expires_at = _now()
-    expired = _now() >= expires_at
+    invoice, plan_tier, kind, user_id, instance_id, amount_usd, expired = _load_invoice_context(
+        invoice_id
+    )
 
-    # Email-verification gate (audit item #4): the portal is keyed by
-    # user_email + instance id, so an unverified signup email must never
-    # reach provisioning — otherwise a bad actor could sign up with someone
-    # else's email and control the portal/receipt after paying. Fail closed
-    # with an actionable reason. Renewal invoices are bound to an already
-    # provisioned (hence verified) instance and skip the gate. [REVIEW]
     if kind == "signup" and not invoice.get("email_verified") and _email_gate_enabled():
-        return {
-            "paid": False,
-            "invoice_id": invoice_id,
-            "instance": None,
-            "api_key": None,
-            "reason": "email not verified — check your inbox for the verification link",
-        }
+        return _email_gate_receipt(invoice_id)
 
     submit_hosting_payment(
         invoice_id, payment_proof, network=network, asset=asset, authorization=authorization
@@ -170,55 +277,22 @@ async def confirm_hosting_payment(
                 f"hosting payment not verified: {result.get('reason', 'unverified')}",
                 reason=result.get("reason", "unverified"),
             )
-        return {
-            "paid": False,
-            "invoice_id": invoice_id,
-            "instance": None,
-            "api_key": None,
-            "reason": result.get("reason", "no payment reported"),
-        }
+        return _unpaid_receipt(invoice_id, result.get("reason", "no payment reported"))
 
     # ── On-chain settlement (funds move only here) ──
-    payment = dict(invoice.get("payment") or {})
     settle_tx = await _settle_onchain_async(
-        {
-            "payment_id": invoice_id,
-            "tx_hash": str(result["tx_hash"]),
-            "network": str(payment.get("network") or X402_DEFAULT_NETWORK),
-            "asset": str(payment.get("asset") or X402_DEFAULT_ASSET),
-            "amount_usd": amount_usd,
-            "authorization": payment.get("authorization"),
-        }
+        _settlement_payment(invoice_id, result, invoice, amount_usd)
     )
     if settle_tx is None:
-        return {
-            "paid": False,
-            "invoice_id": invoice_id,
-            "instance": None,
-            "api_key": None,
-            "reason": "settlement failed",
-            "tx_hash": result["tx_hash"],
-        }
+        return _unpaid_receipt(invoice_id, "settlement failed", tx_hash=result["tx_hash"])
 
     reference = f"hosting:{invoice_id}:{settle_tx}"
     already_credited = (invoice.get("credited_reference") or "") == reference
-    if not already_credited:
-        billing_service.credit(user_id, amount_usd, reason="deposit", reference=reference)
-        _set_invoice_fields(invoice_id, credited_reference=reference)
-    # Funds settled — the invoice is now paid.
-    _set_invoice_fields(invoice_id, status="paid")
+    _credit_ledger(invoice_id, invoice, user_id, amount_usd, reference)
 
-    if already_credited and instance_id:
-        # Idempotent replay: the same proof already settled + provisioned.
-        # Return the existing instance without re-crediting or re-provisioning.
-        instance = _instance_payload(instance_id)
-        api_key = None
-    elif kind == "renewal" and instance_id:
-        instance = _extend_instance(instance_id, months=1)
-        api_key = None
-    else:
-        instance, api_key = _provision_instance(user_id, plan_tier)
-        _set_invoice_fields(invoice_id, instance_id=instance["instance_id"])
+    instance, api_key = _provision_or_extend(
+        invoice_id, kind, user_id, plan_tier, instance_id, already_credited
+    )
 
     logger.info(
         "hosting_payment_confirmed",
@@ -230,23 +304,7 @@ async def confirm_hosting_payment(
         },
     )
 
-    # Human receipt: email the customer (never fails the provisioning flow).
-    try:
-        from pry.commerce.hosting.checkout import send_hosting_receipt
-
-        user_email = str(invoice.get("user_email") or "")
-        if user_email:
-            send_hosting_receipt(
-                to_email=user_email,
-                invoice_id=invoice_id,
-                plan_tier=plan_tier,
-                amount_usd=amount_usd,
-                tx_hash=str(settle_tx),
-                api_key=api_key,
-                instance_id=instance["instance_id"] if instance else None,
-            )
-    except Exception as e:  # noqa: BLE001 — receipt is best-effort
-        logger.warning("hosting_receipt_error", extra={"error": str(e)[:120]})
+    _send_receipt(invoice, invoice_id, plan_tier, amount_usd, settle_tx, api_key, instance)
 
     return {
         "paid": True,
