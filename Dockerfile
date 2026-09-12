@@ -54,6 +54,10 @@ COPY requirements.docker.lock .
 # scripts/gen-docker-lock.py; drift-checked in CI).
 RUN pip install --no-cache-dir -r requirements.docker.lock
 RUN python3 -m playwright install chromium 2>&1 | tail -1
+# Optional scraping backends (camoufox anti-detection Firefox, curl_cffi TLS
+# impersonation). The camoufox browser itself is fetched at first use into
+# $HOME/.cache (now on the pry-data volume), not baked into the image.
+RUN pip install --no-cache-dir "camoufox>=0.4.0" "curl_cffi>=0.7.0"
 
 # Stage 2: Runtime
 FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
@@ -66,6 +70,7 @@ LABEL org.opencontainers.image.title="Pry" \
       org.opencontainers.image.vendor="Rug Munch Media LLC"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium=152.0.7977.82-1~deb13u1 \
     curl=8.14.1-2+deb13u5 \
     ca-certificates=20250419 \
     libnss3=2:3.110-1+deb13u4 \

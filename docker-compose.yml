@@ -19,6 +19,7 @@ services:
     init: true
     stop_grace_period: 35s
     read_only: true
+    shm_size: "1g"
     tmpfs:
       # Chromium + Python scratch space. Browsers live in /ms-playwright
       # (read-only); writable state goes to /tmp and the named volumes.
@@ -54,6 +55,14 @@ services:
       # Playwright browsers are at a shared read-only location; $HOME is
       # tmpfs so Chromium can write its cache there.
       - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+      # HOME on the pry-data volume: /home/pry is a noexec tmpfs, which breaks
+      # undetected_chromedriver (its driver binary must be executable) and has
+      # too little space for the camoufox browser cache. The volume is
+      # exec-capable and persistent.
+      - HOME=/app/pry-data/home
+      # /tmp is a 512m tmpfs; big downloads (camoufox ~660MB browser zip) must
+      # not land there. Point TMPDIR at the volume.
+      - TMPDIR=/app/pry-data/tmp
       - PYTHONDONTWRITEBYTECODE=1
       - PRY_FLARESOLVERR_URL=http://flaresolverr-pry:8191/v1
       # PRY_DATABUS_URL intentionally NOT listed here (gitleaks internal-hostname
@@ -62,7 +71,7 @@ services:
       # process over its public route (network separation 2026-08-31; auth via
       # RMI_INTERNAL_KEY). rmi-backend binds host loopback only, so
       # host-gateway routing is not viable; public URL is the decoupled path.
-      - TOR_ENABLED=0
+      - TOR_ENABLED=1
       - TOR_SOCKS5_HOST=tor
       - TOR_SOCKS5_PORT=9050
       - PROXY_URL=
@@ -282,9 +291,6 @@ services:
     container_name: pry-tor
     restart: unless-stopped
     init: true
-    ports:
-      - "127.0.0.1:9050:9050"
-      - "127.0.0.1:9051:9051"
     deploy:
       resources:
         limits:

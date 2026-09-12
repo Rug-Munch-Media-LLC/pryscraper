@@ -95,9 +95,40 @@ class BrowserPool:
             raise RuntimeError("browser pool is closed")
         with self._uc_lock:
             if self._uc_driver is None:
-                import undetected_chromedriver as uc
+                import subprocess
 
-                self._uc_driver = uc.Chrome(headless=True, use_subprocess=True)
+                import undetected_chromedriver as uc
+                from selenium.webdriver.chrome.options import Options
+
+                # Container-safe flags: /dev/shm is small unless shm_size is
+                # raised (chromium needs --disable-dev-shm-usage) and the
+                # sandbox is unavailable in most container runtimes.
+                opts = Options()
+                opts.add_argument("--no-sandbox")
+                opts.add_argument("--disable-dev-shm-usage")
+                opts.add_argument("--disable-gpu")
+
+                # Pin the driver to the installed chromium's major version:
+                # uc otherwise fetches the latest chromedriver, which fails
+                # with SessionNotCreated when the system chromium lags.
+                version_main: int | None = None
+                try:
+                    out = subprocess.run(
+                        ["/usr/bin/chromium", "--version"],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    version_main = int(out.stdout.split()[1].split(".")[0])
+                except Exception:
+                    logger.debug("uc_chrome_version_detect_failed", exc_info=True)
+
+                self._uc_driver = uc.Chrome(
+                    headless=True,
+                    use_subprocess=True,
+                    options=opts,
+                    **({"version_main": version_main} if version_main else {}),
+                )
             return self._uc_driver
 
     async def close(self) -> None:

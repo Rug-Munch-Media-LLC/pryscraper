@@ -733,6 +733,28 @@ async def test_tier_google_cache_rejects_unusual_traffic_captcha(scraper: Ultima
 
 @respx.mock
 @pytest.mark.asyncio
+async def test_tier_google_cache_rejects_redirect_notice(scraper: UltimateScraper):
+    """Google's post-webcache 'redirect notice' page must be rejected.
+
+    Google discontinued webcache in 2024; the endpoint now serves this notice
+    with HTTP 200 for every query.
+    """
+    respx.get(url__startswith="https://webcache.googleusercontent.com/").mock(
+        return_value=httpx.Response(
+            200,
+            text=(
+                "<html><body>Please click here if you are not redirected within "
+                "a few seconds. If you're having trouble accessing Google Search, "
+                "please click here, or send feedback.</body></html>"
+            ),
+        )
+    )
+    result = await scraper._tier_google_cache("http://example.com", {})
+    assert result is None
+
+
+@respx.mock
+@pytest.mark.asyncio
 async def test_tier_google_cache_accepts_real_cached_content(scraper: UltimateScraper):
     """A genuine cached document (no Google markers) is still returned."""
     cached = "<html><body>" + "real cached article body " * 40 + "</body></html>"

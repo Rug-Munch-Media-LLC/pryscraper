@@ -41,6 +41,10 @@ _GOOGLE_INTERSTITIAL_MARKERS: tuple[str, ...] = (
     "unusual traffic from your computer network",
     "to continue, please click",
     "before you continue to google",
+    # Google discontinued webcache (2024): the endpoint now serves a
+    # "not redirected within a few seconds" notice page with HTTP 200.
+    "not redirected within a few seconds",
+    "trouble accessing google search",
     'id="captcha-form"',
     "id='captcha-form'",
     "g-recaptcha",

@@ -17,6 +17,10 @@
 
 set -e
 
+# Ensure volume-backed HOME/TMPDIR exist (compose points both at pry-data;
+# /home/pry is a noexec tmpfs and /tmp is a 512m tmpfs — see docker-compose.yml).
+mkdir -p "${HOME:-/app/pry-data/home}" "${TMPDIR:-/tmp}" 2>/dev/null || true
+
 _UV_PID=""
 
 # ── Graceful shutdown ────────────────────────────────────────────────
