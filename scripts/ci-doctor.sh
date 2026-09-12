@@ -50,15 +50,19 @@ printf '%s' "$TASKS_JSON" >"$TMP_DIR/tasks.json"
 mapfile -t TASKS < <(
     python3 - "$TMP_DIR/tasks.json" <<'PY'
 import json, sys
+from collections import defaultdict
 data = json.load(open(sys.argv[1]))
 tasks = data.get("workflow_runs", data if isinstance(data, list) else [])
 if not tasks:
     sys.exit(0)
-# Group by run_number — every job in one run shares it (run_started_at
-# differs per job and cannot be used for grouping).
-run_number = max(int(t.get("run_number") or 0) for t in tasks)
-run = [t for t in tasks if int(t.get("run_number") or 0) == run_number]
-for t in sorted(run, key=lambda x: x.get("name", "")):
+# Group by run_number; the MAIN CI run is the recent run with the most jobs
+# (disabled workflows produce 1-job runs that would otherwise win by number).
+by_run = defaultdict(list)
+for t in tasks:
+    by_run[int(t.get("run_number") or 0)].append(t)
+recent = sorted(by_run, reverse=True)[:10]
+best = max(recent, key=lambda r: len(by_run[r]))
+for t in sorted(by_run[best], key=lambda x: x.get("name", "")):
     print(f"{t.get('id')}\t{t.get('name')}\t{t.get('conclusion') or t.get('status')}")
 PY
 )
