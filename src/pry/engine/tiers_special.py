@@ -23,6 +23,40 @@ from pry.engine.url_guard import safe_get
 
 logger = logging.getLogger(__name__)
 
+# Markers that identify a Google interstitial / search / consent page rather
+# than the requested cached document. Google's webcache endpoint frequently
+# redirects to a search or consent page (or returns one with HTTP 200) when
+# the cache entry is gone or the caller is not signed in. Returning such a
+# page as scraped content is a silent data-integrity bug: the caller gets a
+# fake success whose body is Google's UI, not the target site.
+_GOOGLE_INTERSTITIAL_MARKERS: tuple[str, ...] = (
+    "webcache.googleusercontent.com",
+    "consent.google.com",
+    "consent.youtube.com",
+    "google.com/search",
+    "google.com/webhp",
+    "google.com/preferences",
+    "sorry/index",
+    "our systems have detected unusual traffic",
+    "unusual traffic from your computer network",
+    "to continue, please click",
+    "before you continue to google",
+    'id="captcha-form"',
+    "id='captcha-form'",
+    "g-recaptcha",
+)
+
+
+def _is_google_interstitial(html: str) -> bool:
+    """True when ``html`` is a Google search/consent/interstitial page.
+
+    The webcache tier must never treat these as a successful cache hit. The
+    check is deliberately marker-based (not URL-based) because the tier only
+    receives the response body, and Google serves these pages with HTTP 200.
+    """
+    lower = html.lower()
+    return any(marker in lower for marker in _GOOGLE_INTERSTITIAL_MARKERS)
+
 
 class TierSpecialMixin:
     """Special-purpose scraping tiers (bots, archives, Tor, external scrapers)."""
@@ -86,6 +120,15 @@ class TierSpecialMixin:
             c = await _get_shared_client()
             r = await safe_get(c, cache_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
             if r.is_success:
+                # Google serves search/consent/interstitial pages with HTTP 200
+                # when the cache entry is missing. Reject them: a fake success
+                # here poisons every downstream consumer with Google's UI.
+                if _is_google_interstitial(r.text):
+                    logger.debug(
+                        "google_cache_interstitial_rejected",
+                        extra={"url": url, "reason": "google_interstitial_page"},
+                    )
+                    return None
                 return r.text
         except (httpx.HTTPError, httpx.RequestError) as e:
             logger.debug("google_cache_failed", extra={"error": str(e)[:200]})

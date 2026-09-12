@@ -36,6 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxkbcommon0=1.7.0-2 \
     libxcomposite1=1:0.4.6-1 \
     libxdamage1=1:1.1.6-1+b2 \
+    libxfixes3=1:6.0.0-2+b4 \
     libxrandr2=2:1.5.4-1+b3 \
     libgbm1=25.0.7-2+deb13u1 \
     libpango-1.0-0=1.56.3-1 \
@@ -78,6 +79,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxkbcommon0=1.7.0-2 \
     libxcomposite1=1:0.4.6-1 \
     libxdamage1=1:1.1.6-1+b2 \
+    libxfixes3=1:6.0.0-2+b4 \
     libxrandr2=2:1.5.4-1+b3 \
     libgbm1=25.0.7-2+deb13u1 \
     libpango-1.0-0=1.56.3-1 \

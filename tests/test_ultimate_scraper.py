@@ -402,6 +402,45 @@ async def test_tier_flaresolverr_not_200(scraper: UltimateScraper):
         assert result is None
 
 
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_flaresolverr_surfaces_unsolved_reason(scraper: UltimateScraper, caplog):
+    """Reachable sidecar (HTTP 200) that cannot solve must log its reason."""
+    respx.post("http://flaresolverr:8191/v1").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "status": "error",
+                "message": "Error solving the challenge. Timeout after 60.0 seconds.",
+                "solution": {"status": 0, "response": ""},
+            },
+        )
+    )
+    with (
+        patch("pry.core.settings.settings.flaresolverr_url", "http://flaresolverr:8191/v1"),
+        caplog.at_level("DEBUG", logger="pry.engine.tiers_http"),
+    ):
+        result = await scraper._tier_flaresolverr("http://example.com", {})
+    assert result is None
+    assert any("flaresolverr_unsolved" in r.message for r in caplog.records)
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_flaresolverr_surfaces_http_error(scraper: UltimateScraper, caplog):
+    """A non-2xx response from the sidecar must log the status, not vanish."""
+    respx.post("http://flaresolverr:8191/v1").mock(
+        return_value=httpx.Response(500, text="internal error")
+    )
+    with (
+        patch("pry.core.settings.settings.flaresolverr_url", "http://flaresolverr:8191/v1"),
+        caplog.at_level("DEBUG", logger="pry.engine.tiers_http"),
+    ):
+        result = await scraper._tier_flaresolverr("http://example.com", {})
+    assert result is None
+    assert any("flaresolverr_http_error" in r.message for r in caplog.records)
+
+
 # ---------------------------------------------------------------------------
 # _tier_undetected
 # ---------------------------------------------------------------------------
@@ -637,6 +676,71 @@ async def test_tier_google_cache_error(scraper: UltimateScraper):
     )
     result = await scraper._tier_google_cache("http://example.com", {})
     assert result is None
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_google_cache_rejects_search_interstitial(scraper: UltimateScraper):
+    """A Google search page served with HTTP 200 must not be a fake success."""
+    respx.get(url__startswith="https://webcache.googleusercontent.com/").mock(
+        return_value=httpx.Response(
+            200,
+            text=(
+                "<html><body><form action='/search'>"
+                "<input name='q'><a href='https://www.google.com/search?q=example'>"
+                "Search</a></body></html>"
+            ),
+        )
+    )
+    result = await scraper._tier_google_cache("http://example.com", {})
+    assert result is None
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_google_cache_rejects_consent_page(scraper: UltimateScraper):
+    """A Google consent interstitial must be rejected, not returned as content."""
+    respx.get(url__startswith="https://webcache.googleusercontent.com/").mock(
+        return_value=httpx.Response(
+            200,
+            text=(
+                "<html><body><h1>Before you continue to Google</h1>"
+                "<a href='https://consent.google.com/m?continue=x'>I agree</a>"
+                "</body></html>"
+            ),
+        )
+    )
+    result = await scraper._tier_google_cache("http://example.com", {})
+    assert result is None
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_google_cache_rejects_unusual_traffic_captcha(scraper: UltimateScraper):
+    """Google's 'unusual traffic' CAPTCHA page must be rejected."""
+    respx.get(url__startswith="https://webcache.googleusercontent.com/").mock(
+        return_value=httpx.Response(
+            200,
+            text=(
+                "<html><body>Our systems have detected unusual traffic from your "
+                "computer network. <div id='captcha-form'></div></body></html>"
+            ),
+        )
+    )
+    result = await scraper._tier_google_cache("http://example.com", {})
+    assert result is None
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_tier_google_cache_accepts_real_cached_content(scraper: UltimateScraper):
+    """A genuine cached document (no Google markers) is still returned."""
+    cached = "<html><body>" + "real cached article body " * 40 + "</body></html>"
+    respx.get(url__startswith="https://webcache.googleusercontent.com/").mock(
+        return_value=httpx.Response(200, text=cached)
+    )
+    result = await scraper._tier_google_cache("http://example.com", {})
+    assert result == cached
 
 
 # ---------------------------------------------------------------------------

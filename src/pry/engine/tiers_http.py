@@ -99,11 +99,28 @@ class TierHTTPMixin:
             payload = {"cmd": "request.get", "url": url, "maxTimeout": 60000}
             c = await _get_shared_client()
             r = await c.post(settings.flaresolverr_url, json=payload, timeout=60)
-            if r.is_success:
-                data = r.json()
-                solution = data.get("solution", {})
-                if solution.get("status") == 200:
-                    return solution["response"]
+            if not r.is_success:
+                # Surface the transport-level failure (e.g. 500 from the
+                # sidecar) instead of silently returning None with no reason.
+                logger.debug(
+                    "flaresolverr_http_error",
+                    extra={"status": r.status_code, "url": url},
+                )
+                return None
+            data = r.json()
+            solution = data.get("solution", {})
+            if solution.get("status") == 200:
+                return solution["response"]
+            # FlareSolverr reached (HTTP 200) but could not solve the target:
+            # log its own status/message so the failure reason is visible.
+            logger.debug(
+                "flaresolverr_unsolved",
+                extra={
+                    "solution_status": solution.get("status"),
+                    "flare_message": str(data.get("message", ""))[:200],
+                    "url": url,
+                },
+            )
         except (httpx.HTTPError, httpx.RequestError) as e:
             logger.debug("flaresolverr_failed", extra={"error": str(e)[:200]})
         return None
