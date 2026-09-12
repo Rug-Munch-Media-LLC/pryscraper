@@ -71,7 +71,7 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - run: pip install bandit
-      - run: bandit -r . -x tests/,.venv,__pycache__
+      - run: bandit -r . -x './tests/*,./.venv/*,./__pycache__/*'
 
   # Nightly (non-blocking): runs tests marked `integration` against a real
   # Postgres + Redis stack. Continue-on-error: infra flakiness must never

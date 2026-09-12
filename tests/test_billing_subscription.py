@@ -98,7 +98,17 @@ def _freeze_clock(monkeypatch: pytest.MonkeyPatch, value: datetime) -> None:
 
 
 # ── Invoice creation: x402 (default) ──────────────────────────────────────
-def test_create_invoice_x402_shape() -> None:
+def test_create_invoice_x402_shape(monkeypatch) -> None:
+    # Hermetic: CI has no wallet env, so pin the per-network wallet the
+    # invoice resolves its payTo from (prod reads PRY_X402_WALLET_BASE).
+    # The call site reads through pry.commerce.billing.subscription._facade.
+    import pry.commerce.billing.subscription as sub_mod
+
+    monkeypatch.setattr(
+        sub_mod,
+        "X402_NETWORK_WALLETS",
+        {"eip155:8453": "0x1E3AC01d0fdb976179790BDD02823196A92705C9"},
+    )
     invoice = create_subscription_invoice("pro", "sk_pro_1")
     assert invoice["payment_method"] == "x402"
     assert invoice["tier"] == "pro"

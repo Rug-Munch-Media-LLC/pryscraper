@@ -32,7 +32,7 @@ repos:
       - id: bandit
         # -ll: medium+ only — matches the CI bandit gate (LOW findings like
         # B404/B603/B311 are intentionally not gating).
-        args: [-r, -ll, -x, "tests/,.venv,__pycache__,website,actor_factory"]
+        args: [-r, -ll, -x, "./tests/*,./.venv/*,./__pycache__/*,./website/*,./actor_factory/*"]
         stages: [pre-commit]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

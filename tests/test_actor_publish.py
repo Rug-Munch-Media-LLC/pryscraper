@@ -369,6 +369,10 @@ class TestStagedSecretScan:
         stage = stage_actor(spec, REPO, tmp_path)  # must not raise
         assert stage.is_dir()
 
+    @pytest.mark.skipif(
+        __import__("shutil").which("gitleaks") is None,
+        reason="gitleaks binary not installed — staged scan fails open by design",
+    )
     def test_planted_secret_blocks_staging(self, tmp_path: Path) -> None:
         """A leaked AWS key in engine files must refuse to stage."""
         spec = ALL_PRESETS["pry-cve-advisory-watch"]

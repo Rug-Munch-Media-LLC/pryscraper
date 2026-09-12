@@ -1,11 +1,17 @@
 name: Release
 
+# DISABLED (audit 2026-09-12): googleapis/release-please-action authenticates
+# against api.github.com — on Forgejo it fails every run with
+# "Bad credentials" regardless of token (failed 176 consecutive runs).
+# The repo keeps automated versioning via the `changelog` CI job and
+# release-please can return if/when a Forgejo-native port lands.
 on:
   push:
     branches: [main]
 
 jobs:
   release-please:
+    if: false # disabled — see comment above
     runs-on: docker-x64
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

@@ -986,5 +986,8 @@ def test_eip7702_matches_uses_per_network_wallet(monkeypatch):
     tx = {"to": token.lower(), "input": calldata, "value": "0x0"}
 
     monkeypatch.setattr(scheme_mod, "X402_WALLET", "")  # global unset (prod state)
+    # The per-network wallet map is the resolution source in that state —
+    # set it explicitly so the test is hermetic (CI has no wallet env).
+    monkeypatch.setattr(scheme_mod, "X402_NETWORK_WALLETS", {"eip155:8453": wallet})
     result = fac.FacilitatorRouter._eip7702_matches(None, tx, "eip155:8453", "USDC", 0.001)
     assert result[0] is True, f"per-network wallet must satisfy the payTo check: {result}"

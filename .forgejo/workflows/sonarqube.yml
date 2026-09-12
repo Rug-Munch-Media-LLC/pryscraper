@@ -22,7 +22,7 @@ jobs:
     if: false # disabled — see comment above
     runs-on: docker-x64
     container:
-      image: nikolaik/python-nodejs:python3.11-nodejs22
+      image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
       - name: Install Node.js for actions/checkout
         run: |
@@ -40,8 +40,8 @@ jobs:
           apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl ca-certificates && rm -rf /var/lib/apt/lists/*
           curl -LsSf https://astral.sh/uv/install.sh | sh
           ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
-          uv python install 3.11
-          uv venv --python 3.11 .venv
+          uv python install 3.12
+          uv venv --python 3.12 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
 
       - name: Run tests with coverage
@@ -57,4 +57,4 @@ jobs:
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
             -Dsonar.python.coverage.reportPaths=coverage.xml
-            -Dsonar.python.version=3.11
+            -Dsonar.python.version=3.12
