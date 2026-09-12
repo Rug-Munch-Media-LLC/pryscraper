@@ -163,11 +163,11 @@ class PryScraper:
     Tier 1-10: direct → cloudscraper → flaresolverr → undetected → playwright → googlebot → tor → archive.org → google cache → textise
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.config = use_config()
         self.config.set("DEFAULT", "extraction_corkboard", "false")
         self.config.set("DEFAULT", "max_file_size", "5000000")
-        self._ultimate = None
+        self._ultimate: Any = None
         self._ua_index = 0
 
     def _rotate_ua(self) -> str:

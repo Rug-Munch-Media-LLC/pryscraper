@@ -22,7 +22,7 @@ class SchemaExtractor:
     """Extract structured JSON data from scraped markdown content.
     Pattern mode is always tried first; LLM mode is fallback for complex schemas."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.ollama_base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
     async def extract(

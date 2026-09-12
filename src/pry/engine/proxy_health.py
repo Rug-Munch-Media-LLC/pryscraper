@@ -21,7 +21,11 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import threading
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +92,20 @@ class ProxyHealthMixin:
     / ``cooldown_seconds``.
     """
 
+    # Host-supplied state (declared here for type-checking only; the concrete
+    # ``ProxyManager.__init__`` assigns them). Bare annotations create no
+    # runtime attributes, so mixin behaviour is unchanged.
+    health_file: Path
+    _health_data: dict[str, Any]
+    _health_lock: threading.Lock
+    health_window_size: int
+    consecutive_failure_threshold: int
+    cooldown_seconds: int
+
+    def _candidate_proxies(self) -> list[str]:
+        """Return configured proxy URLs (host-supplied; see ProxyManager)."""
+        raise NotImplementedError
+
     # ── Health state persistence ────────────────────────────────
     def _load_health(self) -> dict[str, Any]:
         """Load persisted proxy health state (rolling samples + affinity)."""
@@ -112,8 +130,8 @@ class ProxyHealthMixin:
     # ── Health bookkeeping ──────────────────────────────────────
     def _ensure_proxy_entry(self, proxy_url: str) -> dict[str, Any]:
         """Get (creating if needed) the health entry for a proxy URL."""
-        proxies = self._health_data.setdefault("proxies", {})
-        entry = proxies.setdefault(
+        proxies: dict[str, Any] = self._health_data.setdefault("proxies", {})
+        entry: dict[str, Any] = proxies.setdefault(
             proxy_url, {"samples": [], "consecutive_failures": 0, "cooldown_until": 0.0}
         )
         entry.setdefault("samples", [])
@@ -123,10 +141,10 @@ class ProxyHealthMixin:
 
     def _is_in_cooldown(self, proxy_url: str) -> bool:
         """Whether a proxy is currently tripped by the circuit breaker."""
-        entry = self._health_data["proxies"].get(proxy_url)
+        entry: dict[str, Any] | None = self._health_data["proxies"].get(proxy_url)
         if not entry:
             return False
-        return entry.get("cooldown_until", 0.0) > time.time()
+        return bool(entry.get("cooldown_until", 0.0) > time.time())
 
     def _health_score_of(self, proxy_url: str) -> float:
         """Score a proxy in [0, 1]: 0.7 * success-rate + 0.3 * latency score.
@@ -213,9 +231,10 @@ class ProxyHealthMixin:
                 affinity = self._health_data.get("affinity", {}).get(domain_key, {})
                 winners = [p for p in healthy if affinity.get(p, 0) > 0]
                 if winners:
-                    return max(
+                    best: str = max(
                         winners, key=lambda p: (affinity.get(p, 0), self._health_score_of(p))
                     )
+                    return best
             return max(healthy, key=self._health_score_of)
 
     def proxy_health_summary(self, proxy_url: str) -> dict[str, Any]:

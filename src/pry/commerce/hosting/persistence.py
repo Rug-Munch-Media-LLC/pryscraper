@@ -97,7 +97,10 @@ def _invoice_to_dict(row: Any) -> dict[str, Any]:
 def _save_invoice(record: dict[str, Any]) -> None:
     """Insert or update a hosting invoice row from a record dict."""
     with session_scope() as session:
-        row = (
+        # ``row`` is a dynamic SQLAlchemy ORM instance; the legacy ``Column``
+        # descriptors type as ``Column[...]`` rather than the instance value,
+        # so annotate as Any to allow attribute assignment.
+        row: Any = (
             session.query(_models.HostingInvoice).filter_by(invoice_id=record["invoice_id"]).first()
         )
         if row is None:

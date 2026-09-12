@@ -55,7 +55,7 @@ class ResponseCache:
 
     def __init__(self, capacity: int = 500, redis_backend: Any = None):
         self.capacity = capacity
-        self._cache: OrderedDict = OrderedDict()
+        self._cache: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._hits = 0
         self._misses = 0
         self._total_bytes = 0
@@ -73,11 +73,11 @@ class ResponseCache:
     def _redis_url(self) -> str:
         """Resolve the Redis URL from the injected backend or settings."""
         if self._redis_backend is not None:
-            return self._redis_backend
+            return str(self._redis_backend)
         try:
             from pry.core.settings import settings
 
-            return settings.redis_url
+            return str(settings.redis_url)
         except Exception:  # noqa: BLE001 — settings import must never break cache
             return ""
 
@@ -126,19 +126,19 @@ class ResponseCache:
 
     # ── Key / payload helpers ────────────────────────────────────────────────
 
-    def _key(self, url: str, options: dict | None = None) -> str:
+    def _key(self, url: str, options: dict[str, Any] | None = None) -> str:
         """Generate cache key from URL + options."""
         opt_str = json.dumps(options or {}, sort_keys=True)
         raw = f"{url}:{opt_str}"
         return hashlib.md5(raw.encode(), usedforsecurity=False).hexdigest()
 
-    def _payload_bytes(self, data: dict) -> int:
+    def _payload_bytes(self, data: dict[str, Any]) -> int:
         """Serialized byte size of a payload (used for size accounting)."""
         return len(json.dumps(data, default=str).encode())
 
     # ── Synchronous in-memory API (unchanged behavior) ──────────────────────
 
-    def get(self, url: str, options: dict | None = None) -> dict | None:
+    def get(self, url: str, options: dict[str, Any] | None = None) -> dict[str, Any] | None:
         """Get cached response from the in-memory LRU if fresh."""
         key = self._key(url, options)
         now = time.time()
@@ -151,7 +151,8 @@ class ResponseCache:
                 self._cache.move_to_end(key)
                 if CACHE_HITS:
                     CACHE_HITS.labels(cache_type="local").inc()
-                return entry["data"]
+                data: dict[str, Any] = entry["data"]
+                return data
             else:
                 del self._cache[key]
                 self._decrement_bytes(entry)
@@ -159,7 +160,13 @@ class ResponseCache:
         self._misses += 1
         return None
 
-    def set(self, url: str, data: dict, options: dict | None = None, ttl: int = 300):
+    def set(
+        self,
+        url: str,
+        data: dict[str, Any],
+        options: dict[str, Any] | None = None,
+        ttl: int = 300,
+    ) -> None:
         """Cache a response in the in-memory LRU with TTL in seconds."""
         key = self._key(url, options)
 
@@ -187,7 +194,7 @@ class ResponseCache:
 
     # ── Async read-through API (memory → Redis → fetch) ─────────────────────
 
-    async def aget(self, url: str, options: dict | None = None) -> dict | None:
+    async def aget(self, url: str, options: dict[str, Any] | None = None) -> dict[str, Any] | None:
         """Read-through get: check memory, then Redis, then fetch.
 
         Returns the cached payload or ``None`` on a miss. Redis failures
@@ -216,7 +223,8 @@ class ResponseCache:
                         self._hits += 1
                         if CACHE_HITS:
                             CACHE_HITS.labels(cache_type="redis").inc()
-                        return data
+                        redis_data: dict[str, Any] = data
+                        return redis_data
             except Exception as e:  # noqa: BLE001 — Redis down → memory fallback
                 self._drop_redis(e)
 
@@ -226,10 +234,10 @@ class ResponseCache:
     async def aset(
         self,
         url: str,
-        data: dict,
-        options: dict | None = None,
+        data: dict[str, Any],
+        options: dict[str, Any] | None = None,
         ttl: int = 300,
-    ):
+    ) -> None:
         """Write-through set: store in memory and, if configured, Redis.
 
         Oversized payloads (over ``_MAX_PAYLOAD_BYTES``) are skipped entirely
@@ -256,7 +264,7 @@ class ResponseCache:
             except Exception as e:  # noqa: BLE001 — Redis down → memory only
                 self._drop_redis(e)
 
-    def _store_local(self, key: str, data: dict, ttl: int = 300) -> None:
+    def _store_local(self, key: str, data: dict[str, Any], ttl: int = 300) -> None:
         """Store an entry in the in-memory LRU (shared by set/aset/aget)."""
         payload_bytes = self._payload_bytes(data)
 
@@ -289,13 +297,13 @@ class ResponseCache:
         _key, entry = self._cache.popitem(last=False)
         self._decrement_bytes(entry)
 
-    def _decrement_bytes(self, entry: dict) -> None:
+    def _decrement_bytes(self, entry: dict[str, Any]) -> None:
         """Decrement total byte accounting for a removed entry."""
         self._total_bytes -= len(json.dumps(entry["data"], default=str).encode())
         if self._total_bytes < 0:
             self._total_bytes = 0
 
-    def stats(self) -> dict:
+    def stats(self) -> dict[str, Any]:
         """Get cache hit/miss statistics."""
         total = self._hits + self._misses
         return {
@@ -307,14 +315,14 @@ class ResponseCache:
             "backend": self.backend,
         }
 
-    def invalidate(self, url: str):
+    def invalidate(self, url: str) -> None:
         """Remove cached entry for a URL from the in-memory LRU."""
         keys_to_remove = [k for k, v in self._cache.items() if v["data"].get("url") == url]
         for k in keys_to_remove:
             self._decrement_bytes(self._cache[k])
             del self._cache[k]
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear the in-memory cache."""
         self._cache.clear()
         self._hits = 0

@@ -13,15 +13,49 @@ settlement-stats probes, and payment-dict construction.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pry.payments.x402.facilitator_evm import _eip7702_rpc_key
 from pry.payments.x402.scheme import network_family, normalize_network_id
 from pry.payments.x402.self_facilitator import SelfFacilitator, VerifyResult
 
+if TYPE_CHECKING:
+    from pry.payments.x402.facilitator_config import FacilitatorConfig
+
 
 class SelfHostedMixin:
     """Self-hosted verify/settle orchestration for FacilitatorRouter."""
+
+    # Host-supplied state (declared here for type-checking only; the concrete
+    # ``FacilitatorRouter.__init__`` assigns them). Bare annotations create no
+    # runtime attributes, so mixin behaviour is unchanged.
+    self_hosted: bool
+    facilitators: list[FacilitatorConfig]
+    _self_facilitator: SelfFacilitator | None
+    _network_facilitators: dict[str, Any]
+    _pending_auths: dict[str, dict[str, Any]]
+
+    async def _eip7702_verify(
+        self, tx_hash: str, network: str, asset: str, amount_usd: float
+    ) -> dict[str, Any]:
+        """EIP-7702 self-verify fallback (host-supplied; see DispatchMixin)."""
+        raise NotImplementedError
+
+    async def _verify_solana(
+        self, payment_id: str, tx_hash: str, network: str, asset: str, amount_usd: float
+    ) -> dict[str, Any]:
+        """Solana on-chain verify (host-supplied; see DispatchMixin)."""
+        raise NotImplementedError
+
+    def _scaffold_non_evm_verify(
+        self, payment_id: str, tx_hash: str, network: str, asset: str, amount_usd: float
+    ) -> dict[str, Any]:
+        """Scaffolded non-EVM verify (host-supplied; see DispatchMixin)."""
+        raise NotImplementedError
+
+    def _eip7702_settlement(self, payment_id: str, tx_hash: str, network: str) -> dict[str, Any]:
+        """EIP-7702 settlement receipt (host-supplied; see DispatchMixin)."""
+        raise NotImplementedError
 
     @staticmethod
     def _cfg(name: str) -> Any:

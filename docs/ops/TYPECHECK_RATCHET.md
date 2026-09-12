@@ -65,3 +65,31 @@ Remaining (2, `pryextras.py`): `no-untyped-call` on `PryScraper()` and
 this phase). `handler_state.py` used the mixin pattern: host-supplied attributes
 are declared as bare class-level annotations on `StateMixin` (no runtime effect).
 
+## Phase 2 progress (2026-09-12)
+
+Same measurement method (16 phase-1 codes re-enabled via `--enable-error-code`).
+Repo gate (`mypy src/ pry_mcp/`) stays green throughout.
+
+| File | Before | After | Fixed |
+|---|---|---|---|
+| `src/pry/engine/proxy_health.py` | 22 | 0 | `attr-defined` ×17, `no-any-return` ×5 |
+| `src/pry/payments/x402/facilitator_self_hosted.py` | 19 | 0 | `attr-defined` ×13, `no-any-return` ×4, `has-type` ×2 |
+| `src/pry/core/cache.py` | 18 | 0 | `type-arg` ×10, `no-untyped-def` ×4, `no-any-return` ×4 |
+| `src/pry/commerce/hosting/persistence.py` | 17 | 0 | `assignment` ×17 |
+| `src/pry/misc/pryextras.py` | 2 | 0 | `no-untyped-call` ×2 (cross-module) |
+
+Cross-module fix: annotated `PryScraper.__init__` (`engine/scraper.py`) and
+`SchemaExtractor.__init__` (`engine/extractor.py`) with `-> None`; `_ultimate`
+declared `Any` (lazily-imported optional dep). `pryextras.py` now clean.
+
+Patterns used: mixin host-state declared as bare class-level annotations
+(`ProxyHealthMixin`, `SelfHostedMixin`) — no runtime effect; SQLAlchemy legacy
+`Column` rows annotated `Any` in `_save_invoice`; bare `dict`/`OrderedDict`
+generics parameterized.
+
+Remaining in touched files (pre-existing, untouched methods, out of scope):
+`engine/scraper.py` 9 (`type-arg` ×7, `no-any-return` ×2),
+`engine/extractor.py` 1 (`no-any-return`). Next hot files: `actors/automator.py`
+(16), `payments/x402/facilitator_self_hosted.py` done, `engine/proxy_health.py`
+done.
+
