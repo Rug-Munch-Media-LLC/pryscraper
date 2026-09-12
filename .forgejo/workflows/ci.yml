@@ -947,6 +947,10 @@ jobs:
   changelog:
     runs-on: docker-x64
     needs: [lint]
+    container:
+      # Audit 2026-09-12: default node image has no pip ('pip: command not
+      # found') — run on the standard python+node image.
+      image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
