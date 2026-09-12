@@ -54,6 +54,12 @@ def webhook_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
 
     monkeypatch.setattr(wd, "WEBHOOK_DIR", tmp_path / "webhooks")
     monkeypatch.setattr(wd.settings, "webhook_secret", "test-secret")
+    # hooks.example.com is an RFC-2606 reserved name (NXDOMAIN) — respx
+    # intercepts httpx but not socket.getaddrinfo, so the SSRF validator
+    # would reject it as unresolvable. Bypass validation: these tests
+    # exercise delivery/signing logic, not the SSRF guard (covered in
+    # tests/test_webhook_delivery.py).
+    monkeypatch.setattr(wd, "_validate_url", lambda url: (url, None))
 
 
 # ---------------------------------------------------------------------------

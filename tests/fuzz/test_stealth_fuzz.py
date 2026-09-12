@@ -144,7 +144,12 @@ def test_save_scripts_writes_all_files(
 ) -> None:
     """save_scripts must write all six files, all non-empty, every draw."""
 
-    monkeypatch.setattr(stealth_engine, "SCRIPTS_DIR", tmp_path)
+    # Use a dedicated subdir: the autouse x402-ledger isolation fixture also
+    # creates entries under tmp_path, so asserting on tmp_path itself would
+    # be order/scope dependent.
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir(exist_ok=True)
+    monkeypatch.setattr(stealth_engine, "SCRIPTS_DIR", scripts_dir)
     StealthEngine().save_scripts()
     expected = {
         "webgl_noise.js",
@@ -154,6 +159,6 @@ def test_save_scripts_writes_all_files(
         "human_mouse.js",
         "human_type.js",
     }
-    assert expected == {p.name for p in tmp_path.iterdir()}
+    assert expected == {p.name for p in scripts_dir.iterdir()}
     for name in expected:
-        assert (tmp_path / name).read_text().strip(), f"{name} written but empty"
+        assert (scripts_dir / name).read_text().strip(), f"{name} written but empty"

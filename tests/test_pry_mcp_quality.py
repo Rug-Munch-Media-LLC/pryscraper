@@ -784,9 +784,12 @@ class TestToolRoundTrips:
         """API down -> readable 'Would call ...' message for REST tools."""
         srv = _server()
         mock_client = AsyncMock()
-        mock_client.__aenter__.return_value = mock_client
-        mock_client.post.side_effect = httpx.ConnectError("connection refused")
-        with patch("pry_mcp.fallback_server.httpx.AsyncClient", return_value=mock_client):
+        mock_client.request.side_effect = httpx.ConnectError("connection refused")
+        # The proxy awaits get_client() and calls .request() — patch there.
+        with patch(
+            "pry_mcp.fallback_server.get_client",
+            new=AsyncMock(return_value=mock_client),
+        ):
             resp = await _call(srv, "pry_scrape", {"url": "https://example.com"})
         assert "error" not in resp
         # API down is a structured tool error (isError=True), not a fake success.
@@ -802,19 +805,23 @@ class TestToolRoundTrips:
         """
         srv = _server()
         mock_client = AsyncMock()
-        mock_client.__aenter__.return_value = mock_client
         mock_response = Mock()
         mock_response.raise_for_status = Mock()
         mock_response.json.return_value = {"success": True, "data": {"risk_level": "green"}}
-        mock_client.post.return_value = mock_response
-        with patch("pry_mcp.fallback_server.httpx.AsyncClient", return_value=mock_client):
+        mock_client.request.return_value = mock_response
+        with patch(
+            "pry_mcp.fallback_server.get_client",
+            new=AsyncMock(return_value=mock_client),
+        ):
             resp = await _call(srv, "pry_compliance", {"url": "https://example.com"})
         assert resp["jsonrpc"] == "2.0"
         assert "error" not in resp, f"pry_compliance url fall-through failed: {resp.get('error')}"
         assert resp["result"]["content"], "pry_compliance url fall-through: empty content"
         assert resp["result"]["isError"] is False
         # The REST proxy path was taken (POST /v1/compliance/check).
-        assert mock_client.post.called is True
+        assert mock_client.request.called is True
+        assert mock_client.request.call_args[0][0] == "POST"
+        assert "/v1/compliance/check" in mock_client.request.call_args[0][1]
 
     async def test_unknown_tool_returns_jsonrpc_error(self) -> None:
         srv = _server()

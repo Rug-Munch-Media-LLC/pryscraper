@@ -29,8 +29,17 @@ def _router_modules() -> list[str]:
         if p.stem == "__init__":
             continue
         rel = p.relative_to(ROUTERS_DIR).with_suffix("")
-        modules.append(".".join(rel.parts))
+        name = ".".join(rel.parts)
+        if name in NON_ROUTER_HELPERS:
+            continue
+        modules.append(name)
     return modules
+
+
+# Shared-helper modules under routers/ that intentionally expose no APIRouter.
+# Keep this list tiny: a module that stops exposing `router` because of a bug
+# must fail this test, not get parked here.
+NON_ROUTER_HELPERS = {"core.admin_shared"}
 
 
 MODULES = _router_modules()

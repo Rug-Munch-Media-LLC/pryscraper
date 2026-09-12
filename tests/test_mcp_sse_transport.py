@@ -224,6 +224,14 @@ class TestSSEEndpoint:
 
         response = await mcp_sse_endpoint(mock_request, mock_handler)
 
+        # Enqueue a message so the stream yields a second event deterministically.
+        # (Otherwise the 2nd event only arrives via the 30s keepalive — a race
+        # against the test timeout.)
+        from pry.api.mcp_sse import MCP_SSE_SESSIONS, _enqueue_response
+
+        session_id = next(iter(MCP_SSE_SESSIONS))
+        _enqueue_response(session_id, {"jsonrpc": "2.0", "result": "ok"})
+
         # Consume the event stream
         events = []
         async for chunk in response.body_iterator:

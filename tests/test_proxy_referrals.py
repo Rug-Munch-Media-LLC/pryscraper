@@ -149,9 +149,11 @@ def test_summary_tier_counts_match_catalog(pm: ProxyManager) -> None:
 
 
 def test_empty_catalog_degrades_gracefully(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    import pry.engine.proxy_manager as pm_mod
+    import pry.engine.proxy_providers as pp_mod
 
-    monkeypatch.setattr(pm_mod, "_PROXY_REFERRALS", {})
+    # The referral catalog lives in proxy_providers (proxy_manager re-exports
+    # only the lookup functions) — patch where the lookups read it.
+    monkeypatch.setattr(pp_mod, "_PROXY_REFERRALS", {})
     pm = ProxyManager(data_dir=tmp_path / "proxies")
     assert pm.get_proxy_referral("brightdata") == {}
     assert pm.get_proxy_referral_url("brightdata") == ""

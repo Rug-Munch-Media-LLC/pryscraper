@@ -26,6 +26,7 @@ import pytest
 import respx
 
 import datasets.sports_data.odds as odds
+import datasets.sports_data.odds_fetchers as odds_fetchers
 from pry.engine.retry import RetryConfig
 
 _ODDS_NBA = "https://api.the-odds-api.com/v4/sports/basketball_nba"
@@ -42,7 +43,7 @@ _ZERO_RETRY = RetryConfig(
 def _hermetic_odds(monkeypatch: pytest.MonkeyPatch) -> None:
     """Reset the upstream cache, kill backoff delays, clear the API key."""
     odds._clear_cache()
-    monkeypatch.setattr(odds, "_RETRY_CONFIG", _ZERO_RETRY)
+    monkeypatch.setattr(odds_fetchers, "_RETRY_CONFIG", _ZERO_RETRY)
     monkeypatch.delenv("PRY_ODDS_API_KEY", raising=False)
 
 
@@ -709,7 +710,7 @@ async def test_cache_reuses_response_within_ttl(monkeypatch: pytest.MonkeyPatch)
         calls.append(url)
         return {"events": []}
 
-    monkeypatch.setattr(odds, "_fetch_uncached", fake_fetch)
+    monkeypatch.setattr(odds_fetchers, "_fetch_uncached", fake_fetch)
     await odds._fetch_json("https://example.com/cached")
     await odds._fetch_json("https://example.com/cached")
     assert len(calls) == 1  # second poll served from the 10s cache
@@ -722,7 +723,7 @@ async def test_cache_key_distinguishes_params(monkeypatch: pytest.MonkeyPatch) -
         calls.append((url, params))
         return {"events": []}
 
-    monkeypatch.setattr(odds, "_fetch_uncached", fake_fetch)
+    monkeypatch.setattr(odds_fetchers, "_fetch_uncached", fake_fetch)
     await odds._fetch_json("https://example.com/x", {"markets": "h2h"})
     await odds._fetch_json("https://example.com/x", {"markets": "spreads"})
     assert len(calls) == 2  # different params -> different cache entries
@@ -730,14 +731,14 @@ async def test_cache_key_distinguishes_params(monkeypatch: pytest.MonkeyPatch) -
 
 async def test_cache_expires_after_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
     clock = {"now": 1000.0}
-    monkeypatch.setattr(odds, "_monotonic", lambda: clock["now"])
+    monkeypatch.setattr(odds_fetchers, "_monotonic", lambda: clock["now"])
     calls: list[str] = []
 
     async def fake_fetch(url: str, params: dict[str, str] | None = None) -> Any:
         calls.append(url)
         return {"events": []}
 
-    monkeypatch.setattr(odds, "_fetch_uncached", fake_fetch)
+    monkeypatch.setattr(odds_fetchers, "_fetch_uncached", fake_fetch)
     await odds._fetch_json("https://example.com/ttl")
     assert len(calls) == 1
     clock["now"] += 9.0
@@ -755,7 +756,7 @@ async def test_cache_clear_forces_refetch(monkeypatch: pytest.MonkeyPatch) -> No
         calls.append(url)
         return {"events": []}
 
-    monkeypatch.setattr(odds, "_fetch_uncached", fake_fetch)
+    monkeypatch.setattr(odds_fetchers, "_fetch_uncached", fake_fetch)
     await odds._fetch_json("https://example.com/cleared")
     odds._clear_cache()
     await odds._fetch_json("https://example.com/cleared")
@@ -769,7 +770,7 @@ async def test_cache_not_populated_on_failure(monkeypatch: pytest.MonkeyPatch) -
         calls.append(url)
         return None
 
-    monkeypatch.setattr(odds, "_fetch_uncached", fake_fetch)
+    monkeypatch.setattr(odds_fetchers, "_fetch_uncached", fake_fetch)
     await odds._fetch_json("https://example.com/fail")
     await odds._fetch_json("https://example.com/fail")
     assert len(calls) == 2  # failures are never cached

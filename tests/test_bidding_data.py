@@ -28,6 +28,7 @@ from fastapi.testclient import TestClient
 
 import datasets.bidding_data as bidding_data
 import datasets.bidding_data.contracts as contracts
+import datasets.bidding_data.contracts_fetchers as contracts_fetchers
 import datasets.bidding_data.grants as grants
 import pry.api.routers.data.bidding_data as bidding_router_mod
 from pry.api.routers.data.bidding_data import router as bidding_router
@@ -57,7 +58,7 @@ def _hermetic_bidding(monkeypatch: pytest.MonkeyPatch) -> None:
     # gov_data.procurement exists in this tree; patch the resolver itself to
     # force the direct SAM.gov client so every SAM test is deterministic
     # (dedicated tests below cover the gov_data reuse path explicitly).
-    monkeypatch.setattr(contracts, "_gov_procurement", lambda: None)
+    monkeypatch.setattr(contracts_fetchers, "_gov_procurement", lambda: None)
 
 
 class _FakeGovData:
@@ -287,7 +288,7 @@ async def test_search_contracts_award_type_canonicalized(
 
 @respx.mock
 async def test_search_contracts_reuses_gov_data(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(contracts, "_gov_procurement", lambda: _FakeGovData())
+    monkeypatch.setattr(contracts_fetchers, "_gov_procurement", lambda: _FakeGovData())
     respx.get(url__startswith=_TED).mock(return_value=httpx.Response(200, json={"results": []}))
     respx.get(url__startswith=_NY).mock(return_value=httpx.Response(200, json={"results": []}))
     respx.get(url__startswith=_FEDCONNECT).mock(
@@ -358,7 +359,7 @@ async def test_get_contract_sam_direct(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @respx.mock
 async def test_get_contract_sam_via_gov_data(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(contracts, "_gov_procurement", lambda: _FakeGovData())
+    monkeypatch.setattr(contracts_fetchers, "_gov_procurement", lambda: _FakeGovData())
     record = await contracts.get_contract("999")
     assert record["id"] == "sam:999"
     assert record["description"] == "Fake detail description."

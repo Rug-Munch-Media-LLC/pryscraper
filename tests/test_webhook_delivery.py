@@ -26,7 +26,10 @@ def wh(tmp_path: Path) -> WebhookDelivery:
     with (
         patch("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks"),
         patch("pry.api.webhook_delivery.settings.webhook_secret", "test-secret"),
-        patch("pry.api.webhook_delivery._validate_url", return_value=None),
+        patch(
+            "pry.api.webhook_delivery._validate_url",
+            side_effect=lambda url: (url, None),
+        ),
     ):
         w = WebhookDelivery(signing_secret="test-key")
         yield w
@@ -269,7 +272,10 @@ async def test_deliver_empty_secret_refused(tmp_path: Path):
     with (
         patch("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks3"),
         patch("pry.api.webhook_delivery.settings.webhook_secret", ""),
-        patch("pry.api.webhook_delivery._validate_url", return_value=None),
+        patch(
+            "pry.api.webhook_delivery._validate_url",
+            side_effect=lambda url: (url, None),
+        ),
     ):
         w = WebhookDelivery()
         route = respx.post("https://hook.example.com")

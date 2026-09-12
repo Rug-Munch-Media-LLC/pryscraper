@@ -32,6 +32,7 @@ import pytest
 import datasets.sports_data as sports_data
 import datasets.sports_data.books as books
 import datasets.sports_data.odds as odds
+import datasets.sports_data.odds_parsers as odds_parsers
 import datasets.sports_data.sources as sources
 
 _DK_URL = "https://sportsbook.draftkings.com/leagues/nba"
@@ -211,7 +212,7 @@ async def test_get_odds_sources_all_merges_books(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: dict[str, int] = {"books": 0}
-    monkeypatch.setattr(odds, "_espn_odds_for_league", _fake_espn())
+    monkeypatch.setattr(odds_parsers, "_espn_odds_for_league", _fake_espn())
     monkeypatch.setattr(books, "get_all_books_odds", _fake_books(calls))
     monkeypatch.setattr(sources, "source_supports", lambda name, sport: False)
     results = await odds.get_odds(sport="nba", sources="all", limit=50)
@@ -226,7 +227,7 @@ async def test_get_odds_default_does_not_call_books(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: dict[str, int] = {"books": 0, "espn": 0}
-    monkeypatch.setattr(odds, "_espn_odds_for_league", _fake_espn())
+    monkeypatch.setattr(odds_parsers, "_espn_odds_for_league", _fake_espn())
     monkeypatch.setattr(books, "get_all_books_odds", _fake_books(calls))
     results = await odds.get_odds(sport="nba", limit=10)
     assert calls["books"] == 0, "default get_odds must not touch the 112-book scrapers"

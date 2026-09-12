@@ -115,8 +115,14 @@ class TestStageActor:
             with pytest.raises(ValueError, match="some-missing-pkg"):
                 publish._actor_lock_contents(repo_lock)
 
+    @pytest.mark.slow
     def test_every_preset_stages_clean(self, tmp_path: Path) -> None:
-        """Full-catalog gate: every preset produces a valid staged package."""
+        """Full-catalog gate: every preset produces a valid staged package.
+
+        Inherently slow: stage_actor copies the full src/pry + actor_factory
+        trees per preset (109 presets). Budget ~5-10 min. Kept out of the
+        default CI run via the `slow` marker; runs in nightly.
+        """
         staged = [stage_actor(spec, REPO, tmp_path) for spec in sorted_specs()]
         assert len(staged) == len(ALL_PRESETS)
         for stage in staged:

@@ -59,13 +59,21 @@ class TestWebhookTestEndpoint:
     ) -> None:
         monkeypatch.setattr("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "wh")
         monkeypatch.setattr("pry.api.webhook_delivery.settings.webhook_secret", "secret-1")
-        respx.post("http://hook.example.com").mock(return_value=Response(200, json={"ok": True}))
+        # hook.example.com is NXDOMAIN (RFC-2606 reserved); respx intercepts
+        # httpx but not socket.getaddrinfo. These tests exercise the delivery
+        # endpoint, not the SSRF guard (covered in test_webhook_delivery.py).
+        monkeypatch.setattr("pry.api.webhook_delivery._validate_url", lambda url: (url, None))
+        monkeypatch.setattr(
+            "pry.api.routers.integrations.webhooks._validate_webhook_url",
+            lambda url: None,
+        )
+        respx.post("https://hook.example.com").mock(return_value=Response(200, json={"ok": True}))
         a = FastAPI()
         a.include_router(webhooks_router)
         client = TestClient(a, raise_server_exceptions=False)
         r = client.post(
             "/v1/webhooks/test",
-            json={"url": "http://hook.example.com", "payload": {"event": "x"}},
+            json={"url": "https://hook.example.com", "payload": {"event": "x"}},
         )
         assert r.status_code == 200
         body = r.json()
@@ -79,10 +87,15 @@ class TestWebhookTestEndpoint:
         """Fail-closed contract surfaced through the HTTP boundary."""
         monkeypatch.setattr("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "wh2")
         monkeypatch.setattr("pry.api.webhook_delivery.settings.webhook_secret", "")
+        monkeypatch.setattr("pry.api.webhook_delivery._validate_url", lambda url: (url, None))
+        monkeypatch.setattr(
+            "pry.api.routers.integrations.webhooks._validate_webhook_url",
+            lambda url: None,
+        )
         a = FastAPI()
         a.include_router(webhooks_router)
         client = TestClient(a, raise_server_exceptions=False)
-        r = client.post("/v1/webhooks/test", json={"url": "http://hook.example.com"})
+        r = client.post("/v1/webhooks/test", json={"url": "https://hook.example.com"})
         assert r.status_code == 200  # delivery result is a payload, not an HTTP error
         body = r.json()
         assert body["success"] is False

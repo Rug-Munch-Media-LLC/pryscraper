@@ -28,6 +28,7 @@ from fastapi.testclient import TestClient
 
 import datasets.news_data as news_data
 import datasets.news_data.headlines as headlines
+import datasets.news_data.headlines_article as headlines_article
 import datasets.news_data.sentiment as sentiment
 import pry.api.routers.data.news_data as news_router_mod
 from pry.api.routers.data.news_data import router as news_router
@@ -274,7 +275,7 @@ def _fake_scraper_raises() -> Any:
 
 @respx.mock
 async def test_get_article_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(headlines, "_get_scraper", lambda: _fake_scraper_ok())
+    monkeypatch.setattr(headlines_article, "_get_scraper", lambda: _fake_scraper_ok())
 
     article = await headlines.get_article("https://news.example.com/bitcoin-surge")
 
@@ -295,7 +296,7 @@ async def test_get_article_invalid_url_no_scrape(monkeypatch: pytest.MonkeyPatch
             called.append(url)
             return {"status": "ok", "content": "x"}
 
-    monkeypatch.setattr(headlines, "_get_scraper", lambda: _Fake())
+    monkeypatch.setattr(headlines_article, "_get_scraper", lambda: _Fake())
 
     assert await headlines.get_article("") == {}
     assert await headlines.get_article("not-a-url") == {}
@@ -304,14 +305,14 @@ async def test_get_article_invalid_url_no_scrape(monkeypatch: pytest.MonkeyPatch
 
 @respx.mock
 async def test_get_article_scraper_error_returns_empty(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(headlines, "_get_scraper", lambda: _fake_scraper_error())
+    monkeypatch.setattr(headlines_article, "_get_scraper", lambda: _fake_scraper_error())
 
     assert await headlines.get_article("https://news.example.com/blocked") == {}
 
 
 @respx.mock
 async def test_get_article_scraper_raises_returns_empty(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(headlines, "_get_scraper", lambda: _fake_scraper_raises())
+    monkeypatch.setattr(headlines_article, "_get_scraper", lambda: _fake_scraper_raises())
 
     assert await headlines.get_article("https://news.example.com/boom") == {}
 
