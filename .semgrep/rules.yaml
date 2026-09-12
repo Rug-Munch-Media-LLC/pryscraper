@@ -1,25 +1,34 @@
+# Pinned semgrep ruleset for Pry (audit 2026-09-11 P1).
+# Replaces `--config=auto` (nondeterministic: registry contents change under
+# the gate between runs). Add repo-specific rules below as needed.
+
 rules:
-  - id: no-print-in-production
-    pattern: print(...)
-    message: "Remove print() before committing to production code. Use structured logging instead."
-    severity: WARNING
+  - id: pry.no-eval-exec
     languages: [python]
-    paths:
-      exclude:
-        - tests/
-        - "**/test_*.py"
-
-  - id: no-os-system
-    pattern: os.system(...)
-    message: "os.system() is dangerous. Use subprocess.run() with shell=False instead."
+    message: "eval()/exec() on dynamic input — arbitrary code execution risk"
     severity: ERROR
-    languages: [python]
-
-  - id: no-eval-exec
     patterns:
-      - pattern-either:
-        - pattern: eval(...)
-        - pattern: exec(...)
-    message: "eval()/exec() are dangerous and should not be used in production code."
-    severity: ERROR
+      - pattern: eval(...)
+      - pattern-not: eval("...")
+  - id: pry.no-pickle-load
     languages: [python]
+    message: "pickle.loads on untrusted data — RCE via crafted payloads"
+    severity: ERROR
+    pattern: pickle.loads(...)
+  - id: pry.no-yaml-unsafe-load
+    languages: [python]
+    message: "yaml.load without SafeLoader — RCE via crafted YAML"
+    severity: ERROR
+    pattern-either:
+      - pattern: yaml.load(...)
+      - pattern: yaml.unsafe_load(...)
+  - id: pry.no-shell-true
+    languages: [python]
+    message: "subprocess with shell=True — command injection risk"
+    severity: ERROR
+    pattern: subprocess.run(..., shell=True, ...)
+  - id: pry.no-tempfile-race
+    languages: [python]
+    message: "mktemp is insecure — use NamedTemporaryFile/mkstemp"
+    severity: ERROR
+    pattern: tempfile.mktemp(...)

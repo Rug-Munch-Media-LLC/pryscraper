@@ -14,6 +14,12 @@ permissions: read-all
 
 jobs:
   scorecard:
+    # DISABLED (audit 2026-09-11 P1): OpenSSF Scorecard publishes results to
+    # the GitHub Security Advisory API and the upload step uses
+    # github/codeql-action — both GitHub.com-only. On Forgejo this workflow
+    # can never pass (failed every run). Re-enable only if a
+    # Forgejo-compatible scorecard runner lands upstream.
+    if: false
     runs-on: docker-x64
     permissions:
       security-events: write

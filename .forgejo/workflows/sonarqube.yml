@@ -4,15 +4,22 @@
 # Licensed under MIT. See LICENSE.
 name: SonarQube Analysis
 
+# DISABLED (audit 2026-09-11 P1): no SonarQube server is deployed on the
+# fleet (port 9000 is ClickHouse; the gopass sonarqube_token predates that
+# repurposing). This workflow failed 117 consecutive runs on missing/unusable
+# SONAR_HOST_URL. To re-enable: deploy a SonarQube server, set the
+# SONAR_HOST_URL + SONAR_TOKEN repo secrets, and remove the `if: false` below.
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   sonar:
     name: SonarQube Scan
+    if: false # disabled — see comment above
     runs-on: docker-x64
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22

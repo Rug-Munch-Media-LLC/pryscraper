@@ -1,0 +1,48 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# RugMunch Fleet-wide Ruff Base Configuration
+# This is the shared base config extended by all Python repos.
+# Individual repos override repo-specific settings (extend-exclude,
+# per-file-ignores, isort known-first-party, etc.) in their own config.
+# ──────────────────────────────────────────────────────────────────────────────
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+# ──────────────────────────────────────────────────────────────────────────────
+
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes (catches undefined names, unused imports)
+    "I",     # isort (import sorting)
+    "N",     # pep8-naming
+    "UP",    # pyupgrade (modern Python idioms)
+    "B",     # flake8-bugbear (logic bugs)
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+    "TCH",   # flake8-type-checking (typing-only imports)
+    "RUF",   # ruff-specific rules
+    "ASYNC", # flake8-async (async/await correctness)
+    "S",     # flake8-bandit (security)
+    "PIE",   # flake8-pie (preventive idioms)
+    "PT",    # flake8-pytest-style (consistent test patterns)
+]
+
+ignore = [
+    "E501",  # line length — enforced by formatter instead
+    "B008",  # function calls in default args — required by FastAPI Depends
+    "S101",  # assert — permitted in dev/test paths
+    "N818",  # exception naming convention — we use Error suffix
+]
+
+[lint.isort]
+combine-as-imports = true
+
+[lint.flake8-implicit-str-concat]
+allow-multiline = false
+
+[format]
+quote-style = "double"
+indent-style = "space"
