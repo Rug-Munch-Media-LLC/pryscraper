@@ -36,8 +36,12 @@ import pytest
 
 # Skip cleanly when pact-python is not installed (e.g. minimal dev envs).
 # The CI contract job installs the `pact-python` dev extra explicitly.
-pytest.importorskip("pact.v3")
-from pact.v3 import Pact, match
+#
+# pact-python 3.x: the API that lived in `pact.v3` (2.x) is now the default
+# `pact` package (the module layout below the top level changed; the v3 API
+# kept the same DSL — upon_receiving/given/with_request/will_respond_with).
+pytest.importorskip("pact")
+from pact import Pact, match
 
 PACT_DIR = os.path.join(os.path.dirname(__file__), "pacts")
 
