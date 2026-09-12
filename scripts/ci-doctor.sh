@@ -55,14 +55,15 @@ data = json.load(open(sys.argv[1]))
 tasks = data.get("workflow_runs", data if isinstance(data, list) else [])
 if not tasks:
     sys.exit(0)
-# Group by run_number; the MAIN CI run is the recent run with the most jobs
-# (disabled workflows produce 1-job runs that would otherwise win by number).
-by_run = defaultdict(list)
-for t in tasks:
-    by_run[int(t.get("run_number") or 0)].append(t)
-recent = sorted(by_run, reverse=True)[:10]
-best = max(recent, key=lambda r: len(by_run[r]))
-for t in sorted(by_run[best], key=lambda x: x.get("name", "")):
+# Only the main CI workflow; then the NEWEST run among those. (Disabled
+# workflows create 1-job runs; an in-flight new run has few jobs — both
+# would lose a "most jobs" contest to a previous complete run.)
+ci = [t for t in tasks if t.get("workflow_id") == "ci.yml"]
+if not ci:
+    ci = tasks  # fallback: unfiltered
+newest = max(int(t.get("run_number") or 0) for t in ci)
+run = [t for t in ci if int(t.get("run_number") or 0) == newest]
+for t in sorted(run, key=lambda x: x.get("name", "")):
     print(f"{t.get('id')}\t{t.get('name')}\t{t.get('conclusion') or t.get('status')}")
 PY
 )
