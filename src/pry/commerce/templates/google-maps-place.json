@@ -1,54 +1,54 @@
 {
-  "name": "Google Maps Place",
-  "description": "Extract place details from Google Maps",
-  "site": "google.com/maps",
-  "category": "local",
-  "icon": "\ud83d\uddfa\ufe0f",
-  "schema": {
-    "name": "google_maps_place",
-    "base_selector": "body",
-    "fields": [
-      {
-        "name": "name",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "rating",
-        "selector": "[aria-label*='stars']",
-        "type": "attribute",
-        "attribute": "aria-label"
-      },
-      {
-        "name": "total_ratings",
-        "selector": "[aria-label*='reviews']",
-        "type": "attribute",
-        "attribute": "aria-label"
-      },
-      {
-        "name": "address",
-        "selector": "[data-item-id='address']",
-        "type": "text"
-      },
-      {
-        "name": "phone",
-        "selector": "[data-item-id*='phone']",
-        "type": "text"
-      },
-      {
-        "name": "website",
-        "selector": "a[data-item-id*='authority']",
-        "type": "attribute",
-        "attribute": "href"
-      },
-      {
-        "name": "hours",
-        "selector": "[data-item-id*='oh']",
-        "type": "text"
-      }
-    ]
-  },
-  "url_pattern": "*://www.google.com/maps/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Google Maps Place",
+	"description": "Extract place details from Google Maps",
+	"site": "google.com/maps",
+	"category": "local",
+	"icon": "\ud83d\uddfa\ufe0f",
+	"schema": {
+		"name": "google_maps_place",
+		"base_selector": "body",
+		"fields": [
+			{
+				"name": "name",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "rating",
+				"selector": "[aria-label*='stars']",
+				"type": "attribute",
+				"attribute": "aria-label"
+			},
+			{
+				"name": "total_ratings",
+				"selector": "[aria-label*='reviews']",
+				"type": "attribute",
+				"attribute": "aria-label"
+			},
+			{
+				"name": "address",
+				"selector": "[data-item-id='address']",
+				"type": "text"
+			},
+			{
+				"name": "phone",
+				"selector": "[data-item-id*='phone']",
+				"type": "text"
+			},
+			{
+				"name": "website",
+				"selector": "a[data-item-id*='authority']",
+				"type": "attribute",
+				"attribute": "href"
+			},
+			{
+				"name": "hours",
+				"selector": "[data-item-id*='oh']",
+				"type": "text"
+			}
+		]
+	},
+	"url_pattern": "*://www.google.com/maps/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

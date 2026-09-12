@@ -1,54 +1,54 @@
 {
-  "name": "Airbnb Listing",
-  "description": "Extract listing details from Airbnb",
-  "site": "airbnb.com",
-  "category": "travel",
-  "icon": "\ud83c\udfe0",
-  "url_pattern": "*://www.airbnb.com/rooms/*",
-  "schema": {
-    "name": "airbnb_listing",
-    "base_selector": "[data-section-id='TITLE_DEFAULT']",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "price_per_night",
-        "selector": "[data-testid='price-availability-row']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "rating",
-        "selector": "[data-testid='review-summary']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "review_count",
-        "selector": "[data-testid='review-count']",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "location",
-        "selector": "[data-testid='location']",
-        "type": "text"
-      },
-      {
-        "name": "host_name",
-        "selector": "[data-testid='host-name']",
-        "type": "text"
-      },
-      {
-        "name": "description",
-        "selector": "[data-section-id='DESCRIPTION_DEFAULT']",
-        "type": "text"
-      }
-    ]
-  },
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Airbnb Listing",
+	"description": "Extract listing details from Airbnb",
+	"site": "airbnb.com",
+	"category": "travel",
+	"icon": "\ud83c\udfe0",
+	"url_pattern": "*://www.airbnb.com/rooms/*",
+	"schema": {
+		"name": "airbnb_listing",
+		"base_selector": "[data-section-id='TITLE_DEFAULT']",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "price_per_night",
+				"selector": "[data-testid='price-availability-row']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "rating",
+				"selector": "[data-testid='review-summary']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "review_count",
+				"selector": "[data-testid='review-count']",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "location",
+				"selector": "[data-testid='location']",
+				"type": "text"
+			},
+			{
+				"name": "host_name",
+				"selector": "[data-testid='host-name']",
+				"type": "text"
+			},
+			{
+				"name": "description",
+				"selector": "[data-section-id='DESCRIPTION_DEFAULT']",
+				"type": "text"
+			}
+		]
+	},
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

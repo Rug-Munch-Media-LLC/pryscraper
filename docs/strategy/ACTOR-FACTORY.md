@@ -57,16 +57,30 @@ spec = ActorSpec(
     description="Track product prices behind anti-bot walls.",
     version="1.0",
     inputs=(
-        InputField(name="urls", title="Product URLs", type="array",
-                   editor="requestListSources", required=True,
-                   prefill=[{"url": "https://example.com/p/1"}]),
-        InputField(name="currency", title="Currency", type="string",
-                   editor="select", enum=["USD", "EUR"], default="USD"),
+        InputField(
+            name="urls",
+            title="Product URLs",
+            type="array",
+            editor="requestListSources",
+            required=True,
+            prefill=[{"url": "https://example.com/p/1"}],
+        ),
+        InputField(
+            name="currency",
+            title="Currency",
+            type="string",
+            editor="select",
+            enum=["USD", "EUR"],
+            default="USD",
+        ),
     ),
     pricing_events=(
-        PricingEvent(name="price-checked", title="Price checked",
-                     description="One product price captured.",
-                     price_usd=0.002),
+        PricingEvent(
+            name="price-checked",
+            title="Price checked",
+            description="One product price captured.",
+            price_usd=0.002,
+        ),
     ),
 )
 generate_actor(spec, Path("actors/price-watch"))

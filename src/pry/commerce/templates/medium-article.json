@@ -1,54 +1,54 @@
 {
-  "name": "Medium Article",
-  "description": "Extract article content from Medium",
-  "site": "medium.com",
-  "category": "content",
-  "icon": "\ud83d\udcdd",
-  "schema": {
-    "name": "medium_article",
-    "base_selector": "article",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "author",
-        "selector": "a[href*='/@']",
-        "type": "text"
-      },
-      {
-        "name": "reading_time",
-        "selector": "[class*='readingTime']",
-        "type": "text"
-      },
-      {
-        "name": "claps",
-        "selector": "[class*='clapButton']",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "content",
-        "selector": ".pw-post-body",
-        "type": "text"
-      },
-      {
-        "name": "published_date",
-        "selector": "time",
-        "type": "attribute",
-        "attribute": "datetime"
-      },
-      {
-        "name": "image_url",
-        "selector": ".pw-post-body img",
-        "type": "attribute",
-        "attribute": "src"
-      }
-    ]
-  },
-  "url_pattern": "*://www.medium.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Medium Article",
+	"description": "Extract article content from Medium",
+	"site": "medium.com",
+	"category": "content",
+	"icon": "\ud83d\udcdd",
+	"schema": {
+		"name": "medium_article",
+		"base_selector": "article",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "author",
+				"selector": "a[href*='/@']",
+				"type": "text"
+			},
+			{
+				"name": "reading_time",
+				"selector": "[class*='readingTime']",
+				"type": "text"
+			},
+			{
+				"name": "claps",
+				"selector": "[class*='clapButton']",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "content",
+				"selector": ".pw-post-body",
+				"type": "text"
+			},
+			{
+				"name": "published_date",
+				"selector": "time",
+				"type": "attribute",
+				"attribute": "datetime"
+			},
+			{
+				"name": "image_url",
+				"selector": ".pw-post-body img",
+				"type": "attribute",
+				"attribute": "src"
+			}
+		]
+	},
+	"url_pattern": "*://www.medium.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

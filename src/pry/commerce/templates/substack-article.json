@@ -1,42 +1,42 @@
 {
-  "name": "Substack Article",
-  "description": "Extract article content from Substack",
-  "site": "substack.com",
-  "category": "content",
-  "icon": "\u2709\ufe0f",
-  "schema": {
-    "name": "substack_article",
-    "base_selector": ".main-content",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "author",
-        "selector": ".byline-wrapper a",
-        "type": "text"
-      },
-      {
-        "name": "subtitle",
-        "selector": "h3, .subtitle",
-        "type": "text"
-      },
-      {
-        "name": "content",
-        "selector": ".body-markdown",
-        "type": "text"
-      },
-      {
-        "name": "published_date",
-        "selector": "time, .post-date",
-        "type": "attribute",
-        "attribute": "datetime"
-      }
-    ]
-  },
-  "url_pattern": "*://www.substack.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Substack Article",
+	"description": "Extract article content from Substack",
+	"site": "substack.com",
+	"category": "content",
+	"icon": "\u2709\ufe0f",
+	"schema": {
+		"name": "substack_article",
+		"base_selector": ".main-content",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "author",
+				"selector": ".byline-wrapper a",
+				"type": "text"
+			},
+			{
+				"name": "subtitle",
+				"selector": "h3, .subtitle",
+				"type": "text"
+			},
+			{
+				"name": "content",
+				"selector": ".body-markdown",
+				"type": "text"
+			},
+			{
+				"name": "published_date",
+				"selector": "time, .post-date",
+				"type": "attribute",
+				"attribute": "datetime"
+			}
+		]
+	},
+	"url_pattern": "*://www.substack.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

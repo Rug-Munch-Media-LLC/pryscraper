@@ -113,7 +113,7 @@ services:
     depends_on:
       flaresolverr:
         condition: service_healthy
-    
+
   flaresolverr-pry:
     image: ghcr.io/flaresolverr/flaresolverr:v3.3.21
     container_name: pry-flaresolverr-pry

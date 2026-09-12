@@ -1,70 +1,70 @@
 {
-  "name": "Sephora Product",
-  "description": "Extract product details from Sephora",
-  "site": "sephora.com",
-  "category": "ecommerce",
-  "icon": "\ud83d\udc84",
-  "schema": {
-    "name": "sephora_product",
-    "base_selector": ".product-detail",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1, [class*='product-name']",
-        "type": "text"
-      },
-      {
-        "name": "brand",
-        "selector": "[class*='brand']",
-        "type": "text"
-      },
-      {
-        "name": "price",
-        "selector": "[class*='price']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "rating",
-        "selector": "[class*='rating'], [class*='stars']",
-        "type": "attribute",
-        "attribute": "aria-label"
-      },
-      {
-        "name": "review_count",
-        "selector": "[class*='reviews']",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "description",
-        "selector": "[class*='description'], [class*='details']",
-        "type": "text"
-      },
-      {
-        "name": "image_url",
-        "selector": "[class*='image'] img, .product-image img",
-        "type": "attribute",
-        "attribute": "src"
-      },
-      {
-        "name": "shade_count",
-        "selector": "[class*='shade'], [class*='swatch']",
-        "type": "count"
-      },
-      {
-        "name": "size",
-        "selector": "[class*='size']",
-        "type": "text"
-      },
-      {
-        "name": "how_to_use",
-        "selector": "[class*='how-to']",
-        "type": "text"
-      }
-    ]
-  },
-  "url_pattern": "*://www.sephora.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Sephora Product",
+	"description": "Extract product details from Sephora",
+	"site": "sephora.com",
+	"category": "ecommerce",
+	"icon": "\ud83d\udc84",
+	"schema": {
+		"name": "sephora_product",
+		"base_selector": ".product-detail",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1, [class*='product-name']",
+				"type": "text"
+			},
+			{
+				"name": "brand",
+				"selector": "[class*='brand']",
+				"type": "text"
+			},
+			{
+				"name": "price",
+				"selector": "[class*='price']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "rating",
+				"selector": "[class*='rating'], [class*='stars']",
+				"type": "attribute",
+				"attribute": "aria-label"
+			},
+			{
+				"name": "review_count",
+				"selector": "[class*='reviews']",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "description",
+				"selector": "[class*='description'], [class*='details']",
+				"type": "text"
+			},
+			{
+				"name": "image_url",
+				"selector": "[class*='image'] img, .product-image img",
+				"type": "attribute",
+				"attribute": "src"
+			},
+			{
+				"name": "shade_count",
+				"selector": "[class*='shade'], [class*='swatch']",
+				"type": "count"
+			},
+			{
+				"name": "size",
+				"selector": "[class*='size']",
+				"type": "text"
+			},
+			{
+				"name": "how_to_use",
+				"selector": "[class*='how-to']",
+				"type": "text"
+			}
+		]
+	},
+	"url_pattern": "*://www.sephora.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

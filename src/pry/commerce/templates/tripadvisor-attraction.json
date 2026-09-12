@@ -1,48 +1,48 @@
 {
-  "name": "TripAdvisor Attraction",
-  "description": "Extract attraction details from TripAdvisor",
-  "site": "tripadvisor.com",
-  "category": "travel",
-  "icon": "\u2708\ufe0f",
-  "schema": {
-    "name": "tripadvisor_attraction",
-    "base_selector": ".page-wrapper",
-    "fields": [
-      {
-        "name": "name",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "rating",
-        "selector": ".ui_bubble_rating",
-        "type": "attribute",
-        "attribute": "class"
-      },
-      {
-        "name": "review_count",
-        "selector": ".reviewCount",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "rank",
-        "selector": ".ranking",
-        "type": "text"
-      },
-      {
-        "name": "description",
-        "selector": ".description",
-        "type": "text"
-      },
-      {
-        "name": "location",
-        "selector": ".address",
-        "type": "text"
-      }
-    ]
-  },
-  "url_pattern": "*://www.tripadvisor.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "TripAdvisor Attraction",
+	"description": "Extract attraction details from TripAdvisor",
+	"site": "tripadvisor.com",
+	"category": "travel",
+	"icon": "\u2708\ufe0f",
+	"schema": {
+		"name": "tripadvisor_attraction",
+		"base_selector": ".page-wrapper",
+		"fields": [
+			{
+				"name": "name",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "rating",
+				"selector": ".ui_bubble_rating",
+				"type": "attribute",
+				"attribute": "class"
+			},
+			{
+				"name": "review_count",
+				"selector": ".reviewCount",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "rank",
+				"selector": ".ranking",
+				"type": "text"
+			},
+			{
+				"name": "description",
+				"selector": ".description",
+				"type": "text"
+			},
+			{
+				"name": "location",
+				"selector": ".address",
+				"type": "text"
+			}
+		]
+	},
+	"url_pattern": "*://www.tripadvisor.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

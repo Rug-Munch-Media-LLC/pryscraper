@@ -1,47 +1,47 @@
 {
-  "name": "SEC EDGAR Filing",
-  "description": "Extract filing metadata from SEC EDGAR",
-  "site": "sec.gov",
-  "category": "financial",
-  "icon": "\ud83c\udfdb\ufe0f",
-  "schema": {
-    "name": "sec_edgar",
-    "base_selector": "body",
-    "fields": [
-      {
-        "name": "company_name",
-        "selector": ".companyName",
-        "type": "text"
-      },
-      {
-        "name": "filing_type",
-        "selector": ".identifyWork",
-        "type": "text"
-      },
-      {
-        "name": "cik",
-        "selector": ".identifyInfo a",
-        "type": "text"
-      },
-      {
-        "name": "filing_date",
-        "selector": ".identifyInfo",
-        "type": "text"
-      },
-      {
-        "name": "description",
-        "selector": ".formGrouping",
-        "type": "text"
-      },
-      {
-        "name": "filing_url",
-        "selector": ".formGrouping a",
-        "type": "attribute",
-        "attribute": "href"
-      }
-    ]
-  },
-  "url_pattern": "*://www.sec.gov/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "SEC EDGAR Filing",
+	"description": "Extract filing metadata from SEC EDGAR",
+	"site": "sec.gov",
+	"category": "financial",
+	"icon": "\ud83c\udfdb\ufe0f",
+	"schema": {
+		"name": "sec_edgar",
+		"base_selector": "body",
+		"fields": [
+			{
+				"name": "company_name",
+				"selector": ".companyName",
+				"type": "text"
+			},
+			{
+				"name": "filing_type",
+				"selector": ".identifyWork",
+				"type": "text"
+			},
+			{
+				"name": "cik",
+				"selector": ".identifyInfo a",
+				"type": "text"
+			},
+			{
+				"name": "filing_date",
+				"selector": ".identifyInfo",
+				"type": "text"
+			},
+			{
+				"name": "description",
+				"selector": ".formGrouping",
+				"type": "text"
+			},
+			{
+				"name": "filing_url",
+				"selector": ".formGrouping a",
+				"type": "attribute",
+				"attribute": "href"
+			}
+		]
+	},
+	"url_pattern": "*://www.sec.gov/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

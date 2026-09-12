@@ -1,61 +1,61 @@
 {
-  "name": "Realtor.com Listing",
-  "description": "Extract real estate listing from Realtor.com",
-  "site": "realtor.com",
-  "category": "real_estate",
-  "icon": "\ud83c\udfe1",
-  "schema": {
-    "name": "realtor_listing",
-    "base_selector": ".listing-details",
-    "fields": [
-      {
-        "name": "address",
-        "selector": "[class*='address']",
-        "type": "text"
-      },
-      {
-        "name": "price",
-        "selector": "[class*='price']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "bedrooms",
-        "selector": "[data-testid='bed']",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "bathrooms",
-        "selector": "[data-testid='bath']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "sqft",
-        "selector": "[data-testid='sqft']",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "description",
-        "selector": "[class*='description']",
-        "type": "text"
-      },
-      {
-        "name": "image_url",
-        "selector": "[class*='gallery'] img",
-        "type": "attribute",
-        "attribute": "src"
-      },
-      {
-        "name": "listing_agent",
-        "selector": "[class*='agent-name']",
-        "type": "text"
-      }
-    ]
-  },
-  "url_pattern": "*://www.realtor.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Realtor.com Listing",
+	"description": "Extract real estate listing from Realtor.com",
+	"site": "realtor.com",
+	"category": "real_estate",
+	"icon": "\ud83c\udfe1",
+	"schema": {
+		"name": "realtor_listing",
+		"base_selector": ".listing-details",
+		"fields": [
+			{
+				"name": "address",
+				"selector": "[class*='address']",
+				"type": "text"
+			},
+			{
+				"name": "price",
+				"selector": "[class*='price']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "bedrooms",
+				"selector": "[data-testid='bed']",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "bathrooms",
+				"selector": "[data-testid='bath']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "sqft",
+				"selector": "[data-testid='sqft']",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "description",
+				"selector": "[class*='description']",
+				"type": "text"
+			},
+			{
+				"name": "image_url",
+				"selector": "[class*='gallery'] img",
+				"type": "attribute",
+				"attribute": "src"
+			},
+			{
+				"name": "listing_agent",
+				"selector": "[class*='agent-name']",
+				"type": "text"
+			}
+		]
+	},
+	"url_pattern": "*://www.realtor.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

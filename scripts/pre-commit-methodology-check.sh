@@ -1,7 +1,7 @@
 #!/bin/bash
 # RugMunch Methodology Leak Detection — Pre-Commit Hook (SANITIZED for OSS)
 # Canonical source: standards/scripts/pre-commit-methodology-check.sh
-# 
+#
 # This is a sanitized version for public/open-source repos.
 # It checks for COMMON patterns that should never be committed.
 # The full version with infrastructure-specific patterns lives in
@@ -19,20 +19,22 @@ FORBIDDEN_PATTERNS=(
   'xox[baprs]-[0-9a-zA-Z]{10,}'  # Slack tokens
   'ghp_[a-zA-Z0-9]{36}'      # GitHub PATs
   'gho_[a-zA-Z0-9]{36}'      # GitHub OAuth tokens
-  
+
   # Generic internal hostname patterns (not our specific ones)
   '\.internal\.'
   '\.int\.'
   '\.corp\.'
-  
+
   # Generic filesystem paths that shouldn't be hardcoded
   '/home/[^/]+/\..*/(secrets|keys|certs|credentials)'
-  
+
   # Comments and documentation markers
-  'FIXME'
-  'HACK'
-  'XXX'
-  '@nocommit'
+  # Character classes keep the literal markers out of this file so
+  # the check does not flag itself when staged.
+  'FIXM[E]'
+  'HAC[K]'
+  'XX[X]'
+  '@nocommi[t]'
 )
 
 FOUND=0

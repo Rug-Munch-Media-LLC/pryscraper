@@ -1,43 +1,43 @@
 {
-  "name": "ESPN Sports Scores",
-  "description": "Extract sports scores and stats from ESPN",
-  "site": "espn.com",
-  "category": "sports",
-  "icon": "\ud83c\udfc0",
-  "schema": {
-    "name": "espn_scores",
-    "base_selector": ".Scoreboard",
-    "fields": [
-      {
-        "name": "home_team",
-        "selector": ".homeTeam",
-        "type": "text"
-      },
-      {
-        "name": "away_team",
-        "selector": ".awayTeam",
-        "type": "text"
-      },
-      {
-        "name": "home_score",
-        "selector": ".homeScore",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "away_score",
-        "selector": ".awayScore",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "status",
-        "selector": ".gameStatus",
-        "type": "text"
-      }
-    ]
-  },
-  "url_pattern": "*://www.espn.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "ESPN Sports Scores",
+	"description": "Extract sports scores and stats from ESPN",
+	"site": "espn.com",
+	"category": "sports",
+	"icon": "\ud83c\udfc0",
+	"schema": {
+		"name": "espn_scores",
+		"base_selector": ".Scoreboard",
+		"fields": [
+			{
+				"name": "home_team",
+				"selector": ".homeTeam",
+				"type": "text"
+			},
+			{
+				"name": "away_team",
+				"selector": ".awayTeam",
+				"type": "text"
+			},
+			{
+				"name": "home_score",
+				"selector": ".homeScore",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "away_score",
+				"selector": ".awayScore",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "status",
+				"selector": ".gameStatus",
+				"type": "text"
+			}
+		]
+	},
+	"url_pattern": "*://www.espn.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

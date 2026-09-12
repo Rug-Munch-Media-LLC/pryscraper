@@ -1,60 +1,60 @@
 {
-  "name": "Best Buy Product",
-  "description": "Extract product details from Best Buy product pages",
-  "site": "bestbuy.com",
-  "category": "ecommerce",
-  "icon": "\ud83d\udd35",
-  "url_pattern": "*://www.bestbuy.com/site/*",
-  "schema": {
-    "name": "bestbuy_product",
-    "base_selector": ".shop-product-details",
-    "fields": [
-      {
-        "name": "title",
-        "selector": ".sku-title h1",
-        "type": "text"
-      },
-      {
-        "name": "price",
-        "selector": ".priceView-customer-price span",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "rating",
-        "selector": ".rating-reviews",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "review_count",
-        "selector": ".rating-reviews span",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "model",
-        "selector": ".sku-model",
-        "type": "text"
-      },
-      {
-        "name": "description",
-        "selector": ".product-description",
-        "type": "text"
-      },
-      {
-        "name": "image_url",
-        "selector": ".primary-image img",
-        "type": "attribute",
-        "attribute": "src"
-      },
-      {
-        "name": "availability",
-        "selector": ".fulfillment-add-to-cart-button",
-        "type": "exists"
-      }
-    ]
-  },
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Best Buy Product",
+	"description": "Extract product details from Best Buy product pages",
+	"site": "bestbuy.com",
+	"category": "ecommerce",
+	"icon": "\ud83d\udd35",
+	"url_pattern": "*://www.bestbuy.com/site/*",
+	"schema": {
+		"name": "bestbuy_product",
+		"base_selector": ".shop-product-details",
+		"fields": [
+			{
+				"name": "title",
+				"selector": ".sku-title h1",
+				"type": "text"
+			},
+			{
+				"name": "price",
+				"selector": ".priceView-customer-price span",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "rating",
+				"selector": ".rating-reviews",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "review_count",
+				"selector": ".rating-reviews span",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "model",
+				"selector": ".sku-model",
+				"type": "text"
+			},
+			{
+				"name": "description",
+				"selector": ".product-description",
+				"type": "text"
+			},
+			{
+				"name": "image_url",
+				"selector": ".primary-image img",
+				"type": "attribute",
+				"attribute": "src"
+			},
+			{
+				"name": "availability",
+				"selector": ".fulfillment-add-to-cart-button",
+				"type": "exists"
+			}
+		]
+	},
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

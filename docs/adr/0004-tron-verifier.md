@@ -1,6 +1,6 @@
 # ADR 0004: TRON TRC-20 Verifier Design
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-08-26
 
 ## Context

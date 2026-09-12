@@ -1,60 +1,60 @@
 {
-  "name": "Yelp Business",
-  "description": "Extract business info and reviews from Yelp",
-  "site": "yelp.com",
-  "category": "reviews",
-  "icon": "\ud83d\udccd",
-  "schema": {
-    "name": "yelp_business",
-    "base_selector": ".business-details",
-    "fields": [
-      {
-        "name": "name",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "rating",
-        "selector": ".rating-large",
-        "type": "attribute",
-        "attribute": "aria-label",
-        "transform": "float"
-      },
-      {
-        "name": "review_count",
-        "selector": ".review-count",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "price_range",
-        "selector": ".price-range",
-        "type": "text"
-      },
-      {
-        "name": "phone",
-        "selector": ".phone",
-        "type": "text"
-      },
-      {
-        "name": "address",
-        "selector": "address",
-        "type": "text"
-      },
-      {
-        "name": "website",
-        "selector": ".website a",
-        "type": "attribute",
-        "attribute": "href"
-      },
-      {
-        "name": "category",
-        "selector": ".category",
-        "type": "text"
-      }
-    ]
-  },
-  "url_pattern": "*://www.yelp.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Yelp Business",
+	"description": "Extract business info and reviews from Yelp",
+	"site": "yelp.com",
+	"category": "reviews",
+	"icon": "\ud83d\udccd",
+	"schema": {
+		"name": "yelp_business",
+		"base_selector": ".business-details",
+		"fields": [
+			{
+				"name": "name",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "rating",
+				"selector": ".rating-large",
+				"type": "attribute",
+				"attribute": "aria-label",
+				"transform": "float"
+			},
+			{
+				"name": "review_count",
+				"selector": ".review-count",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "price_range",
+				"selector": ".price-range",
+				"type": "text"
+			},
+			{
+				"name": "phone",
+				"selector": ".phone",
+				"type": "text"
+			},
+			{
+				"name": "address",
+				"selector": "address",
+				"type": "text"
+			},
+			{
+				"name": "website",
+				"selector": ".website a",
+				"type": "attribute",
+				"attribute": "href"
+			},
+			{
+				"name": "category",
+				"selector": ".category",
+				"type": "text"
+			}
+		]
+	},
+	"url_pattern": "*://www.yelp.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

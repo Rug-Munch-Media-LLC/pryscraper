@@ -1,59 +1,59 @@
 {
-  "name": "GitHub Repository",
-  "description": "Extract repository details from GitHub",
-  "site": "github.com",
-  "category": "development",
-  "icon": "\ud83d\udc19",
-  "url_pattern": "*://github.com/*/*",
-  "schema": {
-    "name": "github_repo",
-    "base_selector": "main",
-    "fields": [
-      {
-        "name": "name",
-        "selector": "strong[itemprop='name']",
-        "type": "text"
-      },
-      {
-        "name": "description",
-        "selector": "p[itemprop='description']",
-        "type": "text"
-      },
-      {
-        "name": "stars",
-        "selector": "#repo-stars-counter-star",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "forks",
-        "selector": "#repo-network-counter",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "language",
-        "selector": "[itemprop='programmingLanguage']",
-        "type": "text"
-      },
-      {
-        "name": "license",
-        "selector": "[itemprop='license']",
-        "type": "text"
-      },
-      {
-        "name": "last_updated",
-        "selector": "relative-time",
-        "type": "attribute",
-        "attribute": "datetime"
-      },
-      {
-        "name": "topics",
-        "selector": ".topic-tag",
-        "type": "text"
-      }
-    ]
-  },
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "GitHub Repository",
+	"description": "Extract repository details from GitHub",
+	"site": "github.com",
+	"category": "development",
+	"icon": "\ud83d\udc19",
+	"url_pattern": "*://github.com/*/*",
+	"schema": {
+		"name": "github_repo",
+		"base_selector": "main",
+		"fields": [
+			{
+				"name": "name",
+				"selector": "strong[itemprop='name']",
+				"type": "text"
+			},
+			{
+				"name": "description",
+				"selector": "p[itemprop='description']",
+				"type": "text"
+			},
+			{
+				"name": "stars",
+				"selector": "#repo-stars-counter-star",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "forks",
+				"selector": "#repo-network-counter",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "language",
+				"selector": "[itemprop='programmingLanguage']",
+				"type": "text"
+			},
+			{
+				"name": "license",
+				"selector": "[itemprop='license']",
+				"type": "text"
+			},
+			{
+				"name": "last_updated",
+				"selector": "relative-time",
+				"type": "attribute",
+				"attribute": "datetime"
+			},
+			{
+				"name": "topics",
+				"selector": ".topic-tag",
+				"type": "text"
+			}
+		]
+	},
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

@@ -1,43 +1,43 @@
 {
-  "name": "South China Morning Post Article",
-  "description": "Extract article content from SCMP",
-  "site": "scmp.com",
-  "category": "news",
-  "icon": "\ud83d\udcf0",
-  "schema": {
-    "name": "scmp_article",
-    "base_selector": "article, .story",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "author",
-        "selector": "[class*='author']",
-        "type": "text"
-      },
-      {
-        "name": "published_date",
-        "selector": "time",
-        "type": "attribute",
-        "attribute": "datetime"
-      },
-      {
-        "name": "content",
-        "selector": "[class*='content'], [class*='story-body']",
-        "type": "text"
-      },
-      {
-        "name": "image_url",
-        "selector": "figure img",
-        "type": "attribute",
-        "attribute": "src"
-      }
-    ]
-  },
-  "url_pattern": "*://www.scmp.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "South China Morning Post Article",
+	"description": "Extract article content from SCMP",
+	"site": "scmp.com",
+	"category": "news",
+	"icon": "\ud83d\udcf0",
+	"schema": {
+		"name": "scmp_article",
+		"base_selector": "article, .story",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "author",
+				"selector": "[class*='author']",
+				"type": "text"
+			},
+			{
+				"name": "published_date",
+				"selector": "time",
+				"type": "attribute",
+				"attribute": "datetime"
+			},
+			{
+				"name": "content",
+				"selector": "[class*='content'], [class*='story-body']",
+				"type": "text"
+			},
+			{
+				"name": "image_url",
+				"selector": "figure img",
+				"type": "attribute",
+				"attribute": "src"
+			}
+		]
+	},
+	"url_pattern": "*://www.scmp.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

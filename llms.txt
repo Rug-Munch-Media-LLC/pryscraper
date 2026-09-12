@@ -134,7 +134,7 @@ Category: sports_betting
 
 ### pry_books
 
-Aggregate live odds for one sport/market across all 112 sportsbooks in Pry's registry (US, offshore, EU, UK, and Asian books) by scraping each book directly through Pry's intelligent fallback chain — 
+Aggregate live odds for one sport/market across all 112 sportsbooks in Pry's registry (US, offshore, EU, UK, and Asian books) by scraping each book directly through Pry's intelligent fallback chain —
 
 Category: sports_betting
 
@@ -266,7 +266,7 @@ Category: trade
 
 ### pry_injuries
 
-Get the current injury report for a sport or team: player, team, injury detail, and status (out/questionable/active). Use to adjust betting models or fantasy lineups before lock, e.g. 'who is out for 
+Get the current injury report for a sport or team: player, team, injury detail, and status (out/questionable/active). Use to adjust betting models or fantasy lineups before lock, e.g. 'who is out for
 
 Category: sports_betting
 
@@ -302,13 +302,13 @@ Category: legal
 
 ### pry_legal_sec
 
-Search SEC EDGAR filings for a public company by ticker and form type, returning filing dates, form names, and EDGAR accession numbers. Use to track regulatory filings that move markets, e.g. 'recent 
+Search SEC EDGAR filings for a public company by ticker and form type, returning filing dates, form names, and EDGAR accession numbers. Use to track regulatory filings that move markets, e.g. 'recent
 
 Category: legal
 
 ### pry_live_odds
 
-Get live in-play odds that update during games (moneyline, spreads, totals as they move). Use for live-betting research or game-flow monitoring, e.g. 'what are the live odds for the Lakers game right 
+Get live in-play odds that update during games (moneyline, spreads, totals as they move). Use for live-betting research or game-flow monitoring, e.g. 'what are the live odds for the Lakers game right
 
 Category: sports_betting
 
@@ -452,7 +452,7 @@ Category: search
 
 ### pry_sharp_consensus
 
-Get the sharp consensus: the closing-line value and consensus price from sharp books (Pinnacle, Circa, BetOnline) for the biggest games. Use to identify where professional money is, e.g. 'what is the 
+Get the sharp consensus: the closing-line value and consensus price from sharp books (Pinnacle, Circa, BetOnline) for the biggest games. Use to identify where professional money is, e.g. 'what is the
 
 Category: sports_betting
 
@@ -582,7 +582,7 @@ Full sharp money intelligence report for a sport: aggregates steam moves, revers
 
 ### pry_live_games
 
-Every in-progress game on a sport's slate right now, from ESPN's free public scoreboard: event_id, home/away, live scores, quarter, time remaining, status. Entry point for the other live tools — grab 
+Every in-progress game on a sport's slate right now, from ESPN's free public scoreboard: event_id, home/away, live scores, quarter, time remaining, status. Entry point for the other live tools — grab
 
 
 ### pry_live_game_state
@@ -592,7 +592,7 @@ Full live state for one game: score, quarter, clock, possession, momentum (last 
 
 ### pry_live_win_probability
 
-Live win probability for one game: home/away chances (ESPN's model when published, else a lead-vs-time heuristic), projected final scores, projected total, over/under probability vs the posted total, 
+Live win probability for one game: home/away chances (ESPN's model when published, else a lead-vs-time heuristic), projected final scores, projected total, over/under probability vs the posted total,
 
 
 ### pry_live_scoring

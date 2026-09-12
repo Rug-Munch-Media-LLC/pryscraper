@@ -145,7 +145,9 @@ which doesn't have this issue.
 
 ```python
 from logging_config import get_logger  # or just `import logging; log = logging.getLogger(__name__)`
+
 log = get_logger(__name__)
+
 
 def my_function(x: int) -> int:
     log.info("my_function_called", x=x)

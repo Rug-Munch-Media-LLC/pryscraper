@@ -1,48 +1,48 @@
 {
-  "name": "Reddit Post",
-  "description": "Extract post details from Reddit",
-  "site": "reddit.com",
-  "category": "social",
-  "icon": "\ud83d\udcac",
-  "url_pattern": "*://www.reddit.com/r/*/comments/*",
-  "schema": {
-    "name": "reddit_post",
-    "base_selector": "[data-testid='post-container']",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "author",
-        "selector": "a[href*='/user/']",
-        "type": "text"
-      },
-      {
-        "name": "score",
-        "selector": "[id^='vote-arrows']",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "subreddit",
-        "selector": "[data-testid='subreddit-name']",
-        "type": "text"
-      },
-      {
-        "name": "body",
-        "selector": "[data-testid='post-content']",
-        "type": "text"
-      },
-      {
-        "name": "comment_count",
-        "selector": "[data-testid='comment-count']",
-        "type": "text",
-        "transform": "int"
-      }
-    ]
-  },
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Reddit Post",
+	"description": "Extract post details from Reddit",
+	"site": "reddit.com",
+	"category": "social",
+	"icon": "\ud83d\udcac",
+	"url_pattern": "*://www.reddit.com/r/*/comments/*",
+	"schema": {
+		"name": "reddit_post",
+		"base_selector": "[data-testid='post-container']",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "author",
+				"selector": "a[href*='/user/']",
+				"type": "text"
+			},
+			{
+				"name": "score",
+				"selector": "[id^='vote-arrows']",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "subreddit",
+				"selector": "[data-testid='subreddit-name']",
+				"type": "text"
+			},
+			{
+				"name": "body",
+				"selector": "[data-testid='post-content']",
+				"type": "text"
+			},
+			{
+				"name": "comment_count",
+				"selector": "[data-testid='comment-count']",
+				"type": "text",
+				"transform": "int"
+			}
+		]
+	},
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

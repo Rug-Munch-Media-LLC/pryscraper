@@ -1,6 +1,6 @@
 # ADR 0006: Router Subpackage Grouping
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-08-26
 
 ## Context

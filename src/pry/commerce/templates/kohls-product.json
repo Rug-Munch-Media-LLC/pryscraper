@@ -1,61 +1,61 @@
 {
-  "name": "Kohl's Product",
-  "description": "Extract product details from Kohl's",
-  "site": "kohls.com",
-  "category": "ecommerce",
-  "icon": "\ud83c\udfea",
-  "schema": {
-    "name": "kohls_product",
-    "base_selector": ".product-detail",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "price",
-        "selector": "[class*='price']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "original_price",
-        "selector": "[class*='original']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "rating",
-        "selector": "[class*='rating']",
-        "type": "attribute",
-        "attribute": "aria-label"
-      },
-      {
-        "name": "review_count",
-        "selector": "[class*='reviews']",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "description",
-        "selector": "[class*='description']",
-        "type": "text"
-      },
-      {
-        "name": "image_url",
-        "selector": "[class*='image'] img",
-        "type": "attribute",
-        "attribute": "src"
-      },
-      {
-        "name": "kohl_cash",
-        "selector": "[class*='cash']",
-        "type": "text"
-      }
-    ]
-  },
-  "url_pattern": "*://www.kohls.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Kohl's Product",
+	"description": "Extract product details from Kohl's",
+	"site": "kohls.com",
+	"category": "ecommerce",
+	"icon": "\ud83c\udfea",
+	"schema": {
+		"name": "kohls_product",
+		"base_selector": ".product-detail",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "price",
+				"selector": "[class*='price']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "original_price",
+				"selector": "[class*='original']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "rating",
+				"selector": "[class*='rating']",
+				"type": "attribute",
+				"attribute": "aria-label"
+			},
+			{
+				"name": "review_count",
+				"selector": "[class*='reviews']",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "description",
+				"selector": "[class*='description']",
+				"type": "text"
+			},
+			{
+				"name": "image_url",
+				"selector": "[class*='image'] img",
+				"type": "attribute",
+				"attribute": "src"
+			},
+			{
+				"name": "kohl_cash",
+				"selector": "[class*='cash']",
+				"type": "text"
+			}
+		]
+	},
+	"url_pattern": "*://www.kohls.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

@@ -1,6 +1,6 @@
 # ADR 0003: x402 Payment Integration
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-08-26
 
 ## Context

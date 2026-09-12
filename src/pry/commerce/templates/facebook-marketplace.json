@@ -1,43 +1,43 @@
 {
-  "name": "Facebook Marketplace",
-  "description": "Extract listing details from Facebook Marketplace",
-  "site": "facebook.com",
-  "category": "classifieds",
-  "icon": "\ud83d\udcf1",
-  "schema": {
-    "name": "facebook_marketplace",
-    "base_selector": "body",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1, [class*='title']",
-        "type": "text"
-      },
-      {
-        "name": "price",
-        "selector": "[class*='price']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "location",
-        "selector": "[class*='location']",
-        "type": "text"
-      },
-      {
-        "name": "description",
-        "selector": "[class*='description']",
-        "type": "text"
-      },
-      {
-        "name": "posted_date",
-        "selector": "time",
-        "type": "attribute",
-        "attribute": "datetime"
-      }
-    ]
-  },
-  "url_pattern": "*://www.facebook.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Facebook Marketplace",
+	"description": "Extract listing details from Facebook Marketplace",
+	"site": "facebook.com",
+	"category": "classifieds",
+	"icon": "\ud83d\udcf1",
+	"schema": {
+		"name": "facebook_marketplace",
+		"base_selector": "body",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1, [class*='title']",
+				"type": "text"
+			},
+			{
+				"name": "price",
+				"selector": "[class*='price']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "location",
+				"selector": "[class*='location']",
+				"type": "text"
+			},
+			{
+				"name": "description",
+				"selector": "[class*='description']",
+				"type": "text"
+			},
+			{
+				"name": "posted_date",
+				"selector": "time",
+				"type": "attribute",
+				"attribute": "datetime"
+			}
+		]
+	},
+	"url_pattern": "*://www.facebook.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

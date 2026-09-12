@@ -1,6 +1,6 @@
 # ADR 0008: Coffer Consolidation
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-08-26
 
 ## Context

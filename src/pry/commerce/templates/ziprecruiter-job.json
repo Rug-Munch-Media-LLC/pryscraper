@@ -1,46 +1,46 @@
 {
-  "name": "ZipRecruiter Job",
-  "description": "Extract job posting from ZipRecruiter",
-  "site": "ziprecruiter.com",
-  "category": "professional",
-  "icon": "\ud83d\udcbc",
-  "schema": {
-    "name": "ziprecruiter_job",
-    "base_selector": ".job_details",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "company",
-        "selector": ".company_name",
-        "type": "text"
-      },
-      {
-        "name": "location",
-        "selector": ".location",
-        "type": "text"
-      },
-      {
-        "name": "salary",
-        "selector": ".salary",
-        "type": "text"
-      },
-      {
-        "name": "description",
-        "selector": "#job_description",
-        "type": "text"
-      },
-      {
-        "name": "posted_date",
-        "selector": ".posted_date",
-        "type": "text"
-      }
-    ]
-  },
-  "url_pattern": "*://www.ziprecruiter.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "ZipRecruiter Job",
+	"description": "Extract job posting from ZipRecruiter",
+	"site": "ziprecruiter.com",
+	"category": "professional",
+	"icon": "\ud83d\udcbc",
+	"schema": {
+		"name": "ziprecruiter_job",
+		"base_selector": ".job_details",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "company",
+				"selector": ".company_name",
+				"type": "text"
+			},
+			{
+				"name": "location",
+				"selector": ".location",
+				"type": "text"
+			},
+			{
+				"name": "salary",
+				"selector": ".salary",
+				"type": "text"
+			},
+			{
+				"name": "description",
+				"selector": "#job_description",
+				"type": "text"
+			},
+			{
+				"name": "posted_date",
+				"selector": ".posted_date",
+				"type": "text"
+			}
+		]
+	},
+	"url_pattern": "*://www.ziprecruiter.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

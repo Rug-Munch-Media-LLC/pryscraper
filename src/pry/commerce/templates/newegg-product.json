@@ -1,70 +1,70 @@
 {
-  "name": "Newegg Product",
-  "description": "Extract product details from Newegg",
-  "site": "newegg.com",
-  "category": "ecommerce",
-  "icon": "\ud83d\udcbb",
-  "schema": {
-    "name": "newegg_product",
-    "base_selector": ".product-detail",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "price",
-        "selector": "[class*='price']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "rating",
-        "selector": "[class*='rating']",
-        "type": "attribute",
-        "attribute": "aria-label"
-      },
-      {
-        "name": "review_count",
-        "selector": "[class*='reviews']",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "brand",
-        "selector": "[class*='brand']",
-        "type": "text"
-      },
-      {
-        "name": "model",
-        "selector": "[class*='model']",
-        "type": "text"
-      },
-      {
-        "name": "description",
-        "selector": "[class*='description']",
-        "type": "text"
-      },
-      {
-        "name": "image_url",
-        "selector": "[class*='image'] img",
-        "type": "attribute",
-        "attribute": "src"
-      },
-      {
-        "name": "shipping",
-        "selector": "[class*='shipping']",
-        "type": "text"
-      },
-      {
-        "name": "stock",
-        "selector": "[class*='stock'], [class*='availability']",
-        "type": "text"
-      }
-    ]
-  },
-  "url_pattern": "*://www.newegg.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Newegg Product",
+	"description": "Extract product details from Newegg",
+	"site": "newegg.com",
+	"category": "ecommerce",
+	"icon": "\ud83d\udcbb",
+	"schema": {
+		"name": "newegg_product",
+		"base_selector": ".product-detail",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "price",
+				"selector": "[class*='price']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "rating",
+				"selector": "[class*='rating']",
+				"type": "attribute",
+				"attribute": "aria-label"
+			},
+			{
+				"name": "review_count",
+				"selector": "[class*='reviews']",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "brand",
+				"selector": "[class*='brand']",
+				"type": "text"
+			},
+			{
+				"name": "model",
+				"selector": "[class*='model']",
+				"type": "text"
+			},
+			{
+				"name": "description",
+				"selector": "[class*='description']",
+				"type": "text"
+			},
+			{
+				"name": "image_url",
+				"selector": "[class*='image'] img",
+				"type": "attribute",
+				"attribute": "src"
+			},
+			{
+				"name": "shipping",
+				"selector": "[class*='shipping']",
+				"type": "text"
+			},
+			{
+				"name": "stock",
+				"selector": "[class*='stock'], [class*='availability']",
+				"type": "text"
+			}
+		]
+	},
+	"url_pattern": "*://www.newegg.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

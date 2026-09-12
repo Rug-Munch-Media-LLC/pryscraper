@@ -14,4 +14,3 @@ status: active
 4. Dual licensed: MIT (core) + BSL 1.1 (stealth)
 5. MCP tools must be typed and documented
 6. No hardcoded credentials — use gopass or env vars
-

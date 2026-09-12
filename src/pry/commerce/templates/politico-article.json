@@ -1,43 +1,43 @@
 {
-  "name": "Politico Article",
-  "description": "Extract article content from Politico",
-  "site": "politico.com",
-  "category": "news",
-  "icon": "\ud83d\udcf0",
-  "schema": {
-    "name": "politico_article",
-    "base_selector": "article",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "author",
-        "selector": "[class*='byline'], [class*='author']",
-        "type": "text"
-      },
-      {
-        "name": "published_date",
-        "selector": "time, [class*='timestamp']",
-        "type": "attribute",
-        "attribute": "datetime"
-      },
-      {
-        "name": "content",
-        "selector": "[class*='story-text']",
-        "type": "text"
-      },
-      {
-        "name": "image_url",
-        "selector": "figure img, [class*='image'] img",
-        "type": "attribute",
-        "attribute": "src"
-      }
-    ]
-  },
-  "url_pattern": "*://www.politico.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Politico Article",
+	"description": "Extract article content from Politico",
+	"site": "politico.com",
+	"category": "news",
+	"icon": "\ud83d\udcf0",
+	"schema": {
+		"name": "politico_article",
+		"base_selector": "article",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "author",
+				"selector": "[class*='byline'], [class*='author']",
+				"type": "text"
+			},
+			{
+				"name": "published_date",
+				"selector": "time, [class*='timestamp']",
+				"type": "attribute",
+				"attribute": "datetime"
+			},
+			{
+				"name": "content",
+				"selector": "[class*='story-text']",
+				"type": "text"
+			},
+			{
+				"name": "image_url",
+				"selector": "figure img, [class*='image'] img",
+				"type": "attribute",
+				"attribute": "src"
+			}
+		]
+	},
+	"url_pattern": "*://www.politico.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

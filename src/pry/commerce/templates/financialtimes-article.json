@@ -1,48 +1,48 @@
 {
-  "name": "Financial Times Article",
-  "description": "Extract article content from Financial Times",
-  "site": "ft.com",
-  "category": "news",
-  "icon": "\ud83d\udcf0",
-  "schema": {
-    "name": "ft_article",
-    "base_selector": "article",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "author",
-        "selector": "[class*='author']",
-        "type": "text"
-      },
-      {
-        "name": "published_date",
-        "selector": "time",
-        "type": "attribute",
-        "attribute": "datetime"
-      },
-      {
-        "name": "content",
-        "selector": "[class*='article-body'], [class*='content']",
-        "type": "text"
-      },
-      {
-        "name": "summary",
-        "selector": "[class*='standfirst']",
-        "type": "text"
-      },
-      {
-        "name": "image_url",
-        "selector": "figure img",
-        "type": "attribute",
-        "attribute": "src"
-      }
-    ]
-  },
-  "url_pattern": "*://www.ft.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Financial Times Article",
+	"description": "Extract article content from Financial Times",
+	"site": "ft.com",
+	"category": "news",
+	"icon": "\ud83d\udcf0",
+	"schema": {
+		"name": "ft_article",
+		"base_selector": "article",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "author",
+				"selector": "[class*='author']",
+				"type": "text"
+			},
+			{
+				"name": "published_date",
+				"selector": "time",
+				"type": "attribute",
+				"attribute": "datetime"
+			},
+			{
+				"name": "content",
+				"selector": "[class*='article-body'], [class*='content']",
+				"type": "text"
+			},
+			{
+				"name": "summary",
+				"selector": "[class*='standfirst']",
+				"type": "text"
+			},
+			{
+				"name": "image_url",
+				"selector": "figure img",
+				"type": "attribute",
+				"attribute": "src"
+			}
+		]
+	},
+	"url_pattern": "*://www.ft.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

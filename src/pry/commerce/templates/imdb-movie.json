@@ -1,64 +1,64 @@
 {
-  "name": "IMDb Movie",
-  "description": "Extract movie details from IMDb",
-  "site": "imdb.com",
-  "category": "media",
-  "icon": "\ud83c\udfac",
-  "url_pattern": "*://www.imdb.com/title/*",
-  "schema": {
-    "name": "imdb_movie",
-    "base_selector": "#__next",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "year",
-        "selector": "ul li:first-child a",
-        "type": "text"
-      },
-      {
-        "name": "rating",
-        "selector": "[data-testid='hero-rating-bar__aggregate-rating__score']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "rating_count",
-        "selector": "[data-testid='hero-rating-bar__aggregate-rating__count']",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "description",
-        "selector": "[data-testid='plot-xs_to_m']",
-        "type": "text"
-      },
-      {
-        "name": "director",
-        "selector": "[data-testid='title-pc-principal-credit']",
-        "type": "text"
-      },
-      {
-        "name": "cast",
-        "selector": "[data-testid='title-cast-item']",
-        "type": "text"
-      },
-      {
-        "name": "genres",
-        "selector": "[data-testid='genres']",
-        "type": "text"
-      },
-      {
-        "name": "poster",
-        "selector": ".ipc-image",
-        "type": "attribute",
-        "attribute": "src"
-      }
-    ]
-  },
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "IMDb Movie",
+	"description": "Extract movie details from IMDb",
+	"site": "imdb.com",
+	"category": "media",
+	"icon": "\ud83c\udfac",
+	"url_pattern": "*://www.imdb.com/title/*",
+	"schema": {
+		"name": "imdb_movie",
+		"base_selector": "#__next",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "year",
+				"selector": "ul li:first-child a",
+				"type": "text"
+			},
+			{
+				"name": "rating",
+				"selector": "[data-testid='hero-rating-bar__aggregate-rating__score']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "rating_count",
+				"selector": "[data-testid='hero-rating-bar__aggregate-rating__count']",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "description",
+				"selector": "[data-testid='plot-xs_to_m']",
+				"type": "text"
+			},
+			{
+				"name": "director",
+				"selector": "[data-testid='title-pc-principal-credit']",
+				"type": "text"
+			},
+			{
+				"name": "cast",
+				"selector": "[data-testid='title-cast-item']",
+				"type": "text"
+			},
+			{
+				"name": "genres",
+				"selector": "[data-testid='genres']",
+				"type": "text"
+			},
+			{
+				"name": "poster",
+				"selector": ".ipc-image",
+				"type": "attribute",
+				"attribute": "src"
+			}
+		]
+	},
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

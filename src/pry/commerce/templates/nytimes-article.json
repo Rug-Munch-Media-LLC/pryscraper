@@ -1,49 +1,49 @@
 {
-  "name": "NYT Article",
-  "description": "Extract article content from NYTimes",
-  "site": "nytimes.com",
-  "category": "news",
-  "icon": "\ud83d\udcf0",
-  "schema": {
-    "name": "nytimes_article",
-    "base_selector": "main",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "author",
-        "selector": "[itemprop='author']",
-        "type": "text"
-      },
-      {
-        "name": "published_date",
-        "selector": "time",
-        "type": "attribute",
-        "attribute": "datetime"
-      },
-      {
-        "name": "content",
-        "selector": ".article-body",
-        "type": "text"
-      },
-      {
-        "name": "image_url",
-        "selector": "figure img",
-        "type": "attribute",
-        "attribute": "src"
-      },
-      {
-        "name": "word_count",
-        "selector": "article",
-        "type": "text",
-        "transform": "int"
-      }
-    ]
-  },
-  "url_pattern": "*://www.nytimes.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "NYT Article",
+	"description": "Extract article content from NYTimes",
+	"site": "nytimes.com",
+	"category": "news",
+	"icon": "\ud83d\udcf0",
+	"schema": {
+		"name": "nytimes_article",
+		"base_selector": "main",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "author",
+				"selector": "[itemprop='author']",
+				"type": "text"
+			},
+			{
+				"name": "published_date",
+				"selector": "time",
+				"type": "attribute",
+				"attribute": "datetime"
+			},
+			{
+				"name": "content",
+				"selector": ".article-body",
+				"type": "text"
+			},
+			{
+				"name": "image_url",
+				"selector": "figure img",
+				"type": "attribute",
+				"attribute": "src"
+			},
+			{
+				"name": "word_count",
+				"selector": "article",
+				"type": "text",
+				"transform": "int"
+			}
+		]
+	},
+	"url_pattern": "*://www.nytimes.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

@@ -1,6 +1,6 @@
 # ADR 0007: Crypto Payment Providers
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-08-26
 
 ## Context

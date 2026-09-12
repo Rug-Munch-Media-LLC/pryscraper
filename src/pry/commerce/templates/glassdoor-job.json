@@ -1,41 +1,41 @@
 {
-  "name": "Glassdoor Job Posting",
-  "description": "Extract job details from Glassdoor",
-  "site": "glassdoor.com",
-  "category": "professional",
-  "icon": "\ud83c\udfe2",
-  "url_pattern": "*://www.glassdoor.com/Job/*",
-  "schema": {
-    "name": "glassdoor_job",
-    "base_selector": ".JobDetails_jobDetailsSection",
-    "fields": [
-      {
-        "name": "title",
-        "selector": ".JobDetails_jobTitle",
-        "type": "text"
-      },
-      {
-        "name": "company",
-        "selector": ".EmployerProfile_profileName",
-        "type": "text"
-      },
-      {
-        "name": "location",
-        "selector": ".JobDetails_location",
-        "type": "text"
-      },
-      {
-        "name": "salary",
-        "selector": ".SalaryEstimate",
-        "type": "text"
-      },
-      {
-        "name": "description",
-        "selector": ".JobDetails_description",
-        "type": "text"
-      }
-    ]
-  },
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Glassdoor Job Posting",
+	"description": "Extract job details from Glassdoor",
+	"site": "glassdoor.com",
+	"category": "professional",
+	"icon": "\ud83c\udfe2",
+	"url_pattern": "*://www.glassdoor.com/Job/*",
+	"schema": {
+		"name": "glassdoor_job",
+		"base_selector": ".JobDetails_jobDetailsSection",
+		"fields": [
+			{
+				"name": "title",
+				"selector": ".JobDetails_jobTitle",
+				"type": "text"
+			},
+			{
+				"name": "company",
+				"selector": ".EmployerProfile_profileName",
+				"type": "text"
+			},
+			{
+				"name": "location",
+				"selector": ".JobDetails_location",
+				"type": "text"
+			},
+			{
+				"name": "salary",
+				"selector": ".SalaryEstimate",
+				"type": "text"
+			},
+			{
+				"name": "description",
+				"selector": ".JobDetails_description",
+				"type": "text"
+			}
+		]
+	},
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

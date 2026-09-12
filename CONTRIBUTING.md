@@ -141,14 +141,14 @@ git bundle create /tmp/pry-backup-$(date +%Y%m%d-%H%M%S).bundle --all
 To restore from a bundle:
 
 ```bash
-git clone /tmp/pry-backup-XXX.bundle /tmp/pry-restored
+git clone /tmp/pry-backup-YYYY.bundle /tmp/pry-restored
 ```
 
 The bundle includes **every ref** — branches, tags, stashes-as-commits,
 remote-tracking branches. To restore just `main`:
 
 ```bash
-git clone -b main /tmp/pry-backup-XXX.bundle /tmp/pry-restored
+git clone -b main /tmp/pry-backup-YYYY.bundle /tmp/pry-restored
 ```
 
 ## Working with Archived Work

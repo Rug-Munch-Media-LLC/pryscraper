@@ -1,53 +1,53 @@
 {
-  "name": "Reuters Article",
-  "description": "Extract article content from Reuters",
-  "site": "reuters.com",
-  "category": "news",
-  "icon": "\ud83d\udcf0",
-  "schema": {
-    "name": "reuters_article",
-    "base_selector": "article",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "author",
-        "selector": "[class*='author']",
-        "type": "text"
-      },
-      {
-        "name": "published_date",
-        "selector": "time",
-        "type": "attribute",
-        "attribute": "datetime"
-      },
-      {
-        "name": "content",
-        "selector": "[class*='article-body']",
-        "type": "text"
-      },
-      {
-        "name": "summary",
-        "selector": "[class*='summary'], h2",
-        "type": "text"
-      },
-      {
-        "name": "image_url",
-        "selector": "figure img",
-        "type": "attribute",
-        "attribute": "src"
-      },
-      {
-        "name": "section",
-        "selector": "[class*='nav'] a[class*='active']",
-        "type": "text"
-      }
-    ]
-  },
-  "url_pattern": "*://www.reuters.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Reuters Article",
+	"description": "Extract article content from Reuters",
+	"site": "reuters.com",
+	"category": "news",
+	"icon": "\ud83d\udcf0",
+	"schema": {
+		"name": "reuters_article",
+		"base_selector": "article",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "author",
+				"selector": "[class*='author']",
+				"type": "text"
+			},
+			{
+				"name": "published_date",
+				"selector": "time",
+				"type": "attribute",
+				"attribute": "datetime"
+			},
+			{
+				"name": "content",
+				"selector": "[class*='article-body']",
+				"type": "text"
+			},
+			{
+				"name": "summary",
+				"selector": "[class*='summary'], h2",
+				"type": "text"
+			},
+			{
+				"name": "image_url",
+				"selector": "figure img",
+				"type": "attribute",
+				"attribute": "src"
+			},
+			{
+				"name": "section",
+				"selector": "[class*='nav'] a[class*='active']",
+				"type": "text"
+			}
+		]
+	},
+	"url_pattern": "*://www.reuters.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

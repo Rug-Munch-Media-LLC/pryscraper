@@ -1,54 +1,54 @@
 {
-  "name": "Gap Product",
-  "description": "Extract product details from Gap",
-  "site": "gap.com",
-  "category": "ecommerce",
-  "icon": "\ud83d\udc55",
-  "schema": {
-    "name": "gap_product",
-    "base_selector": ".product-detail",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "price",
-        "selector": "[class*='price']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "original_price",
-        "selector": "[class*='original']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "description",
-        "selector": "[class*='description']",
-        "type": "text"
-      },
-      {
-        "name": "image_url",
-        "selector": "[class*='image'] img",
-        "type": "attribute",
-        "attribute": "src"
-      },
-      {
-        "name": "color_options",
-        "selector": "[class*='color']",
-        "type": "count"
-      },
-      {
-        "name": "size_options",
-        "selector": "[class*='size']",
-        "type": "count"
-      }
-    ]
-  },
-  "url_pattern": "*://www.gap.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Gap Product",
+	"description": "Extract product details from Gap",
+	"site": "gap.com",
+	"category": "ecommerce",
+	"icon": "\ud83d\udc55",
+	"schema": {
+		"name": "gap_product",
+		"base_selector": ".product-detail",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "price",
+				"selector": "[class*='price']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "original_price",
+				"selector": "[class*='original']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "description",
+				"selector": "[class*='description']",
+				"type": "text"
+			},
+			{
+				"name": "image_url",
+				"selector": "[class*='image'] img",
+				"type": "attribute",
+				"attribute": "src"
+			},
+			{
+				"name": "color_options",
+				"selector": "[class*='color']",
+				"type": "count"
+			},
+			{
+				"name": "size_options",
+				"selector": "[class*='size']",
+				"type": "count"
+			}
+		]
+	},
+	"url_pattern": "*://www.gap.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

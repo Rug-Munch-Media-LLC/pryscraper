@@ -1,65 +1,65 @@
 {
-  "name": "IKEA Product",
-  "description": "Extract product details from IKEA",
-  "site": "ikea.com",
-  "category": "ecommerce",
-  "icon": "\ud83e\ude91",
-  "schema": {
-    "name": "ikea_product",
-    "base_selector": ".product-detail",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "price",
-        "selector": "[class*='price'], span[class*='currency']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "description",
-        "selector": "[class*='description'], [class*='product-description']",
-        "type": "text"
-      },
-      {
-        "name": "measurements",
-        "selector": "[class*='measurement']",
-        "type": "text"
-      },
-      {
-        "name": "material",
-        "selector": "[class*='material']",
-        "type": "text"
-      },
-      {
-        "name": "image_url",
-        "selector": "[class*='image'] img, .product-image img",
-        "type": "attribute",
-        "attribute": "src"
-      },
-      {
-        "name": "article_number",
-        "selector": "[class*='article'], [class*='number']",
-        "type": "text"
-      },
-      {
-        "name": "rating",
-        "selector": "[class*='rating'], [class*='stars']",
-        "type": "attribute",
-        "attribute": "aria-label"
-      },
-      {
-        "name": "review_count",
-        "selector": "[class*='reviews']",
-        "type": "text",
-        "transform": "int"
-      }
-    ]
-  },
-  "url_pattern": "*://www.ikea.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "IKEA Product",
+	"description": "Extract product details from IKEA",
+	"site": "ikea.com",
+	"category": "ecommerce",
+	"icon": "\ud83e\ude91",
+	"schema": {
+		"name": "ikea_product",
+		"base_selector": ".product-detail",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "price",
+				"selector": "[class*='price'], span[class*='currency']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "description",
+				"selector": "[class*='description'], [class*='product-description']",
+				"type": "text"
+			},
+			{
+				"name": "measurements",
+				"selector": "[class*='measurement']",
+				"type": "text"
+			},
+			{
+				"name": "material",
+				"selector": "[class*='material']",
+				"type": "text"
+			},
+			{
+				"name": "image_url",
+				"selector": "[class*='image'] img, .product-image img",
+				"type": "attribute",
+				"attribute": "src"
+			},
+			{
+				"name": "article_number",
+				"selector": "[class*='article'], [class*='number']",
+				"type": "text"
+			},
+			{
+				"name": "rating",
+				"selector": "[class*='rating'], [class*='stars']",
+				"type": "attribute",
+				"attribute": "aria-label"
+			},
+			{
+				"name": "review_count",
+				"selector": "[class*='reviews']",
+				"type": "text",
+				"transform": "int"
+			}
+		]
+	},
+	"url_pattern": "*://www.ikea.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

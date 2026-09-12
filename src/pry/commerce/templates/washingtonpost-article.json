@@ -1,43 +1,43 @@
 {
-  "name": "Washington Post Article",
-  "description": "Extract article content from Washington Post",
-  "site": "washingtonpost.com",
-  "category": "news",
-  "icon": "\ud83d\udcf0",
-  "schema": {
-    "name": "wapo_article",
-    "base_selector": "article",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "author",
-        "selector": "[class*='byline']",
-        "type": "text"
-      },
-      {
-        "name": "published_date",
-        "selector": "time",
-        "type": "attribute",
-        "attribute": "datetime"
-      },
-      {
-        "name": "content",
-        "selector": "[class*='article-body']",
-        "type": "text"
-      },
-      {
-        "name": "image_url",
-        "selector": "figure img",
-        "type": "attribute",
-        "attribute": "src"
-      }
-    ]
-  },
-  "url_pattern": "*://www.washingtonpost.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Washington Post Article",
+	"description": "Extract article content from Washington Post",
+	"site": "washingtonpost.com",
+	"category": "news",
+	"icon": "\ud83d\udcf0",
+	"schema": {
+		"name": "wapo_article",
+		"base_selector": "article",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "author",
+				"selector": "[class*='byline']",
+				"type": "text"
+			},
+			{
+				"name": "published_date",
+				"selector": "time",
+				"type": "attribute",
+				"attribute": "datetime"
+			},
+			{
+				"name": "content",
+				"selector": "[class*='article-body']",
+				"type": "text"
+			},
+			{
+				"name": "image_url",
+				"selector": "figure img",
+				"type": "attribute",
+				"attribute": "src"
+			}
+		]
+	},
+	"url_pattern": "*://www.washingtonpost.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

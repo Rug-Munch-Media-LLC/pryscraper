@@ -1,53 +1,53 @@
 {
-  "name": "ZARA Product",
-  "description": "Extract product details from ZARA",
-  "site": "zara.com",
-  "category": "ecommerce",
-  "icon": "\ud83d\udc55",
-  "schema": {
-    "name": "zara_product",
-    "base_selector": ".product-detail",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "price",
-        "selector": "[class*='price']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "description",
-        "selector": "[class*='description']",
-        "type": "text"
-      },
-      {
-        "name": "image_url",
-        "selector": "[class*='image'] img, .product-image img",
-        "type": "attribute",
-        "attribute": "src"
-      },
-      {
-        "name": "color_options",
-        "selector": "[class*='color']",
-        "type": "count"
-      },
-      {
-        "name": "size_options",
-        "selector": "[class*='size']",
-        "type": "count"
-      },
-      {
-        "name": "reference",
-        "selector": "[class*='reference']",
-        "type": "text"
-      }
-    ]
-  },
-  "url_pattern": "*://www.zara.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "ZARA Product",
+	"description": "Extract product details from ZARA",
+	"site": "zara.com",
+	"category": "ecommerce",
+	"icon": "\ud83d\udc55",
+	"schema": {
+		"name": "zara_product",
+		"base_selector": ".product-detail",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "price",
+				"selector": "[class*='price']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "description",
+				"selector": "[class*='description']",
+				"type": "text"
+			},
+			{
+				"name": "image_url",
+				"selector": "[class*='image'] img, .product-image img",
+				"type": "attribute",
+				"attribute": "src"
+			},
+			{
+				"name": "color_options",
+				"selector": "[class*='color']",
+				"type": "count"
+			},
+			{
+				"name": "size_options",
+				"selector": "[class*='size']",
+				"type": "count"
+			},
+			{
+				"name": "reference",
+				"selector": "[class*='reference']",
+				"type": "text"
+			}
+		]
+	},
+	"url_pattern": "*://www.zara.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

@@ -1,41 +1,41 @@
 {
-  "name": "LinkedIn Job Posting",
-  "description": "Extract job posting details from LinkedIn",
-  "site": "linkedin.com",
-  "category": "professional",
-  "icon": "\ud83d\udcbc",
-  "url_pattern": "*://www.linkedin.com/jobs/*",
-  "schema": {
-    "name": "linkedin_job",
-    "base_selector": ".jobs-search__job-details",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "company",
-        "selector": ".job-details-jobs-unified-top-card__company-name",
-        "type": "text"
-      },
-      {
-        "name": "location",
-        "selector": ".job-details-jobs-unified-top-card__bullet",
-        "type": "text"
-      },
-      {
-        "name": "description",
-        "selector": "#job-details",
-        "type": "text"
-      },
-      {
-        "name": "post_date",
-        "selector": ".job-details-jobs-unified-top-card__posted-date",
-        "type": "text"
-      }
-    ]
-  },
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "LinkedIn Job Posting",
+	"description": "Extract job posting details from LinkedIn",
+	"site": "linkedin.com",
+	"category": "professional",
+	"icon": "\ud83d\udcbc",
+	"url_pattern": "*://www.linkedin.com/jobs/*",
+	"schema": {
+		"name": "linkedin_job",
+		"base_selector": ".jobs-search__job-details",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "company",
+				"selector": ".job-details-jobs-unified-top-card__company-name",
+				"type": "text"
+			},
+			{
+				"name": "location",
+				"selector": ".job-details-jobs-unified-top-card__bullet",
+				"type": "text"
+			},
+			{
+				"name": "description",
+				"selector": "#job-details",
+				"type": "text"
+			},
+			{
+				"name": "post_date",
+				"selector": ".job-details-jobs-unified-top-card__posted-date",
+				"type": "text"
+			}
+		]
+	},
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

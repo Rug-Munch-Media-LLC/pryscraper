@@ -1,6 +1,6 @@
 # ADR 0005: 15-Tier Scraping Fallback
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-08-26
 
 ## Context

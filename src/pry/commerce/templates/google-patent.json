@@ -1,51 +1,51 @@
 {
-  "name": "Google Patents",
-  "description": "Extract patent details from Google Patents",
-  "site": "patents.google.com",
-  "category": "reference",
-  "icon": "\ud83d\udcdc",
-  "schema": {
-    "name": "google_patent",
-    "base_selector": "#page-content",
-    "fields": [
-      {
-        "name": "title",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "inventor",
-        "selector": "[data-assignment='inventor']",
-        "type": "text"
-      },
-      {
-        "name": "assignee",
-        "selector": "[data-assignment='assignee']",
-        "type": "text"
-      },
-      {
-        "name": "filing_date",
-        "selector": "[data-assignment='filing_date']",
-        "type": "text"
-      },
-      {
-        "name": "publication_date",
-        "selector": "[data-assignment='publication_date']",
-        "type": "text"
-      },
-      {
-        "name": "abstract",
-        "selector": ".abstract",
-        "type": "text"
-      },
-      {
-        "name": "claims",
-        "selector": ".claims",
-        "type": "text"
-      }
-    ]
-  },
-  "url_pattern": "*://www.patents.google.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "Google Patents",
+	"description": "Extract patent details from Google Patents",
+	"site": "patents.google.com",
+	"category": "reference",
+	"icon": "\ud83d\udcdc",
+	"schema": {
+		"name": "google_patent",
+		"base_selector": "#page-content",
+		"fields": [
+			{
+				"name": "title",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "inventor",
+				"selector": "[data-assignment='inventor']",
+				"type": "text"
+			},
+			{
+				"name": "assignee",
+				"selector": "[data-assignment='assignee']",
+				"type": "text"
+			},
+			{
+				"name": "filing_date",
+				"selector": "[data-assignment='filing_date']",
+				"type": "text"
+			},
+			{
+				"name": "publication_date",
+				"selector": "[data-assignment='publication_date']",
+				"type": "text"
+			},
+			{
+				"name": "abstract",
+				"selector": ".abstract",
+				"type": "text"
+			},
+			{
+				"name": "claims",
+				"selector": ".claims",
+				"type": "text"
+			}
+		]
+	},
+	"url_pattern": "*://www.patents.google.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

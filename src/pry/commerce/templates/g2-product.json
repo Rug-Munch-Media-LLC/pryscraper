@@ -1,49 +1,49 @@
 {
-  "name": "G2 Product Reviews",
-  "description": "Extract product reviews and ratings from G2",
-  "site": "g2.com",
-  "category": "reviews",
-  "icon": "\u2b50",
-  "schema": {
-    "name": "g2_product",
-    "base_selector": ".product-page",
-    "fields": [
-      {
-        "name": "name",
-        "selector": "h1",
-        "type": "text"
-      },
-      {
-        "name": "rating",
-        "selector": "[class*='rating-number']",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "review_count",
-        "selector": "[class*='review-count']",
-        "type": "text",
-        "transform": "int"
-      },
-      {
-        "name": "description",
-        "selector": "[class*='product-description']",
-        "type": "text"
-      },
-      {
-        "name": "category",
-        "selector": "[class*='category']",
-        "type": "text"
-      },
-      {
-        "name": "website",
-        "selector": "[class*='website-link'] a",
-        "type": "attribute",
-        "attribute": "href"
-      }
-    ]
-  },
-  "url_pattern": "*://www.g2.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "G2 Product Reviews",
+	"description": "Extract product reviews and ratings from G2",
+	"site": "g2.com",
+	"category": "reviews",
+	"icon": "\u2b50",
+	"schema": {
+		"name": "g2_product",
+		"base_selector": ".product-page",
+		"fields": [
+			{
+				"name": "name",
+				"selector": "h1",
+				"type": "text"
+			},
+			{
+				"name": "rating",
+				"selector": "[class*='rating-number']",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "review_count",
+				"selector": "[class*='review-count']",
+				"type": "text",
+				"transform": "int"
+			},
+			{
+				"name": "description",
+				"selector": "[class*='product-description']",
+				"type": "text"
+			},
+			{
+				"name": "category",
+				"selector": "[class*='category']",
+				"type": "text"
+			},
+			{
+				"name": "website",
+				"selector": "[class*='website-link'] a",
+				"type": "attribute",
+				"attribute": "href"
+			}
+		]
+	},
+	"url_pattern": "*://www.g2.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

@@ -2,10 +2,10 @@
     <path d="M 29 1 H 92 L 127 36 V 99 A 28 28 0 0 1 99 127 H 29 A 28 28 0 0 1 1 99 V 29 A 28 28 0 0 1 29 1 Z" fill="#0e1017"/>
     <path d="M 29 1 H 92 L 127 36 V 99 A 28 28 0 0 1 99 127 H 29 A 28 28 0 0 1 1 99 V 29 A 28 28 0 0 1 29 1 Z" fill="none" stroke="#c8f04b" stroke-opacity="0.30" stroke-width="2"
           transform="translate(63.5,63.5) scale(0.982) translate(-63.5,-63.5)"/>
-    
+
     <path d="M 92 1 L 127 36" stroke="#dbff5e" stroke-width="3"
           stroke-linecap="round" fill="none" opacity="0.9"/>
-    
+
     <path d="M 92 1 L 127 36 L 100 36 Q 92.6 36 92 28.6 Z" fill="#dbff5e"/>
     <path d="M 93 30 Q 93.6 35.4 100 35.6" fill="none" stroke="#8fae2f"
           stroke-width="2.4" stroke-linecap="round" opacity="0.9"/>

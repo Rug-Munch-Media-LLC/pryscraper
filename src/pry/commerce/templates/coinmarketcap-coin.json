@@ -1,47 +1,47 @@
 {
-  "name": "CoinMarketCap Coin",
-  "description": "Extract cryptocurrency data from CoinMarketCap",
-  "site": "coinmarketcap.com",
-  "category": "financial",
-  "icon": "\ud83e\ude99",
-  "schema": {
-    "name": "coinmarketcap",
-    "base_selector": ".sc-16r8icm-0",
-    "fields": [
-      {
-        "name": "name",
-        "selector": ".sc-1q9q90x-0",
-        "type": "text"
-      },
-      {
-        "name": "price",
-        "selector": ".priceValue",
-        "type": "text",
-        "transform": "float"
-      },
-      {
-        "name": "market_cap",
-        "selector": ".statsValue",
-        "type": "text"
-      },
-      {
-        "name": "volume_24h",
-        "selector": ".statsValue:not(:first-of-type)",
-        "type": "text"
-      },
-      {
-        "name": "circulating_supply",
-        "selector": ".max-supply",
-        "type": "text"
-      },
-      {
-        "name": "change_24h",
-        "selector": ".sc-15yy2pl-0 span:first-child",
-        "type": "text"
-      }
-    ]
-  },
-  "url_pattern": "*://www.coinmarketcap.com/*",
-  "_license": "MIT",
-  "_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
+	"name": "CoinMarketCap Coin",
+	"description": "Extract cryptocurrency data from CoinMarketCap",
+	"site": "coinmarketcap.com",
+	"category": "financial",
+	"icon": "\ud83e\ude99",
+	"schema": {
+		"name": "coinmarketcap",
+		"base_selector": ".sc-16r8icm-0",
+		"fields": [
+			{
+				"name": "name",
+				"selector": ".sc-1q9q90x-0",
+				"type": "text"
+			},
+			{
+				"name": "price",
+				"selector": ".priceValue",
+				"type": "text",
+				"transform": "float"
+			},
+			{
+				"name": "market_cap",
+				"selector": ".statsValue",
+				"type": "text"
+			},
+			{
+				"name": "volume_24h",
+				"selector": ".statsValue:not(:first-of-type)",
+				"type": "text"
+			},
+			{
+				"name": "circulating_supply",
+				"selector": ".max-supply",
+				"type": "text"
+			},
+			{
+				"name": "change_24h",
+				"selector": ".sc-15yy2pl-0 span:first-child",
+				"type": "text"
+			}
+		]
+	},
+	"url_pattern": "*://www.coinmarketcap.com/*",
+	"_license": "MIT",
+	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }
