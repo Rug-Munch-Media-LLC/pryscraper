@@ -22,13 +22,13 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget=1.25.0-2 \
-    curl=8.14.1-2+deb13u4 \
+    curl=8.14.1-2+deb13u5 \
     gnupg=2.4.7-21+deb13u1 \
     ca-certificates=20250419 \
-    libnss3=2:3.110-1+deb13u3 \
+    libnss3=2:3.110-1+deb13u4 \
     libnspr4=2:4.36-1 \
-    libatk1.0-0t64=2.56.2-1+deb13u1 \
-    libatk-bridge2.0-0t64=2.56.2-1+deb13u1 \
+    libatk1.0-0t64=2.56.2-1+deb13u2 \
+    libatk-bridge2.0-0t64=2.56.2-1+deb13u2 \
     libcups2t64=2.4.10-3+deb13u2 \
     libdrm2=2.4.124-2 \
     libdbus-1-3=1.16.2-2 \
@@ -40,7 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgbm1=25.0.7-2+deb13u1 \
     libpango-1.0-0=1.56.3-1 \
     libcairo2=1.18.4-1+b1 \
-    libasound2t64=1.2.14-1 \
+    libasound2t64=1.2.14-1+deb13u1 \
     tesseract-ocr=5.5.0-1+b1 \
     tesseract-ocr-eng=1:4.1.0-2 \
     && rm -rf /var/lib/apt/lists/*
@@ -65,12 +65,12 @@ LABEL org.opencontainers.image.title="Pry" \
       org.opencontainers.image.vendor="Rug Munch Media LLC"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl=8.14.1-2+deb13u4 \
+    curl=8.14.1-2+deb13u5 \
     ca-certificates=20250419 \
-    libnss3=2:3.110-1+deb13u3 \
+    libnss3=2:3.110-1+deb13u4 \
     libnspr4=2:4.36-1 \
-    libatk1.0-0t64=2.56.2-1+deb13u1 \
-    libatk-bridge2.0-0t64=2.56.2-1+deb13u1 \
+    libatk1.0-0t64=2.56.2-1+deb13u2 \
+    libatk-bridge2.0-0t64=2.56.2-1+deb13u2 \
     libcups2t64=2.4.10-3+deb13u2 \
     libdrm2=2.4.124-2 \
     libdbus-1-3=1.16.2-2 \
@@ -82,7 +82,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgbm1=25.0.7-2+deb13u1 \
     libpango-1.0-0=1.56.3-1 \
     libcairo2=1.18.4-1+b1 \
-    libasound2t64=1.2.14-1 \
+    libasound2t64=1.2.14-1+deb13u1 \
     tesseract-ocr=5.5.0-1+b1 \
     tesseract-ocr-eng=1:4.1.0-2 \
     && rm -rf /var/lib/apt/lists/*
