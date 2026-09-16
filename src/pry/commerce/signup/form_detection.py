@@ -407,17 +407,19 @@ class _SignupFormParser(HTMLParser):
             self._pending_control.text += data
 
 
-def _build_form(raw: _RawForm, index: int, page_url: str | None) -> SignupForm | None:
-    """Convert a raw parsed form into a classified SignupForm."""
-    if not raw.controls:
-        return None
+def _control_field_type(control: _RawControl) -> str:
+    """Effective field type for a raw control."""
+    return control.attrs.get("type", "text" if control.tag == "input" else control.tag)
 
+
+def _build_fields(raw: _RawForm) -> list[SignupField]:
+    """Classify each raw control into a SignupField."""
     fields: list[SignupField] = []
     for control in raw.controls:
         role = classify_role(
             name=control.attrs.get("name", ""),
             control_id=control.attrs.get("id", ""),
-            field_type=control.attrs.get("type", "text" if control.tag == "input" else control.tag),
+            field_type=_control_field_type(control),
             tag=control.tag,
             placeholder=control.attrs.get("placeholder", ""),
             aria_label=control.attrs.get("aria-label", ""),
@@ -428,9 +430,7 @@ def _build_form(raw: _RawForm, index: int, page_url: str | None) -> SignupForm |
             SignupField(
                 name=control.attrs.get("name", ""),
                 role=role,
-                field_type=control.attrs.get(
-                    "type", "text" if control.tag == "input" else control.tag
-                ),
+                field_type=_control_field_type(control),
                 tag=control.tag,
                 value=control.attrs.get("value"),
                 required=control.attrs.get("required") is not None,
@@ -438,15 +438,11 @@ def _build_form(raw: _RawForm, index: int, page_url: str | None) -> SignupForm |
                 label=control.label or None,
             )
         )
+    return fields
 
-    form = SignupForm(
-        action=urljoin(page_url, raw.action) if page_url else raw.action,
-        method=(raw.method or "post").lower(),
-        fields=fields,
-        form_index=index,
-        page_url=page_url,
-    )
 
+def _assign_role_fields(form: SignupForm, fields: list[SignupField]) -> None:
+    """Bind the first field of each well-known role to its form slot."""
     for field_ in fields:
         if field_.role == ROLE_EMAIL and form.email_field is None:
             form.email_field = field_
@@ -460,6 +456,23 @@ def _build_form(raw: _RawForm, index: int, page_url: str | None) -> SignupForm |
             form.full_name_field = field_
         elif field_.role == ROLE_SUBMIT and form.submit_button is None:
             form.submit_button = field_
+
+
+def _build_form(raw: _RawForm, index: int, page_url: str | None) -> SignupForm | None:
+    """Convert a raw parsed form into a classified SignupForm."""
+    if not raw.controls:
+        return None
+
+    fields = _build_fields(raw)
+
+    form = SignupForm(
+        action=urljoin(page_url, raw.action) if page_url else raw.action,
+        method=(raw.method or "post").lower(),
+        fields=fields,
+        form_index=index,
+        page_url=page_url,
+    )
+    _assign_role_fields(form, fields)
     return form
 
 

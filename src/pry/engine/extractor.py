@@ -18,6 +18,70 @@ from typing import Any
 from pry.engine.resilience import registry
 
 
+def _find_labeled_value(content: str, field: str) -> str | None:
+    """Strategy 1: "Label: Value" patterns for the field name and its variants."""
+    field_variants = [field, field.replace("_", " "), field.replace("_", "")]
+    for variant in field_variants:
+        if not variant:
+            continue
+        escaped = re.escape(variant)
+        m = re.search(rf"(?im){escaped}\s*[:=\-≈>]\s*(.+?)(?:\n|$)", content)
+        if m:
+            val = m.group(1).strip().rstrip(".,;")
+            if val and len(val) < 500:
+                return val
+    return None
+
+
+def _find_context_value(content: str, desc_lower: str) -> str | None:
+    """Strategy 2: context-aware patterns derived from the field description."""
+    if "price" in desc_lower or "cost" in desc_lower or "usd" in desc_lower:
+        return _find_price_value(content)
+    if "email" in desc_lower:
+        return _find_email_value(content)
+    if "url" in desc_lower or "link" in desc_lower:
+        return _find_url_value(content)
+    if "phone" in desc_lower or "telephone" in desc_lower:
+        return _find_phone_value(content)
+    if "date" in desc_lower:
+        return _find_date_value(content)
+    if "number" in desc_lower or "count" in desc_lower or "total" in desc_lower:
+        return _find_number_value(content)
+    return None
+
+
+def _find_price_value(content: str) -> str | None:
+    m = re.search(r"[\$€£¥]?\s*[\d,]+\.?\d*\s*(?:USD|EUR|GBP)?", content)
+    return m.group(0).strip() if m else None
+
+
+def _find_email_value(content: str) -> str | None:
+    m = re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", content)
+    return m.group(0) if m else None
+
+
+def _find_url_value(content: str) -> str | None:
+    m = re.search(r'https?://[^\s"\'<>]+', content)
+    return m.group(0) if m else None
+
+
+def _find_phone_value(content: str) -> str | None:
+    m = re.search(r"\+?\d[\d\s\-().]{7,}", content)
+    return m.group(0).strip() if m else None
+
+
+def _find_date_value(content: str) -> str | None:
+    m = re.search(r"\d{4}[-/]\d{1,2}[-/]\d{1,2}", content)
+    return m.group(0) if m else None
+
+
+def _find_number_value(content: str) -> str | None:
+    nums = re.findall(r"\b\d[\d,]*\.?\d*\b", content)
+    if nums:
+        return max((n for n in nums if len(n) < 20), key=len)
+    return None
+
+
 class SchemaExtractor:
     """Extract structured JSON data from scraped markdown content.
     Pattern mode is always tried first; LLM mode is fallback for complex schemas."""
@@ -66,46 +130,7 @@ class SchemaExtractor:
 
     def _find_value(self, content: str, field: str, desc: str) -> str | None:
         """Multi-strategy field extraction. Returns first match found."""
-        # Strategy 1: "Label: Value" patterns
-        field_variants = [field, field.replace("_", " "), field.replace("_", "")]
-        for variant in field_variants:
-            if not variant:
-                continue
-            escaped = re.escape(variant)
-            m = re.search(rf"(?im){escaped}\s*[:=\-≈>]\s*(.+?)(?:\n|$)", content)
-            if m:
-                val = m.group(1).strip().rstrip(".,;")
-                if val and len(val) < 500:
-                    return val
-
-        # Strategy 2: Context-aware patterns from description
-        desc_lower = desc.lower()
-        if "price" in desc_lower or "cost" in desc_lower or "usd" in desc_lower:
-            m = re.search(r"[\$€£¥]?\s*[\d,]+\.?\d*\s*(?:USD|EUR|GBP)?", content)
-            if m:
-                return m.group(0).strip()
-        if "email" in desc_lower:
-            m = re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", content)
-            if m:
-                return m.group(0)
-        if "url" in desc_lower or "link" in desc_lower:
-            m = re.search(r'https?://[^\s"\'<>]+', content)
-            if m:
-                return m.group(0)
-        if "phone" in desc_lower or "telephone" in desc_lower:
-            m = re.search(r"\+?\d[\d\s\-().]{7,}", content)
-            if m:
-                return m.group(0).strip()
-        if "date" in desc_lower:
-            m = re.search(r"\d{4}[-/]\d{1,2}[-/]\d{1,2}", content)
-            if m:
-                return m.group(0)
-        if "number" in desc_lower or "count" in desc_lower or "total" in desc_lower:
-            nums = re.findall(r"\b\d[\d,]*\.?\d*\b", content)
-            if nums:
-                return max((n for n in nums if len(n) < 20), key=len)
-
-        return None
+        return _find_labeled_value(content, field) or _find_context_value(content, desc.lower())
 
     async def _llm_extract(self, content: str, schema: dict[str, Any]) -> dict[str, Any]:
         """LLM-guided extraction. Returns dict on success, {"_error": msg} on failure."""

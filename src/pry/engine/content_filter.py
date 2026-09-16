@@ -204,6 +204,64 @@ def _inline_to_md(node: Tag, include_links: bool, include_images: bool) -> str:
     return "".join(parts)
 
 
+def _node_to_markdown_lines(node: Tag, include_links: bool, include_images: bool) -> list[str]:
+    """Convert a single block-level node to markdown lines (may be empty)."""
+    name = node.name
+    text = _inline_to_md(node, include_links, include_images).strip()
+    text = re.sub(r"\s+", " ", text)
+    if name in ("h1", "h2", "h3", "h4", "h5", "h6"):
+        if not text:  # drop empty headings
+            return []
+        return ["#" * int(name[1]) + " " + text]
+    if name == "p":
+        return [text] if text else []
+    if name == "li":
+        return ["- " + text] if text else []
+    if name == "blockquote":
+        return ["> " + part for part in text.split("\n") if part] if text else []
+    if name == "pre":
+        code = node.get_text().strip()
+        return ["```\n" + code + "\n```"] if code else []
+    if name == "hr":
+        return ["---"]
+    if name == "table":
+        return _table_to_markdown_lines(node)
+    return []
+
+
+def _table_to_markdown_lines(node: Tag) -> list[str]:
+    """Render a <table> node as markdown table lines."""
+    table_lines: list[str] = []
+    for i, row in enumerate(node.find_all("tr")):
+        cells = [
+            re.sub(r"\s+", " ", td.get_text(" ", strip=True)) for td in row.find_all(["td", "th"])
+        ]
+        if cells:
+            table_lines.append("| " + " | ".join(cells) + " |")
+            if i == 0:
+                table_lines.append("|" + "---|" * len(cells))
+    return table_lines
+
+
+def _wrap_markdown_lines(markdown: str, max_line_length: int) -> str:
+    """Wrap plain lines to max_line_length; structural lines pass through."""
+    wrapped: list[str] = []
+    for line in markdown.split("\n"):
+        if line.startswith(("```", "#", "- ", "> ", "|", "---")):
+            wrapped.append(line)
+        else:
+            wrapped.extend(
+                textwrap.wrap(
+                    line,
+                    width=max_line_length,
+                    break_long_words=False,
+                    break_on_hyphens=False,
+                )
+                or [""]
+            )
+    return "\n".join(wrapped)
+
+
 def html_to_minimal_markdown(
     html: str,
     include_links: bool = True,
@@ -221,62 +279,13 @@ def html_to_minimal_markdown(
     ):
         if not isinstance(node, Tag):
             continue
-        name = node.name
-        text = _inline_to_md(node, include_links, include_images).strip()
-        text = re.sub(r"\s+", " ", text)
-        if name in ("h1", "h2", "h3", "h4", "h5", "h6"):
-            if not text:  # drop empty headings
-                continue
-            level = int(name[1])
-            lines.append("#" * level + " " + text)
-        elif name == "p":
-            if text:
-                lines.append(text)
-        elif name == "li":
-            if text:
-                lines.append("- " + text)
-        elif name == "blockquote":
-            if text:
-                lines.extend("> " + part for part in text.split("\n") if part)
-        elif name == "pre":
-            code = node.get_text().strip()
-            if code:
-                lines.append("```\n" + code + "\n```")
-        elif name == "hr":
-            lines.append("---")
-        elif name == "table":
-            rows = node.find_all("tr")
-            table_lines: list[str] = []
-            for i, row in enumerate(rows):
-                cells = [
-                    re.sub(r"\s+", " ", td.get_text(" ", strip=True))
-                    for td in row.find_all(["td", "th"])
-                ]
-                if cells:
-                    table_lines.append("| " + " | ".join(cells) + " |")
-                    if i == 0:
-                        table_lines.append("|" + "---|" * len(cells))
-            lines.extend(table_lines)
+        lines.extend(_node_to_markdown_lines(node, include_links, include_images))
 
     markdown = "\n\n".join(lines)
     markdown = re.sub(r"\n{3,}", "\n\n", markdown).strip()
 
     if max_line_length > 0:
-        wrapped: list[str] = []
-        for line in markdown.split("\n"):
-            if line.startswith(("```", "#", "- ", "> ", "|", "---")):
-                wrapped.append(line)
-            else:
-                wrapped.extend(
-                    textwrap.wrap(
-                        line,
-                        width=max_line_length,
-                        break_long_words=False,
-                        break_on_hyphens=False,
-                    )
-                    or [""]
-                )
-        markdown = "\n".join(wrapped)
+        markdown = _wrap_markdown_lines(markdown, max_line_length)
 
     return markdown
 

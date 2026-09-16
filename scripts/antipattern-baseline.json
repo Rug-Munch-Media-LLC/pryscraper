@@ -1,0 +1,13 @@
+{
+ "rules": {
+  "god-file": 42,
+  "too-many-params": 181,
+  "monkeypatch": 1217,
+  "long-function": 96,
+  "hardcoded-secret": 1,
+  "bare-except": 850,
+  "slop-markers": 2,
+  "fstring-logging": 6
+ },
+ "total": 2395
+}
