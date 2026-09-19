@@ -1000,15 +1000,24 @@ jobs:
         run: git-cliff --strip header -o CHANGELOG.md
 
   structure-gate:
-    # Anti-god-module + anti-monkeypatch ratchet (baseline:
-    # scripts/structure-baseline.json). Shrink freely; growth or NEW
-    # offenders fail the build. Regenerate deliberately: --update-baseline.
+    # Fleet coding gates (synced from standards/fleet/scripts via
+    # fleet-sync-gates.sh): structure ≤200-line cap (shrink-only ratchet,
+    # baseline scripts/structure-baseline.json), monkeypatch ratchet
+    # (scripts/monkeypatch-baseline.json), antipattern ratchet
+    # (scripts/antipattern-baseline.json), and the gate self-test that
+    # proves every gate catches its violation class. Shrink freely; growth
+    # or NEW offenders fail the build. Regenerate deliberately:
+    # --update-baseline.
     runs-on: docker-x64
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Structure gate
-        run: python3 scripts/check-code-structure.py
+      - name: Structure gate (≤200-line cap, shrink-only)
+        run: python3 scripts/check-structure.py --repo . --scan-root src/pry --scan-root tests --scan-root scripts
+      - name: Monkeypatch gate (per-repo ratchet)
+        run: python3 scripts/check-monkeypatch.py --repo .
       - name: Antipattern gate (per-repo ratchet)
         run: python3 scripts/check-antipatterns.py --repo .
+      - name: Gate self-test (every gate catches its violation class)
+        run: bash scripts/ci-gate-selftest.sh

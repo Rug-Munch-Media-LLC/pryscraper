@@ -47,9 +47,9 @@ SKIP_DIRS = {
 }
 
 MONKEY_RE = re.compile(r"monkeypatch\.|mock\.patch|@patch\(|patch\.object|del sys\.modules")
-SLOP_RE = re.compile(r"#\s*(HACK|WORKAROUND|TEMP|XXX|!!!|FIX ME|DO NOT SHIP)\b", re.I)
+SLOP_RE = re.compile(r"#\s*(HACK|WORKAROUND|TEMP|XXX|!!!|FIX ME|DO NOT SHIP)\b", re.IGNORECASE)
 FSTRING_LOG_RE = re.compile(r"log(?:ger)?\.(?:debug|info|warning|error|critical)\(\s*f[\"']")
-WILDCARD_RE = re.compile(r"^\s*from\s+[\w.]+\s+import\s+\*", re.M)
+WILDCARD_RE = re.compile(r"^\s*from\s+[\w.]+\s+import\s+\*", re.MULTILINE)
 EVAL_RE = re.compile(r"(?<![\w.])eval\(|(?<![\w.])exec\(")
 TS_IGNORE_RE = re.compile(r"@ts-ignore|@ts-nocheck|:\s*any\b|as any\b")
 SECRET_RE = re.compile(
@@ -62,6 +62,7 @@ LOGGING_RE = re.compile(
 
 
 def scan_python(path: Path, counts: dict[str, int]) -> None:
+    """Scan one Python file with the antipattern AST checks."""
     try:
         src = path.read_text(errors="ignore")
         tree = ast.parse(src)
@@ -109,6 +110,7 @@ def scan_python(path: Path, counts: dict[str, int]) -> None:
 
 
 def scan_ts(path: Path, counts: dict[str, int]) -> None:
+    """Scan one TS/JS file for slop markers."""
     try:
         src = path.read_text(errors="ignore")
     except OSError:
@@ -121,8 +123,11 @@ def scan_ts(path: Path, counts: dict[str, int]) -> None:
 
 
 def scan(root: Path) -> dict[str, int]:
+    """Scan the repo tree and return per-rule finding counts."""
     counts: dict[str, int] = {}
     for p in root.rglob("*.py"):
+        if p.resolve() == __import__("pathlib").Path(__file__).resolve():
+            continue  # never scan this checker itself
         if any(part in SKIP_DIRS for part in p.parts):
             continue
         scan_python(p, counts)
@@ -135,6 +140,7 @@ def scan(root: Path) -> dict[str, int]:
 
 
 def main() -> int:
+    """CLI entry: scan, compare to the shrink-only baseline, fail on growth."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default=".")
     ap.add_argument("--baseline", default="scripts/antipattern-baseline.json")
