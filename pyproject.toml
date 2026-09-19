@@ -521,3 +521,6 @@ pytest_add_cli_args_test_selection = ["tests/test_parser.py", "tests/test_extrac
 # pry package must be present for imports to resolve. Copy the full src tree
 # pristine — mutmut then writes the mutated engine files on top of it.
 also_copy = ["src"]
+
+[tool.fleet-gates]
+scan-roots = ["src/pry", "tests", "scripts"]

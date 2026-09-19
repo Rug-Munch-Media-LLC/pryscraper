@@ -91,6 +91,8 @@ tags = ["rmi", "critical"]
 description = "Global allowlist — applies to all repos"
 paths = [
   '''node_modules/''',
+  # Fleet gate toolkit: pattern literals, not secrets (mirrors rugbrain)
+  '''scripts/''',
   '''\.git/''',
   '''__pycache__/''',
   '''\.venv/''',
