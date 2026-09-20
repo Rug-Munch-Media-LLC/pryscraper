@@ -25,11 +25,6 @@ regexes = [
   '''100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9])\.[0-9]+\.[0-9]+''',
 ]
 paths = [
-    # The companion pattern file for scripts/pre-commit-methodology-check.sh.
-    # A SCANNER DEFINITION (the detector, not the detected): it holds the
-    # internal literals the guard matches on, is gitignored, and is never
-    # committed or pushed. Same rationale as the guard script itself.
-    '''\.methodology-patterns''',
   # CORS test fixtures intentionally use synthetic *.rugmunch.io origins to
   # exercise the wildcard matcher — not real internal hostnames.
   '''tests/test_api_integration\.py''',
@@ -95,6 +90,12 @@ tags = ["rmi", "critical"]
 [allowlist]
 description = "Global allowlist — applies to all repos"
 paths = [
+  # The companion pattern file to scripts/pre-commit-methodology-check.sh.
+  # A SCANNER DEFINITION (the detector, not the detected): it holds the internal
+  # literals the guard matches on, is gitignored, and is never committed or pushed.
+  # The push hook runs 'gitleaks detect --source . --no-git', so an uncommitted
+  # file here DOES get scanned - hence this entry.
+  '''\.methodology-patterns''',
   '''node_modules/''',
   # Fleet gate toolkit: pattern literals, not secrets (mirrors rugbrain)
   '''scripts/''',
