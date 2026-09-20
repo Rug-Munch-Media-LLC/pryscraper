@@ -25,6 +25,11 @@ regexes = [
   '''100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9])\.[0-9]+\.[0-9]+''',
 ]
 paths = [
+    # The companion pattern file for scripts/pre-commit-methodology-check.sh.
+    # A SCANNER DEFINITION (the detector, not the detected): it holds the
+    # internal literals the guard matches on, is gitignored, and is never
+    # committed or pushed. Same rationale as the guard script itself.
+    '''\.methodology-patterns''',
   # CORS test fixtures intentionally use synthetic *.rugmunch.io origins to
   # exercise the wildcard matcher — not real internal hostnames.
   '''tests/test_api_integration\.py''',
