@@ -109,3 +109,4 @@ website/.docusaurus/
 mutants/
 .coverage
 mutants/
+.methodology-patterns
