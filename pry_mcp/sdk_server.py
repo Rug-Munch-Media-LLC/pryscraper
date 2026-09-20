@@ -130,7 +130,7 @@ def _create_sdk_server() -> Any:
             Tool(
                 name=tool["name"],
                 description=tool.get("description", ""),
-                input_schema=tool.get("inputSchema", {"type": "object", "properties": {}}),
+                inputSchema=tool.get("inputSchema", {"type": "object", "properties": {}}),
                 annotations=tool.get("annotations"),
             )
             for tool in PRY_TOOLS
@@ -156,7 +156,7 @@ def _create_sdk_server() -> Any:
                 uri=str(r["uri"]),
                 name=r["name"],
                 description=r.get("description", ""),
-                mime_type=r.get("mimeType", "text/plain"),
+                mimeType=r.get("mimeType", "text/plain"),
             )
             for r in PRY_RESOURCES
         ]
