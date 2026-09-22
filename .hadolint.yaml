@@ -1,10 +1,10 @@
-# Hadolint configuration for Pry images.
-# Failure threshold: WARNING. Info-level findings (e.g. DL3066 on
-# `USER pry`, which is deliberate — see Dockerfile stage-2 comments)
-# are reported but do not fail the gate. Errors and warnings still block.
-failure-threshold: warning
-
-# Pin base images by digest AND tag in Dockerfile (DL30xx handled inline).
-trustedRegistries:
-  - docker.io
-  - ghcr.io
+# hadolint config — intentional waivers, with reasons.
+ignored:
+  # DL3008 pin apt versions: Debian moves package revisions and the pinned
+  # versions rot the build (2026-09-22: libasound2t64=1.2.14-1 vanished and the
+  # image no longer built). Base-image digests stay pinned; apt packages float.
+  - DL3008
+  # DL3066 non-numeric user: the image creates the `pry` user (groupadd/useradd
+  # in the same Dockerfile), so the name resolves at runtime on purpose — a
+  # numeric id would have to stay in sync with the image's own useradd.
+  - DL3066

@@ -32,6 +32,7 @@ from pry.payments.x402_middleware.enforcement_verify import (
     _decode_presented_payment_required,  # noqa: F401
     _verify_presented_attestation,
 )
+from pry.payments.x402_middleware.owner import mark_owner_verified, owner_request
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,14 @@ class X402Middleware:
             return
 
         path = scope.get("path", "")
+        # Self-hosted owner access: the owner key skips payment entirely and is
+        # accepted by the inner auth layer (same credential). External callers
+        # still receive the 402 challenge — revenue path unchanged.
+        headers = dict(scope.get("headers", []))
+        if owner_request(headers):
+            mark_owner_verified(scope)
+            await self.app(scope, receive, send)
+            return
         if self._is_free(path):
             await self.app(scope, receive, send)
             return

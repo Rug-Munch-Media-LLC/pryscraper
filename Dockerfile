@@ -21,29 +21,29 @@ FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget=1.25.0-2 \
-    curl=8.14.1-2+deb13u5 \
-    gnupg=2.4.7-21+deb13u1 \
-    ca-certificates=20250419 \
-    libnss3=2:3.110-1+deb13u4 \
-    libnspr4=2:4.36-1 \
-    libatk1.0-0t64=2.56.2-1+deb13u2 \
-    libatk-bridge2.0-0t64=2.56.2-1+deb13u2 \
-    libcups2t64=2.4.10-3+deb13u2 \
-    libdrm2=2.4.124-2 \
-    libdbus-1-3=1.16.2-2 \
-    libxcb1=1.17.0-2+b1 \
-    libxkbcommon0=1.7.0-2 \
-    libxcomposite1=1:0.4.6-1 \
-    libxdamage1=1:1.1.6-1+b2 \
-    libxfixes3=1:6.0.0-2+b4 \
-    libxrandr2=2:1.5.4-1+b3 \
-    libgbm1=25.0.7-2+deb13u1 \
-    libpango-1.0-0=1.56.3-1 \
-    libcairo2=1.18.4-1+b1 \
-    libasound2t64=1.2.14-1+deb13u1 \
-    tesseract-ocr=5.5.0-1+b1 \
-    tesseract-ocr-eng=1:4.1.0-2 \
+    wget \
+    curl \
+    gnupg \
+    ca-certificates \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0t64 \
+    libatk-bridge2.0-0t64 \
+    libcups2t64 \
+    libdrm2 \
+    libdbus-1-3 \
+    libxcb1 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2t64 \
+    tesseract-ocr \
+    tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -70,28 +70,28 @@ LABEL org.opencontainers.image.title="Pry" \
       org.opencontainers.image.vendor="Rug Munch Media LLC"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium=152.0.7977.82-1~deb13u1 \
-    curl=8.14.1-2+deb13u5 \
-    ca-certificates=20250419 \
-    libnss3=2:3.110-1+deb13u4 \
-    libnspr4=2:4.36-1 \
-    libatk1.0-0t64=2.56.2-1+deb13u2 \
-    libatk-bridge2.0-0t64=2.56.2-1+deb13u2 \
-    libcups2t64=2.4.10-3+deb13u2 \
-    libdrm2=2.4.124-2 \
-    libdbus-1-3=1.16.2-2 \
-    libxcb1=1.17.0-2+b1 \
-    libxkbcommon0=1.7.0-2 \
-    libxcomposite1=1:0.4.6-1 \
-    libxdamage1=1:1.1.6-1+b2 \
-    libxfixes3=1:6.0.0-2+b4 \
-    libxrandr2=2:1.5.4-1+b3 \
-    libgbm1=25.0.7-2+deb13u1 \
-    libpango-1.0-0=1.56.3-1 \
-    libcairo2=1.18.4-1+b1 \
-    libasound2t64=1.2.14-1+deb13u1 \
-    tesseract-ocr=5.5.0-1+b1 \
-    tesseract-ocr-eng=1:4.1.0-2 \
+    chromium \
+    curl \
+    ca-certificates \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0t64 \
+    libatk-bridge2.0-0t64 \
+    libcups2t64 \
+    libdrm2 \
+    libdbus-1-3 \
+    libxcb1 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2t64 \
+    tesseract-ocr \
+    tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 # Playwright browsers are copied to a shared, read-only location and pointed

@@ -70,3 +70,45 @@ notification when a settlement succeeds, set:
 Deliveries are HMAC-signed (`X-Pry-Signature: sha256=...`, requires
 `PRY_WEBHOOK_SECRET`), retried with backoff, and dead-lettered on failure.
 Webhook failures never affect the settlement result itself.
+
+## Self-hosted (owner) access vs x402 revenue
+
+Two surfaces, one gate:
+
+| Caller | Credential | Payment | Result |
+|---|---|---|---|
+| Our CLI / MCP server / internal services | `PRY_API_KEY` as `Authorization: Bearer …` or `X-API-Key: …` | **none** | 200 — owner bypass |
+| External / anonymous agents | x402 payment headers | required | 402 challenge until settled |
+
+The owner bypass lives in `src/pry/payments/x402_middleware/owner.py` and is applied in
+`enforcement.py` before any pricing lookup. Owner calls are marked
+`scope["x402_verified"] = {"payment_id": "owner", …}` — the exact shape the inner auth
+layer already accepts for verified payments (a bool crashes `middleware_auth` with
+`AttributeError: 'bool' object has no attribute 'get'`; keep the dict shape).
+
+Regression cover: `tests/x402/test_owner_bypass.py` (credential parsing) and
+`tests/x402/test_owner_gate_middleware.py` (gate-level: owner reaches the app, anonymous
+still gets 402). CI runs `pytest tests/`, so losing owner access fails the build.
+
+### Deploying (docker compose, as documented)
+
+```bash
+cd pryscraper
+export POSTGRES_PASSWORD=$(docker inspect pry-postgres -f '{{range .Config.Env}}{{println .}}{{end}}' \
+  | grep -m1 '^POSTGRES_PASSWORD=' | cut -d= -f2-)
+docker compose -p pryscraper up -d --no-deps --build pry
+```
+
+Gotchas that cost us a cycle (2026-09-22):
+
+- **DB password drift**: postgres applies `POSTGRES_PASSWORD` only at first init. When the
+  env value changes, the app crash-loops with `password authentication failed for user "pry"`.
+  Align it: `docker exec pry-postgres sh -c 'psql -U pry -c "ALTER USER pry WITH PASSWORD '"'"'$POSTGRES_PASSWORD'"'"';"'`
+  (the superuser here is `pry`, not `postgres`).
+- **apt version pins rot**: pinned `pkg=ver` broke the image build once the Debian repo
+  moved on. Base-image digests stay pinned; apt packages do not.
+- **Another project owns the container name**: the live stack is project `pryscraper`
+  (compose dir `…/pryscraper`); a different compose dir produces name conflicts. Deploy
+  with `-p pryscraper`.
+- **`/srv/pry` is a stale copy** of this repo — never patch it; the container builds from
+  this repository.
