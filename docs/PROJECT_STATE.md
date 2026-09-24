@@ -10,7 +10,7 @@ removing test-only mutation of private runtime state.
 ## Current focus
 
 Continue the mechanical modularization queue after the legal-docs,
-hosted-commerce, firmographics, sports-market, European-exchange, signup-verification, US-books, and billing-subscription tranches while preserving shrink-only gates.
+hosted-commerce, firmographics, sports-market, European-exchange, signup-verification, US-books, billing-subscription, and x402-pricing tranches while preserving shrink-only gates.
 
 ## Done recently
 
@@ -30,6 +30,8 @@ hosted-commerce, firmographics, sports-market, European-exchange, signup-verific
   facade modules while preserving test monkeypatch seams.
 - Split the 444-line billing-subscription router into shared state/models,
   invoice, account, renewal, and facade modules.
+- Split the 438-line x402 pricing module into catalog, acceptance, manifest,
+  legacy adapters, and facade modules.
 - Added explicit retry/cache seams for legal and firmographics tests.
 - Reduced x402 enforcement duplication without changing ASGI response events.
 - Focused legal, x402, hosting, portal, and middleware tests pass.
@@ -44,5 +46,5 @@ hosted-commerce, firmographics, sports-market, European-exchange, signup-verific
 ## Next step
 
 Run `python3 scripts/modularity_queue.py --extract` and take
-`src/pry/payments/x402/scheme/pricing.py` through the same facade-preserving
+`src/pry/api/capabilities.py` through the same facade-preserving
 split recipe.
