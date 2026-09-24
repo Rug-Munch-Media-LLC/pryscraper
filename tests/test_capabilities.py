@@ -5,17 +5,8 @@
 # Licensed under MIT. See LICENSE.
 """Tests for deployment capability detection (capabilities.py + router).
 
-The detector probes optional imports and system binaries, so the tests mock
-those seams:
-
-* ``sys.modules`` injection exercises the real :func:`_module_import_state`
-  import path with fake modules.
-* ``shutil.which`` / ``PLAYWRIGHT_BROWSERS_PATH`` / ``STEALTH_SCRIPTS_DIR``
-  control binary and payload detection.
-* ``settings`` attributes control proxy / CAPTCHA / LLM / Tor configuration
-  (values are never asserted to appear in the report — only booleans and
-  provider tags).
-* ``_tcp_reachable`` short-circuits the socket probes for determinism.
+Mock optional imports, system binaries, settings, and TCP probes so capability
+reports stay deterministic; secrets are checked only by boolean/provider tags.
 """
 
 from __future__ import annotations
@@ -46,7 +37,9 @@ def _fake_module(monkeypatch: pytest.MonkeyPatch, name: str) -> types.ModuleType
 @pytest.fixture(autouse=True)
 def _fast_tcp_probe(monkeypatch: pytest.MonkeyPatch) -> None:
     """Default: TCP probes never touch the network unless a test opts in."""
-    monkeypatch.setattr(capabilities, "_tcp_reachable", lambda host, port, timeout=1.0: False)
+    monkeypatch.setattr(
+        capabilities.probes, "_tcp_reachable", lambda host, port, timeout=1.0: False
+    )
 
 
 def test_detect_all_available(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -71,7 +64,7 @@ def test_detect_all_available(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", str(browser_dir))
 
     monkeypatch.setattr(
-        capabilities.shutil,
+        capabilities.probes.shutil,
         "which",
         lambda name: "/usr/bin/tesseract" if name == "tesseract" else None,
     )
@@ -81,7 +74,7 @@ def test_detect_all_available(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.setattr(settings, "captcha_2captcha_api_key", "fake-key-2captcha")
     monkeypatch.setattr(settings, "captcha_capsolver_api_key", "fake-key-capsolver")
     monkeypatch.setattr(settings, "openrouter_api_key", "fake-key-openrouter")
-    monkeypatch.setattr(capabilities, "_tcp_reachable", lambda host, port, timeout=1.0: True)
+    monkeypatch.setattr(capabilities.probes, "_tcp_reachable", lambda host, port, timeout=1.0: True)
 
     report = capabilities.detect_capabilities()
 
@@ -107,18 +100,20 @@ def test_detect_all_available(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
 
 def test_detect_all_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Nothing present: all sections unavailable with actionable recommendations."""
-    monkeypatch.setattr(capabilities, "_module_import_state", lambda name: "missing")
-    monkeypatch.setattr(capabilities, "_import_tor_fallback", lambda: None)
-    monkeypatch.setattr(capabilities, "STEALTH_SCRIPTS_DIR", tmp_path / "no_scripts")
+    monkeypatch.setattr(capabilities.probes, "_module_import_state", lambda name: "missing")
+    monkeypatch.setattr(capabilities.runtime, "_import_tor_fallback", lambda: None)
+    monkeypatch.setattr(capabilities.probes, "STEALTH_SCRIPTS_DIR", tmp_path / "no_scripts")
     monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
-    monkeypatch.setattr(capabilities.shutil, "which", lambda name: None)
+    monkeypatch.setattr(capabilities.probes.shutil, "which", lambda name: None)
     monkeypatch.setattr(settings, "tor_enabled", False)
     monkeypatch.setattr(settings, "proxy_enabled", False)
     monkeypatch.setattr(settings, "proxy_url", "")
     monkeypatch.setattr(settings, "captcha_2captcha_api_key", "")
     monkeypatch.setattr(settings, "captcha_capsolver_api_key", "")
     monkeypatch.setattr(settings, "openrouter_api_key", "")
-    monkeypatch.setattr(capabilities, "_tcp_reachable", lambda host, port, timeout=1.0: False)
+    monkeypatch.setattr(
+        capabilities.probes, "_tcp_reachable", lambda host, port, timeout=1.0: False
+    )
 
     report = capabilities.detect_capabilities()
 
@@ -149,8 +144,8 @@ def test_detect_all_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
 
 def test_module_import_state_ok_and_missing() -> None:
     """Real import path: installed module -> ok, unknown module -> missing."""
-    assert capabilities._module_import_state("playwright") == "ok"
-    assert capabilities._module_import_state("pry_no_such_module_xyz_987") == "missing"
+    assert capabilities.probes._module_import_state("playwright") == "ok"
+    assert capabilities.probes._module_import_state("pry_no_such_module_xyz_987") == "missing"
 
 
 def test_module_import_state_broken_real_world() -> None:
@@ -159,7 +154,7 @@ def test_module_import_state_broken_real_world() -> None:
 
     if importlib.util.find_spec(capabilities.MOD_UNDETECTED) is None:
         pytest.skip("undetected-chromedriver not installed in this environment")
-    state = capabilities._module_import_state(capabilities.MOD_UNDETECTED)
+    state = capabilities.probes._module_import_state(capabilities.MOD_UNDETECTED)
     assert state in ("ok", "broken")
     if state == "broken":
         assert "distutils" in capabilities._browser_capability()[2][-1]
@@ -176,7 +171,9 @@ def test_tor_fallback_async_falls_back_to_socks(
 
     tor_fallback.tor_available = tor_available  # type: ignore[attr-defined]
     _fake_module(monkeypatch, capabilities.MOD_AIOHTTP_SOCKS)
-    monkeypatch.setattr(capabilities, "_tcp_reachable", lambda host, port, timeout=1.0: False)
+    monkeypatch.setattr(
+        capabilities.probes, "_tcp_reachable", lambda host, port, timeout=1.0: False
+    )
 
     available, detail, recs = capabilities._tor_capability()
     assert available is False
@@ -188,7 +185,7 @@ def test_no_secrets_leak_into_report(monkeypatch: pytest.MonkeyPatch) -> None:
     """Secret values must never appear anywhere in the report."""
     _fake_module(monkeypatch, capabilities.MOD_PYTESSERACT)
     monkeypatch.setattr(
-        capabilities.shutil,
+        capabilities.probes.shutil,
         "which",
         lambda name: "/usr/bin/tesseract" if name == "tesseract" else None,
     )
@@ -197,7 +194,7 @@ def test_no_secrets_leak_into_report(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "proxy_type", "socks5")
     monkeypatch.setattr(settings, "captcha_2captcha_api_key", "2captcha-super-secret")
     monkeypatch.setattr(settings, "openrouter_api_key", "openrouter-super-secret")
-    monkeypatch.setattr(capabilities, "_tcp_reachable", lambda host, port, timeout=1.0: True)
+    monkeypatch.setattr(capabilities.probes, "_tcp_reachable", lambda host, port, timeout=1.0: True)
 
     report = capabilities.detect_capabilities()
     serialized = json.dumps(report)
@@ -232,7 +229,9 @@ def test_capabilities_router_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     from fastapi import FastAPI
 
-    monkeypatch.setattr(capabilities, "_tcp_reachable", lambda host, port, timeout=1.0: False)
+    monkeypatch.setattr(
+        capabilities.probes, "_tcp_reachable", lambda host, port, timeout=1.0: False
+    )
     app = FastAPI()
     app.include_router(capabilities_router)
     client = TestClient(app)
