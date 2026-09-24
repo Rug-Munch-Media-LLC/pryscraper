@@ -10,7 +10,7 @@ removing test-only mutation of private runtime state.
 ## Current focus
 
 Continue the mechanical modularization queue after the legal-docs,
-hosted-commerce, firmographics, sports-market, European-exchange, signup-verification, US-books, billing-subscription, x402-pricing, capability-detection, and x402-batch tranches while preserving shrink-only gates.
+hosted-commerce, firmographics, sports-market, European-exchange, signup-verification, US-books, billing-subscription, x402-pricing, capability-detection, x402-batch, and healthcare-drug-pricing tranches while preserving shrink-only gates.
 
 ## Done recently
 
@@ -36,6 +36,8 @@ hosted-commerce, firmographics, sports-market, European-exchange, signup-verific
   storage, orchestration, and facade modules.
 - Split the 423-line x402 batch module into state, Redis store, channels,
   payment orchestration, and facade modules.
+- Split the 422-line healthcare drug-pricing module into config, NADAC, GoodRx,
+  orchestration, and facade modules; added cache stampede locks and failure logs.
 - Added explicit retry/cache seams for legal and firmographics tests.
 - Reduced x402 enforcement duplication without changing ASGI response events.
 - Focused legal, x402, hosting, portal, and middleware tests pass.
@@ -50,5 +52,5 @@ hosted-commerce, firmographics, sports-market, European-exchange, signup-verific
 ## Next step
 
 Run `python3 scripts/modularity_queue.py --extract` and take
-`src/pry/payments/crypto.py` through the same facade-preserving
+`datasets/healthcare_data/insurance.py` through the same facade-preserving
 split recipe.

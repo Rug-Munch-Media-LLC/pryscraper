@@ -50,7 +50,10 @@ product surface, x402 payments at production hardening, scraping engine at a
   and orchestration preserve fail-closed capability reports and test seams.
 - X402-batch modularization: state, Redis store, channels, and payment
   orchestration preserve replay hardening, settlement, and expiry behavior.
-- Remaining modularization queue: 246 files over 200 lines (202 extractable,
+- Healthcare drug-pricing modularization: config/parsing, NADAC, GoodRx, and
+  orchestration modules preserve fallback and never-raise behavior while
+  adding bounded cache stampede protection and failure logging.
+- Remaining modularization queue: 245 files over 200 lines (201 extractable,
   44 compose cases).
 - MCP auth gate + browser pooling + migration tests + DevOps hardening.
 - Engine perf: fix blocking calls, pooled client, async DNS, cache caps.

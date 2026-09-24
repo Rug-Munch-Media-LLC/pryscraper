@@ -58,9 +58,9 @@ _ZERO_RETRY = RetryConfig(
 @pytest.fixture(autouse=True)
 def _hermetic_healthcare(monkeypatch: pytest.MonkeyPatch) -> None:
     """Kill retry backoff and drop in-process caches so tests are deterministic."""
-    drug_pricing._clear_caches()
+    drug_pricing.config._clear_caches()
     monkeypatch.setattr(clinical_trials, "_RETRY_CONFIG", _ZERO_RETRY)
-    monkeypatch.setattr(drug_pricing, "_RETRY_CONFIG", _ZERO_RETRY)
+    monkeypatch.setattr(drug_pricing.config, "_RETRY_CONFIG", _ZERO_RETRY)
     monkeypatch.setattr(insurance, "_RETRY_CONFIG", _ZERO_RETRY)
     monkeypatch.setattr(insurance, "_PROBE_RETRY", _ZERO_RETRY)
 
