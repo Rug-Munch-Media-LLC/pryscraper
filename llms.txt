@@ -648,6 +648,11 @@ Extract the main content block from a page using readability-style heuristics. P
 
 Filter HTML, convert to minimal Markdown, and chunk it for RAG / vector databases. Full pipeline: boilerplate removal -> minimal Markdown -> overlapping chunks split on paragraph boundaries. Returns t
 
+### pry_mega_search
+
+Search the web with every engine at once and return one consensus-ranked list. Six independent engines are queried in parallel and each hit is ranked by how many engines independently found it, so a link four engines agree on outranks one only a single engine returned. Use when you want the best possible answer and do not need page bodies; for full-page reading use pry_search instead. For example pry_mega_search(query='best rust web frameworks 2026', num_results=10) returns one deduplicated list where every result reports how many engines found it.
+
+
 ### pry_search
 
 Search the web and get the FULL page content of each result — Firecrawl-style search, not a plain SERP scraper. Each result carries the complete scraped content and clean markdown of its page, fetched

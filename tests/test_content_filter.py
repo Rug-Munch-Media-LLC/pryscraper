@@ -202,7 +202,7 @@ class TestHtmlToMinimalMarkdown:
 
 class TestEstimateTokens:
     @pytest.mark.parametrize(
-        "text,expected",
+        ("text", "expected"),
         [("", 0), ("abcd", 1), ("abcdefgh", 2), ("a" * 100, 25)],
     )
     def test_estimate(self, text: str, expected: int) -> None:

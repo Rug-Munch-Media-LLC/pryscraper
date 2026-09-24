@@ -5,13 +5,8 @@
 # Licensed under MIT. See LICENSE.
 """Tests for the supply_data package (imports + firmographics).
 
-Covers the ImportYeti/Panjiva-style import-record lookup (API-key gating,
-honest anti-bot/login-wall degradation, partial records, mapping), the B2B
-firmographics builder (website probing, tech-stack detection, LinkedIn
-extraction, industry detection, job-board hiring signal, Crunchbase-adjacent
-partner fields, independent field degradation), the never-raise contract,
-and the /v1/supply/* router (200 + 502-degradation + 422 validation).
-
+Covers import-record lookup, firmographics website/tech/industry/LinkedIn/
+hiring/partner signals, the never-raise contract, and the /v1/supply/* router.
 All HTTP is mocked with respx — no live network.
 """
 
@@ -46,15 +41,17 @@ _ZERO_RETRY = RetryConfig(
 
 
 @pytest.fixture(autouse=True)
-def _hermetic_supply(monkeypatch: pytest.MonkeyPatch) -> None:
+def _hermetic_supply(monkeypatch: pytest.MonkeyPatch) -> Any:
     """Kill backoff delays and clear partner env so tests are deterministic."""
     monkeypatch.setattr(imports_mod, "_RETRY_CONFIG", _ZERO_RETRY)
-    monkeypatch.setattr(firmographics, "_RETRY_CONFIG", _ZERO_RETRY)
+    previous_retry = firmographics.configure_retries(_ZERO_RETRY)
     monkeypatch.delenv("PRY_IMPORTS_API_KEY", raising=False)
     monkeypatch.delenv("PRY_IMPORTS_API_URL", raising=False)
     monkeypatch.delenv("PRY_FIRMO_API_KEY", raising=False)
     monkeypatch.delenv("PRY_FIRMO_API_URL", raising=False)
     monkeypatch.delenv("PRY_FIRMO_WEBSITE", raising=False)
+    yield
+    firmographics.configure_retries(previous_retry)
 
 
 # ── Payload fixtures ───────────────────────────────────────────────────
@@ -223,7 +220,7 @@ async def test_get_import_records_limit_is_clamped(monkeypatch: pytest.MonkeyPat
 
 @respx.mock
 async def test_get_company_firmographics_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(firmographics, "_FIRMO_API_URL", _FIRMO)
+    monkeypatch.setenv("PRY_FIRMO_API_URL", _FIRMO)
     monkeypatch.setenv("PRY_FIRMO_API_KEY", "test-key")
     respx.get("https://acme-trading-co.com").mock(
         return_value=httpx.Response(200, text=_firmo_html())

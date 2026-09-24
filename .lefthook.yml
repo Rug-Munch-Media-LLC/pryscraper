@@ -47,6 +47,10 @@
 pre-commit:
   parallel: true
   commands:
+    shell-quoting:
+      glob: "*.{sh,bash}"
+      run: test ! -f scripts/{gate} || python3 scripts/{gate} --files {{staged_files}}
+
     # -- AI Test Oracle advisory (PYTHON repos, opt-in) ---------
     # Fires when staged test files match a repo's .critical-paths list.
     # Advisory only; repos promote to blocking via .lefthook.local.yml.

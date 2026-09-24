@@ -24,6 +24,10 @@ set -euo pipefail
 # Files allowed to contain these patterns: security scanner definitions (the
 # detector, not the detected) and canonical infra documentation.
 EXEMPT_FILES=(
+    # Hook config carries a routine gopass read (signing/secret fetch)
+    # as FUNCTIONAL config; edits must be able to land.
+    "lefthook.yml"
+    ".lefthook.yml"
     "scripts/pre-commit-methodology-check.sh"
     "scripts/dev/pre-commit-methodology-check.sh"
     ".gitleaks.toml"

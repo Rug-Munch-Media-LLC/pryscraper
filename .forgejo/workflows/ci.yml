@@ -282,6 +282,33 @@ jobs:
           exit 0
         continue-on-error: true
 
+  # The Docusaurus site is the public documentation home (docs.pryscraper.com)
+  # but nothing in CI ever built it, so a broken MDX file, a bad relative link
+  # (onBrokenLinks is "throw") or a dependency regression could land unnoticed.
+  # This builds it on every PR and publishes the output as an artifact.
+  docs:
+    name: Docs site (Docusaurus)
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.12-nodejs22
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Build documentation site
+        working-directory: website
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build
+          echo "Pages built: $(find build -name '*.html' | wc -l)"
+
+      - name: Upload site artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: docs-site
+          path: website/build
+          retention-days: 7
+
   # T1 win #4: Integration test gate on PRs (blocking). Spins up ephemeral
   # Postgres + Redis and runs the full integration suite. Blocks merge on
   # failure — no more "integration tests only run nightly" blind spot.

@@ -58,21 +58,20 @@ _ZERO_RETRY = RetryConfig(
 
 @pytest.fixture(autouse=True)
 def _hermetic_legal(monkeypatch: pytest.MonkeyPatch) -> Any:
-    """Kill backoff delays + reset caches so tests are deterministic."""
-    monkeypatch.setattr(dockets, "_RETRY_CONFIG", _ZERO_RETRY)
-    monkeypatch.setattr(sec_filings, "_RETRY_CONFIG", _ZERO_RETRY)
-    monkeypatch.setattr(sanctions, "_RETRY_CONFIG", _ZERO_RETRY)
-    monkeypatch.delenv("PRY_COURTLISTENER_API_KEY", raising=False)
-    monkeypatch.delenv("PRY_LEGAL_OFAC_CACHE_PATH", raising=False)
-    sec_filings._TICKERS_CACHE = None
-    sec_filings._TICKERS_CACHE_TS = 0.0
-    sanctions._ENTRIES_CACHE = None
-    sanctions._ENTRIES_CACHE_TS = 0.0
+    """Kill backoff delays and reset caches without patching module internals."""
+    previous_dockets = dockets.configure_retries(_ZERO_RETRY)
+    previous_sec = sec_filings.configure_retries(_ZERO_RETRY)
+    previous_sanctions = sanctions.configure_retries(_ZERO_RETRY)
+    for env_name in ("PRY_COURTLISTENER_API_KEY", "PRY_LEGAL_OFAC_CACHE_PATH"):
+        monkeypatch.delenv(env_name, raising=False)
+    sec_filings.reset_ticker_cache()
+    sanctions.reset_cache()
     yield
-    sec_filings._TICKERS_CACHE = None
-    sec_filings._TICKERS_CACHE_TS = 0.0
-    sanctions._ENTRIES_CACHE = None
-    sanctions._ENTRIES_CACHE_TS = 0.0
+    dockets.configure_retries(previous_dockets)
+    sec_filings.configure_retries(previous_sec)
+    sanctions.configure_retries(previous_sanctions)
+    sec_filings.reset_ticker_cache()
+    sanctions.reset_cache()
 
 
 # ── Payload fixtures ───────────────────────────────────────────────────
@@ -745,8 +744,7 @@ async def test_screen_name_disk_cache(tmp_path: Path, monkeypatch: pytest.Monkey
     assert len(cached["entries"]) == 2
 
     # Break the network; the disk cache must still serve entries.
-    sanctions._ENTRIES_CACHE = None
-    sanctions._ENTRIES_CACHE_TS = 0.0
+    sanctions.reset_cache()
     for url in (_OFAC_JSON, _OFAC_XML, _OFAC_CSV):
         respx.get(url__startswith=url).mock(return_value=httpx.Response(500))
     out2 = await sanctions.screen_name("john smith")

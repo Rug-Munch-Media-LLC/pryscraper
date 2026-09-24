@@ -142,3 +142,10 @@ async def _fetch_pacer_docket(docket_id: int) -> dict[str, Any] | None:
     ``pacer_fetch`` permission; degrades to ``None`` on failure.
     """
     return await _fetch_json_post(_PACER_FETCH_URL, {"docket_id": docket_id})
+
+
+def configure_retries(config: RetryConfig) -> RetryConfig:
+    """Replace the docket retry policy and return the previous policy."""
+    global _RETRY_CONFIG
+    previous, _RETRY_CONFIG = _RETRY_CONFIG, config
+    return previous

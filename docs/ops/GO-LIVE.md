@@ -2,7 +2,7 @@
 
 > Ordered checklist to list Pry on Actify + Glama + MCP Registry and start earning.
 > Owner: Rug Munch Media LLC Engineering · Updated 2026-08-30
-> Companion: [REGISTRY-SUBMIT](scripts/registry-submit.md) · [SUBSCRIBE](scripts/register_pry.py) · [DEPLOYMENT](docs/ops/DEPLOYMENT.md)
+> Companion: [REGISTRY-SUBMIT](https://git.rugmunch.io/RugMunchMedia/pryscraper/blob/main/scripts/registry-submit.md) · [SUBSCRIBE](https://git.rugmunch.io/RugMunchMedia/pryscraper/blob/main/scripts/register_pry.py) · [DEPLOYMENT](DEPLOYMENT.md)
 
 Every box below must be **checked and verified with evidence** before the next
 step. Do not skip ahead — a listed-but-unverified marketplace will reject the
@@ -83,7 +83,7 @@ curl -s -X POST https://api.pryscraper.com/v1/scrape \
 
 ## 7. List + start earning
 
-- [ ] Submit `registry_submissions/mcp_listing.json` to **Actify**, **Glama**, **MCP Registry** (and Smithery/MCP Market per `scripts/register_pry.py`).
+- [ ] Submit `registry_submissions/mcp_listing.json` to **Actify**, **Glama**, **MCP Registry** (and Smithery/MCP Market per `../../scripts/register_pry.py`).
 - [ ] Submit `registry_submissions/x402_listing.json` to the x402 bazaars (x402.org/bazaar, x402scan).
 - [ ] Confirm each marketplace rendered the listing (tool count, icon, prices) — not just that the upload succeeded.
 - [ ] Watch first settlement; verify funds land in the treasury.

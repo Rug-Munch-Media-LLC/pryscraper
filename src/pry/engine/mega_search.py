@@ -23,10 +23,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from typing import TYPE_CHECKING, Any
 
-from pry.engine import web_search as ws
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+from pry.engine import engine_mojeek, engine_qwant, engine_seznam, engine_yahoo, web_search as ws
+from pry.engine.url_key import url_key
 
 logger = logging.getLogger(__name__)
 
@@ -48,29 +51,21 @@ Result = dict[str, Any]
 Positions = dict[str, dict[str, int]]
 
 
+# Engine -> (module, attribute); explicit so a module move fails loudly here.
+ENGINE_SOURCES: dict[str, tuple[Any, str]] = {
+    "searxng": (ws, "_search_searxng"),
+    "duckduckgo": (ws, "_search_ddg"),
+    "seznam": (engine_seznam, "search_seznam"),
+    "yahoo": (engine_yahoo, "search_yahoo"),
+    "qwant": (engine_qwant, "search_qwant"),
+    "mojeek": (engine_mojeek, "search_mojeek"),
+}
+
+
 def _engine_func(name: str) -> Any | None:
-    """Resolve an engine name to its coroutine in :mod:`pry.engine.web_search`."""
-    return getattr(ws, f"_search_{name}", None)
-
-
-def _normalize_url(url: str) -> str:
-    """Collapse a URL to a comparable key: no scheme, no www, no tracking args."""
-    try:
-        parts = urlsplit(url)
-    except ValueError:
-        return url.strip().lower()
-    host = (parts.hostname or "").lower()
-    for prefix in _STRIP_HOST_PREFIXES:
-        if host.startswith(prefix):
-            host = host[len(prefix) :]
-            break
-    kept = [
-        (k, v)
-        for k, v in parse_qsl(parts.query, keep_blank_values=True)
-        if not k.lower().startswith(_TRACKING_PREFIXES)
-    ]
-    path = parts.path.rstrip("/") or "/"
-    return urlunsplit(("", host, path, urlencode(sorted(kept)), ""))
+    """Resolve an engine name to its coroutine."""
+    source = ENGINE_SOURCES.get(name)
+    return getattr(source[0], source[1]) if source else None
 
 
 def _term_overlap(query: str, *fields: str) -> float:
@@ -91,9 +86,17 @@ def _score(key: str, entry: Result, positions: Positions, query: str) -> float:
     return weight + 0.5 / (1 + best_position) + overlap
 
 
-async def _gather(query: str, engines: tuple[str, ...]) -> dict[str, list[Result]]:
-    """Run every available engine concurrently; a failed leg yields an empty list."""
-    usable = {n: f for n in engines if (f := _engine_func(n)) is not None}
+async def _gather(
+    query: str,
+    engines: tuple[str, ...],
+    resolve: Callable[[str], Any | None] = _engine_func,
+) -> dict[str, list[Result]]:
+    """Run every available engine concurrently; a failed leg yields an empty list.
+
+    ``resolve`` is the injection seam: tests inject an engine lookup rather
+    than patching module state.
+    """
+    usable = {n: f for n in engines if (f := resolve(n)) is not None}
     if not usable:
         return {}
 
@@ -115,7 +118,7 @@ def _collect(grouped: dict[str, list[Result]]) -> tuple[dict[str, Result], Posit
         for index, row in enumerate(rows):
             if not str(row["url"]).startswith(("http://", "https://")):
                 continue
-            key = _normalize_url(str(row["url"]))
+            key = url_key(str(row["url"]))
             positions.setdefault(key, {}).setdefault(engine, index)
             entry = merged.setdefault(
                 key, {"url": row["url"], "title": "", "snippet": "", "engines": []}
@@ -146,6 +149,7 @@ async def mega_search(
     query: str,
     num_results: int = 10,
     engines: tuple[str, ...] | None = None,
+    resolve: Callable[[str], Any | None] | None = None,
 ) -> dict[str, Any]:
     """Search every configured engine at once and return a consensus ranking.
 
@@ -162,7 +166,7 @@ async def mega_search(
     if not query or not query.strip():
         return {}
     chosen = tuple(engines) if engines else DEFAULT_ENGINES
-    grouped = await _gather(query.strip(), chosen)
+    grouped = await _gather(query.strip(), chosen, resolve or _engine_func)
     results = _merge(grouped, query.strip())
     ok = [name for name, rows in grouped.items() if rows]
     return {

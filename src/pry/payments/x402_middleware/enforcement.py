@@ -26,6 +26,7 @@ from pry.payments.x402_middleware.config import X402_GATE_MISCONFIGURED
 from pry.payments.x402_middleware.enforcement_response import (
     X402_PAYMENT_HEADER_MAX_BYTES,
     _compact_payment_required_header,
+    _send_json_response,
 )
 from pry.payments.x402_middleware.enforcement_verify import (
     _attested_required_atomic,
@@ -149,23 +150,14 @@ class X402Middleware:
             )
             if X402_GATE_MISCONFIGURED is not None:
                 X402_GATE_MISCONFIGURED.inc()
-            body = json.dumps(
+            await _send_json_response(
+                send,
+                500,
                 {
                     "error": "payment_gate_misconfigured",
                     "detail": "endpoint is gated but its price is not configured",
-                }
-            ).encode()
-            await send(
-                {
-                    "type": "http.response.start",
-                    "status": 500,
-                    "headers": [
-                        (b"content-type", b"application/json"),
-                        (b"content-length", str(len(body)).encode()),
-                    ],
-                }
+                },
             )
-            await send({"type": "http.response.body", "body": body})
             return
 
         caller_key = _caller_key_from_scope(scope)
@@ -177,36 +169,21 @@ class X402Middleware:
         # traffic on top of this.
         allowed, rate_stats = self.limiter.check(caller_key or "unknown")
         if not allowed:
+            retry_after = rate_stats.get("retry_after", 1)
             logger.warning(
                 "x402_rate_limited",
-                extra={
-                    "path": path,
-                    "ip": caller_key,
-                    "retry_after": rate_stats.get("retry_after", 1),
-                },
+                extra={"path": path, "ip": caller_key, "retry_after": retry_after},
             )
-            body = json.dumps(
+            await _send_json_response(
+                send,
+                429,
                 {
                     "error": "rate_limit_exceeded",
                     "detail": "too many payment requests; retry later",
-                    "retry_after": rate_stats.get("retry_after", 1),
-                }
-            ).encode()
-            await send(
-                {
-                    "type": "http.response.start",
-                    "status": 429,
-                    "headers": [
-                        (b"content-type", b"application/json"),
-                        (b"content-length", str(len(body)).encode()),
-                        (
-                            b"retry-after",
-                            str(int(float(rate_stats.get("retry_after", 1)))).encode(),
-                        ),
-                    ],
-                }
+                    "retry_after": retry_after,
+                },
+                [(b"retry-after", str(int(float(retry_after))).encode())],
             )
-            await send({"type": "http.response.body", "body": body})
             return
 
         headers = dict(scope.get("headers", []))

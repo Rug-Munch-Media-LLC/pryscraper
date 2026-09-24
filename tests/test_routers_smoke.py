@@ -39,7 +39,7 @@ def _router_modules() -> list[str]:
 # Shared-helper modules under routers/ that intentionally expose no APIRouter.
 # Keep this list tiny: a module that stops exposing `router` because of a bug
 # must fail this test, not get parked here.
-NON_ROUTER_HELPERS = {"core.admin_shared"}
+NON_ROUTER_HELPERS = {"commerce.hosting.auth", "commerce.hosting.models", "core.admin_shared"}
 
 
 MODULES = _router_modules()

@@ -5,6 +5,7 @@ Pure code move — no logic changes (audit E41 split).
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
+import json
 import logging
 from typing import Any
 
@@ -70,3 +71,26 @@ def _compact_payment_required_header(body: dict[str, Any], max_bytes: int) -> st
         },
     )
     return encoded
+
+
+async def _send_json_response(
+    send: Any,
+    status: int,
+    payload: dict[str, Any],
+    extra_headers: list[tuple[bytes, bytes]] | None = None,
+) -> None:
+    """Send a JSON response with optional pre-encoded headers."""
+    body = json.dumps(payload).encode()
+    response_headers = [
+        (b"content-type", b"application/json"),
+        (b"content-length", str(len(body)).encode()),
+    ]
+    response_headers.extend(extra_headers or [])
+    await send(
+        {
+            "type": "http.response.start",
+            "status": status,
+            "headers": response_headers,
+        }
+    )
+    await send({"type": "http.response.body", "body": body})

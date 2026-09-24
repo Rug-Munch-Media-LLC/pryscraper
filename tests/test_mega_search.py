@@ -15,6 +15,7 @@ from __future__ import annotations
 import pytest
 
 from pry.engine import mega_search as ms
+from pry.engine.url_key import url_key
 
 
 def _row(url: str, title: str = "T", snippet: str = "") -> dict[str, str]:
@@ -22,14 +23,12 @@ def _row(url: str, title: str = "T", snippet: str = "") -> dict[str, str]:
 
 
 def test_normalize_strips_scheme_www_and_trailing_slash() -> None:
-    assert ms._normalize_url("https://www.Example.com/path/") == ms._normalize_url(
-        "http://example.com/path"
-    )
+    assert url_key("https://www.Example.com/path/") == url_key("http://example.com/path")
 
 
 def test_normalize_drops_tracking_params() -> None:
-    a = ms._normalize_url("https://x.com/p?utm_source=n&id=7")
-    b = ms._normalize_url("https://x.com/p?id=7&fbclid=abc")
+    a = url_key("https://x.com/p?utm_source=n&id=7")
+    b = url_key("https://x.com/p?id=7&fbclid=abc")
     assert a == b
 
 
@@ -69,24 +68,25 @@ def test_non_http_rows_are_discarded() -> None:
 
 
 @pytest.mark.asyncio
-async def test_mega_search_reports_failed_legs(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_mega_search_reports_failed_legs() -> None:
     async def ok(query: str, n: int) -> list[dict[str, str]]:
         return [_row("https://ok.com")]
 
     async def boom(query: str, n: int) -> list[dict[str, str]]:
         raise RuntimeError("captcha")
 
-    monkeypatch.setattr(ms, "_engine_func", lambda name: {"searxng": ok, "yahoo": boom}.get(name))
-    out = await ms.mega_search("q", 5, engines=("searxng", "yahoo"))
+    def resolve(name: str) -> object | None:
+        return {"searxng": ok, "yahoo": boom}.get(name)
+
+    out = await ms.mega_search("q", 5, engines=("searxng", "yahoo"), resolve=resolve)
     assert out["engines_ok"] == ["searxng"]
     assert out["engines_failed"] == ["yahoo"]
     assert out["results"][0]["url"] == "https://ok.com"
 
 
 @pytest.mark.asyncio
-async def test_empty_query_returns_empty(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(ms, "_engine_func", lambda name: None)
-    assert await ms.mega_search("   ") == {}
+async def test_empty_query_returns_empty() -> None:
+    assert await ms.mega_search("   ", resolve=lambda name: None) == {}
 
 
 def test_module_stays_under_size_cap() -> None:

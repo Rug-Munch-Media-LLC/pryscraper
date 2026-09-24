@@ -9,7 +9,7 @@ masking, and the Click `wallets` command group. No live infra.
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path  # noqa: TC003 - pytest annotations remain runtime-safe
 
 import pytest
 from click.testing import CliRunner
@@ -111,7 +111,7 @@ class TestEnvHelpers:
 
 class TestMask:
     @pytest.mark.parametrize(
-        "addr,expected",
+        ("addr", "expected"),
         [
             ("", "(unset)"),
             ("   ", "(unset)"),

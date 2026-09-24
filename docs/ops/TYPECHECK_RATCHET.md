@@ -92,4 +92,3 @@ Remaining in touched files (pre-existing, untouched methods, out of scope):
 `engine/extractor.py` 1 (`no-any-return`). Next hot files: `actors/automator.py`
 (16), `payments/x402/facilitator_self_hosted.py` done, `engine/proxy_health.py`
 done.
-

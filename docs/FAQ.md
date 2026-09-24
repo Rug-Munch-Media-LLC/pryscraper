@@ -38,7 +38,7 @@ scope for the core API.
 Scraping endpoints return `402 Payment Required` with a signed payment
 challenge. Pay it with any x402-compatible client (USDC on Base via
 EIP-3009 `transferWithAuthorization`) and retry with the payment proof.
-No account, no key, no minimum. See the [README](README.md#paid-api-x402).
+No account, no key, no minimum. See the [README](https://git.rugmunch.io/RugMunchMedia/pryscraper/blob/main/README.md#paid-api-x402).
 
 **What happens if I underpay?**
 Verification recovers the signer cryptographically and compares the
@@ -73,12 +73,12 @@ recommended in production; SQLite works for single-instance dev.
 Run replicas behind a load balancer with Postgres as the database and Redis
 configured — the rate limiter automatically switches to Redis-backed
 counters shared across replicas when `PRY_REDIS_URL` is reachable.
-See [DEPLOYMENT.md](DEPLOYMENT.md).
+See [DEPLOYMENT.md](ops/DEPLOYMENT.md).
 
 **How do I monitor it?**
 `/metrics` (Prometheus), OpenTelemetry traces via
 `OTEL_EXPORTER_OTLP_ENDPOINT`, and drop-in SLO alert rules in
-[`prometheus/alerts.yml`](prometheus/alerts.yml). A Grafana-friendly admin
+[`prometheus/alerts.yml`](https://git.rugmunch.io/RugMunchMedia/pryscraper/blob/main/prometheus/alerts.yml). A Grafana-friendly admin
 dashboard ships at `<admin-path>/v1/admin/dashboard`.
 
 **Where do my results go?**
@@ -100,7 +100,7 @@ output. CI validates the packaging on every change and publishes when
 
 **Is there a Python SDK?**
 Yes — async (`PryCrawl`) and sync (`PryCrawlSync`) clients ship in the
-package. See the [README](README.md#python-sdk).
+package. See the [README](https://git.rugmunch.io/RugMunchMedia/pryscraper/blob/main/README.md#python-sdk).
 
 ## Troubleshooting
 

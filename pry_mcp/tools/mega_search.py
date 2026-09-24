@@ -29,6 +29,9 @@ PRY_MEGA_SEARCH_TOOLS: list[dict[str, Any]] = [
             "possible answer to a factual question and do not need page bodies; for "
             "full-page reading use pry_search instead. Results carry 'consensus' (engine "
             "count) and 'sources'; engines_ok / engines_failed show which legs answered."
+            "For example, pry_mega_search(query='best rust web frameworks 2026', "
+            "num_results=10) returns one deduplicated list where every result reports "
+            "how many engines found it."
         ),
         "inputSchema": {
             "type": "object",
@@ -41,6 +44,51 @@ PRY_MEGA_SEARCH_TOOLS: list[dict[str, Any]] = [
                 },
             },
             "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "results": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "url": {"type": "string", "description": "Result URL."},
+                                    "title": {"type": "string", "description": "Result title."},
+                                    "snippet": {"type": "string", "description": "Result snippet."},
+                                    "consensus": {
+                                        "type": "integer",
+                                        "description": "How many engines surfaced this URL.",
+                                    },
+                                    "sources": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                        "description": "Which engines found it.",
+                                    },
+                                },
+                            },
+                        },
+                        "total": {
+                            "type": "integer",
+                            "description": "Unique results before the limit.",
+                        },
+                        "query": {"type": "string", "description": "The query that was run."},
+                        "engines_ok": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Engines that returned results.",
+                        },
+                        "engines_failed": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Engines that returned nothing this run.",
+                        },
+                    },
+                }
+            },
         },
     }
 ]

@@ -112,6 +112,7 @@ TOOL_ROUTES: dict[str, tuple[str, str]] = {
     "pry_chunk_for_rag": ("POST", "/v1/content/chunk"),
     # Web search + browser actions REST routes
     "pry_search": ("POST", "/v1/search"),
+    "pry_mega_search": ("POST", "/v1/search"),
     "pry_search_web": ("GET", "/v1/search"),
     "pry_search_extract": ("POST", "/v1/search/extract"),
     "pry_scrape_with_actions": ("POST", "/v1/scrape/actions"),

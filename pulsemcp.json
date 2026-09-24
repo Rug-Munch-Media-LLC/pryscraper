@@ -126,6 +126,7 @@
 		"pry_scrape_methods",
 		"pry_scrape_with_actions",
 		"pry_screenshot",
+		"pry_mega_search",
 		"pry_search",
 		"pry_search_extract",
 		"pry_search_templates",

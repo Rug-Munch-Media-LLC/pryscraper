@@ -7,10 +7,8 @@
 
 Covers four layers of the MCP surface:
 
-1. **Tool metadata** — every ``PRY_TOOLS`` entry must have an example-rich
-   description, a complete ``inputSchema`` (every param typed + described +
-   required flagged), an ``outputSchema``, and the MCP 2025-11-25 annotation
-   triple (``readOnlyHint`` / ``destructiveHint`` / ``idempotentHint``).
+1. **Tool metadata** — complete example-rich descriptions, input/output schemas,
+   typed parameters, and MCP 2025-11-25 read/write/idempotency annotations.
 2. **Round-trip ``tools/call``** — every tool, called through the fallback
    server with a mocked domain module (or mocked REST proxy), returns a
    JSON-RPC success; when the module is absent the readable "not available"
@@ -496,6 +494,7 @@ _REST_PROXY_TOOLS: dict[str, dict[str, Any]] = {
     "pry_extract_main": {"html": "<html><body><article><p>main</p></article></body></html>"},
     "pry_chunk_for_rag": {"html": "<html><body><p>test content</p></body></html>"},
     "pry_search": {"query": "test"},
+    "pry_mega_search": {"query": "test"},
     "pry_search_web": {"query": "test"},
     "pry_search_extract": {"query": "test", "schema": {"name": "string"}},
     "pry_scrape_with_actions": {

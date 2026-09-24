@@ -1,21 +1,14 @@
 """Pry — Firecrawl-style web search + scrape engine.
 
-Searches the web (SearXNG primary, DuckDuckGo HTML fallback) and returns the
-full scraped content of each result page through the Pry anti-bot fallback
-chain — not just titles and snippets. All public functions are async, never
-raise, and return ``{}`` on failure — mirroring the
+Searches the web and returns the full scraped content of each result page
+through the Pry anti-bot fallback chain, not just titles and snippets. The
+engine chain is SearXNG first, then DuckDuckGo, then the per-engine
+modules under :mod:`pry.engine` (seznam, yahoo, qwant, mojeek).
+
+Public API: ``search_web``, ``search_and_scrape``, ``search_and_extract`` —
+all async, never raise, returning ``{}`` on failure, per the
 :mod:`pry.engine.fallback` contract.
-
-Public API:
-
-* ``search_web(query, num_results)`` — search only, titles + snippets.
-* ``search_and_scrape(query, num_results, scrape)`` — search + full page content.
-* ``search_and_extract(query, schema, num_results)`` — search + scrape + structured extraction.
-
-Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-Licensed under MIT. See LICENSE.
 """
-
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
@@ -32,29 +25,26 @@ from urllib.parse import quote_plus, unquote
 
 import httpx
 
+from pry.engine.engine_mojeek import search_mojeek
+from pry.engine.engine_qwant import search_qwant
+from pry.engine.engine_seznam import search_seznam
+from pry.engine.engine_yahoo import search_yahoo
+from pry.engine.flaresolverr import fetch_via_flaresolverr
+
 logger = logging.getLogger(__name__)
 
-_UA = (
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/126.0.0.0 Safari/537.36"
-)
+_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 
 # Instance address is deployment-specific and must not be committed.
 _SEARXNG_URL = os.environ.get("PRY_SEARXNG_URL", "http://localhost:8088/search")
 _DDG_URL = "https://html.duckduckgo.com/html/"
 
-# DuckDuckGo HTML result parsing
-_DDG_RESULT = re.compile(
-    r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>',
-    re.I | re.S,
-)
+_DDG_RESULT = re.compile(r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>', re.I | re.S)
 _DDG_SNIPPET = re.compile(r'<a[^>]+class="result__snippet"[^>]*>(.*?)</a>', re.I | re.S)
 _TAG = re.compile(r"<[^>]+>")
-# DDG wraps URLs in a redirect: //duckduckgo.com/l/?uddg=<encoded>&rut=...
 _DDG_REDIRECT = re.compile(r"[?&]uddg=([^&]+)")
 
 
-# ── Low-level fetch (never raises) ──────────────────────────────────────
 async def _fetch_text(url: str, timeout_s: float = 15.0) -> str:
     """Fetch a URL's text body via httpx. Returns "" on any failure."""
     try:
@@ -71,31 +61,6 @@ async def _fetch_text(url: str, timeout_s: float = 15.0) -> str:
         return ""
 
 
-# ── FlareSolverr fetch (defeats JS/bot challenges) ───────────────────────────
-_FLARESOLVERR_URL = os.environ.get("PRY_FLARESOLVERR_URL", "http://flaresolverr-pry:8191/v1")
-
-
-async def _fetch_via_flaresolverr(url: str, timeout_s: float = 90.0) -> str:
-    """Fetch a URL through FlareSolverr. Returns "" when unavailable.
-
-    DuckDuckGo answers plain HTTP clients with a 202 challenge page that
-    contains no results, and it ignores both IP reputation (the same 202
-    comes back through every residential proxy) and a spoofed user agent.
-    FlareSolverr runs a real browser and clears the challenge, so the DDG
-    HTML endpoint returns parseable results.
-    """
-    try:
-        payload = {"cmd": "request.get", "url": url, "maxTimeout": int(timeout_s * 1000)}
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s)) as client:
-            resp = await client.post(_FLARESOLVERR_URL, json=payload)
-            resp.raise_for_status()
-            return (resp.json().get("solution") or {}).get("response", "") or ""
-    except Exception as exc:  # noqa: BLE001 - contract: never raise
-        logger.debug("flaresolverr_fetch_failed", extra={"url": url, "error": str(exc)})
-        return ""
-
-
-# ── Search engines (never raise) ────────────────────────────────────────
 async def _search_searxng(query: str, num_results: int) -> list[dict[str, Any]]:
     """Search via self-hosted SearXNG JSON API. Returns [] on failure."""
     try:
@@ -141,7 +106,7 @@ async def _search_ddg(query: str, num_results: int) -> list[dict[str, Any]]:
     """Search via DuckDuckGo HTML endpoint. Returns [] on failure."""
     try:
         target = f"{_DDG_URL}?q={quote_plus(query)}"
-        body = await _fetch_via_flaresolverr(target)
+        body = await fetch_via_flaresolverr(target)
         if not body:
             body = await _fetch_text(target)
         if not body:
@@ -169,14 +134,14 @@ async def _search_ddg(query: str, num_results: int) -> list[dict[str, Any]]:
 
 
 async def _search(query: str, num_results: int) -> list[dict[str, Any]]:
-    """Search with SearXNG primary, DuckDuckGo HTML fallback. Never raises."""
+    """Run engines in order; first non-empty answer wins. Never raises."""
     for engine in (
         _search_searxng,
         _search_ddg,
-        _search_seznam,
-        _search_yahoo,
-        _search_qwant,
-        _search_mojeek,
+        search_seznam,
+        search_yahoo,
+        search_qwant,
+        search_mojeek,
     ):
         results = await engine(query, num_results)
         if results:
@@ -184,202 +149,6 @@ async def _search(query: str, num_results: int) -> list[dict[str, Any]]:
     return []
 
 
-# ── Additional engines (FlareSolverr / JSON API) ────────────────────────────
-_SEZNAM_URL = "https://search.seznam.cz/?q={q}"
-_YAHOO_URL = "https://search.yahoo.com/search?p={q}"
-_QWANT_API = "https://api.qwant.com/v3/search/web?q={q}&count=10&locale=en_US&safesearch=1&tgp=3"
-_EXT_HOSTS = (
-    r"yahoo\.com|yimg|scout\.|mojeek\.com|qwant\.com|bing\.com|"
-    r"\.css|\.js|\.png|\.svg|\.ico|\.webp"
-)
-
-
-_MOJEEK_URL = "https://www.mojeek.com/search?q={q}"
-
-
-async def _search_mojeek(query: str, num_results: int) -> list[dict[str, Any]]:
-    """Mojeek via headless Chromium, solving its Altcha proof-of-work.
-
-    Mojeek gates every query with an Altcha PBKDF2 widget that only starts on
-    a *trusted* pointer event, so ``element.click()`` is ignored and the widget
-    stays "unverified" forever. A real mouse down/up on the checkbox lets the
-    widget run its own PoW, after which the session is cleared for normal
-    searching. FlareSolverr cannot do this: it never emits pointer events.
-    """
-    try:
-        from playwright.async_api import async_playwright
-    except Exception as exc:  # noqa: BLE001 - optional dependency
-        logger.debug("mojeek_playwright_missing", extra={"error": str(exc)})
-        return []
-    try:
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch(
-                headless=True,
-                args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
-            )
-            try:
-                ctx = await browser.new_context(
-                    user_agent=_UA, locale="en-US", viewport={"width": 1400, "height": 900}
-                )
-                page = await ctx.new_page()
-                await page.goto(
-                    _MOJEEK_URL.format(q=quote_plus(query)),
-                    wait_until="domcontentloaded",
-                    timeout=60000,
-                )
-                await page.wait_for_timeout(2500)
-                box = await page.query_selector(".altcha-checkbox-wrap")
-                if box:
-                    bb = await box.bounding_box()
-                    if bb:
-                        await page.mouse.move(bb["x"] + bb["width"] / 2, bb["y"] + bb["height"] / 2)
-                        await page.mouse.down()
-                        await page.wait_for_timeout(150)
-                        await page.mouse.up()
-                        for _ in range(20):
-                            await page.wait_for_timeout(1500)
-                            try:
-                                state = await page.evaluate(
-                                    "()=>document.querySelector('.altcha')?.getAttribute('data-state')"
-                                )
-                            except Exception:  # noqa: BLE001 - Altcha navigates on verify
-                                # The widget POSTs to /captcha/verify, which destroys
-                                # the execution context; that navigation IS the success.
-                                state = "verified"
-                            if state == "verified" or state is None:
-                                break
-                    await page.goto(
-                        _MOJEEK_URL.format(q=quote_plus(query)),
-                        wait_until="domcontentloaded",
-                        timeout=45000,
-                    )
-                    await page.wait_for_timeout(1500)
-                    # Mojeek re-challenges under rapid querying; retry once after a settle.
-                    if "captcha" in (await page.title()).lower():
-                        await page.wait_for_timeout(9000)
-                        await page.goto(
-                            _MOJEEK_URL.format(q=quote_plus(query)),
-                            wait_until="domcontentloaded",
-                            timeout=45000,
-                        )
-                        await page.wait_for_timeout(3000)
-                html = await page.content()
-            finally:
-                await browser.close()
-        links = re.findall(r'<a[^>]+class="ob"[^>]+href="(https?://[^"]+)"', html, re.I)
-        if not links:
-            links = re.findall(r'<h2><a[^>]+href="(https?://[^"]+)"', html, re.I)
-        seen: set[str] = set()
-        out: list[dict[str, Any]] = []
-        for href in links:
-            if href in seen or re.search(r"mojeek\.com|\.css|\.js|\.png|\.svg|\.ico", href):
-                continue
-            seen.add(href)
-            out.append({"url": href, "title": "", "snippet": ""})
-            if len(out) >= num_results:
-                break
-        return out
-    except Exception as exc:  # noqa: BLE001 - never raise
-        logger.debug("mojeek_search_failed", extra={"error": str(exc)})
-        return []
-
-
-async def _search_seznam(query: str, num_results: int) -> list[dict[str, Any]]:
-    """Seznam via FlareSolverr, extracting outbound links from the result page.
-
-    Seznam does not mark results with a stable class, so anchors are harvested
-    and filtered against its own chrome (seznam.cz, mapy.com, static assets).
-    """
-    try:
-        html = await _fetch_via_flaresolverr(_SEZNAM_URL.format(q=quote_plus(query)))
-        if not html:
-            return []
-        skip = re.compile(
-            r"seznam\.cz|mapy\.com|firma\.cz|firmy\.cz|\.css|\.js|\.png|\.svg|\.ico|\.webp|\.woff",
-            re.I,
-        )
-        seen: set[str] = set()
-        out: list[dict[str, Any]] = []
-        for href in re.findall(r'href="(https?://[^"]+)"', html):
-            if skip.search(href) or href in seen:
-                continue
-            seen.add(href)
-            out.append({"url": href, "title": "", "snippet": ""})
-            if len(out) >= num_results:
-                break
-        return out
-    except Exception as exc:  # noqa: BLE001 - never raise
-        logger.debug("seznam_search_failed", extra={"error": str(exc)})
-        return []
-
-
-async def _search_yahoo(query: str, num_results: int) -> list[dict[str, Any]]:
-    """Yahoo via FlareSolverr, filtering its own chrome (scout/yimg)."""
-    try:
-        html = await _fetch_via_flaresolverr(_YAHOO_URL.format(q=quote_plus(query)))
-        if not html:
-            return []
-        out: list[dict[str, Any]] = []
-        seen: set[str] = set()
-        for href, title in re.findall(
-            r'<h3[^>]*>.*?<a[^>]+href="(https?://[^"]+)"[^>]*>(.*?)</a>',
-            html,
-            re.I | re.S,
-        ):
-            if re.search(_EXT_HOSTS, href) or href in seen:
-                continue
-            seen.add(href)
-            out.append({"url": href, "title": _TAG.sub("", title).strip()[:200], "snippet": ""})
-            if len(out) >= num_results:
-                break
-        return out
-    except Exception as exc:  # noqa: BLE001 - never raise
-        logger.debug("yahoo_search_failed", extra={"error": str(exc)})
-        return []
-
-
-async def _search_qwant(query: str, num_results: int) -> list[dict[str, Any]]:
-    """Qwant via its JSON API (the HTML app is JS-hydrated and yields no anchors)."""
-    try:
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(20.0),
-            headers={
-                "User-Agent": _UA,
-                "Accept": "application/json",
-                "Referer": "https://www.qwant.com/",
-            },
-        ) as client:
-            resp = await client.get(_QWANT_API.format(q=quote_plus(query)))
-            resp.raise_for_status()
-            payload = resp.json()
-        out: list[dict[str, Any]] = []
-
-        def walk(node: Any) -> None:
-            if len(out) >= num_results:
-                return
-            if isinstance(node, dict):
-                if node.get("url") and node.get("title"):
-                    out.append(
-                        {
-                            "url": node["url"],
-                            "title": str(node["title"])[:200],
-                            "snippet": str(node.get("desc") or node.get("description") or ""),
-                        }
-                    )
-                for value in node.values():
-                    walk(value)
-            elif isinstance(node, list):
-                for value in node:
-                    walk(value)
-
-        walk(payload)
-        return out[:num_results]
-    except Exception as exc:  # noqa: BLE001 - never raise
-        logger.debug("qwant_search_failed", extra={"error": str(exc)})
-        return []
-
-
-# ── Scraping via the anti-bot fallback chain (never raises) ─────────────
 async def _scrape_page(url: str) -> dict[str, Any]:
     """Scrape one page through the 15-tier anti-bot chain. Never raises."""
     from pry.engine.ultimate_scraper import UltimateScraper
@@ -535,6 +304,3 @@ async def search_and_extract(
     except Exception as exc:  # noqa: BLE001 - contract: never raise
         logger.warning("search_and_extract_failed", extra={"query": query, "error": str(exc)})
         return {}
-
-
-__all__ = ["search_and_extract", "search_and_scrape", "search_web"]

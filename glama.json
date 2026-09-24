@@ -1,7 +1,7 @@
 {
 	"$schema": "https://glama.ai/mcp/schema.json",
 	"name": "io.rugmunch/pry",
-	"title": "Pry \u2014 Web Scraping, Browser Automation & Data Intelligence MCP",
+	"title": "Pry — Web Scraping, Browser Automation & Data Intelligence MCP",
 	"description": "Self-hosted web intelligence platform: scrape, crawl, extract, automate, and parse any website, plus ten data domains (crypto, marketplace, legal, real estate, jobs, travel, attention, local, gov, ip) monetized via x402 pay-per-call. Exposed as a Model Context Protocol server.",
 	"version": "3.0.0",
 	"license": "MIT",
@@ -33,19 +33,19 @@
 		},
 		{
 			"name": "pry_crawl",
-			"description": "Crawl a website from a seed URL, discovering and scraping linked pages with BFS/DFS traversal up to max_pages. Use to collect an entire docs site, blog, or directory \u2014 e.g. call with url='https://example.com' and include_paths=['/docs/'] to harvest every page under /docs/, or crawl up to 50 blog posts with max_pages=50. Constrain with include_paths/exclude_paths to stay inside the section you want."
+			"description": "Crawl a website from a seed URL, discovering and scraping linked pages with BFS/DFS traversal up to max_pages. Use to collect an entire docs site, blog, or directory — e.g. call with url='https://example.com' and include_paths=['/docs/'] to harvest every page under /docs/, or crawl up to 50 blog posts with max_pages=50. Constrain with include_paths/exclude_paths to stay inside the section you want."
 		},
 		{
 			"name": "pry_extract",
-			"description": "Extract structured data from a URL using CSS selectors \u2014 10x cheaper than LLM extraction \u2014 and return JSON matching your schema. Use when you need specific fields like {title, price, image, availability} from product listings or search results pages."
+			"description": "Extract structured data from a URL using CSS selectors — 10x cheaper than LLM extraction — and return JSON matching your schema. Use when you need specific fields like {title, price, image, availability} from product listings or search results pages."
 		},
 		{
 			"name": "pry_template",
-			"description": "Execute one of 110+ pre-built scraper templates (amazon-product, walmart-product, linkedin-profile, etc.) that return site-specific structured data. Use when scraping a known site that already has a template instead of hand-writing CSS selectors \u2014 e.g. 'amazon-product' for an Amazon product page."
+			"description": "Execute one of 110+ pre-built scraper templates (amazon-product, walmart-product, linkedin-profile, etc.) that return site-specific structured data. Use when scraping a known site that already has a template instead of hand-writing CSS selectors — e.g. 'amazon-product' for an Amazon product page."
 		},
 		{
 			"name": "pry_search_templates",
-			"description": "Search the 110+ pre-built scraper template catalog by keyword, category, or site name, returning matching template_ids, their categories, and descriptions. Use before pry_template to discover which template fits a target site \u2014 e.g. call with q='walmart' to find 'walmart-product', or q='jobs' with category='careers' to list every job-board template."
+			"description": "Search the 110+ pre-built scraper template catalog by keyword, category, or site name, returning matching template_ids, their categories, and descriptions. Use before pry_template to discover which template fits a target site — e.g. call with q='walmart' to find 'walmart-product', or q='jobs' with category='careers' to list every job-board template."
 		},
 		{
 			"name": "pry_monitor",
@@ -53,7 +53,7 @@
 		},
 		{
 			"name": "pry_compliance",
-			"description": "Compliance intelligence in two modes: pass a URL to check whether scraping it is legally safe (robots.txt, ToS, GDPR/CCPA, PII exposure -> green/yellow/red risk score with recommendations), or pass query/agency to search regulatory compliance records \u2014 enforcement actions, fines, sanctions, and watchlist entries, e.g. query='Binance' for its regulatory history. Use before scraping an uncertain site or when screening a company for compliance exposure."
+			"description": "Compliance intelligence in two modes: pass a URL to check whether scraping it is legally safe (robots.txt, ToS, GDPR/CCPA, PII exposure -> green/yellow/red risk score with recommendations), or pass query/agency to search regulatory compliance records — enforcement actions, fines, sanctions, and watchlist entries, e.g. query='Binance' for its regulatory history. Use before scraping an uncertain site or when screening a company for compliance exposure."
 		},
 		{
 			"name": "pry_enrich",
@@ -65,7 +65,7 @@
 		},
 		{
 			"name": "pry_screenshot",
-			"description": "Render a URL in a headless browser and return a screenshot as a base64-encoded PNG with width, height, and content type. Use for visual verification or design QA of a rendered page \u2014 e.g. screenshot https://example.com/checkout with full_page=true to capture the whole checkout flow before launch. JavaScript is executed before capture so SPAs render correctly."
+			"description": "Render a URL in a headless browser and return a screenshot as a base64-encoded PNG with width, height, and content type. Use for visual verification or design QA of a rendered page — e.g. screenshot https://example.com/checkout with full_page=true to capture the whole checkout flow before launch. JavaScript is executed before capture so SPAs render correctly."
 		},
 		{
 			"name": "pry_x402_pricing",
@@ -73,15 +73,15 @@
 		},
 		{
 			"name": "pry_balance",
-			"description": "Read the prepaid balance of a Pry account (bulk scrape credits purchased via crypto). Pass your pry API key (e.g. api_key='pry_abc123_deadbeef...') or a user_id to see the USD balance + low-balance flag. Use before buying a pack to confirm you can afford an operation, or after a purchase to confirm the credit landed (e.g. after a 5000-credit starter pack you should see ~5.00 USD). This is a free read of your own account \u2014 it does not spend credits."
+			"description": "Read the prepaid balance of a Pry account (bulk scrape credits purchased via crypto). Pass your pry API key (e.g. api_key='pry_abc123_deadbeef...') or a user_id to see the USD balance + low-balance flag. Use before buying a pack to confirm you can afford an operation, or after a purchase to confirm the credit landed (e.g. after a 5000-credit starter pack you should see ~5.00 USD). This is a free read of your own account — it does not spend credits."
 		},
 		{
 			"name": "pry_buy_pack",
-			"description": "Initiate a crypto purchase of a bulk scrape-credit pack. Pass a pack id (e.g. pack_id='starter' for $5/5,000 credits) and it returns a spec-compliant x402 PaymentRequired manifest with the real receiving wallet as payToAddress and the server-authoritative price in atomic units. The agent/partner pays USDC on-chain (or the quoted asset, defaults to the configured network), then calls the confirm endpoint with the tx hash to credit the balance \u2014 and on first purchase an API key is minted. An empty payToAddress in the response means the operator hasn't configured a receiving wallet; never pay a placeholder address."
+			"description": "Initiate a crypto purchase of a bulk scrape-credit pack. Pass a pack id (e.g. pack_id='starter' for $5/5,000 credits) and it returns a spec-compliant x402 PaymentRequired manifest with the real receiving wallet as payToAddress and the server-authoritative price in atomic units. The agent/partner pays USDC on-chain (or the quoted asset, defaults to the configured network), then calls the confirm endpoint with the tx hash to credit the balance — and on first purchase an API key is minted. An empty payToAddress in the response means the operator hasn't configured a receiving wallet; never pay a placeholder address."
 		},
 		{
 			"name": "pry_referrals",
-			"description": "Get Pry's referral catalog \u2014 60+ providers across LLM, hosting, email, monitoring, proxies, and devtools \u2014 each link carrying our affiliate ID for revenue attribution. Use to find a revenue-share partner or pick a recommended provider, e.g. 'what proxy providers do you refer?'."
+			"description": "Get Pry's referral catalog — 60+ providers across LLM, hosting, email, monitoring, proxies, and devtools — each link carrying our affiliate ID for revenue attribution. Use to find a revenue-share partner or pick a recommended provider, e.g. 'what proxy providers do you refer?'."
 		},
 		{
 			"name": "pry_token_launches",
@@ -89,7 +89,7 @@
 		},
 		{
 			"name": "pry_cex_listings",
-			"description": "Get recent centralized-exchange (CEX) listing and delisting signals \u2014 e.g. Binance, Coinbase, Kraken \u2014 aggregated over a configurable lookback window. Use to time research on tokens that just landed on a major exchange, e.g. 'what did Coinbase list in the last 24 hours?'."
+			"description": "Get recent centralized-exchange (CEX) listing and delisting signals — e.g. Binance, Coinbase, Kraken — aggregated over a configurable lookback window. Use to time research on tokens that just landed on a major exchange, e.g. 'what did Coinbase list in the last 24 hours?'."
 		},
 		{
 			"name": "pry_kol_leaderboards",
@@ -101,7 +101,7 @@
 		},
 		{
 			"name": "pry_amazon_search",
-			"description": "Search Amazon products by keyword and return matching listings \u2014 title, price, rating, and ASIN for each result (up to limit). Use to compare prices or discover products, e.g. 'search Amazon for wireless mechanical keyboards'."
+			"description": "Search Amazon products by keyword and return matching listings — title, price, rating, and ASIN for each result (up to limit). Use to compare prices or discover products, e.g. 'search Amazon for wireless mechanical keyboards'."
 		},
 		{
 			"name": "pry_walmart_product",
@@ -113,7 +113,7 @@
 		},
 		{
 			"name": "pry_token_security",
-			"description": "Run a security scan on a crypto token by chain and contract/mint address \u2014 checking for honeypots, hidden mints, ownership concentration, LP lock, and other rug-pull risk signals. Use before investing in or reporting on an unfamiliar token, e.g. 'scan So11111111111111111111111111111111111111112 on solana'."
+			"description": "Run a security scan on a crypto token by chain and contract/mint address — checking for honeypots, hidden mints, ownership concentration, LP lock, and other rug-pull risk signals. Use before investing in or reporting on an unfamiliar token, e.g. 'scan So11111111111111111111111111111111111111112 on solana'."
 		},
 		{
 			"name": "pry_legal_dockets",
@@ -141,7 +141,7 @@
 		},
 		{
 			"name": "pry_flights_grid",
-			"description": "Get the cheapest flight option per day between two dates for an origin and destination pair, using Google Flights' public tfs deep-link page. Use to find the cheapest day to fly on a trip, e.g. 'what's the cheapest day JFK\u2192CDG next month?'. Returns a per-day price grid; never raises and returns an empty grid when Google Flights blocks the scrape (embedded JSON drifts over time)."
+			"description": "Get the cheapest flight option per day between two dates for an origin and destination pair, using Google Flights' public tfs deep-link page. Use to find the cheapest day to fly on a trip, e.g. 'what's the cheapest day JFK→CDG next month?'. Returns a per-day price grid; never raises and returns an empty grid when Google Flights blocks the scrape (embedded JSON drifts over time)."
 		},
 		{
 			"name": "pry_hotel_rates",
@@ -221,7 +221,7 @@
 		},
 		{
 			"name": "pry_books",
-			"description": "Aggregate live odds for one sport/market across all 112 sportsbooks in Pry's registry (US, offshore, EU, UK, and Asian books) by scraping each book directly through Pry's intelligent fallback chain \u2014 no paid odds API, no API keys. Use to find the best price anywhere for a slate, e.g. call with sport='nba' and market='h2h' to see every reachable book's moneyline for tonight's games, or pass market='spreads' to sweep the point-spread market across the whole registry."
+			"description": "Aggregate live odds for one sport/market across all 112 sportsbooks in Pry's registry (US, offshore, EU, UK, and Asian books) by scraping each book directly through Pry's intelligent fallback chain — no paid odds API, no API keys. Use to find the best price anywhere for a slate, e.g. call with sport='nba' and market='h2h' to see every reachable book's moneyline for tonight's games, or pass market='spreads' to sweep the point-spread market across the whole registry."
 		},
 		{
 			"name": "pry_book_coverage",
@@ -229,7 +229,7 @@
 		},
 		{
 			"name": "pry_prediction_markets",
-			"description": "Get live prediction-market data merged from Polymarket (Gamma API) and Kalshi (public trade API v2) \u2014 no API keys required. Each record includes the market question, binary outcomes with 0-1 probability prices (yes/no), 24h volume, liquidity, resolution/close date, and category. Use to gauge crowd consensus on future events, compare implied probabilities across platforms for arbitrage, or power event-probability widgets, e.g. 'what are the top crypto prediction markets right now?' or call with category='politics' to see election markets. Results are sorted by volume; both sources degrade independently, so a partial outage still returns the reachable side."
+			"description": "Get live prediction-market data merged from Polymarket (Gamma API) and Kalshi (public trade API v2) — no API keys required. Each record includes the market question, binary outcomes with 0-1 probability prices (yes/no), 24h volume, liquidity, resolution/close date, and category. Use to gauge crowd consensus on future events, compare implied probabilities across platforms for arbitrage, or power event-probability widgets, e.g. 'what are the top crypto prediction markets right now?' or call with category='politics' to see election markets. Results are sorted by volume; both sources degrade independently, so a partial outage still returns the reachable side."
 		},
 		{
 			"name": "pry_prediction_market_detail",
@@ -237,15 +237,15 @@
 		},
 		{
 			"name": "pry_futures",
-			"description": "Get futures and championship odds across sportsbooks \u2014 Super Bowl winner, NBA MVP, league champions, award winners. Includes implied probability, best odds aggregation, and vig detection across all books. Use for long-term market research, e.g. 'who is favored to win the Super Bowl and at what price across books?' or call with sport='nba' to see every NBA futures market."
+			"description": "Get futures and championship odds across sportsbooks — Super Bowl winner, NBA MVP, league champions, award winners. Includes implied probability, best odds aggregation, and vig detection across all books. Use for long-term market research, e.g. 'who is favored to win the Super Bowl and at what price across books?' or call with sport='nba' to see every NBA futures market."
 		},
 		{
 			"name": "pry_derivatives",
-			"description": "Price exotic bet derivatives \u2014 teasers, pleasers, if-bets, reverse bets, and round robins. Calculate adjusted lines, combined odds, payout scenarios, max win/loss, and breakeven points. Use to compare exotic bet structures before placing, e.g. 'price a 6-point teaser on these two spreads' or 'what does a 3-team round robin risk and pay?'. Pure math on the legs you supply \u2014 no live odds are fetched."
+			"description": "Price exotic bet derivatives — teasers, pleasers, if-bets, reverse bets, and round robins. Calculate adjusted lines, combined odds, payout scenarios, max win/loss, and breakeven points. Use to compare exotic bet structures before placing, e.g. 'price a 6-point teaser on these two spreads' or 'what does a 3-team round robin risk and pay?'. Pure math on the legs you supply — no live odds are fetched."
 		},
 		{
 			"name": "pry_kelly_criterion",
-			"description": "Kelly criterion bankroll management \u2014 optimal bet sizing from win probability and odds. Includes full/half/quarter Kelly, CLV tracking, bankroll projections, and risk-of-ruin estimation. Use to size a bet, e.g. 'how much should I stake on a 55% win probability at 2.10 odds with a $1000 bankroll?' or call with kelly_pct=0.25 for a very conservative quarter-Kelly stake."
+			"description": "Kelly criterion bankroll management — optimal bet sizing from win probability and odds. Includes full/half/quarter Kelly, CLV tracking, bankroll projections, and risk-of-ruin estimation. Use to size a bet, e.g. 'how much should I stake on a 55% win probability at 2.10 odds with a $1000 bankroll?' or call with kelly_pct=0.25 for a very conservative quarter-Kelly stake."
 		},
 		{
 			"name": "pry_lineups",
@@ -257,19 +257,19 @@
 		},
 		{
 			"name": "pry_player_stats",
-			"description": "Get a player's last N games of stats with per-game lines, averages, and a hot/cold trend flag per stat versus his season average, from the ESPN game log. Use to check recent form before betting a prop, e.g. 'how has Nikola Jokic been scoring over his last 10 games \u2014 hot or cold?' or call with games=5 for a short-form window. The trend map flags each stat 'hot' (recent avg >= 8% above season), 'cold' (>= 8% below), or 'steady'."
+			"description": "Get a player's last N games of stats with per-game lines, averages, and a hot/cold trend flag per stat versus his season average, from the ESPN game log. Use to check recent form before betting a prop, e.g. 'how has Nikola Jokic been scoring over his last 10 games — hot or cold?' or call with games=5 for a short-form window. The trend map flags each stat 'hot' (recent avg >= 8% above season), 'cold' (>= 8% below), or 'steady'."
 		},
 		{
 			"name": "pry_props_matchup",
-			"description": "Get ALL player props for both teams in a matchup, annotated with defensive context: how the opposing defense ranks against each core prop type (points, rebounds, assists, yards, ...) with a 'tough' (top-8 defense), 'average', or 'soft' (bottom-8) grade. Use to find props the matchup favors, e.g. 'show me every prop for Celtics @ Lakers and which defense is soft against threes' \u2014 the single call that replaces checking the slate, the injury report, and five books separately."
+			"description": "Get ALL player props for both teams in a matchup, annotated with defensive context: how the opposing defense ranks against each core prop type (points, rebounds, assists, yards, ...) with a 'tough' (top-8 defense), 'average', or 'soft' (bottom-8) grade. Use to find props the matchup favors, e.g. 'show me every prop for Celtics @ Lakers and which defense is soft against threes' — the single call that replaces checking the slate, the injury report, and five books separately."
 		},
 		{
 			"name": "pry_steam_moves",
-			"description": "Detect steam moves: lines that shifted across 3+ sportsbooks simultaneously inside a short lookback window \u2014 the loudest sharp money signal, since independent books rarely move in lockstep without a syndicate behind it. Each record includes the event, outcome, old/new line, books that moved, move direction and magnitude, and a confidence score (high when 5+ books moved together). Use to follow professional money in real time, e.g. 'any steam on tonight's NBA slate?' or call with lookback_minutes=30 right before tip-off to catch late sharp hits."
+			"description": "Detect steam moves: lines that shifted across 3+ sportsbooks simultaneously inside a short lookback window — the loudest sharp money signal, since independent books rarely move in lockstep without a syndicate behind it. Each record includes the event, outcome, old/new line, books that moved, move direction and magnitude, and a confidence score (high when 5+ books moved together). Use to follow professional money in real time, e.g. 'any steam on tonight's NBA slate?' or call with lookback_minutes=30 right before tip-off to catch late sharp hits."
 		},
 		{
 			"name": "pry_reverse_line_movement",
-			"description": "Find reverse line movement (RLM): lines that moved TOWARD the side with LESS public betting percentage \u2014 the classic sign that sharp money is fading the public. Each record includes the event, side, public bet %, line movement direction, whether the RLM signal fired, and a strength rating based on % divergence and move size. Requires a configured public betting-percentage feed (PRY_SHARP_BET_FEED); without it no signal is fabricated. Use to bet against the public when the line agrees with sharps, e.g. 'show RLM signals on the NFL slate' or call with sport='nba' before lineups lock."
+			"description": "Find reverse line movement (RLM): lines that moved TOWARD the side with LESS public betting percentage — the classic sign that sharp money is fading the public. Each record includes the event, side, public bet %, line movement direction, whether the RLM signal fired, and a strength rating based on % divergence and move size. Requires a configured public betting-percentage feed (PRY_SHARP_BET_FEED); without it no signal is fabricated. Use to bet against the public when the line agrees with sharps, e.g. 'show RLM signals on the NFL slate' or call with sport='nba' before lineups lock."
 		},
 		{
 			"name": "pry_bet_money_divergence",
@@ -289,7 +289,7 @@
 		},
 		{
 			"name": "pry_live_games",
-			"description": "Every in-progress game on a sport's slate right now, from ESPN's free public scoreboard: event_id, home/away, live scores, quarter, time remaining, status. Entry point for the other live tools \u2014 grab an event_id here. Example: 'what NBA games are live?'"
+			"description": "Every in-progress game on a sport's slate right now, from ESPN's free public scoreboard: event_id, home/away, live scores, quarter, time remaining, status. Entry point for the other live tools — grab an event_id here. Example: 'what NBA games are live?'"
 		},
 		{
 			"name": "pry_live_game_state",
@@ -321,55 +321,55 @@
 		},
 		{
 			"name": "pry_map_site",
-			"description": "Map an entire domain: discover all URLs via sitemap.xml (including sitemap indexes) plus internal-link crawling, Firecrawl-style. Use before crawling or scraping a whole site to see its full URL structure \u2014 e.g. call with url='https://example.com' and max_urls=100 to list every discoverable page on the domain. Sitemap-first discovery is fast and polite; link crawling fills any remaining budget when no sitemap exists."
+			"description": "Map an entire domain: discover all URLs via sitemap.xml (including sitemap indexes) plus internal-link crawling, Firecrawl-style. Use before crawling or scraping a whole site to see its full URL structure — e.g. call with url='https://example.com' and max_urls=100 to list every discoverable page on the domain. Sitemap-first discovery is fast and polite; link crawling fills any remaining budget when no sitemap exists."
 		},
 		{
 			"name": "pry_crawl_to_markdown",
-			"description": "Crawl a site and convert every page to clean, chunked Markdown \u2014 Firecrawl-style output ready for vector databases. Maps the domain, fetches each page through the anti-bot fallback chain (Cloudflare/DataDome bypass), prunes nav/footer/boilerplate noise, and splits content into ~chunk_size character chunks. Use to harvest an entire docs site or blog as structured Markdown \u2014 e.g. call with url='https://example.com/docs' and max_pages=50 to convert the docs section to Markdown chunks."
+			"description": "Crawl a site and convert every page to clean, chunked Markdown — Firecrawl-style output ready for vector databases. Maps the domain, fetches each page through the anti-bot fallback chain (Cloudflare/DataDome bypass), prunes nav/footer/boilerplate noise, and splits content into ~chunk_size character chunks. Use to harvest an entire docs site or blog as structured Markdown — e.g. call with url='https://example.com/docs' and max_pages=50 to convert the docs section to Markdown chunks."
 		},
 		{
 			"name": "pry_crawl_for_rag",
-			"description": "Crawl a site and produce RAG-ready chunks for vector databases \u2014 each chunk carries provenance metadata (source URL, page title, chunk index, token estimate) so embeddings stay traceable to their origin. Uses overlapping chunks (chunk_overlap) to preserve context across boundaries. Use when building a RAG pipeline over a website \u2014 e.g. call with url='https://example.com' and chunk_size=1000, chunk_overlap=100 to get embedding-ready chunks."
+			"description": "Crawl a site and produce RAG-ready chunks for vector databases — each chunk carries provenance metadata (source URL, page title, chunk index, token estimate) so embeddings stay traceable to their origin. Uses overlapping chunks (chunk_overlap) to preserve context across boundaries. Use when building a RAG pipeline over a website — e.g. call with url='https://example.com' and chunk_size=1000, chunk_overlap=100 to get embedding-ready chunks."
 		},
 		{
 			"name": "pry_filter_content",
-			"description": "Filter HTML to essential content, removing boilerplate and noise. Strips nav bars, footers, headers, asides, scripts, styles, cookie/GDPR banners, ad containers, social share widgets, newsletter forms, related posts, and comment sections \u2014 then converts to minimal Markdown with redundant whitespace collapsed and empty headings dropped. Use before feeding scraped pages to an LLM to cut token costs by 60-90%: call with the raw HTML from pry_scrape and get back clean Markdown plus a token estimate and reduction percentage, e.g. filter_content(html='<html>...<nav>...</nav><article>main text</article>...</html>') returns just the article text."
+			"description": "Filter HTML to essential content, removing boilerplate and noise. Strips nav bars, footers, headers, asides, scripts, styles, cookie/GDPR banners, ad containers, social share widgets, newsletter forms, related posts, and comment sections — then converts to minimal Markdown with redundant whitespace collapsed and empty headings dropped. Use before feeding scraped pages to an LLM to cut token costs by 60-90%: call with the raw HTML from pry_scrape and get back clean Markdown plus a token estimate and reduction percentage, e.g. filter_content(html='<html>...<nav>...</nav><article>main text</article>...</html>') returns just the article text."
 		},
 		{
 			"name": "pry_extract_main",
-			"description": "Extract the main content block from a page using readability-style heuristics. Prioritizes <article>, <main>, [role=main], and common content containers (.post-content, .entry-content, .article-body); falls back to the largest text block on the page. Also returns the page title and how much boilerplate was stripped. Use when you want just the article body from a cluttered page \u2014 e.g. a news site with sidebars, related-article carousels, and cookie banners \u2014 without writing per-site selectors."
+			"description": "Extract the main content block from a page using readability-style heuristics. Prioritizes <article>, <main>, [role=main], and common content containers (.post-content, .entry-content, .article-body); falls back to the largest text block on the page. Also returns the page title and how much boilerplate was stripped. Use when you want just the article body from a cluttered page — e.g. a news site with sidebars, related-article carousels, and cookie banners — without writing per-site selectors."
 		},
 		{
 			"name": "pry_chunk_for_rag",
-			"description": "Filter HTML, convert to minimal Markdown, and chunk it for RAG / vector databases. Full pipeline: boilerplate removal -> minimal Markdown -> overlapping chunks split on paragraph boundaries. Returns the chunks, total token estimate, chunk count, and reduction percentage. Use when indexing scraped pages into a vector DB or feeding long documents to an LLM with a context budget \u2014 e.g. call with chunk_size=1000 and chunk_overlap=100 to get retrieval-ready chunks with ~10% overlap for continuity."
+			"description": "Filter HTML, convert to minimal Markdown, and chunk it for RAG / vector databases. Full pipeline: boilerplate removal -> minimal Markdown -> overlapping chunks split on paragraph boundaries. Returns the chunks, total token estimate, chunk count, and reduction percentage. Use when indexing scraped pages into a vector DB or feeding long documents to an LLM with a context budget — e.g. call with chunk_size=1000 and chunk_overlap=100 to get retrieval-ready chunks with ~10% overlap for continuity."
 		},
 		{
 			"name": "pry_search",
-			"description": "Search the web and get the FULL page content of each result \u2014 Firecrawl-style search, not a plain SERP scraper. Each result carries the complete scraped content and clean markdown of its page, fetched through the 15-tier anti-bot fallback chain (direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver). Use when you need to research a topic and read the actual pages, e.g. search_and_scrape(query='best rust web frameworks 2026', num_results=5) returns five full articles ready for analysis or RAG ingestion."
+			"description": "Search the web and get the FULL page content of each result — Firecrawl-style search, not a plain SERP scraper. Each result carries the complete scraped content and clean markdown of its page, fetched through the 15-tier anti-bot fallback chain (direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver). Use when you need to research a topic and read the actual pages, e.g. search_and_scrape(query='best rust web frameworks 2026', num_results=5) returns five full articles ready for analysis or RAG ingestion."
 		},
 		{
 			"name": "pry_search_web",
-			"description": "Quick web search returning titles and snippets only \u2014 no page scraping. Fast and cheap: uses self-hosted SearXNG (free, no API key) with a DuckDuckGo HTML fallback. Use when you just need to find URLs or get an overview of what's out there, e.g. search_web(query='site:docs.example.com auth', num_results=10). For full page content use pry_search instead."
+			"description": "Quick web search returning titles and snippets only — no page scraping. Fast and cheap: uses self-hosted SearXNG (free, no API key) with a DuckDuckGo HTML fallback. Use when you just need to find URLs or get an overview of what's out there, e.g. search_web(query='site:docs.example.com auth', num_results=10). For full page content use pry_search instead."
 		},
 		{
 			"name": "pry_search_extract",
-			"description": "Search the web, scrape each result page, and extract structured JSON data from every page using your schema \u2014 pattern extraction first, LLM fallback for complex schemas. Use when you need specific fields from many pages found via search, e.g. search_and_extract(query='python job postings remote', schema={'company': 'company name', 'salary': 'salary range', 'location': 'job location'}, num_results=5) returns structured records from each result page."
+			"description": "Search the web, scrape each result page, and extract structured JSON data from every page using your schema — pattern extraction first, LLM fallback for complex schemas. Use when you need specific fields from many pages found via search, e.g. search_and_extract(query='python job postings remote', schema={'company': 'company name', 'salary': 'salary range', 'location': 'job location'}, num_results=5) returns structured records from each result page."
 		},
 		{
 			"name": "pry_scrape_with_actions",
-			"description": "Scrape a page after performing browser actions before extraction \u2014 Firecrawl-style interactions for dynamic pages. Specify a sequence of actions (click elements, type text into inputs, scroll, wait for elements or fixed delays, press keys, run JavaScript, select dropdown options, check/uncheck checkboxes, hover, focus) that are executed in order on the loaded page, then the page content is extracted. Use when a plain scrape cannot reach the content: dismissing cookie banners, logging in or submitting search forms, infinite-scroll loading, expanding collapsed sections, or paginating before capture. Example: [{type: 'click', selector: '#cookie-accept'}, {type: 'wait', ms: 1000}, {type: 'scroll', direction: 'down', amount: 2000}, {type: 'wait', selector: '.results'}]."
+			"description": "Scrape a page after performing browser actions before extraction — Firecrawl-style interactions for dynamic pages. Specify a sequence of actions (click elements, type text into inputs, scroll, wait for elements or fixed delays, press keys, run JavaScript, select dropdown options, check/uncheck checkboxes, hover, focus) that are executed in order on the loaded page, then the page content is extracted. Use when a plain scrape cannot reach the content: dismissing cookie banners, logging in or submitting search forms, infinite-scroll loading, expanding collapsed sections, or paginating before capture. Example: [{type: 'click', selector: '#cookie-accept'}, {type: 'wait', ms: 1000}, {type: 'scroll', direction: 'down', amount: 2000}, {type: 'wait', selector: '.results'}]."
 		},
 		{
 			"name": "pry_extract_schema",
-			"description": "Extract structured data from a URL using a JSON schema \u2014 no CSS selectors needed. You describe WHAT you want (e.g. {\"product_name\": \"the product title\", \"price\": \"current price in USD\", \"reviews\": \"customer reviews\"}) and the engine figures out WHERE it lives on the page: JSON-LD structured data first, then meta tags, then AI extraction for anything left over. Works across any page structure. Example: pry_extract_schema(url='https://store.example.com/widget', schema={'name': 'product name', 'price': 'price', 'rating': 'average rating'}) \u2192 {'url': ..., 'data': {'name': 'Widget', 'price': '$9.99', 'rating': '4.5'}, 'method': 'pattern', 'confidence': 1.0}."
+			"description": "Extract structured data from a URL using a JSON schema — no CSS selectors needed. You describe WHAT you want (e.g. {\"product_name\": \"the product title\", \"price\": \"current price in USD\", \"reviews\": \"customer reviews\"}) and the engine figures out WHERE it lives on the page: JSON-LD structured data first, then meta tags, then AI extraction for anything left over. Works across any page structure. Example: pry_extract_schema(url='https://store.example.com/widget', schema={'name': 'product name', 'price': 'price', 'rating': 'average rating'}) → {'url': ..., 'data': {'name': 'Widget', 'price': '$9.99', 'rating': '4.5'}, 'method': 'pattern', 'confidence': 1.0}."
 		},
 		{
 			"name": "pry_extract_batch",
-			"description": "Extract structured data from MULTIPLE URLs using the same JSON schema, with bounded concurrency (asyncio semaphore). Ideal for scraping a product catalog, a list of blog posts, or comparison pages. Example: pry_extract_batch(urls=['https://store.example.com/a', 'https://store.example.com/b'], schema={'name': 'product name', 'price': 'price'}, max_concurrent=5) \u2192 [{'url': ..., 'data': {'name': 'A', 'price': '$5'}, ...}, ...]. Results are returned in input order; each entry has the same shape as pry_extract_schema output."
+			"description": "Extract structured data from MULTIPLE URLs using the same JSON schema, with bounded concurrency (asyncio semaphore). Ideal for scraping a product catalog, a list of blog posts, or comparison pages. Example: pry_extract_batch(urls=['https://store.example.com/a', 'https://store.example.com/b'], schema={'name': 'product name', 'price': 'price'}, max_concurrent=5) → [{'url': ..., 'data': {'name': 'A', 'price': '$5'}, ...}, ...]. Results are returned in input order; each entry has the same shape as pry_extract_schema output."
 		},
 		{
 			"name": "pry_extract_prompt",
-			"description": "Extract data using a natural-language prompt instead of a schema \u2014 ScrapeGraphAI-style smart extraction. Describe what you want in plain English and the LLM finds it on the page. Example: pry_extract_prompt(url='https://blog.example.com/post', prompt='Extract the article title, author, publish date, and a 2-sentence summary') \u2192 {'url': ..., 'data': {'title': ..., 'author': ..., 'date': ..., 'summary': ...}, 'method': 'ai', 'confidence': 0.85}. Optionally pass a schema to constrain the output shape. Slower than pry_extract_schema (uses the LLM) but handles vague or open-ended requests."
+			"description": "Extract data using a natural-language prompt instead of a schema — ScrapeGraphAI-style smart extraction. Describe what you want in plain English and the LLM finds it on the page. Example: pry_extract_prompt(url='https://blog.example.com/post', prompt='Extract the article title, author, publish date, and a 2-sentence summary') → {'url': ..., 'data': {'title': ..., 'author': ..., 'date': ..., 'summary': ...}, 'method': 'ai', 'confidence': 0.85}. Optionally pass a schema to constrain the output shape. Slower than pry_extract_schema (uses the LLM) but handles vague or open-ended requests."
 		},
 		{
 			"name": "pry_adaptive_scrape",
@@ -381,7 +381,7 @@
 		},
 		{
 			"name": "pry_all_sources",
-			"description": "Aggregate one event's odds from every reachable source at once: The Odds API (free tier), ESPN, OddsPortal, Bovada, BetOnline, and the 112-book sportsbook registry scraped directly via intelligent fallback \u2014 more sources than any other odds service, with no paid odds API. Use to get the complete multi-source picture for a single event, e.g. call with event_id='nba:bda33adc...' and sources='all' to compare every book and feed on one matchup; the merged result is deduped with the sharpest line winning conflicts."
+			"description": "Aggregate one event's odds from every reachable source at once: The Odds API (free tier), ESPN, OddsPortal, Bovada, BetOnline, and the 112-book sportsbook registry scraped directly via intelligent fallback — more sources than any other odds service, with no paid odds API. Use to get the complete multi-source picture for a single event, e.g. call with event_id='nba:bda33adc...' and sources='all' to compare every book and feed on one matchup; the merged result is deduped with the sharpest line winning conflicts."
 		},
 		{
 			"name": "pry_weather",
@@ -433,11 +433,11 @@
 		},
 		{
 			"name": "pry_app_search",
-			"description": "Search the Apple App Store by keyword and return matching apps \u2014 name, bundle id, price, rating, category, and store URL. Use to find apps by feature, compare pricing across categories, or feed app-market research, e.g. search query='crypto wallet' to list every mobile wallet on the store. Backed by the free public iTunes Search API; never raises and returns an empty list when the feed is unreachable."
+			"description": "Search the Apple App Store by keyword and return matching apps — name, bundle id, price, rating, category, and store URL. Use to find apps by feature, compare pricing across categories, or feed app-market research, e.g. search query='crypto wallet' to list every mobile wallet on the store. Backed by the free public iTunes Search API; never raises and returns an empty list when the feed is unreachable."
 		},
 		{
 			"name": "pry_app_reviews",
-			"description": "Get recent user reviews for an app by its store identifier \u2014 the numeric App Store id or bundle id, e.g. 'com.coinbase.app' \u2014 returning rating, title, body, author, and review date for each. Use to gauge app sentiment, triage support complaints, or feed product-research pipelines, e.g. reviews for '284910350' (Coinbase). Reads the free public App Store customer reviews feed; never raises and returns an empty list when the feed is unreachable."
+			"description": "Get recent user reviews for an app by its store identifier — the numeric App Store id or bundle id, e.g. 'com.coinbase.app' — returning rating, title, body, author, and review date for each. Use to gauge app sentiment, triage support complaints, or feed product-research pipelines, e.g. reviews for '284910350' (Coinbase). Reads the free public App Store customer reviews feed; never raises and returns an empty list when the feed is unreachable."
 		},
 		{
 			"name": "pry_news",
@@ -445,11 +445,11 @@
 		},
 		{
 			"name": "pry_sentiment",
-			"description": "Score the sentiment of recent news about a keyword \u2014 positive / neutral / negative with a confidence score \u2014 using lightweight text analysis over the same public news feeds as pry_news. Use to gauge market or brand mood, e.g. query='Bitcoin ETF' before a trade or campaign. Degrades to a neutral score when no articles are found; never raises on feed failures."
+			"description": "Score the sentiment of recent news about a keyword — positive / neutral / negative with a confidence score — using lightweight text analysis over the same public news feeds as pry_news. Use to gauge market or brand mood, e.g. query='Bitcoin ETF' before a trade or campaign. Degrades to a neutral score when no articles are found; never raises on feed failures."
 		},
 		{
 			"name": "pry_company_watch",
-			"description": "Return the regulatory watch record for a company \u2014 recent enforcement actions, fines, sanctions, and compliance filings \u2014 e.g. company='OpenAI' for its compliance exposure. Use for due diligence, vendor screening, or competitor risk monitoring before partnering or trading. Backed by free public regulatory feeds; degrades to an empty record when no data is found."
+			"description": "Return the regulatory watch record for a company — recent enforcement actions, fines, sanctions, and compliance filings — e.g. company='OpenAI' for its compliance exposure. Use for due diligence, vendor screening, or competitor risk monitoring before partnering or trading. Backed by free public regulatory feeds; degrades to an empty record when no data is found."
 		},
 		{
 			"name": "pry_deals",
@@ -474,6 +474,10 @@
 		{
 			"name": "pry_actor_run",
 			"description": "Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors. Use after pry_actor_catalog: pass the actor name plus target urls; results are the same dataset items the Apify run would produce. x402 pay-per-call: each processed URL bills the actor's first PPE pricing event (see pry_actor_catalog / pry_x402_pricing for per-event USD prices). Examples: actor='news-feed-monitor', actor='universal-scraper', actor='token-safety-scanner'."
+		},
+		{
+			"name": "pry_mega_search",
+			"description": "Search the web with every engine at once and return one consensus-ranked list. Six independent engines are queried in parallel and each hit is ranked by how many engines independently found it, so a link four engines agree on outranks one only a single engine returned. Use when you want the best possible answer and do not need page bodies; for full-page reading use pry_search instead. For example pry_mega_search(query='best rust web frameworks 2026', num_results=10) returns one deduplicated list where every result reports how many engines found it."
 		}
 	],
 	"tags": [
