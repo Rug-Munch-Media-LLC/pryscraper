@@ -38,7 +38,9 @@ product surface, x402 payments at production hardening, scraping engine at a
   three-module facade; legacy-vs-new market extraction backtest passes.
 - European-exchange modularization: Marathonbet, 1xBet, and Betfair now have
   dedicated fetch/parser modules behind a stable facade.
-- Remaining modularization queue: 252 files over 200 lines (208 extractable,
+- Signup-verification modularization: extraction/config, IMAP, temp-mail, and
+  orchestration are separated behind the historical import path.
+- Remaining modularization queue: 251 files over 200 lines (207 extractable,
   44 compose cases).
 - MCP auth gate + browser pooling + migration tests + DevOps hardening.
 - Engine perf: fix blocking calls, pooled client, async DNS, cache caps.
