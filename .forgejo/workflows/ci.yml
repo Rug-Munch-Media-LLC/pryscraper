@@ -266,7 +266,20 @@ jobs:
           PRY_REDIS_URL: redis://redis:6379/0
         # Nightly also runs the `slow` full-catalog tests (e.g. the 109-preset
         # actor staging gate) that are deselected from the default run.
-        run: source .venv/bin/activate && pytest tests/ -m "integration or slow" -q --tb=short || echo "integration tests failed (non-blocking)"
+        #
+        # Advisory, NOT silent. A previous version chained `|| echo ...` AND
+        # set continue-on-error, so a fully red nightly reported success. The
+        # exit code is now captured and raised as a warning annotation; PRs stay
+        # covered by the blocking `integration-gate` job below.
+        run: |
+          set +e
+          source .venv/bin/activate
+          pytest tests/ -m "integration or slow" -q --tb=short
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "::warning title=Nightly integration tests failed::pytest exited $rc (advisory run; PRs are gated by the blocking integration-gate job)"
+          fi
+          exit 0
         continue-on-error: true
 
   # T1 win #4: Integration test gate on PRs (blocking). Spins up ephemeral
