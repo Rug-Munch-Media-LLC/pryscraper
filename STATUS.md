@@ -42,7 +42,9 @@ product surface, x402 payments at production hardening, scraping engine at a
   orchestration are separated behind the historical import path.
 - US-books modularization: registry, proxy transport, and compatibility facade
   are separated while retaining test monkeypatch seams.
-- Remaining modularization queue: 251 files over 200 lines (207 extractable,
+- Billing-subscription modularization: shared state/models, invoice, account,
+  and renewal route modules preserve six endpoints and idempotency behavior.
+- Remaining modularization queue: 249 files over 200 lines (205 extractable,
   44 compose cases).
 - MCP auth gate + browser pooling + migration tests + DevOps hardening.
 - Engine perf: fix blocking calls, pooled client, async DNS, cache caps.
