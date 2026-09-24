@@ -48,7 +48,9 @@ product surface, x402 payments at production hardening, scraping engine at a
   legacy adapters preserve pricing math and x402 response shapes.
 - Capability-detection modularization: probes, runtime, integrations, storage,
   and orchestration preserve fail-closed capability reports and test seams.
-- Remaining modularization queue: 247 files over 200 lines (203 extractable,
+- X402-batch modularization: state, Redis store, channels, and payment
+  orchestration preserve replay hardening, settlement, and expiry behavior.
+- Remaining modularization queue: 246 files over 200 lines (202 extractable,
   44 compose cases).
 - MCP auth gate + browser pooling + migration tests + DevOps hardening.
 - Engine perf: fix blocking calls, pooled client, async DNS, cache caps.

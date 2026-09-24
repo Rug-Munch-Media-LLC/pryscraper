@@ -22,6 +22,8 @@ from pry.payments.x402.batch import (
     verify_batch_payment,
 )
 
+store = batch_mod.store
+
 
 @pytest.fixture(autouse=True)
 def clear_batch_registry():
@@ -33,16 +35,14 @@ def clear_batch_registry():
     with _batch_lock:
         _batch_payments.clear()
         _consumed_txs.clear()
-    with patch.object(batch_mod, "_get_redis", return_value=None):
+    with patch.object(store, "_get_redis", return_value=None):
         yield
     with _batch_lock:
         _batch_payments.clear()
         _consumed_txs.clear()
 
 
-# ---------------------------------------------------------------------------
 # create_batch_payment
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -137,7 +137,7 @@ async def test_verify_onchain_success():
     mock = AsyncMock()
     mock.verify.return_value = {"verified": True, "reason": ""}
 
-    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+    with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         r2 = await verify_batch_payment(bid, "0xvalid")
         assert r2["verified"] is True
         assert r2["total_usd"] > 0
@@ -150,7 +150,7 @@ async def test_verify_onchain_failure():
     mock = AsyncMock()
     mock.verify.return_value = {"verified": False, "reason": "insufficient"}
 
-    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+    with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         r2 = await verify_batch_payment(bid, "0xinvalid")
         assert r2["verified"] is False
 
@@ -223,7 +223,7 @@ async def test_verify_settles_after_verify():
     mock.verify.return_value = {"verified": True, "reason": ""}
     mock.settle.return_value = {"success": True}
 
-    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+    with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         r2 = await verify_batch_payment(bid, "0xvalid")
         assert r2["verified"] is True
         assert r2["settled"] is True
@@ -238,7 +238,7 @@ async def test_verify_settle_failure_does_not_unverify():
     mock.verify.return_value = {"verified": True, "reason": ""}
     mock.settle.return_value = {"success": False, "reason": "rpc down"}
 
-    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+    with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         r2 = await verify_batch_payment(bid, "0xvalid")
         assert r2["verified"] is True
         assert r2["settled"] is False
@@ -253,7 +253,7 @@ async def test_verify_settle_exception_surfaced():
     mock.verify.return_value = {"verified": True, "reason": ""}
     mock.settle.side_effect = RuntimeError("boom")
 
-    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+    with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         r2 = await verify_batch_payment(bid, "0xvalid")
         assert r2["verified"] is True
         assert r2["settled"] is False
@@ -272,7 +272,7 @@ async def test_caller_binding_blocks_other_caller():
     mock.verify.return_value = {"verified": True, "reason": ""}
     mock.settle.return_value = {"success": True}
 
-    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+    with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         await verify_batch_payment(bid, "0xvalid", caller_key="1.2.3.4")
     assert is_batch_paid(bid, caller_key="1.2.3.4") is True
     # Different caller → rejected
@@ -290,7 +290,7 @@ async def test_unbound_batch_legacy_contract():
     mock.verify.return_value = {"verified": True, "reason": ""}
     mock.settle.return_value = {"success": True}
 
-    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+    with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         await verify_batch_payment(bid, "0xvalid")
     assert is_batch_paid(bid) is True
 
@@ -308,7 +308,7 @@ async def test_tx_replay_second_batch_rejected():
 
     r1 = await create_batch_payment(["scrape"])
     r2 = await create_batch_payment(["monitor"])
-    with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+    with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         first = await verify_batch_payment(r1["batch_id"], "0xsametx")
         second = await verify_batch_payment(r2["batch_id"], "0xsametx")
     assert first["verified"] is True
@@ -319,10 +319,10 @@ async def test_tx_replay_second_batch_rejected():
 @pytest.mark.asyncio
 async def test_tx_replay_redis_setnx_semantics():
     """The in-memory fallback must behave like Redis SETNX: first claim wins."""
-    assert batch_mod._consume_tx("0xabc", "base") is True
-    assert batch_mod._consume_tx("0xabc", "base") is False
-    assert batch_mod._consume_tx("0xabc", "polygon") is True  # different network → distinct tx
-    assert batch_mod._consume_tx("", "base") is False  # empty hash never claims
+    assert store._consume_tx("0xabc", "base") is True
+    assert store._consume_tx("0xabc", "base") is False
+    assert store._consume_tx("0xabc", "polygon") is True  # different network → distinct tx
+    assert store._consume_tx("", "base") is False  # empty hash never claims
 
 
 class _FakeRedis:
@@ -348,7 +348,7 @@ class _FakeRedis:
 async def test_redis_backend_roundtrip_and_replay():
     """Batch state round-trips through Redis and SETNX blocks cross-worker replay."""
     fake = _FakeRedis()
-    with patch.object(batch_mod, "_get_redis", return_value=fake):
+    with patch.object(store, "_get_redis", return_value=fake):
         r = await create_batch_payment(["scrape"])
         bid = r["batch_id"]
         assert f"pry:x402:batch:{bid}" in fake.store  # write-through to Redis
@@ -357,7 +357,7 @@ async def test_redis_backend_roundtrip_and_replay():
         mock.verify.return_value = {"verified": True, "reason": ""}
         mock.settle.return_value = {"success": True}
 
-        with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+        with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
             r2 = await verify_batch_payment(bid, "0xredis", caller_key="9.9.9.9")
             assert r2["verified"] is True
         # A second worker (fresh in-memory state, same Redis) sees the paid batch.
@@ -367,7 +367,7 @@ async def test_redis_backend_roundtrip_and_replay():
         assert is_batch_paid(bid, caller_key="9.9.9.9") is True
         # And the tx claim survives: a second batch on the same tx is refused.
         r3 = await create_batch_payment(["monitor"])
-        with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+        with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
             third = await verify_batch_payment(r3["batch_id"], "0xredis")
         assert third["verified"] is False
 
@@ -391,7 +391,7 @@ class _BrokenRedis:
 async def test_redis_down_falls_back_to_memory():
     """With a reachable-but-broken Redis, batch state degrades to memory and
     the full create → verify → is_paid flow still works (never raises)."""
-    with patch.object(batch_mod, "_get_redis", return_value=_BrokenRedis()):
+    with patch.object(store, "_get_redis", return_value=_BrokenRedis()):
         r = await create_batch_payment(["scrape", "monitor"])
         bid = r["batch_id"]
         assert r["total_usd"] > 0
@@ -399,7 +399,7 @@ async def test_redis_down_falls_back_to_memory():
         mock = AsyncMock()
         mock.verify.return_value = {"verified": True, "reason": ""}
         mock.settle.return_value = {"success": True}
-        with patch("pry.payments.x402.batch.get_facilitator_router", return_value=mock):
+        with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
             result = await verify_batch_payment(bid, "0xdegraded", caller_key="c1")
         assert result["verified"] is True
 
@@ -412,18 +412,18 @@ async def test_redis_down_falls_back_to_memory():
 @pytest.mark.asyncio
 async def test_redis_tx_claim_failure_falls_back_to_memory_set():
     """When the Redis SETNX claim errors, the in-memory tx set still blocks replay."""
-    with patch.object(batch_mod, "_get_redis", return_value=_BrokenRedis()):
-        assert batch_mod._consume_tx("0xtx1", "eip155:8453") is True
-        assert batch_mod._consume_tx("0xtx1", "eip155:8453") is False  # replay blocked
-        assert batch_mod._consume_tx("0xtx2", "eip155:8453") is True
-        assert batch_mod._consume_tx("", "eip155:8453") is False  # empty hash refused
+    with patch.object(store, "_get_redis", return_value=_BrokenRedis()):
+        assert store._consume_tx("0xtx1", "eip155:8453") is True
+        assert store._consume_tx("0xtx1", "eip155:8453") is False  # replay blocked
+        assert store._consume_tx("0xtx2", "eip155:8453") is True
+        assert store._consume_tx("", "eip155:8453") is False  # empty hash refused
 
 
 @pytest.mark.asyncio
 async def test_redis_read_failure_serves_memory_record():
     """A batch saved to memory is still loadable when Redis reads fail."""
     bid = (await create_batch_payment(["scrape"]))["batch_id"]
-    with patch.object(batch_mod, "_get_redis", return_value=_BrokenRedis()):
-        loaded = batch_mod._load_batch(bid)
+    with patch.object(store, "_get_redis", return_value=_BrokenRedis()):
+        loaded = store._load_batch(bid)
         assert loaded is not None
         assert loaded["batch_id"] == bid
