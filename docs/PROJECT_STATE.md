@@ -10,7 +10,7 @@ removing test-only mutation of private runtime state.
 ## Current focus
 
 Continue the mechanical modularization queue after the legal-docs,
-hosted-commerce, firmographics, sports-market, European-exchange, and signup-verification tranches while preserving shrink-only gates.
+hosted-commerce, firmographics, sports-market, European-exchange, signup-verification, and US-books tranches while preserving shrink-only gates.
 
 ## Done recently
 
@@ -26,6 +26,8 @@ hosted-commerce, firmographics, sports-market, European-exchange, and signup-ver
   Betfair modules with shared runtime hooks.
 - Split the 446-line signup email-verification module into extraction/config,
   IMAP, temp-mail, and orchestration modules.
+- Split the 445-line US-books module into registry, transport, and compatibility
+  facade modules while preserving test monkeypatch seams.
 - Added explicit retry/cache seams for legal and firmographics tests.
 - Reduced x402 enforcement duplication without changing ASGI response events.
 - Focused legal, x402, hosting, portal, and middleware tests pass.
@@ -40,5 +42,5 @@ hosted-commerce, firmographics, sports-market, European-exchange, and signup-ver
 ## Next step
 
 Run `python3 scripts/modularity_queue.py --extract` and take
-`datasets/sports_data/us_books.py` through the same facade-preserving
+`src/pry/api/routers/commerce/billing_subscription.py` through the same facade-preserving
 split recipe.

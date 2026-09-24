@@ -40,6 +40,8 @@ product surface, x402 payments at production hardening, scraping engine at a
   dedicated fetch/parser modules behind a stable facade.
 - Signup-verification modularization: extraction/config, IMAP, temp-mail, and
   orchestration are separated behind the historical import path.
+- US-books modularization: registry, proxy transport, and compatibility facade
+  are separated while retaining test monkeypatch seams.
 - Remaining modularization queue: 251 files over 200 lines (207 extractable,
   44 compose cases).
 - MCP auth gate + browser pooling + migration tests + DevOps hardening.

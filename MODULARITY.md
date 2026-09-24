@@ -87,8 +87,8 @@ captcha solver, `url_key` URL identity, and one module per search engine.
 
 251 source files exceed 200 lines: 207 are mechanically extractable and 44
 need collaborator-based composition. The legal-docs, hosted-commerce API,
-firmographics, sports-market, European-exchange, and signup-verification
-tranches are complete: those modules now live behind stable package facades
-with explicit retry/configuration seams. Start the next tranche at the top
-of `python3 scripts/modularity_queue.py --extract`; the largest extractable
-file is the best demonstration and the easiest to verify.
+firmographics, sports-market, European-exchange, signup-verification, and
+US-books tranches are complete: those modules now live behind stable package
+facades with explicit retry/configuration seams. Start the next tranche at
+the top of `python3 scripts/modularity_queue.py --extract`; the largest
+extractable file is the best demonstration and the easiest to verify.
