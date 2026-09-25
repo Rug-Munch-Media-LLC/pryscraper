@@ -168,6 +168,7 @@ jobs:
           mypy src/ pry_mcp/ datasets/sports_data/derivatives/
           mypy src/pry/payments/x402/solana_transfer/
           mypy src/pry/commerce/reconciliation/
+          mypy datasets/sports_data/parlay_legs/
 
   test:
     runs-on: docker-x64
@@ -1057,7 +1058,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Structure gate (≤200-line cap, shrink-only)
-        run: python3 scripts/check-structure.py --repo . --scan-root src/pry --scan-root src/pry/payments/x402/solana_transfer/ --scan-root src/pry/commerce/reconciliation/ --scan-root tests --scan-root scripts --scan-root datasets/sports_data/derivatives
+        run: python3 scripts/check-structure.py --repo . --scan-root src/pry --scan-root src/pry/payments/x402/solana_transfer/ --scan-root src/pry/commerce/reconciliation/ --scan-root tests --scan-root scripts --scan-root datasets/sports_data/derivatives --scan-root datasets/sports_data/parlay_legs/
       - name: Monkeypatch gate (per-repo ratchet)
         run: python3 scripts/check-monkeypatch.py --repo .
       - name: Antipattern gate (per-repo ratchet)

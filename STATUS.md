@@ -61,7 +61,9 @@ product surface, x402 payments at production hardening, scraping engine at a
 - Reconciliation modularization: schemas, normalization, matching, reporting,
   and LLM orchestration preserve deterministic entity/report behavior with
   bounded input handling and offline parity coverage.
-- Remaining modularization queue: 243 files over 200 lines (199 extractable,
+- Parlay-legs modularization: fair probabilities, extraction, selection, and
+  bounded scan preserve EV ordering, correlation, caps, and book labels.
+- Remaining modularization queue: 242 files over 200 lines (198 extractable,
   44 compose cases); next is `pry_mcp/fallback_server.py`.
 - MCP auth gate + browser pooling + migration tests + DevOps hardening.
 - Engine perf: fix blocking calls, pooled client, async DNS, cache caps.
