@@ -56,7 +56,9 @@ product surface, x402 payments at production hardening, scraping engine at a
 - Derivatives modularization: odds math, leg normalization, teaser/if-bet/
   reverse/round-robin modules, bounded MCP validation, and 200-line tests
   preserve the public API while closing input/combination resource risks.
-- Remaining modularization queue: 245 files over 200 lines (201 extractable,
+- Solana-transfer modularization: request, RPC, candidate, and verification
+  modules preserve the legacy public contract with scoped CI and parity tests.
+- Remaining modularization queue: 244 files over 200 lines (200 extractable,
   44 compose cases); next is `pry_mcp/fallback_server.py`.
 - MCP auth gate + browser pooling + migration tests + DevOps hardening.
 - Engine perf: fix blocking calls, pooled client, async DNS, cache caps.

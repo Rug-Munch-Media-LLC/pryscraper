@@ -39,7 +39,7 @@ def scan(root: Path, scan_roots: tuple[str, ...]) -> dict[str, int]:
     for rel in scan_roots:
         base = root / rel
         if not base.is_dir():
-            continue
+            raise FileNotFoundError(f"missing scan root: {rel}")
         for p in base.rglob("*.py"):
             if any(part in SKIP_DIRS for part in p.parts):
                 continue
