@@ -10,7 +10,7 @@ removing test-only mutation of private runtime state.
 ## Current focus
 
 Continue the mechanical modularization queue after the legal-docs,
-hosted-commerce, firmographics, sports-market, European-exchange, signup-verification, US-books, billing-subscription, x402-pricing, capability-detection, x402-batch, healthcare-drug-pricing, derivatives, and Solana-transfer tranches while preserving shrink-only gates.
+hosted-commerce, firmographics, sports-market, European-exchange, signup-verification, US-books, billing-subscription, x402-pricing, capability-detection, x402-batch, healthcare-drug-pricing, derivatives, Solana-transfer, and reconciliation tranches while preserving shrink-only gates.
 
 ## Done recently
 
@@ -43,6 +43,9 @@ hosted-commerce, firmographics, sports-market, European-exchange, signup-verific
   coverage for the new dataset package.
 - Split the 421-line Solana transfer verifier into request, RPC, candidate,
   and verification modules with scoped CI and deterministic parity tests.
+- Split the 419-line commerce reconciliation module into schemas,
+  normalization, matching, reporting, LLM, and facade modules with bounded
+  inputs and deterministic offline tests.
 - Added explicit retry/cache seams for legal and firmographics tests.
 - Reduced x402 enforcement duplication without changing ASGI response events.
 - Focused legal, x402, hosting, portal, and middleware tests pass.
