@@ -1,10 +1,4 @@
-"""Pry - MCP tool definitions: exotic bet derivatives (teasers, reverses, RR).
-
-Holds the ``pry_derivatives`` tool schema (``PRY_TOOLS``) and the guarded
-candidate registry (``_SPORTS_DERIVATIVES_TOOL_FNS``) for the pure-math
-exotic-bet pricing module (``sports_data.derivatives``). No network is
-involved — the legs the caller passes are the legs that get priced.
-"""
+"""MCP schema and guarded dispatch for pure-math exotic-bet pricing."""
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -15,6 +9,7 @@ involved — the legs the caller passes are the legs that get priced.
 from __future__ import annotations
 
 import logging
+import math
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -101,9 +96,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
     },
 ]
 
-# ── Sports derivatives candidate registry (guarded) ───────────────────
-# Maps the single tool to the pure-math pricing functions in
-# sports_data.derivatives, tried in order per bet_type.
+# Guarded candidate registry for pure-math pricing functions.
 _DERIVATIVES_TOOL_FNS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     "pry_derivatives": (
         (
@@ -128,12 +121,49 @@ _BET_TYPE_FNS: dict[str, tuple[str, ...]] = {
 }
 
 
-def call_sports_derivatives_tool(arguments: dict[str, Any]) -> dict[str, Any]:
-    """Dispatch ``pry_derivatives`` to the pure-math derivatives module.
+_MAX_LEGS_BY_BET_TYPE = {"teaser": 20, "pleaser": 20, "if_bet": 12, "reverse": 2, "round_robin": 20}
+_MAX_ROUND_ROBIN_COMBINATIONS = 1_000
 
-    Returns an MCP-style result envelope (``success`` + ``data``/``error``).
-    Never raises.
-    """
+
+def _finite_float(value: Any, default: float) -> float:
+    try:
+        number = float(default if value is None else value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError from exc
+    if isinstance(value, bool) or not math.isfinite(number):
+        raise ValueError
+    return number
+
+
+def _validated_options(
+    bet_type: str, legs: list[Any], arguments: dict[str, Any]
+) -> dict[str, float | int]:
+    if len(legs) > _MAX_LEGS_BY_BET_TYPE[bet_type]:
+        raise ValueError
+    for leg in legs:
+        if isinstance(leg, dict) and "odds" in leg:
+            _finite_float(leg["odds"], 0)
+    if bet_type in {"teaser", "pleaser"}:
+        adjustment = _finite_float(arguments.get("adjustment"), 6)
+        if not adjustment.is_integer() or not 0 <= adjustment <= 20:
+            raise ValueError
+        return {"adjustment": int(adjustment)}
+    max_risk = _finite_float(arguments.get("max_risk"), 100)
+    if max_risk < 0:
+        raise ValueError
+    if bet_type != "round_robin":
+        return {"max_risk": max_risk}
+    size = _finite_float(arguments.get("parlay_size"), 2)
+    if not size.is_integer() or not 2 <= size <= 10:
+        raise ValueError
+    size = int(size)
+    if math.comb(len(legs), size) > _MAX_ROUND_ROBIN_COMBINATIONS:
+        raise ValueError
+    return {"max_risk": max_risk, "parlay_size": size}
+
+
+def call_sports_derivatives_tool(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Dispatch ``pry_derivatives`` with the established envelope; never raises."""
     bet_type = str(arguments.get("bet_type") or "").strip().lower()
     legs = arguments.get("legs")
     if bet_type not in _BET_TYPE_FNS:
@@ -144,6 +174,10 @@ def call_sports_derivatives_tool(arguments: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(legs, list) or len(legs) < 2:
         return {"success": False, "error": "At least two legs are required"}
     try:
+        options = _validated_options(bet_type, legs, arguments)
+    except ValueError:
+        return {"success": False, "error": "derivatives pricing failed"}
+    try:
         from datasets.sports_data import derivatives
     except ImportError:
         logger.exception("sports_derivatives_module_unavailable")
@@ -151,24 +185,18 @@ def call_sports_derivatives_tool(arguments: dict[str, Any]) -> dict[str, Any]:
     try:
         if bet_type in {"teaser", "pleaser"}:
             result = derivatives.price_teaser(
-                legs,
-                adjustment=int(arguments.get("adjustment") or 6),
-                direction=bet_type,
+                legs, adjustment=int(options["adjustment"]), direction=bet_type
             )
         elif bet_type == "if_bet":
-            result = derivatives.price_if_bet(
-                legs, max_risk=float(arguments.get("max_risk") or 100)
-            )
+            result = derivatives.price_if_bet(legs, max_risk=float(options["max_risk"]))
         elif bet_type == "reverse":
-            result = derivatives.price_reverse_bet(
-                legs, max_risk=float(arguments.get("max_risk") or 100)
-            )
-        else:
+            result = derivatives.price_reverse_bet(legs, max_risk=float(options["max_risk"]))
+        elif bet_type == "round_robin":
             result = derivatives.price_round_robin(
-                legs,
-                parlay_size=int(arguments.get("parlay_size") or 2),
-                max_risk=float(arguments.get("max_risk") or 100),
+                legs, parlay_size=int(options["parlay_size"]), max_risk=float(options["max_risk"])
             )
+        else:  # pragma: no cover - guarded by _BET_TYPE_FNS
+            return {"success": False, "error": "derivatives pricing failed"}
     except Exception:
         logger.exception("sports_derivatives_call_crashed", extra={"bet_type": bet_type})
         return {"success": False, "error": "derivatives pricing failed"}

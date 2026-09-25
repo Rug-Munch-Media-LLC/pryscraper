@@ -160,11 +160,9 @@ jobs:
           uv venv --python 3.12 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Type check (mypy)
-        # Scoped to the production package surface (audit 2026-09-11 P0.2):
-        # `mypy .` included tests/datasets/scripts and sat at 2,789 errors —
-        # never green, gated nothing. Scope + ratchet documented in
-        # pyproject [tool.mypy] and docs/ops/TYPECHECK_RATCHET.md.
-        run: source .venv/bin/activate && mypy src/ pry_mcp/
+        # Keep the production scope intact while re-admitting only the
+        # derivatives package as a focused dataset typing ratchet.
+        run: source .venv/bin/activate && mypy src/ pry_mcp/ datasets/sports_data/derivatives/
 
   test:
     runs-on: docker-x64
@@ -1054,7 +1052,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Structure gate (≤200-line cap, shrink-only)
-        run: python3 scripts/check-structure.py --repo . --scan-root src/pry --scan-root tests --scan-root scripts
+        run: python3 scripts/check-structure.py --repo . --scan-root src/pry --scan-root tests --scan-root scripts --scan-root datasets/sports_data/derivatives
       - name: Monkeypatch gate (per-repo ratchet)
         run: python3 scripts/check-monkeypatch.py --repo .
       - name: Antipattern gate (per-repo ratchet)

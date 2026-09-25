@@ -5,9 +5,7 @@ Policy: >150 REPORTED · >200 HARD FAIL unless allowlisted · allowlisted files
 may never GROW · >500 HARD FAIL unless allowlisted. ``--update-baseline``
 only ever removes/shrinks; per-repo roots via [tool.fleet-gates].scan-roots.
 
-Usage:
-  python3 scripts/check-structure.py --repo .                 # gate
-  python3 scripts/check-structure.py --repo . --update-baseline
+Usage: python3 scripts/check-structure.py [--repo .] [--update-baseline]
 """
 
 from __future__ import annotations
@@ -88,9 +86,7 @@ def resolve_scan_roots(root: Path, explicit: tuple[str, ...]) -> tuple[str, ...]
             and any(d.rglob("*.py"))
         )
     )
-    if top:
-        return top
-    return ("scripts",) if (root / "scripts").is_dir() else (".",)
+    return top or (("scripts",) if (root / "scripts").is_dir() else (".",))
 
 
 def load_baseline(path: Path) -> dict[str, int]:
@@ -181,6 +177,11 @@ def main() -> int:
 
     root = Path(args.repo).resolve()
     scan_roots = resolve_scan_roots(root, tuple(args.scan_roots or ()))
+    missing = [rel for rel in scan_roots if not (root / rel).is_dir()]
+    if missing:
+        missing_text = ", ".join(missing)
+        print(f"structure gate: FAIL (missing scan roots): {missing_text}", file=sys.stderr)
+        return 2
     print(f"structure gate: scan roots = {', '.join(scan_roots)}")
     sizes = scan(root, scan_roots)
     baseline_path = root / args.baseline

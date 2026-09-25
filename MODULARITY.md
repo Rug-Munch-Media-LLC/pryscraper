@@ -89,7 +89,7 @@ captcha solver, `url_key` URL identity, and one module per search engine.
 need collaborator-based composition. The legal-docs, hosted-commerce API,
 firmographics, sports-market, European-exchange, signup-verification,
 US-books, billing-subscription, x402-pricing, capability-detection, x402-batch,
-and healthcare-drug-pricing tranches are complete: those modules now live
-behind stable package facades with explicit seams. Start the next tranche at
-the top of `python3 scripts/modularity_queue.py --extract`; the largest
-extractable file is the best demonstration and easiest to verify.
+healthcare-drug-pricing, and derivatives tranches are complete: those modules
+now live behind stable package facades with explicit seams. Start the next
+tranche at the top of `python3 scripts/modularity_queue.py --extract`; the
+largest extractable file is the best demonstration and easiest to verify.

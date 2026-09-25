@@ -53,8 +53,11 @@ product surface, x402 payments at production hardening, scraping engine at a
 - Healthcare drug-pricing modularization: config/parsing, NADAC, GoodRx, and
   orchestration modules preserve fallback and never-raise behavior while
   adding bounded cache stampede protection and failure logging.
+- Derivatives modularization: odds math, leg normalization, teaser/if-bet/
+  reverse/round-robin modules, bounded MCP validation, and 200-line tests
+  preserve the public API while closing input/combination resource risks.
 - Remaining modularization queue: 245 files over 200 lines (201 extractable,
-  44 compose cases).
+  44 compose cases); next is `pry_mcp/fallback_server.py`.
 - MCP auth gate + browser pooling + migration tests + DevOps hardening.
 - Engine perf: fix blocking calls, pooled client, async DNS, cache caps.
 - Postgres-backed x402 ledger (audit #2 complete); settlement webhooks.
