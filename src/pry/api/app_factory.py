@@ -18,8 +18,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from pry.api.exception_handlers import add_error_handlers
+from pry.api.kill_switches import MCP_ENABLED, X402_ENABLED
 from pry.api.lifecycle import lifespan
-from pry.api.mcp_server import mcp_app
 from pry.api.router_registry import register_routers
 from pry.core.middleware import PryHttpMiddleware
 from pry.core.settings import settings
@@ -95,7 +95,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.mount("/mcp", mcp_app)
+# MCP agent surface. PRY_MCP_ENABLED=false leaves /mcp unmounted entirely, so
+# a self-host that does not want the agent surface has no route to attack (it
+# is not "mounted but unauthorized"). The import is deliberately lazy so a
+# switched-off instance never imports the MCP tool registry.
+if MCP_ENABLED:
+    from pry.api.mcp_server import mcp_app
+
+    app.mount("/mcp", mcp_app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -124,7 +131,15 @@ app.add_middleware(PryHttpMiddleware)
 # OUTERMOST — a keyless agent must reach the 402 challenge BEFORE the
 # API-key auth layer rejects with 401. Verified payments mark
 # scope["x402_verified"], which request_authorized accepts as the credential.
-app.add_middleware(X402Middleware)
+#
+# PRY_X402_ENABLED=false omits the middleware entirely: the paid endpoints are
+# then reachable like any other route, so a self-hoster's own instance serves
+# its own keyless traffic for free (product policy 2026-09-26 — we do not gate
+# first-party/self-hosted traffic against ourselves) and no facilitator,
+# payee wallet or payment ledger is involved. The hosted/priced deployment
+# leaves the switch on (default).
+if X402_ENABLED:
+    app.add_middleware(X402Middleware)
 
 add_error_handlers(app)
 

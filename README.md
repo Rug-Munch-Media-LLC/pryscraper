@@ -17,7 +17,7 @@
 
 **15-tier anti-bot bypass** · Cloudflare, DataDome, Akamai · **Pay-per-call API** via crypto · **112 MCP tools** · **112 Apify Actors**
 
-[Installation](#installation) · [Quickstart](#quickstart) · [Configuration](#configuration) · [MCP Server](#mcp-server) · [x402 Payments](#x402-payments) · [Registry Listings](#registry-listings) · [FAQ](docs/FAQ.md) · [Tool Catalog](docs/ops/TOOLS-CATALOG.md) · [API Reference](docs/ops/API-REFERENCE.md) · [Payments](docs/ops/PAYMENTS.md) · [Operations](docs/ops/DEPLOYMENT.md)
+[Installation](#installation) · [Quickstart](#quickstart) · [Who pays?](#who-pays) · [Configuration](#configuration) · [MCP Server](#mcp-server) · [x402 Payments](#x402-payments) · [Registry Listings](#registry-listings) · [FAQ](docs/FAQ.md) · [Tool Catalog](docs/ops/TOOLS-CATALOG.md) · [API Reference](docs/ops/API-REFERENCE.md) · [Payments](docs/ops/PAYMENTS.md) · [Operations](docs/ops/DEPLOYMENT.md)
 
 ---
 
@@ -164,18 +164,35 @@ poetry run pry --help
 ### 4. Docker
 
 The [Dockerfile](Dockerfile) builds a hardened, non-root image (Python 3.12,
-Playwright Chromium, Tesseract, port **8002**). `docker-compose.yml` ships the
-full stack — Pry plus FlareSolverr, Postgres, Redis, Prometheus, Grafana, and
-Tor (`tor` behind a profile).
+Playwright Chromium, Tesseract, port **8002**).
+
+**To self-host, use the self-host profile.** It is an overlay on
+`docker-compose.yml` that keeps only the two services you need — Pry and its
+FlareSolverr sidecar — and stores data in embedded SQLite. No Postgres, no
+Redis, no Prometheus.
 
 ```bash
 git clone https://codeberg.org/RugMunchMedia/pryscraper.git
 cd pryscraper
-docker compose up -d
+cp .env.selfhost.example .env.selfhost
+./scripts/selfhost-init.sh          # generates your PRY_API_KEY
+docker compose -f docker-compose.yml -f docker-compose.selfhost.yml \
+  --env-file .env.selfhost up -d
 ```
 
-API: `http://localhost:8002` (host `127.0.0.1:8005:8002` in the compose file) ·
-MCP: `http://localhost:8002/mcp/` · Health: `http://localhost:8002/health`
+API: `http://localhost:8002` · MCP: `http://localhost:8002/mcp/` ·
+Health: `http://localhost:8002/health`
+
+**Port of record: `8002`.** The container listens on 8002 and the self-host
+profile publishes `127.0.0.1:8002`. The bare `docker-compose.yml` (the
+operator/production stack) publishes **8005** on the host instead, because that
+deployment already owns 8002 behind its own proxy. If you are self-hosting,
+8002 is the number you want; if you are running the full production stack,
+8005 is correct and changing it will fight whatever is already bound.
+
+`docker-compose.yml` on its own ships the full stack — Pry plus FlareSolverr,
+Postgres, Redis, Prometheus, Grafana, and Tor (`tor` behind a profile). It is
+the production profile, not the self-host one.
 
 Single service only:
 
@@ -215,7 +232,7 @@ First scrape in under 5 minutes:
 pip install pryscraper-mcp
 
 # 2. Run the API server (or skip and use the hosted api.pryscraper.com)
-pry serve                 # API on 127.0.0.1:8005
+pry serve                 # API on 127.0.0.1:8002
 
 # 3. Scrape — first call returns HTTP 402 with x402 payment terms,
 #    subsequent calls are gated by payment signature
@@ -241,18 +258,76 @@ That's it. No account or API key required to discover the server — each paid c
 ```bash
 git clone https://codeberg.org/RugMunchMedia/pryscraper.git
 cd pryscraper
-docker compose up -d
+cp .env.selfhost.example .env.selfhost
+./scripts/selfhost-init.sh
+docker compose -f docker-compose.yml -f docker-compose.selfhost.yml \
+  --env-file .env.selfhost up -d
 ```
 
 API: `http://localhost:8002` · MCP: `http://localhost:8002/mcp/`
 
+Self-hosted calls are **not** x402-gated — see [Who pays?](#who-pays) below.
+Scrape a page:
+
+```bash
+KEY=$(grep '^PRY_API_KEY=' .env.selfhost | cut -d= -f2)
+curl -s http://localhost:8002/v1/scrape \
+  -H "Authorization: Bearer $KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"url": "https://example.com"}'
+```
+
 ### CLI
 
 ```bash
-pry serve          # API on 127.0.0.1:8005 (see docs/ops/DEPLOYMENT.md)
+pry serve          # API on 127.0.0.1:8002 (see docs/ops/DEPLOYMENT.md)
 pry open https://example.com
 pry crawl https://docs.com --max-pages 20
 ```
+
+---
+
+## Who pays?
+
+Pry has one codebase and two billing postures. The difference is one
+environment variable, and it is a real switch — not a suggestion.
+
+| | **Self-hosted** | **Hosted** (`api.pryscraper.com`) |
+|---|---|---|
+| `PRY_X402_ENABLED` | `false` (the self-host default) | `true` (the default) |
+| Keyless call to a paid endpoint | **Served.** No 402, no wallet, no facilitator | **402 challenge**, settles on-chain |
+| Cost to you | Your own CPU, bandwidth, proxy budget | Per call, in USDC/USDT/ETH/SOL/TRX |
+| Payee | Nobody — you are not paying anyone per scrape | The operator treasury |
+| You need | A machine and `PRY_API_KEY` | Nothing |
+
+**Self-hosting costs you infrastructure, not calls.** With x402 off there is no
+payee wallet, no facilitator, no gas payer and no settlement ledger involved —
+`X402Middleware` is never constructed, so there is no 402 path to reach. What
+you *do* pay for is real: the box, the egress, and any proxy or CAPTCHA solver
+you configure. Hard targets behind Cloudflare will return challenges until you
+add one; that is a configuration gap, not a Pry limitation.
+
+**The hosted API still charges per call.** Leaving `PRY_X402_ENABLED` unset
+keeps the gate installed, so a keyless agent scraping `api.pryscraper.com`
+gets a 402 and pays per request. That default is deliberate and is pinned by a
+test (`tests/test_selfhost_free_path.py`) — a self-host profile that silently
+disabled monetization on the hosted deployment would be a revenue bug.
+
+Two switches, both real, both read once at app assembly
+(`src/pry/api/kill_switches.py`):
+
+| Var | Default | Off means |
+|---|---|---|
+| `PRY_X402_ENABLED` | `true` | `X402Middleware` is never added; no 402 challenge, no facilitator, no settlement |
+| `PRY_MCP_ENABLED` | `true` | `/mcp` is never mounted and the MCP tool registry is never imported |
+
+Both default to **on** so a fresh install is never accidentally
+free-to-abuse; a self-hoster opts out explicitly. Setting `PRY_X402_ENABLED=false`
+also relaxes startup config validation, which is what lets an instance boot
+with no payee wallet configured at all.
+
+> Not listed in the MCP store you install from, and want hosted pricing? Then
+> do not self-host — point your agent at `https://api.pryscraper.com/mcp/`.
 
 ---
 

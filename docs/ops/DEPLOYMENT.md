@@ -27,10 +27,11 @@ also offered as a hosted cloud service.
 |-----------|-----------|------------------------------|
 | Ownership | You run it; full privacy, no key needed (loopback or `PRY_API_KEY`) | Managed by Rug Munch Media |
 | Discovery | No auth to browse MCP tools (paid calls x402) | Same |
-| Payments | You point x402 at **your** treasury wallets | Settles to the operator treasury |
+| Payments | `PRY_X402_ENABLED=false` — nothing per call. Enable it and point x402 at **your** treasury wallets if you want to charge your own callers | Settles to the operator treasury |
 | Billing | Optional — enable packs/subscription against your ledger | Built in |
-| Deployment | Docker Compose (recommended) / pip / uv | — |
-| Datastore | SQLite (dev) / Postgres (prod), Redis optional | Managed |
+| Deployment | `docker-compose.selfhost.yml` overlay / bare `docker-compose.yml` / pip / uv | — |
+| Datastore | SQLite (self-host default) / Postgres (prod), Redis optional | Managed |
+| Host port | **8002** (port of record) | **8005** on the operator host |
 
 ---
 
@@ -46,7 +47,7 @@ default, or `PRY_SECRET_BACKEND=env|file|auto`.
 | Var | Default | Purpose |
 |-----|---------|---------|
 | `PRY_HOST` | `127.0.0.1` | Bind host |
-| `PRY_PORT` | `8002` | Listen port (container); mapped to `8005` host in Compose |
+| `PRY_PORT` | `8002` | Listen port (container). Self-host profile publishes 8002; the production Compose file publishes 8005 on the host |
 | `PRY_URL` | `http://localhost:8002` | Advertised base URL |
 | `PRY_DATA_DIR` | `~/.pry` | On-disk data root (quality, monitors, sessions, x402, …) |
 | `PRY_ENVIRONMENT` | `dev` | `dev` / `staging` / `prod` profile |
@@ -132,17 +133,92 @@ default, or `PRY_SECRET_BACKEND=env|file|auto`.
 | `PRY_BTCPAY_URL` / `_API_KEY` / `_STORE` | unset | BTCPay fallback subscription backend |
 | `PRY_SUBSCRIPTIONS_FILE` | in-memory | JSON persistence path for subscription registry |
 
+### Kill-switches (master toggles)
+
+Read once at app assembly by `src/pry/api/kill_switches.py`. Both default **on**,
+so a fresh install is never accidentally free-to-abuse; a self-hoster opts out.
+
+| Var | Default | Off means |
+|-----|---------|-----------|
+| `PRY_X402_ENABLED` | `true` | `X402Middleware` is never added — no 402 challenge, no facilitator call, no settlement ledger. Startup config validation also skips the payee-wallet checks, so the instance boots with no wallet |
+| `PRY_MCP_ENABLED` | `true` | `/mcp` is never mounted and the MCP tool registry is never imported |
+
+Only an explicit `0` / `false` / `no` / `off` (case-insensitive) turns a switch
+off. Unset means **on**.
+
 ### x402 Gate Auditing
 
 | Var | Default | Purpose |
 |-----|---------|---------|
-| `PRY_X402_AUDIT` | strict | `strict` / `warn` / `off` for the route-classification startup audit |
+| `PRY_X402_AUDIT` | strict | `strict` / `warn` / `off` for the route-classification startup audit. Forced to `off` when `PRY_X402_ENABLED=false` — the audit exists to protect the gate |
+
+---
+
+## Self-host profile
+
+`docker-compose.selfhost.yml` is an **overlay** on `docker-compose.yml`, not a
+replacement. It is the supported way to run Pry on your own box and resolves to
+two services: `pry` and `flaresolverr-pry`.
+
+```bash
+cp .env.selfhost.example .env.selfhost
+./scripts/selfhost-init.sh                                   # generates PRY_API_KEY
+docker compose -f docker-compose.yml -f docker-compose.selfhost.yml \
+  --env-file .env.selfhost up -d
+curl -s http://localhost:8002/health
+```
+
+| Property | Value | Why |
+|---|---|---|
+| Host port | `8002` (`PRY_SELFHOST_PORT` to change) | Port of record; matches the container port and `pry serve` |
+| Datastore | SQLite on the `pry-data` volume | No second stateful service for a single box |
+| x402 | **off** (`PRY_X402_ENABLED=false`) | A self-hoster is not selling to third parties |
+| MCP | **on** (`PRY_MCP_ENABLED=true`) | The agent surface is the main reason to self-host |
+| Postgres / Redis / Prometheus / Grafana | removed | Operator-only infrastructure |
+
+`PRY_ALLOW_SQLITE_PROD=1` is required: the profile runs `PRY_ENVIRONMENT=prod`
+and Pry deliberately refuses embedded SQLite in prod. Single-box self-hosting
+is exactly the case that hatch exists for. **If you add a second replica, move
+to Postgres and drop it** — two writers on one SQLite file is data loss waiting
+to happen.
+
+The overlay uses compose merge tags (`!override`, `!reset`) because compose
+merges rather than replaces several keys:
+
+- `ports` **merge** by default, so the overlay needs `!override` — without it
+  the self-host box also publishes 8005 and steals the operator's port.
+- `env_file` is cleared with `!override` so the base file's absolute operator
+  secrets path is not inherited.
+- `TOR_ENABLED` / `TOR_SOCKS5_HOST` are neutralized because the base enables
+  Tor and this profile deletes the `tor` service.
+- `depends_on` uses `!override` so `pry` waits on `flaresolverr-pry` only.
+
+These are contract-tested in `tests/test_selfhost_compose.py`, which renders the
+merge with the real `docker compose config` rather than parsing YAML by hand.
+
+### Container names (`PRY_CONTAINER_PREFIX`)
+
+Every `container_name` is templated. **Unset or empty renders the existing fleet
+names byte-for-byte** (`pry`, `pry-postgres`, `pry-flaresolverr-pry`), so the
+production deployment is unaffected by the variable existing. Set it to run two
+stacks side by side on one host:
+
+```bash
+PRY_CONTAINER_PREFIX=selfhost- docker compose \
+  -f docker-compose.yml -f docker-compose.selfhost.yml up -d
+# -> selfhost-pry, selfhost-flaresolverr-pry
+```
+
+### MCP
+
+`PRY_MCP_ENABLED=false` does not mount `/mcp` and does not import the MCP tool
+registry. The surface is absent, not merely unauthorized.
 
 ---
 
 ## Deployment
 
-### Docker Compose (recommended)
+### Production Compose (full stack)
 
 ```bash
 export PRY_API_KEY=$(openssl rand -hex 24)
@@ -150,11 +226,14 @@ docker compose up -d        # pry + postgres + redis + flaresolverr (+ tor profi
 curl -s http://localhost:8005/health | jq .status
 ```
 
-- API on **container port 8002** → **host port 8005**.
+- API on **container port 8002** → **host port 8005** in the production profile.
+  8005 is deliberate: this deployment already owns 8002 behind its own proxy.
 - Compose ships hardened defaults: digest-pinned images, non-root container
   user, read-only-rootfs compatible, SIGTERM drain, healthchecks.
 - `Dockerfile.apify` for the Apify Actor platform (no Playwright — the platform
   provides browser rendering).
+
+For self-hosting use the overlay above, not this file.
 
 ### pip / uv
 
@@ -162,7 +241,7 @@ curl -s http://localhost:8005/health | jq .status
 pip install pryscraper-mcp            # PyPI
 # or from source:
 uv sync                                # locked env from uv.lock
-uv run pry serve                       # API on 127.0.0.1:8005
+uv run pry serve                       # API on 127.0.0.1:8002
 python -m playwright install chromium  # required for JS rendering
 ```
 

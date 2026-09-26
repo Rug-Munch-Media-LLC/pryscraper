@@ -11,6 +11,9 @@ secrets*
 .env.*
 !.env.example
 !.env.sample
+# Template for the self-host profile is public source; the generated
+# .env.selfhost (with PRY_API_KEY) stays ignored by the rules above.
+!.env.selfhost.example
 # Python
 __pycache__/
 *.py[cod]
