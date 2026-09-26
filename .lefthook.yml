@@ -255,10 +255,16 @@ pre-push:
       # credentials are not shipped and are not this gate's business; they are
       # covered by .gitignore and by the pre-commit `gitleaks --staged` scan.
       #
-      # Ported from fleet-infra 2f8e821c (2026-09-26). Scan scope only - no rule
-      # is weakened; the same config and therefore the same detections apply, now
-      # limited to the commits actually being pushed.
+      # Scan scope only - no rule is weakened: the same config, therefore the same
+      # detections, now limited to the commits actually being pushed.
+      #
+      # The range is DERIVED, not templated. lefthook v2.1.11 does not substitute
+      # {push_remote_sha}/{push_local_sha} (verified: the string is absent from the
+      # binary and is passed through verbatim), so that form made gitleaks fail to
+      # resolve a revision, scan 0 commits, and exit 0 - i.e. the gate passed
+      # vacuously. Deriving the range in shell cannot have that failure mode.
       run: |
+        set -uo pipefail
         if [ -f .gitleaks.toml ]; then
           CFG=.gitleaks.toml
         elif [ -f ../standards/.gitleaks.toml ]; then
@@ -266,12 +272,25 @@ pre-push:
         else
           CFG=
         fi
-        if [ -n "$CFG" ]; then
-          gitleaks detect \
-            --log-opts="{push_remote_sha}..{push_local_sha}" \
-            --config "$CFG" \
-            -v
+        [ -n "$CFG" ] || exit 0
+
+        REMOTE="${push_remote_name:-origin}"
+        # Every commit reachable from HEAD that no remote-tracking ref has.
+        UNPUSHED="$(git rev-list HEAD --not --remotes="$REMOTE" 2>/dev/null || true)"
+        if [ -z "$UNPUSHED" ]; then
+          echo "gitleaks-full: nothing to scan (no commits ahead of $REMOTE)"
+          exit 0
         fi
+        NEWEST="$(printf '%s\n' "$UNPUSHED" | head -1)"
+        OLDEST="$(printf '%s\n' "$UNPUSHED" | tail -1)"
+        # If the oldest unpushed commit has a parent, start just before it.
+        if git rev-parse --verify --quiet "${OLDEST}^" >/dev/null; then
+          RANGE="${OLDEST}^..${NEWEST}"
+        else
+          RANGE="$NEWEST"
+        fi
+        echo "gitleaks-full: scanning $RANGE (commits ahead of $REMOTE)"
+        gitleaks detect --log-opts="$RANGE" --config "$CFG" -v
 
     # -- Live-secret verification (CRITICAL) -------------------
     trufflehog-verified:
