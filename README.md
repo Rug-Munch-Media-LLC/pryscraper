@@ -310,7 +310,7 @@ add one; that is a configuration gap, not a Pry limitation.
 **The hosted API still charges per call.** Leaving `PRY_X402_ENABLED` unset
 keeps the gate installed, so a keyless agent scraping `api.pryscraper.com`
 gets a 402 and pays per request. That default is deliberate and is pinned by a
-test (`tests/test_selfhost_free_path.py`) — a self-host profile that silently
+test (`tests/selfhost/test_free_path.py`) — a self-host profile that silently
 disabled monetization on the hosted deployment would be a revenue bug.
 
 Two switches, both real, both read once at app assembly

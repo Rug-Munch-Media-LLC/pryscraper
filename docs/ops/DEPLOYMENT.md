@@ -193,7 +193,7 @@ merges rather than replaces several keys:
   Tor and this profile deletes the `tor` service.
 - `depends_on` uses `!override` so `pry` waits on `flaresolverr-pry` only.
 
-These are contract-tested in `tests/test_selfhost_compose.py`, which renders the
+These are contract-tested in `tests/selfhost/`, which renders the
 merge with the real `docker compose config` rather than parsing YAML by hand.
 
 ### Container names (`PRY_CONTAINER_PREFIX`)
