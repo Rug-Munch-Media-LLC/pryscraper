@@ -28,8 +28,10 @@ def _proxy_capability() -> tuple[bool, str, list[str]]:
         manager = ProxyManager()
         if manager.get_proxy_url() and manager.active_config.provider != "free":
             return True, manager.active_config.provider, []
-    except Exception:
-        logger.debug("proxy manager probe failed", exc_info=True)
+    except (ImportError, OSError, RuntimeError, ValueError, AttributeError) as exc:
+        # The probe is best-effort: a broken/unreachable proxy store must not
+        # fail capability detection, it just reports "no proxy" + a hint.
+        logger.debug("proxy manager probe failed: %s", exc, exc_info=True)
     return False, "none", ["set PRY_PROXY_ENABLED=true and PRY_PROXY_URL to route through a proxy"]
 
 
