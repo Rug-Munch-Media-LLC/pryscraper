@@ -242,11 +242,35 @@ pre-push:
 
     # -- Full-repo secret scan (CRITICAL, fast) ----------------
     gitleaks-full:
+      # Scan the PUSH RANGE, not the working tree.
+      #
+      # The previous form was `gitleaks detect --source . --no-git`, which tells
+      # gitleaks to ignore git and treat the whole filesystem as loose files. It
+      # therefore scanned .secrets/, .config/rclone/, node_modules, .git objects
+      # and vendored trees, and reported findings in files that are gitignored by
+      # design and can never be pushed. On any developer machine holding real
+      # local credentials that gate can never pass, so it blocked every push.
+      #
+      # A pre-push gate must check what is being PUSHED. Local gitignored
+      # credentials are not shipped and are not this gate's business; they are
+      # covered by .gitignore and by the pre-commit `gitleaks --staged` scan.
+      #
+      # Ported from fleet-infra 2f8e821c (2026-09-26). Scan scope only - no rule
+      # is weakened; the same config and therefore the same detections apply, now
+      # limited to the commits actually being pushed.
       run: |
         if [ -f .gitleaks.toml ]; then
-          gitleaks detect --source . --no-git --config .gitleaks.toml -v
+          CFG=.gitleaks.toml
         elif [ -f ../standards/.gitleaks.toml ]; then
-          gitleaks detect --source . --no-git --config ../standards/.gitleaks.toml -v
+          CFG=../standards/.gitleaks.toml
+        else
+          CFG=
+        fi
+        if [ -n "$CFG" ]; then
+          gitleaks detect \
+            --log-opts="{push_remote_sha}..{push_local_sha}" \
+            --config "$CFG" \
+            -v
         fi
 
     # -- Live-secret verification (CRITICAL) -------------------
