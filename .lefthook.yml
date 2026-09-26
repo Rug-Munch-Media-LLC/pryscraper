@@ -240,14 +240,99 @@ pre-push:
     methodology-leak:
       run: bash scripts/pre-commit-methodology-check.sh
 
-    # -- Full-repo secret scan (CRITICAL, fast) ----------------
+    # -- Full-history secret scan (UNIVERSAL) ----------------
+    # Uses per-repo .gitleaks.toml (supports repo-specific allowlists);
+    # falls back to canonical standards config.
     gitleaks-full:
+      # Scan the PUSH RANGE, not the working tree.
+      #
+      # The previous form was `gitleaks detect --source . --no-git`, which tells
+      # gitleaks to ignore git and treat the whole filesystem as loose files. It
+      # therefore scanned .secrets/, .config/rclone/, node_modules, .git objects
+      # and vendored trees, and reported 63 findings that could never be pushed -
+      # 16 of them in files that are gitignored by design. On any developer
+      # machine holding real local credentials that gate can never pass, so it
+      # blocked every push in the fleet.
+      #
+      # A pre-push gate must check what is being PUSHED. Local gitignored
+      # credentials are not shipped and are not this gate's business.
+      #
+      # The range MUST be derived in the shell. lefthook 2.1.11 does not
+      # substitute {push_remote_sha} / {push_local_sha} - the strings are absent
+      # from the binary (only {push_files} exists). The literals reached gitleaks
+      # as a revision range, it logged "fatal: ambiguous argument", scanned 0
+      # commits and exited 0: a gate that could never fail. Never reintroduce a
+      # template tag here. Scan scope only - no rule is weakened.
       run: |
         if [ -f .gitleaks.toml ]; then
-          gitleaks detect --source . --no-git --config .gitleaks.toml -v
+          CFG=.gitleaks.toml
         elif [ -f ../standards/.gitleaks.toml ]; then
-          gitleaks detect --source . --no-git --config ../standards/.gitleaks.toml -v
+          CFG=../standards/.gitleaks.toml
+        else
+          echo "gitleaks-full: no .gitleaks.toml found; nothing to scan"
+          exit 0
         fi
+
+        # Remote this push is actually going to. lefthook passes the pre-push
+        # remote name as $1; fall back to origin, then to the first remote.
+        REMOTE=""
+        for CAND in "${1:-}" origin; do
+          if [ -n "$CAND" ] && git remote get-url "$CAND" >/dev/null 2>&1; then
+            REMOTE="$CAND"
+            break
+          fi
+        done
+        if [ -z "$REMOTE" ]; then
+          REMOTE=$(git remote | head -1)
+        fi
+
+        # Range start = merge base with the remote-tracking ref this push
+        # updates. Do NOT use `git rev-list HEAD --not --remotes | tail -1`:
+        # when exactly one commit is ahead it returns that commit itself, so
+        # "sha..HEAD" is empty, gitleaks then treats the single revision as
+        # "all reachable" and scans the whole history.
+        BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        BASE=""
+        if [ -n "$REMOTE" ] && [ -n "$BRANCH" ]; then
+          RT="refs/remotes/$REMOTE/$BRANCH"
+          if git rev-parse --verify -q "$RT" >/dev/null 2>&1; then
+            BASE=$(git merge-base HEAD "$RT" 2>/dev/null || echo "")
+          fi
+        fi
+        if [ -z "$BASE" ]; then
+          # No remote-tracking ref (first push of this branch): fall back to
+          # the parent of HEAD so at least the tip commit is always scanned.
+          BASE=$(git rev-parse --verify -q HEAD~1 2>/dev/null || echo "")
+        fi
+        if [ -n "$BASE" ]; then
+          RANGE="$BASE..HEAD"
+        else
+          RANGE="HEAD~1..HEAD"
+        fi
+
+        # Fail closed on a degenerate range: a range that resolves to no commit
+        # makes gitleaks scan 0 commits and pass unconditionally. Fall back to
+        # the newest commit (covers a single-commit repo where HEAD~1 is
+        # unknown); only an empty repo is a legitimate nothing-to-scan.
+        if [ "$(git rev-list --count "$RANGE" 2>/dev/null || echo 0)" -lt 1 ]; then
+          RANGE=$(git rev-list --max-count=1 HEAD)
+        fi
+        if [ -z "$RANGE" ]; then
+          echo "gitleaks-full: no commits to scan"
+          exit 0
+        fi
+
+        LOG=$(mktemp)
+        RC=0
+        gitleaks detect --log-opts="$RANGE" --config "$CFG" -v >"$LOG" 2>&1 || RC=$?
+        cat "$LOG"
+        SCANNED=$(sed -n 's/.*\([0-9][0-9]*\) commits scanned.*/\1/p' "$LOG" | tail -1)
+        rm -f "$LOG"
+        if [ -n "$SCANNED" ] && [ "$SCANNED" -lt 1 ]; then
+          echo "gitleaks-full: range $RANGE resolved but gitleaks scanned 0 commits - refusing to pass a vacuous gate" >&2
+          exit 1
+        fi
+        exit "$RC"
 
     # -- Live-secret verification (CRITICAL) -------------------
     trufflehog-verified:

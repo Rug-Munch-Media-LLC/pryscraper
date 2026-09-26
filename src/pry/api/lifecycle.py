@@ -54,9 +54,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # x402 route-classification audit (fail-closed gate).
     # PRY_X402_AUDIT: strict (default) = raise on unclassified routes;
     # warn = log critical but boot; off = skip entirely.
+    #
+    # The audit exists to protect the payment gate, so it is meaningless when
+    # that gate is not installed. PRY_X402_ENABLED=false (the self-host
+    # default) must not fail boot over paid/free classification — a self-hoster
+    # with no payee has no gate to misconfigure.
+    from pry.api.kill_switches import X402_ENABLED
     from pry.payments.x402_middleware import audit_route_classification
 
     _audit_mode = os.getenv("PRY_X402_AUDIT", "strict").strip().lower()
+    if not X402_ENABLED:
+        _audit_mode = "off"
+        logger.info("x402_disabled_audit_skipped", reason="PRY_X402_ENABLED=false")
     if _audit_mode != "off":
         _unclassified = audit_route_classification(app)
         if _unclassified:

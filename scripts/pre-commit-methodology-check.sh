@@ -61,7 +61,12 @@ FORBIDDEN_PATTERNS=(
     '/var/www/[a-z0-9_-]+'
 
     # Bare internal-hostname shapes. Deliberately does NOT list our hosts.
-    '[a-z0-9-]+\.(internal|intranet|corp|lan)\b'
+    # Multi-label only ("foo.internal", "sub.foo.internal", "http://x.internal")
+    # and the label before the TLD must not be part of a dotted identifier
+    # chain — otherwise a Python module import such as
+    # `from pry.payments.x402_middleware.internal import ...` false-positives
+    # on the module's own filename (audit 2026-09-26).
+    '(^|[^a-z0-9_.])(([a-z0-9-]+)\.)+(internal|intranet|corp|lan)\b'
 
     # Methodology keywords (high-signal, generic).
     'proprietary.*algorithm'

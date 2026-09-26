@@ -11,10 +11,15 @@
 #   * Postgres + Redis for production persistence
 #   * Prometheus + Grafana for observability
 #   * FlareSolverr and Tor are helper services (Tor behind the `tor` profile)
+#   * every container_name is `${PRY_CONTAINER_PREFIX:-…}` so an operator
+#     running a second stack (e.g. the self-host overlay) alongside this one
+#     can namespace the names with PRY_CONTAINER_PREFIX. The DEFAULT renders
+#     the current fleet names byte-for-byte (`pry`, `pry-postgres`, …), so the
+#     Talos deployment is unaffected by the variable existing at all.
 services:
   pry:
     build: .
-    container_name: pry
+    container_name: ${PRY_CONTAINER_PREFIX-}pry
     restart: unless-stopped
     init: true
     stop_grace_period: 35s
@@ -42,6 +47,9 @@ services:
       - PRY_TIMEOUT=60
       # PRY_API_KEY intentionally NOT listed here: any `environment:` entry
       # shadows the env_file value; it is supplied solely by env_file.
+      # PRY_INTERNAL_TOKEN (first-party free path, x402_middleware/internal.py)
+      # is supplied the SAME way — an `environment:` entry would shadow it
+      # with an empty value and silently fail the internal path closed.
       - PRY_DATA_DIR=/app/pry-data
       # PRY_ADMIN_PATH (stable admin surface prefix) comes from env_file —
       # an `environment:` entry here would shadow it with an empty value.
@@ -125,7 +133,7 @@ services:
 
   flaresolverr-pry:
     image: ghcr.io/flaresolverr/flaresolverr:v3.3.21
-    container_name: pry-flaresolverr-pry
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}flaresolverr-pry
     restart: unless-stopped
     init: true
     # Dedicated to Pry: degenfeed saturates the shared instance (queue 40+),
@@ -144,7 +152,7 @@ services:
       start_period: 45s
   postgres:
     image: postgres:16.4-alpine
-    container_name: pry-postgres
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}postgres
     restart: unless-stopped
     init: true
     ports:
@@ -172,7 +180,7 @@ services:
 
   redis:
     image: redis:7.4.1-alpine
-    container_name: pry-redis
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}redis
     restart: unless-stopped
     init: true
     ports:
@@ -197,7 +205,7 @@ services:
 
   prometheus:
     image: prom/prometheus:v2.54.0
-    container_name: pry-prometheus
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}prometheus
     restart: unless-stopped
     init: true
     ports:
@@ -228,7 +236,7 @@ services:
 
   grafana:
     image: grafana/grafana:11.1.0
-    container_name: pry-grafana
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}grafana
     restart: unless-stopped
     init: true
     ports:
@@ -262,7 +270,7 @@ services:
 
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:v3.3.21
-    container_name: pry-flaresolverr
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}flaresolverr
     restart: unless-stopped
     init: true
     ports:
@@ -288,7 +296,7 @@ services:
 
   tor:
     image: dperson/torproxy:latest
-    container_name: pry-tor
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}tor
     restart: unless-stopped
     init: true
     deploy:
@@ -301,7 +309,7 @@ services:
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.15.0
-    container_name: pry-postgres-exporter
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}postgres-exporter
     restart: unless-stopped
     init: true
     environment:
@@ -317,7 +325,7 @@ services:
 
   redis-exporter:
     image: oliver006/redis_exporter:v1.61.0
-    container_name: pry-redis-exporter
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}redis-exporter
     restart: unless-stopped
     init: true
     environment:
@@ -333,7 +341,7 @@ services:
 
   blackbox-exporter:
     image: prom/blackbox-exporter:v0.25.0
-    container_name: pry-blackbox-exporter
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}blackbox-exporter
     restart: unless-stopped
     init: true
     volumes:
@@ -355,7 +363,7 @@ services:
   # service environment (see .env.example) and starting the stack.
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.108.0
-    container_name: pry-otel-collector
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}otel-collector
     restart: unless-stopped
     init: true
     command:
@@ -379,7 +387,7 @@ services:
 
   jaeger:
     image: jaegertracing/all-in-one:1.62.0
-    container_name: pry-jaeger
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}jaeger
     restart: unless-stopped
     init: true
     ports:

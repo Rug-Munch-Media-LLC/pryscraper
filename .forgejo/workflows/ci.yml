@@ -83,7 +83,7 @@ jobs:
             --exclude='actor_factory/' \
             --sarif-output=semgrep.sarif \
             .
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5.0.0
         with:
           name: semgrep-report
           path: semgrep.sarif
@@ -307,7 +307,7 @@ jobs:
           echo "Pages built: $(find build -name '*.html' | wc -l)"
 
       - name: Upload site artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5.0.0
         with:
           name: docs-site
           path: website/build
@@ -421,7 +421,7 @@ jobs:
       - name: Bandit (high+medium severity)
         run: source /tmp/bandit-venv/bin/activate && bandit -r . -x './tests/*,./.venv/*,./__pycache__/*' -ll -f json -o bandit-report.json
       - name: Upload report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5.0.0
         with:
           name: bandit-report
           path: bandit-report.json
@@ -508,7 +508,7 @@ jobs:
         run: |
           trivy config --severity CRITICAL,HIGH \
             --format sarif --output trivy-config.sarif .
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5.0.0
         if: always()
         with:
           name: trivy-results
@@ -585,7 +585,7 @@ jobs:
           k6 run tests/k6/smoke.js \
             -e BASE_URL=${{ vars.K6_TARGET_URL || 'https://api.pryscraper.com' }} \
             --summary-export=tests/k6/results/smoke-summary.json
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5.0.0
         if: always()
         with:
           name: k6-smoke-report
@@ -615,11 +615,12 @@ jobs:
           source .venv/bin/activate
           HYPOTHESIS_PROFILE=ci python -m pytest tests/fuzz/ -v --tb=short || echo "Fuzz tests noted (non-blocking)"
         continue-on-error: true
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5.0.0
         if: always()
         with:
           name: fuzz-results
           path: .hypothesis/
+          include-hidden-files: true
 
   contract-test:
     runs-on: docker-x64
@@ -645,7 +646,7 @@ jobs:
           source .venv/bin/activate
           python -m pytest tests/contract/ -v --tb=short
       - name: Upload pact files
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5.0.0
         if: always()
         with:
           name: pacts
@@ -676,7 +677,7 @@ jobs:
             echo "❌ SBOM file not generated"
             exit 1
           fi
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v5.0.0
         with:
           name: sbom
           path: sbom.spdx.json
@@ -779,7 +780,7 @@ jobs:
           fi
         continue-on-error: true
       - name: Upload OCR report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5.0.0
         with:
           name: ocr-review-report
           path: |
@@ -871,7 +872,7 @@ jobs:
           PY
         # Report upload stays non-blocking; the gate above is the blocking step.
       - name: Upload report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5.0.0
         with:
           name: mutmut-report
           path: mutmut-report.txt

@@ -39,7 +39,7 @@ jobs:
           publish_results: true
 
       - name: Upload scorecard artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5.0.0
         with:
           name: scorecard-results
           path: scorecard-results.json

@@ -1,0 +1,160 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+#
+# SELF-HOST overlay — the two-container "just works" Pry.
+#
+#   cp .env.selfhost.example .env.selfhost
+#   ./scripts/selfhost-init.sh          # generates PRY_API_KEY into .env.selfhost
+#   docker compose -f docker-compose.yml -f docker-compose.selfhost.yml --env-file .env.selfhost up -d
+#   curl -s http://localhost:8002/health
+#
+# This file MERGES over docker-compose.yml. It is an override, not a
+# replacement: every key it does not mention is inherited. The `!reset`
+# directives below are the compose-spec way to drop an inherited scalar or
+# sequence — that is how the self-host profile sheds Postgres, Redis,
+# Prometheus and Grafana without editing the production file.
+#
+# Design decisions (see docs/ops/DEPLOYMENT.md "Self-host profile"):
+#
+#   PORT OF RECORD — 8002. The container listens on 8002 and the self-host
+#   profile publishes 8002:8002. Talos (the hosted/priced deployment) keeps
+#   8005 on the host and that is a deliberate difference, not a drift bug:
+#   8005 is the operator's production port and must not be stolen by a
+#   self-host stack running on the same machine. Self-hosters get the
+#   documented default from the README/`pry serve` path.
+#
+#   STORAGE — SQLite on the pry-data volume. No Postgres container. A single
+#   self-host box does not need a second stateful service, and SQLite is what
+#   Pry uses in dev by default. PRY_ALLOW_SQLITE_PROD=1 is required because
+#   the profile is `prod`; without it Pry deliberately refuses SQLite.
+#
+#   x402 — OFF (PRY_X402_ENABLED=false). A self-hoster is not selling
+#   scraping to third parties, so there is no payee wallet, no facilitator,
+#   no gas payer and no settlement ledger. See the "Who pays?" section of
+#   README.md: hosted callers pay per call, self-hosted callers pay with
+#   their own infrastructure. The switch is read by
+#   pry.api.kill_switches at app assembly — the middleware is never built.
+#
+#   MCP — ON (default). The free MCP surface is the main reason to self-host;
+#   turning it off would leave a plain scraping API.
+#
+#   FIRESOLVERR — a dedicated instance, because the anti-bot ladder's browser
+#   tier saturates a shared one. Only flaresolverr-pry and pry run here.
+#
+#   SECRETS — PRY_API_KEY is generated into .env.selfhost (git-ignored) by
+#   scripts/selfhost-init.sh. There is NO gopass requirement and no reference
+#   to any fleet path, so the profile runs on a laptop.
+services:
+  # ── pry: the API ────────────────────────────────────────────────────
+  pry:
+    container_name: ${PRY_CONTAINER_PREFIX-}pry  # same value as base
+    restart: unless-stopped
+    # Host publish 8002 (self-host port of record) -> container 8002.
+    # Base maps 8005:8002 for the operator deployment. `!override` is required:
+    # compose MERGES `ports` sequences by default, which would publish BOTH
+    # 8005 and 8002 and steal the operator's production port on a shared host.
+    ports: !override
+      - "127.0.0.1:${PRY_SELFHOST_PORT:-8002}:8002"
+    # No fleet secrets file. `!override` (not `!reset`) because the base points
+    # at an absolute operator path (/srv/rmi-infra/.env.pry) that does not
+    # exist on a self-host box — compose would fail to load, or worse, silently
+    # pick up a stray file. PRY_API_KEY comes from .env.selfhost instead.
+    env_file: !override []
+    volumes:
+      - pry-data:/app/pry-data
+      - pry-sessions:/app/sessions
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PRY_ENVIRONMENT=prod
+      - PRY_HOST=0.0.0.0
+      - PRY_PORT=8002
+      - PRY_URL=http://localhost:${PRY_SELFHOST_PORT:-8002}
+      - PRY_TIMEOUT=60
+      - PRY_DATA_DIR=/app/pry-data
+      - PRY_CONFIG_FILE=/app/pry-data/config.json
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+      - HOME=/app/pry-data/home
+      - TMPDIR=/app/pry-data/tmp
+      - PYTHONDONTWRITEBYTECODE=1
+      # Both switches are REAL (read by pry.api.kill_switches at assembly).
+      - PRY_X402_ENABLED=false
+      - PRY_MCP_ENABLED=true
+      # No payee wallet, no facilitator, no gas payer in the self-host profile.
+      - PRY_X402_WALLET=
+      - PRY_X402_SELF_FACILITATE=0
+      - PRY_X402_FACILITATOR_RPC=
+      - PRY_X402_FACILITATOR_KEY=
+      # ── Storage: embedded SQLite on the data volume ──
+      - PRY_DATABASE_URL=sqlite:////app/pry-data/pry.db
+      - PRY_ALLOW_SQLITE_PROD=1
+      # No Redis container in this profile: the rate limiter degrades to a
+      # per-process token bucket, which is correct for a single-replica box.
+      - PRY_REDIS_URL=
+      # SQLite needs no alembic round-trip; init_db() creates the schema.
+      - PRY_SKIP_MIGRATIONS=1
+      # Scraper defaults (no proxy / no Tor sidecar in this profile).
+      # The base file enables Tor and points at the `tor` service; this
+      # profile resets that service, so the vars MUST be neutralized here or
+      # the ladder would try to dial a SOCKS5 proxy that does not exist and
+      # fail every scrape with a connect timeout.
+      - TOR_ENABLED=0
+      - TOR_SOCKS5_HOST=
+      - TOR_SOCKS5_PORT=
+      - PROXY_URL=
+      - PROXY_TYPE=http
+      - IP_ROTATION=off
+      - MAX_RETRIES=3
+      - MIN_QUALITY=20
+      - RATE_LIMIT_RPM=120
+      - PRY_FLARESOLVERR_URL=http://flaresolverr-pry:8191/v1
+      - PRY_TRUSTED_PROXIES=172.16.0.0/12,127.0.0.1,::1
+    # The base file's own flaresolverr is not part of this profile.
+    depends_on: !override
+      flaresolverr-pry:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: ${PRY_SELFHOST_MEMORY:-2G}
+          cpus: "2"
+        reservations:
+          memory: 512M
+          cpus: "0.5"
+
+  # ── flaresolverr-pry: the anti-bot browser tier ─────────────────────
+  flaresolverr-pry:
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}flaresolverr-pry
+    restart: unless-stopped
+    # The base file publishes 8192 for the operator's second instance; the
+    # self-host profile does not need a second browser, so it is not exposed.
+    ports: !reset []
+    mem_limit: 1500m
+    cpus: 1.5
+
+  # ── Everything below is operator-only; drop it from the self-host run ──
+  # `!reset null` removes the whole service, which is what keeps a self-host
+  # box from booting Postgres, Redis, Prometheus, Grafana, two extra
+  # FlareSolverr instances and the OTEL/Jaeger pair.
+  postgres: !reset null
+  redis: !reset null
+  prometheus: !reset null
+  grafana: !reset null
+  flaresolverr: !reset null
+  postgres-exporter: !reset null
+  redis-exporter: !reset null
+  blackbox-exporter: !reset null
+  otel-collector: !reset null
+  jaeger: !reset null
+  # `tor` is profile-gated in the base file and is not started without
+  # `--profile tor`; it is reset here so the profile cannot be added by
+  # accident to a self-host box.
+  tor: !reset null
+
+volumes:
+  # The self-host profile persists data and sessions only.
+  pry-redis: !reset null
+  pry-postgres: !reset null
+  prometheus-data: !reset null
+  grafana-data: !reset null
