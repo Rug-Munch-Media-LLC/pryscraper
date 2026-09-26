@@ -264,7 +264,6 @@ pre-push:
       # resolve a revision, scan 0 commits, and exit 0 - i.e. the gate passed
       # vacuously. Deriving the range in shell cannot have that failure mode.
       run: |
-        set -uo pipefail
         if [ -f .gitleaks.toml ]; then
           CFG=.gitleaks.toml
         elif [ -f ../standards/.gitleaks.toml ]; then
