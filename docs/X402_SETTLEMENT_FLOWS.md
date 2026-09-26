@@ -73,11 +73,12 @@ Webhook failures never affect the settlement result itself.
 
 ## Self-hosted (owner) access vs x402 revenue
 
-Two surfaces, one gate:
+Three surfaces, one gate:
 
 | Caller | Credential | Payment | Result |
 |---|---|---|---|
 | Our CLI / MCP server / internal services | `PRY_API_KEY` as `Authorization: Bearer …` or `X-API-Key: …` | **none** | 200 — owner bypass |
+| First-party jobs (e.g. `rmi-rag-x-ingest`) | `X-Internal-Token` + `X-Internal-Signature` HMAC | **none** | 200 — internal bypass |
 | External / anonymous agents | x402 payment headers | required | 402 challenge until settled |
 
 The owner bypass lives in `src/pry/payments/x402_middleware/owner.py` and is applied in
@@ -89,6 +90,38 @@ layer already accepts for verified payments (a bool crashes `middleware_auth` wi
 Regression cover: `tests/x402/test_owner_bypass.py` (credential parsing) and
 `tests/x402/test_owner_gate_middleware.py` (gate-level: owner reaches the app, anonymous
 still gets 402). CI runs `pytest tests/`, so losing owner access fails the build.
+
+## First-party (internal) free path
+
+Policy: external customers pay x402; **we do not bill ourselves**. First-party
+services present `X-Internal-Token: <PRY_INTERNAL_TOKEN>` plus
+`X-Internal-Signature`, an HMAC-SHA256 over the request fingerprint:
+
+```
+message = f"{METHOD}\n{path}\n{caller}"      # caller = resolved client IP
+signature = hex(hmac_sha256(PRY_INTERNAL_TOKEN, message))
+```
+
+`src/pry/payments/x402_middleware/internal.py` exports `internal_signature()` so a
+caller can produce the value with the stdlib and no SDK.
+
+| Property | Behaviour |
+|---|---|
+| `PRY_INTERNAL_TOKEN` unset | **Fail closed** — the check is inert, external traffic still pays |
+| Token valid, signature missing/invalid | 402 challenge (token alone is not a credential) |
+| Signature issued for another path/method/caller | 402 — a captured signature is not replayable |
+| Comparison | `hmac.compare_digest` (constant time) |
+
+The branch sits in `enforcement.py` immediately **after** the owner branch and
+**before** `_is_free`, so it never reorders the free/paid classification.
+
+**Deployment**: supply `PRY_INTERNAL_TOKEN` through `env_file`
+(`/srv/rmi-infra/.env.pry`) — **never** through the `environment:` block, which
+shadows `env_file` and would silently blank the value (same trap as `PRY_API_KEY`).
+
+Regression cover: `tests/x402/test_internal_gate_middleware.py` — internal token passes,
+missing/invalid token 402s, unset token fails closed, owner key still passes, and
+external anonymous traffic still gets 402.
 
 ### Deploying (docker compose, as documented)
 

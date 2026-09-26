@@ -33,6 +33,10 @@ from pry.payments.x402_middleware.enforcement_verify import (
     _decode_presented_payment_required,  # noqa: F401
     _verify_presented_attestation,
 )
+from pry.payments.x402_middleware.internal import (
+    internal_request,
+    mark_internal_verified,
+)
 from pry.payments.x402_middleware.owner import mark_owner_verified, owner_request
 
 logger = logging.getLogger(__name__)
@@ -112,6 +116,14 @@ class X402Middleware:
         headers = dict(scope.get("headers", []))
         if owner_request(headers):
             mark_owner_verified(scope)
+            await self.app(scope, receive, send)
+            return
+        # First-party services (rmi-rag-x-ingest, internal jobs) present
+        # X-Internal-Token + a bound HMAC and must not be charged — we do not
+        # bill ourselves. FAIL CLOSED: with PRY_INTERNAL_TOKEN unset the check
+        # is inert, so external traffic keeps paying (see internal.py).
+        if internal_request(scope, headers):
+            mark_internal_verified(scope)
             await self.app(scope, receive, send)
             return
         if self._is_free(path):
