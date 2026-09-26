@@ -34,6 +34,7 @@ from pry.core.errors import InvalidRequestError
 from pry.core.observability import SCRAPE_LATENCY, span
 from pry.engine.circuit_breaker import BREAKER_FOR_TIER, domain_semaphore
 from pry.engine.retry import RetryConfig, async_retry
+from pry.engine.tier_cost import tier_cost
 from pry.engine.tiers import TierMixin
 from pry.engine.tiers_base import _us_flag
 from pry.engine.url_guard import validate_url
@@ -134,6 +135,8 @@ class ScrapeOrchestrator(TierMixin):
         scrape_start = time.time()
         attempts: list[dict[str, Any]] = []
         latest_signal: dict[str, Any] | None = None
+        # Resolved before the premium attempt so that rung is learnable too.
+        registry = _us_flag("registry")
 
         # Tier 0: Premium proxy — only first if the caller explicitly asks.
         # Default is False: paid proxy is a LAST resort, tried after Tor.
@@ -148,6 +151,7 @@ class ScrapeOrchestrator(TierMixin):
                 attempts=attempts,
                 errors=errors,
                 latest_signal=latest_signal,
+                registry=registry,
             )
             if premium_result is not None:
                 return premium_result
@@ -161,7 +165,6 @@ class ScrapeOrchestrator(TierMixin):
         # front and demote/skip tiers that have been failing recently. Each
         # domain gets an intelligent, self-improving fallback chain.
         name_to_fn = dict(tier_order)
-        registry = _us_flag("registry")
         ordered_names = registry.reorder_for_domain(domain, [name for name, _ in tier_order])
         tier_order = [(name, name_to_fn[name]) for name in ordered_names]
 
@@ -192,13 +195,21 @@ class ScrapeOrchestrator(TierMixin):
                     # and the chain escalates to the preferred tier family.
                     signal = self._detect_block_signal(html)
                     success = bool(html and self._is_valid(html))
+                    block_kind = ""
                     if signal is not None and signal.kind != "none":
                         latest_signal = self._signal_to_dict(signal)
                         self._promote_preferred_tiers(tier_order, i, signal.kind)
                         success = False
+                        block_kind = signal.kind
 
                     self._record_tier_outcome(
-                        registry, breaker_name, domain, tier_name, success, latency
+                        registry,
+                        breaker_name,
+                        domain,
+                        tier_name,
+                        success,
+                        latency,
+                        block_kind=block_kind,
                     )
 
                     if success:
@@ -380,9 +391,24 @@ class ScrapeOrchestrator(TierMixin):
         tier_name: str,
         success: bool,
         latency: float,
+        *,
+        block_kind: str = "",
     ) -> None:
-        """Feed one tier outcome to the registry + latency metric."""
-        registry.record_domain_tier_result(domain, tier_name, success, latency)
+        """Feed one tier outcome to the registry + latency metric.
+
+        ``block_kind`` and the tier's marginal cost are recorded alongside
+        the success flag so the learned ranking can tell "this method does
+        not work here" from "this method works but costs 40x more", and can
+        remember what the wall actually looked like.
+        """
+        registry.record_domain_tier_result(
+            domain,
+            tier_name,
+            success,
+            latency,
+            cost_usd=tier_cost(tier_name),
+            block_kind=block_kind,
+        )
         if breaker_name:
             registry.record_service_result(breaker_name, success)
         if SCRAPE_LATENCY:
@@ -445,6 +471,7 @@ class ScrapeOrchestrator(TierMixin):
         attempts: list[dict[str, Any]],
         errors: list[str],
         latest_signal: dict[str, Any] | None,
+        registry: Any = None,
     ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
         """Run the premium-proxy-first attempt when the caller requested it.
 
@@ -456,9 +483,24 @@ class ScrapeOrchestrator(TierMixin):
         latency = time.time() - start
         signal = self._detect_block_signal(html)
         success = bool(html and self._is_valid(html))
+        block_kind = ""
         if signal is not None and signal.kind != "none":
             latest_signal = self._signal_to_dict(signal)
             success = False
+            block_kind = signal.kind
+        # The paid rung must be learnable too: without this the most
+        # expensive tier in the ladder has no memory at all and the ranking
+        # can neither promote it when it works nor demote it when it fails.
+        if registry is not None:
+            self._record_tier_outcome(
+                registry,
+                None,
+                domain,
+                "premium_proxy",
+                success,
+                latency,
+                block_kind=block_kind,
+            )
         if success:
             assert isinstance(html, str)
             attempts.append(

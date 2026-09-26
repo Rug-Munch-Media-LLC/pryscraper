@@ -51,6 +51,9 @@ services:
       # is supplied the SAME way — an `environment:` entry would shadow it
       # with an empty value and silently fail the internal path closed.
       - PRY_DATA_DIR=/app/pry-data
+      # Persist learned per-domain tier memory across restarts. Without this
+      # the method memory is process-local and every restart re-learns from zero.
+      - PRY_RESILIENCE_PERSIST=1
       # PRY_ADMIN_PATH (stable admin surface prefix) comes from env_file —
       # an `environment:` entry here would shadow it with an empty value.
       # Trust the host nginx proxy (docker bridge gateway) for X-Forwarded-For

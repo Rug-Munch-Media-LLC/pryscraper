@@ -452,9 +452,20 @@ class ResilienceRegistry:
         self._dirty = True
 
     def record_domain_tier_result(
-        self, domain: str, tier: str, success: bool, latency: float = 0.0
+        self,
+        domain: str,
+        tier: str,
+        success: bool,
+        latency: float = 0.0,
+        *,
+        cost_usd: float = 0.0,
+        block_kind: str = "",
     ) -> None:
-        self.domain_memory.record(domain, tier, success, latency)
+        """Record one tier outcome. The new fields are keyword-only with
+        defaults so every existing caller keeps working unchanged."""
+        self.domain_memory.record(
+            domain, tier, success, latency, cost_usd=cost_usd, block_kind=block_kind
+        )
         self._dirty = True
         self._maybe_save()
 
