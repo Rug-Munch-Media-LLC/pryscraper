@@ -28,6 +28,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar
 
+from pry.engine import tier_score
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_FAILURE_THRESHOLD = 5
@@ -150,20 +152,24 @@ class TierRecord:
     last_success_at: float = 0.0
     last_failure_at: float = 0.0
     total_latency: float = 0.0
+    # Accumulated cost in USD across every recorded attempt for this tier.
+    # Pry owns the whole ladder, so the marginal cost of a tier is a real
+    # input to the ranking (see engine/tier_score.cost_penalty) — the
+    # per-page x402 price cannot express it.
+    cost_usd: float = 0.0
+    # Last BlockSignal.kind seen for this tier (cloudflare, captcha,
+    # js_required, rate_limited, access_denied). Kept for diagnostics and
+    # future affinity rules; never treated as success.
+    last_block_kind: str = ""
 
     @property
     def score(self) -> float:
-        """Higher score = more preferred. Balances success rate and recency."""
-        total = self.successes + self.failures
-        if total == 0:
-            return 0.0
-        success_rate = self.successes / total
-        # Recency bonus: 1.0 if succeeded in last 5 minutes, decaying.
-        recency = 0.0
-        if self.last_success_at > 0:
-            age = time.time() - self.last_success_at
-            recency = max(0.0, 1.0 - age / DOMAIN_MEMORY_MAX_AGE_SECONDS)
-        return success_rate + recency * 0.5
+        """Learned utility. Higher = more preferred.
+
+        Delegates to :func:`pry.engine.tier_score.utility` so this property,
+        ``best_tier`` and ``reorder_for_domain`` can never rank differently.
+        """
+        return tier_score.utility(self, time.time())
 
 
 @dataclass
@@ -172,7 +178,23 @@ class DomainTierMemory:
 
     data: dict[str, dict[str, TierRecord]] = field(default_factory=lambda: defaultdict(dict))
 
-    def record(self, domain: str, tier: str, success: bool, latency: float = 0.0) -> None:
+    def record(
+        self,
+        domain: str,
+        tier: str,
+        success: bool,
+        latency: float = 0.0,
+        *,
+        cost_usd: float = 0.0,
+        block_kind: str = "",
+    ) -> None:
+        """Record one tier outcome for ``domain``.
+
+        ``cost_usd`` and ``block_kind`` are optional so existing call sites
+        keep working; both feed the cost-aware ranking in
+        :mod:`pry.engine.tier_score`. A blocked attempt must be recorded
+        with ``success=False`` — callers already enforce that.
+        """
         rec = self.data[domain].setdefault(tier, TierRecord())
         if success:
             rec.successes += 1
@@ -180,25 +202,38 @@ class DomainTierMemory:
         else:
             rec.failures += 1
             rec.last_failure_at = time.time()
+            if block_kind:
+                rec.last_block_kind = block_kind
         rec.total_latency += latency
+        rec.cost_usd += cost_usd
 
     def best_tier(self, domain: str, candidates: list[str]) -> str | None:
+        """The tier a scrape should try first, or ``None`` if unproven.
+
+        Derived from :func:`tier_score.rank_tiers` — the same primitive
+        :meth:`reorder_for_domain` uses — so the two readers agree by
+        construction instead of by convention.
+
+        One deliberate difference: a tier that failed inside the cooldown
+        window is *demoted* by ``reorder_for_domain`` (still reachable at the
+        back of the ladder) but is never *recommended* here. A caller asking
+        "what should I try?" must not be handed something that just failed,
+        so the cooled tail is skipped. ``None`` means nothing in
+        ``candidates`` is both proven and not cooling down.
+        """
         records = self.data.get(domain, {})
         if not records:
             return None
-        # Only consider tiers with at least one success and no recent failures.
         now = time.time()
-        eligible = [
-            (tier, rec)
-            for tier, rec in records.items()
-            if rec.successes > 0
-            and (rec.last_failure_at == 0 or now - rec.last_failure_at > 300)
-            and tier in candidates
-        ]
-        if not eligible:
-            return None
-        eligible.sort(key=lambda item: item[1].score, reverse=True)
-        return eligible[0][0]
+        cooldown = DOMAIN_TIER_COOLDOWN_SECONDS
+        for tier in self.reorder_for_domain(domain, candidates):
+            rec = records.get(tier)
+            if rec is None or rec.successes == 0:
+                continue
+            if rec.last_failure_at > 0 and now - rec.last_failure_at < cooldown:
+                continue
+            return tier
+        return None
 
     def reorder_for_domain(
         self,
@@ -223,35 +258,13 @@ class DomainTierMemory:
         Never returns an empty list: if every candidate would be skipped the
         static order is returned so the scraper always has something to try.
         """
-        records = self.data.get(domain, {})
-        if not records:
-            return list(candidates)
-
-        now = time.time()
-        static_index = {tier: i for i, tier in enumerate(candidates)}
-
-        promoted: list[tuple[str, float, int]] = []  # (tier, score, static idx)
-        cooldown: list[tuple[str, int]] = []  # recent failure -> back of chain
-        for tier in candidates:
-            rec = records.get(tier)
-            if rec is None:
-                promoted.append((tier, 0.0, static_index[tier]))
-                continue
-            total = rec.successes + rec.failures
-            if total >= DOMAIN_FAILURE_SKIP_MIN_SAMPLES:
-                rate = rec.successes / total
-                if rate < DOMAIN_FAILURE_SKIP_RATE:
-                    # Chronic failure: skip this tier for the domain.
-                    continue
-            if rec.last_failure_at > 0 and now - rec.last_failure_at < cooldown_seconds:
-                cooldown.append((tier, static_index[tier]))
-                continue
-            promoted.append((tier, rec.score, static_index[tier]))
-
-        promoted.sort(key=lambda item: (-item[1], item[2]))
-        cooldown.sort(key=lambda item: item[1])
-        ordered = [tier for tier, _, _ in promoted] + [tier for tier, _ in cooldown]
-        return ordered or list(candidates)
+        return tier_score.rank_tiers(
+            candidates,
+            self.data.get(domain, {}),
+            skip_min_samples=DOMAIN_FAILURE_SKIP_MIN_SAMPLES,
+            skip_rate=DOMAIN_FAILURE_SKIP_RATE,
+            cooldown_seconds=cooldown_seconds,
+        )
 
     def to_dict(self) -> dict[str, dict[str, dict[str, Any]]]:
         return {
@@ -262,6 +275,8 @@ class DomainTierMemory:
                     "last_success_at": rec.last_success_at,
                     "last_failure_at": rec.last_failure_at,
                     "total_latency": rec.total_latency,
+                    "cost_usd": rec.cost_usd,
+                    "last_block_kind": rec.last_block_kind,
                     "score": round(rec.score, 3),
                 }
                 for tier, rec in tiers.items()
@@ -396,6 +411,8 @@ class ResilienceRegistry:
                         last_success_at=float(rec_data.get("last_success_at", 0.0)),
                         last_failure_at=float(rec_data.get("last_failure_at", 0.0)),
                         total_latency=float(rec_data.get("total_latency", 0.0)),
+                        cost_usd=float(rec_data.get("cost_usd", 0.0)),
+                        last_block_kind=str(rec_data.get("last_block_kind", "")),
                     )
                     self.domain_memory.data[domain][tier] = rec
         cbs = payload.get("circuit_breakers")
