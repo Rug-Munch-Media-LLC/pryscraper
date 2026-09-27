@@ -49,3 +49,43 @@ def test_router_routes():
     paths = sorted([r.path for r in router.routes])
     assert "/v1/extract-table" in paths
     assert "/v1/links" in paths
+
+
+# ── extract_thumbnail: a transport failure must not look like "no thumbnail" ──
+
+
+def test_extract_thumbnail_transport_failure_is_not_reported_as_no_thumbnail():
+    """A scrape failure must be distinguishable from a page with no thumbnail.
+
+    Regression: the failure path used to return ``{"success": False, "data":
+    {"thumbnail": None}}`` — byte-identical to the legitimate "page has no
+    og:image / twitter:image / img" result — so a caller could not tell a
+    transport error from a real absence.
+    """
+    boom = AsyncMock(side_effect=RuntimeError("upstream unreachable"))
+
+    with patch("pry.api.routers.scraping.extraction.scraper") as mock_scraper:
+        mock_scraper.scrape = boom
+        r = client.post("/v1/thumbnail", json="http://example.com")
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body.get("success") is False
+    assert body.get("error") == "thumbnail extraction failed"
+
+
+def test_extract_thumbnail_page_without_image_still_succeeds():
+    """The legitimate empty case keeps its shape: success, no error, no thumbnail."""
+    mock_scraper = AsyncMock()
+    mock_scraper.scrape = AsyncMock(
+        return_value={"raw_html": "<html><body>no images</body></html>"}
+    )
+
+    with patch("pry.api.routers.scraping.extraction.scraper", mock_scraper):
+        r = client.post("/v1/thumbnail", json="http://example.com")
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body.get("success") is True
+    assert "error" not in body
+    assert body["data"]["thumbnail"] is None

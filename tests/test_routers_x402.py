@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 # Mock external dependencies before importing app
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -269,3 +271,45 @@ def test_x402_require_payment_format():
         json={"operation": "scrape"},
     )
     assert response.status_code in (200, 402)
+
+
+# ---------------------------------------------------------------------------
+# GET /v1/x402/catalog — actor-preset availability must not read as "no actors"
+# ---------------------------------------------------------------------------
+
+
+def test_x402_catalog_reports_degraded_when_actor_presets_unavailable():
+    """A broken/absent actor factory must not be served as an empty catalog.
+
+    Regression: the failure path returned ``success: True`` with
+    ``actors: []`` and ``actor_count: 0`` — indistinguishable from a factory
+    that genuinely ships no presets, so an agent pricing a call would be told
+    the capability does not exist.
+    """
+    with _patch_x402(), patch.dict(sys.modules, {"actor_factory.presets": None}):
+        response = client.get("/v1/x402/catalog")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body.get("success") is False
+    assert body.get("error") == "actor presets unavailable"
+    # actors/actor_count are explicitly unknown, not an empty/false-zero lie.
+    assert body["data"]["actors"] is None
+    assert body["data"]["actor_count"] is None
+    # The paid-operation surface still serves so clients can keep pricing.
+    assert isinstance(body["data"]["operations"], dict)
+
+
+def test_x402_catalog_reports_success_with_real_presets():
+    """The healthy path is unchanged: real presets, integer count, no error."""
+    with _patch_x402():
+        response = client.get("/v1/x402/catalog")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body.get("success") is True
+    assert "error" not in body
+    actors = body["data"]["actors"]
+    assert isinstance(actors, list)
+    assert actors
+    assert body["data"]["actor_count"] == len(actors)

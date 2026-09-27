@@ -153,8 +153,27 @@ async def x402_catalog() -> dict[str, Any]:
             }
             for name, spec in sorted(ALL_PRESETS.items())
         ]
-    except Exception:  # noqa: BLE001 - catalog must serve even if factory absent
-        actors = []
+    except Exception:
+        # An empty ``actors`` list is indistinguishable from a factory that
+        # genuinely ships no presets, so a client pricing a call would be told
+        # a capability does not exist when it does. Serve the paid-operation
+        # surface anyway and mark the actor section as unavailable.
+        logger.warning("x402_catalog_actor_presets_unavailable", exc_info=True)
+        return {
+            "success": False,
+            "error": "actor presets unavailable",
+            "data": {
+                "operations": {
+                    op: {"price_usd": tier.get("price_usd"), "description": tier.get("description")}
+                    for op, tier in sorted(X402_PRICING.items())
+                },
+                "paid_endpoints": dict(sorted(PAID_ENDPOINTS.items())),
+                "engines": {str(k): v for k, v in ENGINE_TOOLS.items()},
+                "actors": None,
+                "actor_count": None,
+                "settlement": X402Handler().get_stats().get("settlement", {}),
+            },
+        }
 
     return {
         "success": True,

@@ -101,7 +101,15 @@ async def extract_thumbnail(url: str = Body(...)) -> dict[str, Any]:
             resp = await client.get(url, headers={"User-Agent": "Pry/3.0"}, timeout=15)
             html = resp.text
     except Exception:  # noqa: BLE001 — thumbnail is best-effort; any failure yields None
-        return {"success": False, "data": {"thumbnail": None}}
+        # ``{"thumbnail": None}`` is the SAME payload a page with no og:image /
+        # twitter:image / img tag returns, so a transport or parse failure would
+        # be reported as "this page has no thumbnail" — a fabricated result.
+        # Signal the failure explicitly instead.
+        return {
+            "success": False,
+            "error": "thumbnail extraction failed",
+            "data": {"thumbnail": None},
+        }
 
     import re
 
