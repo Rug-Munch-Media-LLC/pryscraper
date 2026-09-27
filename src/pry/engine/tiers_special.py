@@ -163,7 +163,25 @@ class TierSpecialMixin:
             ):
                 if resp.status == 200:
                     return await resp.text()
-        except aiohttp.ClientError as e:
+        except Exception as e:
+            # Deliberately broad, and it must stay the LAST handler. Two real
+            # failures escape a narrower `except aiohttp.ClientError`:
+            #
+            # 1. This try BEGINS with `import aiohttp`. If that import fails, or
+            #    the installed aiohttp is version-skewed, the pre-bound
+            #    `aiohttp` is still None -- so evaluating the except clause
+            #    raises AttributeError from inside the handler itself. That
+            #    escapes the tier, and _attempt_tier's catch-all turns it into
+            #    an indistinguishable tier failure, silently burning the rest
+            #    of the fallback chain.
+            # 2. A malformed TOR_SOCKS5_PORT is reported by from_url as a plain
+            #    ValueError, which a ClientError handler never catches.
+            #
+            # The contract that makes the broad catch safe: a tier returns a
+            # value and never raises, because the chain has no per-tier error
+            # channel. None is the typed failure, and it can never be promoted
+            # to a success (the orchestrator gates on
+            # `bool(html and self._is_valid(html))`).
             logger.debug("tor_failed", extra={"error": str(e)[:200]})
         return None
 
