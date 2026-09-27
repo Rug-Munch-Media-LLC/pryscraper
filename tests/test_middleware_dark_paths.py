@@ -186,7 +186,10 @@ def test_rate_limit_blocked_emits_429_with_headers() -> None:
     }
     with (
         patch.object(mw, "request_authorized", return_value=True),
-        patch.object(mw, "user_ratelimiter") as rl,
+        # autospec so the awaited refresh_quota() is an AsyncMock — a bare
+        # MagicMock cannot be awaited, and the request path awaits it before
+        # check() to keep the fail-closed quota gate reachable.
+        patch.object(mw, "user_ratelimiter", autospec=True) as rl,
     ):
         rl.check.return_value = (False, stats)
         asyncio.run(mw_inst.__call__(scope, receive, send))

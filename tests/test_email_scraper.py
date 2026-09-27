@@ -64,3 +64,72 @@ def test_extract_invoice_number() -> None:
         "Invoice from Vendor", "Invoice #INV-2024-001 for $5,000.00", "billing@vendor.com"
     )
     assert result["email_type"] == "invoice"
+
+
+# ── fetch_gmail_emails: partial fetch failures must not read clean ────
+#
+# The listing request and the per-message content requests are separate
+# calls. When some of the per-message fetches fail, the result is a
+# partial read, and a bare ``success: True`` with a short ``total`` hides
+# the messages that were never retrieved.
+
+
+class _FakeResponse:
+    def __init__(self, is_success: bool, payload: object = None, text: str = "") -> None:
+        self.is_success = is_success
+        self._payload = payload
+        self.text = text
+        self.status_code = 200
+
+    def json(self) -> object:
+        return self._payload
+
+
+class _FakeClient:
+    """Client that lists N messages and fails the fetch of a chosen subset."""
+
+    def __init__(self, message_ids: list[str], failing: set[str]) -> None:
+        self.message_ids = message_ids
+        self.failing = failing
+
+    async def get(self, url: str, **kwargs: object) -> _FakeResponse:
+        if url.endswith("/messages"):
+            return _FakeResponse(True, {"messages": [{"id": m} for m in self.message_ids]})
+        msg_id = url.rsplit("/", 1)[-1]
+        if msg_id in self.failing:
+            return _FakeResponse(False, text=f"boom {msg_id}")
+        return _FakeResponse(True, {"payload": {"headers": [], "body": {"parts": []}}})
+
+
+def _patch_client(monkeypatch: object, client: _FakeClient) -> None:
+    import pry.api.client as api_client
+
+    async def _get_client() -> _FakeClient:
+        return client
+
+    monkeypatch.setattr(api_client, "get_client", _get_client)  # type: ignore[attr-defined]
+
+
+async def test_fetch_gmail_emails_reports_partial_when_some_fetches_fail(monkeypatch):
+    from pry.engine.email_scraper import fetch_gmail_emails
+
+    _patch_client(monkeypatch, _FakeClient(["a", "b", "c"], failing={"b"}))
+
+    result = await fetch_gmail_emails("token", max_results=3, query="q")
+
+    # b's content was never retrieved — the caller must be able to see that.
+    assert result["partial"] is True
+    assert result["failed_count"] == 1
+    assert "1 message(s) failed to fetch" in result["note"]
+
+
+async def test_fetch_gmail_emails_clean_when_all_fetches_succeed(monkeypatch):
+    from pry.engine.email_scraper import fetch_gmail_emails
+
+    _patch_client(monkeypatch, _FakeClient(["a", "b"], failing=set()))
+
+    result = await fetch_gmail_emails("token", max_results=2, query="q")
+
+    assert result["success"] is True
+    assert "partial" not in result
+    assert "failed_count" not in result

@@ -151,8 +151,8 @@ def test_import_valid_json_creates_rows_with_field_values(temp_data_dir):
 # ── import_json_stores: error / edge cases ───────────────────────
 
 
-def test_import_invalid_json_lines_are_skipped(temp_data_dir):
-    """Malformed JSONL lines are skipped without crashing; valid ones import."""
+def test_import_invalid_json_lines_raise_rather_than_import_a_short_count(temp_data_dir):
+    """A malformed JSONL line aborts the import instead of reporting a short success."""
     import pry.core.db as db
 
     path = temp_data_dir / "intel" / "snapshots.jsonl"
@@ -165,13 +165,14 @@ def test_import_invalid_json_lines_are_skipped(temp_data_dir):
         encoding="utf-8",
     )
 
-    counts = db.import_json_stores(data_dir=temp_data_dir)
-    assert counts["intel"] == 1  # only the one valid line
+    # Previously this returned counts["intel"] == 1 and committed one row —
+    # a clean-looking import that silently lost two records.
+    with pytest.raises(ValueError, match="malformed JSONL"):
+        db.import_json_stores(data_dir=temp_data_dir)
 
     with db.session_scope() as s:
         rows = s.execute(select(db.IntelSnapshot)).scalars().all()
-        assert len(rows) == 1
-        assert rows[0].competitor_id == "ok"
+        assert rows == []
 
 
 def test_import_empty_data_no_crash(temp_data_dir):
@@ -269,19 +270,13 @@ def test_iter_jsonl_missing_path_yields_nothing(temp_data_dir):
     assert list(_iter_jsonl(temp_data_dir / "nope" / "x.jsonl")) == []
 
 
-def test_iter_jsonl_skips_empty_and_invalid_lines(temp_data_dir):
+def test_iter_jsonl_skips_empty_lines_and_raises_on_invalid_ones(temp_data_dir):
     from pry.core.db.import_json import _iter_jsonl
 
     path = temp_data_dir / "quality" / "checks.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        "\n"
-        + "   \n"
-        + json.dumps({"id": "a"})
-        + "\n"
-        + "{bad json}\n"
-        + json.dumps({"id": "b"})
-        + "\n",
+        "\n" + "   \n" + json.dumps({"id": "a"}) + "\n" + json.dumps({"id": "b"}) + "\n",
         encoding="utf-8",
     )
 
@@ -339,3 +334,71 @@ def test_iter_json_files_skips_non_dict_list_entries(temp_data_dir):
 
     records = list(_iter_json_files(path))
     assert [r["id"] for r in records] == ["a"]
+
+
+# ── _iter_jsonl / _iter_json_files: swallowed-read failures raise ──────
+#
+# A read error that yields nothing instead of raising becomes a
+# ``counts[store] = 0`` entry, which reads as "nothing to import" rather
+# than "this store's data was lost". Both helpers must surface it.
+
+
+def test_iter_jsonl_raises_on_malformed_line(temp_data_dir):
+    from pry.core.db.import_json import _iter_jsonl
+
+    path = temp_data_dir / "quality" / "checks.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('{"url": "https://ok.example"}\n{not json}\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="malformed JSONL"):
+        list(_iter_jsonl(path))
+
+
+def test_iter_jsonl_raises_when_store_path_is_a_directory(temp_data_dir):
+    """read_text() on a directory raises OSError — it must reach the caller."""
+    from pry.core.db.import_json import _iter_jsonl
+
+    path = temp_data_dir / "quality" / "checks.jsonl"
+    path.mkdir(parents=True, exist_ok=True)
+
+    with pytest.raises((OSError, ValueError)):
+        list(_iter_jsonl(path))
+
+
+def test_iter_json_files_raises_on_malformed_json(temp_data_dir):
+    from pry.core.db.import_json import _iter_json_files
+
+    path = temp_data_dir / "monitors" / "m1.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unreadable JSON store"):
+        list(_iter_json_files(path))
+
+
+def test_iter_json_files_raises_on_unreadable_file(tmp_path, monkeypatch):
+    """A read error on a store file must surface, not yield an empty import."""
+    from pry.core.db import import_json as import_json_mod
+
+    path = tmp_path / "monitors.json"
+    path.write_text(json.dumps({"id": "a"}), encoding="utf-8")
+
+    def _boom(self: object, *args: object, **kwargs: object) -> str:
+        raise OSError("simulated read failure")
+
+    monkeypatch.setattr("pathlib.Path.read_text", _boom)
+
+    with pytest.raises(ValueError, match="unreadable JSON store"):
+        list(import_json_mod._iter_json_files(path))
+
+
+def test_import_json_stores_surfaces_unreadable_store(temp_data_dir):
+    """A corrupt store must not import as a clean 0-row success."""
+    from pry.core.db.import_json import import_json_stores
+
+    monitors = temp_data_dir / "monitors"
+    monitors.mkdir(parents=True, exist_ok=True)
+    (monitors / "m1.json").write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unreadable JSON store"):
+        import_json_stores(temp_data_dir)

@@ -50,6 +50,10 @@ class UserBucket:
     # UNVERIFIED. Callers must deny: an unverified bucket is fail-closed, not
     # a user with zero usage.
     quota_unverified: bool = False
+    # When the last successful quota read happened. A bucket that has NEVER
+    # synced has quota_synced_at == 0.0, which is stale for every TTL and
+    # so forces the first request through the sync path.
+    quota_synced_at: float = 0.0
 
 
 class QuotaUnavailableError(RuntimeError):
@@ -77,8 +81,11 @@ class UserRateLimiter:
         self._buckets: dict[str, UserBucket] = {}
         self._cleanup_interval = 300  # 5 min
         self._last_cleanup = time.time()
-        self._quota_sync_interval = 60  # 1 min
-        self._last_quota_sync = time.time()
+        # Per-bucket quota freshness TTL. The sync interval used to be a
+        # single process-wide timestamp, which is wrong once there is more
+        # than one bucket: whichever request happened to sync first set the
+        # timestamp for everyone, so other users' buckets never refreshed.
+        self.quota_ttl = 60.0
 
     def _get_limits(self, tier: str) -> dict[str, int]:
         """Get rate limits for a tier."""
@@ -126,21 +133,66 @@ class UserRateLimiter:
             ) from e
 
     async def _sync_quota(self, api_key_id: str, bucket: UserBucket) -> None:
-        """Sync quota from database periodically.
+        """Refresh the cached quota for one bucket, fail-closed.
+
+        This is the request-path entry point: the HTTP middleware awaits it
+        before ``check()`` so a database outage actually reaches the deny
+        branch. It only touches the database when the cached quota is older
+        than ``quota_ttl``; a fresh bucket is served from cache (a DB round
+        trip per request would make the limiter the slowest thing in the
+        request).
 
         On a read failure the bucket is marked unverified rather than being
         reset to zero — the previous usage total is kept and the bucket is
         denied until a later sync succeeds.
         """
         now = time.time()
-        if now - self._last_quota_sync > self._quota_sync_interval:
-            try:
-                bucket.quota_used = await self._load_quota_from_db(api_key_id)
-            except QuotaUnavailableError:
-                bucket.quota_unverified = True
-            else:
-                bucket.quota_unverified = False
-            self._last_quota_sync = now
+        if now - bucket.quota_synced_at <= self.quota_ttl:
+            return
+        try:
+            bucket.quota_used = await self._load_quota_from_db(api_key_id)
+        except QuotaUnavailableError:
+            bucket.quota_unverified = True
+        else:
+            bucket.quota_unverified = False
+            bucket.quota_synced_at = now
+
+    def _new_bucket(self, now: float) -> UserBucket:
+        """Build a bucket with a full burst and this month's quota window.
+
+        Shared by ``get_bucket`` and ``check`` so a bucket created by the
+        request-path quota refresh and one created inside ``check`` are
+        identical. The two MUST agree: if the refresh built a bucket with a
+        different burst or reset window than the one ``check`` would have
+        built, the refresh would be enforcing a different budget.
+        """
+        return UserBucket(
+            tokens=self._get_limits("FREE")["burst"],
+            last_refill=now,
+            quota_reset_at=self._get_quota_reset_timestamp(),
+        )
+
+    def get_bucket(self, api_key_id: str) -> UserBucket:
+        """Return the live bucket for a key, creating it if it is new.
+
+        Exposed so the request path can refresh the bucket's quota *before*
+        calling ``check()``. ``check()`` re-reads the same object, so the
+        refreshed usage and the unverified flag are the ones it enforces.
+        """
+        bucket = self._buckets.get(api_key_id)
+        if bucket is None:
+            bucket = self._new_bucket(time.time())
+            self._buckets[api_key_id] = bucket
+        return bucket
+
+    async def refresh_quota(self, api_key_id: str) -> None:
+        """Refresh a key's cached monthly quota, deny-safe on DB failure.
+
+        Never raises: a quota read failure leaves the bucket unverified and
+        ``check()`` denies it. Callers in the request path should await this
+        before ``check()``.
+        """
+        await self._sync_quota(api_key_id, self.get_bucket(api_key_id))
 
     def check(
         self,
@@ -166,15 +218,8 @@ class UserRateLimiter:
 
         # Get or create bucket
         if api_key_id not in self._buckets:
-            bucket = UserBucket(
-                tokens=burst,
-                last_refill=now,
-                quota_used=0,
-                quota_reset_at=self._get_quota_reset_timestamp(),
-            )
-            self._buckets[api_key_id] = bucket
-        else:
-            bucket = self._buckets[api_key_id]
+            self._buckets[api_key_id] = self._new_bucket(now)
+        bucket = self._buckets[api_key_id]
 
         # Check quota reset
         if now >= bucket.quota_reset_at:

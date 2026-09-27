@@ -43,6 +43,17 @@ from pry.core.settings import settings
 from pry.core.user_ratelimit import TIER_LIMITS
 
 
+def _implicit_bucket_id(api_key: str | None, x402_verified: Any) -> str:
+    """Bucket id used when the request carries no bound API-key record.
+
+    Mirrors the ids the ``check()`` branches below use so the pre-check quota
+    refresh and the enforced check always agree on which bucket they mean.
+    """
+    if x402_verified:
+        return f"x402:{x402_verified.get('caller', 'unknown')}"
+    return (api_key or "")[:12]
+
+
 # Middleware: auth + rate limit + timing + request logging
 class PryHttpMiddleware:
     """Pure-ASGI middleware for auth, rate limiting, timing, and logging.
@@ -119,7 +130,7 @@ class PryHttpMiddleware:
             await self._passthrough_unmatched(scope, receive, send, method=method, start=start)
             return
 
-        allowed, stats, rate_limit_headers, api_key = self._resolve_rate_limit(scope, ip)
+        allowed, stats, rate_limit_headers, api_key = await self._resolve_rate_limit(scope, ip)
         if not allowed:
             await self._reject_rate_limited(
                 send,
@@ -275,7 +286,7 @@ class PryHttpMiddleware:
             REQUEST_LATENCY.labels(endpoint="unmatched").observe(time.time() - start)
         clear_request_id()
 
-    def _resolve_rate_limit(
+    async def _resolve_rate_limit(
         self, scope: dict[str, Any], ip: str
     ) -> tuple[bool, dict[str, Any], dict[str, str], str | None]:
         """Pick the right limiter (x402 / DB key / legacy IP) and check it.
@@ -302,13 +313,25 @@ class PryHttpMiddleware:
         # shared NAT/proxy and undercut what they paid for).
         x402_verified = scope.get("x402_verified")
 
+        # Refresh the per-key monthly quota BEFORE check() runs. check() is
+        # fail-closed on an unverified bucket, but it can only deny a bucket
+        # something has marked unverified — without this refresh the
+        # database read never happened on the request path, so a DB outage
+        # served every user at quota_used=0 (an unlimited-quota read) and
+        # the deny branch was unreachable. refresh_quota() only touches the
+        # DB when the cached quota is older than its TTL, and never raises:
+        # a failed read leaves the bucket unverified and check() denies.
+        if x402_verified or (api_key and api_key != settings.api_key):
+            key_record = scope.get("pry_api_key") or {}
+            bucket_id = key_record.get("key_id") or _implicit_bucket_id(api_key, x402_verified)
+            await user_ratelimiter.refresh_quota(bucket_id)
+
         if x402_verified:
             key_record = scope.get("pry_api_key") or {}
-            xv = x402_verified
             # Bucket per caller (the paying wallet/agent), not per IP — a
             # single payer behind many IPs must share one budget, and many
             # payers behind one IP must not share a budget.
-            bucket_id = key_record.get("key_id") or f"x402:{xv.get('caller', 'unknown')}"
+            bucket_id = key_record.get("key_id") or _implicit_bucket_id(api_key, x402_verified)
             allowed, stats = user_ratelimiter.check(
                 api_key_id=bucket_id,
                 tier=key_record.get("tier", "X402"),
@@ -324,7 +347,9 @@ class PryHttpMiddleware:
                 "x-ratelimit-limit": str(stats.get("limit", effective_limit)),
                 "x-ratelimit-remaining": str(stats.get("remaining", 0)),
                 "x-ratelimit-reset": str(int(stats.get("quota_reset_at", time.time()))),
-                "x-ratelimit-quota-used": str(stats.get("quota_used", 0)),
+                "x-ratelimit-quota-used": (
+                    str(stats["quota_used"]) if "quota_used" in stats else None
+                ),
                 "x-ratelimit-quota-limit": str(stats.get("quota_limit", 10000)),
             }
         elif api_key and api_key != settings.api_key:
@@ -335,7 +360,7 @@ class PryHttpMiddleware:
             # of the previous hardcoded "FREE" tier default.
             key_record = scope.get("pry_api_key") or {}
             allowed, stats = user_ratelimiter.check(
-                api_key_id=key_record.get("key_id", api_key[:12]),
+                api_key_id=key_record.get("key_id") or _implicit_bucket_id(api_key, None),
                 tier=key_record.get("tier", "FREE"),
                 rpm=key_record.get("rate_limit_rpm"),
                 quota_monthly=key_record.get("quota_monthly"),
@@ -346,7 +371,9 @@ class PryHttpMiddleware:
                 "x-ratelimit-limit": str(stats.get("limit", effective_limit)),
                 "x-ratelimit-remaining": str(stats.get("remaining", 0)),
                 "x-ratelimit-reset": str(int(stats.get("quota_reset_at", time.time()))),
-                "x-ratelimit-quota-used": str(stats.get("quota_used", 0)),
+                "x-ratelimit-quota-used": (
+                    str(stats["quota_used"]) if "quota_used" in stats else None
+                ),
                 "x-ratelimit-quota-limit": str(stats.get("quota_limit", 10000)),
             }
         else:
@@ -411,8 +438,13 @@ class PryHttpMiddleware:
             (b"x-request-id", request_id.encode()),
             *_SECURITY_HEADERS,
         ]
-        # Add rate limit headers
+        # Add rate limit headers. Quota usage is omitted when the limiter
+        # withheld it (quota_unavailable denies without a figure) — emitting
+        # the .get() default of 0 there would hand the client a fabricated
+        # "this key has used no quota" during a database outage.
         for k, v in rate_limit_headers.items():
+            if v is None:
+                continue
             headers.append((k.encode(), str(v).encode()))
         # RFC 6585 Retry-After: seconds the client should wait before retrying.
         headers.append((b"retry-after", str(int(float(stats.get("retry_after", 1)))).encode()))

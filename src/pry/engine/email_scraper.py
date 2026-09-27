@@ -226,7 +226,8 @@ async def fetch_gmail_emails(
             }
 
         # Fetch each message
-        emails = []
+        emails: list[dict[str, Any]] = []
+        failed_ids: list[str] = []
         for msg in messages[:max_results]:
             msg_id = msg["id"]
             try:
@@ -236,6 +237,7 @@ async def fetch_gmail_emails(
                     timeout=15,
                 )
                 if not msg_resp.is_success:
+                    failed_ids.append(msg_id)
                     continue
 
                 msg_data = msg_resp.json()
@@ -246,9 +248,18 @@ async def fetch_gmail_emails(
                 logger.warning(
                     "gmail_fetch_failed", extra={"msg_id": msg_id, "error": str(e)[:100]}
                 )
+                failed_ids.append(msg_id)
                 continue
 
-        return {"success": True, "total": len(emails), "emails": emails}
+        result: dict[str, Any] = {"success": True, "total": len(emails), "emails": emails}
+        if failed_ids:
+            # The listing succeeded but the contents of these messages did
+            # not: report the partial result as partial instead of a clean
+            # success that silently drops the gaps.
+            result["partial"] = True
+            result["failed_count"] = len(failed_ids)
+            result["note"] = f"{len(failed_ids)} message(s) failed to fetch"
+        return result
 
     except (httpx.HTTPError, httpx.RequestError) as e:
         return {"success": False, "error": str(e)[:300]}

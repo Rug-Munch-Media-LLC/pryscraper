@@ -349,7 +349,7 @@ async def test_db_outage_does_not_report_zero_quota(limiter: UserRateLimiter):
         # 2. The sync path marks the bucket unverified; it does NOT zero it.
         bucket = UserBucket(tokens=100, last_refill=time.time(), quota_used=500.0)
         limiter._buckets["api_key_db_down"] = bucket
-        limiter._last_quota_sync = time.time() - limiter._quota_sync_interval - 1
+        bucket.quota_synced_at = time.time() - limiter.quota_ttl - 1  # force stale
         await limiter._sync_quota("api_key_db_down", bucket)
         assert bucket.quota_unverified is True
         assert bucket.quota_used == 500.0, "known usage must not be reset to zero"
