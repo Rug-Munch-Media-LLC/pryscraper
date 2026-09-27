@@ -10,52 +10,10 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+# Sample-data fixtures live beside this file, not here: conftest's job is
+# isolation, and mixing fixtures in is how two tests end up coupled.
+from tests.fixtures_samples import sample_html, sample_markdown, sample_schema  # noqa: F401
 
-@pytest.fixture
-def sample_html() -> str:
-    return """<!DOCTYPE html><html><head><title>Test Page</title>
-<meta name="description" content="A test page for scraping">
-</head><body>
-<h1 class="product-title">Widget Pro</h1>
-<p class="price">$29.99</p>
-<p class="description">The best widget ever made.</p>
-<a href="https://example.com/page1">Page 1</a>
-<a href="https://example.com/page2">Page 2</a>
-<a href="https://external.com">External</a>
-</body></html>"""
-
-
-@pytest.fixture
-def sample_markdown() -> str:
-    return """# Widget Pro
-
-**Price:** $29.99
-
-The best widget ever made.
-
-- Feature 1: Lightweight
-- Feature 2: Durable
-- Feature 3: Affordable
-
-Contact: sales@example.com
-"""
-
-
-@pytest.fixture
-def sample_schema() -> dict:
-    return {
-        "product_name": "name of the product",
-        "price": "price in USD",
-        "email": "contact email email",
-    }
-
-
-# ── Lenient LogRecord for tests ─────────────────────────────────
-# Some Pry modules (and tests) use logger.warning("...", extra={"name": "foo"})
-# patterns. Python's stdlib logging rejects this with KeyError because
-# "name" is a reserved LogRecord field. In tests we make the LogRecord
-# tolerant: reserved keys in `extra` are moved to a sub-dict so the call
-# doesn't crash. This matches the behavior we get with structlog's bridge.
 #
 # Production code is unaffected (this conftest only runs in tests).
 # If you actually want strict mode in tests, set PRY_LOG_STRICT_EXTRAS=1.
@@ -190,3 +148,27 @@ def client() -> Generator[TestClient, None, None]:
             yield c
     except (RuntimeError, Exception):  # noqa: BLE001, S110 — swallow event-loop-closed on teardown
         pass
+
+
+@pytest.fixture
+def temp_data_dir(monkeypatch, tmp_path):
+    """Point PRY_DATA_DIR/PRY_DATABASE_URL at a temp dir and reset the engine.
+
+    Hoisted here so every DB-touching test file gets the SAME isolation.
+    It was previously copy-pasted per file, which is how a suite ends up with
+    two tests pointing at two different databases and blaming each other.
+    """
+    monkeypatch.setenv("PRY_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/test.db")
+    import importlib
+
+    import pry.core.db as db
+    import pry.core.paths as paths
+
+    importlib.reload(paths)
+    importlib.reload(db)
+    db._engine = None
+    db._SessionLocal = None
+    yield tmp_path
+    db._engine = None
+    db._SessionLocal = None
