@@ -30,13 +30,15 @@ see ``.env.example``). Override the target file with ``--env-file``.
 
 from __future__ import annotations
 
+import logging
 import os
-import re
 import sys
 from collections.abc import Callable
 from pathlib import Path
 
 import click
+
+logger = logging.getLogger(__name__)
 
 # ── Chain registry ──────────────────────────────────────────────────────────
 # Each chain maps to the PRY_X402_WALLET_* env var Pry actually reads
@@ -89,63 +91,12 @@ CHAINS: list[Chain] = [
     },
 ]
 
-# ── Address validation ──────────────────────────────────────────────────────
-_EVM_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
-# base58 alphabet (Bitcoin-style, excludes 0/O/I/l)
-_BASE58_ALPHABET = set("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
-_TRON_RE = re.compile(r"^T[1-9A-HJ-NP-Za-km-z]{33}$")
-
-
-def _is_evm_address(addr: str) -> bool:
-    """True when ``addr`` is a 0x-prefixed 40-hex EVM address (42 chars)."""
-    addr = addr.strip()
-    if not _EVM_RE.fullmatch(addr):
-        return False
-    # Checksum validation via eth_utils when available; fall back to the
-    # basic format check (any-case hex) otherwise.
-    try:
-        from eth_utils import (  # type: ignore[attr-defined]
-            is_checksum_address,
-            is_hex_address,
-        )
-
-        if not is_hex_address(addr):
-            return False
-        # Accept both checksummed and all-lowercase/all-uppercase addresses
-        # (all-lowercase is a valid, non-checksummed representation).
-        if addr == addr.lower() or addr == addr.upper():
-            return True
-        return is_checksum_address(addr)
-    except Exception:  # noqa: BLE001 - pragma: no cover - eth_utils unavailable
-        return True
-
-
-def _is_solana_address(addr: str) -> bool:
-    """True when ``addr`` is a 32-44 char base58 Solana address."""
-    addr = addr.strip()
-    if not (32 <= len(addr) <= 44):
-        return False
-    return all(c in _BASE58_ALPHABET for c in addr)
-
-
-def _is_tron_address(addr: str) -> bool:
-    """True when ``addr`` is a 34-char T-prefixed TRON base58 address."""
-    return bool(addr and _TRON_RE.fullmatch(addr.strip()))
-
-
-_VALIDATORS: dict[str, Callable[[str], bool]] = {
-    "evm": _is_evm_address,
-    "solana": _is_solana_address,
-    "tron": _is_tron_address,
-}
-
-
-def validate_address(family: str, addr: str) -> bool:
-    """Validate ``addr`` against the address format for ``family``."""
-    validator = _VALIDATORS.get(family)
-    if validator is None:
-        return False
-    return validator(addr)
+from pry.payments.wallet_address import (  # noqa: E402, F401  (re-exported for callers)
+    _is_evm_address,
+    _is_solana_address,
+    _is_tron_address,
+    validate_address,
+)
 
 
 # ── .env read/write helpers ─────────────────────────────────────────────────

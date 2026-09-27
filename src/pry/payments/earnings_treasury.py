@@ -18,10 +18,11 @@ Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
 import os
-import time
 from typing import Any
 
 import httpx
+
+from pry.payments.earnings_cache import TREASURY_CACHE_TTL_S, _cached, _store
 
 #: Operator treasuries (public receiving addresses — safe to embed).
 TREASURY_EVM = "0x1E3AC01d0fdb976179790BDD02823196A92705C9"
@@ -30,7 +31,6 @@ TREASURY_TRON = "TYSWXWr24QTe3c99V9dtzhe1aZTneE261p"
 
 #: Treasury query tuning.
 TREASURY_TIMEOUT_S = 10.0
-TREASURY_CACHE_TTL_S = 300.0  # 5 minutes
 
 #: Free public endpoints (no key required except Etherscan, which is optional —
 #: when absent we fall back to a public RPC for the native balance).
@@ -49,18 +49,6 @@ STABLE_ATOMIC = 10**6
 
 # ── Treasury balance cache (module-level, shared across instances) ──────────
 _treasury_cache: dict[str, tuple[float, dict[str, Any]]] = {}
-
-
-def _cached(key: str) -> dict[str, Any] | None:
-    hit = _treasury_cache.get(key)
-    if hit and (time.monotonic() - hit[0]) < TREASURY_CACHE_TTL_S:
-        return hit[1]
-    return None
-
-
-def _store(key: str, value: dict[str, Any]) -> dict[str, Any]:
-    _treasury_cache[key] = (time.monotonic(), value)
-    return value
 
 
 class TreasuryMixin:
@@ -130,26 +118,27 @@ class TreasuryMixin:
         return round(int(hex_balance, 16) / WEI, 8)
 
     def _evm_usdc(self, api_key: str) -> float | None:
-        try:
-            resp = httpx.get(
-                ETHERSCAN_API,
-                params={
-                    "module": "account",
-                    "action": "tokenbalance",
-                    "contractaddress": USDC_ETHEREUM,
-                    "address": TREASURY_EVM,
-                    "tag": "latest",
-                    "apikey": api_key,
-                },
-                timeout=TREASURY_TIMEOUT_S,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            if str(data.get("status")) != "1":
-                return None
-            return round(int(data["result"]) / STABLE_ATOMIC, 6)
-        except (ImportError, OSError, ValueError, TypeError, KeyError, httpx.HTTPError):
+        """None means "Etherscan had no answer", never "the probe failed".
+
+        The caller omits ``usdc_balance`` on None, so a failed probe returning
+        it would read as a drained treasury. Errors propagate instead."""
+        resp = httpx.get(
+            ETHERSCAN_API,
+            params={
+                "module": "account",
+                "action": "tokenbalance",
+                "contractaddress": USDC_ETHEREUM,
+                "address": TREASURY_EVM,
+                "tag": "latest",
+                "apikey": api_key,
+            },
+            timeout=TREASURY_TIMEOUT_S,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if str(data.get("status")) != "1":
             return None
+        return round(int(data["result"]) / STABLE_ATOMIC, 6)
 
     def _solana_balance(self) -> dict[str, Any]:
         cache_key = f"sol:{TREASURY_SOLANA}"

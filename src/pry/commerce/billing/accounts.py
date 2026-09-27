@@ -14,10 +14,13 @@ signup surface — an API key + starter credits with no email.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from pry.commerce import billing_service
 from pry.commerce.billing.catalog import STARTER_CREDITS_USD
+
+logger = logging.getLogger(__name__)
 
 
 def _bind_account(invoice: dict[str, Any], *, user_id: str = "", api_key: str = "") -> None:
@@ -92,9 +95,19 @@ def signup_crypto(user_id: str = "", api_key: str = "") -> dict[str, Any]:
 
 
 def _has_starter_credit(user_id: str) -> bool:
-    """True if this user already consumed the ``signup`` grant (idempotency)."""
+    """True if this user already consumed the ``signup`` grant (idempotency).
+
+    Fails CLOSED. A ledger read that errors is NOT evidence that the grant is
+    unconsumed: treating it as such makes ``signup_crypto`` re-issue
+    ``STARTER_CREDITS_USD`` of real money to the same account. Denying the
+    grant costs the user one signup; re-issuing it costs us the money.
+    """
     try:
         entries = billing_service.ledger(user_id, limit=100)
-    except Exception:  # noqa: BLE001 - never block signup on a ledger error
-        return False
+    except Exception as exc:  # noqa: BLE001 - fail closed, never double-grant
+        logger.warning(
+            "starter_credit_ledger_unreadable; denying grant fail-closed",
+            extra={"user_id": user_id, "error": str(exc)},
+        )
+        return True
     return any(e.get("reference") == "signup" for e in entries)

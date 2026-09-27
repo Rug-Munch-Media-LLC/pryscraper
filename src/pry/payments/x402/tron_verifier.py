@@ -216,9 +216,9 @@ def _iter_trc20_transfers(contract_result: dict[str, Any]) -> list[dict[str, Any
         data_hex = entry.get("data", "0x0")
 
         try:
-            value = int(data_hex, 16) if data_hex.startswith("0x") else int(data_hex)
+            value = int(data_hex, 16) if str(data_hex).startswith("0x") else int(data_hex)
         except (ValueError, TypeError):
-            value = 0
+            continue
 
         events.append(
             {

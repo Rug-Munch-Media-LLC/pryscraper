@@ -93,9 +93,9 @@ class TestParseAmount:
         info = {"tokenAmount": {"amount": "1500000", "decimals": 6}}
         assert _parse_amount(info) == (1_500_000, 6)
 
-    def test_token_amount_bad_int_falls_to_zero(self) -> None:
+    def test_token_amount_bad_int_is_none(self) -> None:
         info = {"tokenAmount": {"amount": "abc", "decimals": 6}}
-        assert _parse_amount(info) == (0, 6)
+        assert _parse_amount(info) is None
 
     def test_legacy_amount_path(self) -> None:
         info = {"amount": "250000", "decimals": 6}

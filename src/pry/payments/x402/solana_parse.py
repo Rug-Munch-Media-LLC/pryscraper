@@ -30,6 +30,10 @@ def _parse_amount(info: dict[str, Any]) -> tuple[int, int] | None:
 
     ``tokenAmount.amount`` is the authoritative atomic amount string;
     ``info.amount`` is the legacy duplicate. Returns None when malformed.
+
+    A malformed amount returns None — never a coerced 0. Callers skip only on
+    None, so a 0 here would be carried into the transfer candidates as a real
+    on-chain value instead of being rejected.
     """
     token_amount = info.get("tokenAmount")
     if isinstance(token_amount, dict):
@@ -38,7 +42,7 @@ def _parse_amount(info: dict[str, Any]) -> tuple[int, int] | None:
             try:
                 amount = int(str(raw))
             except (ValueError, TypeError):
-                amount = 0
+                return None
             try:
                 decimals = int(token_amount.get("decimals", 6))
             except (ValueError, TypeError):
