@@ -113,6 +113,62 @@ See [ARCHITECTURE.md](docs/ops/ARCHITECTURE.md). Update it when components chang
 - Primary: crmuncher
 - Backup: TBD
 
+## Method memory (learned per-domain scrape method)
+
+Pry records which scrape method actually works per **registrable domain** and
+reorders the 15-tier ladder from that. Read `.claude/pry-method-memory` or
+`docs/design/METHOD-MEMORY.md` before changing it.
+
+- `engine/tier_score.rank_tiers` is the **only** ranking primitive. `best_tier`
+  is derived from `reorder_for_domain`'s output — never reimplement the order.
+- `scraper_orchestrate._record_tier_outcome` is the **only** writer.
+- A blocked page is **never** a success, even on HTTP 200.
+- Cost is charged on **failures** too — a premium-proxy request that hits a
+  Cloudflare wall was still paid for.
+- `PRY_RESILIENCE_PERSIST=1` is required or all learning dies on restart. It
+  belongs in compose `environment:` (which shadows `env_file:`), not env_file.
+- Memory keys are eTLD+1 via `engine/domain_key.memory_domain` (tldextract,
+  `suffix_list_urls=()` so no runtime PSL fetch). Do not hand-roll a
+  public-suffix exception list.
+- `PRY_PREMIUM_PROXY_COST_USD` unset/blank/malformed/negative means **unknown**,
+  never free. `tier_cost.is_cost_known()` reports the difference.
+
+## x402 payment gate
+
+Three credential surfaces, in gate order (see `docs/X402_SETTLEMENT_FLOWS.md`):
+`owner` (`PRY_API_KEY`) → **internal** (`X-Internal-Token` + signed
+`X-Internal-Timestamp`) → free paths → `Authorization: Bearer` (pays, metered)
+→ else 402.
+
+- The internal path is **fail-closed**: absent `PRY_INTERNAL_TOKEN` rejects; a
+  blank/non-numeric/`<=0` `PRY_INTERNAL_MAX_SKEW_SECONDS` becomes 0 and rejects
+  everything rather than widening the window.
+- `caller` is **server-derived** (socket peer, or the right-most non-trusted
+  `X-Forwarded-For` hop), not a name the caller chooses. Signing the wrong one
+  gets a 402.
+- The replay cache is consulted only **after** signature verification, so an
+  attacker cannot poison it. It is per-process — correct at `--workers 1`.
+- `PRY_X402_ENABLED` / `PRY_MCP_ENABLED` are **real** kill-switches read by
+  `api/kill_switches.py`; default is enabled.
+
+## Self-hosting
+
+- `docker-compose.selfhost.yml` overlays the base file: pry + flaresolverr only,
+  port **8002**, SQLite, no x402 wallet. Talos keeps **8005**.
+- `PRY_API_KEY` is **mandatory** for a self-hoster: the container binds
+  `0.0.0.0`, so loopback detection is false and everything 401s without it. The
+  owner key is the free lane — no x402 payment is needed for your own instance.
+
+## Gates that will block you
+
+- `scripts/pre-commit-methodology-check.sh` — the hostname pattern requires a
+  multi-label hostname, so a dotted Python import like
+  `x402_middleware.internal` does not false-positive. Keep it that way.
+- `scripts/check-structure.py` — shrink-only. New files must be under 200
+  lines. `scraper_orchestrate.py` and `resilience.py` are allowlisted.
+- Split along existing seams and verify by **diffing test output before/after**,
+  not by asserting no behaviour changed.
+
 ## Related Repos
 
 ## Open-Core Protection
