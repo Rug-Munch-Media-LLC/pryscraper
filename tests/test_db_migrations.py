@@ -22,21 +22,6 @@ import pry.core.paths as paths
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-@pytest.fixture
-def temp_data_dir(monkeypatch, tmp_path):
-    """Point PRY_DATA_DIR/PRY_DATABASE_URL at a temp dir and reset the engine."""
-    monkeypatch.setenv("PRY_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/test.db")
-    import pry.core.db as db
-
-    importlib.reload(paths)
-    importlib.reload(db)
-    db._engine = None
-    db._SessionLocal = None
-    yield tmp_path
-    db._engine = None
-    db._SessionLocal = None
-
 
 # ── run_migrations ────────────────────────────────────────────────
 

@@ -7,7 +7,7 @@ Licensed under MIT. See LICENSE.
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
-# Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
@@ -17,8 +17,9 @@ from typing import Any
 
 with suppress(ImportError):  # pragma: no cover
     from sqlalchemy import text
-    from sqlalchemy.exc import OperationalError, ProgrammingError, SQLAlchemyError
+    from sqlalchemy.exc import DBAPIError, OperationalError, ProgrammingError, SQLAlchemyError
 
+from pry.core.db.baseline import _already_exists, _stamp_head_after_existing_schema
 from pry.core.db.models import _HAS_SA
 from pry.core.db.session import (
     _resolve_async_database_url,
@@ -29,6 +30,17 @@ from pry.core.db.session import (
 
 logger = logging.getLogger(__name__)
 
+# Alembic's own bookkeeping table. Its absence, or an empty version row, is
+# how we detect a schema that create_all() made but alembic never stamped.
+ALEMBIC_VERSION_TABLE = "alembic_version"
+
+# "already exists" in each backend's wording, matched case-insensitively.
+_ALREADY_EXISTS_MARKERS = (
+    "already exists",
+    "duplicate table",
+    "duplicate key value",
+)
+
 
 def run_migrations() -> None:
     """Run pending Alembic migrations (``alembic upgrade head``).
@@ -36,6 +48,10 @@ def run_migrations() -> None:
     Optional helper for programmatic migration execution.  Falls back to
     the config file at *alembic.ini* (must be on the sys.path or in CWD).
     Requires the ``alembic`` package (included in ``pry[dev]``).
+
+    Idempotent against a ``create_all``-made schema: a collision on an
+    already-existing table is adopted by stamping head, but ONLY when every
+    table head would create is present. A partial schema still raises.
     """
     try:
         from alembic.config import Config
@@ -56,6 +72,15 @@ def run_migrations() -> None:
         )
         command.upgrade(cfg, "head")
         logger.info("migrations_completed")
+    except DBAPIError as exc:
+        if not _already_exists(exc):
+            logger.exception("migrations_failed")
+            raise
+        if _stamp_head_after_existing_schema():
+            logger.info("migrations_adopted_existing_schema")
+            return
+        logger.exception("migrations_failed")
+        raise
     except Exception:
         logger.exception("migrations_failed")
         raise
