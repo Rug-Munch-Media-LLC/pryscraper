@@ -50,34 +50,16 @@ try:
 except ImportError:
     _has_otlp = False
 
-_has_otel = True
-
 
 # Metrics
-# Declare metrics as Counter | None so mypy allows None assignment when prometheus is unavailable.
-# At runtime, these are either Counter/Histogram/Gauge objects or None.
-REQUEST_COUNT: Counter | None
-REQUEST_LATENCY: Histogram | None
-ERROR_COUNT: Counter | None
-SCRAPE_COUNT: Counter | None
-SCRAPE_LATENCY: Histogram | None
-LLM_CALLS: Counter | None
-LLM_COST: Counter | None
-TEMPLATE_USAGE: Counter | None
-CACHE_HITS: Counter | None
-ACTIVE_CONNECTIONS: Gauge | None
-ACTIVE_SESSIONS: Gauge | None
-
+# At runtime each name is a Counter/Histogram/Gauge, or None when
+# prometheus_client is unavailable (the else-branch below).
 if _has_prometheus:
     REQUEST_COUNT = Counter(
         "pry_requests_total", "Total requests", ["method", "endpoint", "status"]
     )
     REQUEST_LATENCY = Histogram("pry_request_duration_seconds", "Request latency", ["endpoint"])
-    ERROR_COUNT = Counter(
-        "pry_request_errors_total",
-        "Request errors by endpoint",
-        ["method", "endpoint"],
-    )
+    ERROR_COUNT = Counter("pry_request_errors_total", "Request errors", ["method", "endpoint"])
     SCRAPE_COUNT = Counter("pry_scrapes_total", "Total scrapes", ["method", "status"])
     SCRAPE_LATENCY = Histogram("pry_scrape_duration_seconds", "Scrape latency", ["method"])
     LLM_CALLS = Counter("pry_llm_calls_total", "Total LLM calls", ["provider", "model"])
@@ -271,11 +253,21 @@ def track_template(template_id: str) -> None:
         TEMPLATE_USAGE.labels(template_id=template_id).inc()
 
 
+# Only these structural errors degrade a metric read to 0; anything else
+# propagates so a broken read is never mistaken for a real zero counter.
+_SAMPLE_ERRORS = (AttributeError, IndexError, TypeError, ValueError)
+
+
 def _sample(name: str, metric: Any) -> int:
     """Best-effort read of a counter/gauge's total value from its samples.
 
     Excludes the synthetic ``<name>_created`` sample prometheus_client
     adds to counters (its value is a Unix timestamp, not a count).
+
+    Structural errors degrade to 0 (see _SAMPLE_ERRORS); anything else
+    propagates, because a failure rendered as 0 is indistinguishable from
+    "the counter really is zero" — a false all-clear for operator-facing
+    request/error totals, and a bogus derived error_rate_pct.
     """
     if metric is None:
         return 0
@@ -283,7 +275,7 @@ def _sample(name: str, metric: Any) -> int:
         return int(
             sum(s.value for s in metric.collect()[0].samples if not s.name.endswith("_created"))
         )
-    except Exception:  # noqa: BLE001 - metric sampling must never break /metrics
+    except _SAMPLE_ERRORS:
         return 0
 
 
