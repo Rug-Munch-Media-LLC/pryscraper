@@ -17,6 +17,7 @@ import pytest
 
 from pry.engine import tier_cost
 from pry.engine.method_stats_store import MethodStatsStore
+from pry.engine.method_stats_writer import MethodStatUpdate  # noqa: TC001 - used at runtime
 from pry.engine.resilience_domain_memory import DomainTierMemory
 from pry.engine.tier_memory_db import seed_from_catalog, warm_domain_from_db
 
@@ -107,9 +108,20 @@ def test_scrape_entry_point_reaches_the_store(monkeypatch: pytest.MonkeyPatch) -
     seen: list[tuple[str, str, dict[str, Any]]] = []
 
     class Spy(MethodStatsStore):
-        def record(self, domain: str, method: str, **kwargs: Any) -> None:
-            seen.append((domain, method, kwargs))
-            super().record(domain, method, **kwargs)
+        def record(self, update: MethodStatUpdate) -> None:
+            seen.append(
+                (
+                    update.domain,
+                    update.method,
+                    {
+                        "win": update.win,
+                        "latency_ms": update.latency_ms,
+                        "cost_usd": update.cost_usd,
+                        "block_kind": update.block_kind,
+                    },
+                )
+            )
+            super().record(update)
 
     memory = DomainTierMemory(store=Spy(flush_interval=60.0))
     registry = ResilienceRegistry(method_stats=False)

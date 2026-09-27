@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -53,10 +53,11 @@ class MethodStatUpdate:
     domain: str
     method: str
     win: bool
-    latency_ms: float
-    cost_usd: float
-    block_kind: str
-    seen_at: float
+    latency_ms: float = 0.0
+    cost_usd: float = 0.0
+    block_kind: str = ""
+    # Derived: the writer stamps it when the caller does not.
+    seen_at: float = 0.0
 
 
 class MethodStatsWriter:
@@ -80,34 +81,29 @@ class MethodStatsWriter:
 
     # ── hot path ─────────────────────────────────────────────────────────
 
-    def record(
-        self,
-        domain: str,
-        method: str,
-        *,
-        win: bool,
-        latency_ms: float = 0.0,
-        cost_usd: float = 0.0,
-        block_kind: str = "",
-    ) -> None:
+    def record(self, update: MethodStatUpdate) -> None:
         """Buffer one outcome. Returns immediately — no DB, no I/O, no raise.
 
         Called from ``scraper_orchestrate._record_tier_outcome`` on the scrape
-        path, so its cost is the only thing that matters here.
+        path, so its cost is the only thing that matters here. Takes the
+        dataclass rather than seven positional-ish arguments: the caller
+        already has every field, and a signature that wide is easy to
+        mis-call in the one place latency matters.
         """
-        if not domain or not method:
+        if not update.domain or not update.method:
             return
-        update = MethodStatUpdate(
-            domain=domain,
-            method=method,
-            win=win,
-            latency_ms=max(0.0, latency_ms),
-            cost_usd=max(0.0, cost_usd),
-            block_kind=block_kind,
-            seen_at=time.time(),
-        )
+        if update.seen_at <= 0:
+            update = replace(update, seen_at=time.time())
+        # Defensive: the dataclass is frozen, so sanitise into a copy. A negative
+        # latency or cost would otherwise corrupt every downstream percentile.
+        if update.latency_ms < 0 or update.cost_usd < 0:
+            update = replace(
+                update,
+                latency_ms=max(0.0, update.latency_ms),
+                cost_usd=max(0.0, update.cost_usd),
+            )
         with self._lock:
-            bucket = self._buffer.setdefault((domain, method), [])
+            bucket = self._buffer.setdefault((update.domain, update.method), [])
             bucket.append(update)
             if len(bucket) > MAX_UPDATES_PER_KEY:
                 del bucket[: len(bucket) // 2]  # drop the oldest half

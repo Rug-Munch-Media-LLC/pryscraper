@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.exc import OperationalError
 
-from pry.engine.method_stats_store import MethodStatsStore
+from pry.engine.method_stats_store import MethodStatsStore, MethodStatUpdate
 from pry.engine.resilience_domain_memory import DomainTierMemory
 
 if TYPE_CHECKING:
@@ -34,7 +34,7 @@ def test_write_failure_is_swallowed_and_recorded(
 
     monkeypatch.setattr(session_mod, "session_scope", boom)
     store = MethodStatsStore(flush_interval=60.0)
-    store.record("a.com", "m", win=True, latency_ms=5.0)
+    store.record(MethodStatUpdate(domain="a.com", method="m", win=True, latency_ms=5.0))
     assert store.flush() == 0
     assert store.stats()["consecutive_failures"] == 1
     assert "OperationalError" in store.stats()["last_error"]

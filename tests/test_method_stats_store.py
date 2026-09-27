@@ -19,7 +19,7 @@ import pytest
 from sqlalchemy import create_engine
 
 from pry.core.db.models_resilience import DomainMethodStat
-from pry.engine.method_stats_store import MethodStatsStore
+from pry.engine.method_stats_store import MethodStatsStore, MethodStatUpdate
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -65,15 +65,19 @@ def sqlite_db(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> Iterator[Any]:
 def test_record_buffers_and_never_touches_db() -> None:
     """record() must not open a session — that is the whole no-block guarantee."""
     store = MethodStatsStore(flush_interval=60.0)
-    store.record("example.com", "fetch", win=True, latency_ms=120.0, cost_usd=0.001)
+    store.record(
+        MethodStatUpdate(
+            domain="example.com", method="fetch", win=True, latency_ms=120.0, cost_usd=0.001
+        )
+    )
     assert store.stats()["buffered_keys"] == 1
     store.stop(drain=False)
 
 
 def test_record_ignores_empty_identifiers() -> None:
     store = MethodStatsStore(flush_interval=60.0)
-    store.record("", "fetch", win=True)
-    store.record("example.com", "", win=True)
+    store.record(MethodStatUpdate(domain="", method="fetch", win=True))
+    store.record(MethodStatUpdate(domain="example.com", method="", win=True))
     assert store.stats()["buffered_keys"] == 0
     store.stop(drain=False)
 
@@ -84,12 +88,14 @@ def test_flush_batches_all_outcomes_into_one_row(sqlite_db: Any) -> None:
     store = MethodStatsStore(flush_interval=60.0)
     for i in range(4):
         store.record(
-            "example.com",
-            "fetch",
-            win=i < 3,
-            latency_ms=100.0 + i,
-            cost_usd=0.001,
-            block_kind="captcha" if i == 3 else "",
+            MethodStatUpdate(
+                domain="example.com",
+                method="fetch",
+                win=i < 3,
+                latency_ms=100.0 + i,
+                cost_usd=0.001,
+                block_kind="captcha" if i == 3 else "",
+            )
         )
     assert store.flush() == 1
 
@@ -109,9 +115,13 @@ def test_repeated_flush_accumulates_rather_than_resets(sqlite_db: Any) -> None:
     from sqlalchemy.orm import Session
 
     store = MethodStatsStore(flush_interval=60.0)
-    store.record("a.com", "m", win=True, latency_ms=10.0, cost_usd=0.5)
+    store.record(
+        MethodStatUpdate(domain="a.com", method="m", win=True, latency_ms=10.0, cost_usd=0.5)
+    )
     store.flush()
-    store.record("a.com", "m", win=False, latency_ms=20.0, cost_usd=0.5)
+    store.record(
+        MethodStatUpdate(domain="a.com", method="m", win=False, latency_ms=20.0, cost_usd=0.5)
+    )
     store.flush()
 
     with Session(sqlite_db) as s:
@@ -124,9 +134,9 @@ def test_repeated_flush_accumulates_rather_than_resets(sqlite_db: Any) -> None:
 
 def test_flush_under_interval_is_a_noop() -> None:
     store = MethodStatsStore(flush_interval=60.0)
-    store.record("a.com", "m", win=True)
+    store.record(MethodStatUpdate(domain="a.com", method="m", win=True))
     store.flush()  # first flush arms the interval
-    store.record("a.com", "m", win=True)
+    store.record(MethodStatUpdate(domain="a.com", method="m", win=True))
     assert store.flush(force=False) == 0
     store.stop(drain=False)
 
@@ -138,7 +148,7 @@ def test_load_domain_orders_by_wins(sqlite_db: Any) -> None:
     store = MethodStatsStore(flush_interval=60.0)
     for method, wins in (("cheap", 1), ("browser", 5)):
         for _ in range(wins):
-            store.record("a.com", method, win=True, latency_ms=50.0)
+            store.record(MethodStatUpdate(domain="a.com", method=method, win=True, latency_ms=50.0))
     store.flush()
 
     rows = store.load_domain("a.com")
