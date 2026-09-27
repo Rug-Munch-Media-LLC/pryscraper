@@ -6,87 +6,45 @@ SECURITY:
   without reading container logs.
   Loopback-only by default (PRY_ADMIN_LOOPBACK_ONLY=true). Set to false to
   expose on all interfaces (PRY_API_KEY auth still required).
-  Credentials stored in gopass: `gopass show admin/pryscraper`
+  Credentials live in the deployment secrets store, not in the repo.
 
 Provides profit tracking, system health, Apify earnings, and
 Prometheus metrics for Grafana-based dashboards.
 
 Designed for self-hosted Pry instances.
 
-This module is a thin facade: security gate + router live here; endpoints are
-implemented in admin_dashboard / admin_users / admin_payments / admin_html and
-re-exported below for backwards compatibility (tests import from this module).
+This module is a thin facade: the router and its access gate live in the
+``admin_router`` leaf (so endpoint modules can import them without a cycle);
+data paths live here; endpoints are implemented in admin_dashboard /
+admin_users / admin_payments / admin_html and re-exported below for backwards
+compatibility (tests import from this module).
+
+NOTE: ``PRY_DATA_DIR`` must stay in THIS module — ``admin_shared._data_dir()``
+reads it as a deferred module attribute, and the admin tests monkeypatch it
+here to isolate payment-log fixtures.
 """
 
 from __future__ import annotations
 
 import logging
 import os
-import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+# Re-exported so `from pry.api.routers.core.admin import router` keeps working
+# and so the tests' module-attr monkeypatches land on the live gate.
+from pry.api.routers.core.admin_router import (  # noqa: F401
+    ADMIN_LOOPBACK_ONLY,
+    ADMIN_PREFIX,
+    _check_admin_access,
+    router,
+)
 
 logger = logging.getLogger(__name__)
-
-# ── Admin security: random prefix + loopback-only ──
-# Random 32-char hex prevents discovery. Override with PRY_ADMIN_PATH.
-_ADMIN_SECRET = os.getenv("PRY_ADMIN_PATH", "") or secrets.token_hex(16)
-ADMIN_PREFIX = f"/{_ADMIN_SECRET}"
-
-# Loopback-only: returns 403 for non-local clients even with valid API key.
-ADMIN_LOOPBACK_ONLY = os.getenv("PRY_ADMIN_LOOPBACK_ONLY", "true").lower() in ("true", "1", "yes")
 
 # ── File paths for persistent data ──
 PRY_DATA_DIR = os.getenv("PRY_DATA_DIR", "/app/data")
 ADMIN_DIR = os.path.join(PRY_DATA_DIR, "admin")
 os.makedirs(ADMIN_DIR, exist_ok=True)
 
-
-def _check_admin_access(request: Request) -> None:
-    """Enforce loopback-only admin access + admin-role RBAC in remote mode.
-
-    Loopback (default): trusted — no key check (the outer middleware still
-    applies when a global key is configured).
-
-    Remote (``PRY_ADMIN_LOOPBACK_ONLY=false``): the presented Bearer key
-    must belong to a user with ``role == "ADMIN"`` in the users table —
-    ANY valid API key is NOT enough. Fail closed on every failure path.
-    """
-    client_host = request.client.host if request.client else ""
-    is_loopback = client_host in ("127.0.0.1", "::1", "localhost", "0.0.0.0")  # nosec B104 — loopback membership check, not a bind
-    if is_loopback and ADMIN_LOOPBACK_ONLY:
-        return
-    if ADMIN_LOOPBACK_ONLY:
-        raise HTTPException(
-            status_code=403,
-            detail="Admin is loopback-only. Set PRY_ADMIN_LOOPBACK_ONLY=false to expose remotely.",
-        )
-    # Remote mode: require the caller's key to belong to an ADMIN-role user.
-    from pry.core import api_keys_service
-    from pry.core.db.session import get_session
-
-    auth = request.headers.get("authorization", "")
-    bearer = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
-    if not bearer:
-        raise HTTPException(status_code=403, detail="Admin (remote) requires an API key")
-    record = api_keys_service.authenticate(bearer)
-    if record is None:
-        raise HTTPException(status_code=403, detail="Invalid API key for admin access")
-    user_id = str(record.get("user_id") or "")
-    if not user_id:
-        raise HTTPException(status_code=403, detail="Key is not bound to a user")
-    from pry.core.db import models as _db_models
-
-    with get_session() as session:
-        urow = session.query(_db_models.User).filter_by(user_id=user_id).first()
-    if urow is None or str(urow.role or "").upper() != "ADMIN":
-        raise HTTPException(
-            status_code=403,
-            detail="Admin access requires a user with the ADMIN role",
-        )
-
-
-router = APIRouter(prefix=ADMIN_PREFIX, tags=["Admin"], dependencies=[Depends(_check_admin_access)])
 
 # ── Endpoint modules (imported AFTER router exists so they can register routes) ──
 from pry.api.routers.core.admin_actors import (  # noqa: E402,F401

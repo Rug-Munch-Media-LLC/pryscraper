@@ -24,8 +24,8 @@ from fastapi.testclient import TestClient
 
 from pry.api.routers.core.admin import ADMIN_PREFIX, router as admin_router  # isort:skip
 
-# admin <-> admin_html is a pre-existing import cycle; importing `admin` first
-# breaks it. Then reach the helpers under test through the settled module.
+# The admin package is acyclic: `admin_router` (leaf) <- endpoint modules <-
+# `admin` (facade). Any of these import orders is now safe.
 from pry.api.routers.ai.vision import router as vision_router
 from pry.api.routers.core import admin_html, admin_shared
 

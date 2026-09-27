@@ -22,7 +22,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException
 
-from pry.api.routers.core.admin import router as admin_router
+from pry.api.routers.core.admin_router import router as admin_router
 from pry.core.db.models import Usage, User
 from pry.core.db.session import get_session
 

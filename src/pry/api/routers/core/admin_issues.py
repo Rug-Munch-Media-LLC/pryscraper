@@ -12,7 +12,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from pry.api.routers.core.admin import router
+from pry.api.routers.core.admin_router import router
 
 
 @router.get(

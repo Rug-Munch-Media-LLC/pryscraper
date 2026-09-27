@@ -290,7 +290,7 @@ extend-ignore = ["N815", "A002", "RUF006"]
 # Vetted security-suppression sites (bandit # nosec on the same lines;
 # ruff S-rules don't honor nosec, so mirrored here):
 # admin.py — loopback membership check, not an interface bind.
-"src/pry/api/routers/core/admin.py" = ["S104"]
+"src/pry/api/routers/core/admin_router.py" = ["S104"]
 # jwt_auth.py — JWKS fetch guarded to http/https schemes above the call.
 "src/pry/core/jwt_auth.py" = ["S310"]
 # pdf_extractor.py — camelot requires a real file path; /tmp is scratch.

@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query  # noqa: F401 - APIRouter re-exported
 
-from pry.api.routers.core.admin import router
+from pry.api.routers.core.admin_router import router
 from pry.api.routers.core.admin_shared import _earnings_source, _get_x402_payments, _parse_ts
 
 logger = logging.getLogger(__name__)

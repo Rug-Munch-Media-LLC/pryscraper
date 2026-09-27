@@ -9,7 +9,7 @@ from typing import Any
 from fastapi import Query
 from fastapi.responses import HTMLResponse
 
-from pry.api.routers.core.admin import router
+from pry.api.routers.core.admin_router import router
 from pry.api.routers.core.admin_shared import (
     _compute_profits,
     _earnings_source,

@@ -21,7 +21,7 @@ from fastapi import Body, Query
 from fastapi.responses import PlainTextResponse
 from prometheus_client import generate_latest
 
-from pry.api.routers.core.admin import ADMIN_DIR, PRY_DATA_DIR, router
+from pry.api.routers.core.admin import ADMIN_DIR, PRY_DATA_DIR
 
 # Re-exported endpoint handlers from split modules (legacy import surface).
 from pry.api.routers.core.admin_earnings import (  # noqa: F401
@@ -34,6 +34,7 @@ from pry.api.routers.core.admin_issues import (  # noqa: F401
     admin_issue_resolve,
     admin_issues,
 )
+from pry.api.routers.core.admin_router import router
 from pry.api.routers.core.admin_shared import (
     CACHE_HIT_RATIO,
     COST_TOTAL,
