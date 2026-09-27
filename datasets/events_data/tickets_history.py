@@ -39,16 +39,23 @@ def _history_path() -> str:
 
 
 def _load_history() -> None:
-    """Reload tracked price history from the JSON persistence file (best effort)."""
+    """Reload tracked price history from the JSON persistence file.
+
+    A file that cannot be read or parsed leaves the in-memory store EMPTY,
+    which is indistinguishable from "nothing is tracked". That failure is
+    therefore logged rather than swallowed silently.
+    """
     path = _history_path()
     if not path:
         return
     try:
         with open(path, encoding="utf-8") as handle:
             entries = json.load(handle)
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        logger.warning("price_history_unreadable", extra={"error": str(exc)[:120]})
         return
     if not isinstance(entries, dict):
+        logger.warning("price_history_wrong_shape", extra={"path": path[:120]})
         return
     max_per_event = _facade()._MAX_HISTORY_PER_EVENT
     with _LOCK:

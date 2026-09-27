@@ -116,13 +116,17 @@ def espn_events(sport: str) -> list[dict[str, Any]]:
 
     try:
         loop = asyncio.get_running_loop()
-    except RuntimeError:
+    except RuntimeError as exc:
+        logger.warning("espn_events_no_loop", extra={"sport": sport, "error": str(exc)[:120]})
         loop = None
     if loop is not None:  # pragma: no cover - called from async context
         return []
     try:
         payload = asyncio.run(_one())
-    except (RuntimeError, OSError):
+    except (RuntimeError, OSError) as exc:
+        # An unreachable scoreboard yields an empty slate, which reads as
+        # "no games scheduled" — an actionable difference for a bettor.
+        logger.warning("espn_events_fetch_failed", extra={"sport": sport, "error": str(exc)[:120]})
         return []
     events: list[dict[str, Any]] = []
     for event in (payload or {}).get("events", []) if isinstance(payload, dict) else []:

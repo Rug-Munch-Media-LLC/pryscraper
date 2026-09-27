@@ -73,16 +73,22 @@ def _alerts_path() -> str:
 
 
 def _load_alerts() -> None:
-    """Reload tracked alerts from the JSON persistence file (best effort)."""
+    """Reload tracked alerts from the JSON persistence file.
+
+    A file that cannot be read or parsed leaves the alert store EMPTY, which is
+    indistinguishable from "no alerts configured" — the failure is logged.
+    """
     path = _alerts_path()
     if not path:
         return
     try:
         with open(path, encoding="utf-8") as handle:
             entries = json.load(handle)
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        logger.warning("drops_alerts_unreadable", extra={"error": str(exc)[:120]})
         return
     if not isinstance(entries, dict):
+        logger.warning("drops_alerts_wrong_shape", extra={"path": path[:120]})
         return
     with _LOCK:
         for alert_id, record in entries.items():

@@ -88,6 +88,7 @@ def check_consent(user_id: str, purpose: str = "data_collection") -> dict[str, A
     now = datetime.now(UTC)
 
     latest_consent = None
+    unreadable: list[str] = []
     for path in sorted(CONSENT_DIR.glob(f"{user_hash}_*.json"), key=os.path.getmtime, reverse=True):
         try:
             record = json.loads(path.read_text())
@@ -96,23 +97,37 @@ def check_consent(user_id: str, purpose: str = "data_collection") -> dict[str, A
                 if expires > now:
                     latest_consent = record
                     break
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, OSError, KeyError, TypeError, ValueError):
+            unreadable.append(path.name)
             continue
 
     if latest_consent:
-        return {
+        result = {
             "consent_given": latest_consent["consent_given"],
             "recorded_at": latest_consent["recorded_at"],
             "expires_at": latest_consent["expires_at"],
             "valid": True,
         }
-    return {"consent_given": False, "valid": False, "note": "No consent record found"}
+        if unreadable:
+            result["unreadable_records"] = len(unreadable)
+        return result
+    result = {"consent_given": False, "valid": False, "note": "No consent record found"}
+    if unreadable:
+        # "No record found" would be false here: records exist but could not be
+        # read. An unreadable consent store must never read as "no consent".
+        result["note"] = (
+            f"No consent record found, but {len(unreadable)} record(s) were "
+            "unreadable — treat consent state as UNKNOWN, not as refused"
+        )
+        result["unreadable_records"] = len(unreadable)
+    return result
 
 
 def revoke_consent(user_id: str, purpose: str = "data_collection") -> dict[str, Any]:
     """Revoke a user's consent for a purpose."""
     user_hash = hashlib.sha256(user_id.lower().encode()).hexdigest()[:16]
     revoked = 0
+    unreadable: list[str] = []
     for path in CONSENT_DIR.glob(f"{user_hash}_*.json"):
         try:
             record = json.loads(path.read_text())
@@ -122,8 +137,17 @@ def revoke_consent(user_id: str, purpose: str = "data_collection") -> dict[str, 
                 path.write_text(json.dumps(record, indent=2))
                 revoked += 1
         except (json.JSONDecodeError, OSError):
+            unreadable.append(path.name)
             continue
-    return {"success": True, "revoked_records": revoked}
+    result: dict[str, Any] = {"success": True, "revoked_records": revoked}
+    if unreadable:
+        # success=True alone would claim a complete revocation. It is partial.
+        result["unreadable_records"] = len(unreadable)
+        result["note"] = (
+            f"{len(unreadable)} consent record(s) could not be read or written; "
+            "those may still hold consent"
+        )
+    return result
 
 
 # ── Data Deletion (Right to Erasure) ──
@@ -320,6 +344,7 @@ def _apply_retention_policy_sync() -> dict[str, Any]:
     """Apply the retention policy by removing expired data (sync worker)."""
     now = time.time()
     removed_total = 0
+    skipped: list[str] = []
 
     # Remove expired consent records
     for path in CONSENT_DIR.glob("*.json"):
@@ -329,7 +354,10 @@ def _apply_retention_policy_sync() -> dict[str, Any]:
             if expires < datetime.now(UTC):
                 path.unlink()
                 removed_total += 1
-        except (json.JSONDecodeError, OSError, ValueError):
+        except (json.JSONDecodeError, OSError, ValueError, KeyError, TypeError):
+            # An expired record we cannot read is NOT removed. Count it so the
+            # caller sees a partial sweep instead of a silently clean result.
+            skipped.append(path.name)
             continue
 
     # Remove old quality data (>90 days)
@@ -349,7 +377,11 @@ def _apply_retention_policy_sync() -> dict[str, Any]:
                 removed_total += 1
 
     logger.info("retention_policy_applied", extra={"removed": removed_total})
-    return {"success": True, "removed_records": removed_total}
+    result: dict[str, Any] = {"success": True, "removed_records": removed_total}
+    if skipped:
+        # The sweep did not finish: unreadable records were left in place.
+        result["unreadable_records"] = len(skipped)
+    return result
 
 
 # ── Audit Log ──
@@ -378,8 +410,23 @@ async def log_audit_event(
         return {"success": False, "error": str(e)}
 
 
+class AuditLogUnavailableError(RuntimeError):
+    """A log file in the requested window could not be read or parsed.
+
+    Raised instead of silently dropping the file, because a partial audit
+    extract reported as a complete one is a compliance defect, not a
+    convenience.
+    """
+
+
 def get_audit_log(days_back: int = 7) -> list[dict[str, Any]]:
-    """Get audit log entries for the specified period."""
+    """Get audit log entries for the specified period.
+
+    Raises:
+        AuditLogUnavailableError: a log file in the window was unreadable or
+            contained a malformed line. An audit trail with a hole must not be
+            returned as if it were whole.
+    """
     cutoff = (datetime.now(UTC) - timedelta(days=days_back)).strftime("%Y-%m-%d")
     events = []
     for path in sorted(AUDIT_DIR.glob("audit_*.jsonl"), reverse=True):
@@ -390,6 +437,8 @@ def get_audit_log(days_back: int = 7) -> list[dict[str, Any]]:
             for line in path.read_text().splitlines():
                 if line.strip():
                     events.append(json.loads(line))
-        except (json.JSONDecodeError, OSError):
-            continue
+        except (json.JSONDecodeError, OSError) as exc:
+            raise AuditLogUnavailableError(
+                f"audit log {path.name} could not be read: {exc}"
+            ) from exc
     return events

@@ -27,17 +27,25 @@ logger = logging.getLogger(__name__)
 _PJM_FEED = "https://dataminer2.pjm.com/feed/da_hrl_lmps"
 
 
+class PJMParseError(ValueError):
+    """The PJM response was neither JSON nor readable CSV."""
+
+
 def _parse_pjm_payload(text: str) -> list[dict[str, Any]]:
     """Parse a PJM Data Miner 2 response (JSON or CSV) into LMP records.
 
     Data Miner 2 returns JSON by default and CSV when ``download=true``;
     both are parsed defensively. Best-effort column names: node_id/pnode_id,
     datetime_beginning_utc, marginal_cost_lmp.
+
+    Raises:
+        PJMParseError: the body was not decodable as JSON *and* not parseable
+            as CSV. Returning ``[]`` there would be indistinguishable from a
+            day with no prices, so the failure is raised instead.
     """
     rows: list[dict[str, Any]] = []
-    payload: Any = None
     try:
-        payload = json.loads(text)
+        payload: Any = json.loads(text)
     except ValueError:
         payload = None
     if isinstance(payload, dict):
@@ -52,8 +60,8 @@ def _parse_pjm_payload(text: str) -> list[dict[str, Any]]:
         try:
             reader = csv.DictReader(io.StringIO(text))
             rows = list(reader)
-        except (csv.Error, ValueError):
-            rows = []
+        except (csv.Error, ValueError) as exc:
+            raise PJMParseError(f"PJM response was neither JSON nor CSV: {exc}") from exc
     records: list[dict[str, Any]] = []
     for row in rows:
         node = (
@@ -95,4 +103,13 @@ async def _fetch_pjm(start_date: str) -> list[dict[str, Any]]:
             text = response.text
     except (httpx.HTTPError, OSError):
         return []
-    return _parse_pjm_payload(text)
+    try:
+        return _parse_pjm_payload(text)
+    except PJMParseError:
+        # Transport worked, the body did not parse. A logged [] would read as
+        # "PJM published no prices", which is a different and wrong claim.
+        logger.warning(
+            "energy_pjm_unparseable_response",
+            extra={"region": "pjm", "date": start_date, "bytes": len(text)},
+        )
+        return []

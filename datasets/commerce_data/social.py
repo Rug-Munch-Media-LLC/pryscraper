@@ -282,11 +282,18 @@ async def _tiktok_metrics(handle: str, platform: str) -> dict[str, Any]:
     match = _TIKTOK_HYDRATION_RE.search(raw)
     stats: dict[str, Any] = {}
     if match:
+        data: Any = None
         try:
             data = json.loads(match.group(1))
         except json.JSONDecodeError:
-            data = None
-        if data is not None:
+            # The hydration blob is present but corrupt. Propagate the failure
+            # instead of returning a complete metrics dict with every field
+            # None, which is indistinguishable from a zero-follower account.
+            logger.warning(
+                "social_metrics_hydration_unparseable",
+                extra={"handle": handle, "platform": platform},
+            )
+        if isinstance(data, dict):
             found = _deep_first(data, ("stats",))
             if isinstance(found, dict):
                 stats = found

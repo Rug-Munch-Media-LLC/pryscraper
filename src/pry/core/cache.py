@@ -71,15 +71,28 @@ class ResponseCache:
     # ── Redis backend ────────────────────────────────────────────────────────
 
     def _redis_url(self) -> str:
-        """Resolve the Redis URL from the injected backend or settings."""
+        """Resolve the Redis URL from the injected backend or settings.
+
+        Returns ``""`` only when Redis is genuinely not configured. A settings
+        resolution failure is NOT that: it means the cache cannot tell whether
+        Redis was meant to be on, and returning ``""`` would silently pin the
+        process to memory-only. Those failures raise so the caller sees a real
+        config error instead of a plausible "memory backend" story.
+        """
         if self._redis_backend is not None:
             return str(self._redis_backend)
         try:
             from pry.core.settings import settings
 
             return str(settings.redis_url)
-        except Exception:  # noqa: BLE001 — settings import must never break cache
-            return ""
+        except (ImportError, AttributeError, TypeError, ValueError) as e:
+            # A resolvable settings object with an unusable redis_url is a
+            # config error, not a "Redis is off" signal — fail loudly.
+            logger.error(
+                "response_cache_redis_url_unresolvable",
+                extra={"error_type": type(e).__name__},
+            )
+            raise
 
     async def _get_redis(self) -> Any:
         """Return a pinged async Redis client, or None (with cooldown)."""
@@ -212,10 +225,20 @@ class ResponseCache:
         if client is not None:
             try:
                 raw = await client.get(self._redis_key(key))
+            except Exception as e:  # noqa: BLE001 — Redis down → memory fallback
+                self._drop_redis(e)
+            else:
                 if raw is not None:
                     try:
                         data = json.loads(raw)
-                    except (TypeError, ValueError):
+                    except (TypeError, ValueError) as e:
+                        # Poisoned entry, not a miss. Reported, then the bad
+                        # value is discarded so the next get re-fetches.
+                        logger.error(
+                            "response_cache_redis_entry_undecodable",
+                            extra={"key": self._redis_key(key), "error_type": type(e).__name__},
+                        )
+                        await self._discard_redis_entry(client, self._redis_key(key))
                         data = None
                     if data is not None:
                         # Populate L1 so subsequent reads hit memory.
@@ -225,11 +248,19 @@ class ResponseCache:
                             CACHE_HITS.labels(cache_type="redis").inc()
                         redis_data: dict[str, Any] = data
                         return redis_data
-            except Exception as e:  # noqa: BLE001 — Redis down → memory fallback
-                self._drop_redis(e)
 
         self._misses += 1
         return None
+
+    async def _discard_redis_entry(self, client: Any, full_key: str) -> None:
+        """Best-effort delete of a poisoned Redis entry (never raises)."""
+        try:
+            await client.delete(full_key)
+        except Exception as e:  # noqa: BLE001 — best-effort cleanup
+            logger.warning(
+                "response_cache_redis_cleanup_failed",
+                extra={"key": full_key, "error_type": type(e).__name__},
+            )
 
     async def aset(
         self,

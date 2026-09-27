@@ -86,19 +86,49 @@ def run_migrations() -> None:
         raise
 
 
+def _sqlite_version(conn: Any) -> str | None:
+    """Return the connected backend's SQLite version, or None if not SQLite.
+
+    ``SELECT 1`` runs first: it is a real round trip, so it distinguishes a
+    healthy non-SQLite backend (the driver rejects ``sqlite_version()`` with
+    "no such function" but answers ``SELECT 1``) from a dead or unusable
+    connection. Only the former degrades to None; anything else propagates so
+    a broken database is never reported as available.
+    """
+    try:
+        conn.exec_driver_sql("SELECT 1").fetchone()
+    except (OperationalError, ProgrammingError) as e:
+        # Round trip failed: the connection is not usable.
+        logger.warning(
+            "db_health_connectivity_probe_failed", extra={"error_type": type(e).__name__}
+        )
+        raise
+
+    try:
+        result = conn.exec_driver_sql("SELECT sqlite_version()").fetchone()
+    except (OperationalError, ProgrammingError) as e:
+        # Expected on a *healthy* non-SQLite backend — verified by SELECT 1 above.
+        logger.debug(
+            "db_health_sqlite_probe_not_applicable", extra={"error_type": type(e).__name__}
+        )
+        return None
+    return result[0] if result else None
+
+
 def db_health() -> dict[str, Any]:
-    """Return a quick health dict for /health or /status endpoints."""
+    """Return a quick health dict for /health or /status endpoints.
+
+    ``available: True`` means the engine actually connected. A connection or
+    probe failure returns ``available: False`` with the error, so an unhealthy
+    database is never reported as healthy.
+    """
     if not _HAS_SA:
         return {"available": False, "reason": "sqlalchemy not installed"}
     try:
         eng = get_engine()
         with eng.connect() as conn:
-            # SQLite-specific pragma; no-op for other backends
-            try:
-                result = conn.exec_driver_sql("SELECT sqlite_version()").fetchone()
-                sqlite_version = result[0] if result else None
-            except (OperationalError, ProgrammingError):
-                sqlite_version = None
+            # SQLite-specific pragma; None for other backends.
+            sqlite_version = _sqlite_version(conn)
         return {
             "available": True,
             "url": _resolve_database_url().split("@")[-1]

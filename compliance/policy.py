@@ -164,6 +164,7 @@ async def run_compliance_check(url: str) -> dict[str, Any]:
     html = ""
     tos_text = ""
     tos_url = ""
+    page_error = ""
     try:
         async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
             resp = await client.get(
@@ -172,8 +173,11 @@ async def run_compliance_check(url: str) -> dict[str, Any]:
             )
             if resp.is_success:
                 html = resp.text
-    except (httpx.HTTPError, httpx.RequestError):
-        pass
+    except (httpx.HTTPError, httpx.RequestError) as exc:
+        # A failed page fetch is NOT an empty page: the sensitive-data scan and
+        # the ToS pass never ran. Record it so the caller can tell "no risk
+        # found" apart from "risk not checked".
+        page_error = f"{type(exc).__name__}: {exc}"[:200]
 
     # Try to find and fetch ToS page
     parsed = urlparse(url)
@@ -216,6 +220,10 @@ async def run_compliance_check(url: str) -> dict[str, Any]:
             "gdpr_relevance": "unknown",
         }
     )
+    # Surface a failed page fetch instead of letting "not scanned" read as
+    # "no sensitive data present" in the scorecard below.
+    if page_error:
+        sensitive["error"] = f"Page fetch failed, sensitive data not scanned: {page_error}"
 
     # LLM fallback for ToS classification when the regex pass is low-confidence
     # or no ToS page was found. The LLM gets the ToS text (or page HTML if no
@@ -279,6 +287,19 @@ async def run_compliance_check(url: str) -> dict[str, Any]:
     else:
         risk_level = "green"
 
+    # A page we could not fetch leaves both the ToS and the sensitive-data
+    # dimension unchecked. "green" is a claim that nothing risky was found;
+    # never report that verdict off a failed fetch — degrade to "yellow"
+    # ("check manually") so the caller cannot read silence as clearance.
+    incomplete_check = bool(page_error) or not tos_url
+    if risk_level == "green" and incomplete_check:
+        risk_level = "yellow"
+        risk_notes.append(
+            "Page fetch failed — ToS and sensitive-data checks did not run"
+            if page_error
+            else "No Terms of Service page located — ToS check did not run"
+        )
+
     return {
         "url": url,
         "risk_level": risk_level,
@@ -319,6 +340,7 @@ async def run_compliance_check(url: str) -> dict[str, Any]:
             "has_health": sensitive["has_health"],
             "categories": sensitive["categories_present"],
             "gdpr_relevance": sensitive["gdpr_relevance"],
+            "error": sensitive.get("error", ""),
         },
         "recommendations": _generate_recommendations(risk_level, risk_notes, jurisdiction),
     }
