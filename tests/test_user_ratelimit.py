@@ -13,7 +13,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from pry.core.user_ratelimit import TIER_LIMITS, UserBucket, UserRateLimiter
+from pry.core import user_ratelimit as user_ratelimit_mod
+from pry.core.user_ratelimit import (
+    TIER_LIMITS,
+    QuotaUnavailableError,
+    UserBucket,
+    UserRateLimiter,
+)
 
 
 @pytest.fixture
@@ -305,3 +311,54 @@ def test_overflow_burst_allowed(limiter: UserRateLimiter):
         for i in range(100):
             allowed, _ = limiter.check("burst_key")
             assert allowed is True, f"Request {i + 1} should be allowed"
+
+
+# ---------------------------------------------------------------------------
+# Fail-closed quota reads (DB outage must not read as an unlimited user)
+# ---------------------------------------------------------------------------
+
+
+async def test_db_outage_does_not_report_zero_quota(limiter: UserRateLimiter):
+    """A SQLAlchemyError must deny, not silently return quota_used=0.
+
+    Returning 0 makes every user look like they have an UNLIMITED quota, so a
+    database outage would disable quota enforcement entirely. The read must
+    raise QuotaUnavailableError, and the check must deny explicitly.
+    """
+    from sqlalchemy.exc import OperationalError
+
+    db_error = OperationalError("SELECT sum(cost_usd)...", {}, Exception("connection refused"))
+
+    class _FailingSession:
+        async def __aenter__(self):
+            raise db_error
+
+        async def __aexit__(self, *exc):
+            return False
+
+    def _scope():
+        return _FailingSession()
+
+    real_scope = user_ratelimit_mod.async_session_scope
+    user_ratelimit_mod.async_session_scope = _scope
+    try:
+        # 1. The DB read itself denies instead of returning 0.
+        with pytest.raises(QuotaUnavailableError):
+            await limiter._load_quota_from_db("api_key_db_down")
+
+        # 2. The sync path marks the bucket unverified; it does NOT zero it.
+        bucket = UserBucket(tokens=100, last_refill=time.time(), quota_used=500.0)
+        limiter._buckets["api_key_db_down"] = bucket
+        limiter._last_quota_sync = time.time() - limiter._quota_sync_interval - 1
+        await limiter._sync_quota("api_key_db_down", bucket)
+        assert bucket.quota_unverified is True
+        assert bucket.quota_used == 500.0, "known usage must not be reset to zero"
+
+        # 3. check() denies explicitly rather than admitting the request.
+        allowed, info = limiter.check("api_key_db_down", tier="FREE", cost_usd=1.0)
+        assert allowed is False
+        assert info["reason"] == "quota_unavailable"
+        # The denial reports no usage at all — never a fabricated zero.
+        assert "quota_used" not in info
+    finally:
+        user_ratelimit_mod.async_session_scope = real_scope

@@ -15,10 +15,26 @@ Split from resources.py.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from pry_mcp.constants import MCP_PROTOCOL_VERSION, SERVER_NAME, SERVER_VERSION
 from pry_mcp.resources_defs import DATA_DOMAINS
+
+logger = logging.getLogger(__name__)
+
+# MCP resource reads are protocol calls: the client expects a well-formed
+# result, so a failed read must be reported as an error payload rather than
+# raised out of the handler. These helpers build in-process dicts/lists from
+# in-memory registries, so the realistic failures are NOT json decode errors
+# (nothing is decoded) and NOT bare ValueError. They are: a missing or
+# relocated module (ImportError), an unexpected attribute/shape in the
+# returned registry (AttributeError/KeyError/TypeError), and a non-serializable
+# object reaching json.dumps (TypeError). A bare `except Exception` is the
+# honest boundary here — the alternative is a resource read that raises
+# AttributeError straight through the MCP server and breaks the protocol
+# response instead of degrading to an error message.
+_RESOURCE_READ_EXCEPTIONS = (Exception,)
 
 
 class ResourceHandler:
@@ -75,7 +91,12 @@ class ResourceHandler:
                     },
                     indent=2,
                 )
-            except (json.JSONDecodeError, ValueError) as e:
+            except _RESOURCE_READ_EXCEPTIONS as e:
+                logger.warning(
+                    "mcp_resource_template_catalog_failed",
+                    extra={"uri": uri, "error": str(e), "error_type": type(e).__name__},
+                    exc_info=True,
+                )
                 return json.dumps({"error": f"Could not load template catalog: {e}"})
         if uri == "pry://stats":
             return json.dumps(
@@ -94,14 +115,24 @@ class ResourceHandler:
                 from pry.payments.x402 import X402Handler
 
                 return json.dumps(X402Handler().get_stats(), indent=2)
-            except (json.JSONDecodeError, ValueError) as e:
+            except _RESOURCE_READ_EXCEPTIONS as e:
+                logger.warning(
+                    "mcp_resource_x402_pricing_failed",
+                    extra={"uri": uri, "error": str(e), "error_type": type(e).__name__},
+                    exc_info=True,
+                )
                 return json.dumps({"error": f"Could not load x402 pricing: {e}"})
         if uri == "pry://referrals":
             try:
                 from pry.commerce.referrals import ReferralTracker
 
                 return json.dumps(ReferralTracker().get_catalog(), indent=2)
-            except (json.JSONDecodeError, ValueError) as e:
+            except _RESOURCE_READ_EXCEPTIONS as e:
+                logger.warning(
+                    "mcp_resource_referrals_failed",
+                    extra={"uri": uri, "error": str(e), "error_type": type(e).__name__},
+                    exc_info=True,
+                )
                 return json.dumps({"error": f"Could not load referrals: {e}"})
         if uri == "pry://coverage":
             try:
@@ -296,7 +327,22 @@ class ResourceHandler:
                     for t in templates
                     if arg_value.lower() in t.get("template_id", "").lower()
                 ][:10]
-            except Exception:  # noqa: BLE001
+            except Exception as e:
+                # An empty suggestion list is indistinguishable from "no
+                # matching template" at the protocol level, so a real failure
+                # (import error, registry shape change) would be reported to
+                # the user as a working autocomplete with no matches. Log it
+                # so the failure is visible in the MCP server log.
+                logger.warning(
+                    "mcp_completion_template_id_failed",
+                    extra={
+                        "ref_name": ref_name,
+                        "arg_value": arg_value,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                    exc_info=True,
+                )
                 values = []
         elif ref_type == "ref/tool" and arg_name == "url":
             values = []

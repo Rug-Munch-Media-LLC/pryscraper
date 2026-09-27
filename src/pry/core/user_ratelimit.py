@@ -46,6 +46,20 @@ class UserBucket:
     blocked_requests: int = 0
     quota_used: float = 0.0
     quota_reset_at: float = 0.0
+    # True when the last quota sync failed and the stored quota_used is
+    # UNVERIFIED. Callers must deny: an unverified bucket is fail-closed, not
+    # a user with zero usage.
+    quota_unverified: bool = False
+
+
+class QuotaUnavailableError(RuntimeError):
+    """Raised when the monthly quota cannot be read from the database.
+
+    Fail-closed. During a DB outage every bucket's usage is unknown, so
+    treating the read as ``0`` would advertise an UNLIMITED quota to every
+    user and turn a database failure into a quota/rate-limit bypass. The
+    check instead denies with an explicit, retryable reason.
+    """
 
 
 class UserRateLimiter:
@@ -98,14 +112,34 @@ class UserRateLimiter:
                     .where(Usage.created_at >= month_start)
                 )
                 return int(result.scalar() or 0)
-        except SQLAlchemyError:
-            return 0
+        except SQLAlchemyError as e:
+            # FAIL-CLOSED. Returning 0 here would read as "this user has used
+            # no quota", i.e. an unlimited user, so a database outage would
+            # silently disable quota enforcement fleet-wide. Deny instead.
+            logger.error(
+                "quota_read_failed_denying: %s",
+                e,
+                extra={"api_key_id": api_key_id},
+            )
+            raise QuotaUnavailableError(
+                "quota state unavailable; denying request rather than assuming zero usage"
+            ) from e
 
     async def _sync_quota(self, api_key_id: str, bucket: UserBucket) -> None:
-        """Sync quota from database periodically."""
+        """Sync quota from database periodically.
+
+        On a read failure the bucket is marked unverified rather than being
+        reset to zero — the previous usage total is kept and the bucket is
+        denied until a later sync succeeds.
+        """
         now = time.time()
         if now - self._last_quota_sync > self._quota_sync_interval:
-            bucket.quota_used = await self._load_quota_from_db(api_key_id)
+            try:
+                bucket.quota_used = await self._load_quota_from_db(api_key_id)
+            except QuotaUnavailableError:
+                bucket.quota_unverified = True
+            else:
+                bucket.quota_unverified = False
             self._last_quota_sync = now
 
     def check(
@@ -151,6 +185,23 @@ class UserRateLimiter:
         elapsed = now - bucket.last_refill
         bucket.tokens = min(burst, bucket.tokens + elapsed * (rate / 60))
         bucket.last_refill = now
+
+        # An unverified quota is a DB outage, not a zero-quota user. Deny
+        # explicitly and retryably so quota enforcement cannot be bypassed by
+        # taking the database down.
+        if bucket.quota_unverified:
+            bucket.blocked_requests += 1
+            logger.warning(
+                "quota_unverified_denied: %s",
+                api_key_id,
+                extra={"api_key_id": api_key_id},
+            )
+            return False, {
+                "allowed": False,
+                "reason": "quota_unavailable",
+                "retry_after": 30,
+                "message": "Quota state unavailable; retry shortly.",
+            }
 
         # Check quota
         if bucket.quota_used + cost_usd > quota:
