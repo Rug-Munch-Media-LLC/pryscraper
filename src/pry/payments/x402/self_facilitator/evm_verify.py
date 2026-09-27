@@ -13,9 +13,6 @@ from typing import Any
 from eth_keys import keys  # type: ignore[attr-defined]
 from eth_utils import to_checksum_address  # type: ignore[attr-defined]
 
-from pry.payments.x402 import X402_DEFAULT_ASSET
-from pry.payments.x402.scheme import normalize_network_id
-
 from .crypto import (
     _nonce_hex,
     _parse_signature,
@@ -24,6 +21,10 @@ from .crypto import (
 )
 from .evm_common import _pkg
 from .networks import _allow_testnets, _chain_id_for, is_testnet_network
+from .pricing import (
+    resolve_context as _resolve_context,
+    resolve_required_atomic as _resolve_required_atomic,
+)
 from .response import VerifyResult
 
 
@@ -152,17 +153,6 @@ class EVMVerifyMixin:
 
 
 # ── Private helpers (extracted from EVMVerifyMixin.verify — audit P2) ───────
-
-
-def _resolve_context(payment: dict[str, Any]) -> tuple[str, str, float]:
-    """Normalize (network, asset, amount_usd) from the payment dict."""
-    network = normalize_network_id(str(payment.get("network") or ""))
-    asset = str(payment.get("asset") or X402_DEFAULT_ASSET).upper()
-    try:
-        amount_usd = float(payment.get("amount_usd") or 0.0)
-    except (TypeError, ValueError):
-        amount_usd = 0.0
-    return network, asset, amount_usd
 
 
 def _preconditions(
@@ -311,33 +301,6 @@ def _recover_signer(
             network=network,
         )
     return recovered_address, None
-
-
-async def _resolve_required_atomic(
-    entry: dict[str, Any],
-    payment: dict[str, Any],
-    asset: str,
-    network: str,
-    amount_usd: float,
-) -> tuple[int | None, VerifyResult | None]:
-    """Resolve the required atomic amount (attested first, else live oracle).
-
-    Returns ``(required_atomic, failure)``.
-    """
-    decimals = int(entry.get("decimals", 6))
-    attested_atomic = 0
-    try:
-        attested_atomic = int(payment.get("attested_required_atomic") or 0)
-    except (TypeError, ValueError):
-        attested_atomic = 0
-    if attested_atomic > 0:
-        return attested_atomic, None
-    quote = await _pkg().get_asset_usd_price(asset, network)
-    if not quote.usd or quote.usd <= 0:
-        return None, VerifyResult(
-            False, f"no USD price available for {asset}", asset=asset, network=network
-        )
-    return (round(amount_usd / quote.usd * (10**decimals)) if amount_usd > 0 else 1), None
 
 
 def _validity_failure(
