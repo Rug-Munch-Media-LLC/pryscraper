@@ -8,6 +8,7 @@ top-level ``db`` package for the mapping). This module re-exports the
 - ``models_scraping`` — quality/intel/structure/monitors/accounts/reports/pipelines/webhooks
 - ``models_auth``     — users, API keys, usage, scrape jobs, audit events
 - ``models_billing``  — balances, ledger, hosting, agency, referrals, actors, x402
+- ``models_resilience`` — domain_method_stats (durable learned method memory)
 
 Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
 Licensed under MIT. See LICENSE.
@@ -43,6 +44,7 @@ from pry.core.db.models_billing import (
     X402PaymentRecord,
     X402SettlementRecord,
 )
+from pry.core.db.models_resilience import DomainMethodStat
 from pry.core.db.models_scraping import (
     Account,
     BrowserSession,
@@ -66,6 +68,7 @@ __all__ = [
     "Balance",
     "Base",
     "BrowserSession",
+    "DomainMethodStat",
     "HostedInstance",
     "HostingInvoice",
     "HostingPlan",

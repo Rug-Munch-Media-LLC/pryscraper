@@ -11,14 +11,16 @@ Security posture:
   path for every external agent.
 - Constant-time comparison (``hmac.compare_digest``) so a wrong token leaks no
   length/prefix information through timing.
-- The HMAC binds method + path + caller identity, so a captured signature is not
-  replayable against a different endpoint or client.
-- REPLAY PROTECTION (2026-09-27): the HMAC also binds a unix timestamp carried
-  in ``X-Internal-Timestamp``, checked against ``PRY_INTERNAL_MAX_SKEW_SECONDS``
-  (default 300). A captured signature is therefore only usable inside the skew
-  window, and a seen signature is refused on a second use — the window is
-  enforced, not merely documented. A missing or non-numeric timestamp rejects
-  (fail closed), as does a non-numeric / non-positive skew setting.
+- The HMAC binds method + path + caller identity + unix timestamp, checked
+  against ``PRY_INTERNAL_MAX_SKEW_SECONDS`` (default 300). A captured signature
+  is usable only inside the window, and a seen signature is refused on a second
+  use. A missing / non-numeric timestamp, or a junk skew setting, rejects.
+- SHARED REPLAY CACHE (2026-09-27): the seen-signature set is per-process, which
+  is correct only at ``--workers 1``. With a Redis URL configured and answering,
+  the set is shared across every worker, so a captured request cannot be
+  replayed by hopping workers. Redis trouble degrades to the per-process cache
+  and never rejects traffic — see ``internal_replay_selection`` for why failing
+  open is the right availability trade here.
 """
 
 # SPDX-License-Identifier: MIT
@@ -30,6 +32,8 @@ import os
 import time
 from collections import OrderedDict
 from typing import Any
+
+from pry.payments.x402_middleware import internal_replay_selection as _selection
 
 INTERNAL_TOKEN_HEADER = b"x-internal-token"
 INTERNAL_SIG_HEADER = b"x-internal-signature"
@@ -47,6 +51,36 @@ MAX_REPLAY_ENTRIES = 8192
 _SEEN_SIGNATURES: OrderedDict[str, float] = OrderedDict()
 
 
+def _already_seen_local(signature: str, now: float) -> bool:
+    """Record a signature in-process; True when it was already used."""
+    for seen, seen_expiry in list(_SEEN_SIGNATURES.items()):
+        if seen_expiry <= now:
+            del _SEEN_SIGNATURES[seen]
+    if signature in _SEEN_SIGNATURES:
+        return True
+    _SEEN_SIGNATURES[signature] = now + REPLAY_TTL_SECONDS
+    while len(_SEEN_SIGNATURES) > MAX_REPLAY_ENTRIES:
+        _SEEN_SIGNATURES.popitem(last=False)
+    return False
+
+
+def _already_seen(signature: str, now: float) -> bool:
+    """Record a signature as seen; True when it was already used.
+
+    Called only AFTER signature verification, so an unauthenticated attacker
+    cannot poison the cache. The shared store is authoritative when it
+    answers; otherwise we fall back in-process, failing OPEN — 402-ing our
+    own first-party jobs when Redis blinks is worse than the per-process
+    window this service already had.
+    """
+    store = _selection.get_store(REPLAY_TTL_SECONDS)
+    if store is not None:
+        shared = store.already_seen(signature, now)
+        if shared is not None:
+            return shared
+    return _already_seen_local(signature, now)
+
+
 def internal_max_skew() -> int:
     """Configured max clock skew in seconds; fail-closed when unusable.
 
@@ -62,23 +96,6 @@ def internal_max_skew() -> int:
     except ValueError:
         return 0
     return skew if skew > 0 else 0
-
-
-def _already_seen(signature: str, now: float) -> bool:
-    """Record a signature as seen; True when it was already used.
-
-    Called only AFTER the signature has been verified, so an unauthenticated
-    attacker cannot poison the cache with junk entries.
-    """
-    for seen, seen_expiry in list(_SEEN_SIGNATURES.items()):
-        if seen_expiry <= now:
-            del _SEEN_SIGNATURES[seen]
-    if signature in _SEEN_SIGNATURES:
-        return True
-    _SEEN_SIGNATURES[signature] = now + REPLAY_TTL_SECONDS
-    while len(_SEEN_SIGNATURES) > MAX_REPLAY_ENTRIES:
-        _SEEN_SIGNATURES.popitem(last=False)
-    return False
 
 
 def internal_token() -> str:
@@ -169,17 +186,14 @@ def _caller_from_scope(scope: dict[str, Any]) -> str:
 
         return _caller_key_from_scope(scope)
     except ImportError:  # pragma: no cover - partial import during startup
-        client = scope.get("client")
-        if client and isinstance(client, (list, tuple)) and client and client[0]:
-            return str(client[0])
-        return ""
+        client = scope.get("client") or ()
+        return str(client[0]) if client and client[0] else ""
 
 
 def mark_internal_verified(scope: dict[str, Any]) -> None:
-    """Mark the ASGI scope so the inner auth layer accepts the internal call.
+    """Mark the ASGI scope so the inner auth layer accepts the call.
 
-    Same payment-shaped dict the owner path uses — the auth layer reads
-    ``payment_id``/``batch_id`` off it, so a plain bool would crash
-    ``middleware_auth`` with ``AttributeError``.
+    Same payment-shaped dict the owner path uses: the auth layer reads
+    ``payment_id``/``batch_id`` off it, so a bool would crash it.
     """
     scope[INTERNAL_SCOPE_KEY] = {"payment_id": "internal", "batch_id": "", "internal": True}

@@ -1,28 +1,19 @@
 """Cost- and latency-aware ranking for Pry's per-domain tier memory.
 
-Pry keeps a :class:`~pry.engine.resilience.DomainTierMemory` that records, per
-(remembered key, tier), how often a tier succeeded, how fast it was and what
-it cost. This module is the single place that turns those raw counters into an
-ordering — so the two readers (``best_tier`` and ``reorder_for_domain``)
-can never disagree again.
+Pry keeps a :class:`~pry.engine.resilience.DomainTierMemory` recording, per
+(remembered key, tier), how often a tier succeeded, how fast and what it cost.
+This module turns those counters into an ordering, so the two readers
+(``best_tier`` and ``reorder_for_domain``) can never disagree.
 
-Three properties this module is responsible for:
-
-1. **Sample smoothing.** A tier with 1 success out of 1 attempt must not outrank
-   a tier with 98 out of 100. Raw ratios do exactly that, which made a single
-   lucky scrape permanently pin a domain to an expensive browser tier. We use
-   an empirical-Bayes estimate with a prior, so a tier needs evidence before
-   it displaces the static order.
+1. **Sample smoothing.** A tier with 1 success out of 1 must not outrank one
+   proven 98/100 — raw ratios do exactly that, so one lucky scrape pinned a
+   domain to an expensive browser tier forever. An empirical-Bayes prior fixes it.
 2. **Cost awareness.** The vendors cannot do this: their per-page price hides
-   the internal method cost, so a bot wall that forces JS rendering costs them
-   the same credit as a clean fetch. Pry owns the ladder, so the marginal cost
-   of the winning tier is a real term in the decision.
-3. **One reader.** ``rank_tiers`` is the only ordering primitive. ``best_tier``
-   is then simply "the head of the ranked list", which is what makes the two
-   entry points agree by construction rather than by convention.
+   the internal method cost, so a bot wall forcing JS rendering costs a
+   customer the same credit as a clean fetch. Pry owns the ladder.
+3. **One reader.** :func:`rank_tiers` is the only ordering primitive.
 
-A blocked page is never recorded as a success by the caller
-(``scraper_orchestrate._record_tier_outcome``), so success rate here means
+A blocked page is never recorded as a success, so success rate here means
 "useful content came back", not "an HTTP 200 came back".
 """
 
@@ -62,6 +53,18 @@ LATENCY_BUDGET_MS = 30_000.0
 # A cost-normalising ceiling. Tiers are priced in USD per call; 0.05 is well
 # above the most expensive rung of the 15-tier ladder.
 COST_CEILING_USD = 0.05
+
+# Hard freshness bound. Mirrors ``resilience.DOMAIN_MEMORY_MAX_AGE_SECONDS``,
+# which is the documented value (and the one that survives a rename of this
+# module), re-declared here because the ranking primitive must not import the
+# package that calls it — that would be a cycle. ``resilience_domain_memory``
+# passes the canonical constant in as ``max_age_seconds``.
+#
+# A record with NO success at all (``last_success_at <= 0``) is never stale: it
+# has no positive evidence, so it is judged on its failures alone and the
+# static order already keeps it in place. Only a record that WAS working and
+# has not worked for this long loses its claim to the front of the ladder.
+DEFAULT_MAX_AGE_SECONDS = 3600.0
 
 
 class TierStats(Protocol):
@@ -120,6 +123,17 @@ def utility(record: TierStats, now: float) -> float:
     return success + 0.5 * recency - LATENCY_WEIGHT * latency - COST_WEIGHT * cost
 
 
+def is_stale(record: TierStats, now: float, max_age_seconds: float) -> bool:
+    """True when a record's last success predates the freshness bound.
+
+    A record that never succeeded is never stale — it has nothing to expire.
+    ``max_age_seconds`` <= 0 disables the filter.
+    """
+    if max_age_seconds <= 0 or record.last_success_at <= 0:
+        return False
+    return (now - record.last_success_at) > max_age_seconds
+
+
 def rank_tiers(
     candidates: Sequence[str],
     records: Mapping[str, TierStats],
@@ -128,24 +142,24 @@ def rank_tiers(
     skip_min_samples: int = 3,
     skip_rate: float = 0.30,
     cooldown_seconds: float = 300.0,
+    max_age_seconds: float = DEFAULT_MAX_AGE_SECONDS,
 ) -> list[str]:
     """Order ``candidates`` by learned utility for one remembered key.
 
     This is the single ranking primitive in Pry. Behaviour:
 
-    - Tiers with no history keep their static position (unseen tiers are
-      never promoted and never demoted).
-    - Chronic failures — at least ``skip_min_samples`` samples below
-      ``skip_rate`` raw success — are dropped, so a domain stops paying for
-      a method that does not work on it.
-    - Tiers that failed within ``cooldown_seconds`` are kept but pushed to
-      the back: a temporary demotion, not a ban.
-    - Everything else is ordered by :func:`utility`, with the static index as
-      the stable tie-break so equal scores keep the ladder's intent.
+    - Unrecorded tiers, and tiers whose last success predates
+      ``max_age_seconds``, keep their static position. Stale evidence loses
+      its promotion but not its rung: unlike a chronic failure it carries no
+      fresh evidence that the method broke, only evidence we used to have. One
+      new success re-arms it.
+    - Chronic failures (>= ``skip_min_samples`` samples below ``skip_rate``)
+      are dropped, so a domain stops paying for a method that does not work.
+    - Tiers that failed within ``cooldown_seconds`` go to the back: a
+      demotion, not a ban.
+    - The rest are ordered by :func:`utility`, static index as tie-break.
 
-    Never returns an empty list: if every candidate would be dropped the
-    static order is returned, because the scraper must always have a next
-    rung to try.
+    Never returns an empty list — the scraper must always have a next rung.
     """
     order = list(candidates)
     if not records:
@@ -157,7 +171,9 @@ def rank_tiers(
     cooled: list[tuple[str, int]] = []
     for tier in order:
         record = records.get(tier)
-        if record is None:
+        if record is None or is_stale(record, at, max_age_seconds):
+            # No history, or history too old to act on: keep the static
+            # position so the ladder stays complete and the rung retryable.
             ranked.append((tier, 0.0, static_index[tier]))
             continue
         samples = record.successes + record.failures
@@ -171,16 +187,3 @@ def rank_tiers(
     ranked.sort(key=lambda item: (-item[1], item[2]))
     cooled.sort(key=lambda item: item[1])
     return [tier for tier, _, _ in ranked] + [tier for tier, _ in cooled] or order
-
-
-__all__ = [
-    "COST_WEIGHT",
-    "LATENCY_WEIGHT",
-    "PRIOR_WEIGHT",
-    "cost_penalty",
-    "latency_penalty",
-    "rank_tiers",
-    "recency_bonus",
-    "smoothed_success_rate",
-    "utility",
-]
