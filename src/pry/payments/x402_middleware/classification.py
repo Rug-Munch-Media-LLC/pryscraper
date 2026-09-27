@@ -131,6 +131,11 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/breaker/reset",
         "/v1/breaker/status",
         "/v1/diagnostics",
+        # Learned method memory read surface (first-party/internal). Read-only
+        # observability over data Pry already collected, so it is free by
+        # design — the point of the endpoint is that an internal agent can ask
+        # "how should I fetch this domain?" without paying for the answer.
+        "/v1/diagnostics/method-plan",
         # Proxy management (control plane)
         "/v1/proxy/clicks",
         "/v1/proxy/configure",
