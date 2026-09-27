@@ -225,31 +225,7 @@ async def fetch_gmail_emails(
                 "note": "No emails found matching query",
             }
 
-        # Fetch each message
-        emails: list[dict[str, Any]] = []
-        failed_ids: list[str] = []
-        for msg in messages[:max_results]:
-            msg_id = msg["id"]
-            try:
-                msg_resp = await client.get(
-                    f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg_id}",
-                    headers=headers,
-                    timeout=15,
-                )
-                if not msg_resp.is_success:
-                    failed_ids.append(msg_id)
-                    continue
-
-                msg_data = msg_resp.json()
-                email = _parse_gmail_message(msg_data)
-                if email:
-                    emails.append(email)
-            except (httpx.HTTPError, httpx.RequestError) as e:
-                logger.warning(
-                    "gmail_fetch_failed", extra={"msg_id": msg_id, "error": str(e)[:100]}
-                )
-                failed_ids.append(msg_id)
-                continue
+        emails, failed_ids = await _fetch_message_bodies(client, headers, messages[:max_results])
 
         result: dict[str, Any] = {"success": True, "total": len(emails), "emails": emails}
         if failed_ids:
@@ -263,6 +239,37 @@ async def fetch_gmail_emails(
 
     except (httpx.HTTPError, httpx.RequestError) as e:
         return {"success": False, "error": str(e)[:300]}
+
+
+async def _fetch_message_bodies(
+    client: Any, headers: dict[str, str], msg_ids: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Fetch and parse each message body.
+
+    Returns ``(emails, failed_ids)`` rather than dropping failures: a message
+    whose content cannot be fetched is a GAP, and a caller told
+    ``{"success": True}`` with no gap count will treat the batch as complete.
+    """
+    emails: list[dict[str, Any]] = []
+    failed_ids: list[str] = []
+    for msg in msg_ids:
+        msg_id = msg["id"]
+        try:
+            msg_resp = await client.get(
+                f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg_id}",
+                headers=headers,
+                timeout=15,
+            )
+            if not msg_resp.is_success:
+                failed_ids.append(msg_id)
+                continue
+            email = _parse_gmail_message(msg_resp.json())
+            if email:
+                emails.append(email)
+        except (httpx.HTTPError, httpx.RequestError) as e:
+            logger.warning("gmail_fetch_failed", extra={"msg_id": msg_id, "error": str(e)[:100]})
+            failed_ids.append(msg_id)
+    return emails, failed_ids
 
 
 def _parse_gmail_message(msg_data: dict[str, Any]) -> dict[str, Any] | None:
