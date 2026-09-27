@@ -100,10 +100,7 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/hosting/instances/{instance_id}",
         "/v1/hosting/instances/{instance_id}/renew",
         "/v1/hosting/instances/{instance_id}/cancel",
-        # Human checkout + customer portal (control plane — the checkout page
-        # renders the 402 manifest for humans; the portal authenticates via a
-        # signed magic-link token, and /portal/request is the rate-limited
-        # magic-link request flow).
+        # Human checkout + customer portal (control plane)
         "/v1/hosting/checkout/{invoice_id}",
         "/v1/hosting/portal",
         "/v1/hosting/portal/request",
@@ -130,8 +127,8 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         # Circuit breaker / diagnostics
         "/v1/breaker/reset",
         "/v1/breaker/status",
+        # method-plan: read-only over collected data, so free by design
         "/v1/diagnostics",
-        # Method-memory read surface: read-only over collected data, free.
         "/v1/diagnostics/method-plan",
         # Proxy management (control plane)
         "/v1/proxy/clicks",

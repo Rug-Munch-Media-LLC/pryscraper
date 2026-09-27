@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from pry.engine import tier_score
+from pry.engine.method_stats_writer import MethodStatUpdate
 
 if TYPE_CHECKING:
     from pry.engine.method_stats_store import MethodStatsStore
@@ -38,7 +39,6 @@ DOMAIN_TIER_COOLDOWN_SECONDS = 300.0
 # ``resilience`` because that module imports this one; ``resilience`` re-exports
 # it as DOMAIN_MEMORY_MAX_AGE_SECONDS so the documented name still resolves.
 DOMAIN_MEMORY_MAX_AGE_SECONDS = 3600.0
-
 __all__ = [
     "DOMAIN_FAILURE_SKIP_MIN_SAMPLES",
     "DOMAIN_FAILURE_SKIP_RATE",
@@ -83,7 +83,7 @@ class DomainTierMemory:
     Hot cache first, durable store second. ``store`` buffers every outcome
     and flushes on a background thread, so ``record`` never blocks and a
     database outage costs durability only. ``store is None`` — the default —
-    is today's behaviour exactly. ``tier_memory_db`` seeds the cache back.
+    is today's behaviour exactly; ``tier_memory_db`` seeds it back.
     """
 
     data: dict[str, dict[str, TierRecord]] = field(default_factory=lambda: defaultdict(dict))
@@ -102,8 +102,8 @@ class DomainTierMemory:
         """Record one tier outcome for ``domain``.
 
         A blocked attempt must be recorded with ``success=False`` — callers
-        enforce that. The durable mirror is fire-and-forget: it buffers,
-        returns and swallows DB errors, so this never blocks a scrape.
+        enforce that. The durable mirror is fire-and-forget: it buffers and
+        swallows DB errors, so this never blocks a scrape.
         """
         rec = self.data[domain].setdefault(tier, TierRecord())
         if success:
@@ -118,12 +118,7 @@ class DomainTierMemory:
         rec.cost_usd += cost_usd
         if self.store is not None:
             self.store.record(
-                domain,
-                tier,
-                win=success,
-                latency_ms=latency * 1000.0,
-                cost_usd=cost_usd,
-                block_kind=block_kind,
+                MethodStatUpdate(domain, tier, success, latency * 1000.0, cost_usd, block_kind)
             )
 
     def best_tier(self, domain: str, candidates: list[str]) -> str | None:
