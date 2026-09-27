@@ -66,8 +66,6 @@ def test_create_all_schema_is_adopted_not_replayed() -> None:
 
     run_migrations()  # used to raise OperationalError: table quality_checks already exists
 
-    from pry.core.db import get_engine
-
     assert _schema_is_at_head() is True
 
 

@@ -12,13 +12,15 @@ and the in-process ranking is untouched.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import pytest
 from sqlalchemy.exc import OperationalError
 
 from pry.engine.method_stats_store import MethodStatsStore
 from pry.engine.resilience_domain_memory import DomainTierMemory
+
+if TYPE_CHECKING:
+    import pytest
 
 
 def test_write_failure_is_swallowed_and_recorded(

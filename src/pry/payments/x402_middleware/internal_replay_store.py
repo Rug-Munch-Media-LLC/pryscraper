@@ -70,7 +70,8 @@ _BACKEND_ERRORS: tuple[type[BaseException], ...] = (
     TypeError,
     ValueError,
     AttributeError,
-) + _redis_errors()
+    *_redis_errors(),
+)
 
 # Redis key namespace. Versioned so a shape change can never read old keys.
 KEY_PREFIX = "pry:x402:internal:seen:"

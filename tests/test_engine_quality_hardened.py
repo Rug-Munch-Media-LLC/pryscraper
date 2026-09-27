@@ -30,8 +30,8 @@ from datetime import UTC, datetime
 import pytest
 
 import pry.engine.quality as quality_module
+import pry.engine.quality_checks.freshness as _fq
 from pry.engine.quality import (
-    _format_age,
     compute_completeness,
     compute_freshness,
     compute_null_rate,
@@ -176,7 +176,7 @@ class TestDetectAnomaliesEdgeCases:
 class TestFreshnessEdgeCases:
     def test_max_age_zero_marks_any_age_stale(self, monkeypatch: pytest.MonkeyPatch) -> None:
         frozen = 1_800_000_000.0
-        monkeypatch.setattr(quality_module.time, "time", lambda: frozen)
+        monkeypatch.setattr(_fq.time, "time", lambda: frozen)
         result = compute_freshness({"timestamp": frozen - 1}, max_age_seconds=0)
         assert result["fresh"] is False
         assert result["age_seconds"] == 1
@@ -184,14 +184,14 @@ class TestFreshnessEdgeCases:
     def test_negative_age_is_fresh(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # A timestamp in the future yields a negative age; still fresh.
         frozen = 1_800_000_000.0
-        monkeypatch.setattr(quality_module.time, "time", lambda: frozen)
+        monkeypatch.setattr(_fq.time, "time", lambda: frozen)
         result = compute_freshness({"timestamp": frozen + 100}, max_age_seconds=3600)
         assert result["fresh"] is True
         assert result["age_seconds"] == -100
 
     def test_float_timestamp_handled(self, monkeypatch: pytest.MonkeyPatch) -> None:
         frozen = 1_800_000_000.0
-        monkeypatch.setattr(quality_module.time, "time", lambda: frozen)
+        monkeypatch.setattr(_fq.time, "time", lambda: frozen)
         result = compute_freshness({"timestamp": frozen - 0.5})
         # age = 0.5s; round(0.5) == 0 in Python 3 (banker's rounding).
         assert result["age_seconds"] == 0
@@ -208,7 +208,7 @@ class TestFreshnessEdgeCases:
 
 class TestFormatAgeNegative:
     def test_negative_seconds_formats_as_seconds(self) -> None:
-        assert _format_age(-5) == "-5s"
+        assert _fq._format_age(-5) == "-5s"
 
 
 # ── run_quality_check (async aggregate) ─────────────────────────────────────

@@ -5,6 +5,10 @@
 # Licensed under MIT. See LICENSE.
 """Tests for data quality SLA dashboard."""
 
+import time
+
+import pytest
+
 from pry.engine.quality import (
     compute_completeness,
     compute_freshness,
@@ -79,3 +83,29 @@ def test_detect_anomalies_value_swing() -> None:
 def test_detect_anomalies_no_previous() -> None:
     anomalies = detect_anomalies({"a": 1}, None)
     assert len(anomalies) == 0
+
+
+class TestFreshnessMaxAgeValidation:
+    """An unusable max age must not silently mark stale data as fresh.
+
+    ``bool`` is a subclass of ``int``, so ``max_age_seconds=True`` would
+    otherwise compare ``age <= 1`` and call anything under a second old
+    acceptable. NaN, inf and negatives have the same problem in different
+    directions: every one of them returns ``fresh: True`` for data that is
+    arbitrarily old, with no note explaining why.
+    """
+
+    @pytest.mark.parametrize(
+        "bad", [True, False, -1, -0.5, float("nan"), float("inf"), None, "3600"]
+    )
+    def test_unusable_max_age_is_reported_not_silently_fresh(self, bad: object) -> None:
+        old = {"timestamp": time.time() - 10_000_000}
+        result = compute_freshness(old, max_age_seconds=bad)  # type: ignore[arg-type]
+        assert result["age_seconds"] is None
+        assert "Invalid max age" in result["note"]
+
+    def test_a_valid_max_age_still_works(self) -> None:
+        fresh = {"timestamp": time.time()}
+        stale = {"timestamp": time.time() - 10_000}
+        assert compute_freshness(fresh, max_age_seconds=3600)["fresh"] is True
+        assert compute_freshness(stale, max_age_seconds=3600)["fresh"] is False

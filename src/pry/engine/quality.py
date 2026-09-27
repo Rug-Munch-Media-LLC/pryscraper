@@ -10,7 +10,6 @@ import difflib
 import hashlib
 import json
 import logging
-import time
 from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
@@ -18,6 +17,21 @@ from typing import Any
 from pry.core.paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
+
+# compute_freshness moved to pry.engine.quality_checks.freshness. Re-exported
+# here so the four existing `from pry.engine.quality import compute_freshness`
+# call sites keep working unchanged.
+from pry.engine.quality_checks.freshness import compute_freshness  # noqa: E402
+
+__all__ = [
+    "QUALITY_DIR",
+    "compute_completeness",
+    "compute_freshness",
+    "compute_null_rate",
+    "compute_schema_adherence",
+    "detect_anomalies",
+    "run_quality_check",
+]
 
 QUALITY_DIR = PRY_DATA_DIR / "quality"
 QUALITY_DIR.mkdir(parents=True, exist_ok=True)
@@ -152,73 +166,6 @@ def compute_null_rate(data: dict[str, Any] | list[dict[str, Any]]) -> dict[str, 
         }
         for field, stats in field_stats.items()
     }
-
-
-def compute_freshness(
-    data: dict[str, Any] | list[Any], max_age_seconds: int = 3600
-) -> dict[str, Any]:
-    """Check data freshness against expected age.
-
-    If ``data`` is a list (or any non-dict), freshness cannot be verified
-    from a single timestamp field, so a neutral default is returned rather
-    than raising ``AttributeError`` from ``data.get(...)``.
-    """
-    if not isinstance(data, dict):
-        return {
-            "fresh": True,
-            "age_seconds": None,
-            "note": "Data is not a dict — cannot verify freshness",
-        }
-
-    now = time.time()
-    timestamps = []
-
-    # Look for timestamp fields
-    for key in ["timestamp", "checked_at", "cached_at", "scraped_at", "created_at", "updated_at"]:
-        val = data.get(key)
-        if val:
-            timestamps.append(val)
-
-    if not timestamps:
-        return {
-            "fresh": True,
-            "age_seconds": None,
-            "note": "No timestamp field found in data — cannot verify freshness",
-        }
-
-    # Try to parse the first timestamp
-    ts = timestamps[0]
-    if isinstance(ts, (int, float)):
-        age = now - ts
-    elif isinstance(ts, str):
-        try:
-            dt = datetime.fromisoformat(ts)
-            age = now - dt.timestamp()
-        except (ValueError, TypeError):
-            return {
-                "fresh": True,
-                "age_seconds": None,
-                "note": f"Could not parse timestamp: {ts[:30]}",
-            }
-    else:
-        return {"fresh": True, "age_seconds": None, "note": "Timestamp in unknown format"}
-
-    return {
-        "fresh": age <= max_age_seconds,
-        "age_seconds": round(age),
-        "max_age_seconds": max_age_seconds,
-        "note": f"Data is {_format_age(age)} old",
-    }
-
-
-def _format_age(seconds: float) -> str:
-    if seconds < 60:
-        return f"{int(seconds)}s"
-    elif seconds < 3600:
-        return f"{int(seconds / 60)}m"
-    elif seconds < 86400:
-        return f"{int(seconds / 3600)}h"
-    return f"{int(seconds / 86400)}d"
 
 
 def detect_anomalies(
