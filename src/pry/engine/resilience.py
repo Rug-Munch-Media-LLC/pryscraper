@@ -24,13 +24,19 @@ module is shared with the breaker/domain-memory halves — patching
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import atexit
 import logging
 import time  # noqa: F401  - shared clock, tests patch resilience.time.time
 from pathlib import Path
 from typing import Any, ClassVar
 
+from pry.engine.method_stats_store import MethodStatsStore
 from pry.engine.resilience_circuit import CircuitBreaker, CircuitState
-from pry.engine.resilience_domain_memory import DomainTierMemory, TierRecord
+from pry.engine.resilience_domain_memory import (
+    DOMAIN_MEMORY_MAX_AGE_SECONDS,
+    DomainTierMemory,
+    TierRecord,
+)
 from pry.engine.resilience_persistence import (
     DOMAIN_MEMORY_SAVE_INTERVAL,
     PRY_RESILIENCE_PERSIST_ENV,
@@ -39,12 +45,12 @@ from pry.engine.resilience_persistence import (
     ResiliencePersistenceMixin,
     default_state_path,
 )
+from pry.engine.tier_memory_db import warm_domain_from_db
 
 logger = logging.getLogger(__name__)
 
-DOMAIN_MEMORY_MAX_AGE_SECONDS = 3600
-
 __all__ = [
+    "DOMAIN_MEMORY_MAX_AGE_SECONDS",
     "CircuitBreaker",
     "CircuitState",
     "DomainTierMemory",
@@ -72,6 +78,11 @@ class ResilienceRegistry(ResiliencePersistenceMixin):
     Loading happens lazily on enable; saves happen on domain-tier change
     (throttled), on explicit ``save()``, and on process exit. All I/O errors
     are logged and swallowed — persistence never breaks scraping.
+
+    Durability for the domain tier memory additionally goes to Postgres
+    (``domain_method_stats``) through :class:`MethodStatsStore`, batched on a
+    background thread. Pass ``method_stats=False`` to run purely in process
+    (what tests and ephemeral runs want).
     """
 
     # External services that should have circuit breakers.
@@ -82,7 +93,12 @@ class ResilienceRegistry(ResiliencePersistenceMixin):
         "redis",
     ]
 
-    def __init__(self, persist_path: Path | str | None = None) -> None:
+    def __init__(
+        self,
+        persist_path: Path | str | None = None,
+        *,
+        method_stats: bool = True,
+    ) -> None:
         self.breakers: dict[str, CircuitBreaker] = {
             name: CircuitBreaker(name=name) for name in self.SERVICE_NAMES
         }
@@ -97,6 +113,15 @@ class ResilienceRegistry(ResiliencePersistenceMixin):
         self._atexit_registered: bool = False
         if persist_path is not None:
             self.enable_persistence(Path(persist_path))
+        # Durable Postgres mirror of the domain tier memory. Enabled by
+        # default; the import is guarded so a checkout without SQLAlchemy (or a
+        # broken environment) still scrapes, just without durability.
+        self.method_stats: MethodStatsStore | None = None
+        if method_stats:
+            self.method_stats = _build_method_stats_store()
+        if self.method_stats is not None:
+            self.domain_memory.store = self.method_stats
+            atexit.register(self.shutdown)
 
     def breaker(self, name: str) -> CircuitBreaker:
         if name not in self.breakers:
@@ -154,7 +179,37 @@ class ResilienceRegistry(ResiliencePersistenceMixin):
                 for name, cb in self.breakers.items()
             },
             "domain_memory": self.domain_memory.to_dict(),
+            "method_stats": self.method_stats.stats() if self.method_stats else None,
         }
+
+    def warm_from_db(self, domain: str) -> int:
+        """Seed the hot cache for ``domain`` from the durable store.
+
+        Returns the number of stored rows applied; 0 when the store is absent
+        or the database is unavailable. Never raises — a cold or dead database
+        leaves the in-process ranking exactly as it was.
+        """
+        if self.method_stats is None:
+            return 0
+        return warm_domain_from_db(self.domain_memory, self.method_stats, domain)
+
+    def shutdown(self) -> None:
+        """Drain the durable store's buffer. Registered with atexit."""
+        if self.method_stats is not None:
+            self.method_stats.stop(drain=True)
+
+
+def _build_method_stats_store() -> MethodStatsStore | None:
+    """Best-effort construction of the durable store.
+
+    Never raises: a store that cannot be built is ``None``, which disables
+    durability and leaves the in-process memory authoritative.
+    """
+    try:
+        return MethodStatsStore()
+    except Exception as e:  # noqa: BLE001 - durability is optional by design
+        logger.warning("method_stats_store_unavailable", extra={"error": f"{type(e).__name__}"})
+        return None
 
 
 # Global singleton used by scrapers. Persistence is optional and enabled by

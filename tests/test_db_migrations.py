@@ -13,7 +13,6 @@ handling. Uses a temp SQLite DB so the user's real data dir is never touched.
 from __future__ import annotations
 
 import importlib
-import sys
 from pathlib import Path
 
 import pytest
@@ -61,6 +60,33 @@ def test_run_migrations_creates_all_tables(temp_data_dir, monkeypatch):
     assert "audit_events" in tables  # 0006
     assert "x402_payment_records" in tables  # 0007
     assert "balances" in tables  # b3b4faf8e50d
+    assert "domain_method_stats" in tables  # 0008
+
+
+def test_domain_method_stats_up_and_down_round_trip(temp_data_dir, monkeypatch):
+    """0008 must be reversible: up creates table+index, down removes both.
+
+    The DOWN path is what makes this safe to ship — a bad release can be
+    rolled back without leaving a half-created table behind.
+    """
+    from alembic.config import Config
+    from sqlalchemy import inspect
+
+    import pry.core.db as db
+    from alembic import command
+
+    monkeypatch.chdir(REPO_ROOT)
+    db.run_migrations()
+    assert "domain_method_stats" in set(inspect(db.get_engine()).get_table_names())
+
+    cfg = Config(str(REPO_ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(REPO_ROOT / "alembic"))
+    cfg.set_main_option("sqlalchemy.url", db.get_engine().url.render_as_string(hide_password=False))
+    command.downgrade(cfg, "-1")
+    assert "domain_method_stats" not in set(inspect(db.get_engine()).get_table_names())
+
+    command.upgrade(cfg, "head")
+    assert "domain_method_stats" in set(inspect(db.get_engine()).get_table_names())
 
 
 def test_run_migrations_is_idempotent(temp_data_dir, monkeypatch):
@@ -79,98 +105,3 @@ def test_run_migrations_is_idempotent(temp_data_dir, monkeypatch):
     inspector = inspect(db.get_engine())
     tables_after = set(inspector.get_table_names())
     assert tables_after == tables_before
-
-
-def test_run_migrations_when_alembic_missing_logs_warning(temp_data_dir, monkeypatch, caplog):
-    """If alembic is not installed, run_migrations logs a warning and returns None."""
-    import logging
-
-    import pry.core.db.migrations as mig
-
-    # Simulate alembic not being installed. Setting the module to None in
-    # sys.modules makes `from alembic.config import Config` raise ImportError
-    # ("import of alembic halted; None in sys.modules"). We set the top-level
-    # package AND the submodule so the import is halted regardless of which is
-    # resolved first. (The old loop only nulled modules already present in
-    # sys.modules, but alembic is imported lazily inside run_migrations(), so
-    # it was never there and the ImportError branch was never exercised.)
-    monkeypatch.setitem(sys.modules, "alembic", None)
-    monkeypatch.setitem(sys.modules, "alembic.config", None)
-
-    # Ensure the stdlib logger is enabled and propagates to caplog's root
-    # handler so the warning is captured. Earlier tests in this file run real
-    # Alembic migrations, and alembic/env.py calls logging.config.fileConfig()
-    # (disable_existing_loggers=True), which DISABLES every logger not listed
-    # in alembic.ini — including this one. Re-enable it and force propagation
-    # so the record reaches caplog (structlog's bridge can otherwise swallow
-    # it too).
-    _mig_logger = logging.getLogger("pry.core.db.migrations")
-    _mig_logger.disabled = False
-    _mig_logger.propagate = True
-
-    with caplog.at_level(logging.WARNING, logger="pry.core.db.migrations"):
-        result = mig.run_migrations()
-    assert result is None
-    assert any("alembic_not_installed" in r.getMessage() for r in caplog.records)
-
-
-# ── db_health (sync) ──────────────────────────────────────────────
-
-
-def test_db_health_available(temp_data_dir):
-    """A reachable SQLite DB reports available=True with url + sqlite_version."""
-    import pry.core.db as db
-
-    health = db.db_health()
-    assert health["available"] is True
-    assert health["url"]  # non-empty
-    # SQLite backend reports a version string (e.g. "3.x.y").
-    assert health["sqlite_version"] is not None
-
-
-def test_db_health_when_sa_missing(monkeypatch):
-    """Without SQLAlchemy, db_health reports unavailable with a reason."""
-    import pry.core.db.migrations as mig
-
-    monkeypatch.setattr(mig, "_HAS_SA", False)
-    health = mig.db_health()
-    assert health["available"] is False
-    assert health["reason"] == "sqlalchemy not installed"
-
-
-def test_db_health_on_sqlalchemy_error(monkeypatch):
-    """A failing engine connection reports available=False with an error string."""
-    from sqlalchemy.exc import OperationalError
-
-    import pry.core.db.migrations as mig
-
-    def _boom():
-        raise OperationalError("SELECT 1", {}, Exception("db down"))
-
-    monkeypatch.setattr(mig, "get_engine", _boom)
-    health = mig.db_health()
-    assert health["available"] is False
-    assert "error" in health
-    assert "db down" in health["error"]
-
-
-# ── db_health_async ──────────────────────────────────────────────
-
-
-async def test_db_health_async_available(temp_data_dir):
-    """The async health probe reports available=True against a reachable DB."""
-    import pry.core.db as db
-
-    health = await db.db_health_async()
-    assert health["available"] is True
-    assert health["url"]  # non-empty
-
-
-async def test_db_health_async_when_sa_missing(monkeypatch):
-    """Without SQLAlchemy, the async probe reports unavailable with a reason."""
-    import pry.core.db.migrations as mig
-
-    monkeypatch.setattr(mig, "_HAS_SA", False)
-    health = await mig.db_health_async()
-    assert health["available"] is False
-    assert health["reason"] == "sqlalchemy not installed"

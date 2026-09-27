@@ -13,12 +13,18 @@ existing caller and test import is unchanged.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pry.engine import tier_score
+
+if TYPE_CHECKING:
+    from pry.engine.method_stats_store import MethodStatsStore
+
+logger = logging.getLogger(__name__)
 
 # Adaptive fallback ordering.
 # A tier is skipped for a domain once it has this many samples and a success
@@ -27,13 +33,20 @@ DOMAIN_FAILURE_SKIP_MIN_SAMPLES = 3
 DOMAIN_FAILURE_SKIP_RATE = 0.30
 # A tier that just failed is demoted to the back of the chain for this long.
 DOMAIN_TIER_COOLDOWN_SECONDS = 300.0
+# A tier whose last success is older than this is not ranked on its history at
+# all (see tier_score.is_stale). Re-declared rather than imported from
+# ``resilience`` because that module imports this one; ``resilience`` re-exports
+# it as DOMAIN_MEMORY_MAX_AGE_SECONDS so the documented name still resolves.
+DOMAIN_MEMORY_MAX_AGE_SECONDS = 3600.0
 
 __all__ = [
     "DOMAIN_FAILURE_SKIP_MIN_SAMPLES",
     "DOMAIN_FAILURE_SKIP_RATE",
+    "DOMAIN_MEMORY_MAX_AGE_SECONDS",
     "DOMAIN_TIER_COOLDOWN_SECONDS",
     "DomainTierMemory",
     "TierRecord",
+    "]",
 ]
 
 
@@ -66,9 +79,16 @@ class TierRecord:
 
 @dataclass
 class DomainTierMemory:
-    """Remember which tiers work best per domain."""
+    """Remember which tiers work best per domain.
+
+    Hot cache first, durable store second. ``store`` buffers every outcome
+    and flushes on a background thread, so ``record`` never blocks and a
+    database outage costs durability only. ``store is None`` — the default —
+    is today's behaviour exactly. ``tier_memory_db`` seeds the cache back.
+    """
 
     data: dict[str, dict[str, TierRecord]] = field(default_factory=lambda: defaultdict(dict))
+    store: MethodStatsStore | None = None
 
     def record(
         self,
@@ -82,10 +102,9 @@ class DomainTierMemory:
     ) -> None:
         """Record one tier outcome for ``domain``.
 
-        ``cost_usd`` and ``block_kind`` are optional so existing call sites
-        keep working; both feed the cost-aware ranking in
-        :mod:`pry.engine.tier_score`. A blocked attempt must be recorded
-        with ``success=False`` — callers already enforce that.
+        A blocked attempt must be recorded with ``success=False`` — callers
+        enforce that. The durable mirror is fire-and-forget: it buffers,
+        returns and swallows DB errors, so this never blocks a scrape.
         """
         rec = self.data[domain].setdefault(tier, TierRecord())
         if success:
@@ -98,20 +117,27 @@ class DomainTierMemory:
                 rec.last_block_kind = block_kind
         rec.total_latency += latency
         rec.cost_usd += cost_usd
+        if self.store is not None:
+            self.store.record(
+                domain,
+                tier,
+                win=success,
+                latency_ms=latency * 1000.0,
+                cost_usd=cost_usd,
+                block_kind=block_kind,
+            )
 
     def best_tier(self, domain: str, candidates: list[str]) -> str | None:
         """The tier a scrape should try first, or ``None`` if unproven.
 
-        Derived from :func:`tier_score.rank_tiers` — the same primitive
-        :meth:`reorder_for_domain` uses — so the two readers agree by
-        construction instead of by convention.
-
-        One deliberate difference: a tier that failed inside the cooldown
-        window is *demoted* by ``reorder_for_domain`` (still reachable at the
-        back of the ladder) but is never *recommended* here. A caller asking
-        "what should I try?" must not be handed something that just failed,
-        so the cooled tail is skipped. ``None`` means nothing in
-        ``candidates`` is both proven and not cooling down.
+        Derived from :func:`tier_score.rank_tiers`, the same primitive
+        :meth:`reorder_for_domain` uses, so the two agree by construction. One
+        deliberate difference: a cooling-down tier is *demoted* in the ladder
+        but never *recommended* here. A stale tier is skipped here too, and
+        independent of :meth:`reorder_for_domain`: "what should I try?" must
+        never be answered from expired evidence even if a caller narrowed
+        ``candidates`` down to a single stale tier, which the ladder-level
+        filter alone would happily pass through at its static position.
         """
         records = self.data.get(domain, {})
         if not records:
@@ -121,6 +147,8 @@ class DomainTierMemory:
         for tier in self.reorder_for_domain(domain, candidates):
             rec = records.get(tier)
             if rec is None or rec.successes == 0:
+                continue
+            if tier_score.is_stale(rec, now, DOMAIN_MEMORY_MAX_AGE_SECONDS):
                 continue
             if rec.last_failure_at > 0 and now - rec.last_failure_at < cooldown:
                 continue
@@ -133,22 +161,16 @@ class DomainTierMemory:
         candidates: list[str],
         *,
         cooldown_seconds: float = DOMAIN_TIER_COOLDOWN_SECONDS,
+        max_age_seconds: float = DOMAIN_MEMORY_MAX_AGE_SECONDS,
     ) -> list[str]:
         """Return ``candidates`` reordered for ``domain`` using its history.
 
-        The static fallback order is the baseline. On top of it:
-
-        - Proven tiers (highest score) are promoted to the front, so the
-          domain's best-known method is tried first.
-        - Tiers with a recent failure (within ``cooldown_seconds``) are
-          demoted to the back — a temporary cooldown, not a ban.
-        - Tiers with >= ``DOMAIN_FAILURE_SKIP_MIN_SAMPLES`` samples and a
-          success rate below ``DOMAIN_FAILURE_SKIP_RATE`` are skipped for
-          this domain entirely (chronic failure).
-        - Tiers with no history keep their static position.
-
-        Never returns an empty list: if every candidate would be skipped the
-        static order is returned so the scraper always has something to try.
+        The static order is the baseline. On top of it: proven tiers are
+        promoted; tiers whose last success predates ``max_age_seconds`` are
+        excluded so stale evidence decays out instead of pinning a domain;
+        recently-failed tiers are demoted (cooldown, not a ban); chronic
+        failures are skipped; unrecorded tiers keep their static position.
+        Never empty — the scraper always has something to try.
         """
         return tier_score.rank_tiers(
             candidates,
@@ -156,6 +178,7 @@ class DomainTierMemory:
             skip_min_samples=DOMAIN_FAILURE_SKIP_MIN_SAMPLES,
             skip_rate=DOMAIN_FAILURE_SKIP_RATE,
             cooldown_seconds=cooldown_seconds,
+            max_age_seconds=max_age_seconds,
         )
 
     def to_dict(self) -> dict[str, dict[str, dict[str, Any]]]:
