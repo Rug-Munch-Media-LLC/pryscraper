@@ -182,18 +182,35 @@ async def extract_schema(url: str = Body(...)) -> dict[str, Any]:
 
 @router.post("/v1/emails", tags=["Extraction"], summary="Find email addresses on a page")
 async def find_emails(url: str = Body(...)) -> dict[str, Any]:
-    """Find all email addresses on a page."""
+    """Find all email addresses on a page.
+
+    ``emails`` come from the multi-tier scraper. ``social`` comes from a direct
+    fetch of the page HTML, which can fail independently — when it does,
+    ``social`` is empty and ``social_error`` names the failure so an empty list
+    is never mistaken for "the page has no social links".
+    """
+    html_text = ""
+    social_error: str | None = None
     try:
         client = await get_client()
         resp = await client.get(url, headers={"User-Agent": "Pry/3.0"}, timeout=15)
         html_text = resp.text
-    except (httpx.HTTPError, httpx.RequestError):
-        html_text = ""
+    except (httpx.HTTPError, httpx.RequestError) as e:
+        social_error = f"{type(e).__name__}: {e}"[:300]
+        logger.warning("emails_social_fetch_failed", extra={"url": url, "error": social_error})
 
     result = await scraper.scrape(url)
     emails = advanced.find_emails(result.get("content", ""))
     social = advanced.find_social_links(html_text)
-    return {"success": True, "data": {"url": url, "emails": emails, "social": social}}
+    return {
+        "success": True,
+        "data": {
+            "url": url,
+            "emails": emails,
+            "social": social,
+            "social_error": social_error,
+        },
+    }
 
 
 @router.post("/v1/extract", tags=["Extraction"], summary="Extract structured fields from a URL")

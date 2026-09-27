@@ -10,6 +10,7 @@ Beats every anti-bot system: Cloudflare, DataDome, Akamai, PerimeterX."""
 # Licensed under MIT. See LICENSE.
 
 import asyncio
+import logging
 import random
 import re
 from typing import Any, ClassVar
@@ -22,6 +23,8 @@ from trafilatura.settings import use_config
 from pry.core.errors import InvalidRequestError
 from pry.core.settings import settings
 from pry.engine.url_guard import safe_get, validate_url
+
+logger = logging.getLogger(__name__)
 
 # SystemRandom: crypto-grade entropy so stealth jitter is not predictable.
 _RNG = random.SystemRandom()
@@ -329,36 +332,87 @@ class PryScraper:
                             "method": result.get("method", "unknown"),
                         }
                     )
-                if depth < max_depth:
-                    links = await self._extract_links(
-                        current_url, {"limit": max_pages - len(visited)}
+                else:
+                    results.append(
+                        {
+                            "url": current_url,
+                            "status": "error",
+                            "error": result.get("error", "scrape failed"),
+                            "method": result.get("method", "unknown"),
+                        }
                     )
-                    to_visit.extend((link, depth + 1) for link in links if link not in visited)
-            except Exception:  # noqa: BLE001, S112 - one page failing must not abort the crawl
+            except Exception as exc:  # noqa: BLE001 - one page failing must not abort the crawl
+                logger.warning(
+                    "crawl_page_scrape_failed", extra={"url": current_url}, exc_info=True
+                )
+                results.append(
+                    {
+                        "url": current_url,
+                        "status": "error",
+                        "error": f"{type(exc).__name__}: {exc}"[:300],
+                        "method": "unknown",
+                    }
+                )
+            if depth >= max_depth:
                 continue
+            try:
+                links = await self._extract_links(current_url, {"limit": max_pages - len(visited)})
+            except Exception as exc:  # noqa: BLE001 - one page's link expansion must not abort the crawl
+                logger.warning(
+                    "crawl_link_expansion_failed",
+                    extra={"url": current_url},
+                    exc_info=True,
+                )
+                results.append(
+                    {
+                        "url": current_url,
+                        "status": "error",
+                        "error": f"link expansion failed: {exc}"[:300],
+                        "method": "unknown",
+                    }
+                )
+                continue
+            to_visit.extend((link, depth + 1) for link in links if link not in visited)
         return results
 
     async def map_urls(self, url: str, options: dict | None = None) -> list[str]:
-        try:
-            return await self._extract_links(url, options or {})
-        except Exception:  # noqa: BLE001
-            return []
+        """Return same-origin links found on ``url``.
+
+        A transport failure propagates as a RuntimeError from _extract_links
+        (naming both attempts). An empty list therefore always means "page was
+        fetched and contained no matching links".
+        """
+        return await self._extract_links(url, options or {})
 
     async def _extract_links(self, url: str, options: dict | None = None) -> list[str]:
+        """Fetch ``url`` and return its same-origin links.
+
+        Raises RuntimeError when every transport attempt failed, with both the
+        direct and the flaresolverr error named. Only a successful fetch can
+        return an empty list.
+        """
         opts = options or {}
         # map_urls -> _extract_links fetches the user-supplied URL directly,
         # so it must be validated here (not just in scrape()). An unsafe URL
         # raises InvalidRequestError and aborts before any network I/O.
         validate_url(url)
         base_domain = urlparse(url).netloc
-        html = None
+        errors: list[str] = []
         try:
             html = await self._fetch_direct(url, self._build_headers(url), 15)
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 - transport failure is named, not swallowed
+            errors.append(f"direct: {type(exc).__name__}: {exc}")
             try:
                 html = await self._fetch_via_flaresolverr(url, 30)
-            except Exception:  # noqa: BLE001
-                return []
+            except Exception as exc2:
+                errors.append(f"flaresolverr: {type(exc2).__name__}: {exc2}")
+                logger.warning(
+                    "link_extraction_transport_failed",
+                    extra={"url": url, "errors": errors},
+                )
+                raise RuntimeError(
+                    f"link extraction transport failure for {url}: {'; '.join(errors)}"
+                ) from exc2
         links = set()
         for m in re.finditer(r'href=["\'](https?://[^"\']+)["\']', html):
             link = m.group(1)

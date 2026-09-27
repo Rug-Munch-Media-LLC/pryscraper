@@ -188,7 +188,16 @@ async def adaptive_crawl(
             break
 
         if depth < max_depth:
-            links = await scraper.map_urls(current_url, {"limit": 10})
+            try:
+                links = await scraper.map_urls(current_url, {"limit": 10})
+            except RuntimeError as e:
+                # map_urls raises on a transport failure (direct + flaresolverr
+                # both failed) instead of returning an empty "no links" list.
+                logger.warning(
+                    "adaptive_crawl_map_failed",
+                    extra={"url": current_url, "error": str(e)},
+                )
+                continue
             for link in links:
                 full_url = urljoin(current_url, link)
                 if full_url not in visited_urls:

@@ -268,35 +268,62 @@ class CamoufoxBrowser:
         human_behavior: dict | None = None,
         proxy: str = "",
     ) -> dict[str, Any]:
-        """Fetch with built-in human behavior simulation."""
+        """Fetch with built-in human behavior simulation.
+
+        The result always reports whether the human-behaviour pass ran:
+        ``human_behavior_applied`` is True only when a non-empty
+        ``human_behavior`` was requested and fully executed, and
+        ``human_behavior_error`` names the failure otherwise. A caller can
+        therefore never read a direct-path success as "stealthed fetch".
+        """
         result = await self.fetch(url, proxy=proxy)
         if not result.get("success"):
             return result
-        # Apply human behavior patterns
-        if human_behavior:
-            try:
-                from camoufox import AsyncCamoufox
-
-                config = dict(self.DEFAULT_CONFIGS.get(self.default_profile, {}))
-                if proxy:
-                    config["proxy"] = proxy
-                async with AsyncCamoufox(**config) as browser:
-                    page = await browser.new_page()
-                    await page.route("**/*", self._guarded_route)
-                    await page.goto(url, wait_until="domcontentloaded")
-                    # Apply human behavior
-                    if human_behavior.get("scroll"):
-                        for scroll_y in human_behavior["scroll"]:
-                            await page.evaluate(f"window.scrollTo(0, {scroll_y})")
-                            await page.wait_for_timeout(_RNG.randint(200, 800))
-                    if human_behavior.get("wait_time"):
-                        await page.wait_for_timeout(human_behavior["wait_time"])
-                    content = await page.content()
-                    result["content"] = content
-                    result["raw_html"] = content
-            except Exception:  # noqa: S110 - fallback: return whatever partial result exists
-                pass
+        if not human_behavior:
+            result["human_behavior_applied"] = False
+            result["human_behavior_error"] = None
+            return result
+        try:
+            content = await self._apply_human_behavior(url, human_behavior, proxy)
+        except Exception as e:
+            reason = f"{type(e).__name__}: {e}"[:300]
+            logger.warning(
+                "human_behavior_pass_failed", extra={"url": url, "error": reason}, exc_info=True
+            )
+            result["human_behavior_applied"] = False
+            result["human_behavior_error"] = reason
+            return result
+        result["content"] = content
+        result["raw_html"] = content
+        result["human_behavior_applied"] = True
+        result["human_behavior_error"] = None
         return result
+
+    async def _apply_human_behavior(self, url: str, human_behavior: dict, proxy: str) -> str:
+        """Run the human-behaviour pass in a fresh browser and return the HTML.
+
+        Raises on any failure so fetch_with_stealth can record
+        human_behavior_error instead of silently returning direct-path HTML.
+        """
+        from camoufox import AsyncCamoufox
+
+        config = dict(self.DEFAULT_CONFIGS.get(self.default_profile, {}))
+        if proxy:
+            config["proxy"] = proxy
+        async with AsyncCamoufox(**config) as browser:
+            page = await browser.new_page()
+            try:
+                await page.route("**/*", self._guarded_route)
+                await page.goto(url, wait_until="domcontentloaded")
+                for scroll_y in human_behavior.get("scroll", []):
+                    await page.evaluate(f"window.scrollTo(0, {scroll_y})")
+                    await page.wait_for_timeout(_RNG.randint(200, 800))
+                if human_behavior.get("wait_time"):
+                    await page.wait_for_timeout(human_behavior["wait_time"])
+                return await page.content()
+            finally:
+                with contextlib.suppress(Exception):
+                    await page.close()
 
     def is_available(self) -> bool:
         return _has_camoufox

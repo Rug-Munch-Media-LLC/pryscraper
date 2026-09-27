@@ -149,7 +149,10 @@ async def vision_models() -> dict[str, Any]:
         try:
             pp = float(pricing.get("prompt", "1") or 1)
             cp = float(pricing.get("completion", "1") or 1)
-        except (httpx.HTTPError, httpx.RequestError):
+        except (TypeError, ValueError) as e:
+            logger.warning(
+                "model_pricing_unparseable", extra={"model_id": m.get("id"), "error": str(e)}
+            )
             continue
         if pp == 0 and cp == 0:
             free.append(

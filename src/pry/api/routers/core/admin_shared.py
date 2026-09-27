@@ -101,9 +101,9 @@ def _get_usage_costs(days: int = 30) -> dict[str, Any]:
     try:
         dashboard = get_cost_dashboard()
         return dashboard
-    except (OSError, KeyError, ValueError, TypeError):
-        # Costing is best-effort analytics — degrade to zeros, never fail the admin page.
-        return {"total_cost": 0, "by_operation": {}, "projected_monthly": 0}
+    except (OSError, KeyError, ValueError, TypeError) as e:
+        logger.warning("costing_ledger_unavailable", extra={"error": str(e)})
+        return {"total_cost": 0, "by_operation": {}, "projected_monthly": 0, "unavailable": True}
 
 
 def _compute_profits(days: int = 30) -> dict[str, Any]:
@@ -130,6 +130,7 @@ def _compute_profits(days: int = 30) -> dict[str, Any]:
         "costs": {
             "total_operating_cost_usd": round(total_cost, 4),
             "projected_monthly_usd": round(projected_cost, 4),
+            "unavailable": bool(costs.get("unavailable", False)),
         },
         "period_days": days,
     }

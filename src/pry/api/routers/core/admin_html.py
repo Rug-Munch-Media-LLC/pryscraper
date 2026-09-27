@@ -48,7 +48,7 @@ async def admin_html_dashboard(
     network_rows = _network_rows(networks)
     treasury_rows = _treasury_rows(d["treasury"])
     recent_rows = _recent_rows(recent)
-    payer_rows = _payer_rows(top_payers)
+    payer_rows = _payer_rows(top_payers, d.get("analytics_error"))
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -153,13 +153,16 @@ def _gather_dashboard_data(days: int) -> dict[str, Any]:
         backend = "unavailable"
 
     # Top payers + network breakdown + recent payments (analytics over payments.jsonl)
+    analytics_error: str | None = None
     try:
         from pry.payments.analytics import get_analytics
 
         analytics = get_analytics()
         top_payers = analytics.get_top_payers(10)
         networks = analytics.get_network_breakdown(days)
-    except Exception:  # noqa: BLE001 - dashboard must never 500
+    except Exception as e:  # noqa: BLE001 - dashboard must never 500
+        analytics_error = str(e)
+        logger.warning("dashboard_analytics_failed", extra={"error": analytics_error})
         top_payers, networks = [], {}
     recent = _get_x402_payments(days=days)
     recent.sort(
@@ -181,6 +184,7 @@ def _gather_dashboard_data(days: int) -> dict[str, Any]:
         "top_payers": top_payers,
         "networks": networks,
         "recent": recent,
+        "analytics_error": analytics_error,
     }
 
 
@@ -220,7 +224,9 @@ def _recent_rows(recent: list) -> str:
     )
 
 
-def _payer_rows(top_payers: list) -> str:
+def _payer_rows(top_payers: list, analytics_error: str | None = None) -> str:
+    if analytics_error:
+        return "<tr><td colspan='2' class='empty'>Unavailable — analytics error</td></tr>"
     return (
         "".join(
             f"<tr><td>{p['payer']}</td><td>{_fmt_usd(p['total_usd'])}</td></tr>" for p in top_payers

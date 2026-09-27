@@ -299,8 +299,13 @@ async def map_pages(request: MapRequest) -> dict[str, Any]:
     """Discover URLs on a site."""
     # SSRF gate: map_urls -> _extract_links fetches the target directly.
     validate_url(request.url)
-    with track_scrape(method="map"):
-        urls = await scraper.map_urls(request.url, {"limit": request.limit})
+    try:
+        with track_scrape(method="map"):
+            urls = await scraper.map_urls(request.url, {"limit": request.limit})
+    except RuntimeError as e:
+        # map_urls raises (naming both transport errors) rather than returning an
+        # empty list that is indistinguishable from "this site has no links".
+        raise ScrapeError(str(e)) from e
     return {"success": True, "data": {"links": urls}}
 
 
