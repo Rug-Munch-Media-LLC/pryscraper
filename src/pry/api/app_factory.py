@@ -15,6 +15,7 @@ Licensed under MIT. See LICENSE.
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
+import logging
 from typing import Any
 
 import uvicorn
@@ -32,6 +33,8 @@ from pry.api.app_metadata import (
 from pry.api.app_wiring import wire_app
 from pry.api.lifecycle import lifespan
 from pry.core.settings import settings
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="PryScraper API",
@@ -91,6 +94,33 @@ async def readyz() -> JSONResponse:
     return JSONResponse(content={"status": "ready", "kinds": 3})
 
 
+# Emitted only by the degraded stub path, so a scraper can tell fabricated
+# metrics from real registry data without reading logs.
+METRICS_STUB_MARKER = "pry_metrics_stub"
+
+
+def build_metrics_stub() -> str:
+    """Render the degraded /metrics body when the real registry is unusable.
+
+    Never reports the facilitator as healthy: without a registry we have no
+    evidence it is, and a green gauge on a broken registry hides the outage
+    from every alert rule keyed on ``x402_facilitator_healthy``.
+    """
+    lines = [
+        "# TYPE x402_verify_total counter",
+        "x402_verify_total 0",
+        "# TYPE x402_settle_total counter",
+        "x402_settle_total 0",
+        "# TYPE x402_verify_failures_total counter",
+        "x402_verify_failures_total 0",
+        "# TYPE x402_facilitator_healthy gauge",
+        "x402_facilitator_healthy 0",
+        f"# TYPE {METRICS_STUB_MARKER} gauge",
+        f"{METRICS_STUB_MARKER} 1",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 @app.get("/metrics", tags=["Ops"], include_in_schema=False)
 async def get_metrics() -> str:
     """Prometheus text format metrics (real registry + x402 fallbacks)."""
@@ -98,18 +128,12 @@ async def get_metrics() -> str:
         from prometheus_client import generate_latest
 
         return generate_latest().decode("utf-8")
-    except Exception:  # noqa: BLE001 — fall back to static stubs
-        lines = [
-            "# TYPE x402_verify_total counter",
-            "x402_verify_total 0",
-            "# TYPE x402_settle_total counter",
-            "x402_settle_total 0",
-            "# TYPE x402_verify_failures_total counter",
-            "x402_verify_failures_total 0",
-            "# TYPE x402_facilitator_healthy gauge",
-            "x402_facilitator_healthy 1",
-        ]
-        return "\n".join(lines) + "\n"
+    except Exception as exc:  # noqa: BLE001 — fall back to static stubs
+        logger.warning(
+            "metrics_stub_served",
+            extra={"error": type(exc).__name__, "reason": str(exc)},
+        )
+        return build_metrics_stub()
 
 
 if __name__ == "__main__":
