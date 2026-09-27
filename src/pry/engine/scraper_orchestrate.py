@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import time
 from typing import Any, ClassVar
 
@@ -35,6 +34,7 @@ from pry.engine.circuit_breaker import BREAKER_FOR_TIER, domain_semaphore
 from pry.engine.domain_key import memory_domain
 from pry.engine.retry import async_retry
 from pry.engine.scraper_premium_first import PremiumFirstMixin
+from pry.engine.tier_chain import TierChainMixin
 from pry.engine.tier_cost import tier_cost
 from pry.engine.tier_retry_policy import TierRetryPolicyMixin
 from pry.engine.tiers import TierMixin
@@ -44,16 +44,17 @@ from pry.engine.url_guard import validate_url
 logger = logging.getLogger(__name__)
 
 
-class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierMixin):
+class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin, TierMixin):
     """Fallback-chain orchestration mixed into :class:`UltimateScraper`.
 
-    Carries the adaptive tier-order builder and the ``scrape()`` /
-    ``_scrape_with_fallbacks()`` loop. Tier methods come from
+    Carries the ``scrape()`` / ``_scrape_with_fallbacks()`` loop, the
+    per-attempt bookkeeping and result shaping. Tier methods come from
     :class:`~pry.engine.tiers.TierMixin`; the per-tier retry config and
-    block-signal escalation come from
-    :class:`~pry.engine.tier_retry_policy.TierRetryPolicyMixin`; the opt-in
-    paid-first rung comes from
-    :class:`~pry.engine.scraper_premium_first.PremiumFirstMixin`.
+    block-signal escalation from
+    :class:`~pry.engine.tier_retry_policy.TierRetryPolicyMixin`; proxy
+    resolution and the fallback-chain builder from
+    :class:`~pry.engine.tier_chain.TierChainMixin`; the opt-in paid-first rung
+    from :class:`~pry.engine.scraper_premium_first.PremiumFirstMixin`.
     """
 
     USER_AGENTS: ClassVar[list[str]] = [
@@ -232,32 +233,6 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierMixin):
             result["block_signal"] = latest_signal
         return result
 
-    def _resolve_proxy_url(self, opts: dict[str, Any]) -> str | None:
-        """Resolve the configured proxy URL from options, ProxyManager, or env."""
-        if opts.get("proxy_url"):
-            return opts["proxy_url"]
-        if opts.get("proxy") is False:
-            return None
-        try:
-            from pry.engine.proxy_manager import ProxyManager
-
-            pm = ProxyManager()
-            return pm.get_proxy_url()
-        except Exception as e:  # noqa: BLE001
-            logger.debug("proxy_resolve_failed", extra={"error": str(e)[:80]})
-        env_url = os.getenv("PRY_PROXY_URL") or os.getenv("PROXY_URL")
-        return env_url or None
-
-    def _recommend_proxy(self, last_error: str) -> dict[str, Any] | None:
-        """Build a proxy recommendation for the response when scraping fails."""
-        try:
-            from pry.engine.proxy_manager import ProxyManager
-
-            return ProxyManager().get_recommendation(last_error)
-        except Exception as e:  # noqa: BLE001
-            logger.debug("proxy_recommend_failed", extra={"error": str(e)[:80]})
-            return None
-
     def _result(
         self,
         url: str,
@@ -275,56 +250,6 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierMixin):
         if block_signal is not None:
             result["block_signal"] = block_signal
         return result
-
-    def _build_tier_order(
-        self, proxy_url: str | None, premium_first: bool
-    ) -> list[tuple[str, Any]]:
-        """Build the fallback chain (cheap tiers -> Tor -> premium -> cached).
-
-        Note: ``_tier_premium_proxy`` has signature (url, proxy_url, opts)
-        while other tiers use (url, opts, proxy_url) — handled at the call
-        site in :meth:`_attempt_tier`.
-        """
-        tier_order: list[tuple[str, Any]] = [
-            ("direct", self._tier_direct),
-            ("tls_fingerprint", self._tier_tls_fingerprint),
-            ("cloudscraper", self._tier_cloudscraper),
-            ("flaresolverr", self._tier_flaresolverr),
-            ("undetected", self._tier_undetected),
-            ("camoufox", self._tier_camoufox),
-            ("playwright", self._tier_playwright),
-            ("googlebot", self._tier_googlebot),
-            # Tor mid-chain: anonymous fallback tried before we pay for a
-            # premium proxy, but after the trusted cheap methods.
-            ("tor", self._tier_tor),
-        ]
-
-        # Premium proxy — the LAST paid resort, after Tor. Only added when it
-        # was not already tried first above.
-        if proxy_url and not premium_first:
-            tier_order.append(("premium_proxy", self._tier_premium_proxy))
-
-        tier_order.extend(
-            [
-                ("archive", self._tier_archive),
-                ("google_cache", self._tier_google_cache),
-            ]
-        )
-
-        # Tier 13: AI Visual Scraper (screenshot + LLM vision)
-        ai_visual = _us_flag("_ai_visual")
-        if _us_flag("_has_ai_visual") and ai_visual and ai_visual.is_available():
-            tier_order.append(("ai_visual", self._tier_ai_visual))
-
-        # Tier 14: Mobile App API Scraper
-        if _us_flag("_has_mobile") and _us_flag("_mobile_scraper"):
-            tier_order.append(("mobile_app", self._tier_mobile_app))
-
-        # Tier 15: GraphQL API Discovery
-        if _us_flag("_has_graphql") and _us_flag("_graphql_scraper"):
-            tier_order.append(("graphql", self._tier_graphql))
-
-        return tier_order
 
     async def _attempt_tier(
         self,
