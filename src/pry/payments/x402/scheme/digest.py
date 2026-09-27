@@ -20,6 +20,8 @@ from typing import Any, cast
 
 from .networks import normalize_network_id
 
+logger = logging.getLogger(__name__)
+
 # Attestation crypto: same backend the self-facilitator uses (eth_keys for
 # secp256k1 ecrecover/sign, eth_utils keccak for the digest). Imported
 # best-effort so the module still loads (and attestation is simply disabled)
@@ -34,10 +36,10 @@ try:  # pragma: no cover - depends on runtime deps
     )
 except Exception:  # noqa: BLE001 - optional crypto dep; attestation disabled
     # (backward compatible) even when eth_keys/eth_utils are absent.
+    logger.debug("eth_keys/eth_utils unavailable; x402 attestation disabled", exc_info=True)
     _eth_keys = None  # type: ignore[assignment]
     _keccak = None  # type: ignore[assignment]
 
-logger = logging.getLogger(__name__)
 
 # ── Server attestation over the payment-required challenge ─────────────────
 # Audit #1 (HIGH): the x402 payment-required body was unsigned — a MITM /
