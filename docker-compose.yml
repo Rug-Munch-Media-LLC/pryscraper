@@ -206,6 +206,39 @@ services:
           memory: 64M
           cpus: "0.1"
 
+  # 2026-09-27: the pry stack had NO alertmanager, so every rule in
+  # prometheus/alerts.yml evaluated but could never notify anyone — the rules
+  # were structurally inert exactly like the pair that used to sit in
+  # fleet-infra. It runs on pryscraper_default and forwards to the fleet sink
+  # (host:9099 alert-webhook), which is the SAME receiver rmi-alertmanager
+  # posts to, so both Prometheus stacks converge on one notification path
+  # instead of a second, competing pipeline. Verified reachable from this
+  # network: pry-prometheus -> 172.28.0.1:9099 returns HTTP 200.
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}alertmanager
+    restart: unless-stopped
+    init: true
+    volumes:
+      - ./prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+        reservations:
+          memory: 64M
+          cpus: "0.1"
+
   prometheus:
     image: prom/prometheus:v2.54.0
     container_name: ${PRY_CONTAINER_PREFIX:-pry-}prometheus

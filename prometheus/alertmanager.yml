@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+#
+# Pry Alertmanager — routes the pry stack's alerts to the ONE fleet sink.
+#
+# 2026-09-27: the pry stack had no alertmanager at all. prometheus/alerts.yml
+# was evaluated by pry-prometheus, but with no `alerting:` block in
+# prometheus.yml those rules had nowhere to go: structurally inert, the same
+# defect that left PryScrapeSuccessRateLow/PryScraperIdle stranded in
+# fleet-infra's alert_rules.yml.
+#
+# The receiver is 172.28.0.1:9099 — the host gateway, where the fleet
+# alert-webhook listens on 0.0.0.0. This is the SAME receiver rmi-alertmanager
+# posts to, so a Pry alert and a fleet alert reach operators by one identical
+# path (no new pipeline, no second Telegram bot).
+#
+# Reachable by construction, and verified (2026-09-27): this container's only
+# network is pryscraper_default, whose gateway is 172.28.0.1.
+#
+# NOTE: 172.28.0.0/16 is docker's default bridge pool and is NOT stable across
+# host rebuilds. If alerts stop arriving, confirm the gateway with
+#   docker network inspect pryscraper_default --format '{{.IPAM.Config}}'
+# A dedicated bridge network with an explicit subnet would pin this, at the
+# cost of touching the addresses of every other service in the stack.
+
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'fleet-webhook'
+  routes:
+    # Match rmi-alertmanager's policy for the two constant-heartbeat
+    # artifacts: they are not "events", their ABSENCE is the signal. Routing
+    # them to a real receiver spams operators on every repeat interval.
+    - match:
+        alertname: DeadMansSwitch
+      receiver: 'null'
+    - match:
+        alertname: AlertmanagerTest
+      receiver: 'null'
+
+receivers:
+  - name: 'fleet-webhook'
+    webhook_configs:
+      - url: 'http://172.28.0.1:9099/alert'
+        # 2026-09-27: matches rmi-alertmanager — resolved notifications
+        # double traffic for flappy alerts, and every firing alert here is
+        # followed by a re-firing.
+        send_resolved: false
+
+  # Silent receiver — accepts and drops (mutes constant heartbeats).
+  - name: 'null'
