@@ -12,6 +12,12 @@ wildcard-import, mutable-default, slop-markers, ts-ignore.
 Usage:
   python3 check-antipatterns.py --repo .                     # gate
   python3 check-antipatterns.py --repo . --update-baseline   # lower the bar (shrink only)
+  python3 check-antipatterns.py --repo . --breakdown         # gate + triage report
+
+--breakdown is REPORTING ONLY: it prints where each rule's findings live
+(tests/ vs src/ vs other) and, for exception handlers, how many return an
+explicit failure value instead of falling through silently. It never changes
+the verdict, the exit code, or the baseline file.
 """
 
 from __future__ import annotations
@@ -148,6 +154,9 @@ def main() -> int:
     ap.add_argument("--repo", default=".")
     ap.add_argument("--baseline", default="scripts/antipattern-baseline.json")
     ap.add_argument("--update-baseline", action="store_true")
+    ap.add_argument(
+        "--breakdown", action="store_true", help="print the triage breakdown; verdict unchanged"
+    )
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
 
@@ -191,6 +200,14 @@ def main() -> int:
         for rule, n in sorted(counts.items(), key=lambda x: -x[1]):
             mark = "  " if n <= baseline.get(rule, 0) else "!!"
             print(f"  {mark} {rule:<18} {n:>5} (baseline {baseline.get(rule, 0)})")
+    if args.breakdown:
+        # Local, aliased imports: the reporting path stays out of the gate's own
+        # scan, and `scan` here is not this module's scan().
+        from antipattern_breakdown import scan as triage_scan
+        from antipattern_breakdown_render import render as render_triage
+
+        print()
+        print(render_triage(triage_scan(root, sys.modules[__name__]), counts))
     if failures:
         print("\nFAIL (antipattern ratchet):")
         for f in failures:
