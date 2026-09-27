@@ -71,13 +71,10 @@ class ResponseCache:
     # ── Redis backend ────────────────────────────────────────────────────────
 
     def _redis_url(self) -> str:
-        """Resolve the Redis URL from the injected backend or settings.
+        """Redis URL, or ``""`` only when Redis is genuinely not configured.
 
-        Returns ``""`` only when Redis is genuinely not configured. A settings
-        resolution failure is NOT that: it means the cache cannot tell whether
-        Redis was meant to be on, and returning ``""`` would silently pin the
-        process to memory-only. Those failures raise so the caller sees a real
-        config error instead of a plausible "memory backend" story.
+        A settings-resolution failure is not that: returning ``""`` would pin
+        the process to memory-only, so those raise.
         """
         if self._redis_backend is not None:
             return str(self._redis_backend)
@@ -86,8 +83,7 @@ class ResponseCache:
 
             return str(settings.redis_url)
         except (ImportError, AttributeError, TypeError, ValueError) as e:
-            # A resolvable settings object with an unusable redis_url is a
-            # config error, not a "Redis is off" signal — fail loudly.
+            # An unusable redis_url is a config error, not "Redis is off".
             logger.error(
                 "response_cache_redis_url_unresolvable",
                 extra={"error_type": type(e).__name__},
