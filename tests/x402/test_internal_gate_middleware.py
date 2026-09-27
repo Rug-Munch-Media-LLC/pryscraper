@@ -1,17 +1,19 @@
 """Gate-level cover for the first-party (internal) free path.
 
 Policy under test: external callers stay x402-paid; our own services present
-``X-Internal-Token`` + a bound HMAC and are served free. The credential is
-fail-closed — an unset ``PRY_INTERNAL_TOKEN`` must NOT make everyone internal.
+``X-Internal-Token`` + a bound HMAC + a signed ``X-Internal-Timestamp`` and are
+served free. The credential is fail-closed — an unset ``PRY_INTERNAL_TOKEN`` must NOT make everyone internal.
 """
 
 import json
+import time
 
 import pytest
 
 from pry.payments.x402_middleware.enforcement import X402Middleware
 from pry.payments.x402_middleware.internal import (
     INTERNAL_SIG_HEADER,
+    INTERNAL_TIMESTAMP_HEADER,
     INTERNAL_TOKEN_HEADER,
     internal_request,
     internal_signature,
@@ -49,11 +51,15 @@ def _scope(headers: list[tuple[bytes, bytes]], path: str = PAID_PATH) -> dict:
     }
 
 
-def _internal_headers(method: str = "POST", path: str = PAID_PATH) -> list[tuple[bytes, bytes]]:
-    sig = internal_signature(TOKEN, method, path, CALLER)
+def _internal_headers(
+    method: str = "POST", path: str = PAID_PATH, timestamp: str | None = None
+) -> list[tuple[bytes, bytes]]:
+    stamp = timestamp if timestamp is not None else str(int(time.time()))
+    sig = internal_signature(TOKEN, method, path, CALLER, stamp)
     return [
         (INTERNAL_TOKEN_HEADER, TOKEN.encode()),
         (INTERNAL_SIG_HEADER, sig.encode()),
+        (INTERNAL_TIMESTAMP_HEADER, stamp.encode()),
     ]
 
 
@@ -109,11 +115,13 @@ async def test_wrong_internal_token_is_challenged(monkeypatch: pytest.MonkeyPatc
     """A wrong token with a well-formed signature must not get the free path."""
     monkeypatch.setenv("PRY_INTERNAL_TOKEN", TOKEN)
     app = _StubApp()
-    sig = internal_signature("attacker-token", "POST", PAID_PATH, CALLER)
+    stamp = str(int(time.time()))
+    sig = internal_signature("attacker-token", "POST", PAID_PATH, CALLER, stamp)
     scope = _scope(
         [
             (INTERNAL_TOKEN_HEADER, b"attacker-token"),
             (INTERNAL_SIG_HEADER, sig.encode()),
+            (INTERNAL_TIMESTAMP_HEADER, stamp.encode()),
         ]
     )
     sent = await _call(X402Middleware(app, wallet="0x0", network="base"), scope)

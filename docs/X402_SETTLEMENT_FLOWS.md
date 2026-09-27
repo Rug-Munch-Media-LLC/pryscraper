@@ -78,7 +78,7 @@ Three surfaces, one gate:
 | Caller | Credential | Payment | Result |
 |---|---|---|---|
 | Our CLI / MCP server / internal services | `PRY_API_KEY` as `Authorization: Bearer …` or `X-API-Key: …` | **none** | 200 — owner bypass |
-| First-party jobs (e.g. `rmi-rag-x-ingest`) | `X-Internal-Token` + `X-Internal-Signature` HMAC | **none** | 200 — internal bypass |
+| First-party jobs (e.g. `rmi-rag-x-ingest`) | `X-Internal-Token` + `X-Internal-Signature` HMAC + `X-Internal-Timestamp` | **none** | 200 — internal bypass |
 | External / anonymous agents | x402 payment headers | required | 402 challenge until settled |
 
 The owner bypass lives in `src/pry/payments/x402_middleware/owner.py` and is applied in
@@ -95,10 +95,11 @@ still gets 402). CI runs `pytest tests/`, so losing owner access fails the build
 
 Policy: external customers pay x402; **we do not bill ourselves**. First-party
 services present `X-Internal-Token: <PRY_INTERNAL_TOKEN>` plus
-`X-Internal-Signature`, an HMAC-SHA256 over the request fingerprint:
+`X-Internal-Signature`, an HMAC-SHA256 over the request fingerprint, plus
+`X-Internal-Timestamp: <unix seconds>` (freshness — added 2026-09-27):
 
 ```
-message = f"{METHOD}\n{path}\n{caller}"      # caller = resolved client IP
+message = f"{METHOD}\n{path}\n{caller}\n{timestamp}"   # caller = resolved client IP
 signature = hex(hmac_sha256(PRY_INTERNAL_TOKEN, message))
 ```
 
@@ -110,7 +111,15 @@ caller can produce the value with the stdlib and no SDK.
 | `PRY_INTERNAL_TOKEN` unset | **Fail closed** — the check is inert, external traffic still pays |
 | Token valid, signature missing/invalid | 402 challenge (token alone is not a credential) |
 | Signature issued for another path/method/caller | 402 — a captured signature is not replayable |
+| `X-Internal-Timestamp` missing or non-numeric | 402 — fail closed, no implicit "now" |
+| Timestamp older/newer than the skew window | 402 — `abs(now - ts) > PRY_INTERNAL_MAX_SKEW_SECONDS` |
+| `PRY_INTERNAL_MAX_SKEW_SECONDS` | Max clock skew in seconds, default `300`; non-numeric or ≤ 0 rejects everything |
+| Signature seen once already | 402 — replay cache (TTL eviction, bounded LRU of 8192) |
 | Comparison | `hmac.compare_digest` (constant time) |
+
+The timestamp is **signed**, so it cannot be widened in flight, and a signature is
+only admitted the first time it is seen: a captured request is usable inside the
+skew window, never beyond it, and never twice.
 
 The branch sits in `enforcement.py` immediately **after** the owner branch and
 **before** `_is_free`, so it never reorders the free/paid classification.

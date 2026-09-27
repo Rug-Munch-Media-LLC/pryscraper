@@ -13,6 +13,12 @@ Security posture:
   length/prefix information through timing.
 - The HMAC binds method + path + caller identity, so a captured signature is not
   replayable against a different endpoint or client.
+- REPLAY PROTECTION (2026-09-27): the HMAC also binds a unix timestamp carried
+  in ``X-Internal-Timestamp``, checked against ``PRY_INTERNAL_MAX_SKEW_SECONDS``
+  (default 300). A captured signature is therefore only usable inside the skew
+  window, and a seen signature is refused on a second use — the window is
+  enforced, not merely documented. A missing or non-numeric timestamp rejects
+  (fail closed), as does a non-numeric / non-positive skew setting.
 """
 
 # SPDX-License-Identifier: MIT
@@ -21,11 +27,58 @@ Security posture:
 import hashlib
 import hmac
 import os
+import time
+from collections import OrderedDict
 from typing import Any
 
 INTERNAL_TOKEN_HEADER = b"x-internal-token"
 INTERNAL_SIG_HEADER = b"x-internal-signature"
+INTERNAL_TIMESTAMP_HEADER = b"x-internal-timestamp"
 INTERNAL_SCOPE_KEY = "x402_verified"
+
+DEFAULT_MAX_SKEW_SECONDS = 300
+MAX_SKEW_ENV = "PRY_INTERNAL_MAX_SKEW_SECONDS"
+# Evict a seen signature once it can no longer be inside the skew window, so
+# the cache cannot grow without bound while still covering every replay.
+REPLAY_TTL_SECONDS = 2 * DEFAULT_MAX_SKEW_SECONDS
+MAX_REPLAY_ENTRIES = 8192
+# Bounded LRU: when the cap is hit the oldest entry is dropped, which only
+# ever widens a window that has already expired past the skew bound.
+_SEEN_SIGNATURES: OrderedDict[str, float] = OrderedDict()
+
+
+def internal_max_skew() -> int:
+    """Configured max clock skew in seconds; fail-closed when unusable.
+
+    Only an ABSENT setting falls back to ``DEFAULT_MAX_SKEW_SECONDS``. A present
+    but non-numeric, blank, or non-positive value rejects every internal request
+    rather than silently widening (or disabling) the freshness window.
+    """
+    raw = os.environ.get(MAX_SKEW_ENV)
+    if raw is None:
+        return DEFAULT_MAX_SKEW_SECONDS
+    try:
+        skew = int(raw.strip())
+    except ValueError:
+        return 0
+    return skew if skew > 0 else 0
+
+
+def _already_seen(signature: str, now: float) -> bool:
+    """Record a signature as seen; True when it was already used.
+
+    Called only AFTER the signature has been verified, so an unauthenticated
+    attacker cannot poison the cache with junk entries.
+    """
+    for seen, seen_expiry in list(_SEEN_SIGNATURES.items()):
+        if seen_expiry <= now:
+            del _SEEN_SIGNATURES[seen]
+    if signature in _SEEN_SIGNATURES:
+        return True
+    _SEEN_SIGNATURES[signature] = now + REPLAY_TTL_SECONDS
+    while len(_SEEN_SIGNATURES) > MAX_REPLAY_ENTRIES:
+        _SEEN_SIGNATURES.popitem(last=False)
+    return False
 
 
 def internal_token() -> str:
@@ -38,29 +91,61 @@ def internal_enabled() -> bool:
     return bool(internal_token())
 
 
-def _fingerprint(method: str, path: str, caller: str) -> str:
+def _fingerprint(method: str, path: str, caller: str, timestamp: str) -> str:
     """Canonicalise the signed fields (shared by signer and verifier)."""
-    return f"{method.upper()}\n{path}\n{caller}"
+    return f"{method.upper()}\n{path}\n{caller}\n{timestamp}"
 
 
-def internal_signature(token: str, method: str, path: str, caller: str) -> str:
+def internal_signature(
+    token: str, method: str, path: str, caller: str, timestamp: str | int | None = None
+) -> str:
     """Build the HMAC an internal caller must present.
 
     Deliberately dependency-free: callers need no SDK to compute it, and the
     message is stable so a retry can recompute it without server state.
+
+    ``timestamp`` is the unix second the caller stamps in
+    ``X-Internal-Timestamp``; it is signed so it cannot be widened in flight.
+    It defaults to "now" for convenience in first-party code, but a caller
+    should send the value it actually transmitted.
     """
+    stamp = str(int(timestamp)) if timestamp is not None else str(int(time.time()))
     return hmac.new(
-        token.encode(), _fingerprint(method, path, caller).encode(), hashlib.sha256
+        token.encode(), _fingerprint(method, path, caller, stamp).encode(), hashlib.sha256
     ).hexdigest()
 
 
+def _fresh_timestamp(headers: dict[bytes, bytes], now: float) -> str | None:
+    """Return the signed timestamp when it is inside the skew window.
+
+    None means reject: missing, non-numeric, or outside the window.
+    """
+    skew = internal_max_skew()
+    if skew <= 0:
+        return None
+    raw = headers.get(INTERNAL_TIMESTAMP_HEADER, b"").decode().strip()
+    if not raw or not raw.isdigit():
+        return None
+    try:
+        stamp = int(raw)
+    except ValueError:  # pragma: no cover - isdigit() already guards
+        return None
+    if abs(now - stamp) > skew:
+        return None
+    return raw
+
+
 def internal_request(scope: dict[str, Any], headers: dict[bytes, bytes]) -> bool:
-    """True when the request carries a valid first-party internal credential."""
+    """True when the request carries a valid, fresh, first-party internal credential."""
     token = internal_token()
     if not token:
         return False
     presented = headers.get(INTERNAL_TOKEN_HEADER, b"").decode().strip()
     if not presented or not hmac.compare_digest(presented, token):
+        return False
+    now = time.time()
+    timestamp = _fresh_timestamp(headers, now)
+    if timestamp is None:
         return False
     signature = headers.get(INTERNAL_SIG_HEADER, b"").decode().strip()
     if not signature:
@@ -70,8 +155,11 @@ def internal_request(scope: dict[str, Any], headers: dict[bytes, bytes]) -> bool
         str(scope.get("method", "")),
         str(scope.get("path", "")),
         _caller_from_scope(scope),
+        timestamp,
     )
-    return hmac.compare_digest(signature, expected)
+    if not hmac.compare_digest(signature, expected):
+        return False
+    return not _already_seen(signature, now)
 
 
 def _caller_from_scope(scope: dict[str, Any]) -> str:

@@ -41,17 +41,56 @@ groups:
   - name: pry-scrape-success
     interval: 60s
     rules:
+      # ── Scraper health: two DISTINCT failure modes, never one expression ──
+      # 1. scrapes running but mostly failing  -> PryScrapeSuccessRateLow
+      # 2. no scrapes running at all          -> PryScraperIdle
+      # A success *ratio* cannot tell them apart. sum(rate(success)) /
+      # clamp_min(sum(rate(all)), 0.001) evaluates to 0/0.001 == 0 when idle,
+      # so an idle scraper pages "0% success" forever — a false failure that
+      # trains operators to ignore the alert. Hence the `unless` guard: idle is
+      # excluded from the ratio, and PryScraperIdle owns that signal instead.
+      #
+      # 2026-09-27: this rule lived in fleet-infra's alert_rules.yml, where it
+      # was deployed, green and STRUCTURALLY INERT — rmi-prometheus has no
+      # job="pry" target and therefore zero pry_scrapes_total series. It was
+      # moved here because this is the ONLY Prometheus that scrapes pry:8002
+      # (verified: pry network is pryscraper_default, rmi-prometheus is on
+      # rmi_network, and pry's API is published to 127.0.0.1:8005 only —
+      # rmi-prometheus reaches neither). A rule can only observe data the
+      # local Prometheus actually scrapes.
       - alert: PryScrapeSuccessRateLow
         expr: |
-          sum(rate(pry_scrapes_total{status="success"}[15m]))
-          /
-          clamp_min(sum(rate(pry_scrapes_total[15m])), 0.001) < 0.90
+          (
+            sum(rate(pry_scrapes_total{status="success"}[15m]))
+            /
+            clamp_min(sum(rate(pry_scrapes_total[15m])), 0.001)
+          ) < 0.90
+          unless sum(rate(pry_scrapes_total[15m])) == 0
         for: 15m
         labels:
           severity: warning
         annotations:
           summary: "Scrape success rate below 90% for 15m"
-          description: "Check upstream block rates / proxy pool health via /v1/admin/dashboard."
+          description: "Check upstream block rates / proxy pool health via /v1/admin/dashboard. Scrapes ARE running — if the scraper is idle entirely that is PryScraperIdle, not this alert."
+
+      # The real "scraper is broken" signal. Idle is a DIFFERENT fault from low
+      # success rate: nothing is being collected at all, so the success ratio
+      # is meaningless. Guarded on the scrape target being up so a dead Pry
+      # container does not also page as idle (target-down already covers that).
+      # `and on()` (empty label set) against a count(), NOT `and on(job)`:
+      # sum() returns a label-less series, so an on(job) join can never match
+      # and the alert would silently NEVER fire — a guard that guards nothing.
+      # count() is also single-series, which `and` requires.
+      - alert: PryScraperIdle
+        expr: |
+          (sum(rate(pry_scrapes_total[15m])) == 0)
+          and on() (count(up{job="pry"} == 1) > 0)
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pry scraper idle — no scrapes for 2h (target up)"
+          description: "pry_scrapes_total rate is 0 for 15m windows across 2h while the pry target is still up. Scraping is stalled or the scheduler is off — not a success-rate problem."
 
   - name: pry-latency
     interval: 60s

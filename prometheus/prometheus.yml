@@ -13,17 +13,20 @@ global:
 rule_files:
   - /etc/prometheus/alerts.yml
 
-# ALERTING NOT WIRED YET — no alertmanager container exists in the pry stack
-# (rmi-alertmanager is on rmi_network, unreachable from pryscraper_default).
-# To wire notifications, either:
-#   1. Run an alertmanager container on pryscraper_default and uncomment:
-# alerting:
-#   alertmanagers:
-#     - static_configs:
-#         - targets: ['alertmanager:9093']
-#   2. Or configure alertmanager's route to POST to an n8n webhook
-#      (n8n:5678 is reachable; create a "Webhook" trigger workflow
-#      and set alertmanager webhook_configs.url to it).
+# 2026-09-27: WAS unwired — "no alertmanager container exists in the pry
+# stack". That made every rule below structurally inert: they evaluated, and
+# nowhere to go. Both were now fixed together — an `alertmanager` service
+# (on pryscraper_default, next to this Prometheus) forwards to the same fleet
+# sink rmi-alertmanager uses.
+#
+# `alertmanager` (Docker DNS) is correct here, NOT the fleet's
+# `rmi-alertmanager`: that container is on rmi_network only, which this
+# Prometheus does not share and cannot resolve. Reachability was verified
+# rather than assumed.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
 
 scrape_configs:
   - job_name: 'pry'

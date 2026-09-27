@@ -25,16 +25,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import time
 from typing import Any, ClassVar
-from urllib.parse import urlparse
 
 from pry.core.errors import InvalidRequestError
 from pry.core.observability import SCRAPE_LATENCY, span
 from pry.engine.circuit_breaker import BREAKER_FOR_TIER, domain_semaphore
-from pry.engine.retry import RetryConfig, async_retry
+from pry.engine.domain_key import memory_domain
+from pry.engine.retry import async_retry
+from pry.engine.scraper_premium_first import PremiumFirstMixin
+from pry.engine.tier_chain import TierChainMixin
 from pry.engine.tier_cost import tier_cost
+from pry.engine.tier_retry_policy import TierRetryPolicyMixin
 from pry.engine.tiers import TierMixin
 from pry.engine.tiers_base import _us_flag
 from pry.engine.url_guard import validate_url
@@ -42,12 +44,17 @@ from pry.engine.url_guard import validate_url
 logger = logging.getLogger(__name__)
 
 
-class ScrapeOrchestrator(TierMixin):
+class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin, TierMixin):
     """Fallback-chain orchestration mixed into :class:`UltimateScraper`.
 
-    Carries the per-tier retry configuration, the adaptive tier-order
-    builder and the ``scrape()`` / ``_scrape_with_fallbacks()`` loop. Tier
-    methods come from :class:`~pry.engine.tiers.TierMixin`.
+    Carries the ``scrape()`` / ``_scrape_with_fallbacks()`` loop, the
+    per-attempt bookkeeping and result shaping. Tier methods come from
+    :class:`~pry.engine.tiers.TierMixin`; the per-tier retry config and
+    block-signal escalation from
+    :class:`~pry.engine.tier_retry_policy.TierRetryPolicyMixin`; proxy
+    resolution and the fallback-chain builder from
+    :class:`~pry.engine.tier_chain.TierChainMixin`; the opt-in paid-first rung
+    from :class:`~pry.engine.scraper_premium_first.PremiumFirstMixin`.
     """
 
     USER_AGENTS: ClassVar[list[str]] = [
@@ -56,39 +63,6 @@ class ScrapeOrchestrator(TierMixin):
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0",
     ]
-
-    # Per-tier retry configurations for transient failure resilience.
-    # Browser-based tiers (undetected, camoufox, playwright) use 0 retries
-    # because launching a browser is expensive; network-only tiers retry 1-2x.
-    _RETRY_CONFIGS: ClassVar[dict[str, RetryConfig]] = {
-        "direct": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
-        "tls_fingerprint": RetryConfig(max_retries=1, base_delay=1.0, max_delay=5.0),
-        "cloudscraper": RetryConfig(max_retries=1, base_delay=1.0, max_delay=5.0),
-        "flaresolverr": RetryConfig(max_retries=2, base_delay=2.0, max_delay=10.0),
-        "undetected": RetryConfig(max_retries=0),
-        "camoufox": RetryConfig(max_retries=0),
-        "playwright": RetryConfig(max_retries=0),
-        "googlebot": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
-        "premium_proxy": RetryConfig(max_retries=2, base_delay=1.0, max_delay=8.0),
-        "archive": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
-        "google_cache": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
-        "tor": RetryConfig(max_retries=1, base_delay=2.0, max_delay=10.0),
-        "ai_visual": RetryConfig(max_retries=0),
-        "mobile_app": RetryConfig(max_retries=1, base_delay=1.0, max_delay=5.0),
-        "graphql": RetryConfig(max_retries=1, base_delay=1.0, max_delay=5.0),
-    }
-    _DEFAULT_RETRY: ClassVar[RetryConfig] = RetryConfig(max_retries=1, base_delay=1.0)
-
-    # Block kinds from block_detection.detect_block mapped to the tier names
-    # that should be preferred NEXT in the fallback chain. "rate_limited" is
-    # intentionally absent: backoff is already handled by the per-tier retry
-    # configs above.
-    _PREFER_ON_BLOCK: ClassVar[dict[str, tuple[str, ...]]] = {
-        "cloudflare": ("flaresolverr", "cloudscraper", "undetected", "camoufox", "playwright"),
-        "captcha": ("undetected", "camoufox", "playwright", "flaresolverr"),
-        "js_required": ("playwright", "camoufox", "undetected"),
-        "access_denied": ("tor", "premium_proxy"),
-    }
 
     async def scrape(self, url: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
         """Scrape any URL with automatic bypass strategy selection.
@@ -99,14 +73,17 @@ class ScrapeOrchestrator(TierMixin):
 
         Per-domain concurrency throttle: at most
         ``circuit_breaker.DOMAIN_MAX_CONCURRENCY`` scrapes may run against the
-        same domain at once. This prevents a single caller (or a burst of
+        same site at once. This prevents a single caller (or a burst of
         callers) from hammering one target site with unbounded parallel
         requests — an abuse vector that would get the target (and our egress
-        IPs) rate-limited or banned. Different domains proceed in parallel;
-        only same-domain concurrency is bounded.
+        IPs) rate-limited or banned. Different sites proceed in parallel;
+        only same-site concurrency is bounded.
+
+        Keyed on the registrable domain (``domain_key.memory_domain``), not
+        the raw netloc: ``www.example.com`` and ``example.com:8443`` are one
+        site and must share one cap, or the limit is bypassed by spelling.
         """
-        parsed = urlparse(url)
-        domain = parsed.netloc or "unknown"
+        domain = memory_domain(url)
         sem = domain_semaphore(domain)
         async with sem:
             with span("scrape.request", {"http.url": url}) as request_span:
@@ -130,8 +107,10 @@ class ScrapeOrchestrator(TierMixin):
             return {"status": "error", "url": url, "error": str(e)}
 
         proxy_url = self._resolve_proxy_url(opts)
-        parsed = urlparse(url)
-        domain = parsed.netloc
+        # Memory key for every tier outcome below (record + reorder). Registrable
+        # domain, so samples accumulate on one site instead of one netloc
+        # spelling — see domain_key.memory_domain.
+        domain = memory_domain(url)
         scrape_start = time.time()
         attempts: list[dict[str, Any]] = []
         latest_signal: dict[str, Any] | None = None
@@ -254,32 +233,6 @@ class ScrapeOrchestrator(TierMixin):
             result["block_signal"] = latest_signal
         return result
 
-    def _resolve_proxy_url(self, opts: dict[str, Any]) -> str | None:
-        """Resolve the configured proxy URL from options, ProxyManager, or env."""
-        if opts.get("proxy_url"):
-            return opts["proxy_url"]
-        if opts.get("proxy") is False:
-            return None
-        try:
-            from pry.engine.proxy_manager import ProxyManager
-
-            pm = ProxyManager()
-            return pm.get_proxy_url()
-        except Exception as e:  # noqa: BLE001
-            logger.debug("proxy_resolve_failed", extra={"error": str(e)[:80]})
-        env_url = os.getenv("PRY_PROXY_URL") or os.getenv("PROXY_URL")
-        return env_url or None
-
-    def _recommend_proxy(self, last_error: str) -> dict[str, Any] | None:
-        """Build a proxy recommendation for the response when scraping fails."""
-        try:
-            from pry.engine.proxy_manager import ProxyManager
-
-            return ProxyManager().get_recommendation(last_error)
-        except Exception as e:  # noqa: BLE001
-            logger.debug("proxy_recommend_failed", extra={"error": str(e)[:80]})
-            return None
-
     def _result(
         self,
         url: str,
@@ -297,56 +250,6 @@ class ScrapeOrchestrator(TierMixin):
         if block_signal is not None:
             result["block_signal"] = block_signal
         return result
-
-    def _build_tier_order(
-        self, proxy_url: str | None, premium_first: bool
-    ) -> list[tuple[str, Any]]:
-        """Build the fallback chain (cheap tiers -> Tor -> premium -> cached).
-
-        Note: ``_tier_premium_proxy`` has signature (url, proxy_url, opts)
-        while other tiers use (url, opts, proxy_url) — handled at the call
-        site in :meth:`_attempt_tier`.
-        """
-        tier_order: list[tuple[str, Any]] = [
-            ("direct", self._tier_direct),
-            ("tls_fingerprint", self._tier_tls_fingerprint),
-            ("cloudscraper", self._tier_cloudscraper),
-            ("flaresolverr", self._tier_flaresolverr),
-            ("undetected", self._tier_undetected),
-            ("camoufox", self._tier_camoufox),
-            ("playwright", self._tier_playwright),
-            ("googlebot", self._tier_googlebot),
-            # Tor mid-chain: anonymous fallback tried before we pay for a
-            # premium proxy, but after the trusted cheap methods.
-            ("tor", self._tier_tor),
-        ]
-
-        # Premium proxy — the LAST paid resort, after Tor. Only added when it
-        # was not already tried first above.
-        if proxy_url and not premium_first:
-            tier_order.append(("premium_proxy", self._tier_premium_proxy))
-
-        tier_order.extend(
-            [
-                ("archive", self._tier_archive),
-                ("google_cache", self._tier_google_cache),
-            ]
-        )
-
-        # Tier 13: AI Visual Scraper (screenshot + LLM vision)
-        ai_visual = _us_flag("_ai_visual")
-        if _us_flag("_has_ai_visual") and ai_visual and ai_visual.is_available():
-            tier_order.append(("ai_visual", self._tier_ai_visual))
-
-        # Tier 14: Mobile App API Scraper
-        if _us_flag("_has_mobile") and _us_flag("_mobile_scraper"):
-            tier_order.append(("mobile_app", self._tier_mobile_app))
-
-        # Tier 15: GraphQL API Discovery
-        if _us_flag("_has_graphql") and _us_flag("_graphql_scraper"):
-            tier_order.append(("graphql", self._tier_graphql))
-
-        return tier_order
 
     async def _attempt_tier(
         self,
@@ -414,19 +317,6 @@ class ScrapeOrchestrator(TierMixin):
         if SCRAPE_LATENCY:
             SCRAPE_LATENCY.labels(method=tier_name).observe(latency)
 
-    def _promote_preferred_tiers(
-        self, tier_order: list[tuple[str, Any]], i: int, kind: str
-    ) -> None:
-        """Promote the preferred tier family for a detected block signal (in place)."""
-        preferred = self._PREFER_ON_BLOCK.get(kind, ())
-        if preferred and i + 1 < len(tier_order):
-            remaining = tier_order[i + 1 :]
-            preferred_tiers = [t for t in remaining if t[0] in preferred]
-            if preferred_tiers:
-                tier_order[i + 1 :] = preferred_tiers + [
-                    t for t in remaining if t[0] not in preferred
-                ]
-
     def _record_tier_success(
         self,
         *,
@@ -459,71 +349,3 @@ class ScrapeOrchestrator(TierMixin):
             domain, ordered_names, attempts, tier_name, True, scrape_start, errors
         )
         return self._result(url, html, tier_name, block_signal=latest_signal)
-
-    async def _premium_first(
-        self,
-        *,
-        url: str,
-        proxy_url: str,
-        opts: dict[str, Any],
-        domain: str,
-        scrape_start: float,
-        attempts: list[dict[str, Any]],
-        errors: list[str],
-        latest_signal: dict[str, Any] | None,
-        registry: Any = None,
-    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-        """Run the premium-proxy-first attempt when the caller requested it.
-
-        Returns ``(result, latest_signal)`` — result is None when the premium
-        attempt failed (caller proceeds with the regular chain).
-        """
-        start = time.time()
-        html = await self._tier_premium_proxy(url, proxy_url, opts)
-        latency = time.time() - start
-        signal = self._detect_block_signal(html)
-        success = bool(html and self._is_valid(html))
-        block_kind = ""
-        if signal is not None and signal.kind != "none":
-            latest_signal = self._signal_to_dict(signal)
-            success = False
-            block_kind = signal.kind
-        # The paid rung must be learnable too: without this the most
-        # expensive tier in the ladder has no memory at all and the ranking
-        # can neither promote it when it works nor demote it when it fails.
-        if registry is not None:
-            self._record_tier_outcome(
-                registry,
-                None,
-                domain,
-                "premium_proxy",
-                success,
-                latency,
-                block_kind=block_kind,
-            )
-        if success:
-            assert isinstance(html, str)
-            attempts.append(
-                {
-                    "tier": "premium_proxy",
-                    "success": True,
-                    "error": None,
-                    "duration_ms": round(latency * 1000, 2),
-                }
-            )
-            self._record_telemetry(
-                domain, ["premium_proxy"], attempts, "premium_proxy", True, scrape_start, errors
-            )
-            return self._result(
-                url, html, "premium_proxy", block_signal=latest_signal
-            ), latest_signal
-        errors.append("premium_proxy_failed")
-        attempts.append(
-            {
-                "tier": "premium_proxy",
-                "success": False,
-                "error": "premium_proxy_failed",
-                "duration_ms": round(latency * 1000, 2),
-            }
-        )
-        return None, latest_signal
