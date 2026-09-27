@@ -12,15 +12,9 @@ handling. Uses a temp SQLite DB so the user's real data dir is never touched.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
-import importlib
 from pathlib import Path
 
-import pytest
-
-import pry.core.paths as paths
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
-
 
 
 # ── run_migrations ────────────────────────────────────────────────

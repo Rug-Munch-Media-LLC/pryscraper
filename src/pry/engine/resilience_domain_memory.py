@@ -46,7 +46,6 @@ __all__ = [
     "DOMAIN_TIER_COOLDOWN_SECONDS",
     "DomainTierMemory",
     "TierRecord",
-    "]",
 ]
 
 

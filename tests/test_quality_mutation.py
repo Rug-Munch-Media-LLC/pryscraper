@@ -26,13 +26,13 @@ import time
 import pytest
 
 from pry.engine.quality import (
-    _format_age,
     compute_completeness,
     compute_freshness,
     compute_null_rate,
     compute_schema_adherence,
     detect_anomalies,
 )
+from pry.engine.quality_checks.freshness import _format_age
 
 # ── detect_anomalies ─────────────────────────────────────────────────────────
 
@@ -191,10 +191,10 @@ class TestComputeFreshness:
     def test_epoch_int_age_and_fresh_boundary(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Freeze the clock so age is EXACTLY max_age — pins the '<=' in
         # ``age <= max_age_seconds`` against a '<' mutant.
-        import pry.engine.quality as quality_module
+        import pry.engine.quality_checks.freshness as freshness_module
 
         frozen = 1_800_000_000.0
-        monkeypatch.setattr(quality_module.time, "time", lambda: frozen)
+        monkeypatch.setattr(freshness_module.time, "time", lambda: frozen)
         result = compute_freshness({"timestamp": frozen - 3600}, max_age_seconds=3600)
         assert result["fresh"] is True  # age == max_age IS fresh
         assert result["age_seconds"] == 3600
@@ -339,10 +339,10 @@ class TestFreshnessKeyCoverage:
     def test_each_recognised_key_drives_age(
         self, monkeypatch: pytest.MonkeyPatch, key: str
     ) -> None:
-        import pry.engine.quality as quality_module
+        import pry.engine.quality_checks.freshness as freshness_module
 
         frozen = 1_800_000_000.0
-        monkeypatch.setattr(quality_module.time, "time", lambda: frozen)
+        monkeypatch.setattr(freshness_module.time, "time", lambda: frozen)
         result = compute_freshness({key: frozen - 60})
         assert result["age_seconds"] == 60
         assert result["fresh"] is True
@@ -350,10 +350,10 @@ class TestFreshnessKeyCoverage:
     def test_default_max_age_is_3600(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """age = 3600.5s: fresh under default 3600? NO (<= 3600 fails).
         A 3601 default mutant would wrongly report fresh."""
-        import pry.engine.quality as quality_module
+        import pry.engine.quality_checks.freshness as freshness_module
 
         frozen = 1_800_000_000.0
-        monkeypatch.setattr(quality_module.time, "time", lambda: frozen)
+        monkeypatch.setattr(freshness_module.time, "time", lambda: frozen)
         result = compute_freshness({"timestamp": frozen - 3600.5})
         assert result["fresh"] is False
 
