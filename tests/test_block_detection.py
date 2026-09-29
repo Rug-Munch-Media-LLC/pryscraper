@@ -301,6 +301,100 @@ def _large_body(phrase: str, target_bytes: int) -> str:
     return head + body[:marker_at] + phrase + body[marker_at:] + tail
 
 
+class TestSingleMarkerCaptchaIsStillDetected:
+    """The CAPTCHA path must detect a page carrying exactly ONE widget marker.
+
+    Regression gate for the 2+ density gate (aa72ad7a), which was built on
+    Cloudflare's shape — a real CF interstitial carries "just a moment",
+    "cf-chl-" and "challenge-platform" together — and then applied to a
+    differently-shaped threat. A real hCaptcha or Turnstile interstitial
+    typically carries ONE marker, so the density rule made single-CAPTCHA
+    pages undetectable: a 108-byte hCaptcha page classified as js_required,
+    a Turnstile page as a bare access_denied 403.
+
+    The marker in each case below is the ONLY one present. If a density gate
+    is ever reapplied to the CAPTCHA path, these go red.
+
+    The escape from false positives is the 64 KB size gate, not marker count:
+    a real widget page IS the response, whereas a 744 KB article naming a
+    widget in its own JS bundle is a valid fetch. That pairing is pinned by
+    TestSizeGateDoesNotDropValidFetches and by
+    test_large_page_with_single_captcha_marker_is_none below.
+    """
+
+    #: (name, body, status, expected_confidence) — one marker each, no others.
+    SINGLE_MARKER_CASES = (
+        (
+            "hcaptcha",
+            '<html><body><script src="https://hcaptcha.com/1/api.js" async defer></script>'
+            '<div class="h-captcha" data-sitekey="abc"></div></body></html>',
+            200,
+            0.95,
+        ),
+        (
+            "turnstile",
+            '<html><body><script src="https://challenges.cloudflare.com/turnstile/v0/api.js" '
+            'async defer></script><div class="cf-turnstile" data-sitekey="0x4"></div></body></html>',
+            403,
+            0.95,
+        ),
+        (
+            "grecaptcha",
+            '<html><body><div class="g-recaptcha" data-sitekey="6Lc"></div>'
+            "<script>grecaptcha.execute();</script></body></html>",
+            200,
+            0.95,
+        ),
+        (
+            "generic copy only",
+            "<html><body><p>Verify you are human to continue.</p></body></html>",
+            200,
+            0.90,
+        ),
+    )
+
+    @pytest.mark.parametrize(
+        ("name", "body", "status", "expected_confidence"),
+        SINGLE_MARKER_CASES,
+        ids=[case[0] for case in SINGLE_MARKER_CASES],
+    )
+    def test_single_marker_page_is_captcha(
+        self, name: str, body: str, status: int, expected_confidence: float
+    ) -> None:
+        lower = body.lower()
+        # The premise of the test: exactly ONE captcha marker is present. If
+        # this ever fails the test is no longer pinning the single-marker rule.
+        present = [
+            m
+            for m in ("grecaptcha", "hcaptcha.com", "turnstile", "verify you are human")
+            if m in lower
+        ]
+        assert len(present) == 1, f"fixture must carry exactly one marker, found {present}"
+        assert len(body) < _MAX_BLOCK_COPY_BYTES
+
+        signal = detect_block(body, status, {})
+        assert signal.kind == "captcha", f"{name}: single-marker page must be a captcha block"
+        assert signal.confidence == expected_confidence
+        assert signal.recommended_escalation == "stealth"
+        assert signal.evidence, "a block must always carry its evidence"
+
+    def test_large_page_with_single_captcha_marker_is_none(self) -> None:
+        """The other half of the contract: one marker on a LARGE page is not a block.
+
+        This is the theblock.co fetch (744,148 bytes naming a widget once).
+        Without the size gate, restoring the single-marker rule would throw
+        that valid article away again — so both halves must hold together.
+        """
+        html = _large_body(
+            '<script src="https://hcaptcha.com/1/api.js"></script><span>powered by grecaptcha</span>',
+            744_148,
+        )
+        assert len(html) > _MAX_BLOCK_COPY_BYTES
+        signal = detect_block(html, 200, {})
+        assert signal.kind == "none"
+        assert signal.evidence == []
+
+
 class TestSizeGateDoesNotDropValidFetches:
     """A large page with one incidental marker is a valid fetch, not a block."""
 

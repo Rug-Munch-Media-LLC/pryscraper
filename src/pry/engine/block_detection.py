@@ -109,14 +109,22 @@ def _norm_headers(headers: dict[str, str] | None) -> dict[str, str]:
 _WEAK_CF_MARKERS: frozenset[str] = frozenset({"challenge-platform"})
 
 
-#: A single incidental marker in a large page is not a block. Providers ship
-#: their own widget/script names inside the JS bundle of every page they serve,
-#: so a fully-served 744 KB article can contain "challenge-platform" and
-#: "grecaptcha" once each (measured on theblock.co, 2026-08-29) and be
-#: perfectly readable. Real interstitials are SHORT and carry several markers
-#: together, so body evidence below is only conclusive once this many distinct
-#: markers are present. Header evidence (cf-mitigated, cf-ray + 403) is
-#: authoritative and is unaffected by this.
+#: Marker DENSITY gate — applies to the Cloudflare body path ONLY.
+#:
+#: A real Cloudflare interstitial carries several CF markers together
+#: ("just a moment", "cf-chl-", "challenge-platform"), so requiring this many
+#: distinct markers is sound evidence. Header evidence (cf-mitigated, cf-ray +
+#: 403) is authoritative on its own and is unaffected.
+#:
+#: Measured 2026-08-29: theblock.co served 744,148 bytes of real article
+#: through the premium proxy whose body named "challenge-platform" once, in
+#: the script tag Cloudflare injects into every page it serves.
+#:
+#: This constant is deliberately NOT applied to the CAPTCHA path. A real
+#: hCaptcha or Turnstile interstitial typically carries exactly ONE widget
+#: marker, so a density rule built on Cloudflare's shape made single-CAPTCHA
+#: pages undetectable — it was applied to a differently-shaped threat. The
+#: two paths solve different problems, and only the density one over-corrected.
 _MIN_BODY_MARKERS_FOR_BLOCK = 2
 
 
@@ -124,7 +132,9 @@ _MIN_BODY_MARKERS_FOR_BLOCK = 2
 #: same word is an article that happens to contain it. Measured 2026-08-29:
 #: immunefi.com served 313,783 bytes through the premium proxy and was rejected
 #: because the body contained the word "forbidden" once — an article ABOUT a
-#: forbidden topic, not a refusal. Every generic-copy branch below has this shape.
+#: forbidden topic, not a refusal. Every generic-copy branch below has this shape,
+#: the CAPTCHA widget path included: a widget ref only proves the page IS a
+#: challenge when the page is small enough to BE the challenge.
 _MAX_BLOCK_COPY_BYTES = 64 * 1024
 
 
@@ -220,8 +230,15 @@ def detect_block(html: str, status: int, headers: dict[str, str] | None = None) 
         return BlockSignal("cloudflare", 0.90, "stealth", cf_body_hits)
 
     # CAPTCHA: concrete widget references are stronger than generic copy.
+    #
+    # ONE marker is enough here (a real hCaptcha or Turnstile interstitial
+    # carries a single widget ref), so the density gate does NOT apply to this
+    # path. What keeps an incidental mention from being read as a block is the
+    # same 64 KB size gate every other generic-copy branch uses: a real widget
+    # page IS the response, a 744 KB article that names a widget in its own JS
+    # bundle is not.
     captcha_hits = _body_evidence(_CAPTCHA_MARKERS, lower_html)
-    if len(captcha_hits) >= _MIN_BODY_MARKERS_FOR_BLOCK:
+    if captcha_hits and original_len <= _MAX_BLOCK_COPY_BYTES:
         has_widget_ref = any(
             marker != "verify you are human" for marker in _CAPTCHA_MARKERS if marker in lower_html
         )
