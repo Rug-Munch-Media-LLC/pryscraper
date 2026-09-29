@@ -109,6 +109,17 @@ def _norm_headers(headers: dict[str, str] | None) -> dict[str, str]:
 _WEAK_CF_MARKERS: frozenset[str] = frozenset({"challenge-platform"})
 
 
+#: A single incidental marker in a large page is not a block. Providers ship
+#: their own widget/script names inside the JS bundle of every page they serve,
+#: so a fully-served 744 KB article can contain "challenge-platform" and
+#: "grecaptcha" once each (measured on theblock.co, 2026-08-29) and be
+#: perfectly readable. Real interstitials are SHORT and carry several markers
+#: together, so body evidence below is only conclusive once this many distinct
+#: markers are present. Header evidence (cf-mitigated, cf-ray + 403) is
+#: authoritative and is unaffected by this.
+_MIN_BODY_MARKERS_FOR_BLOCK = 2
+
+
 def _body_evidence(markers: tuple[str, ...], lower_html: str) -> list[str]:
     """Return evidence strings for each marker found in the body.
 
@@ -186,12 +197,12 @@ def detect_block(html: str, status: int, headers: dict[str, str] | None = None) 
             "stealth",
             [f"header {_CF_RAY_HEADER}", *cf_body_hits],
         )
-    if cf_body_hits:
+    if len(cf_body_hits) >= _MIN_BODY_MARKERS_FOR_BLOCK:
         return BlockSignal("cloudflare", 0.90, "stealth", cf_body_hits)
 
     # CAPTCHA: concrete widget references are stronger than generic copy.
     captcha_hits = _body_evidence(_CAPTCHA_MARKERS, lower_html)
-    if captcha_hits:
+    if len(captcha_hits) >= _MIN_BODY_MARKERS_FOR_BLOCK:
         has_widget_ref = any(
             marker != "verify you are human" for marker in _CAPTCHA_MARKERS if marker in lower_html
         )
