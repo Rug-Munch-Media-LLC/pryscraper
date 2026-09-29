@@ -80,6 +80,19 @@ class PryError(Exception):
             "detail": self.message,
             "timestamp": datetime.now(UTC).isoformat(),
         }
+        # A caller that cannot tell "the site refused us" from "we ran out of
+        # time" retries the wrong thing, and the tier list is too noisy to infer
+        # from (it is rate-limited and varies run to run). The verdict is the
+        # actionable field; the tier lists are the evidence behind it.
+        verdict = getattr(self, "verdict", None)
+        if verdict:
+            d["verdict"] = verdict
+        attempted = getattr(self, "tiers_attempted", None)
+        if attempted:
+            d["tiers_attempted"] = list(attempted)
+        failed = getattr(self, "tiers_failed", None)
+        if failed:
+            d["tiers_failed"] = list(failed)
         if request_id:
             d["request_id"] = request_id
         if instance:
@@ -102,8 +115,29 @@ class RateLimitError(PryError):
 
 
 class ScrapeError(PryError):
+    """A scrape failed.
+
+    Carries the VERDICT as structured context, not just a message. The verdict
+    is what a caller actually needs — "the site refused us" and "we ran out of
+    time" call for different responses, and both used to arrive as an
+    indistinguishable semicolon-joined bag of tier names.
+    """
+
     status_code = 422
     code = "scrape_failed"
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        verdict: str | None = None,
+        tiers_attempted: list[str] | None = None,
+        tiers_failed: list[str] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.verdict = verdict
+        self.tiers_attempted = tiers_attempted or []
+        self.tiers_failed = tiers_failed or []
 
 
 class InvalidRequestError(PryError):

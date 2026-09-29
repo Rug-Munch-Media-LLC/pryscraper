@@ -150,7 +150,12 @@ async def scrape(request: ScrapeRequest) -> dict[str, Any]:
                 },
             )
         if result.get("status") != "ok":
-            raise ScrapeError(result.get("error", "Scrape failed"))
+            raise ScrapeError(
+                result.get("error", "Scrape failed"),
+                verdict=result.get("verdict"),
+                tiers_attempted=result.get("tiers_attempted"),
+                tiers_failed=result.get("tiers_failed"),
+            )
 
         content = result.get("content", "")
         response: dict[str, Any] = {
