@@ -41,6 +41,52 @@ from pry.engine.tiers import TierMixin
 from pry.engine.tiers_base import _us_flag
 from pry.engine.url_guard import validate_url
 
+#: Markers in a tier-failure string that mean a Pry dependency was down rather
+#: than the target refusing us.
+_DEPENDENCY_MARKERS = (
+    "flaresolverr",
+    "browser_pool",
+    "unavailable",
+    "dependency",
+    "browser_unavailable",
+)
+
+
+def classify_verdict(
+    errors: list[str],
+    block_signal: dict[str, Any] | None,
+    tiers_available: int,
+) -> str:
+    """Name WHY a scrape failed, so a caller does not have to infer it.
+
+    The failure payload used to be "; ".join(errors[-5:]) and nothing else, so
+    every failure looked identical. Measured on one site: three consecutive
+    attempts returned three different signatures
+    ("undetected;camoufox;playwright", "premium_proxy;tls_fingerprint",
+    "googlebot;archive;google_cache") for the same URL with the same
+    reachability, because the late tiers (archive, google_cache) are rate
+    limited and fail INTERMITTENTLY. The signature was noise.
+
+    That noise has a real cost, and it was paid: the last tier in the chain is
+    premium_proxy, so "the error names premium_proxy" reads as "the proxy is
+    broken" and sent people to rotate proxy credentials when the fault was the
+    request budget. A verdict removes that inference entirely.
+
+    blocked     the target actively refused us (a block signal was observed)
+    exhausted   nothing refused us; we ran out of tiers or wall-clock
+    unavailable a dependency Pry needs is down or unusable
+    """
+    if block_signal is not None and block_signal.get("kind") not in (None, "none"):
+        return "blocked"
+    if any(
+        marker in err for err in errors for marker in _DEPENDENCY_MARKERS
+    ):
+        return "unavailable"
+    if tiers_available and len(errors) >= tiers_available:
+        # Every tier was attempted and none refused us.
+        return "exhausted"
+    return "blocked" if not errors else "exhausted"
+
 logger = logging.getLogger(__name__)
 
 
@@ -224,8 +270,11 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
         last_err = errors[-1] if errors else "all_tiers_failed"
         result: dict[str, Any] = {
             "status": "error",
+            "verdict": classify_verdict(errors, latest_signal, len(ordered_names)),
             "url": url,
             "error": "; ".join(errors[-5:]) if errors else last_err,
+            "tiers_attempted": ordered_names,
+            "tiers_failed": errors,
             "content": "",
             "proxy_recommendation": self._recommend_proxy(last_err),
         }
