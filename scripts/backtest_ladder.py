@@ -47,7 +47,11 @@ SOURCES: list[dict[str, Any]] = [
     {"url": "https://thehackernews.com/", "expect": "ok", "note": "html, plain"},
     {"url": "https://immunefi.com/", "expect": "flaky", "note": "JS-heavy, often archive tier"},
     {"url": "https://www.theblock.co/", "expect": "blocked", "note": "403 to curl too"},
-    {"url": "https://slowmist.medium.com/", "expect": "blocked", "note": "403 to curl; RSS is the answer"},
+    {
+        "url": "https://slowmist.medium.com/",
+        "expect": "blocked",
+        "note": "403 to curl; RSS is the answer",
+    },
     {"url": "https://blog.soliditylang.com/", "expect": "unreachable", "note": "000, not blocking"},
 ]
 
@@ -58,8 +62,17 @@ def owner_key() -> str:
         return key
     try:
         out = __import__("subprocess").run(
-            ["/usr/bin/docker", "inspect", "pry", "--format", "{{range .Config.Env}}{{println .}}{{end}}"],
-            capture_output=True, text=True, timeout=15, check=False,
+            [
+                "/usr/bin/docker",
+                "inspect",
+                "pry",
+                "--format",
+                "{{range .Config.Env}}{{println .}}{{end}}",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return ""
@@ -131,6 +144,15 @@ async def main() -> int:
     ap.add_argument("--update-baseline", action="store_true")
     ap.add_argument("--compare", action="store_true", help="diff against the committed baseline")
     ap.add_argument("--no-warmup", action="store_true", help="skip the discarded warm-up pass")
+    ap.add_argument(
+        "--repeat",
+        type=int,
+        default=3,
+        help="runs to aggregate before summarising (default 3). One run is never a "
+        "baseline: on 2026-08-29 three warm runs of an UNCHANGED ladder gave "
+        "0.875/0.875/1.0, the 1.0 was committed, and the next run returning 0.75 "
+        "was then read as a regression.",
+    )
     args = ap.parse_args()
 
     sources = SOURCES[: args.limit] if args.limit else SOURCES
@@ -153,7 +175,25 @@ async def main() -> int:
             await probe(client, sources[0], args.timeout)
             for warm in WARMUP_TIERS:
                 await warm_browser_tier(client, warm, args.timeout)
-        results = [await probe(client, s, args.timeout) for s in sources]
+        runs: list[dict[str, Any]] = []
+        for _ in range(max(1, args.repeat)):
+            if not args.no_warmup and sources:
+                await probe(client, sources[0], args.timeout)
+                for warm in WARMUP_TIERS:
+                    await warm_browser_tier(client, warm, args.timeout)
+            runs.append([await probe(client, src, args.timeout) for src in sources])
+        results = runs[-1]
+
+        def _rate(run: list[dict[str, Any]]) -> float:
+            scored = [r for r in run if r["result"] in ("ok", "fail")]
+            if not scored:
+                return 0.0
+            return round(sum(1 for r in scored if r["result"] == "ok") / len(scored), 3)
+
+        rates = sorted(_rate(run) for run in runs)
+        median = rates[len(rates) // 2]
+        print(f"\n== {len(runs)} runs, success_rate per run: {rates}")
+        print(f"== median {median}  (baseline compares against the MEDIAN, not a single run)")
 
     ok = [r for r in results if r["result"] == "ok"]
     latencies = [r["latency_ms"] for r in results if r["result"] == "ok"]
@@ -161,9 +201,11 @@ async def main() -> int:
         "sources": len(results),
         "ok": len(ok),
         "fail": len(results) - len(ok),
-        "success_rate": round(len(ok) / len(results), 3) if results else 0.0,
+        "success_rate": median,
         "p50_ms": round(statistics.median(latencies), 1) if latencies else None,
-        "p95_ms": round(sorted(latencies)[int(len(latencies) * 0.95) - 1], 1) if latencies else None,
+        "p95_ms": round(sorted(latencies)[int(len(latencies) * 0.95) - 1], 1)
+        if latencies
+        else None,
         "by_via": {v: sum(1 for r in ok if r.get("via") == v) for v in {r.get("via") for r in ok}},
     }
     print("\n== per source ==")
@@ -186,9 +228,21 @@ async def main() -> int:
     if args.compare:
         base = await asyncio.to_thread(_read_baseline)
         print("\n== vs baseline ==")
+        spread = summary.get("success_rate_observed") or {}
+        if spread:
+            print(
+                f"  observed spread baseline={spread.get('min')}..{spread.get('max')} "
+                f"over {spread.get('runs')} runs"
+            )
         for key in ("success_rate", "p50_ms", "p95_ms", "ok"):
             b, n = base.get(key), summary.get(key)
-            delta = "n/a" if b is None or n is None or isinstance(b, str) else round(n - b, 3) if isinstance(b, float) else n - b
+            delta = (
+                "n/a"
+                if b is None or n is None or isinstance(b, str)
+                else round(n - b, 3)
+                if isinstance(b, float)
+                else n - b
+            )
             print(f"  {key:14} baseline={b}  now={n}  delta={delta}")
     return 0
 
