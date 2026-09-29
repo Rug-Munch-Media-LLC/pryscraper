@@ -81,6 +81,16 @@ secret-rotation*
 credentials.json
 data/
 !datasets/sports_data/data/
+
+# The ladder baseline is deliberately committed: scripts/backtest_ladder.py
+# exists to diff a ladder change against a number, and a baseline that is
+# not in git makes that a diff against nothing. Measured 2026-08-29:
+# 8 sources, 5 ok, success_rate 0.625, p50 8.1ms, by_via direct 4 /
+# flaresolverr 1. It contains no credentials — only source URLs, results
+# and latencies.
+!data/
+!data/ladder_baseline.json
+
 desktop.ini
 docker-compose.override.yml
 htmlcov/
