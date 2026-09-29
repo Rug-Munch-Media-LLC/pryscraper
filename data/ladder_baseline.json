@@ -1,96 +1,28 @@
 {
 	"summary": {
-		"sources": 10,
-		"ok": 10,
+		"sources": 1,
+		"ok": 1,
 		"fail": 0,
 		"success_rate": 1.0,
-		"p50_ms": 5.3,
-		"p95_ms": 6.3,
+		"p50_ms": 5.0,
+		"p95_ms": 5.0,
 		"by_via": {
-			"tls_fingerprint": 1,
-			"direct": 8,
-			"tor": 1
+			"direct": 1
+		},
+		"success_rate_observed": {
+			"runs": 3,
+			"min": 1.0,
+			"median": 1.0,
+			"max": 1.0
 		}
 	},
 	"results": [
 		{
-			"url": "https://rekt.news/",
+			"url": "https://a.example/",
 			"expect": "ok",
-			"note": "html, plain",
+			"note": "",
 			"result": "ok",
 			"latency_ms": 5.0,
-			"via": "direct"
-		},
-		{
-			"url": "https://blog.trailofbits.com/",
-			"expect": "ok",
-			"note": "html, plain",
-			"result": "ok",
-			"latency_ms": 5.3,
-			"via": "direct"
-		},
-		{
-			"url": "https://cointelegraph.com/",
-			"expect": "ok",
-			"note": "large html",
-			"result": "ok",
-			"latency_ms": 6.5,
-			"via": "direct"
-		},
-		{
-			"url": "https://thehackernews.com/",
-			"expect": "ok",
-			"note": "html, plain",
-			"result": "ok",
-			"latency_ms": 4.9,
-			"via": "direct"
-		},
-		{
-			"url": "https://immunefi.com/",
-			"expect": "flaky",
-			"note": "JS-heavy, often archive tier",
-			"result": "ok",
-			"latency_ms": 2.8,
-			"via": "direct"
-		},
-		{
-			"url": "https://www.theblock.co/",
-			"expect": "blocked",
-			"note": "403 to curl too",
-			"result": "ok",
-			"latency_ms": 5.4,
-			"via": "tls_fingerprint"
-		},
-		{
-			"url": "https://slowmist.medium.com/",
-			"expect": "blocked",
-			"note": "403 to curl; RSS is the answer",
-			"result": "ok",
-			"latency_ms": 5.3,
-			"via": "tor"
-		},
-		{
-			"url": "https://bitcoin.org/en/",
-			"expect": "ok",
-			"note": "browser tier, small",
-			"result": "ok",
-			"latency_ms": 4.2,
-			"via": "direct"
-		},
-		{
-			"url": "https://geth.ethereum.org/",
-			"expect": "ok",
-			"note": "browser tier",
-			"result": "ok",
-			"latency_ms": 6.3,
-			"via": "direct"
-		},
-		{
-			"url": "https://base.org/",
-			"expect": "ok",
-			"note": "browser tier, JS-rendered",
-			"result": "ok",
-			"latency_ms": 6.1,
 			"via": "direct"
 		}
 	]

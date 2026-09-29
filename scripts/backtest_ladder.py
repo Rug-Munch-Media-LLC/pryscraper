@@ -1,159 +1,49 @@
 #!/usr/bin/env python3
 """Backtest the scrape ladder against a labelled source set.
 
-WHY THIS EXISTS. Every change to the tier chain so far has been argued rather
-than measured. The timeout fix (30 -> 120) was correct and I could not prove
-it: the only evidence was one site that happened to work once. Worse, the
-failure signature is intermittent because the late tiers (archive, google_cache)
-are rate limited, so "it worked yesterday" and "it works now" are different
-claims. This replays a fixed, labelled set through the real chain and reports
-success rate and latency PER TIER, so a ladder change is a diff against a
-number.
-
-    python3 scripts/backtest_ladder.py --baseline data/ladder_baseline.json
+    python3 scripts/backtest_ladder.py --compare
     python3 scripts/backtest_ladder.py --update-baseline
 
-It talks to a RUNNING Pry over HTTP with the owner key, so it measures the
-deployed system rather than the source tree. Use --limit to keep a run short;
-the full set is deliberately small and public so it is reproducible.
+Thin CLI over `ladder_backtest`, which owns the source set, the probe and the
+aggregation. This file owns argument parsing, the report, the baseline
+comparison, and the EXIT CODE.
+
+Exit codes — the reason this split happened. The harness used to `return 0` on
+every outcome, so a run in which all ten sources came back ConnectError (Pry
+not deployed, network dead) was indistinguishable from a total ladder
+regression: a CI gate keying on the exit code passed a completely broken
+ladder, and a broken deployment read as a clean run. Those are different
+verdicts, so they get different codes:
+
+    0  measured, no regression        → the gate is free to pass
+    1  measured AND regressed         → the ladder got worse
+    2  could not measure at all       → no verdict exists; do not call it a pass
+
+Code 2 is not "2 is worse than 1". They are orthogonal: 1 means the ladder was
+exercised and failed, 2 means the ladder was never exercised. A caller that
+treats any non-zero as "the ladder is broken" has reintroduced exactly the
+defect this exit contract removes, so the reason is printed on both paths and
+the reason is the thing to read, not the number.
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
-import json
-import os
-import statistics
-import subprocess
 import sys
-import time
-from pathlib import Path
 from typing import Any
 
 import httpx
+from ladder_aggregate import BASELINE, measured, read_baseline, summarise, write_baseline
+from ladder_backtest import SOURCES, run_ladder
 
-PRY_URL = os.getenv("PRY_URL", "http://127.0.0.1:8005")
-BASELINE = Path("data/ladder_baseline.json")
-
-#: Labelled sources. `expect` is what a HEALTHY chain should achieve, measured
-#: with plain curl and a browser User-Agent before this harness existed — not
-#: what Pry currently returns. That distinction is the point: a tier that fails
-#: to deliver a source curl can read is a tier burning time and money.
-SOURCES: list[dict[str, Any]] = [
-    {"url": "https://rekt.news/", "expect": "ok", "note": "html, plain"},
-    {"url": "https://blog.trailofbits.com/", "expect": "ok", "note": "html, plain"},
-    {"url": "https://cointelegraph.com/", "expect": "ok", "note": "large html"},
-    {"url": "https://thehackernews.com/", "expect": "ok", "note": "html, plain"},
-    {"url": "https://immunefi.com/", "expect": "flaky", "note": "JS-heavy, often archive tier"},
-    {"url": "https://www.theblock.co/", "expect": "blocked", "note": "403 to curl too"},
-    {
-        "url": "https://slowmist.medium.com/",
-        "expect": "blocked",
-        "note": "403 to curl; RSS is the answer",
-    },
-    # 2026-08-29: blog.soliditylang.com REMOVED, replaced by three sources that
-    # are actually reachable and that exercise the browser tier.
-    #
-    # Why it was removed rather than fixed: the host answers the TLS ClientHello
-    # with `tlsv1 unrecognized name` and presents NO certificate. openssl
-    # tolerates that and prints "Verify return code: 0"; Chrome does not, so the
-    # browser FlareSolverr drives fails with net::ERR_SSL_UNRECOGNIZED_NAME_ALERT
-    # and the tier intermittently returns 0 bytes. Both A records (13.248.169.48,
-    # 76.223.54.146) behave identically, so it is a hostname/cert
-    # misconfiguration at the site, not one bad backend in a pool. No ladder
-    # ordering, proxy, tier or timeout can make a hostname with no certificate
-    # load in a browser, and a source that is unreachable for reasons outside our
-    # control is a bad test fixture: it pins the baseline at 7/8 forever and makes
-    # every future run look like a regression.
-    {"url": "https://bitcoin.org/en/", "expect": "ok", "note": "browser tier, small"},
-    {"url": "https://geth.ethereum.org/", "expect": "ok", "note": "browser tier"},
-    {"url": "https://base.org/", "expect": "ok", "note": "browser tier, JS-rendered"},
-]
+#: Measured and regressed.
+EXIT_REGRESSION = 1
+#: Could not measure. Not a verdict about the ladder.
+EXIT_UNMEASURABLE = 2
 
 
-def owner_key() -> str:
-    key = os.getenv("PRY_API_KEY", "").strip()
-    if key:
-        return key
-    try:
-        out = __import__("subprocess").run(
-            [
-                "/usr/bin/docker",
-                "inspect",
-                "pry",
-                "--format",
-                "{{range .Config.Env}}{{println .}}{{end}}",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=15,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return ""
-    for line in out.stdout.splitlines():
-        if line.startswith("PRY_API_KEY="):
-            return line.split("=", 1)[1].strip()
-    return ""
-
-
-async def probe(client: httpx.AsyncClient, src: dict[str, Any], pry_timeout: int) -> dict[str, Any]:
-    start = time.monotonic()
-    try:
-        r = await client.post(
-            f"{PRY_URL}/v1/scrape",
-            json={"url": src["url"], "format": "markdown", "timeout": pry_timeout},
-            headers={"Authorization": f"Bearer {owner_key()}"},
-        )
-    except (httpx.HTTPError, OSError) as exc:
-        # A backtest that dies on one unreachable source is useless; record it
-        # and carry on. The other sources still measure the ladder.
-        return {**src, "result": "unavailable", "latency_ms": 0, "detail": type(exc).__name__}
-    ms = round((time.monotonic() - start) * 1000, 1)
-    body: dict[str, Any] = {}
-    try:
-        body = r.json()
-    except ValueError:
-        return {**src, "result": "unavailable", "latency_ms": ms, "detail": "non-json"}
-    if r.status_code == 200 and (body.get("data") or {}).get("markdown"):
-        meta = (body.get("data") or {}).get("metadata") or {}
-        return {**src, "result": "ok", "latency_ms": ms, "via": meta.get("method", "?")}
-    detail = str(body.get("detail", ""))[:120]
-    return {**src, "result": "fail", "latency_ms": ms, "detail": detail}
-
-
-#: Sources used to warm a specific tier, because the tier pool is shared and
-#: cold-starting it is what produces the misleading latency.
-WARMUP_TIERS = ("https://blog.soliditylang.com/",)
-
-
-async def warm_browser_tier(client: httpx.AsyncClient, url: str, budget: int) -> None:
-    """Force one scrape through the browser tier so its pool is hot.
-
-    Best-effort: a warm-up failure is not a test failure, the source may simply
-    be unreachable. The point is only that the pool starts before measuring.
-    """
-    try:
-        # `budget` is Pry's own timeout field, NOT an httpx socket wait;
-        # named so the two cannot be confused (ASYNC109).
-        await probe(client, {"url": url, "expect": "ok", "note": "warmup"}, budget)
-    except Exception:  # noqa: BLE001 - warm-up must never break a measurement
-        return
-
-
-def _write_baseline(summary: dict[str, Any], results: list[dict[str, Any]]) -> None:
-    BASELINE.parent.mkdir(parents=True, exist_ok=True)
-    BASELINE.write_text(json.dumps({"summary": summary, "results": results}, indent=2) + "\n")
-
-
-def _read_baseline() -> dict[str, Any]:
-    if not BASELINE.exists():
-        return {}
-    return json.loads(BASELINE.read_text()).get("summary", {})
-
-
-async def main() -> int:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=0, help="only the first N sources")
     ap.add_argument("--timeout", type=int, default=120)
@@ -169,61 +59,10 @@ async def main() -> int:
         "0.875/0.875/1.0, the 1.0 was committed, and the next run returning 0.75 "
         "was then read as a regression.",
     )
-    args = ap.parse_args()
+    return ap.parse_args(argv)
 
-    sources = SOURCES[: args.limit] if args.limit else SOURCES
-    async with httpx.AsyncClient(timeout=args.timeout + 30) as client:
-        if not args.no_warmup and sources:
-            # Warm-up pass, discarded. Measured across 3 runs 2026-08-29:
-            #   p50 853.9 / 3.8 / 4.0   p95 1005.8 / 9.2 / 4.3
-            # The first run after a container rebuild is ~200x slower on p50, and
-            # it was that cold number that got committed as a baseline and read
-            # as a latency regression. The success rate and tier selection were
-            # identical across all three runs (0.875, same by_via) — only the
-            # timings moved. So a cold baseline is not merely noisy, it is
-            # misleading in a specific direction.
-            # Warm the tier the SLOW sources need, not the one the first source
-            # happens to use. Warming sources[0] (rekt.news, served by `direct`
-            # in ~3ms) left the flaresolverr BROWSER POOL cold, so the first
-            # run that needed it still paid the full start: the baseline written
-            # by --update-baseline came out p50 802ms even with the warm-up in
-            # place. Warm the browser tier explicitly.
-            await probe(client, sources[0], args.timeout)
-            for warm in WARMUP_TIERS:
-                await warm_browser_tier(client, warm, args.timeout)
-        runs: list[dict[str, Any]] = []
-        for _ in range(max(1, args.repeat)):
-            if not args.no_warmup and sources:
-                await probe(client, sources[0], args.timeout)
-                for warm in WARMUP_TIERS:
-                    await warm_browser_tier(client, warm, args.timeout)
-            runs.append([await probe(client, src, args.timeout) for src in sources])
-        results = runs[-1]
 
-        def _rate(run: list[dict[str, Any]]) -> float:
-            scored = [r for r in run if r["result"] in ("ok", "fail")]
-            if not scored:
-                return 0.0
-            return round(sum(1 for r in scored if r["result"] == "ok") / len(scored), 3)
-
-        rates = sorted(_rate(run) for run in runs)
-        median = rates[len(rates) // 2]
-        print(f"\n== {len(runs)} runs, success_rate per run: {rates}")
-        print(f"== median {median}  (baseline compares against the MEDIAN, not a single run)")
-
-    ok = [r for r in results if r["result"] == "ok"]
-    latencies = [r["latency_ms"] for r in results if r["result"] == "ok"]
-    summary = {
-        "sources": len(results),
-        "ok": len(ok),
-        "fail": len(results) - len(ok),
-        "success_rate": median,
-        "p50_ms": round(statistics.median(latencies), 1) if latencies else None,
-        "p95_ms": round(sorted(latencies)[int(len(latencies) * 0.95) - 1], 1)
-        if latencies
-        else None,
-        "by_via": {v: sum(1 for r in ok if r.get("via") == v) for v in {r.get("via") for r in ok}},
-    }
+def _report(results: list[dict[str, Any]], rates: list[float], summary: dict[str, Any]) -> None:
     print("\n== per source ==")
     for r in results:
         flag = "OK  " if r["result"] == "ok" else "FAIL"
@@ -235,31 +74,84 @@ async def main() -> int:
     for k, v in summary.items():
         print(f"  {k:14} {v}")
 
+
+def _compare(base: dict[str, Any], summary: dict[str, Any]) -> list[tuple[str, Any, Any]]:
+    """Print the diff and return the keys that moved the wrong way.
+
+    A key regresses when it went DOWN relative to the baseline. `p50_ms` and
+    `p95_ms` are latencies, so a lower number is the better one and the
+    direction is inverted for them.
+    """
+    print("\n== vs baseline ==")
+    band = summary.get("success_rate_observed") or {}
+    if band:
+        print(
+            f"  observed spread baseline={band.get('min')}..{band.get('max')} "
+            f"over {band.get('runs')} runs"
+        )
+    regressions: list[tuple[str, Any, Any]] = []
+    for key in ("success_rate", "p50_ms", "p95_ms", "ok"):
+        b, n = base.get(key), summary.get(key)
+        delta = (
+            "n/a"
+            if b is None or n is None or isinstance(b, str)
+            else round(n - b, 3)
+            if isinstance(b, float)
+            else n - b
+        )
+        print(f"  {key:14} baseline={b}  now={n}  delta={delta}")
+        if delta == "n/a" or delta == 0:
+            continue
+        worse = delta < 0 if key in ("success_rate", "ok") else delta > 0
+        if worse:
+            regressions.append((key, b, n))
+    return regressions
+
+
+async def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv)
+    sources = SOURCES[: args.limit] if args.limit else SOURCES
+
+    async with httpx.AsyncClient(timeout=args.timeout + 30) as client:
+        results, rates = await run_ladder(
+            client,
+            sources=sources,
+            repeat=args.repeat,
+            budget=args.timeout,
+            warmup=not args.no_warmup,
+        )
+    summary = summarise(results, rates)
+    print(f"\n== {len(rates)} runs, success_rate per run: {sorted(rates)}")
+    print(
+        f"== median {summary['success_rate']}  (baseline compares against the MEDIAN, not a single run)"
+    )
+    _report(results, rates, summary)
+
     # File I/O is synchronous and this is an async function, so it happens in
     # asyncio.to_thread rather than blocking the event loop (ASYNC240).
     if args.update_baseline:
-        await asyncio.to_thread(_write_baseline, summary, results)
+        await asyncio.to_thread(write_baseline, summary, results)
         print(f"\n  baseline written to {BASELINE}")
         return 0
+
+    if not measured(results):
+        # The ladder was never exercised. Say so in terms a CI log can act on,
+        # and refuse to let "no data" pass for "no problem".
+        unavailable = sum(1 for r in results if r["result"] == "unavailable")
+        print(
+            f"\n  UNMEASURABLE: 0/{len(results)} sources reached Pry "
+            f"({unavailable} unavailable). This is a missing deployment or a dead "
+            f"network, NOT a ladder verdict — the chain was never exercised."
+        )
+        return EXIT_UNMEASURABLE
+
     if args.compare:
-        base = await asyncio.to_thread(_read_baseline)
-        print("\n== vs baseline ==")
-        spread = summary.get("success_rate_observed") or {}
-        if spread:
-            print(
-                f"  observed spread baseline={spread.get('min')}..{spread.get('max')} "
-                f"over {spread.get('runs')} runs"
-            )
-        for key in ("success_rate", "p50_ms", "p95_ms", "ok"):
-            b, n = base.get(key), summary.get(key)
-            delta = (
-                "n/a"
-                if b is None or n is None or isinstance(b, str)
-                else round(n - b, 3)
-                if isinstance(b, float)
-                else n - b
-            )
-            print(f"  {key:14} baseline={b}  now={n}  delta={delta}")
+        regressions = _compare(await asyncio.to_thread(read_baseline), summary)
+        if regressions:
+            for key, b, n in regressions:
+                print(f"\n  REGRESSION: {key} baseline={b} now={n}")
+            print(f"  ladder REGRESSED against the committed baseline (exit {EXIT_REGRESSION})")
+            return EXIT_REGRESSION
     return 0
 
 
