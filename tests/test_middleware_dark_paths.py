@@ -2,16 +2,18 @@
 
 Targets the sections the audit flagged: auth helpers, the master-key
 admin identity binding, DB-key authentication incl. store-outage
-fail-closed behavior, usage flush persistence/failure, the ASGI route
-table walk, and the rate-limit-blocked response path.
+fail-closed behavior, usage flush persistence/failure, and the ASGI route
+table walk.
+
+The rate-limit-blocked response path is the one section driven through a real
+ASGI ``__call__`` rather than helper by helper; it lives in
+:mod:`tests.test_middleware_asgi_responses`.
 """
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 from __future__ import annotations
 
-import asyncio
-import json
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
@@ -20,7 +22,7 @@ from pry.core import middleware as mw
 
 if TYPE_CHECKING:
     import pytest
-from pry.core.middleware import PryHttpMiddleware, _flush_usage, _route_table_root
+from pry.core.middleware import _flush_usage, _route_table_root
 
 
 def _scope(bearer: str = "", host: str = "10.0.0.1") -> dict:
@@ -139,65 +141,3 @@ def test_route_table_root_gives_up_after_depth() -> None:
     a["app"] = b
     b["app"] = a  # cycle — must terminate via depth cap
     assert _route_table_root(a) is None
-
-
-# ── Rate-limit blocked response path (ASGI-level) ────────────────────────
-
-
-def test_rate_limit_blocked_emits_429_with_headers() -> None:
-    """When the limiter refuses, the middleware answers 429 + retry_after."""
-    stats = {
-        "limit": 5,
-        "remaining": 0,
-        "quota_reset_at": 9999999999,
-        "quota_used": 5,
-        "quota_limit": 10000,
-        "retry_after": 3,
-        "reason": "rate_limited",
-    }
-    sent: list[dict] = []
-
-    async def send(message):
-        sent.append(message)
-
-    async def receive():
-        return {"type": "http.request"}
-
-    async def app(scope, receive, send):  # pragma: no cover - must not run
-        raise AssertionError("downstream must not see blocked requests")
-
-    # Route table must know the path, else the unknown-path pass-through
-    # returns before rate limiting ever runs. Must be REAL Starlette
-    # routes — the matcher isinstance-checks them.
-    from starlette.routing import Route
-
-    async def _endpoint():  # pragma: no cover - never invoked
-        return {}
-
-    app.routes = [Route("/v1/scrape", _endpoint)]
-    mw_inst = PryHttpMiddleware(app=app)
-    scope = {
-        "type": "http",
-        "method": "GET",
-        "path": "/v1/scrape",
-        "headers": [(b"authorization", b"Bearer dbkey1234567890")],
-        "client": ("203.0.113.9", 5),
-        "query_string": b"",
-    }
-    with (
-        patch.object(mw, "request_authorized", return_value=True),
-        # autospec so the awaited refresh_quota() is an AsyncMock — a bare
-        # MagicMock cannot be awaited, and the request path awaits it before
-        # check() to keep the fail-closed quota gate reachable.
-        patch.object(mw, "user_ratelimiter", autospec=True) as rl,
-    ):
-        rl.check.return_value = (False, stats)
-        asyncio.run(mw_inst.__call__(scope, receive, send))
-
-    assert sent[0]["type"] == "http.response.start"
-    assert sent[0]["status"] == 429
-    hdrs = dict(sent[0]["headers"])
-    assert hdrs[b"x-ratelimit-remaining"] == b"0"
-    assert hdrs[b"x-request-id"]
-    body = json.loads(sent[1]["body"])
-    assert body["code"] == "rate_limit_exceeded"
