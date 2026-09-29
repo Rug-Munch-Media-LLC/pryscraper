@@ -159,7 +159,24 @@ class TestDetectBlockHeaderBranches:
 
 class TestDetectBlockPriority:
     def test_cloudflare_body_beats_captcha(self) -> None:
-        html = "<html><body>just a moment grecaptcha</body></html>"
+        # A REAL Cloudflare interstitial carries several CF markers together —
+        # the title, the challenge-platform script and the widget div. The old
+        # fixture had exactly ONE ("just a moment") plus a captcha marker, which
+        # is not a Cloudflare page; under the 2+ density gate it is correctly
+        # NOT classified as Cloudflare, and this test was red because its
+        # fixture did not match the thing it claimed to test.
+        #
+        # The density gate is deliberate and was added because a 744 KB served
+        # ARTICLE was being rejected for containing challenge-platform once. A
+        # single incidental mention is not a block; a real interstitial is
+        # unambiguous. Fixing the fixture keeps both properties true.
+        html = (
+            "<html><head><title>Just a moment...</title></head><body>"
+            "<div id='cf-please-wait'></div>"
+            "<script src='/cdn-cgi/challenge-platform/h/b/orchestrate'></script>"
+            "grecaptcha"
+            "</body></html>"
+        )
         signal = detect_block(html, 200, {})
         assert signal.kind == "cloudflare"
         assert signal.confidence == 0.90
