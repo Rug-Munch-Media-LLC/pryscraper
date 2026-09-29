@@ -1,82 +1,89 @@
 {
-  "summary": {
-    "sources": 8,
-    "ok": 8,
-    "fail": 0,
-    "success_rate": 1.0,
-    "p50_ms": 3.7,
-    "p95_ms": 5.1,
-    "by_via": {
-      "premium_proxy": 1,
-      "flaresolverr": 1,
-      "undetected": 1,
-      "direct": 5
-    }
-  },
-  "results": [
-    {
-      "url": "https://rekt.news/",
-      "expect": "ok",
-      "note": "html, plain",
-      "result": "ok",
-      "latency_ms": 7.8,
-      "via": "direct"
-    },
-    {
-      "url": "https://blog.trailofbits.com/",
-      "expect": "ok",
-      "note": "html, plain",
-      "result": "ok",
-      "latency_ms": 4.4,
-      "via": "direct"
-    },
-    {
-      "url": "https://cointelegraph.com/",
-      "expect": "ok",
-      "note": "large html",
-      "result": "ok",
-      "latency_ms": 3.5,
-      "via": "direct"
-    },
-    {
-      "url": "https://thehackernews.com/",
-      "expect": "ok",
-      "note": "html, plain",
-      "result": "ok",
-      "latency_ms": 5.1,
-      "via": "direct"
-    },
-    {
-      "url": "https://immunefi.com/",
-      "expect": "flaky",
-      "note": "JS-heavy, often archive tier",
-      "result": "ok",
-      "latency_ms": 3.7,
-      "via": "direct"
-    },
-    {
-      "url": "https://www.theblock.co/",
-      "expect": "blocked",
-      "note": "403 to curl too",
-      "result": "ok",
-      "latency_ms": 3.7,
-      "via": "premium_proxy"
-    },
-    {
-      "url": "https://slowmist.medium.com/",
-      "expect": "blocked",
-      "note": "403 to curl; RSS is the answer",
-      "result": "ok",
-      "latency_ms": 3.6,
-      "via": "undetected"
-    },
-    {
-      "url": "https://blog.soliditylang.com/",
-      "expect": "unreachable",
-      "note": "000, not blocking",
-      "result": "ok",
-      "latency_ms": 3.5,
-      "via": "flaresolverr"
-    }
-  ]
+	"summary": {
+		"sources": 8,
+		"ok": 8,
+		"fail": 0,
+		"success_rate": 0.875,
+		"p50_ms": 3.7,
+		"p95_ms": 5.1,
+		"by_via": {
+			"premium_proxy": 1,
+			"flaresolverr": 1,
+			"undetected": 1,
+			"direct": 5
+		},
+		"success_rate_observed": {
+			"min": 0.875,
+			"median": 0.875,
+			"max": 1.0,
+			"runs": 3
+		}
+	},
+	"results": [
+		{
+			"url": "https://rekt.news/",
+			"expect": "ok",
+			"note": "html, plain",
+			"result": "ok",
+			"latency_ms": 7.8,
+			"via": "direct"
+		},
+		{
+			"url": "https://blog.trailofbits.com/",
+			"expect": "ok",
+			"note": "html, plain",
+			"result": "ok",
+			"latency_ms": 4.4,
+			"via": "direct"
+		},
+		{
+			"url": "https://cointelegraph.com/",
+			"expect": "ok",
+			"note": "large html",
+			"result": "ok",
+			"latency_ms": 3.5,
+			"via": "direct"
+		},
+		{
+			"url": "https://thehackernews.com/",
+			"expect": "ok",
+			"note": "html, plain",
+			"result": "ok",
+			"latency_ms": 5.1,
+			"via": "direct"
+		},
+		{
+			"url": "https://immunefi.com/",
+			"expect": "flaky",
+			"note": "JS-heavy, often archive tier",
+			"result": "ok",
+			"latency_ms": 3.7,
+			"via": "direct"
+		},
+		{
+			"url": "https://www.theblock.co/",
+			"expect": "blocked",
+			"note": "403 to curl too",
+			"result": "ok",
+			"latency_ms": 3.7,
+			"via": "premium_proxy"
+		},
+		{
+			"url": "https://slowmist.medium.com/",
+			"expect": "blocked",
+			"note": "403 to curl; RSS is the answer",
+			"result": "ok",
+			"latency_ms": 3.6,
+			"via": "undetected"
+		},
+		{
+			"url": "https://blog.soliditylang.com/",
+			"expect": "unreachable",
+			"note": "000, not blocking",
+			"result": "ok",
+			"latency_ms": 3.5,
+			"via": "flaresolverr"
+		}
+	],
+	"notes": "success_rate is 7/8 on a warm container and 8/8 only when the flaresolverr browser tier cooperates. blog.soliditylang.com is the marginal one: it wins via flaresolverr or, when the browser is uncooperative, via archive. Three warm runs gave 0.875 / 0.875 / 1.0. The previous 1.0 baseline was the best of three, which is the number to stop trusting: a baseline drawn from a favourable run makes an unchanged system look like a regression. Cold runs are worse still (6/8) because the browser pool has not started \u2014 always warm before measuring."
 }
