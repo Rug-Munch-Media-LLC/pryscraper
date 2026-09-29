@@ -1,14 +1,15 @@
 {
   "summary": {
     "sources": 8,
-    "ok": 5,
-    "fail": 3,
-    "success_rate": 0.625,
-    "p50_ms": 8.1,
-    "p95_ms": 9.4,
+    "ok": 7,
+    "fail": 1,
+    "success_rate": 0.875,
+    "p50_ms": 2.3,
+    "p95_ms": 3.1,
     "by_via": {
-      "direct": 4,
-      "flaresolverr": 1
+      "premium_proxy": 1,
+      "direct": 5,
+      "undetected": 1
     }
   },
   "results": [
@@ -17,7 +18,7 @@
       "expect": "ok",
       "note": "html, plain",
       "result": "ok",
-      "latency_ms": 14.5,
+      "latency_ms": 10.6,
       "via": "direct"
     },
     {
@@ -25,7 +26,7 @@
       "expect": "ok",
       "note": "html, plain",
       "result": "ok",
-      "latency_ms": 4.6,
+      "latency_ms": 3.1,
       "via": "direct"
     },
     {
@@ -33,7 +34,7 @@
       "expect": "ok",
       "note": "large html",
       "result": "ok",
-      "latency_ms": 9.4,
+      "latency_ms": 2.8,
       "via": "direct"
     },
     {
@@ -41,40 +42,40 @@
       "expect": "ok",
       "note": "html, plain",
       "result": "ok",
-      "latency_ms": 7.3,
+      "latency_ms": 2.2,
       "via": "direct"
     },
     {
       "url": "https://immunefi.com/",
       "expect": "flaky",
       "note": "JS-heavy, often archive tier",
-      "result": "fail",
-      "latency_ms": 45232.8,
-      "detail": "playwright_failed; googlebot_failed; archive_failed; google_cache_failed; timeout_45s"
+      "result": "ok",
+      "latency_ms": 1.9,
+      "via": "direct"
     },
     {
       "url": "https://www.theblock.co/",
       "expect": "blocked",
       "note": "403 to curl too",
-      "result": "fail",
-      "latency_ms": 45240.0,
-      "detail": "flaresolverr_failed; camoufox_failed; playwright_failed; cloudscraper_failed; timeout_45s"
+      "result": "ok",
+      "latency_ms": 1.8,
+      "via": "premium_proxy"
     },
     {
       "url": "https://slowmist.medium.com/",
       "expect": "blocked",
       "note": "403 to curl; RSS is the answer",
-      "result": "fail",
-      "latency_ms": 24875.9,
-      "detail": "premium_proxy_failed; archive_failed; google_cache_failed; mobile_app_failed; graphql_failed"
+      "result": "ok",
+      "latency_ms": 2.3,
+      "via": "undetected"
     },
     {
       "url": "https://blog.soliditylang.com/",
       "expect": "unreachable",
       "note": "000, not blocking",
-      "result": "ok",
-      "latency_ms": 8.1,
-      "via": "flaresolverr"
+      "result": "fail",
+      "latency_ms": 15060.9,
+      "detail": "tor_failed; archive_failed; google_cache_failed; mobile_app_failed; graphql_failed"
     }
   ]
 }
