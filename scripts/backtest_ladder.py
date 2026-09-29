@@ -111,10 +111,21 @@ async def main() -> int:
     ap.add_argument("--timeout", type=int, default=120)
     ap.add_argument("--update-baseline", action="store_true")
     ap.add_argument("--compare", action="store_true", help="diff against the committed baseline")
+    ap.add_argument("--no-warmup", action="store_true", help="skip the discarded warm-up pass")
     args = ap.parse_args()
 
     sources = SOURCES[: args.limit] if args.limit else SOURCES
     async with httpx.AsyncClient(timeout=args.timeout + 30) as client:
+        if not args.no_warmup and sources:
+            # Warm-up pass, discarded. Measured across 3 runs 2026-08-29:
+            #   p50 853.9 / 3.8 / 4.0   p95 1005.8 / 9.2 / 4.3
+            # The first run after a container rebuild is ~200x slower on p50, and
+            # it was that cold number that got committed as a baseline and read
+            # as a latency regression. The success rate and tier selection were
+            # identical across all three runs (0.875, same by_via) — only the
+            # timings moved. So a cold baseline is not merely noisy, it is
+            # misleading in a specific direction.
+            await probe(client, sources[0], args.timeout)
         results = [await probe(client, s, args.timeout) for s in sources]
 
     ok = [r for r in results if r["result"] == "ok"]

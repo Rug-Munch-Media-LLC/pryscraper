@@ -1,15 +1,16 @@
 {
   "summary": {
     "sources": 8,
-    "ok": 7,
-    "fail": 1,
-    "success_rate": 0.875,
-    "p50_ms": 2.3,
-    "p95_ms": 3.1,
+    "ok": 8,
+    "fail": 0,
+    "success_rate": 1.0,
+    "p50_ms": 802.3,
+    "p95_ms": 861.7,
     "by_via": {
       "premium_proxy": 1,
       "direct": 5,
-      "undetected": 1
+      "undetected": 1,
+      "flaresolverr": 1
     }
   },
   "results": [
@@ -18,7 +19,7 @@
       "expect": "ok",
       "note": "html, plain",
       "result": "ok",
-      "latency_ms": 10.6,
+      "latency_ms": 4.4,
       "via": "direct"
     },
     {
@@ -26,7 +27,7 @@
       "expect": "ok",
       "note": "html, plain",
       "result": "ok",
-      "latency_ms": 3.1,
+      "latency_ms": 613.6,
       "via": "direct"
     },
     {
@@ -34,7 +35,7 @@
       "expect": "ok",
       "note": "large html",
       "result": "ok",
-      "latency_ms": 2.8,
+      "latency_ms": 821.3,
       "via": "direct"
     },
     {
@@ -42,7 +43,7 @@
       "expect": "ok",
       "note": "html, plain",
       "result": "ok",
-      "latency_ms": 2.2,
+      "latency_ms": 783.3,
       "via": "direct"
     },
     {
@@ -50,7 +51,7 @@
       "expect": "flaky",
       "note": "JS-heavy, often archive tier",
       "result": "ok",
-      "latency_ms": 1.9,
+      "latency_ms": 827.4,
       "via": "direct"
     },
     {
@@ -58,7 +59,7 @@
       "expect": "blocked",
       "note": "403 to curl too",
       "result": "ok",
-      "latency_ms": 1.8,
+      "latency_ms": 861.7,
       "via": "premium_proxy"
     },
     {
@@ -66,16 +67,16 @@
       "expect": "blocked",
       "note": "403 to curl; RSS is the answer",
       "result": "ok",
-      "latency_ms": 2.3,
+      "latency_ms": 3544.3,
       "via": "undetected"
     },
     {
       "url": "https://blog.soliditylang.com/",
       "expect": "unreachable",
       "note": "000, not blocking",
-      "result": "fail",
-      "latency_ms": 15060.9,
-      "detail": "tor_failed; archive_failed; google_cache_failed; mobile_app_failed; graphql_failed"
+      "result": "ok",
+      "latency_ms": 5.1,
+      "via": "flaresolverr"
     }
   ]
 }
