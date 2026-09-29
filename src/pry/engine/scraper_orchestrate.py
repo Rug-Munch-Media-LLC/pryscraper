@@ -79,14 +79,13 @@ def classify_verdict(
     """
     if block_signal is not None and block_signal.get("kind") not in (None, "none"):
         return "blocked"
-    if any(
-        marker in err for err in errors for marker in _DEPENDENCY_MARKERS
-    ):
+    if any(marker in err for err in errors for marker in _DEPENDENCY_MARKERS):
         return "unavailable"
     if tiers_available and len(errors) >= tiers_available:
         # Every tier was attempted and none refused us.
         return "exhausted"
     return "blocked" if not errors else "exhausted"
+
 
 logger = logging.getLogger(__name__)
 
@@ -219,9 +218,7 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
                     # source. After a rebuild /metrics accounted for exactly ONE successful
                     # scrape, so "does premium_proxy ever win?" was unanswerable from
                     # telemetry and had to be read out of a backtest file instead.
-                    _record_tier_health(
-                        tier_name, won=bool(html), cost_ms=latency * 1000.0
-                    )
+                    _record_tier_health(tier_name, won=bool(html), cost_ms=latency * 1000.0)
 
                     # Block detection: classify the tier response (or failure) so the
                     # next tier choice can escalate intelligently. Tiers expose only the
@@ -286,6 +283,11 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
             "error": "; ".join(errors[-5:]) if errors else last_err,
             "tiers_attempted": ordered_names,
             "tiers_failed": errors,
+            # Tiers the chain deliberately did not try, with the reason. A
+            # caller must be able to tell "we skipped it, it has never won"
+            # from "we tried it and it failed" — those are different facts and
+            # conflating them is how a fast fail becomes a slow honest one.
+            "tiers_skipped": list(self._last_skipped_tiers),
             "content": "",
             "proxy_recommendation": self._recommend_proxy(last_err),
         }
