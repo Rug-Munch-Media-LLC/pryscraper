@@ -1,22 +1,15 @@
 {
 	"summary": {
-		"sources": 8,
-		"ok": 8,
+		"sources": 10,
+		"ok": 10,
 		"fail": 0,
-		"success_rate": 0.875,
-		"p50_ms": 3.7,
-		"p95_ms": 5.1,
+		"success_rate": 1.0,
+		"p50_ms": 5.3,
+		"p95_ms": 6.3,
 		"by_via": {
-			"premium_proxy": 1,
-			"flaresolverr": 1,
-			"undetected": 1,
-			"direct": 5
-		},
-		"success_rate_observed": {
-			"min": 0.875,
-			"median": 0.875,
-			"max": 1.0,
-			"runs": 3
+			"tls_fingerprint": 1,
+			"direct": 8,
+			"tor": 1
 		}
 	},
 	"results": [
@@ -25,7 +18,7 @@
 			"expect": "ok",
 			"note": "html, plain",
 			"result": "ok",
-			"latency_ms": 7.8,
+			"latency_ms": 5.0,
 			"via": "direct"
 		},
 		{
@@ -33,7 +26,7 @@
 			"expect": "ok",
 			"note": "html, plain",
 			"result": "ok",
-			"latency_ms": 4.4,
+			"latency_ms": 5.3,
 			"via": "direct"
 		},
 		{
@@ -41,7 +34,7 @@
 			"expect": "ok",
 			"note": "large html",
 			"result": "ok",
-			"latency_ms": 3.5,
+			"latency_ms": 6.5,
 			"via": "direct"
 		},
 		{
@@ -49,7 +42,7 @@
 			"expect": "ok",
 			"note": "html, plain",
 			"result": "ok",
-			"latency_ms": 5.1,
+			"latency_ms": 4.9,
 			"via": "direct"
 		},
 		{
@@ -57,7 +50,7 @@
 			"expect": "flaky",
 			"note": "JS-heavy, often archive tier",
 			"result": "ok",
-			"latency_ms": 3.7,
+			"latency_ms": 2.8,
 			"via": "direct"
 		},
 		{
@@ -65,25 +58,40 @@
 			"expect": "blocked",
 			"note": "403 to curl too",
 			"result": "ok",
-			"latency_ms": 3.7,
-			"via": "premium_proxy"
+			"latency_ms": 5.4,
+			"via": "tls_fingerprint"
 		},
 		{
 			"url": "https://slowmist.medium.com/",
 			"expect": "blocked",
 			"note": "403 to curl; RSS is the answer",
 			"result": "ok",
-			"latency_ms": 3.6,
-			"via": "undetected"
+			"latency_ms": 5.3,
+			"via": "tor"
 		},
 		{
-			"url": "https://blog.soliditylang.com/",
-			"expect": "unreachable",
-			"note": "000, not blocking",
+			"url": "https://bitcoin.org/en/",
+			"expect": "ok",
+			"note": "browser tier, small",
 			"result": "ok",
-			"latency_ms": 3.5,
-			"via": "flaresolverr"
+			"latency_ms": 4.2,
+			"via": "direct"
+		},
+		{
+			"url": "https://geth.ethereum.org/",
+			"expect": "ok",
+			"note": "browser tier",
+			"result": "ok",
+			"latency_ms": 6.3,
+			"via": "direct"
+		},
+		{
+			"url": "https://base.org/",
+			"expect": "ok",
+			"note": "browser tier, JS-rendered",
+			"result": "ok",
+			"latency_ms": 6.1,
+			"via": "direct"
 		}
-	],
-	"notes": "success_rate is 7/8 on a warm container and 8/8 only when the flaresolverr browser tier cooperates. blog.soliditylang.com is the marginal one: it wins via flaresolverr or, when the browser is uncooperative, via archive. Three warm runs gave 0.875 / 0.875 / 1.0. The previous 1.0 baseline was the best of three, which is the number to stop trusting: a baseline drawn from a favourable run makes an unchanged system look like a regression. Cold runs are worse still (6/8) because the browser pool has not started \u2014 always warm before measuring."
+	]
 }

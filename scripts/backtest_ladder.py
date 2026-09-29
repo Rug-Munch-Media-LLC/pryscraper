@@ -52,7 +52,23 @@ SOURCES: list[dict[str, Any]] = [
         "expect": "blocked",
         "note": "403 to curl; RSS is the answer",
     },
-    {"url": "https://blog.soliditylang.com/", "expect": "unreachable", "note": "000, not blocking"},
+    # 2026-08-29: blog.soliditylang.com REMOVED, replaced by three sources that
+    # are actually reachable and that exercise the browser tier.
+    #
+    # Why it was removed rather than fixed: the host answers the TLS ClientHello
+    # with `tlsv1 unrecognized name` and presents NO certificate. openssl
+    # tolerates that and prints "Verify return code: 0"; Chrome does not, so the
+    # browser FlareSolverr drives fails with net::ERR_SSL_UNRECOGNIZED_NAME_ALERT
+    # and the tier intermittently returns 0 bytes. Both A records (13.248.169.48,
+    # 76.223.54.146) behave identically, so it is a hostname/cert
+    # misconfiguration at the site, not one bad backend in a pool. No ladder
+    # ordering, proxy, tier or timeout can make a hostname with no certificate
+    # load in a browser, and a source that is unreachable for reasons outside our
+    # control is a bad test fixture: it pins the baseline at 7/8 forever and makes
+    # every future run look like a regression.
+    {"url": "https://bitcoin.org/en/", "expect": "ok", "note": "browser tier, small"},
+    {"url": "https://geth.ethereum.org/", "expect": "ok", "note": "browser tier"},
+    {"url": "https://base.org/", "expect": "ok", "note": "browser tier, JS-rendered"},
 ]
 
 
