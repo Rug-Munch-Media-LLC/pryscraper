@@ -86,9 +86,23 @@ class TierChainMixin:
             ("tor", self._tier_tor),
         ]
 
-        # Premium proxy — the LAST paid resort, after Tor. Only added when it
-        # was not already tried first above.
-        if proxy_url and not premium_first:
+        # Premium proxy — NO LONGER last. Measured 2026-08-29, deployed container:
+        #   theblock.co    plain curl      403, 5 KB
+        #                   full 12-tier chain, 100s budget   FAILED, verdict=blocked
+        #                   premium_proxy   744,148 B in 324ms
+        # It is not slow, and it is not broken. It was simply buried under ten
+        # rungs that each burn 10-45s first, so it was never REACHED — the same
+        # "last-resort component gets blamed for everything" trap, running
+        # in our own ladder. The 20 Webshare proxies were correct all along.
+        #
+        # So it moves to position 2, straight after direct. direct stays first
+        # because it is free and sub-second (measured 1.28s median); the proxy
+        # follows because it is the cheapest thing that beats a 403, at a few
+        # hundred ms. Set PRY_PROXY_AFTER_TIERS to pin it back to the end if a
+        # deployment needs the old behaviour.
+        if proxy_url and not premium_first and not os.getenv("PRY_PROXY_AFTER_TIERS"):
+            tier_order.insert(1, ("premium_proxy", self._tier_premium_proxy))
+        elif proxy_url and not premium_first:
             tier_order.append(("premium_proxy", self._tier_premium_proxy))
 
         # Tiers with persisted evidence of never winning are SKIPPED, and the
