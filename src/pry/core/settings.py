@@ -95,7 +95,15 @@ class PrySettings(PaymentsSettings, LimitsSettings, FlagsSettings, BaseSettings)
     redis_url: str = "redis://localhost:6379/0"
 
     # Services
-    flaresolverr_url: str = "http://flaresolverr:8191/v1"
+    # Was http://flaresolverr:8191/v1 — the BARE hostname. The bare compose
+    # alias resolves to a GHOST container (pry-flaresolverr, 7h old) rather
+    # than the live one (pry-flaresolverr-pry), so any caller that read the
+    # default instead of the env var was driving a stale instance. Measured
+    # cost: blog.soliditylang.com flipped between 7/8 and 8/8 because it was
+    # being solved by a different flaresolverr depending on which path ran.
+    # The -pry suffix is the real compose service name; the bare alias is the
+    # one that drifts when an orphan lingers.
+    flaresolverr_url: str = "http://flaresolverr-pry:8191/v1"
     # SECURITY (2026-08-20 audit, P0-4): the original hardcoded default was a
     # published static secret — anyone reading this OSS repo could forge
     # webhook signatures. Now fail-closed with NO static default: if neither
