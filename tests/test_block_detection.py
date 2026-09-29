@@ -9,7 +9,12 @@ from __future__ import annotations
 
 import pytest
 
-from pry.engine.block_detection import BlockSignal, classify_response, detect_block
+from pry.engine.block_detection import (
+    _MAX_BLOCK_COPY_BYTES,
+    BlockSignal,
+    classify_response,
+    detect_block,
+)
 
 # ── Fixture HTML snippets ──────────────────────────────────────────────────
 
@@ -257,3 +262,217 @@ def test_classify_response_status_first_convenience() -> None:
     signal = classify_response(429, "<html></html>")
     assert signal.kind == "rate_limited"
     assert signal.recommended_escalation == "backoff"
+
+
+# ── False-positive regression gates ─────────────────────────────────────────
+#
+# Two gates were added after VALID fetches were thrown away (aa72ad7a, 1b99b4b8):
+#
+#   * _MIN_BODY_MARKERS_FOR_BLOCK — one incidental marker is not evidence.
+#     A 744,148-byte article served by theblock.co contains
+#     "challenge-platform" and "grecaptcha" once each and was discarded.
+#   * _MAX_BLOCK_COPY_BYTES — generic copy ("forbidden", "access denied",
+#     "too many requests", "enable javascript") is only conclusive on a page
+#     small enough for the copy to BE the page. A 313,783-byte article
+#     mentioning "forbidden" once was discarded.
+#
+# These are regression gates, not coverage padding: each one must go red if the
+# corresponding gate is removed or loosened.
+
+#: Deterministic filler for building realistically-sized bodies. Real article
+#: text is long prose, so padding with words (not one repeated character) keeps
+#: the synthetic page honest about what a large body actually looks like.
+_FILLER = (
+    "The court filings describe a dispute over digital assets and the "
+    "arbitration panel has yet to publish its ruling. "
+)
+
+
+def _large_body(phrase: str, target_bytes: int) -> str:
+    """Return an article-sized body that contains ``phrase`` exactly once.
+
+    The phrase is placed mid-body so it cannot be mistaken for a block page
+    that happens to be short. Caller asserts on the resulting size.
+    """
+    head = "<html><body><article><p>"
+    tail = "</p></article></body></html>"
+    body = _FILLER * (target_bytes // len(_FILLER) + 1)
+    marker_at = len(body) // 2
+    return head + body[:marker_at] + phrase + body[marker_at:] + tail
+
+
+class TestSizeGateDoesNotDropValidFetches:
+    """A large page with one incidental marker is a valid fetch, not a block."""
+
+    def test_large_article_with_challenge_platform_and_grecaptcha_is_none(self) -> None:
+        # The exact rejected fetch: ~744 KB carrying CF's challenge-platform
+        # script (injected into every served page) plus a provider widget ref.
+        html = _large_body(
+            '<script src="/cdn-cgi/challenge-platform/h/b/orchestrate/jsch/v1"></script>'
+            "<span>powered by grecaptcha</span>",
+            744_148,
+        )
+        assert len(html) > 600_000
+        signal = detect_block(html, 200, {})
+        assert signal.kind == "none"
+        assert signal.recommended_escalation == ""
+        assert signal.evidence == []
+
+    def test_large_article_mentioning_forbidden_is_none(self) -> None:
+        # The other rejected fetch: ~313 KB article ABOUT a forbidden topic.
+        html = _large_body("the ruling declared the token forbidden in that jurisdiction", 313_783)
+        assert len(html) > 300_000
+        signal = detect_block(html, 200, {})
+        assert signal.kind == "none"
+        assert signal.recommended_escalation == ""
+        assert signal.evidence == []
+
+    def test_large_page_with_no_markers_is_none(self) -> None:
+        html = _large_body("no anti-bot marker appears anywhere in this body", 200_000)
+        assert len(html) > 200_000
+        signal = detect_block(html, 200, {})
+        assert signal.kind == "none"
+        assert signal.evidence == []
+
+    @pytest.mark.parametrize(
+        ("phrase", "expected_kind"),
+        [
+            ("the endpoint returned a forbidden response", "none"),
+            ("access denied is documented in the terms", "none"),
+            ("too many requests is a documented throttle", "none"),
+            ("please enable javascript for the full report", "none"),
+        ],
+    )
+    def test_large_page_ignores_each_generic_copy_marker(
+        self, phrase: str, expected_kind: str
+    ) -> None:
+        html = _large_body(phrase, 200_000)
+        assert len(html) > _MAX_BLOCK_COPY_BYTES
+        assert detect_block(html, 200, {}).kind == expected_kind
+
+
+class TestWeakMarkerAloneIsNotEvidence:
+    """challenge-platform ships in every CF-served page — it proves nothing."""
+
+    def test_challenge_platform_alone_yields_no_evidence(self) -> None:
+        html = (
+            '<html><body><script src="/cdn-cgi/challenge-platform/h/b/orchestrate/'
+            'jsch/v1"></script><p>Ordinary article body.</p></body></html>'
+        )
+        assert "challenge-platform" in html.lower()
+        assert "just a moment" not in html.lower()
+        assert "cf-chl-" not in html.lower()
+        signal = detect_block(html, 200, {})
+        assert signal.kind == "none"
+        assert signal.evidence == []
+
+    def test_weak_plus_strong_marker_together_is_still_blocked(self) -> None:
+        # The gate must not become so permissive that a real interstitial
+        # carrying the weak marker slips through.
+        html = (
+            "<html><head><title>Just a moment...</title></head><body>"
+            '<div class="cf-chl-opt">Checking your browser</div>'
+            '<script src="/cdn-cgi/challenge-platform/h/b/orchestrate/jsch/v1">'
+            "</script></body></html>"
+        )
+        signal = detect_block(html, 200, {})
+        assert signal.kind == "cloudflare"
+        assert signal.recommended_escalation == "stealth"
+        assert len(signal.evidence) >= 2
+
+
+class TestBlockPagesStillDetected:
+    """The size gate must not have gone so far as to miss real blocks."""
+
+    def test_short_cloudflare_interstitial_is_cloudflare(self) -> None:
+        html = (
+            "<html><head><title>Just a moment...</title></head><body>"
+            '<div class="cf-chl-opt">Checking your browser before accessing.</div>'
+            '<div class="g-recaptcha" data-sitekey="0x4"></div>'
+            '<script src="/cdn-cgi/challenge-platform/h/b/orchestrate/jsch/v1">'
+            "</script></body></html>"
+        )
+        assert len(html) < _MAX_BLOCK_COPY_BYTES
+        signal = detect_block(html, 200, {})
+        assert signal.kind == "cloudflare"
+        assert signal.confidence == 0.90
+        assert signal.recommended_escalation == "stealth"
+
+    def test_small_plain_403_copy_page_is_access_denied(self) -> None:
+        html = "<html><body><h1>403 Forbidden</h1><p>nginx</p></body></html>"
+        assert len(html) < _MAX_BLOCK_COPY_BYTES
+        signal = detect_block(html, 200, {})
+        assert signal.kind == "access_denied"
+        assert signal.confidence == 0.80
+        assert signal.recommended_escalation == "proxy"
+
+
+class TestSizeGateBoundary:
+    """Pin the 64 KB edge from BOTH sides using the real constant.
+
+    The threshold is read from the module, not hardcoded, so the test tracks a
+    deliberate retune instead of silently passing at the wrong boundary.
+    """
+
+    @staticmethod
+    def _page_of_exactly(size: int) -> str:
+        """Build a body of exactly ``size`` bytes ending in 'forbidden'."""
+        head = "<html><body><h1>"
+        tail = "forbidden</h1></body></html>"
+        return head + ("x" * (size - len(head) - len(tail))) + tail
+
+    def test_constant_is_64_kib(self) -> None:
+        # Documents the shipped threshold; retuning it is a behaviour change
+        # and must be a deliberate edit here, not a silent drift.
+        assert _MAX_BLOCK_COPY_BYTES == 64 * 1024
+
+    def test_just_under_boundary_is_still_detected(self) -> None:
+        size = _MAX_BLOCK_COPY_BYTES - 1
+        html = self._page_of_exactly(size)
+        assert len(html) == size
+        signal = detect_block(html, 200, {})
+        assert signal.kind == "access_denied"
+        assert signal.confidence == 0.80
+
+    def test_exactly_at_boundary_is_still_detected(self) -> None:
+        # The gate is `<=`, so the boundary byte itself is block copy.
+        html = self._page_of_exactly(_MAX_BLOCK_COPY_BYTES)
+        assert len(html) == _MAX_BLOCK_COPY_BYTES
+        assert detect_block(html, 200, {}).kind == "access_denied"
+
+    def test_just_over_boundary_is_not_block_copy(self) -> None:
+        size = _MAX_BLOCK_COPY_BYTES + 1
+        html = self._page_of_exactly(size)
+        assert len(html) == size
+        signal = detect_block(html, 200, {})
+        assert signal.kind == "none"
+        assert signal.evidence == []
+
+
+class TestHeaderEvidenceIsNotGated:
+    """Header signals are authoritative and were never size-gated."""
+
+    def test_cf_mitigated_header_on_large_body_still_cloudflare(self) -> None:
+        html = _large_body("the body is large and irrelevant to the header", 300_000)
+        assert len(html) > _MAX_BLOCK_COPY_BYTES
+        signal = detect_block(html, 403, {"cf-mitigated": "challenge"})
+        assert signal.kind == "cloudflare"
+        assert signal.confidence == 0.97
+        assert "header cf-mitigated" in signal.evidence
+
+    def test_cf_ray_plus_403_on_large_body_still_cloudflare(self) -> None:
+        html = _large_body("the body is large and irrelevant to the header", 300_000)
+        assert len(html) > _MAX_BLOCK_COPY_BYTES
+        signal = detect_block(html, 403, {"cf-ray": "abc123-fra", "server": "cloudflare"})
+        assert signal.kind == "cloudflare"
+        assert signal.confidence == 0.95
+        assert "header cf-ray" in signal.evidence
+
+    def test_bare_403_on_large_body_still_access_denied(self) -> None:
+        # A 403 status is a refusal regardless of how large the error page is.
+        html = _large_body("a large upstream error page", 300_000)
+        assert len(html) > _MAX_BLOCK_COPY_BYTES
+        signal = detect_block(html, 403, {})
+        assert signal.kind == "access_denied"
+        assert signal.confidence == 0.85
+        assert signal.recommended_escalation == "proxy"
