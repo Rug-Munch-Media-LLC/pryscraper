@@ -139,7 +139,11 @@ services:
     # NOTE: rmi-backend binds 127.0.0.1:8000 on the host, so host-gateway
     # routing is NOT an option — the public URL is the only decoupled path.
     depends_on:
-      flaresolverr:
+      # Must be the SAME service PRY_FLARESOLVERR_URL names two lines above,
+      # which is flaresolverr-pry. It was flaresolverr — the shared instance
+      # degenfeed saturates — so Pry waited on the health of a service it
+      # never called. Fixing one without the other is how the split happened.
+      flaresolverr-pry:
         condition: service_healthy
 
   flaresolverr-pry:
