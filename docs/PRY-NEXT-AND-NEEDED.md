@@ -28,7 +28,9 @@ a fleet circuit breaker that parked a container**.
 | failure verdict | `e08be51d`, `1702a18c` | live: `verdict: blocked` + `tiers_attempted: 12` on a site that genuinely blocks |
 | per-tier health (persistent) | `8524e2a0` | `direct 5 att 5 win 100% med 1280ms` read from the container |
 | skip-on-zero-win | `fb1f9865` | 13 tiers instead of 14, `premium_proxy` gone, `direct` kept |
-| backtest harness + baseline | `e08be51d` | `scripts/backtest_ladder.py`, `data/ladder_baseline.json` |
+| backtest harness + baseline | `e08be51d`, `a606c8f3`, `66bc4f81` | `scripts/backtest_ladder.py`, `data/ladder_baseline.json` |
+| premium_proxy promoted to rung 2 | `c235bfa9` | it was rung 10 of 12 and never reached |
+| block detector: weak markers + size gate | `044e6e13`, `aa72ad7a`, `1b99b4b8` | a served page is no longer read as a block page |
 | Webshare proxies wired | `56345b40` | 20 live; 3 verified presenting correct exit IPs and fetching the target with HTTP 200 from inside the container |
 
 `0 unpushed` on `main` at last check.
@@ -37,39 +39,27 @@ a fleet circuit breaker that parked a container**.
 
 ## 2. Do these three things first
 
-### 2a. Let the skip earn its right to fire (blocking, do it before anything else)
+### 2a. Re-run the backtest twice, then judge the skip (blocking)
 
-The deployed container currently reports:
-
-```
-premium_proxy -> (False, 'no_evidence')
-```
-
-**That is the threshold working, not a bug.** `should_skip()` demands 3
-recorded attempts and zero wins ever. The container's health file is fresh —
-it resets on every rebuild — so premium_proxy has not actually lost three
-times *in the deployed container* yet.
+`should_skip()` requires 3 recorded attempts and zero wins ever. It is correct
+that the deployed container reports `premium_proxy -> (False, 'no_evidence')`
+until premium_proxy actually loses three times there — and it may never lose
+again now that it is rung 2 and working. So the skip is now likely to be
+**correctly dead code**: the tier it was written to disable has been fixed.
 
 ```bash
-for i in 1 2 3; do
-  .venv/bin/python scripts/backtest_ladder.py --limit 4   # the slow ones
-done
+.venv/bin/python scripts/backtest_ladder.py --compare   # twice, warmed
 docker exec pry python3 -c "
 import sys; sys.path.insert(0,'/app')
-from pry.engine.tier_health import report, should_skip
-print(report()); print(should_skip('premium_proxy'))"
+from pry.engine.tier_health import report
+print(report())"
 ```
 
-Once it reports `zero_wins_in_N_attempts`, re-run the full baseline and
-commit the delta:
-
-```bash
-.venv/bin/python scripts/backtest_ladder.py --update-baseline --compare
-```
-
-**Do not treat the skip as settled until the wall-clock delta is a committed
-number.** Baseline to beat: `8 sources · 5 ok · 0.625 · p50 8.1ms ·
-by_via {direct: 4, flaresolverr: 1}`.
+Then answer one question honestly: **is premium_proxy now earning its cost?**
+It wins the one source nothing else can reach, in ~2.5 ms, having previously
+been unreachable. If yes, the skip is dead code and should stay as a safety
+net for a regression. If it stops winning, the skip will fire on its own
+evidence and you do not need to do anything.
 
 ### 2b. Retry / backoff — not started
 
@@ -96,9 +86,21 @@ direct → tls_fingerprint → cloudscraper → flaresolverr → undetected →
 camoufox → playwright → googlebot → tor → premium_proxy → archive → google_cache
 ```
 
-From the 8-source baseline: **`direct` won 4, `flaresolverr` won 1, the other
-ten won 0.** Meanwhile the three failures cost 25–45 s each, so **~89 % of the
-wall clock went to rungs that never returned a result.**
+**Final measured, 8 sources, warmed: 8/8, `direct` 5, `premium_proxy` 1,
+`undetected` 1, `flaresolverr` 1, p50 3.7 ms, p95 5.1 ms.** Before this work
+it was 5/8 at 0.625 with `direct` 4 and `flaresolverr` 1 and every other rung
+on zero, while the three failures burned 25–45 s each — about 89 % of the wall
+clock spent on rungs that never returned a result.
+
+Each rung now has a measured job:
+- **`direct` (5)** — free, ~3 ms, wins everything it is allowed to
+- **`premium_proxy` (1)** — theblock.co, which 403s on plain curl. It was rung
+  10 of 12 and never got reached; at position 2 it answers in 2.5 ms
+- **`undetected` (1)** — slowmist.medium.com (403 to curl; its **RSS still
+  returns 201 KB**, so curl remains the better path for that one)
+- **`flaresolverr` (1)** — blog.soliditylang.com, which curl cannot reach at
+  all (000). The browser pool is slow to start, so the harness warms it
+  explicitly; without that it looks like a failure and skews latency 200x
 
 - `flaresolverr` **does** earn its place — it recovered
   `blog.soliditylang.com`, which plain `curl` cannot reach at all (000).
