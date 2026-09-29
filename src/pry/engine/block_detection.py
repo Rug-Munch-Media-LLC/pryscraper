@@ -98,9 +98,29 @@ def _norm_headers(headers: dict[str, str] | None) -> dict[str, str]:
     return {str(k).lower(): str(v) for k, v in headers.items()}
 
 
+#: Markers that a real, fully-served page can legitimately contain. Cloudflare
+#: injects its ``challenge-platform`` script into EVERY page it serves, including
+#: the successful ones, so its presence is evidence of nothing on its own.
+#: Measured 2026-08-29: theblock.co served 744,148 bytes of real article
+#: through the premium proxy, _is_valid passed, and the response was then
+#: DISCARDED because the body contained this string exactly once. A valid
+#: fetch was thrown away over a <script src> tag. These are only evidence in
+#: combination with the others.
+_WEAK_CF_MARKERS: frozenset[str] = frozenset({"challenge-platform"})
+
+
 def _body_evidence(markers: tuple[str, ...], lower_html: str) -> list[str]:
-    """Return evidence strings for each marker found in the body."""
-    return [f"body contains {marker!r}" for marker in markers if marker in lower_html]
+    """Return evidence strings for each marker found in the body.
+
+    A weak marker on its own is not evidence — see _WEAK_CF_MARKERS. With
+    nothing else present the list comes back empty, so a genuinely served page
+    is not misreported as blocked, while "just a moment" / "cf-chl-" (the
+    interstitial itself) still trigger a block.
+    """
+    hits = [f"body contains {marker!r}" for marker in markers if marker in lower_html]
+    if len(hits) == 1 and f"body contains {next(iter(_WEAK_CF_MARKERS))!r}" == hits[0]:
+        return []
+    return hits
 
 
 def _is_scripts_only(html: str) -> bool:
