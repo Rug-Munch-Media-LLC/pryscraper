@@ -32,8 +32,8 @@ Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
-import logging
 import os
+import sys
 
 _FALSEY = frozenset({"0", "false", "no", "off"})
 
@@ -101,22 +101,27 @@ def auth_mode() -> str:
 # to infer it from a 402. Before this, "is Pry charging me or not?" was only
 # answerable by triggering an error, which is a bad way to learn a config.
 _AUTH_MODE = auth_mode()
-logger = logging.getLogger(__name__)
+# Written to stderr, not just logged. kill_switches is imported during app
+# assembly, which happens BEFORE setup_logging() runs in api/lifecycle.py, so a
+# logger call here is discarded and the mode never appears — which defeats the
+# entire point of adding it. stderr is captured by docker unconditionally.
+# First verified exactly this way: the code was correct and the line still
+# never appeared, because the logger had no handler yet.
+_EMIT = f"pry_auth_mode={_AUTH_MODE}"
 if _AUTH_MODE == "free":
-    logger.warning(
-        "pry_auth_mode=free PRY_X402_ENABLED=false: NO caller will be charged, "
-        "including external ones. Correct only if this host is not "
-        "internet-reachable."
+    _EMIT += (
+        " PRY_X402_ENABLED=false: NO caller will be charged, including external "
+        "ones. Correct only if this host is not internet-reachable."
     )
 elif _AUTH_MODE == "paywalled":
-    logger.warning(
-        "pry_auth_mode=paywalled no PRY_API_KEY or PRY_INTERNAL_TOKEN set: every "
-        "caller is charged and unauthenticated calls get HTTP 402. If this is a "
-        "self-hosted fleet, set PRY_API_KEY to use owner mode instead."
+    _EMIT += (
+        " no PRY_API_KEY or PRY_INTERNAL_TOKEN set: every caller is charged and "
+        "unauthenticated calls get HTTP 402. If this is a self-hosted fleet, set "
+        "PRY_API_KEY to use owner mode instead."
     )
 else:
-    logger.info(
-        "pry_auth_mode=%s internal callers bypass payment via the owner key or "
-        "internal HMAC; external callers still receive 402.",
-        _AUTH_MODE,
+    _EMIT += (
+        " internal callers bypass payment via the owner key or internal HMAC; "
+        "external callers still receive 402."
     )
+print(_EMIT, file=sys.stderr)
