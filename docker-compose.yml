@@ -43,6 +43,14 @@ services:
     # and OPENROUTER_API_KEY — no fleet keys (2026-08-20 audit, P0-1/P0-2).
     env_file: /srv/rmi-infra/.env.pry
     environment:
+      # 2026-08-29 — point Pry at the Webshare secret this host ACTUALLY has.
+      # Its engine already supports Webshare (src/pry/engine/webshare_proxy.py)
+      # and already escalates to it on its own via needs_premium_proxy(last_error),
+      # but the default gopass path is pry/webshare_proxy_list while our secret is
+      # rmi/infra/webshare_proxy_list (20 rotating residential proxies). The
+      # mismatch meant the premium-proxy rung never had credentials, so the ladder
+      # silently stopped one rung early on every hard-blocked site.
+      - PRY_WEBSHARE_GOPASS_PATH=rmi/infra/webshare_proxy_list
       - PYTHONUNBUFFERED=1
       - PRY_TIMEOUT=60
       # PRY_API_KEY intentionally NOT listed here: any `environment:` entry
