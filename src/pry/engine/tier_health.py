@@ -109,3 +109,40 @@ def report(path: Path | None = None) -> str:
 
 
 __all__ = ["DEFAULT_PATH", "record", "report"]
+
+
+#: A tier must have at least this many recorded attempts before its win rate is
+#: treated as evidence. Below it the sample says nothing: one loss on a tier
+#: that wins half the time is not a reason to skip it.
+MIN_EVIDENCE_ATTEMPTS = int(os.getenv("PRY_TIER_MIN_EVIDENCE", "3"))
+
+
+def should_skip(tier: str, *, path: Path | None = None) -> tuple[bool, str]:
+    """True when a tier has enough recorded evidence to be worth skipping.
+
+    Returns ``(skip, reason)``. Skipping is opt-in per deployment via
+    PRY_TIER_SKIP_ZERO_WIN, default ON, because the cost is asymmetric and
+    measured: over 8 sources the committed baseline recorded
+    by_via {direct: 4, flaresolverr: 1} — archive, google_cache and
+    premium_proxy won ZERO while archive and google_cache appeared in 2 of 3
+    failures at 25-45s each. Roughly 89% of the ladder's wall clock went to
+    rungs that never returned a result. Skipping them trades a rare win for a
+    large, repeated saving, so the evidence threshold is deliberately not
+    lowered to make it fire sooner.
+
+    NOT skipped: any tier that has ever won. One win is enough to keep it,
+    because the whole point is not to discard a working rung on a bad day.
+    """
+    if os.getenv("PRY_TIER_SKIP_ZERO_WIN", "1") != "1":
+        return False, "skip_disabled"
+    entry = _load(path or DEFAULT_PATH).get(tier)
+    if not isinstance(entry, dict):
+        return False, "no_evidence"
+    attempts = int(entry.get("attempts", 0))
+    wins = int(entry.get("wins", 0))
+    if attempts < MIN_EVIDENCE_ATTEMPTS:
+        return False, f"insufficient_evidence({attempts}<{MIN_EVIDENCE_ATTEMPTS})"
+    if wins > 0:
+        return False, f"has_wins({wins})"
+    wasted = float(entry.get("cost_ms_total", 0.0)) / 1000.0
+    return True, f"zero_wins_in_{attempts}_attempts_wasted_{wasted:.0f}s"
