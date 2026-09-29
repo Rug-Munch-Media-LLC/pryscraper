@@ -50,7 +50,28 @@ class ScrapeRequest(BaseModel):
     url: str
     formats: list[str] | None = None
     onlyMainContent: bool | None = True
-    timeout: int | None = 30
+    # 2026-08-29 — was 30, which is shorter than the chain this field budgets.
+    #
+    # The tier chain runs up to ten attempts (direct, tls_fingerprint,
+    # cloudscraper, flaresolverr, undetected, camoufox, playwright, googlebot,
+    # tor, premium_proxy, archive, google_cache) at up to 45s each. A 30s
+    # request budget therefore expires part-way down the chain, and the error
+    # reports whichever tier happened to be in flight — which is usually
+    # `premium_proxy`, the LAST paid rung. The result is a false "blocked"
+    # verdict that names the most expensive tier, so the natural reading is
+    # "the proxy is broken" and the real cause is the budget.
+    #
+    # Measured on one site: direct curl with a browser UA returned 200 with
+    # 40,859 bytes of real content; this API at 30 returned
+    # `premium_proxy_failed`; at 100 it returned 3,784 characters in 41s served
+    # by the `archive` tier. The proxy was never the problem and was never
+    # reached.
+    #
+    # 120s is long enough for the chain to finish and short enough to stay
+    # inside a typical client or proxy read timeout. Callers with a tighter
+    # budget can still pass an explicit value; this only fixes the default that
+    # silently manufactured failures.
+    timeout: int | None = 120
     bypassCloudflare: bool | None = True
     jsRender: bool | None = False
     jsonSchema: dict[str, str] | None = None
