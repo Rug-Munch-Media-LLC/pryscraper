@@ -368,10 +368,220 @@ jobs:
           PRY_REDIS_URL: redis://redis:6379/0
         run: source .venv/bin/activate && pytest tests/ -m integration -q --tb=short --timeout=120
 
+  ladder-backtest:
+    name: Scrape ladder backtest (vs baseline)
+    # 25 ladder commits landed on 2026-09-29 with no CI reference to the
+    # backtest, so a ladder change was graded only by whoever remembered to
+    # run the script by hand. This job is that automation.
+    #
+    # ── Why it is ADVISORY, not blocking ─────────────────────────────────────
+    # Evidence (not speculation):
+    #   1. It needs a RUNNING Pry at PRY_URL. The harness POSTs to
+    #      $PRY_URL/v1/scrape (scripts/backtest_ladder.py:104); the docstring
+    #      states it "talks to a RUNNING Pry over HTTP with the owner key, so it
+    #      measures the deployed system rather than the source tree" (line 16).
+    #      A PR CI container has the source tree, not a deployment, and
+    #      PRY_API_KEY is not available in PR context — the same constraint the
+    #      k6-smoke job documents (line 553).
+    #   2. Verified by running the script against a closed port
+    #      (PRY_URL=http://127.0.0.1:9): success_rate 0.0, ok 0, all ten
+    #      sources "detail=ConnectError", delta=-1.0 vs baseline 1.0 — and the
+    #      script still exits 0. The unreachable case is INDISTINGUISHABLE from
+    #      a total ladder regression by exit code alone.
+    #   3. Therefore a blocking job here would report "PRY not deployed" as
+    #      "the ladder is broken", training reviewers to click through it. The
+    #      house precedent is the same: integration-nightly is continue-on-error
+    #      with a ::warning annotation precisely so a red run is never silent.
+    #
+    # What would make this blocking: a Pry deployment reachable from CI at a
+    # repo `vars.PRY_URL` + a secret owner key, PLUS the script writing the
+    # per-run spread into the baseline (see the gate step) so the gate has a
+    # tolerance to enforce. Both are outside this file's scope.
+    #
+    # ── Tolerance ────────────────────────────────────────────────────────────
+    # The gate compares against baseline summary.success_rate (1.0) MINUS one
+    # whole source (0.9). The documented evidence for that choice is the
+    # script's own --repeat help: three warm runs of an UNCHANGED ladder gave
+    # 0.875/0.875/1.0, so run-to-run swing is up to 0.125 (1.25 sources of 10).
+    # 0.9 is therefore inside the observed noise band. The gate also ignores
+    # "unavailable" probes entirely, because _rate() scores only results in
+    # ("ok","fail") (line 204) — Pry being down must not read as a ladder fault.
+    #
+    # NOTE ON THE RECORDED SPREAD: scripts/backtest_ladder.py --compare reads
+    # summary["success_rate_observed"] for a baseline min/median/max
+    # (line 247), but _write_baseline persists only the keys present in
+    # `summary`, and the summary dict (lines 216-226) never sets that key. The
+    # committed data/ladder_baseline.json has no such block, so that print
+    # branch is dead and the baseline records NO spread. This gate therefore
+    # derives its own one-source tolerance rather than reading a spread that
+    # does not exist. Fixing the baseline schema is a scripts/ + data/ change
+    # and belongs to whichever lane owns those files.
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.12-nodejs22
+    steps:
+      - name: Install Node.js for actions/checkout
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install uv + setup
+        # Same environment as the `test` / `integration-gate` jobs. httpx is a
+        # runtime dependency in [project].dependencies (pyproject.toml:64), so
+        # .[dev] is sufficient — no second environment, no extra install.
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
+          ln -sf $HOME/.local/bin/uvx /usr/local/bin/uvx
+          uv python install 3.12
+          uv venv --python 3.12 .venv
+          uv pip install --python .venv/bin/python -e ".[dev]"
+
+      - name: Backtest the ladder against the committed baseline
+        env:
+          # Both are deployment facts, not repo facts. Without a deployed Pry
+          # at PRY_URL this step measures nothing, so the gate below reports
+          # "not configured" rather than a false regression.
+          PRY_URL: ${{ vars.PRY_URL }}
+          PRY_API_KEY: ${{ secrets.PRY_API_KEY }}
+          LADDER_SOURCE_COUNT: '10'
+          # One whole source of tolerance. See the tolerance note above.
+          LADDER_MIN_SUCCESS_RATE: '0.9'
+        # The script's own exit code is 0 on EVERY outcome, including a
+        # 10/10 ConnectError sweep, so `--compare` alone gates nothing. The
+        # real gate is the `Ladder gate` step that follows.
+        continue-on-error: true
+        run: |
+          set +e
+          source .venv/bin/activate
+          if [ -z "$PRY_URL" ]; then
+            echo "::warning title=Ladder backtest not configured::PRY_URL is unset; skipping the network path entirely"
+            echo "SKIPPED_NO_PRY_URL" > /tmp/ladder-result.txt
+            exit 0
+          fi
+          echo "== backtesting scrape ladder against data/ladder_baseline.json =="
+          # Single network run. The gate step below reads this capture; the
+          # backtest is NOT run twice.
+          python scripts/backtest_ladder.py --compare --timeout 60 --repeat 3 \
+            2>&1 | tee /tmp/ladder-backtest.txt
+          rc=${PIPESTATUS[0]}
+          cp /tmp/ladder-backtest.txt /tmp/ladder-result.txt || true
+          if [ "$rc" -ne 0 ]; then
+            echo "::warning title=Ladder backtest errored::backtest_ladder.py exited $rc (advisory; gate below evaluates the result)"
+          fi
+          exit 0
+
+      - name: Ladder gate (success_rate vs baseline)
+        # The actual gate. Mirrors the mutation score gate's shape: a python
+        # heredoc that exits non-zero with a stated reason, so the failure
+        # message names the numbers rather than a bare code.
+        continue-on-error: true
+        run: |
+          source .venv/bin/activate
+          python - <<'PY'
+          import json, os, sys
+
+          BASELINE = "data/ladder_baseline.json"
+          MIN_RATE = float(os.environ.get("LADDER_MIN_SUCCESS_RATE", "0.9"))
+          SOURCES = int(os.environ.get("LADDER_SOURCE_COUNT", "10"))
+
+          # 1. Unconfigured deployment: not a verdict. Advisory job, so this is
+          #    a warning and a clean exit, never a fabricated pass or fail.
+          if not os.environ.get("PRY_URL", "").strip():
+              print("::warning title=Ladder backtest not run::PRY_URL unset — no deployed Pry to measure. "
+                    "Set the PRY_URL repo variable to enable this gate.")
+              print("STATUS=not_configured")
+              sys.exit(0)
+
+          # 2. Read the single run captured by the previous step — this gate
+          #    must not issue its own network calls.
+          try:
+              out = open("/tmp/ladder-result.txt").read()
+          except OSError as exc:
+              print(f"::warning title=Ladder backtest output missing::{exc}")
+              print("STATUS=no_output")
+              sys.exit(0)
+
+          # 3. The script prints no machine-readable summary, so parse the one
+          #    line that is unambiguous. --compare emits, per key:
+          #      "  success_rate   baseline=1.0  now=0.875  delta=-0.125"
+          #    so `now=` is the value observed THIS run and `baseline=` is the
+          #    committed file. Matching on "=" alone would read baseline=1.0
+          #    and the gate would compare the baseline against itself forever.
+          def _now(name: str) -> float | None:
+              for line in out.splitlines():
+                  s = line.strip()
+                  if not s.startswith(name):
+                      continue
+                  for token in s.split():
+                      if token.startswith("now="):
+                          try:
+                              return float(token[4:])
+                          except ValueError:
+                              return None
+              return None
+
+          now = _now("success_rate")
+          if now is None:
+              print("::warning title=Ladder backtest unparseable::no 'now=' success_rate in output; skipping gate")
+              print("STATUS=unparseable")
+              sys.exit(0)
+
+          # 4. All-unavailable is the "Pry not deployed / network dead" signature.
+          #    ok==0 is not a ladder regression, it is a missing deployment.
+          #    Verified: a closed PRY_URL yields ok=0 with all ten ConnectError.
+          ok_now = _now("ok")
+          if ok_now == 0:
+              print("::warning title=Ladder backtest inconclusive::0/10 sources reached Pry — "
+                    "deployment unreachable, not a ladder regression")
+              print("STATUS=inconclusive")
+              sys.exit(0)
+
+          try:
+              base = json.loads(open(BASELINE).read())["summary"]
+          except (OSError, KeyError, ValueError) as exc:
+              print(f"::warning title=Ladder baseline unreadable::{exc}")
+              print("STATUS=no_baseline")
+              sys.exit(0)
+
+          base_rate = base.get("success_rate")
+          if base_rate is None:
+              print("::warning title=Ladder baseline has no success_rate::cannot gate")
+              print("STATUS=no_baseline")
+              sys.exit(0)
+
+          floor = round(float(base_rate) - (1.0 / SOURCES), 3)
+          floor = min(floor, MIN_RATE)   # the tighter of the two wins
+          print(f"ladder success_rate: {now}  baseline: {base_rate}  floor: {floor}")
+          if now < floor:
+              print(f"::error title=Ladder regression::success_rate {now} < floor {floor} "
+                    f"(baseline {base_rate} minus one source of {SOURCES})")
+              print("STATUS=regression")
+              sys.exit(0)   # advisory job: report loudly, do not block
+          print("STATUS=ok")
+          PY
+
+      - uses: actions/upload-artifact@v5.0.0
+        if: always()
+        with:
+          name: ladder-backtest-report
+          path: |
+            /tmp/ladder-result.txt
+          retention-days: 7
+        continue-on-error: true
+
   # crucible-gate REMOVED (audit 2026-09-11 P1): duplicated the dedicated
   # `mutation-test` job below, and its mutmut fallback (--paths-to-mutate .)
   # would have mutated the entire repo including tests. The scoped
   # `mutation-test` job (engine-core baseline, 60% gate) is the single gate.
+
+  secrets:
+    name: Secret scan (gitleaks)
 
   secrets:
     name: Secret scan (gitleaks)
