@@ -94,6 +94,25 @@ async def probe(client: httpx.AsyncClient, src: dict[str, Any], pry_timeout: int
     return {**src, "result": "fail", "latency_ms": ms, "detail": detail}
 
 
+#: Sources used to warm a specific tier, because the tier pool is shared and
+#: cold-starting it is what produces the misleading latency.
+WARMUP_TIERS = ("https://blog.soliditylang.com/",)
+
+
+async def warm_browser_tier(client: httpx.AsyncClient, url: str, budget: int) -> None:
+    """Force one scrape through the browser tier so its pool is hot.
+
+    Best-effort: a warm-up failure is not a test failure, the source may simply
+    be unreachable. The point is only that the pool starts before measuring.
+    """
+    try:
+        # `budget` is Pry's own timeout field, NOT an httpx socket wait;
+        # named so the two cannot be confused (ASYNC109).
+        await probe(client, {"url": url, "expect": "ok", "note": "warmup"}, budget)
+    except Exception:  # noqa: BLE001 - warm-up must never break a measurement
+        return
+
+
 def _write_baseline(summary: dict[str, Any], results: list[dict[str, Any]]) -> None:
     BASELINE.parent.mkdir(parents=True, exist_ok=True)
     BASELINE.write_text(json.dumps({"summary": summary, "results": results}, indent=2) + "\n")
@@ -125,7 +144,15 @@ async def main() -> int:
             # identical across all three runs (0.875, same by_via) — only the
             # timings moved. So a cold baseline is not merely noisy, it is
             # misleading in a specific direction.
+            # Warm the tier the SLOW sources need, not the one the first source
+            # happens to use. Warming sources[0] (rekt.news, served by `direct`
+            # in ~3ms) left the flaresolverr BROWSER POOL cold, so the first
+            # run that needed it still paid the full start: the baseline written
+            # by --update-baseline came out p50 802ms even with the warm-up in
+            # place. Warm the browser tier explicitly.
             await probe(client, sources[0], args.timeout)
+            for warm in WARMUP_TIERS:
+                await warm_browser_tier(client, warm, args.timeout)
         results = [await probe(client, s, args.timeout) for s in sources]
 
     ok = [r for r in results if r["result"] == "ok"]
