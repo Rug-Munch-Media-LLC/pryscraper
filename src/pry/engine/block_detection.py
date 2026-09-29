@@ -120,6 +120,24 @@ _WEAK_CF_MARKERS: frozenset[str] = frozenset({"challenge-platform"})
 _MIN_BODY_MARKERS_FOR_BLOCK = 2
 
 
+#: A short page carrying anti-bot copy IS a block page. A large page carrying the
+#: same word is an article that happens to contain it. Measured 2026-08-29:
+#: immunefi.com served 313,783 bytes through the premium proxy and was rejected
+#: because the body contained the word "forbidden" once — an article ABOUT a
+#: forbidden topic, not a refusal. Every generic-copy branch below has this shape.
+_MAX_BLOCK_COPY_BYTES = 64 * 1024
+
+
+def _copy_is_block(lower_html: str, phrase: str, original_len: int) -> bool:
+    """True when generic block copy is genuinely the page.
+
+    Block pages are small: an interstitial that says "forbidden" IS the response.
+    Articles that mention the word are large, and size is a reliable separator
+    that does not need a per-phrase allowlist.
+    """
+    return phrase in lower_html and original_len <= _MAX_BLOCK_COPY_BYTES
+
+
 def _body_evidence(markers: tuple[str, ...], lower_html: str) -> list[str]:
     """Return evidence strings for each marker found in the body.
 
@@ -170,6 +188,7 @@ def detect_block(html: str, status: int, headers: dict[str, str] | None = None) 
     """
     norm_headers = _norm_headers(headers)
     lower_html = (html or "").lower()
+    original_len = len(html or "")
 
     # 429 is a definitive rate-limit signal — no body inspection needed.
     if status == 429:
@@ -210,7 +229,7 @@ def detect_block(html: str, status: int, headers: dict[str, str] | None = None) 
         return BlockSignal("captcha", confidence, "stealth", captcha_hits)
 
     # Rate limit copy rendered as a soft 200 block page.
-    if _RATE_LIMIT_BODY_MARKER in lower_html:
+    if _copy_is_block(lower_html, _RATE_LIMIT_BODY_MARKER, original_len):
         return BlockSignal(
             "rate_limited",
             0.90,
@@ -220,7 +239,7 @@ def detect_block(html: str, status: int, headers: dict[str, str] | None = None) 
 
     # Access denied: explicit copy, then bare 403 without CF markers,
     # then generic "forbidden" copy (weakest).
-    if "access denied" in lower_html:
+    if _copy_is_block(lower_html, "access denied", original_len):
         return BlockSignal(
             "access_denied",
             0.90,
@@ -234,7 +253,7 @@ def detect_block(html: str, status: int, headers: dict[str, str] | None = None) 
             "proxy",
             [f"http status {status} without cf headers"],
         )
-    if "forbidden" in lower_html:
+    if _copy_is_block(lower_html, "forbidden", original_len):
         return BlockSignal(
             "access_denied",
             0.80,
@@ -243,7 +262,7 @@ def detect_block(html: str, status: int, headers: dict[str, str] | None = None) 
         )
 
     # JavaScript-required pages.
-    if _JS_REQUIRED_MARKER in lower_html:
+    if _JS_REQUIRED_MARKER in lower_html and original_len <= _MAX_BLOCK_COPY_BYTES:
         return BlockSignal(
             "js_required",
             0.90,
