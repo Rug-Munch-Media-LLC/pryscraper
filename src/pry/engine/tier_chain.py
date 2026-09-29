@@ -118,16 +118,6 @@ class TierChainMixin:
         # should_skip() requires >=3 recorded attempts and ZERO wins ever: a tier
         # that has won once is kept, and one sample is not enough to condemn
         # either. See engine/tier_health.py.
-        kept: list[tuple[str, Any]] = []
-        skipped: list[str] = []
-        for name, fn in tier_order:
-            skip, reason = should_skip_tier(name)
-            if skip:
-                skipped.append(f"{name}:skipped({reason})")
-                continue
-            kept.append((name, fn))
-        tier_order = kept
-        self._last_skipped_tiers = skipped
 
         tier_order.extend(
             [
@@ -148,5 +138,24 @@ class TierChainMixin:
         # Tier 15: GraphQL API Discovery
         if _us_flag("_has_graphql") and _us_flag("_graphql_scraper"):
             tier_order.append(("graphql", self._tier_graphql))
+
+        # Skip-on-observed-zero-win runs HERE, at the end, not earlier.
+        # It was originally placed before the archive/google_cache/ai_visual
+        # appends, so those tiers were added AFTER the filter and could never be
+        # skipped no matter how many losses they accrued. Measured in the
+        # deployed container: google_cache, mobile_app and graphql each had 4
+        # attempts, 0 wins and ~3s wasted, and were still in the chain, while
+        # camoufox (which IS in the initial list) was correctly skipped. A
+        # filter placed before the list is finished filtering half a list.
+        kept: list[tuple[str, Any]] = []
+        skipped: list[str] = []
+        for name, fn in tier_order:
+            skip, reason = should_skip_tier(name)
+            if skip:
+                skipped.append(f"{name}:skipped({reason})")
+                continue
+            kept.append((name, fn))
+        tier_order = kept
+        self._last_skipped_tiers = skipped
 
         return tier_order
