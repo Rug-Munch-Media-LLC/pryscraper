@@ -36,6 +36,7 @@ from pry.engine.retry import async_retry
 from pry.engine.scraper_premium_first import PremiumFirstMixin
 from pry.engine.tier_chain import TierChainMixin
 from pry.engine.tier_cost import tier_cost
+from pry.engine.tier_health import record as _record_tier_health
 from pry.engine.tier_retry_policy import TierRetryPolicyMixin
 from pry.engine.tiers import TierMixin
 from pry.engine.tiers_base import _us_flag
@@ -210,6 +211,16 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
 
                     html, latency = await self._attempt_tier(
                         tier_name, tier_fn, url, proxy_url, opts
+                    )
+
+                    # Persisted per-tier health. The in-process Prometheus counters answer
+                    # "how is this tier doing right now" and are ZEROED on every container
+                    # rebuild, which happens often here because the image is built from
+                    # source. After a rebuild /metrics accounted for exactly ONE successful
+                    # scrape, so "does premium_proxy ever win?" was unanswerable from
+                    # telemetry and had to be read out of a backtest file instead.
+                    _record_tier_health(
+                        tier_name, won=bool(html), cost_ms=latency * 1000.0
                     )
 
                     # Block detection: classify the tier response (or failure) so the
