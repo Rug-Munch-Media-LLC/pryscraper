@@ -1,4 +1,8 @@
-"""SSRF-guarded fetch for the scraping routers — the single place routers fetch.
+"""SSRF-guarded fetch for the router layer — the single place routers fetch.
+
+Lives in ``pry.api`` rather than under a router package: the import-linter
+"Domain independence" contract forbids one router domain importing another, and
+guard_get is now shared by ``scraping`` and ``ai``.
 
 Every router that fetches a user-supplied URL goes through :func:`guard_get`
 instead of calling ``client.get`` directly. The routers accept an arbitrary

@@ -1,7 +1,7 @@
 """SSRF guard anti-regression: ordinary public scraping must keep working.
 
 Pry scrapes arbitrary public sites by design, so the SSRF guard added to the
-router layer (``pry.api.routers.scraping.fetch.guard_get``) is a filter, not a
+router layer (``pry.api.fetch_guard.guard_get``) is a filter, not a
 gate. The failure mode this module exists to catch is a guard that "fixes" SSRF
 by refusing normal internet traffic — every rejection test in
 ``test_router_ssrf_reject.py`` passes for such a guard, and only these fail.

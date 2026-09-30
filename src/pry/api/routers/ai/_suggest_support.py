@@ -20,7 +20,7 @@ from typing import Any
 import httpx
 
 from pry.api.client import get_client
-from pry.api.routers.scraping.fetch import guard_get
+from pry.api.fetch_guard import guard_get
 from pry.core.settings import settings
 
 logger = logging.getLogger(__name__)

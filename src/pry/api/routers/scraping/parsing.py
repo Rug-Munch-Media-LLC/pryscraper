@@ -16,7 +16,7 @@ from fastapi import APIRouter, Body
 from pydantic import BaseModel
 
 from pry.api.client import get_client
-from pry.api.routers.scraping.fetch import guard_get
+from pry.api.fetch_guard import guard_get
 from pry.core.deps import parser, scraper
 from pry.core.errors import ExternalServiceError, PryError, ScrapeError
 

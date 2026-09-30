@@ -19,11 +19,11 @@ from fastapi import APIRouter, Body
 
 from extraction.css import _validate_css_selector
 from pry.api.client import get_client
+from pry.api.fetch_guard import BROWSER_USER_AGENT, guard_get
 from pry.api.routers.scraping.extraction_llm import extract_llm as extract_llm
 from pry.api.routers.scraping.extraction_thumbnail import (
     extract_thumbnail as extract_thumbnail,
 )
-from pry.api.routers.scraping.fetch import BROWSER_USER_AGENT, guard_get
 from pry.core.deps import advanced, scraper
 from pry.core.errors import InvalidRequestError, PryError, ScrapeError
 from pry.engine.extraction import JsonCssExtractionStrategy
