@@ -54,12 +54,15 @@ def resolve(root: Path, cfg: dict) -> tuple[list[str], list[str]]:
     removed; ``selected`` is the result the build resolves with it applied.
     ``namespaces`` is left unset to mirror the build default (PEP 420 enabled).
     """
-    from setuptools.config.expand import find_packages
+    from setuptools import find_namespace_packages
 
-    kwargs: dict = {"where": cfg.get("where", ["."]), "root_dir": str(root)}
+    # find_namespace_packages mirrors the build backend's default (namespaces is
+    # unset in pyproject, so setuptools uses PEP 420 discovery). It takes no
+    # root_dir, so pass only `where` -- the repo root is not the search dir.
+    where = (cfg.get("where") or ["."])[0]
     include = list(cfg.get("include", [])) or ["*"]
-    real = find_packages(include=["*"], **kwargs)
-    selected = find_packages(include=include, **kwargs)
+    real = find_namespace_packages(where=where, include=["*"])
+    selected = find_namespace_packages(where=where, include=include)
     return sorted(real), sorted(selected)
 
 
