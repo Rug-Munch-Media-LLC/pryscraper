@@ -13,6 +13,7 @@ import difflib
 import json
 import logging
 import re
+import urllib.parse
 from typing import Any
 
 import httpx
@@ -68,7 +69,7 @@ async def watch_page(
     diff_result = await advanced.track_diff(url, content)
     # Fire webhook asynchronously on first registration (webhook support)
     if webhook and diff_result["status"] == "registered":
-        asyncio.create_task(_fire_watch_webhook(webhook, url, diff_result))
+        _schedule_watch_webhook(webhook, url, diff_result)
     return {
         "success": True,
         "data": {
@@ -184,17 +185,78 @@ async def suggest_schema(data: dict[str, Any] = Body(...)) -> dict[str, Any]:
     return {"success": True, "data": schema}
 
 
+def _schedule_watch_webhook(
+    webhook: str, url: str, diff_result: dict[str, Any]
+) -> asyncio.Task[None]:
+    """Start the fire-and-forget watch webhook and make its outcome observable.
+
+    ``asyncio.create_task`` attaches no done-callback, so an exception escaping
+    the coroutine is swallowed silently — the request still returns 200 and the
+    delivery failure is invisible. We register a done-callback that logs the
+    outcome and retrieves the exception so asyncio does not report it as an
+    unhandled task exception.
+
+    Returns:
+        The scheduled task, so callers and tests can await it.
+    """
+    task = asyncio.create_task(_fire_watch_webhook(webhook, url, diff_result))
+    task.add_done_callback(_log_watch_webhook_outcome)
+    return task
+
+
+def _log_watch_webhook_outcome(task: asyncio.Task[None]) -> None:
+    """Log a completed watch-webhook task. Never logs the response body."""
+    if task.cancelled():
+        logger.info("watch_webhook_cancelled")
+        return
+    error = task.exception()
+    if error is not None:
+        logger.warning(
+            "watch_webhook_task_failed",
+            extra={"url": task.get_name(), "error_type": type(error).__name__},
+        )
+        return
+    logger.info("watch_webhook_task_completed")
+
+
 async def _fire_watch_webhook(webhook: str, url: str, diff_result: dict[str, Any]) -> None:
-    """Fire a webhook notification for watch events."""
+    """Fire a webhook notification for watch events.
+
+    SSRF guard: ``webhook`` is fully caller-controlled and the request is made
+    server-side, so without this gate the free ``/v1/watch`` route is a blind
+    internal port-scan primitive (fire-and-forget: the caller only sees timing).
+    We reuse the DNS-pinning validator from :mod:`pry.api.webhook_delivery`
+    rather than adding a weaker second implementation — it returns a URL whose
+    host is replaced by the validated IP, closing the DNS-rebinding TOCTOU
+    window between validation and connect. The response body is never logged.
+    """
+    from pry.api.webhook_delivery import _validate_url
+
+    pinned_url, rejection = _validate_url(webhook)
+    if rejection:
+        logger.warning(
+            "watch_webhook_url_rejected",
+            extra={"watch_url": url, "reason": rejection},
+        )
+        return
     try:
         client = await get_client()
-        await client.post(
-            webhook,
+        response = await client.post(
+            pinned_url,
             json={"event": "watch_update", "url": url, "data": diff_result},
             timeout=10,
+            follow_redirects=False,
+            extensions={"sni_hostname": urllib.parse.urlparse(webhook).hostname or ""},
         )
-    except (httpx.HTTPError, httpx.RequestError):
-        logger.exception("watch_webhook_failed", extra={"url": url, "webhook": webhook})
+        logger.info(
+            "watch_webhook_delivered",
+            extra={"watch_url": url, "status_code": response.status_code},
+        )
+    except (httpx.HTTPError, httpx.RequestError) as e:
+        logger.warning(
+            "watch_webhook_failed",
+            extra={"watch_url": url, "error_type": type(e).__name__},
+        )
 
 
 logger = logging.getLogger(__name__)
