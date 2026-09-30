@@ -252,6 +252,7 @@ extend-ignore = ["N815", "A002", "RUF006"]
 "src/pry/engine/tiers_http.py" = ["BLE001"]
 "src/pry/engine/tiers_browser.py" = ["BLE001"]
 "src/pry/engine/tiers_special.py" = ["BLE001"]
+"src/pry/engine/tiers_special_delegated.py" = ["BLE001"]
 # browser_pool.py: the same intentional blind-except cleanup handlers moved
 # out of ultimate_scraper into the process-level singleton pool.
 "src/pry/engine/browser_pool.py" = ["BLE001"]

@@ -19,6 +19,7 @@ from urllib.parse import quote
 import httpx
 
 from pry.engine.tiers_base import _get_shared_client, _us_flag
+from pry.engine.tiers_special_delegated import TierDelegatedMixin
 from pry.engine.url_guard import safe_get
 
 logger = logging.getLogger(__name__)
@@ -62,8 +63,13 @@ def _is_google_interstitial(html: str) -> bool:
     return any(marker in lower for marker in _GOOGLE_INTERSTITIAL_MARKERS)
 
 
-class TierSpecialMixin:
-    """Special-purpose scraping tiers (bots, archives, Tor, external scrapers)."""
+class TierSpecialMixin(TierDelegatedMixin):
+    """Special-purpose scraping tiers (bots, archives, Tor, external scrapers).
+
+    ``TierDelegatedMixin`` is the BASE, so the AI-visual / mobile / GraphQL
+    tiers resolve through the normal mixin chain and ``self._tier_*`` still
+    yields the identical function object the ladder binds.
+    """
 
     async def _tier_googlebot(
         self, url: str, opts: dict[str, Any], proxy_url: str | None = None
@@ -185,38 +191,15 @@ class TierSpecialMixin:
             logger.debug("tor_failed", extra={"error": str(e)[:200]})
         return None
 
-    async def _tier_ai_visual(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        """Tier 13: AI Visual Scraper — screenshot + LLM vision extraction."""
-        if not _us_flag("_has_ai_visual") or not _us_flag("_ai_visual"):
-            return None
-        try:
-            return await _us_flag("_ai_visual").scrape(url, opts)
-        except Exception as e:
-            logger.debug("ai_visual_failed", extra={"error": str(e)[:200]})
-        return None
 
-    async def _tier_mobile_app(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        """Tier 14: Mobile App API — impersonate mobile clients."""
-        if not _us_flag("_has_mobile") or not _us_flag("_mobile_scraper"):
-            return None
-        try:
-            return await _us_flag("_mobile_scraper").scrape(url, opts)
-        except Exception as e:
-            logger.debug("mobile_app_failed", extra={"error": str(e)[:200]})
-        return None
+# Re-exported so the delegated tiers keep their documented import path.
+from pry.engine.tiers_special_delegated import (  # noqa: E402  isort: skip
+    TierDelegatedMixin as TierDelegatedMixin,
+)
 
-    async def _tier_graphql(
-        self, url: str, opts: dict[str, Any], proxy_url: str | None = None
-    ) -> str | None:
-        """Tier 15: GraphQL API Discovery — find and query GraphQL endpoints."""
-        if not _us_flag("_has_graphql") or not _us_flag("_graphql_scraper"):
-            return None
-        try:
-            return await _us_flag("_graphql_scraper").scrape(url, opts)
-        except Exception as e:
-            logger.debug("graphql_failed", extra={"error": str(e)[:200]})
-        return None
+__all__ = [
+    "_GOOGLE_INTERSTITIAL_MARKERS",
+    "TierDelegatedMixin",
+    "TierSpecialMixin",
+    "_is_google_interstitial",
+]
