@@ -1,4 +1,9 @@
-"""Tests for routers/x402.py — x402 payment API endpoints."""
+"""Tests for routers/x402.py — x402 payment API endpoints.
+
+Covers health, pricing, single-payment, verify and catalog endpoints. The
+batch endpoints live in ``test_routers_x402_batch.py`` and pay /
+require-payment in ``test_routers_x402_pay.py``.
+"""
 
 from __future__ import annotations
 
@@ -131,146 +136,6 @@ def test_x402_verify_underpayment():
         assert response.status_code == 200
         data = response.json()
         assert data.get("success") is False or "success" in data
-
-
-# ---------------------------------------------------------------------------
-# POST /v1/x402/require-payment
-# ---------------------------------------------------------------------------
-
-
-def test_x402_require_payment():
-    response = client.post("/v1/x402/require-payment", json={"operation": "scrape"})
-    assert response.status_code in (200, 402)
-
-
-def test_x402_require_payment_unknown_op():
-    response = client.post("/v1/x402/require-payment", json={"operation": "unknown_op"})
-    assert response.status_code in (200, 402)
-
-
-# ---------------------------------------------------------------------------
-# POST /v1/x402/batch-payment
-# ---------------------------------------------------------------------------
-
-
-def test_x402_batch_payment():
-    response = client.post("/v1/x402/batch-payment", json={"operations": ["scrape", "monitor"]})
-    assert response.status_code == 200
-    assert "success" in response.json()
-
-
-def test_x402_batch_payment_not_a_list():
-    response = client.post("/v1/x402/batch-payment", json={"operations": "not-a-list"})
-    assert response.status_code in (400, 422)
-
-
-def test_x402_batch_payment_empty_list():
-    response = client.post("/v1/x402/batch-payment", json={"operations": []})
-    assert response.status_code == 200
-    body = response.json()
-    # No valid operations => success=False with an error message.
-    assert body.get("success") is False
-    assert "error" in body
-
-
-# ---------------------------------------------------------------------------
-# POST /v1/x402/batch-verify
-# ---------------------------------------------------------------------------
-
-
-def test_x402_batch_verify_missing_fields():
-    response = client.post("/v1/x402/batch-verify", json={})
-    assert response.status_code in (400, 422)
-
-
-def test_x402_batch_verify_with_fields():
-    with _patch_x402():
-        response = client.post(
-            "/v1/x402/batch-verify",
-            json={"batch_id": "test_batch", "tx_hash": "0xabc"},
-        )
-        assert response.status_code == 200
-        assert "success" in response.json()
-
-
-# ---------------------------------------------------------------------------
-# POST /v1/x402/pay
-# ---------------------------------------------------------------------------
-
-
-def test_x402_pay_underpayment():
-    """Underpayment should be rejected upfront."""
-    response = client.post(
-        "/v1/x402/pay",
-        json={
-            "operation": "scrape",
-            "tx_hash": "0xabc",
-            "payer_wallet": "0xwallet",
-            "amount_usd": 0.001,
-        },
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data.get("success") is False
-
-
-def test_x402_pay_success():
-    """Full pay flow with verification patched out."""
-    with _patch_x402():
-        response = client.post(
-            "/v1/x402/pay",
-            json={
-                "operation": "scrape",
-                "tx_hash": "0xvalid_tx",
-                "payer_wallet": "0xwallet",
-                "network": "base",
-                "asset": "USDC",
-                "amount_usd": 1.0,
-            },
-        )
-        assert response.status_code == 200
-        assert "success" in response.json()
-
-
-def test_x402_pay_with_metadata():
-    """Pay flow with metadata in request."""
-    with _patch_x402():
-        response = client.post(
-            "/v1/x402/pay",
-            json={
-                "operation": "scrape",
-                "tx_hash": "0xvalid",
-                "payer_wallet": "0xwallet",
-                "network": "optimism",
-                "asset": "USDC",
-                "amount_usd": 1.0,
-            },
-        )
-        assert response.status_code == 200
-        body = response.json()
-        assert body.get("success") is True
-        data = body["data"]
-        # Pay flow must return a payment_id, echo the tx_hash, and expose the
-        # header values the client must send on the follow-up request.
-        assert data["payment_id"]
-        assert data["tx_hash"] == "0xvalid"
-        assert data["payer_wallet"] == "0xwallet"
-        assert data["verified"]["verified"] is True
-        assert data["use_in_header"]["X-Payment-ID"] == data["payment_id"]
-        assert data["use_in_header"]["X-Payment-Hash"] == "0xvalid"
-
-
-# ---------------------------------------------------------------------------
-# require-payment format
-# ---------------------------------------------------------------------------
-
-
-def test_x402_require_payment_format():
-    response = client.post(
-        "/v1/x402/require-payment",
-        json={"operation": "scrape"},
-    )
-    assert response.status_code in (200, 402)
 
 
 # ---------------------------------------------------------------------------
