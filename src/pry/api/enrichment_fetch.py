@@ -4,7 +4,7 @@
 ``POST /v1/enrich/tech-stack``) and fetches it when no HTML was supplied, so the
 fetch is an SSRF boundary. It lives here rather than inline in ``enrichment`` so
 the pipeline module holds enrichment logic only, and it is the same guard the
-router layer uses: :func:`pry.api.fetch_guard.guard_get` validates the URL
+router layer uses: :func:`pry.engine.fetch_guard.guard_get` validates the URL
 before the first request AND re-validates every redirect hop.
 
 The unguarded ``client.get(url, timeout=20, follow_redirects=True)`` this
@@ -26,7 +26,7 @@ import logging
 import httpx
 
 from pry.api.client import get_client
-from pry.api.fetch_guard import guard_get
+from pry.engine.fetch_guard import guard_get
 from pry.core.errors import PryError
 
 logger = logging.getLogger(__name__)
