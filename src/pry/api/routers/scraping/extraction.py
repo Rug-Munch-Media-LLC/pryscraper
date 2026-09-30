@@ -18,14 +18,36 @@ from fastapi import APIRouter, Body
 
 from extraction.css import _validate_css_selector
 from pry.api.client import get_client
+from pry.api.routers.scraping.extraction_llm import extract_llm as extract_llm
 from pry.core.deps import advanced, scraper
 from pry.core.errors import InvalidRequestError, ScrapeError
-from pry.engine.extraction import JsonCssExtractionStrategy, extract_with_chunking
+from pry.engine.extraction import JsonCssExtractionStrategy
 from pry.engine.extractor import SchemaExtractor
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Extraction"])
+
+# Re-register the moved route on THIS router. Decorating the imported symbol
+# directly (rather than wrapping it) keeps `extract_llm is
+# extraction_llm.extract_llm` true, so there is no second implementation to
+# drift from the one the router dispatches.
+router.post(
+    "/v1/extract/llm", tags=["Extraction"], summary="Extract with LLM + chunking strategies"
+)(extract_llm)
+
+__all__ = [
+    "analyze_links",
+    "analyze_seo",
+    "extract_css",
+    "extract_llm",
+    "extract_schema",
+    "extract_stable",
+    "extract_table",
+    "extract_thumbnail",
+    "find_emails",
+    "router",
+]
 
 
 @router.post(
@@ -334,50 +356,6 @@ async def extract_css(
             "schema": schema.get("name", "extracted"),
             "count": len(data),
             "items": data,
-        },
-    }
-
-
-@router.post(
-    "/v1/extract/llm", tags=["Extraction"], summary="Extract with LLM + chunking strategies"
-)
-async def extract_llm(
-    url: str = Body(...),
-    instruction: str = Body("Extract all key information from this content."),
-    schema: dict[str, Any] | None = Body(None),
-    chunk_strategy: str = Body("topic"),
-    query: str = Body(""),
-    top_k: int = Body(5),
-) -> dict[str, Any]:
-    """Extract structured data using LLM with intelligent chunking.
-
-    Chunks content by strategy (topic/sentence/regex), optionally filters
-    by relevance to query, then extracts from each chunk.
-    """
-
-    result = await scraper.scrape(url, {"bypass_cloudflare": True})
-    if result.get("status") != "ok":
-        raise ScrapeError(result.get("error") or "Scrape failed")
-
-    content = result.get("content", "")
-    if not content:
-        raise ScrapeError("No content returned from scraper")
-
-    chunks = await extract_with_chunking(
-        content=content,
-        instruction=instruction,
-        schema=schema,
-        chunk_strategy=chunk_strategy,
-        query=query,
-        top_k=top_k,
-    )
-
-    return {
-        "success": True,
-        "data": {
-            "chunks": chunks,
-            "total_chunks": len(chunks),
-            "strategy": chunk_strategy,
         },
     }
 
