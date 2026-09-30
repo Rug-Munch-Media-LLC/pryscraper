@@ -60,7 +60,18 @@ _DEFAULT_ENDPOINTS = (
 
 _SOLVER_TIMEOUT = int(os.getenv("PRY_SOLVER_TIMEOUT", "180"))
 _SOLVER_ATTEMPTS = int(os.getenv("PRY_SOLVER_MAX_ATTEMPTS", "2"))
-_PROXY_URL = os.getenv("PRY_PROXY_URL", "").strip() or None
+
+
+def _proxy_url() -> str | None:
+    """Read PRY_PROXY_URL at CALL time, not import time.
+
+    Reading it at import meant a proxy exported after the module loaded was
+    silently ignored and every request went out direct — which looks exactly
+    like "the proxy does not work" when the real cause is a stale binding.
+    """
+    return os.getenv("PRY_PROXY_URL", "").strip() or None
+
+
 # Playwright is pinned to a browser revision that is NOT the one installed here
 # (playwright wants chromium-1234; the image has chromium-1228), so the
 # executable is discovered instead of assumed. Without this, playwright raises
@@ -73,6 +84,16 @@ _UA = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/131.0.0.0 Safari/537.36"
 )
+
+
+def _flaresolverr_proxy() -> dict[str, str]:
+    """FlareSolverr proxy descriptor, honouring PRY_PROXY_URL."""
+    url = _proxy_url()
+    if not url:
+        return {"type": "Direct"}
+    # FlareSolverr wants a scheme://user:pass@host:port string. It is the same
+    # value PRY_PROXY_URL carries, so no second config is introduced.
+    return {"type": "HTTPS", "url": url}
 
 
 def _endpoints() -> list[str]:
@@ -94,7 +115,9 @@ async def _solve_once(endpoint: str, url: str, budget: int | None = None) -> str
         "cmd": "request.get",
         "url": url,
         "maxTimeout": (budget or _SOLVER_TIMEOUT) * 1000,
-        "proxy": {"type": "Direct"},
+        # Honours PRY_PROXY_URL. Previously hardcoded {"type":"Direct"}, which
+        # silently discarded the proxy and guaranteed the origin IP was used.
+        "proxy": _flaresolverr_proxy(),
     }
     try:
         async with httpx.AsyncClient(timeout=(budget or _SOLVER_TIMEOUT) + 15) as client:
@@ -191,7 +214,9 @@ async def _fetch_via_playwright(
         logger.debug("playwright_not_installed")
         return None
 
-    proxy_cfg = {"server": _PROXY_URL} if _PROXY_URL else None
+    proxy_url = _proxy_url()
+    proxy_cfg = {"server": proxy_url} if proxy_url else None
+    logger.debug("playwright_proxy configured=%s", bool(proxy_cfg))
     budget = challenge_budget or int(os.getenv("PRY_PLAYWRIGHT_CHALLENGE_BUDGET", "90"))
     try:
         async with async_playwright() as p:
