@@ -14,6 +14,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Request
 
+from pry.api.routers.commerce import x402_engines
 from pry.core.errors import InvalidRequestError
 
 logger = logging.getLogger(__name__)
@@ -55,26 +56,8 @@ async def x402_health() -> dict[str, Any]:
     }
 
 
-# Engine -> MCP tool binding for the x402 catalog: every actor processor
-# maps to the MCP tool exposing the same capability. Actors with
-# processor=None run the raw scrape/crawl/screenshot engines directly.
-ENGINE_TOOLS: dict[str | None, str] = {
-    None: "pry_scrape",
-    "scrape": "pry_scrape",
-    "crawl": "pry_crawl",
-    "extract": "pry_extract",
-    "monitor": "pry_monitor",
-    "news": "pry_news",
-    "jsondata": "pry_all_sources",
-    "leads": "pry_places_search",
-    "price": "pry_flights_grid",
-    "audit": "pry_domain",
-    "seo": "pry_trends",
-    "tech": "pry_enrich",
-    "invoice": "pry_parse_document",
-    "corpus": "pry_crawl",
-    "backlinks": "pry_domain",
-}
+# Engine -> MCP tool binding moved to x402_engines; re-exported below so
+# `from pry.api.routers.commerce.x402 import ENGINE_TOOLS` keeps working.
 
 
 @router.get("/v1/x402/pricing", tags=["x402"], summary="Get x402 pricing for all paid operations")
@@ -147,7 +130,7 @@ async def x402_catalog() -> dict[str, Any]:
                 "title": spec.title,
                 "icon": spec.icon,
                 "engine": spec.processor or "scrape",
-                "mcp_tool": ENGINE_TOOLS.get(spec.processor, "pry_scrape"),
+                "mcp_tool": x402_engines.ENGINE_TOOLS.get(spec.processor, "pry_scrape"),
                 "category": str(getattr(spec.category, "value", spec.category)),
                 "uses_browser": bool(spec.uses_browser),
             }
@@ -162,32 +145,16 @@ async def x402_catalog() -> dict[str, Any]:
         return {
             "success": False,
             "error": "actor presets unavailable",
-            "data": {
-                "operations": {
-                    op: {"price_usd": tier.get("price_usd"), "description": tier.get("description")}
-                    for op, tier in sorted(X402_PRICING.items())
-                },
-                "paid_endpoints": dict(sorted(PAID_ENDPOINTS.items())),
-                "engines": {str(k): v for k, v in ENGINE_TOOLS.items()},
-                "actors": None,
-                "actor_count": None,
-                "settlement": X402Handler().get_stats().get("settlement", {}),
-            },
+            "data": x402_engines.catalog_data(
+                X402_PRICING, PAID_ENDPOINTS, None, X402Handler().get_stats().get("settlement", {})
+            ),
         }
 
     return {
         "success": True,
-        "data": {
-            "operations": {
-                op: {"price_usd": tier.get("price_usd"), "description": tier.get("description")}
-                for op, tier in sorted(X402_PRICING.items())
-            },
-            "paid_endpoints": dict(sorted(PAID_ENDPOINTS.items())),
-            "engines": {str(k): v for k, v in ENGINE_TOOLS.items()},
-            "actors": actors,
-            "actor_count": len(actors),
-            "settlement": X402Handler().get_stats().get("settlement", {}),
-        },
+        "data": x402_engines.catalog_data(
+            X402_PRICING, PAID_ENDPOINTS, actors, X402Handler().get_stats().get("settlement", {})
+        ),
     }
 
 
@@ -399,3 +366,9 @@ async def x402_pay(
             "use_in_header": {"X-Payment-ID": payment_id, "X-Payment-Hash": tx_hash},
         },
     }
+
+
+# Re-exported so `from pry.api.routers.commerce.x402 import ENGINE_TOOLS` keeps
+# working. NOT a bound local: internal callers above go through the
+# `x402_engines` module attribute so monkeypatching stays visible.
+from pry.api.routers.commerce.x402_engines import ENGINE_TOOLS  # noqa: E402,F401
