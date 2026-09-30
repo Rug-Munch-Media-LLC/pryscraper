@@ -10,13 +10,12 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-from urllib.parse import urljoin
 
 import httpx
-import pydantic
 from fastapi import APIRouter, Body
 
 from pry.api.client import get_client
+from pry.api.routers.scraping.crawl_adaptive import adaptive_crawl as adaptive_crawl
 from pry.core.deps import scraper
 from pry.core.errors import ScrapeError
 from pry.engine.url_guard import safe_get, validate_url
@@ -24,6 +23,18 @@ from pry.engine.url_guard import safe_get, validate_url
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Scraping"])
+
+# Re-register the moved route on THIS router. Decorating the imported symbol
+# directly (rather than wrapping it) keeps `adaptive_crawl is
+# crawl_adaptive.adaptive_crawl` true, so there is no second implementation to
+# drift from the one the router dispatches.
+router.post(
+    "/v1/crawl/adaptive",
+    tags=["Scraping"],
+    summary="Crawl with adaptive stopping based on content relevance",
+)(adaptive_crawl)
+
+__all__ = ["adaptive_crawl", "capture_network", "router", "ultimate_scrape"]
 
 
 @router.post(
@@ -129,88 +140,6 @@ async def capture_network(
             "json_ld": extract_json_ld(html),
             "nextjs_props": extract_nextjs_props(html) is not None,
             "nuxt_state": extract_nuxt_state(html) is not None,
-        },
-    }
-
-
-@router.post(
-    "/v1/crawl/adaptive",
-    tags=["Scraping"],
-    summary="Crawl with adaptive stopping based on content relevance",
-)
-async def adaptive_crawl(
-    url: str = Body(...),
-    query: str = Body(""),
-    max_pages: int = Body(50),
-    max_depth: int = Body(3),
-    relevance_threshold: float = Body(0.3),
-) -> dict[str, Any]:
-    """Crawl a website with adaptive stopping.
-
-    Uses information foraging theory to decide when to stop:
-    - Stops when content relevance drops below threshold
-    - Stops when information gain diminishes
-    - Respects max_pages and max_depth limits
-    - Ideal for targeted data collection (pricing, docs, products)
-    """
-    from pry.engine.adaptive import AdaptiveCrawler
-
-    crawler = AdaptiveCrawler(
-        max_pages=max_pages,
-        max_depth=max_depth,
-        relevance_threshold=relevance_threshold,
-    )
-
-    pages = []
-    to_visit = [(url, 0)]
-    visited_urls: set[str] = set()
-
-    while to_visit:
-        current_url, depth = to_visit.pop(0)
-
-        if current_url in visited_urls:
-            continue
-        visited_urls.add(current_url)
-
-        try:
-            result = await scraper.scrape(current_url, {"bypass_cloudflare": True})
-            content = result.get("content", "") or ""
-        except pydantic.ValidationError as e:
-            logger.warning(
-                "adaptive_crawl_page_failed", extra={"url": current_url, "error": str(e)}
-            )
-            continue
-
-        decision = await crawler.should_continue(current_url, content, depth, query=query)
-        pages.append({"url": current_url, "depth": depth, "decision": decision})
-
-        if not decision["continue"]:
-            break
-
-        if depth < max_depth:
-            try:
-                links = await scraper.map_urls(current_url, {"limit": 10})
-            except RuntimeError as e:
-                # map_urls raises on a transport failure (direct + flaresolverr
-                # both failed) instead of returning an empty "no links" list.
-                logger.warning(
-                    "adaptive_crawl_map_failed",
-                    extra={"url": current_url, "error": str(e)},
-                )
-                continue
-            for link in links:
-                full_url = urljoin(current_url, link)
-                if full_url not in visited_urls:
-                    to_visit.append((full_url, depth + 1))
-
-    return {
-        "success": True,
-        "data": {
-            "url": url,
-            "query": query,
-            "pages": pages,
-            "total_pages": len(pages),
-            "stats": crawler.get_stats(),
         },
     }
 
