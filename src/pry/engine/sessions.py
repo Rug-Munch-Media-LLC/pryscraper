@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from pry.core.paths import PRY_DATA_DIR
+from pry.core.pathsafe import safe_join
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +24,13 @@ SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _session_path(session_id: str) -> Path:
-    """Get filesystem path for a session's saved state."""
-    return SESSIONS_DIR / f"{session_id}.json"
+    """Get filesystem path for a session's saved state.
+
+    The single funnel for every session path in this module, so validating
+    here protects load, save, and delete at once. Rejects traversal instead
+    of sanitizing - see pry.core.pathsafe.
+    """
+    return safe_join(SESSIONS_DIR, session_id, ".json", kind="session_id")
 
 
 async def save_session(

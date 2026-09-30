@@ -20,6 +20,7 @@ from typing import Any, Literal
 import httpx
 
 from pry.core.paths import PRY_DATA_DIR
+from pry.core.pathsafe import safe_join
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ _MASKED = "***"
 
 
 def _vault_path(credential_id: str) -> Path:
-    return VAULT_DIR / f"{credential_id}.json"
+    return safe_join(VAULT_DIR, credential_id, ".json", kind="credential_id")
 
 
 def _public_entry(entry: dict[str, Any]) -> dict[str, Any]:

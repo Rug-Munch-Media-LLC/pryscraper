@@ -12,6 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any, cast
 
+from pry.core.pathsafe import safe_join
 from pry.engine.extraction import JsonCssExtractionStrategy
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ def list_templates() -> list[dict[str, Any]]:
 
 def get_template(template_id: str) -> dict[str, Any] | None:
     """Get a specific template by ID."""
-    path = TEMPLATES_DIR / f"{template_id}.json"
+    path = safe_join(TEMPLATES_DIR, template_id, ".json", kind="template_id")
     if not path.exists():
         return None
     try:
