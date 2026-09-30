@@ -30,28 +30,33 @@ Two invariants this module exists to hold:
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
-import re
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
-from pry.compliance import record_store
+from pry.compliance._deletion_scan import (  # noqa: F401 -- re-exported; deletion.py imports these
+    CONSENT_DIR,
+    RecordPredicate,
+    _purge_consent,
+    _purge_matching_json,
+    _quality_predicate,
+    _record_user_id,
+    _session_predicate,
+    _structured_hit,
+    _word_boundary_match,
+)
 from pry.core.paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
 
-# Derived from PRY_DATA_DIR rather than imported from ``deletion``, which
-# imports this module -- a direct import would be circular. Identical path.
-CONSENT_DIR = PRY_DATA_DIR / "gdpr" / "consent"
-
-# Same reasoning as CONSENT_DIR, and the SAME directories their writers use:
-# pry.engine.quality.QUALITY_DIR and pry.engine.sessions.SESSIONS_DIR. These
-# must not be spelled ``~/.pry/...`` -- see invariant (1) in the module
-# docstring for what that costs.
+# CONSENT_DIR comes from pry.compliance._deletion_scan (the same PRY_DATA_DIR
+# derivation, one definition). ``deletion`` imports this module, so deriving it
+# here as well would be a second definition to keep in step -- and a direct
+# import of ``deletion`` would be circular.
+#
+# Same reasoning for the two roots below, and they must be the SAME directories
+# their writers use: pry.engine.quality.QUALITY_DIR and
+# pry.engine.sessions.SESSIONS_DIR. These must not be spelled ``~/.pry/...`` --
+# see invariant (1) in the module docstring for what that costs.
 QUALITY_DIR = PRY_DATA_DIR / "quality"
 SESSIONS_DIR = PRY_DATA_DIR / "sessions"
 
@@ -66,118 +71,9 @@ ERASURE_SCOPE: tuple[str, ...] = ("gdpr/consent", "quality", "sessions")
 # searching unstructured content, risking over-deletion of other users' data.
 MIN_USER_ID_LENGTH = 3
 
-# Record predicates take a decoded record and answer "is this the data subject?".
-RecordPredicate = Callable[[dict[str, Any]], bool]
-
-
-def _word_boundary_match(user_id: str, content: str) -> bool:
-    """Return True if ``user_id`` appears as a whole word in ``content``.
-
-    Uses a word-boundary regex so a short ID like "a" cannot match inside
-    unrelated tokens (e.g. "data", "email"). Case-insensitive.
-    """
-    return re.search(r"\b" + re.escape(user_id) + r"\b", content, re.IGNORECASE) is not None
-
-
-def _record_user_id(record: dict[str, Any]) -> str | None:
-    """Extract a structured user identifier from a JSON record, if present.
-
-    Checks common field names for a string user identifier. Returns None when
-    the record carries no structured user field.
-    """
-    for key in ("user_id", "userId", "user", "email"):
-        value = record.get(key)
-        if isinstance(value, str) and value:
-            return value
-    return None
-
-
-def _structured_hit(record: dict[str, Any], user_id: str) -> bool:
-    """True when a structured ``user_id`` field is an exact (case-insensitive) match."""
-    found = _record_user_id(record)
-    return found is not None and found.lower() == user_id.lower()
-
-
-def _quality_predicate(user_id: str) -> RecordPredicate:
-    """Predicate for ``quality/*.json``: structured user field, else word-boundary on the URL."""
-    lower = user_id.lower()
-
-    def matches(data: dict[str, Any]) -> bool:
-        inner = data.get("data")
-        if _structured_hit(data, user_id) or (
-            isinstance(inner, dict) and _structured_hit(inner, user_id)
-        ):
-            return True
-        url = data.get("url", "")
-        return isinstance(url, str) and bool(url) and _word_boundary_match(lower, url)
-
-    return matches
-
-
-def _session_predicate(user_id: str) -> RecordPredicate:
-    """Predicate for ``sessions/*.json``: structured user field, else word-boundary on metadata."""
-    lower = user_id.lower()
-
-    def matches(data: dict[str, Any]) -> bool:
-        meta = data.get("metadata") or {}
-        meta = meta if isinstance(meta, dict) else {}
-        if _structured_hit(meta, user_id) or _structured_hit(data, user_id):
-            return True
-        return _word_boundary_match(lower, json.dumps(meta))
-
-    return matches
-
-
-def _purge_matching_json(directory: Path, matches: RecordPredicate) -> tuple[int, int, bool]:
-    """Delete every readable ``*.json`` in ``directory`` that ``matches`` selects.
-
-    Returns ``(deleted, unreadable, present)``. A record that cannot be read is
-    counted, never treated as "not this user's": we cannot prove it does not
-    hold the data subject's data, so it is a hole in the erasure, not a clean
-    sweep. ``present`` is False when the root does not exist at all, which the
-    caller reports as a coverage gap rather than as "nothing to delete".
-    """
-    deleted = 0
-    unreadable = 0
-    if not directory.is_dir():
-        return deleted, unreadable, False
-    for path in sorted(directory.glob("*.json")):
-        data = record_store.load(path)
-        if data is None:
-            unreadable += 1
-            logger.warning("gdpr_deletion_scan_failed", extra={"root": directory.name})
-            continue
-        if not matches(data):
-            continue
-        try:
-            path.unlink()
-        except OSError as exc:
-            unreadable += 1
-            logger.error(
-                "gdpr_record_delete_failed",
-                extra={"root": directory.name, "error": str(exc)[:160]},
-            )
-            continue
-        deleted += 1
-    return deleted, unreadable, True
-
-
-def _purge_consent(user_hash: str) -> tuple[int, int, bool]:
-    """Delete this subject's consent records, keyed by the hashed filename prefix."""
-    deleted = 0
-    failed = 0
-    for path in sorted(CONSENT_DIR.glob(f"{user_hash}_*.json")):
-        try:
-            path.unlink()
-        except OSError as exc:
-            failed += 1
-            logger.error(
-                "gdpr_consent_record_delete_failed",
-                extra={"root": CONSENT_DIR.name, "error": str(exc)[:160]},
-            )
-            continue
-        deleted += 1
-    return deleted, failed, True
+# Record predicates and the filesystem sweeps live in
+# pry.compliance._deletion_scan; they are re-exported above so existing
+# imports of this module keep resolving.
 
 
 def _result(

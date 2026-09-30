@@ -1,16 +1,18 @@
-"""Gate-level regression: the x402 payment gate only admits VALID credentials.
+"""Gate-level regression: the x402 payment gate only admits VALID credentials (part 1).
 
 The gate is the revenue boundary. A prior implementation let ANY request whose
 ``Authorization`` header merely started with ``Bearer `` and was 8+ characters
 bypass the payment challenge — ``Authorization: Bearer aaaaaaaa`` on a paid
 route reached the resource for free. These tests pin the fail-closed contract
-at the real ``X402Middleware`` boundary (stub ASGI app on a paid endpoint):
+at the real ``X402Middleware`` boundary (stub ASGI app on a paid endpoint).
+
+The shared ASGI harness (``_StubApp`` / ``_scope`` / ``_call`` / ``db``) lives in
+``_gate_support``; the revoked/expired and fail-closed cases are in
+``test_gate_credential_lifecycle.py``.
 
 * an unrecognised Bearer token is 402-challenged and never reaches the app,
 * a valid DB-issued ``pry_*`` key still passes (hosted customers not broken),
-* a revoked / expired key is challenged, not served,
-* the operator master key still passes,
-* a credential-store failure denies (never grants).
+* the operator master key still passes.
 
 Each test names the mutation it kills. Any test that would still pass after
 reverting enforcement.py to the old ``Bearer `` prefix+length bypass is
@@ -21,81 +23,20 @@ decoration and must be deleted.
 # Copyright (c) 2026 Rug Munch Media LLC
 
 import json
-from datetime import UTC, datetime, timedelta
-from typing import Any
 
 import pytest
 
 from pry.payments.x402_middleware.enforcement import X402Middleware
+from tests.x402._gate_support import (
+    _call,
+    _scope,
+    _status,
+    _StubApp,
+    db as db,  # fixture re-exported for the test params
+    no_owner_key,
+)
 
-PAID_PATH = "/v1/scrape"
-
-
-class _StubApp:
-    """Minimal ASGI app that records whether the paid resource was reached."""
-
-    def __init__(self) -> None:
-        self.called = False
-
-    async def __call__(self, scope: dict, receive: Any, send: Any) -> None:
-        self.called = True
-        await send({"type": "http.response.start", "status": 200, "headers": []})
-        await send({"type": "http.response.body", "body": b"RESOURCE"})
-
-
-def _scope(headers: list[tuple[bytes, bytes]]) -> dict:
-    return {
-        "type": "http",
-        "method": "POST",
-        "path": PAID_PATH,
-        "headers": headers,
-        "query_string": b"",
-    }
-
-
-async def _call(middleware: X402Middleware, scope: dict) -> list[dict]:
-    sent: list[dict] = []
-
-    async def receive() -> dict:
-        return {"type": "http.request", "body": b"", "more_body": False}
-
-    async def send(message: dict) -> None:
-        sent.append(message)
-
-    await middleware(scope, receive, send)
-    return sent
-
-
-def _status(sent: list[dict]) -> int:
-    start = next(m for m in sent if m["type"] == "http.response.start")
-    return start["status"]
-
-
-@pytest.fixture
-def db(tmp_path, monkeypatch):
-    """Isolated SQLite DB for api_keys_service (repo-standard db fixture)."""
-    monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/gate.db")
-    import pry.core.db as db_pkg
-    import pry.core.db.session as session_mod
-
-    monkeypatch.setattr(db_pkg, "_engine", None, raising=False)
-    monkeypatch.setattr(session_mod, "_engine", None, raising=False)
-    monkeypatch.setattr(session_mod, "_SessionLocal", None, raising=False)
-
-    from sqlalchemy import create_engine
-
-    from pry.core.db import models as models_mod
-
-    engine = create_engine(f"sqlite:///{tmp_path}/gate.db")
-    models_mod.Base.metadata.create_all(engine)
-    yield engine
-    engine.dispose()
-
-
-@pytest.fixture(autouse=True)
-def _no_owner_key(monkeypatch):
-    """Pin the owner key OFF so the owner bypass cannot satisfy these tests."""
-    monkeypatch.setenv("PRY_API_KEY", "")
+pytestmark = pytest.mark.usefixtures(no_owner_key.__name__)
 
 
 # ── (a) Unrecognised Bearer token must NOT get the resource ────────────────
@@ -171,69 +112,3 @@ async def test_valid_master_key_passes(db, monkeypatch) -> None:
     sent = await _call(X402Middleware(app, wallet="0x0", network="base"), scope)
     assert app.called, "the operator master key must reach the paid resource"
     assert _status(sent) == 200
-
-
-# ── (c) Revoked / expired keys do NOT get the resource ─────────────────────
-
-
-@pytest.mark.asyncio
-async def test_revoked_key_is_challenged(db) -> None:
-    """A revoked key is 402'd (fail closed), not served for free.
-
-    Kills: a check that only matches the key's format/prefix without
-    consulting the store, so a revoked key would still pass.
-    """
-    from pry.core import api_keys_service
-
-    issued = api_keys_service.issue_key(name="to-revoke")
-    assert api_keys_service.revoke_key(issued["key_id"]) is True
-    app = _StubApp()
-    scope = _scope([(b"authorization", f"Bearer {issued['plaintext']}".encode())])
-    sent = await _call(X402Middleware(app, wallet="0x0", network="base"), scope)
-    assert not app.called, "a revoked key must NOT reach the paid resource"
-    assert _status(sent) == 402
-
-
-@pytest.mark.asyncio
-async def test_expired_key_is_challenged(db) -> None:
-    """An expired key is 402'd (fail closed).
-
-    Kills: a store check that ignores expires_at.
-    """
-    from pry.core import api_keys_service
-
-    issued = api_keys_service.issue_key(
-        name="expired",
-        expires_at=datetime.now(UTC) - timedelta(days=1),
-    )
-    app = _StubApp()
-    scope = _scope([(b"authorization", f"Bearer {issued['plaintext']}".encode())])
-    sent = await _call(X402Middleware(app, wallet="0x0", network="base"), scope)
-    assert not app.called, "an expired key must NOT reach the paid resource"
-    assert _status(sent) == 402
-
-
-# ── (3) Fail closed on validation error ────────────────────────────────────
-
-
-@pytest.mark.asyncio
-async def test_credential_store_outage_denies(db, monkeypatch) -> None:
-    """If credential validation cannot be performed, DENY (never allow).
-
-    Kills: a fail-OPEN variant that returns True when the store raises
-    (e.g. swallowing the exception and defaulting to a pass).
-    """
-    from pry.core import api_keys_service
-
-    issued = api_keys_service.issue_key(name="outage")
-    plaintext = issued["plaintext"]
-
-    def _boom(_token: str):
-        raise RuntimeError("store offline")
-
-    monkeypatch.setattr(api_keys_service, "authenticate", _boom)
-    app = _StubApp()
-    scope = _scope([(b"authorization", f"Bearer {plaintext}".encode())])
-    sent = await _call(X402Middleware(app, wallet="0x0", network="base"), scope)
-    assert not app.called, "a credential-store outage must NOT grant access"
-    assert _status(sent) == 402
