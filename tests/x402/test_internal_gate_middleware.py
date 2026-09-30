@@ -170,9 +170,14 @@ async def test_external_bearer_does_not_get_internal_free_path(
 ) -> None:
     """A non-owner Bearer caller is not internal: no free marker, no payment.
 
-    Pre-existing behaviour (unchanged here): a Bearer credential is handed to
-    the inner auth + billing layer, which is the hosted-API-key path. What this
-    test pins is that the internal token adds nothing to it.
+    The caller presents an unrecognised Bearer token, so it is neither internal
+    nor a valid API key. Under the fail-closed gate that means the payment
+    challenge (402) — it must NOT be served for free. The assertion pinned here
+    is that the internal token adds nothing: a bogus X-Internal-Token never
+    marks the scope, and the request is still charged like keyless traffic.
+
+    (This test previously asserted that any ``Bearer <8+ chars>`` reached the
+    app for 200 — that was the prefix+length auth bypass, now closed.)
     """
     monkeypatch.setenv("PRY_INTERNAL_TOKEN", TOKEN)
     monkeypatch.setenv("PRY_API_KEY", "owner-secret")
@@ -184,8 +189,8 @@ async def test_external_bearer_does_not_get_internal_free_path(
         ]
     )
     sent = await _call(X402Middleware(app, wallet="0x0", network="base"), scope)
-    assert app.called, "bearer traffic goes to the inner auth/billing path"
-    assert sent[0]["status"] == 200
+    assert not app.called, "an unrecognised bearer token must not be served for free"
+    assert sent[0]["status"] == 402, "a bogus internal token must not grant the free path"
     assert "x402_verified" not in scope, "a bogus internal token must not mark the scope"
 
 

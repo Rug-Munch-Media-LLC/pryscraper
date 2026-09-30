@@ -23,6 +23,7 @@ from pry.payments.x402_middleware.classification import (
     resolve_operation,
 )
 from pry.payments.x402_middleware.config import X402_GATE_MISCONFIGURED
+from pry.payments.x402_middleware.credential import valid_api_key_credential
 from pry.payments.x402_middleware.enforcement_response import (
     X402_PAYMENT_HEADER_MAX_BYTES,
     _compact_payment_required_header,
@@ -131,14 +132,18 @@ class X402Middleware:
             return
 
         # Bearer-credentialed requests (hosted API keys, server-to-server
-        # callers such as the MCP dispatch) bypass the payment gate: the
-        # inner PryHttpMiddleware authenticates the credential (401 on
-        # invalid) and the BillingEnforcer meters/bills the key against its
-        # tier quota. The gate's job is to monetize KEYLESS agent traffic —
-        # credentialed traffic has its own billing path. Without this bypass
-        # every hosted API-key customer gets 402-challenged on paid endpoints.
-        _auth_header = dict(scope.get("headers", [])).get(b"authorization", b"")
-        if _auth_header.startswith(b"Bearer ") and len(_auth_header) > 7:
+        # callers such as the MCP dispatch) bypass the payment gate, but ONLY
+        # once the gate has positively validated the credential itself: a
+        # DB-issued pry_* key, the operator master key, or an rmi JWT
+        # (see x402_middleware.credential). The gate is the revenue boundary,
+        # so it must not hand off a request it has not authenticated — the old
+        # `Bearer ` prefix + length test admitted ANY 8+ character token.
+        # An INVALID presented credential is NOT waved through: it falls
+        # through to the 402 challenge below, so a bad key is challenged like
+        # keyless traffic rather than served for free. Without the valid-key
+        # bypass every hosted API-key customer gets 402-challenged on paid
+        # endpoints; this keeps them passing while closing the hole.
+        if valid_api_key_credential(headers):
             await self.app(scope, receive, send)
             return
 
