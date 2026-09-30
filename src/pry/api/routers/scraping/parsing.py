@@ -16,6 +16,7 @@ from fastapi import APIRouter, Body
 from pydantic import BaseModel
 
 from pry.api.client import get_client
+from pry.api.routers.scraping.fetch import guard_get
 from pry.core.deps import parser, scraper
 from pry.core.errors import ExternalServiceError, PryError, ScrapeError
 
@@ -110,7 +111,7 @@ async def extract_shadow_dom(
         # Try to get via direct fetch
         client = await get_client()
         try:
-            resp = await client.get(url, timeout=30, follow_redirects=True)
+            resp = await guard_get(client, url, timeout=30)
             html = resp.text
         except (httpx.HTTPError, httpx.RequestError) as e:
             raise ScrapeError("Could not fetch raw HTML") from e

@@ -172,3 +172,27 @@ def temp_data_dir(monkeypatch, tmp_path):
     yield tmp_path
     db._engine = None
     db._SessionLocal = None
+
+
+@pytest.fixture
+def empty_scrape() -> Generator[None, None, None]:
+    """Make the injected ``scraper.scrape`` return empty HTML.
+
+    ``/v1/shadow-dom`` and ``/v1/extract/css`` only perform their own guarded
+    fetch when the scraper produced no HTML. Without this the real scraper
+    attempts a live network call, fails (no network under test), and the route
+    returns before the guarded fetch is reached — which would leave the SSRF
+    guard silently untested for those two routes.
+
+    DI seam rather than attribute patching: ``scraper`` is the injected
+    ``PryScraper`` singleton, so its state is set and restored directly and the
+    route logic runs unmodified.
+    """
+    from unittest.mock import AsyncMock
+
+    from pry.core.deps import scraper
+
+    real_scrape = scraper.scrape
+    scraper.scrape = AsyncMock(return_value={"status": "ok", "raw_html": "", "content": ""})
+    yield
+    scraper.scrape = real_scrape

@@ -54,6 +54,9 @@ NON_ROUTER_HELPERS = {
     "scraping.scraping_models",
     "scraping.crawl_adaptive",
     "scraping.extraction_llm",
+    # SSRF-guarded fetch helper shared by the scraping routers; it exposes no
+    # router by design — the routers that call it are still covered below.
+    "scraping.fetch",
 }
 
 

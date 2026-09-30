@@ -19,6 +19,7 @@ from fastapi import APIRouter, Body
 from extraction.css import _validate_css_selector
 from pry.api.client import get_client
 from pry.api.routers.scraping.extraction_llm import extract_llm as extract_llm
+from pry.api.routers.scraping.fetch import BROWSER_USER_AGENT, guard_get
 from pry.core.deps import advanced, scraper
 from pry.core.errors import InvalidRequestError, ScrapeError
 from pry.engine.extraction import JsonCssExtractionStrategy
@@ -59,7 +60,7 @@ async def extract_table(url: str = Body(...), table_index: int = 0) -> dict[str,
     import pandas as pd
 
     client = await get_client()
-    resp = await client.get(url, headers={"User-Agent": "Pry/3.0"}, timeout=15)
+    resp = await guard_get(client, url)
     tables = pd.read_html(resp.text)
     if table_index >= len(tables):
         raise InvalidRequestError(f"Only {len(tables)} tables found")
@@ -83,7 +84,7 @@ async def analyze_links(url: str = Body(...)) -> dict[str, Any]:
     html = ""
     try:
         client = await get_client()
-        resp = await client.get(url, headers={"User-Agent": "Pry/3.0"}, timeout=15)
+        resp = await guard_get(client, url)
         html = resp.text
     except httpx.HTTPError:
         logger.warning("links_fetch_failed", extra={"url": url})
@@ -120,7 +121,7 @@ async def extract_thumbnail(url: str = Body(...)) -> dict[str, Any]:
         html = result.get("raw_html", "")
         if not html:
             client = await get_client()
-            resp = await client.get(url, headers={"User-Agent": "Pry/3.0"}, timeout=15)
+            resp = await guard_get(client, url)
             html = resp.text
     except Exception:  # noqa: BLE001 — thumbnail is best-effort; any failure yields None
         # ``{"thumbnail": None}`` is the SAME payload a page with no og:image /
@@ -168,7 +169,7 @@ async def analyze_seo(url: str = Body(...)) -> dict[str, Any]:
     """SEO analysis of a page: title, description, headings, images, keywords, readability.
     Firecrawl has zero SEO features."""
     client = await get_client()
-    resp = await client.get(url, headers={"User-Agent": "Pry/3.0"}, timeout=15)
+    resp = await guard_get(client, url)
     html = resp.text
     result = await scraper.scrape(url)
     content = result.get("content", "")
@@ -204,7 +205,7 @@ async def analyze_seo(url: str = Body(...)) -> dict[str, Any]:
 async def extract_schema(url: str = Body(...)) -> dict[str, Any]:
     """Extract Schema.org/JSON-LD structured data from a page."""
     client = await get_client()
-    resp = await client.get(url, headers={"User-Agent": "Pry/3.0"}, timeout=15)
+    resp = await guard_get(client, url)
     html = resp.text
     schemas = advanced.extract_schema(html)
     return {"success": True, "data": {"url": url, "schemas": schemas}}
@@ -223,7 +224,7 @@ async def find_emails(url: str = Body(...)) -> dict[str, Any]:
     social_error: str | None = None
     try:
         client = await get_client()
-        resp = await client.get(url, headers={"User-Agent": "Pry/3.0"}, timeout=15)
+        resp = await guard_get(client, url)
         html_text = resp.text
     except (httpx.HTTPError, httpx.RequestError) as e:
         social_error = f"{type(e).__name__}: {e}"[:300]
@@ -323,9 +324,7 @@ async def extract_css(
 
     if not html:
         client = await get_client()
-        resp = await client.get(
-            url, timeout=30, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}
-        )
+        resp = await guard_get(client, url, timeout=30, user_agent=BROWSER_USER_AGENT)
         html = resp.text
 
     if not html:
@@ -358,6 +357,3 @@ async def extract_css(
             "items": data,
         },
     }
-
-
-logger = logging.getLogger(__name__)
