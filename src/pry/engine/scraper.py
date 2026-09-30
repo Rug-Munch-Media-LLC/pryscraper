@@ -13,7 +13,7 @@ import asyncio
 import logging
 import random
 import re
-from typing import Any, ClassVar
+from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -22,9 +22,15 @@ from trafilatura.settings import use_config
 
 from pry.core.errors import InvalidRequestError
 from pry.core.settings import settings
+from pry.engine.block_detector import BlockDetector
 from pry.engine.url_guard import safe_get, validate_url
 
 logger = logging.getLogger(__name__)
+
+# ``BlockDetector`` lives in ``block_detector`` now; re-exported here because
+# ``from pry.engine.scraper import BlockDetector`` is a long-standing import
+# path used by the scraping routers and the detector tests.
+__all__ = ["USER_AGENTS", "BlockDetector", "PryScraper"]
 
 # SystemRandom: crypto-grade entropy so stealth jitter is not predictable.
 _RNG = random.SystemRandom()
@@ -37,128 +43,6 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
     "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0",
 ]
-
-
-class BlockDetector:
-    """Detect anti-bot blocks by analyzing HTML, status codes, and headers."""
-
-    VENDOR_PATTERNS: ClassVar[dict[str, list[str]]] = {
-        "cloudflare": [
-            "cloudflare",
-            "cf-",
-            "checking your browser",
-            "attention required",
-            "just a moment",
-            "_cf_chl_opt",
-            "cdn-cgi",
-        ],
-        "datadome": ["datadome", "blocked because we believe"],
-        "akamai": ["akamai", "akamaiedge"],
-        "imperva": ["imperva", "incapsula"],
-    }
-
-    GENERIC_PATTERNS: ClassVar[list[str]] = [
-        "captcha",
-        "access denied",
-        "blocked",
-        "too many requests",
-        "rate limit",
-        "403 forbidden",
-        "503 service unavailable",
-    ]
-
-    def __init__(self, min_content_length: int = 500):
-        self.min_content_length = min_content_length
-
-    def detect(
-        self, html: str, status_code: int, headers: dict[str, str] | None = None
-    ) -> dict[str, Any]:
-        result: dict[str, Any] = {
-            "blocked": False,
-            "tier": None,
-            "vendor": None,
-            "confidence": 0.0,
-            "reason": "",
-        }
-        headers = headers or {}
-        lower_html = html.lower()
-        server = headers.get("server", "").lower()
-        cf_ray = headers.get("cf-ray", "")
-
-        for vendor, patterns in self.VENDOR_PATTERNS.items():
-            if any(re.search(p, lower_html) or re.search(p, server) for p in patterns):
-                result.update(
-                    {
-                        "blocked": True,
-                        "tier": "vendor",
-                        "vendor": vendor,
-                        "confidence": 0.95,
-                        "reason": f"{vendor} block detected",
-                    }
-                )
-                return result
-
-        if status_code in (403, 503):
-            result.update(
-                {
-                    "blocked": True,
-                    "tier": "generic",
-                    "vendor": "unknown",
-                    "confidence": 0.8,
-                    "reason": f"HTTP {status_code}",
-                }
-            )
-            return result
-        if status_code == 429:
-            result.update(
-                {
-                    "blocked": True,
-                    "tier": "generic",
-                    "vendor": "rate_limit",
-                    "confidence": 0.9,
-                    "reason": "Rate limited",
-                }
-            )
-            return result
-
-        if any(re.search(p, lower_html) for p in self.GENERIC_PATTERNS):
-            result.update(
-                {
-                    "blocked": True,
-                    "tier": "generic",
-                    "vendor": "unknown",
-                    "confidence": 0.7,
-                    "reason": "Block pattern matched",
-                }
-            )
-            return result
-
-        body = re.search(r"<body[^>]*>(.*?)</body>", html, re.DOTALL)
-        body_text = re.sub(r"<[^>]+>", "", body.group(1) if body else "").strip()
-        if body_text and len(body_text) < self.min_content_length:
-            result.update(
-                {
-                    "blocked": True,
-                    "tier": "structural",
-                    "vendor": "empty_page",
-                    "confidence": 0.4,
-                    "reason": f"Body too short ({len(body_text)} chars)",
-                }
-            )
-
-        if cf_ray and status_code >= 400:
-            result.update(
-                {
-                    "blocked": True,
-                    "tier": "vendor",
-                    "vendor": "cloudflare",
-                    "confidence": 0.85,
-                    "reason": "Cloudflare challenge",
-                }
-            )
-            return result
-
-        return result
 
 
 class PryScraper:
@@ -341,7 +225,7 @@ class PryScraper:
                             "method": result.get("method", "unknown"),
                         }
                     )
-            except Exception as exc:  # noqa: BLE001 - one page failing must not abort the crawl
+            except Exception as exc:
                 logger.warning(
                     "crawl_page_scrape_failed", extra={"url": current_url}, exc_info=True
                 )
@@ -357,7 +241,7 @@ class PryScraper:
                 continue
             try:
                 links = await self._extract_links(current_url, {"limit": max_pages - len(visited)})
-            except Exception as exc:  # noqa: BLE001 - one page's link expansion must not abort the crawl
+            except Exception as exc:
                 logger.warning(
                     "crawl_link_expansion_failed",
                     extra={"url": current_url},
