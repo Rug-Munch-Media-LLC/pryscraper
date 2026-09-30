@@ -17,8 +17,14 @@ from lxml import html as lxml_html
 
 from pry.api.client import get_client
 from pry.core.db import StructureSnapshot, session_scope
+from pry.core.errors import PryError
+from pry.engine.fetch_guard import guard_get
 
 logger = logging.getLogger(__name__)
+
+#: Browser-shaped UA: the pages these selectors run against often serve markup
+#: only to a browser. ``guard_get`` takes it as a parameter (never ``follow_redirects``).
+_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (StructureMonitor/1.0)"
 
 
 async def check_selectors(
@@ -44,18 +50,11 @@ async def check_selectors(
 
     try:
         client = await get_client()
-        resp = await client.get(
-            url,
-            timeout=30,
-            follow_redirects=True,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (StructureMonitor/1.0)"
-            },
-        )
+        resp = await guard_get(client, url, timeout=30, user_agent=_UA)
         if not resp.is_success:
             return {"url": url, "error": f"HTTP {resp.status_code}", "all_matched": False}
         html_content = resp.text
-    except (httpx.HTTPError, httpx.RequestError) as e:
+    except (httpx.HTTPError, httpx.RequestError, PryError) as e:
         return {"url": url, "error": str(e)[:200], "all_matched": False}
 
     try:

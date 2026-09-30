@@ -18,6 +18,24 @@ from pry.actors.structure_monitor import (
 )
 
 
+def _response(*, ok: bool = True, text: str = "", status: int = 200) -> httpx.Response:
+    """A real httpx.Response so the guard's own response handling is exercised.
+
+    The actor now fetches through ``guard_get``, so mocking ``client.get`` no
+    longer controls the response the actor sees: an ``AsyncMock`` response has a
+    truthy ``is_redirect`` and a mock ``.url``, which sends ``safe_get`` into
+    its redirect loop with non-str arguments. Patching ``guard_get`` with a
+    real ``httpx.Response`` keeps each test asserting what it is actually about
+    (snapshot history, change detection, an upstream error) instead of which
+    seam happens to issue the request.
+    """
+    return httpx.Response(
+        status,
+        text=text,
+        request=httpx.Request("GET", "https://example.com"),
+    )
+
+
 @pytest.fixture(autouse=True)
 def _fresh_db(monkeypatch):
     """Force a brand-new in-memory SQLite engine for every test.
@@ -91,11 +109,8 @@ async def test_get_structure_history_no_history(temp_db):
 
 @pytest.mark.asyncio
 async def test_monitor_page_structure_creates_history(temp_db):
-    mock_client = AsyncMock()
-    mock_client.get.return_value.is_success = True
-    mock_client.get.return_value.text = "<html><body><h1>Title</h1></body></html>"
-
-    with patch("pry.actors.structure_monitor.get_client", return_value=mock_client):
+    page = _response(text="<html><body><h1>Title</h1></body></html>")
+    with patch("pry.actors.structure_monitor.guard_get", AsyncMock(return_value=page)):
         result = await monitor_page_structure(
             "https://example.com",
             [{"name": "title", "selector": "h1", "type": "css"}],
@@ -109,11 +124,8 @@ async def test_monitor_page_structure_creates_history(temp_db):
 
 @pytest.mark.asyncio
 async def test_get_structure_history_with_data(temp_db):
-    mock_client = AsyncMock()
-    mock_client.get.return_value.is_success = True
-    mock_client.get.return_value.text = "<html><body><h1>Title</h1></body></html>"
-
-    with patch("pry.actors.structure_monitor.get_client", return_value=mock_client):
+    page = _response(text="<html><body><h1>Title</h1></body></html>")
+    with patch("pry.actors.structure_monitor.guard_get", AsyncMock(return_value=page)):
         await monitor_page_structure(
             "https://example.com",
             [{"name": "title", "selector": "h1", "type": "css"}],
@@ -127,11 +139,8 @@ async def test_get_structure_history_with_data(temp_db):
 
 @pytest.mark.asyncio
 async def test_monitor_page_structure_with_template_id(temp_db):
-    mock_client = AsyncMock()
-    mock_client.get.return_value.is_success = True
-    mock_client.get.return_value.text = "<html><body><h1>Title</h1></body></html>"
-
-    with patch("pry.actors.structure_monitor.get_client", return_value=mock_client):
+    page = _response(text="<html><body><h1>Title</h1></body></html>")
+    with patch("pry.actors.structure_monitor.guard_get", AsyncMock(return_value=page)):
         result = await monitor_page_structure(
             "https://example.com",
             [{"name": "title", "selector": "h1", "type": "css"}],
@@ -149,19 +158,15 @@ async def test_monitor_page_structure_with_template_id(temp_db):
 
 @pytest.mark.asyncio
 async def test_monitor_page_structure_detects_change(temp_db):
-    mock_client = AsyncMock()
-    mock_client.get.return_value.is_success = True
-    mock_client.get.return_value.text = "<html><body><h1>Title</h1></body></html>"
-
-    with patch("pry.actors.structure_monitor.get_client", return_value=mock_client):
+    page = _response(text="<html><body><h1>Title</h1></body></html>")
+    with patch("pry.actors.structure_monitor.guard_get", AsyncMock(return_value=page)):
         await monitor_page_structure(
             "https://example.com",
             [{"name": "title", "selector": "h1", "type": "css"}],
         )
 
-    mock_client.get.return_value.text = "<html><body><h1>New Title</h1></body></html>"
-
-    with patch("pry.actors.structure_monitor.get_client", return_value=mock_client):
+    moved = _response(text="<html><body><h1>New Title</h1></body></html>")
+    with patch("pry.actors.structure_monitor.guard_get", AsyncMock(return_value=moved)):
         result = await monitor_page_structure(
             "https://example.com",
             [{"name": "title", "selector": "h2", "type": "css"}],
@@ -172,11 +177,10 @@ async def test_monitor_page_structure_detects_change(temp_db):
 
 @pytest.mark.asyncio
 async def test_structure_page_http_error(temp_db):
-    mock_client = AsyncMock()
-    mock_client.get.return_value.is_success = False
-    mock_client.get.return_value.status_code = 404
-
-    with patch("pry.actors.structure_monitor.get_client", return_value=mock_client):
+    with patch(
+        "pry.actors.structure_monitor.guard_get",
+        AsyncMock(return_value=_response(ok=False, status=404)),
+    ):
         result = await monitor_page_structure(
             "https://example.com/404",
             [{"name": "title", "selector": "h1", "type": "css"}],

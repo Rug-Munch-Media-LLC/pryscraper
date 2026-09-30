@@ -16,12 +16,19 @@ from typing import Any
 
 import httpx
 
+from pry.core.errors import PryError
 from pry.core.paths import PRY_DATA_DIR
+from pry.engine.fetch_guard import guard_get
 
 logger = logging.getLogger(__name__)
 
 SEO_DIR = PRY_DATA_DIR / "seo"
 SEO_DIR.mkdir(parents=True, exist_ok=True)
+
+#: Browser-shaped UA. ``guard_get`` never accepts ``follow_redirects``: it
+#: re-validates every Location hop, which is the whole point of routing the
+#: fetch through it instead of a bare ``client.get``.
+_UA = "Mozilla/5.0 (SEO Monitor)"
 
 
 async def analyze_seo(url: str) -> dict[str, Any]:
@@ -32,12 +39,7 @@ async def analyze_seo(url: str) -> dict[str, Any]:
 
     client = await get_client()
     try:
-        resp = await client.get(
-            url,
-            timeout=30,
-            follow_redirects=True,
-            headers={"User-Agent": "Mozilla/5.0 (SEO Monitor)"},
-        )
+        resp = await guard_get(client, url, timeout=30, user_agent=_UA)
         if not resp.is_success:
             return {"url": url, "error": f"HTTP {resp.status_code}"}
 
@@ -88,11 +90,11 @@ async def analyze_seo(url: str) -> dict[str, Any]:
                     result["llm_enhanced"] = True
                     result["llm_provider"] = llm_enhancement.get("llm_provider", "")
                     result["llm_cost_usd"] = llm_enhancement.get("llm_cost_usd", 0.0)
-            except (httpx.HTTPError, httpx.RequestError) as e:
+            except (httpx.HTTPError, httpx.RequestError, PryError) as e:
                 logger.debug("llm_seo_enhance_failed", extra={"url": url, "error": str(e)[:80]})
 
         return result
-    except (httpx.HTTPError, httpx.RequestError) as e:
+    except (httpx.HTTPError, httpx.RequestError, PryError) as e:
         return {"url": url, "error": str(e)[:200]}
 
 
@@ -103,8 +105,8 @@ def _get_title(tree: Any) -> str:
 
 def _get_meta_content(tree: Any, name: str) -> str:
     for el in tree.xpath(f'//meta[@name="{name}"] | //meta[@property="{name}"]'):
-        content = el.get("content", "")
-        return content.strip()[:500] if content else ""
+        if content := el.get("content", ""):
+            return content.strip()[:500]
     return ""
 
 
@@ -129,9 +131,7 @@ def _get_charset(tree: Any, resp: Any) -> str:
 
 
 def _count_words(html: str) -> int:
-    text = re.sub(r"<[^>]+>", " ", html)
-    words = re.findall(r"\w+", text)
-    return len(words)
+    return len(re.findall(r"\w+", re.sub(r"<[^>]+>", " ", html)))
 
 
 def _count_links(tree: Any, base_url: str, internal: bool) -> int:
@@ -236,7 +236,7 @@ async def get_seo_keyword_insights(url: str, keywords: list[str]) -> dict[str, A
 
     client = await get_client()
     try:
-        resp = await client.get(url, timeout=30, follow_redirects=True)
+        resp = await guard_get(client, url, timeout=30)
         if not resp.is_success:
             return {"url": url, "error": f"HTTP {resp.status_code}"}
 
@@ -275,7 +275,7 @@ async def get_seo_keyword_insights(url: str, keywords: list[str]) -> dict[str, A
             "keywords_analyzed": len(keywords),
             "results": results,
         }
-    except (httpx.HTTPError, httpx.RequestError) as e:
+    except (httpx.HTTPError, httpx.RequestError, PryError) as e:
         return {"url": url, "error": str(e)[:200]}
 
 

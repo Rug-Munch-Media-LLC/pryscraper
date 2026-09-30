@@ -1,9 +1,7 @@
 """SSRF-guarded fetch for the router layer — the single place routers fetch.
 
-Lives beside ``url_guard``, which it wraps, so that both ``pry.engine`` and the
-``pry.api`` router layer can share it. An earlier home in ``pry.api`` broke the
-"Core stays pure" contract: ``pry.core.deps -> pry.engine.parser -> pry.api``
-created a transitive core-to-api edge.
+Lives beside ``url_guard``, which it wraps, so both ``pry.engine`` and the
+``pry.api`` router layer can share it without a contract edge.
 
 Every router that fetches a user-supplied URL goes through :func:`guard_get`
 instead of calling ``client.get`` directly. The routers accept an arbitrary

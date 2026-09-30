@@ -30,10 +30,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from pry.api.exception_handlers import add_error_handlers
-from pry.api.fetch_guard import guard_get
 from pry.api.routers.ai.analysis import router as analysis_router
 from pry.api.routers.scraping.extraction import router as extraction_router
 from pry.api.routers.scraping.parsing import router as parsing_router
+from pry.engine.fetch_guard import guard_get
 
 app = FastAPI()
 app.include_router(extraction_router)
