@@ -19,6 +19,7 @@ import httpx
 from fastapi import APIRouter, Body
 
 from pry.api.client import get_client
+from pry.api.routers.scraping.fetch import guard_get
 from pry.core.deps import advanced, scraper
 from pry.core.errors import ScrapeError
 from pry.core.settings import settings
@@ -122,17 +123,23 @@ async def categorize(url: str = Body(...)) -> dict[str, Any]:
 
 @router.post("/v1/suggest", tags=["Analysis"], summary="AI-suggest schema fields for a URL")
 async def suggest_schema(data: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Suggest CSS selectors for a page's price/name/image/etc. fields.
+
+    ``url`` comes straight from the request body, so the raw-HTML pass goes
+    through :func:`guard_get` — the URL is validated and every redirect hop is
+    re-validated, which a bare ``client.get`` does not do — and it runs BEFORE
+    the scraper, so a rejected target is refused (HTTP 400) before any layer
+    opens a connection to it.
+
+    A transport failure is different: the page may simply be unreachable, and the
+    route still answers with the scraper's own text plus ``html_error`` naming
+    the reason, so absent candidates are never silently attributed to the page.
+    """
     url = data.get("url", "")
 
+    html, html_error = await _fetch_page_html(url)
     result = await scraper.scrape(url, {"bypass_cloudflare": True, "timeout": 30})
     content = result.get("content", "")
-    html = ""
-    try:
-        client = await get_client()
-        resp = await client.get(url, headers={"User-Agent": "Pry/3.0"}, timeout=15)
-        html = resp.text
-    except httpx.HTTPError:
-        logger.warning("suggest_schema_fetch_failed", extra={"url": url})
     schema = {"_page_title": result.get("title", "")}
     candidates: dict[str, str] = {}
     for pattern, field in [
@@ -151,37 +158,69 @@ async def suggest_schema(data: dict[str, Any] = Body(...)) -> dict[str, Any]:
         if h1:
             candidates["name"] = f"h1.{h1[0].replace(' ', '.')}"
     schema["suggested"] = candidates
+    if html_error is not None:
+        schema["html_error"] = html_error
     if content and len(content) > 200:
-        try:
-            prompt = (
-                "Analyze this page. Return ONLY JSON with field names as keys and CSS selectors as values. Look for: price, name, description, image, rating, stock.\n\n"
-                + content[:4000]
-            )
-            client = await get_client()
-            ollama_url = settings.ollama_url
-            resp = await client.post(
-                f"{ollama_url}/api/generate",
-                json={
-                    "model": "qwen2.5-coder:3b",
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {"num_ctx": 8192, "temperature": 0.1},
-                },
-                timeout=30,
-            )
-            if resp.status_code == 200:
-                llm_raw = resp.json().get("response", "")
-                llm_match = re.search(r"\{.*\}", llm_raw, re.S)
-                if llm_match:
-                    try:
-                        llm = json.loads(llm_match.group(0))
-                        if isinstance(llm, dict):
-                            schema["llm_suggested"] = llm
-                    except json.JSONDecodeError:
-                        logger.warning("llm_schema_parse_failed")
-        except httpx.HTTPError:
-            logger.warning("ollama_suggest_schema_failed")
+        await _add_llm_suggestions(schema, content)
     return {"success": True, "data": schema}
+
+
+async def _fetch_page_html(url: str) -> tuple[str, str | None]:
+    """Fetch a page's raw HTML through the SSRF guard.
+
+    Returns ``(html, error)``.
+
+    Raises:
+        InvalidRequestError: Propagated from the guard when the URL (or a
+            redirect it returns) is internal. The route must NOT swallow this
+            into the error string: the guard's exception is a ``PryError`` with
+            ``status_code`` 400, so letting it propagate is what turns a blocked
+            URL into a 4xx instead of a 500.
+    """
+    try:
+        client = await get_client()
+        resp = await guard_get(client, url, timeout=15)
+    except httpx.HTTPError as e:
+        # Transport-only failure: the URL was safe, the host was not reachable.
+        error = f"{type(e).__name__}: {e}"[:300]
+        logger.warning("suggest_schema_fetch_failed", extra={"url": url, "error": error})
+        return "", error
+    return resp.text, None
+
+
+async def _add_llm_suggestions(schema: dict[str, Any], content: str) -> None:
+    """Merge the local model's selector suggestions into ``schema`` in place."""
+    try:
+        client = await get_client()
+        resp = await client.post(
+            f"{settings.ollama_url}/api/generate",
+            json={
+                "model": "qwen2.5-coder:3b",
+                "prompt": (
+                    "Analyze this page. Return ONLY JSON with field names as keys and"
+                    " CSS selectors as values. Look for: price, name, description,"
+                    " image, rating, stock.\n\n" + content[:4000]
+                ),
+                "stream": False,
+                "options": {"num_ctx": 8192, "temperature": 0.1},
+            },
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            return
+        m = re.search(r"\{.*\}", resp.json().get("response", ""), re.S)
+        if not m:
+            return
+        try:
+            llm = json.loads(m.group(0))
+        except json.JSONDecodeError:
+            logger.warning("llm_schema_parse_failed")
+            return
+        if isinstance(llm, dict):
+            schema["llm_suggested"] = llm
+    except httpx.HTTPError:
+        # settings.ollama_url is server configuration, not caller input.
+        logger.warning("ollama_suggest_schema_failed")
 
 
 # The watch-webhook delivery path (SSRF-guarded fire-and-forget POST plus the

@@ -8,6 +8,7 @@ Auto-extracted from api.py during the router-split refactor.
 
 from __future__ import annotations
 
+import io
 import logging
 import re
 from typing import Any
@@ -61,7 +62,10 @@ async def extract_table(url: str = Body(...), table_index: int = 0) -> dict[str,
 
     client = await get_client()
     resp = await guard_get(client, url)
-    tables = pd.read_html(resp.text)
+    # read_html's first arg is a FilePath | ReadBuffer[str]: a bare ``str`` is
+    # read as a *filename* and raises FileNotFoundError, so the response body
+    # must be wrapped in a StringIO buffer.
+    tables = pd.read_html(io.StringIO(resp.text))
     if table_index >= len(tables):
         raise InvalidRequestError(f"Only {len(tables)} tables found")
     df = tables[table_index]

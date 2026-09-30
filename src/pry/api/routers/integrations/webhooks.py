@@ -9,10 +9,7 @@ Auto-extracted from api.py during the router-split refactor.
 from __future__ import annotations
 
 import asyncio
-import ipaddress
 import logging
-import socket
-import urllib.parse
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
@@ -38,37 +35,20 @@ _webhook_test_sem = asyncio.Semaphore(3)
 def _validate_webhook_url(url: str) -> str | None:
     """Validate a webhook URL to prevent SSRF.
 
+    Delegates to the DNS-pinning validator in :mod:`pry.api.webhook_delivery`.
+    A second, weaker copy of this check previously lived here: it resolved the
+    host and inspected the addresses but then threw them away, so the delivery
+    client re-resolved the name at connect time and a rebinding resolver could
+    hand httpx a private address the check never saw. One validator, one
+    answer, and the pinned URL is what actually gets fetched.
+
     Returns ``None`` if the URL is safe, otherwise a human-readable reason
     describing why validation failed.
     """
-    try:
-        parsed = urllib.parse.urlparse(url)
-    except ValueError:
-        return "invalid URL"
+    from pry.api.webhook_delivery import _validate_url
 
-    host = parsed.hostname
-    if not host:
-        return "missing host"
-
-    # Reject non-https schemes; allow http only for localhost.
-    if parsed.scheme != "https":
-        if parsed.scheme == "http" and host in ("localhost", "127.0.0.1", "::1"):
-            pass
-        else:
-            return f"unsupported scheme: {parsed.scheme!r}"
-
-    # Resolve the host to its IP address(es).
-    try:
-        infos = socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80))
-    except socket.gaierror:
-        return f"could not resolve host: {host}"
-
-    for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
-        if ip.is_private or ip.is_loopback or ip.is_link_local:
-            return f"resolved to private/loopback/link-local address: {ip}"
-
-    return None
+    _, reason = _validate_url(url)
+    return reason
 
 
 @router.post(
