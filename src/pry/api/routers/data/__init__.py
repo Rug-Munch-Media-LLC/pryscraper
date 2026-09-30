@@ -1,0 +1,26 @@
+# data subpackage
+from .app_store_data import router as app_store_data_router
+from .attention import router as attention_router
+from .bidding_data import router as bidding_data_router
+from .climate_data import router as climate_data_router
+from .crypto_market import router as crypto_market_router
+from .deals_data import router as deals_data_router
+from .energy_data import router as energy_data_router
+from .enrichment import router as enrichment_router
+from .events_data import router as events_data_router
+from .food_data import router as food_data_router
+from .freight_data import router as freight_data_router
+from .gov_data import router as gov_data_router
+from .healthcare_data import router as healthcare_data_router
+from .intelligence import router as intelligence_router
+from .ip_data import router as ip_data_router
+from .jobs import router as jobs_router
+from .legal_docs import router as legal_docs_router
+from .local_data import router as local_data_router
+from .news_data import router as news_data_router
+from .real_estate import router as real_estate_router
+from .research_data import router as research_data_router
+from .site_catalog import router as site_catalog_router
+from .sports_data import router as sports_data_router
+from .supply_data import router as supply_data_router
+from .travel import router as travel_router

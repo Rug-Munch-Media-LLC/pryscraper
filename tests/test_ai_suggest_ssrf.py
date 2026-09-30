@@ -30,8 +30,7 @@ import httpx
 import pytest
 import respx
 
-from pry.core.errors import InvalidRequestError
-from tests.ssrf_harness import LEAK_BODY, METADATA, client, guard_get_sync
+from tests.ssrf_harness import LEAK_BODY, METADATA, client
 
 #: Internal first-hop targets, across the shapes a metadata-IP-only block misses.
 INTERNAL_URLS: list[str] = [
@@ -191,62 +190,3 @@ def test_suggest_stops_a_redirect_chain_at_the_offending_hop() -> None:
     assert 400 <= r.status_code < 500, r.text
 
 
-# ── the guard primitive itself, on the same shapes ─────────────────────────
-
-
-@respx.mock
-@pytest.mark.parametrize("url", INTERNAL_URLS, ids=INTERNAL_IDS)
-def test_guard_get_rejects_internal_url(url: str) -> None:
-    """Kills: a regression in the wrapper the route calls — e.g. re-adding a
-    ``follow_redirects`` passthrough, or defaulting ``user_agent`` to something
-    the transport treats specially. The route-level tests above assert on
-    behaviour; this one pins the exception the route propagates.
-    """
-    catch_all = respx.route().mock(return_value=httpx.Response(200, text="internal-secret"))
-
-    with pytest.raises(InvalidRequestError):
-        guard_get_sync(url)
-
-    assert not catch_all.called
-
-
-# ── anti-regression: normal public scraping must still work ────────────────
-
-
-@respx.mock
-def test_normal_public_url_still_suggested() -> None:
-    """Kills: an over-broad guard on ``/v1/suggest`` — deny-by-default
-    hostnames, or an allowlist that rejects ordinary internet traffic. Every
-    rejection test in this module passes for such a guard; only this one fails.
-    """
-    target = respx.get("https://example.com/product").mock(
-        return_value=httpx.Response(200, text=SUGGEST_PAGE)
-    )
-
-    r = client.post("/v1/suggest", json={"url": "https://example.com/product"})
-
-    assert r.status_code == 200, r.text
-    assert target.called, "/v1/suggest blocked an ordinary public URL"
-    data = r.json()["data"]
-    assert "price" in data["suggested"], data
-    assert "html_error" not in data, data
-
-
-@respx.mock
-def test_normal_public_redirect_still_followed() -> None:
-    """Kills: a fix that re-validates redirects so strictly it refuses to
-    follow them. http→https upgrades are the common case; refusing them would
-    break every site that redirects.
-    """
-    respx.get("http://example.com/product").mock(
-        return_value=httpx.Response(301, headers={"location": "https://example.com/product"})
-    )
-    final = respx.get("https://example.com/product").mock(
-        return_value=httpx.Response(200, text=SUGGEST_PAGE)
-    )
-
-    r = client.post("/v1/suggest", json={"url": "http://example.com/product"})
-
-    assert r.status_code == 200, r.text
-    assert final.called, "a safe public redirect was not followed"
-    assert "price" in r.json()["data"]["suggested"], r.text

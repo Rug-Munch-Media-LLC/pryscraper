@@ -146,10 +146,27 @@ def scan(root: Path, gate) -> dict:
     return data
 
 
+# Rules the gate counts in shipped code only. Declared here, next to the
+# comparison, because a scoped rule must not be reconciled against a
+# repo-wide total -- but every zone is STILL REPORTED, because the tests/
+# count is the evidence for why the rule is scoped in the first place.
+SCOPED_TO_PRODUCTION = frozenset({"monkeypatch"})
+
+
 def reconcile(data: dict, gate_counts: dict[str, int]) -> list[str]:
-    """Return a list of rules whose zoned total disagrees with the gate's."""
-    return [
-        rule
-        for rule, zones in sorted(data.items())
-        if sum(z["n"] for z in zones.values()) != gate_counts.get(rule, 0)
-    ]
+    """Return a list of rules whose zoned total disagrees with the gate's.
+
+    A production-scoped rule is compared against its ``src`` zone only, which
+    is what the gate actually counts. The other zones remain in ``data`` and
+    are still printed, so the scope stays falsifiable: if test fixtures ever
+    stop being the bulk of a rule, the report shows it.
+    """
+    divergent = []
+    for rule, zones in sorted(data.items()):
+        if rule in SCOPED_TO_PRODUCTION:
+            counted = zones.get("src", {}).get("n", 0)
+        else:
+            counted = sum(z["n"] for z in zones.values())
+        if counted != gate_counts.get(rule, 0):
+            divergent.append(rule)
+    return divergent

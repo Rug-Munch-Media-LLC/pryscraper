@@ -44,6 +44,9 @@ NON_ROUTER_HELPERS = {
     # by design, same shape as the entries below.
     # Webhook delivery helper extracted from analysis.py to keep it under the
     # 200-line cap; it exposes no router by design, same shape as below.
+    # Suggest-route helpers extracted from analysis.py to keep it under the
+    # 200-line cap; it exposes no router by design, same shape as below.
+    "ai._suggest_support",
     "ai._watch_webhook",
     "core.admin_issues_store",
     "commerce.billing_subscription.models",

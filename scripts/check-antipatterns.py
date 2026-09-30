@@ -78,6 +78,24 @@ LOGGING_RE = re.compile(
 )
 
 
+def is_production_path(path: Path) -> bool:
+    """True when a file is shipped code rather than a test.
+
+    monkeypatch in a TEST is the correct tool for stubbing and is not debt:
+    1254 of pryscraper's 1291 monkeypatch findings were test fixtures, so the
+    unscoped rule measured suite size and was permanently red for a suite
+    nobody was shrinking. What the rule is actually for is shipped code that
+    rewrites its own dependencies at import time.
+
+    This predicate is exported so `antipattern_breakdown` applies the SAME
+    scope, keeping the two in agreement without re-implementing the rule.
+    """
+    parts = path.parts
+    if "tests" in parts or path.name.startswith("test_"):
+        return False
+    return bool(parts) and parts[0] == "src"
+
+
 def scan_python(path: Path, counts: dict[str, int]) -> None:
     """Scan one Python file with the antipattern AST checks."""
     try:
@@ -111,8 +129,9 @@ def scan_python(path: Path, counts: dict[str, int]) -> None:
                 seg = ast.get_source_segment(src, node) or ""
                 if not LOGGING_RE.search(seg) and "raise" not in seg:
                     counts["bare-except"] = counts.get("bare-except", 0) + 1
+    production = is_production_path(path)
     for ln in lines:
-        if MONKEY_RE.search(ln):
+        if production and MONKEY_RE.search(ln):
             counts["monkeypatch"] = counts.get("monkeypatch", 0) + 1
         if SLOP_RE.search(ln):
             counts["slop-markers"] = counts.get("slop-markers", 0) + 1
