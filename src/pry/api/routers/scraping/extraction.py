@@ -20,6 +20,9 @@ from fastapi import APIRouter, Body
 from extraction.css import _validate_css_selector
 from pry.api.client import get_client
 from pry.api.routers.scraping.extraction_llm import extract_llm as extract_llm
+from pry.api.routers.scraping.extraction_thumbnail import (
+    extract_thumbnail as extract_thumbnail,
+)
 from pry.api.routers.scraping.fetch import BROWSER_USER_AGENT, guard_get
 from pry.core.deps import advanced, scraper
 from pry.core.errors import InvalidRequestError, PryError, ScrapeError
@@ -30,13 +33,17 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Extraction"])
 
-# Re-register the moved route on THIS router. Decorating the imported symbol
-# directly (rather than wrapping it) keeps `extract_llm is
-# extraction_llm.extract_llm` true, so there is no second implementation to
-# drift from the one the router dispatches.
+# Re-register the moved routes on THIS router. Decorating the imported symbols
+# directly (rather than wrapping them) keeps `extract_llm is
+# extraction_llm.extract_llm` and `extract_thumbnail is
+# extraction_thumbnail.extract_thumbnail` true, so there is no second
+# implementation to drift from the one the router dispatches.
 router.post(
     "/v1/extract/llm", tags=["Extraction"], summary="Extract with LLM + chunking strategies"
 )(extract_llm)
+router.post("/v1/thumbnail", tags=["Extraction"], summary="Extract og:image/thumbnail from a URL")(
+    extract_thumbnail
+)
 
 __all__ = [
     "analyze_links",
@@ -114,58 +121,6 @@ async def analyze_links(url: str = Body(...)) -> dict[str, Any]:
             "social": social,
         },
     }
-
-
-@router.post("/v1/thumbnail", tags=["Extraction"], summary="Extract og:image/thumbnail from a URL")
-async def extract_thumbnail(url: str = Body(...)) -> dict[str, Any]:
-    """Extract the og:image, twitter:image, or first img src from a page.
-    Uses Cloudflare bypass when needed. Returns the thumbnail URL or None."""
-    try:
-        result = await scraper.scrape(url, {"bypass_cloudflare": True})
-        html = result.get("raw_html", "")
-        if not html:
-            client = await get_client()
-            resp = await guard_get(client, url)
-            html = resp.text
-    except Exception:  # noqa: BLE001 — thumbnail is best-effort; any failure yields None
-        # ``{"thumbnail": None}`` is the SAME payload a page with no og:image /
-        # twitter:image / img tag returns, so a transport or parse failure would
-        # be reported as "this page has no thumbnail" — a fabricated result.
-        # Signal the failure explicitly instead.
-        return {
-            "success": False,
-            "error": "thumbnail extraction failed",
-            "data": {"thumbnail": None},
-        }
-
-    import re
-
-    # Try og:image first
-    og = re.search(r'<meta\s+property="og:image"\s+content="([^"]+)"', html, re.I)
-    if og:
-        return {"success": True, "data": {"thumbnail": og.group(1), "source": "og:image"}}
-
-    # Try twitter:image
-    tw = re.search(r'<meta\s+name="twitter:image"\s+content="([^"]+)"', html, re.I)
-    if tw:
-        return {"success": True, "data": {"thumbnail": tw.group(1), "source": "twitter:image"}}
-
-    # Try twitter:image:src
-    tws = re.search(r'<meta\s+name="twitter:image:src"\s+content="([^"]+)"', html, re.I)
-    if tws:
-        return {"success": True, "data": {"thumbnail": tws.group(1), "source": "twitter:image:src"}}
-
-    # Try first img tag
-    img = re.search(r'<img\s[^>]*src="([^"]+)"', html, re.I)
-    if img:
-        src = img.group(1)
-        if src.startswith("/"):
-            from urllib.parse import urljoin
-
-            src = urljoin(url, src)
-        return {"success": True, "data": {"thumbnail": src, "source": "first-img"}}
-
-    return {"success": True, "data": {"thumbnail": None}}
 
 
 @router.post("/v1/seo", tags=["Extraction"], summary="SEO analysis of a page")

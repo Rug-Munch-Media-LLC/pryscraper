@@ -1,6 +1,8 @@
 """x402 ASGI enforcement middleware (audit E41 split).
 ``X402Middleware``/``X402_RATE_LIMIT_PER_MIN`` stay here (tests monkeypatch
-this module); verify/response helpers are re-exported for compatibility."""
+this module); verify/response helpers are re-exported for compatibility.
+The Bearer bypass below keeps hosted API-key customers off the 402 challenge;
+positive validation closes the prefix+length hole (``credential.py``)."""
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -135,14 +137,9 @@ class X402Middleware:
         # callers such as the MCP dispatch) bypass the payment gate, but ONLY
         # once the gate has positively validated the credential itself: a
         # DB-issued pry_* key, the operator master key, or an rmi JWT
-        # (see x402_middleware.credential). The gate is the revenue boundary,
-        # so it must not hand off a request it has not authenticated — the old
-        # `Bearer ` prefix + length test admitted ANY 8+ character token.
-        # An INVALID presented credential is NOT waved through: it falls
-        # through to the 402 challenge below, so a bad key is challenged like
-        # keyless traffic rather than served for free. Without the valid-key
-        # bypass every hosted API-key customer gets 402-challenged on paid
-        # endpoints; this keeps them passing while closing the hole.
+        # (see x402_middleware.credential, whose docstring carries the full
+        # rationale). An INVALID credential falls through to the 402 challenge
+        # below, so a bad key is charged like keyless traffic.
         if valid_api_key_credential(headers):
             await self.app(scope, receive, send)
             return

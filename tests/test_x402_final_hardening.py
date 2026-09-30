@@ -13,7 +13,11 @@ Covers:
 3. Attestation enforcement in the middleware: a client-presented 402 body
    with a TAMPERED payTo is rejected (fresh 402, never verified).
 4. Rate limiting: the outermost gate rate-limits per IP (429) before any
-   facilitator traffic.
+    facilitator traffic.
+
+The valid-Bearer-credential case moved to
+``tests/x402/test_gate_bearer_passthrough.py`` — this file had crossed the
+200-line structure cap once it grew past its rate-limit/attestation remit.
 """
 
 from __future__ import annotations
@@ -289,81 +293,3 @@ def test_x402_gate_buckets_by_xff_behind_trusted_proxy(monkeypatch) -> None:
     # Restore the module state for other tests.
     monkeypatch.setenv("PRY_TRUSTED_PROXIES", "")
     importlib.reload(core_mw)
-
-
-@pytest.fixture
-def _isolated_db(tmp_path, monkeypatch):
-    """Temp SQLite DB so a real API key can be issued and validated."""
-    monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/hardening.db")
-    import pry.core.db as db_pkg
-    import pry.core.db.session as session_mod
-
-    monkeypatch.setattr(db_pkg, "_engine", None, raising=False)
-    monkeypatch.setattr(session_mod, "_engine", None, raising=False)
-    monkeypatch.setattr(session_mod, "_SessionLocal", None, raising=False)
-
-    from sqlalchemy import create_engine
-
-    from pry.core.db import models as models_mod
-
-    engine = create_engine(f"sqlite:///{tmp_path}/hardening.db")
-    models_mod.Base.metadata.create_all(engine)
-    yield
-    engine.dispose()
-
-
-@pytest.fixture
-def _no_owner_key_for_hardening(monkeypatch):
-    """Keep the owner bypass out of the credential-path assertions."""
-    monkeypatch.setenv("PRY_API_KEY", "")
-
-
-@pytest.mark.usefixtures("_isolated_db", "_no_owner_key_for_hardening")
-def test_x402_gate_passes_valid_bearer_credentials_to_inner_auth() -> None:
-    """Hosted API-key customers must NOT get 402-challenged: the gate passes a
-    VALID Bearer API key through to the inner auth/billing layer.
-
-    The gate validates the credential itself before waving it through — an
-    unrecognised token (e.g. a merely pry_-shaped fake) is challenged instead
-    (see tests/x402/test_gate_bearer_credential.py). Keyless traffic is still
-    monetised with the 402 challenge."""
-    from pry.core import api_keys_service
-
-    issued = api_keys_service.issue_key(name="hosted-customer")
-    app = _make_app()
-    mw = X402Middleware(app)
-    reached: list[dict[str, Any]] = []
-
-    async def inner_app(scope, receive, send):
-        reached.append(scope)
-
-    mw.app = inner_app
-    scope = {
-        "type": "http",
-        "method": "GET",
-        "path": "/v1/sports/books",
-        "headers": [
-            (b"authorization", f"Bearer {issued['plaintext']}".encode()),
-        ],
-        "client": ("203.0.113.7", 12345),
-        "query_string": b"",
-    }
-
-    async def receive():
-        return {"type": "http.request", "body": b"", "more_body": False}
-
-    async def send(message):
-        pass
-
-    import asyncio
-
-    asyncio.run(mw(scope, receive, send))
-    # The valid-key request reached the inner app (no 402 challenge).
-    assert len(reached) == 1, "valid API-key request was 402-challenged by the gate"
-
-    # Keyless request to the same path still gets the 402 challenge.
-    reached.clear()
-    keyless = dict(scope)
-    keyless["headers"] = []
-    asyncio.run(mw(keyless, receive, send))
-    assert len(reached) == 0, "keyless request was NOT challenged"
