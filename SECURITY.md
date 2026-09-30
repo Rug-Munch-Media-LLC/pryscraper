@@ -76,11 +76,23 @@ Email: security@pryscraper.com (PGP key available on request)
 Response within 24 hours.
 Patch within 7 days for critical, 30 days for medium.
 
+> ⚠️ **This list was aspirational; the first two no longer exist (checked
+> 2026-09-30).** Corrected below.
+
 ## Audit Log
-Every state-changing action logged to:
-- `app/state/audit/` (JSONL, append-only)
-- ClickHouse (analytics, 90-day retention)
-- WORM storage (R2 with object lock, 7-year retention)
+Consent/audit records are written through
+`src/pry/compliance/record_store.py` (directory of JSONL record files;
+`record_store` reads a directory, reports unreadable files rather than failing
+silently, and the caller decides the destination).
+
+- ✅ `src/pry/compliance/` record store — the real implementation
+- ❌ `app/state/audit/` — **does not exist** in this repo (no `app/` package)
+- ❌ ClickHouse audit sink — **not integrated**: no ClickHouse client or
+  dependency anywhere in `src/` or `pyproject.toml`. (A `rmi-clickhouse`
+  container exists in the wider fleet, but pryscraper does not write to it.)
+- ❌ WORM storage (R2 with object lock) — **not implemented**: no
+  `boto3`, no `object_lock`, no R2 config in `src/`. Do not tell an operator
+  that 7-year WORM retention is enforced; nothing enforces it.
 
 ## Incident Response
 1. Detect (alert from monitoring)
