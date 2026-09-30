@@ -119,11 +119,11 @@ def test_external_service_error():
 
 
 def test_error_inherits_from_previous():
-    """Each error type can be caught as PryError."""
+    """Each error type can be caught as PryError. ScrapeError takes a message."""
     errors = [
         NotFoundError(),
         RateLimitError(),
-        ScrapeError(),
+        ScrapeError("all tiers exhausted", verdict="blocked"),
         InvalidRequestError(),
         ExternalServiceError(),
     ]

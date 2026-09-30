@@ -140,6 +140,10 @@ services:
   postgres: !reset null
   redis: !reset null
   prometheus: !reset null
+  # Added to the base compose 2026-09-27 (22537038) to give the Pry alert rules
+  # a receiver. It is the counterpart of prometheus, which is reset above, so
+  # leaving it in boot a container that receives nothing.
+  alertmanager: !reset null
   grafana: !reset null
   flaresolverr: !reset null
   postgres-exporter: !reset null

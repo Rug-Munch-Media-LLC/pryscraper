@@ -192,6 +192,9 @@ def empty_scrape() -> Generator[None, None, None]:
     yield
     scraper.scrape = real_scrape
 
+
 # GDPR erasure fixtures live in tests/gdpr_fixtures.py: the suite was 311 lines
 # in one file, and pytest only discovers fixtures registered here or in conftest.
-pytest_plugins = ("tests.gdpr_fixtures",)
+# tier_health_plugin.py follows the same shape — see its docstring for why the
+# per-tier health store must be redirected per test.
+pytest_plugins = ("tests.gdpr_fixtures", "tests.tier_health_plugin")

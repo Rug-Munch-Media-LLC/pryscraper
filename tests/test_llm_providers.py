@@ -31,6 +31,7 @@ from pry.intelligence.llm.base import (
     strip_fences,
 )
 from pry.intelligence.llm.registry import LLMRegistry, _provider_order_from_env
+from tests.env_isolation import LLM_PROVIDER_KEY_FIELDS, clear_llm_keys
 
 # ── Test doubles ──────────────────────────────────────────────────
 
@@ -431,7 +432,7 @@ def test_provider_order_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 async def test_get_registry_respects_env_order(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Only "ollama" registers with no API keys set; openai is filtered out.
+    clear_llm_keys(monkeypatch, LLM_PROVIDER_KEY_FIELDS)
     monkeypatch.setenv("PRY_LLM_PROVIDER_ORDER", "openai,ollama")
     with patch("pry.intelligence.llm.registry._registry", None):
         from pry.intelligence.llm.registry import get_registry

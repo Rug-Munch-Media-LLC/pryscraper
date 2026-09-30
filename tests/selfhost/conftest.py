@@ -54,6 +54,7 @@ OPERATOR_ONLY_SERVICES = (
     "postgres",
     "redis",
     "prometheus",
+    "alertmanager",
     "grafana",
     "flaresolverr",
     "postgres-exporter",

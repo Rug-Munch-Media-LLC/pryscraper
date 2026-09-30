@@ -22,6 +22,7 @@ from fastapi.testclient import TestClient
 from pry.api import capabilities
 from pry.api.routers.core.capabilities import router as capabilities_router
 from pry.core.settings import settings
+from tests.env_isolation import no_llm_keys, only_openrouter_llm
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -73,7 +74,7 @@ def test_detect_all_available(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.setattr(settings, "proxy_type", "http")
     monkeypatch.setattr(settings, "captcha_2captcha_api_key", "fake-key-2captcha")
     monkeypatch.setattr(settings, "captcha_capsolver_api_key", "fake-key-capsolver")
-    monkeypatch.setattr(settings, "openrouter_api_key", "fake-key-openrouter")
+    only_openrouter_llm(monkeypatch)
     monkeypatch.setattr(capabilities.probes, "_tcp_reachable", lambda host, port, timeout=1.0: True)
 
     report = capabilities.detect_capabilities()
@@ -110,7 +111,7 @@ def test_detect_all_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     monkeypatch.setattr(settings, "proxy_url", "")
     monkeypatch.setattr(settings, "captcha_2captcha_api_key", "")
     monkeypatch.setattr(settings, "captcha_capsolver_api_key", "")
-    monkeypatch.setattr(settings, "openrouter_api_key", "")
+    no_llm_keys(monkeypatch)
     monkeypatch.setattr(
         capabilities.probes, "_tcp_reachable", lambda host, port, timeout=1.0: False
     )
@@ -193,7 +194,7 @@ def test_no_secrets_leak_into_report(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "proxy_url", "http://proxyuser:proxypa55@proxy.example:8080")
     monkeypatch.setattr(settings, "proxy_type", "socks5")
     monkeypatch.setattr(settings, "captcha_2captcha_api_key", "2captcha-super-secret")
-    monkeypatch.setattr(settings, "openrouter_api_key", "openrouter-super-secret")
+    only_openrouter_llm(monkeypatch, key="openrouter-super-secret")
     monkeypatch.setattr(capabilities.probes, "_tcp_reachable", lambda host, port, timeout=1.0: True)
 
     report = capabilities.detect_capabilities()
