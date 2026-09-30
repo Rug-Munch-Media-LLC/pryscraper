@@ -28,6 +28,14 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import NoReturn
+
+# Exit 2 is reserved and means one thing only: the gate could not measure.
+#   0 = measured, within budget (pass)
+#   1 = measured, over budget (the ratchet moved)
+#   2 = could not load the baseline, so nothing was measured
+# A CI job must be able to tell the last one apart from the first two.
+BASELINE_UNREADABLE = 2
 
 SKIP_DIRS = {
     ".git",
@@ -148,6 +156,56 @@ def scan(root: Path) -> dict[str, int]:
     return counts
 
 
+def _unreadable(reason: str) -> NoReturn:
+    """Print why the gate could not measure, then exit 2 (never 0, never 1)."""
+    print(
+        f"check-antipatterns: cannot measure — {reason}\n"
+        f"  This is NOT a pass and NOT a measured failure. The anti-pattern ratchet\n"
+        f"  was not evaluated because the baseline is unusable. Fix the baseline\n"
+        f"  or pass --baseline <path>. Exiting {BASELINE_UNREADABLE}.",
+        file=sys.stderr,
+    )
+    raise SystemExit(BASELINE_UNREADABLE)
+
+
+def load_baseline(path: Path) -> dict[str, int]:
+    """Read the shrink-only per-rule baseline. Fails CLOSED with exit 2.
+
+    An empty default was the previous behaviour, and it is the defect this
+    function exists to remove: with a missing or malformed baseline every rule
+    compared against 0, so the gate either reported PASS on a real backlog or
+    failed for the wrong reason. Both outcomes misrepresented a gate that had
+    measured nothing.
+
+    All three malformed cases are handled distinctly: an unreadable file,
+    invalid JSON, and valid JSON of the wrong shape (a non-object root, or a
+    ``rules`` key that is missing or not a rule->count mapping). ``None`` is
+    never a legal count, so a wrong-typed value is malformed too.
+    """
+    if not path.exists():
+        _unreadable(f"baseline file not found: {path}")
+    try:
+        raw = path.read_text()
+    except OSError as exc:
+        _unreadable(f"baseline file is unreadable: {path} ({exc.strerror or exc})")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        _unreadable(f"baseline file is not valid JSON: {path} (line {exc.lineno}, col {exc.colno})")
+    if not isinstance(data, dict):
+        _unreadable(f"baseline has the wrong shape: {path} (expected a JSON object)")
+    rules = data.get("rules")
+    if not isinstance(rules, dict):
+        _unreadable(f"baseline has the wrong shape: {path} (missing an object 'rules' key)")
+    bad = sorted(k for k, v in rules.items() if not isinstance(k, str) or not isinstance(v, int))
+    if bad:
+        _unreadable(
+            f"baseline has the wrong shape: {path} "
+            f"(expected rule->int counts; offending keys: {bad[:5]})"
+        )
+    return rules
+
+
 def main() -> int:
     """CLI entry: scan, compare to the shrink-only baseline, fail on growth."""
     ap = argparse.ArgumentParser()
@@ -161,33 +219,35 @@ def main() -> int:
     args = ap.parse_args()
 
     root = Path(args.repo).resolve()
-    counts = scan(root)
-    total = sum(counts.values())
     baseline_path = root / args.baseline
 
     if args.update_baseline:
-        old = {}
+        # A raise is the ratchet's purpose, so an absent baseline is a
+        # legitimate bootstrap here. A baseline that EXISTS but is unusable is
+        # not: overwriting it would silently discard the recorded ceilings.
+        old: dict[str, int] = {}
         if baseline_path.exists():
-            try:
-                old = json.loads(baseline_path.read_text()).get("rules", {})
-            except Exception:  # noqa: BLE001
-                old = {}
+            old = load_baseline(baseline_path)
+        counts = scan(root)
+        total = sum(counts.values())
         grown = {r: (old.get(r, 0), n) for r, n in counts.items() if n > old.get(r, 0)}
         if grown and baseline_path.exists():
             print("REFUSING to raise the baseline (ratchet is shrink-only):")
             for r, (o, n) in grown.items():
                 print(f"  {r}: {o} -> {n}")
             return 1
+        # NOTE (reported, not changed): this writes `counts`, so a rule the
+        # scanner no longer emits is DROPPED from the baseline rather than
+        # carried over. See the lane report for the recommended patch.
         baseline_path.write_text(json.dumps({"rules": counts, "total": total}, indent=1) + "\n")
         print(f"baseline updated: {baseline_path} (total {total})")
         return 0
 
-    baseline = {}
-    if baseline_path.exists():
-        try:
-            baseline = json.loads(baseline_path.read_text()).get("rules", {})
-        except Exception:  # noqa: BLE001
-            baseline = {}
+    # Loaded before the scan: an unusable baseline is fatal, and there is no
+    # point walking the tree if the ratchet cannot be evaluated anyway.
+    baseline = load_baseline(baseline_path)
+    counts = scan(root)
+    total = sum(counts.values())
 
     failures = []
     for rule, n in sorted(counts.items()):
