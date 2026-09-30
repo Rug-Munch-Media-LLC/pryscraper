@@ -40,6 +40,9 @@ def _router_modules() -> list[str]:
 # Keep this list tiny: a module that stops exposing `router` because of a bug
 # must fail this test, not get parked here.
 NON_ROUTER_HELPERS = {
+    # In-memory issue tracker extracted from admin_shared; it exposes no router
+    # by design, same shape as the entries below.
+    "core.admin_issues_store",
     "commerce.billing_subscription.models",
     "commerce.billing_subscription.state",
     "commerce.hosting.auth",
