@@ -27,8 +27,13 @@ class SiliconFlowProvider(LLMProvider):
 
     def __init__(self, api_key: str = "", base_url: str = ""):
         self.api_key = api_key or os.getenv("SILICONFLOW_API_KEY", "")
+        # Default is the international host. api.siliconflow.cn rejects this
+        # account's key with 401 "Token is invalid" on /v1/chat/completions,
+        # /v1/embeddings and /v1/rerank alike, so a .cn default meant every
+        # call failed unless SILICONFLOW_BASE_URL was exported. Verified working
+        # 2026-09-30 against api.siliconflow.com.
         self.base_url = base_url or os.getenv(
-            "SILICONFLOW_BASE_URL", "https://api.siliconflow.cn/v1"
+            "SILICONFLOW_BASE_URL", "https://api.siliconflow.com/v1"
         )
 
     async def complete(
