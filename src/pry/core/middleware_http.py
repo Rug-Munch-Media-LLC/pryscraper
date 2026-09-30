@@ -23,6 +23,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
+from pry.core import middleware_ratelimit
 from pry.core.audit import audit_event
 from pry.core.middleware_auth import _AUTH_PUBLIC_PATHS
 from pry.core.middleware_common import (
@@ -39,19 +40,15 @@ from pry.core.observability import (
     set_span_attributes,
     span,
 )
-from pry.core.settings import settings
-from pry.core.user_ratelimit import TIER_LIMITS
 
 
 def _implicit_bucket_id(api_key: str | None, x402_verified: Any) -> str:
     """Bucket id used when the request carries no bound API-key record.
 
-    Mirrors the ids the ``check()`` branches below use so the pre-check quota
-    refresh and the enforced check always agree on which bucket they mean.
+    Delegates to ``middleware_ratelimit``; kept as a name here for existing
+    import sites.
     """
-    if x402_verified:
-        return f"x402:{x402_verified.get('caller', 'unknown')}"
-    return (api_key or "")[:12]
+    return middleware_ratelimit.implicit_bucket_id(api_key, x402_verified)
 
 
 # Middleware: auth + rate limit + timing + request logging
@@ -291,100 +288,10 @@ class PryHttpMiddleware:
     ) -> tuple[bool, dict[str, Any], dict[str, str], str | None]:
         """Pick the right limiter (x402 / DB key / legacy IP) and check it.
 
-        Returns ``(allowed, stats, rate_limit_headers, api_key)``.
+        Returns ``(allowed, stats, rate_limit_headers, api_key)``. The logic
+        lives in ``middleware_ratelimit``; this is the middleware's entry to it.
         """
-        from pry.core import middleware as _facade
-
-        # Rate limiting: use user rate limiter if API key present, else IP-based
-        auth_header = self._get_header(scope, b"authorization")
-        api_key = None
-        if auth_header.startswith("Bearer "):
-            api_key = auth_header[7:]
-
-        ratelimiter = _facade.ratelimiter
-        user_ratelimiter = _facade.user_ratelimiter
-
-        # x402 payment-verified requests carry NO Authorization header (the
-        # on-chain payment IS the credential). request_authorized() bound an
-        # identity with tier="X402" into scope["pry_api_key"]. Route them
-        # through the user rate limiter with the X402 tier so a paying caller
-        # gets the higher paid limit instead of being collapsed into the
-        # per-IP FREE bucket (which would throttle paid traffic behind a
-        # shared NAT/proxy and undercut what they paid for).
-        x402_verified = scope.get("x402_verified")
-
-        # Refresh the per-key monthly quota BEFORE check() runs. check() is
-        # fail-closed on an unverified bucket, but it can only deny a bucket
-        # something has marked unverified — without this refresh the
-        # database read never happened on the request path, so a DB outage
-        # served every user at quota_used=0 (an unlimited-quota read) and
-        # the deny branch was unreachable. refresh_quota() only touches the
-        # DB when the cached quota is older than its TTL, and never raises:
-        # a failed read leaves the bucket unverified and check() denies.
-        if x402_verified or (api_key and api_key != settings.api_key):
-            key_record = scope.get("pry_api_key") or {}
-            bucket_id = key_record.get("key_id") or _implicit_bucket_id(api_key, x402_verified)
-            await user_ratelimiter.refresh_quota(bucket_id)
-
-        if x402_verified:
-            key_record = scope.get("pry_api_key") or {}
-            # Bucket per caller (the paying wallet/agent), not per IP — a
-            # single payer behind many IPs must share one budget, and many
-            # payers behind one IP must not share a budget.
-            bucket_id = key_record.get("key_id") or _implicit_bucket_id(api_key, x402_verified)
-            allowed, stats = user_ratelimiter.check(
-                api_key_id=bucket_id,
-                tier=key_record.get("tier", "X402"),
-                rpm=key_record.get("rate_limit_rpm"),
-                quota_monthly=key_record.get("quota_monthly"),
-                cost_usd=0.0,
-            )
-            effective_limit = (
-                key_record.get("rate_limit_rpm")
-                or TIER_LIMITS.get(key_record.get("tier", "X402"), TIER_LIMITS["X402"])["rpm"]
-            )
-            rate_limit_headers = {
-                "x-ratelimit-limit": str(stats.get("limit", effective_limit)),
-                "x-ratelimit-remaining": str(stats.get("remaining", 0)),
-                "x-ratelimit-reset": str(int(stats.get("quota_reset_at", time.time()))),
-                "x-ratelimit-quota-used": (
-                    str(stats["quota_used"]) if "quota_used" in stats else None
-                ),
-                "x-ratelimit-quota-limit": str(stats.get("quota_limit", 10000)),
-            }
-        elif api_key and api_key != settings.api_key:
-            # DB-issued key (pry_...) already validated in request_authorized(),
-            # which bound the authenticated record into scope["pry_api_key"].
-            # Use ITS per-key rate_limit_rpm + quota (set at issue time) so
-            # PRY_RATE_LIMIT_RPM / api_keys_service per-key quotas apply, instead
-            # of the previous hardcoded "FREE" tier default.
-            key_record = scope.get("pry_api_key") or {}
-            allowed, stats = user_ratelimiter.check(
-                api_key_id=key_record.get("key_id") or _implicit_bucket_id(api_key, None),
-                tier=key_record.get("tier", "FREE"),
-                rpm=key_record.get("rate_limit_rpm"),
-                quota_monthly=key_record.get("quota_monthly"),
-                cost_usd=0.0,
-            )
-            effective_limit = key_record.get("rate_limit_rpm") or ratelimiter.default_rpm
-            rate_limit_headers = {
-                "x-ratelimit-limit": str(stats.get("limit", effective_limit)),
-                "x-ratelimit-remaining": str(stats.get("remaining", 0)),
-                "x-ratelimit-reset": str(int(stats.get("quota_reset_at", time.time()))),
-                "x-ratelimit-quota-used": (
-                    str(stats["quota_used"]) if "quota_used" in stats else None
-                ),
-                "x-ratelimit-quota-limit": str(stats.get("quota_limit", 10000)),
-            }
-        else:
-            # Legacy global key or no key — use IP-based rate limiter
-            allowed, stats = ratelimiter.check(ip)
-            rate_limit_headers = {
-                "x-ratelimit-limit": str(ratelimiter.default_rpm),
-                "x-ratelimit-remaining": str(stats.get("remaining", 0)),
-                "x-ratelimit-reset": str(stats.get("retry_after", 1)),
-            }
-        return allowed, stats, rate_limit_headers, api_key
+        return await middleware_ratelimit.resolve_rate_limit(scope, ip)
 
     async def _reject_rate_limited(
         self,
