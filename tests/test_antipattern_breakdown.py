@@ -53,9 +53,14 @@ def test_patch(monkeypatch):
 def frozen_repo(tmp_path):
     """A tiny repo whose findings are known exactly, so nothing drifts."""
     (tmp_path / "src" / "pkg").mkdir(parents=True)
-    (tmp_path / "tests").mkdir()
     (tmp_path / "src" / "pkg" / "handlers.py").write_text(SRC_HANDLER)
-    (tmp_path / "tests" / "test_patch.py").write_text(TEST_MONKEY)
+    # The monkeypatch fixture belongs under src/, NOT tests/. is_production_path
+    # exempts anything in a tests/ dir or named test_*, because monkeypatch in a
+    # test is the correct tool for stubbing and 1254 of 1291 findings were test
+    # fixtures. Placing it in tests/ therefore made this fixture invisible and the
+    # assertion below wrong. The rule targets shipped code that rewrites its own
+    # dependencies at import time, so the fixture must live where that applies.
+    (tmp_path / "src" / "pkg" / "hooks.py").write_text(TEST_MONKEY)
     baseline = tmp_path / "scripts" / "antipattern-baseline.json"
     baseline.parent.mkdir(parents=True)
     # A deliberately tight baseline so the gate fails, and we can compare the
@@ -121,11 +126,16 @@ def test_breakdown_matches_gate_counts_exactly(modules, frozen_repo):
 
 
 def test_breakdown_places_findings_by_zone(modules, frozen_repo):
-    """The monkeypatch rule is 100% tests/ here; the gate's total is 1."""
+    """The fixture's monkeypatch is in src/, so it lands in the src zone.
+
+    It used to sit in tests/, where is_production_path exempts it entirely —
+    which is correct policy (monkeypatch in a test is the right tool for
+    stubbing) but made this fixture unable to exercise the rule at all.
+    """
     _handlers, breakdown, gate = modules
     data = breakdown.scan(frozen_repo, gate)
-    assert data["monkeypatch"]["tests"]["n"] == 1
-    assert data["monkeypatch"]["src"]["n"] == 0
+    assert data["monkeypatch"]["src"]["n"] == 1
+    assert data["monkeypatch"]["tests"]["n"] == 0
     assert data["monkeypatch"]["other"]["n"] == 0
 
 

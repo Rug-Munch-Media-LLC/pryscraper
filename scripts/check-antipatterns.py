@@ -93,7 +93,15 @@ def is_production_path(path: Path) -> bool:
     parts = path.parts
     if "tests" in parts or path.name.startswith("test_"):
         return False
-    return bool(parts) and parts[0] == "src"
+    # Accept the file living under a src/ directory wherever that sits in the
+    # path. The previous form tested parts[0] == "src", which only holds for a
+    # RELATIVE path: with an absolute --repo, parts[0] is "/" and every file was
+    # classified non-production, so monkeypatch detection silently counted
+    # nothing at all. Take the LAST src/ segment, so a nested
+    # src/pkg/... still resolves while /home/x/src/y.py cannot spoof it.
+    if "src" not in parts:
+        return False
+    return parts[-1] != "src" and parts.index("src") < len(parts) - 1
 
 
 def scan_python(path: Path, counts: dict[str, int]) -> None:
