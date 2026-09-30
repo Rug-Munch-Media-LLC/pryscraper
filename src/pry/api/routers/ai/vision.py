@@ -18,9 +18,9 @@ import httpx
 from fastapi import APIRouter, Body
 
 from pry.api.client import get_client
+from pry.api.routers.ai import vision_keys
 from pry.core.deps import automator
 from pry.core.errors import ExternalServiceError, InvalidRequestError, PryError, ScrapeError
-from pry.core.settings import settings
 from pry.engine.resilience import registry
 
 logger = logging.getLogger(__name__)
@@ -179,7 +179,9 @@ async def _call_vision_api(
     image_b64: str, question: str, model: str, max_tokens: int = 800
 ) -> tuple[str | None, str | None, str | None]:
     """Single async vision call. Returns (text, model_used) or raises."""
-    key = _get_or_key()
+    # Call-time read through the module (never a bound import) so a patch on
+    # either module is honoured.
+    key = vision_keys._get_or_key()
     if not key:
         return None, None, "OPENROUTER_API_KEY not set"
     if not registry.is_service_allowed("openrouter"):
@@ -220,16 +222,7 @@ async def _call_vision_api(
     return body["choices"][0]["message"]["content"], model, None
 
 
-def _get_or_key() -> str | None:
-    """Pull OPENROUTER_API_KEY from ~/.hermes/.env or env."""
-    key = settings.openrouter_api_key
-    if key:
-        return key
-    env_path = os.path.expanduser("~/.hermes/.env")
-    if not os.path.isfile(env_path):
-        return None
-    with open(env_path) as f:
-        for line in f:
-            if line.startswith("OPENROUTER_API_KEY="):
-                return line.split("=", 1)[1].strip().strip('"').strip("'")
-    return None
+# Re-exported so `from pry.api.routers.ai.vision import _get_or_key` keeps working.
+# NOT a bound local: it is the same object, and internal callers above go through
+# the `vision_keys` module attribute so monkeypatching stays visible.
+from pry.api.routers.ai.vision_keys import _get_or_key  # noqa: E402,F401
