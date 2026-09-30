@@ -10,7 +10,6 @@ import asyncio
 import hashlib
 import json
 import logging
-import os
 import time
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -172,45 +171,65 @@ async def apply_retention_policy() -> dict[str, Any]:
 def _apply_retention_policy_sync() -> dict[str, Any]:
     """Apply the retention policy by removing expired data (sync worker)."""
     now = time.time()
-    removed_total = 0
+    # Single-element list so the helpers below can accumulate without a
+    # nonlocal; the count is read back once at the end.
+    counter = [0]
     skipped: list[str] = []
 
     # Remove expired consent records
-    for path in CONSENT_DIR.glob("*.json"):
+    for path in sorted(CONSENT_DIR.glob("*.json")):
         try:
             data = json.loads(path.read_text())
             expires = datetime.fromisoformat(data["expires_at"])
             if expires < datetime.now(UTC):
                 path.unlink()
-                removed_total += 1
+                counter[0] += 1
         except (json.JSONDecodeError, OSError, ValueError, KeyError, TypeError):
             # An expired record we cannot read is NOT removed. Count it so the
             # caller sees a partial sweep instead of a silently clean result.
             skipped.append(path.name)
             continue
 
-    # Remove old quality data (>90 days)
-    quality_dir = Path(os.path.expanduser("~/.pry/quality"))
-    if quality_dir.exists():
-        for path in quality_dir.glob("*.json"):
-            if now - path.stat().st_mtime > 90 * 86400:
-                path.unlink()
-                removed_total += 1
+    # Remove old quality data (>90 days). Derived from PRY_DATA_DIR, matching
+    # pry.engine.quality.QUALITY_DIR -- a "~/.pry/quality" spelling resolves
+    # under $HOME, which in production is a different tree from PRY_DATA_DIR
+    # and therefore an empty one.
+    _remove_expired(PRY_DATA_DIR / "quality", 90 * 86400, now, counter, skipped)
 
-    # Remove old fingerprints (>30 days)
-    freshness_dir = Path(os.path.expanduser("~/.pry/freshness"))
-    if freshness_dir.exists():
-        for path in freshness_dir.glob("*.json"):
-            if now - path.stat().st_mtime > 30 * 86400:
-                path.unlink()
-                removed_total += 1
+    # Remove old fingerprints (>30 days). Same reasoning; the writer is
+    # pry.engine.quality_checks.freshness under PRY_DATA_DIR / "freshness".
+    _remove_expired(PRY_DATA_DIR / "freshness", 30 * 86400, now, counter, skipped)
 
+    removed_total = counter[0]
     logger.info("retention_policy_applied", extra={"removed": removed_total})
     result: dict[str, Any] = {"success": True, "removed_records": removed_total}
     if skipped:
         # The sweep did not finish: unreadable records were left in place.
         result["unreadable_records"] = len(skipped)
     return result
+
+
+def _remove_expired(
+    directory: Path,
+    max_age_s: int,
+    now: float,
+    removed: list[int],
+    skipped: list[str],
+) -> None:
+    """Delete ``*.json`` under ``directory`` older than ``max_age_s``.
+
+    Counts a file it could not stat or unlink into ``skipped`` rather than
+    letting it vanish silently, so the caller can report a partial sweep.
+    """
+    if not directory.is_dir():
+        return
+    for path in sorted(directory.glob("*.json")):
+        try:
+            if now - path.stat().st_mtime > max_age_s:
+                path.unlink()
+                removed[0] += 1
+        except OSError:
+            skipped.append(path.name)
 
 
 # ── Audit Log ──

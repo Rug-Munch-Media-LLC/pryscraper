@@ -9,6 +9,17 @@ The core rule, and the reason ``process_deletion`` is careful about how it
 matches: matching is exact on structured ``user_id`` fields and falls back to a
 word-boundary match on unstructured content, so a short ID like "a" cannot
 over-delete unrelated records.
+
+Two invariants this module exists to hold:
+
+1. **Every data root is derived from ``PRY_DATA_DIR``.** In production
+   ``PRY_DATA_DIR`` and ``HOME`` are different trees (``/app/pry-data`` vs
+   ``/app/pry-data/home``), so a home-relative path silently points at a
+   directory that holds nothing. Scanning an empty tree and reporting success is
+   a false compliance attestation, which is worse than an honest failure.
+2. **Zero deletions is not success.** ``process_deletion`` returns
+   ``success=False`` with ``status="no_matching_records"`` when it removed
+   nothing, so the caller cannot stamp the request ``completed``.
 """
 
 # SPDX-License-Identifier: MIT
@@ -21,11 +32,14 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import re
-from pathlib import Path
-from typing import Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+from pry.compliance import record_store
 from pry.core.paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
@@ -34,11 +48,26 @@ logger = logging.getLogger(__name__)
 # imports this module -- a direct import would be circular. Identical path.
 CONSENT_DIR = PRY_DATA_DIR / "gdpr" / "consent"
 
+# Same reasoning as CONSENT_DIR, and the SAME directories their writers use:
+# pry.engine.quality.QUALITY_DIR and pry.engine.sessions.SESSIONS_DIR. These
+# must not be spelled ``~/.pry/...`` -- see invariant (1) in the module
+# docstring for what that costs.
+QUALITY_DIR = PRY_DATA_DIR / "quality"
+SESSIONS_DIR = PRY_DATA_DIR / "sessions"
+
+# Every data root process_deletion sweeps, in the order it sweeps them. Echoed
+# back in the result so an operator can verify COVERAGE instead of trusting a
+# boolean. If a root is added here it is visible; if one is missing, the gap is
+# visible in this list.
+ERASURE_SCOPE: tuple[str, ...] = ("gdpr/consent", "quality", "sessions")
 
 # Minimum length for a user_id to be eligible for deletion. Shorter identifiers
 # (e.g. a single character like "a") would match many unrelated records when
 # searching unstructured content, risking over-deletion of other users' data.
 MIN_USER_ID_LENGTH = 3
+
+# Record predicates take a decoded record and answer "is this the data subject?".
+RecordPredicate = Callable[[dict[str, Any]], bool]
 
 
 def _word_boundary_match(user_id: str, content: str) -> bool:
@@ -63,15 +92,141 @@ def _record_user_id(record: dict[str, Any]) -> str | None:
     return None
 
 
+def _structured_hit(record: dict[str, Any], user_id: str) -> bool:
+    """True when a structured ``user_id`` field is an exact (case-insensitive) match."""
+    found = _record_user_id(record)
+    return found is not None and found.lower() == user_id.lower()
+
+
+def _quality_predicate(user_id: str) -> RecordPredicate:
+    """Predicate for ``quality/*.json``: structured user field, else word-boundary on the URL."""
+    lower = user_id.lower()
+
+    def matches(data: dict[str, Any]) -> bool:
+        inner = data.get("data")
+        if _structured_hit(data, user_id) or (
+            isinstance(inner, dict) and _structured_hit(inner, user_id)
+        ):
+            return True
+        url = data.get("url", "")
+        return isinstance(url, str) and bool(url) and _word_boundary_match(lower, url)
+
+    return matches
+
+
+def _session_predicate(user_id: str) -> RecordPredicate:
+    """Predicate for ``sessions/*.json``: structured user field, else word-boundary on metadata."""
+    lower = user_id.lower()
+
+    def matches(data: dict[str, Any]) -> bool:
+        meta = data.get("metadata") or {}
+        meta = meta if isinstance(meta, dict) else {}
+        if _structured_hit(meta, user_id) or _structured_hit(data, user_id):
+            return True
+        return _word_boundary_match(lower, json.dumps(meta))
+
+    return matches
+
+
+def _purge_matching_json(directory: Path, matches: RecordPredicate) -> tuple[int, int, bool]:
+    """Delete every readable ``*.json`` in ``directory`` that ``matches`` selects.
+
+    Returns ``(deleted, unreadable, present)``. A record that cannot be read is
+    counted, never treated as "not this user's": we cannot prove it does not
+    hold the data subject's data, so it is a hole in the erasure, not a clean
+    sweep. ``present`` is False when the root does not exist at all, which the
+    caller reports as a coverage gap rather than as "nothing to delete".
+    """
+    deleted = 0
+    unreadable = 0
+    if not directory.is_dir():
+        return deleted, unreadable, False
+    for path in sorted(directory.glob("*.json")):
+        data = record_store.load(path)
+        if data is None:
+            unreadable += 1
+            logger.warning("gdpr_deletion_scan_failed", extra={"root": directory.name})
+            continue
+        if not matches(data):
+            continue
+        try:
+            path.unlink()
+        except OSError as exc:
+            unreadable += 1
+            logger.error(
+                "gdpr_record_delete_failed",
+                extra={"root": directory.name, "error": str(exc)[:160]},
+            )
+            continue
+        deleted += 1
+    return deleted, unreadable, True
+
+
+def _purge_consent(user_hash: str) -> tuple[int, int, bool]:
+    """Delete this subject's consent records, keyed by the hashed filename prefix."""
+    deleted = 0
+    failed = 0
+    for path in sorted(CONSENT_DIR.glob(f"{user_hash}_*.json")):
+        try:
+            path.unlink()
+        except OSError as exc:
+            failed += 1
+            logger.error(
+                "gdpr_consent_record_delete_failed",
+                extra={"root": CONSENT_DIR.name, "error": str(exc)[:160]},
+            )
+            continue
+        deleted += 1
+    return deleted, failed, True
+
+
+def _result(
+    *, deleted: int, unreadable: int, missing_roots: list[str], user_hash: str
+) -> dict[str, Any]:
+    """Build the process_deletion response from the sweep totals.
+
+    ``success`` is True only when records were actually removed. Zero removals
+    is reported as an explicit failure with ``status="no_matching_records"`` --
+    a distinct, greppable, operator-visible state -- because the difference
+    between "the subject had no records" and "we scanned the wrong tree" is
+    exactly what the old silent-success erased.
+    """
+    status = "completed" if deleted > 0 else "no_matching_records"
+    result: dict[str, Any] = {
+        "success": deleted > 0,
+        "status": status,
+        "deleted_records": deleted,
+        "unreadable_records": unreadable,
+        "scanned_roots": list(ERASURE_SCOPE),
+        "missing_roots": missing_roots,
+        "user_hash": user_hash,
+    }
+    if deleted == 0:
+        result["note"] = (
+            "No records matched the data subject. Erasure is NOT fulfilled: the sweep "
+            f"covered {list(ERASURE_SCOPE)} and removed nothing, so either no data is "
+            "held or the data lives outside these roots. Verify before closing."
+        )
+    elif unreadable:
+        result["note"] = (
+            f"{unreadable} record(s) in scope could not be read or removed; those may "
+            "still hold the data subject's data"
+        )
+    return result
+
+
 def process_deletion(user_id: str) -> dict[str, Any]:
     """Process data deletion for a user (GDPR Art. 17).
 
-    This finds and removes all data associated with the user across
-    Pry's storage: consent records, quality history, sessions, etc.
+    Removes the subject's data across every root named in ``ERASURE_SCOPE``:
+    consent records, quality history, browser sessions.
 
     Matching is exact on structured ``user_id`` fields and falls back to a
     word-boundary match on unstructured content, so short IDs cannot
     over-delete unrelated records.
+
+    Returns ``success=False`` with ``status="no_matching_records"`` when nothing
+    was removed. The caller must not treat that as a fulfilled erasure.
     """
     user_hash = hashlib.sha256(user_id.lower().encode()).hexdigest()[:16]
 
@@ -83,66 +238,34 @@ def process_deletion(user_id: str) -> dict[str, Any]:
         )
         return {
             "success": False,
+            "status": "rejected",
             "error": f"user_id must be at least {MIN_USER_ID_LENGTH} characters",
             "deleted_records": 0,
+            "unreadable_records": 0,
+            "scanned_roots": list(ERASURE_SCOPE),
+            "missing_roots": list(ERASURE_SCOPE),
             "user_hash": user_hash,
         }
 
-    deleted_records = 0
-
-    # Delete consent records
-    for path in CONSENT_DIR.glob(f"{user_hash}_*.json"):
-        try:
-            path.unlink()
-            deleted_records += 1
-        except OSError as e:
-            # Erasure MUST be complete for compliance; surface partial failures.
-            logger.error(
-                "gdpr_consent_record_delete_failed",
-                extra={"path": str(path), "error": str(e)[:160]},
-            )
-
-    # Delete from quality history (if email in URLs)
-    quality_dir = Path(os.path.expanduser("~/.pry/quality"))
-    if quality_dir.exists():
-        for path in quality_dir.glob("*.json"):
-            try:
-                data = json.loads(path.read_text())
-                # Exact match on a structured user_id field if present.
-                record_user = _record_user_id(data) or _record_user_id(data.get("data") or {})
-                if record_user is not None and record_user.lower() == user_id.lower():
-                    path.unlink()
-                    deleted_records += 1
-                    continue
-                # Fall back to word-boundary match on the URL (unstructured).
-                url = data.get("url", "")
-                if url and _word_boundary_match(user_id, url):
-                    path.unlink()
-                    deleted_records += 1
-            except (json.JSONDecodeError, OSError) as e:
-                logger.warning("gdpr_deletion_scan_failed", extra={"error": str(e)[:160]})
-
-    # Delete sessions associated with this user
-    sessions_dir = Path(os.path.expanduser("~/.pry/sessions"))
-    if sessions_dir.exists():
-        for path in sessions_dir.glob("*.json"):
-            try:
-                data = json.loads(path.read_text())
-                meta = data.get("metadata", {}) or {}
-                # Exact match on a structured user_id field if present.
-                record_user = _record_user_id(meta) or _record_user_id(data)
-                if record_user is not None and record_user.lower() == user_id.lower():
-                    path.unlink()
-                    deleted_records += 1
-                    continue
-                # Fall back to word-boundary match on the metadata (unstructured).
-                if _word_boundary_match(user_id, json.dumps(meta)):
-                    path.unlink()
-                    deleted_records += 1
-            except (json.JSONDecodeError, OSError) as e:
-                logger.warning("gdpr_deletion_scan_failed", extra={"error": str(e)[:160]})
+    consent, quality, sessions = (
+        _purge_consent(user_hash),
+        _purge_matching_json(QUALITY_DIR, _quality_predicate(user_id)),
+        _purge_matching_json(SESSIONS_DIR, _session_predicate(user_id)),
+    )
+    deleted = sum(removed for removed, _, _ in (consent, quality, sessions))
+    unreadable = sum(failed for _, failed, _ in (consent, quality, sessions))
+    missing = [
+        name for name, sweep in (("quality", quality), ("sessions", sessions)) if not sweep[2]
+    ]
 
     logger.info(
-        "deletion_processed", extra={"user_hash": user_hash, "deleted_records": deleted_records}
+        "deletion_processed",
+        extra={
+            "user_hash": user_hash,
+            "deleted_records": deleted,
+            "unreadable_records": unreadable,
+        },
     )
-    return {"success": True, "deleted_records": deleted_records, "user_hash": user_hash}
+    return _result(
+        deleted=deleted, unreadable=unreadable, missing_roots=missing, user_hash=user_hash
+    )

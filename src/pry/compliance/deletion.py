@@ -75,7 +75,13 @@ async def request_deletion(
 
 
 async def execute_deletion(request_id: str) -> dict[str, Any]:
-    """Execute a deletion request."""
+    """Execute a deletion request.
+
+    Stamps the request ``completed`` only when the sweep actually removed
+    records. A zero-deletion sweep records ``status="no_matching_records"`` and
+    leaves ``completed_at`` null, because a request reported as fulfilled while
+    the data remains is a false compliance attestation (GDPR Art. 17).
+    """
     path = DELETION_DIR / f"{request_id}.json"
     if not path.exists():
         return {"error": f"Deletion request not found: {request_id}"}
@@ -84,9 +90,24 @@ async def execute_deletion(request_id: str) -> dict[str, Any]:
         request: dict[str, Any] = json.loads(path.read_text())
         user_id = request.get("user_id", "")
         result = process_deletion(user_id)
-        request["status"] = "completed"
-        request["completed_at"] = datetime.now(UTC).isoformat()
+        fulfilled = bool(result.get("success"))
+        request["status"] = (
+            "completed" if fulfilled else result.get("status", "no_matching_records")
+        )
+        request["completed_at"] = datetime.now(UTC).isoformat() if fulfilled else None
         request["deleted_records"] = result.get("deleted_records", 0)
+        request["unreadable_records"] = result.get("unreadable_records", 0)
+        request["scanned_roots"] = result.get("scanned_roots", [])
+        if not fulfilled:
+            request["note"] = result.get("note", "Erasure not fulfilled: no records removed")
+            logger.error(
+                "deletion_not_fulfilled",
+                extra={
+                    "request_id": request_id,
+                    "user_hash": result.get("user_hash", ""),
+                    "deleted_records": request["deleted_records"],
+                },
+            )
         path.write_text(json.dumps(request, indent=2))
         return request
     except (json.JSONDecodeError, OSError) as e:
