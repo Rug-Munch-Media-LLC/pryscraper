@@ -24,6 +24,12 @@ from pry.engine.url_guard import safe_get
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "_GOOGLE_INTERSTITIAL_MARKERS",
+    "TierDelegatedMixin",
+    "TierSpecialMixin",
+    "_is_google_interstitial",
+]
 # Markers that identify a Google interstitial / search / consent page rather
 # than the requested cached document. Google's webcache endpoint frequently
 # redirects to a search or consent page (or returns one with HTTP 200) when
@@ -190,16 +196,3 @@ class TierSpecialMixin(TierDelegatedMixin):
             # `bool(html and self._is_valid(html))`).
             logger.debug("tor_failed", extra={"error": str(e)[:200]})
         return None
-
-
-# Re-exported so the delegated tiers keep their documented import path.
-from pry.engine.tiers_special_delegated import (  # noqa: E402  isort: skip
-    TierDelegatedMixin as TierDelegatedMixin,
-)
-
-__all__ = [
-    "_GOOGLE_INTERSTITIAL_MARKERS",
-    "TierDelegatedMixin",
-    "TierSpecialMixin",
-    "_is_google_interstitial",
-]
