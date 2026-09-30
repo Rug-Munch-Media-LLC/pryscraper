@@ -196,3 +196,7 @@ def empty_scrape() -> Generator[None, None, None]:
     scraper.scrape = AsyncMock(return_value={"status": "ok", "raw_html": "", "content": ""})
     yield
     scraper.scrape = real_scrape
+
+# GDPR erasure fixtures live in tests/gdpr_fixtures.py so the three split
+# erasure test files share one definition (the suite was 311 lines in one file).
+pytest_plugins = ("tests.gdpr_fixtures",)

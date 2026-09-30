@@ -77,6 +77,13 @@ def test_emails_endpoint_reports_social_error_when_direct_fetch_fails() -> None:
     scrape_result: dict[str, Any] = {"status": "ok", "content": "reach us at a@b.com"}
     with (
         patch("pry.api.routers.scraping.extraction.get_client", return_value=failing),
+        # The SSRF fix routes the direct fetch through guard_get, which owns the
+        # request/redirect loop. Patching only get_client leaves the guard on the
+        # real path, so the transport error under test is never produced.
+        patch(
+            "pry.api.routers.scraping.extraction.guard_get",
+            AsyncMock(side_effect=httpx.ConnectError("dns went away")),
+        ),
         patch(
             "pry.api.routers.scraping.extraction.scraper.scrape",
             AsyncMock(return_value=scrape_result),

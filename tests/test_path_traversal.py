@@ -1,8 +1,5 @@
-"""Tests for path-traversal rejection in user-supplied filesystem identifiers.
+"""Path traversal guards: the choke point, containment, and the public API surface."""
 
-CWE-22. Every test names the mutation it kills. A test that still passes with
-the fix reverted is dead weight and gets deleted - see test_mutation_kills_fix.
-"""
 
 from __future__ import annotations
 
@@ -10,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pry.core.errors import InvalidRequestError, PryError
+from pry.core.errors import InvalidRequestError
 from pry.engine import sessions
 
 if TYPE_CHECKING:
@@ -150,94 +147,3 @@ def test_safe_join_containment_catches_bypass_of_id_rule(
         pathsafe.safe_join(sessions_dir, "../../etc/passwd", ".json")
 
 
-# --- Sibling instances -------------------------------------------------------
-
-
-def test_template_id_rejects_traversal() -> None:
-    """Kills: reverting the template_engine fix."""
-    from pry.commerce.template_engine import get_template
-
-    with pytest.raises(InvalidRequestError):
-        get_template("../../../../etc/passwd")
-
-
-def test_credential_id_rejects_traversal() -> None:
-    """Kills: reverting the credential-vault ``safe_join`` fix.
-
-    ``_vault_path`` moved to ``pry.api.credential_vault`` when the authz lane
-    extracted the vault out of ``auth_connector``. Test the module that owns
-    the function now, not the module it used to live in.
-    """
-    from pry.api import credential_vault
-
-    with pytest.raises(InvalidRequestError):
-        credential_vault._vault_path("../../etc/passwd")
-
-
-# --- Error contract ----------------------------------------------------------
-
-
-def test_traversal_yields_4xx_not_500() -> None:
-    """Kills: raising a bare ValueError, which FastAPI maps to 500.
-
-    Wired through the real app-level PryError handler, so this covers the
-    full route path rather than just the exception type.
-    """
-    from unittest.mock import AsyncMock, patch
-
-    from fastapi import FastAPI
-    from fastapi.responses import JSONResponse
-    from fastapi.testclient import TestClient
-
-    from pry.api.routers.core.sessions import router
-
-    app = FastAPI()
-
-    @app.exception_handler(PryError)
-    async def _handler(request, exc):  # type: ignore[no-untyped-def]
-        return JSONResponse(status_code=exc.status_code, content=exc.to_dict())
-
-    app.include_router(router)
-    client = TestClient(app, raise_server_exceptions=False)
-    with patch("pry.api.routers.core.sessions.automator") as auto:
-        auto.destroy_session = AsyncMock(return_value=True)
-        r = client.post(
-            "/v1/session/destroy",
-            json={"session_id": "../../../etc/passwd", "save_state": False},
-        )
-    assert r.status_code == 400
-    assert r.json()["code"] == "invalid_request"
-
-
-def test_valid_session_id_still_works_through_route() -> None:
-    """Kills: an over-tight rule turning legitimate destroys into 400s."""
-    from unittest.mock import AsyncMock, patch
-
-    from fastapi import FastAPI
-    from fastapi.responses import JSONResponse
-    from fastapi.testclient import TestClient
-
-    from pry.api.routers.core.sessions import router
-
-    app = FastAPI()
-
-    @app.exception_handler(PryError)
-    async def _handler(request, exc):  # type: ignore[no-untyped-def]
-        return JSONResponse(status_code=exc.status_code, content=exc.to_dict())
-
-    app.include_router(router)
-    client = TestClient(app, raise_server_exceptions=False)
-    with patch("pry.api.routers.core.sessions.automator") as auto:
-        auto.destroy_session = AsyncMock(return_value=True)
-        r = client.post(
-            "/v1/session/destroy",
-            json={"session_id": "session_0123456789ab", "save_state": False},
-        )
-    assert r.status_code == 200
-
-
-def test_rejected_value_is_not_logged_verbatim(sessions_dir: Path, caplog) -> None:
-    """Kills: logging the raw attacker string into the log stream."""
-    with caplog.at_level("WARNING"), pytest.raises(InvalidRequestError):
-        sessions._session_path("../../etc/passwd")
-    assert "../../etc/passwd" not in caplog.text

@@ -21,7 +21,7 @@ from pry.api.client import get_client
 from pry.api.routers.scraping.extraction_llm import extract_llm as extract_llm
 from pry.api.routers.scraping.fetch import BROWSER_USER_AGENT, guard_get
 from pry.core.deps import advanced, scraper
-from pry.core.errors import InvalidRequestError, ScrapeError
+from pry.core.errors import InvalidRequestError, PryError, ScrapeError
 from pry.engine.extraction import JsonCssExtractionStrategy
 from pry.engine.extractor import SchemaExtractor
 
@@ -229,6 +229,12 @@ async def find_emails(url: str = Body(...)) -> dict[str, Any]:
     except (httpx.HTTPError, httpx.RequestError) as e:
         social_error = f"{type(e).__name__}: {e}"[:300]
         logger.warning("emails_social_fetch_failed", extra={"url": url, "error": social_error})
+    except PryError as e:
+        # The SSRF guard raises InvalidRequestError, which is not an httpx error.
+        # Letting it escape would turn a rejected URL into a 500; a blocked fetch
+        # is a 4xx and belongs in the same "could not fetch" channel as the rest.
+        social_error = f"{type(e).__name__}: {e}"[:300]
+        logger.warning("emails_social_fetch_rejected", extra={"url": url, "error": social_error})
 
     result = await scraper.scrape(url)
     emails = advanced.find_emails(result.get("content", ""))
