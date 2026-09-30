@@ -175,6 +175,26 @@ def _get_patterns_for_type(email_type: str) -> dict[str, list[str]]:
 # ── Gmail Integration ──
 
 
+#: BYOK: the caller supplies their own OAuth2 token. Pry never holds a Gmail or
+#: Microsoft credential, stores no refresh token, and has no service account. An
+#: empty token is rejected here rather than sent, because Gmail and Graph answer
+#: a blank bearer with an opaque 401 that reads like an auth failure rather than
+#: the caller bug it is.
+_NO_TOKEN = (
+    "BYOK: pass your own OAuth2 access token. "  # noqa: S105 - a help message, not a secret
+    "Gmail needs https://www.googleapis.com/auth/gmail.readonly; "
+    "Outlook needs https://graph.microsoft.com/Mail.Read. "
+    "Pry holds no mail credentials."
+)
+
+
+def _require_token(access_token: str, provider: str) -> dict[str, Any] | None:
+    """Return an error payload when the BYOK token is missing, else None."""
+    if not access_token or not access_token.strip():
+        return {"success": False, "error": f"{provider}: {_NO_TOKEN}", "code": "missing_token"}
+    return None
+
+
 async def fetch_gmail_emails(
     access_token: str,
     max_results: int = 20,
@@ -191,6 +211,10 @@ async def fetch_gmail_emails(
 
     Returns list of emails with extracted data.
     """
+    missing = _require_token(access_token, "gmail")
+    if missing is not None:
+        return missing
+
     from pry.api.client import get_client
 
     client = await get_client()
@@ -336,6 +360,10 @@ async def fetch_outlook_emails(
     since_days: int = 7,
 ) -> dict[str, Any]:
     """Fetch emails from Outlook/Office 365 via Microsoft Graph API."""
+    missing = _require_token(access_token, "outlook")
+    if missing is not None:
+        return missing
+
     from pry.api.client import get_client
 
     client = await get_client()
