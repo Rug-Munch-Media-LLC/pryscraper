@@ -49,6 +49,7 @@ NON_ROUTER_HELPERS = {
     "commerce.hosting.models",
     "core.admin_shared",
     "ai.vision_keys",
+    "core.admin_html_rows",
     "scraping.scraping_models",
 }
 

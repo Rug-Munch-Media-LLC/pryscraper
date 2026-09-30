@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import Query
 from fastapi.responses import HTMLResponse
 
+from pry.api.routers.core import admin_html_rows
 from pry.api.routers.core.admin_router import router
 from pry.api.routers.core.admin_shared import (
     _compute_profits,
@@ -45,10 +46,12 @@ async def admin_html_dashboard(
     net = profits["x402"]["net_profit_usd"]
     growth_pct = growth.get("growth_pct", 0) if isinstance(growth, dict) else 0
 
-    network_rows = _network_rows(networks)
-    treasury_rows = _treasury_rows(d["treasury"])
-    recent_rows = _recent_rows(recent)
-    payer_rows = _payer_rows(top_payers, d.get("analytics_error"))
+    # Call-time reads through the sibling module (never bound locals) so a
+    # patch on either module is honoured.
+    network_rows = admin_html_rows._network_rows(networks)
+    treasury_rows = admin_html_rows._treasury_rows(d["treasury"])
+    recent_rows = admin_html_rows._recent_rows(recent)
+    payer_rows = admin_html_rows._payer_rows(top_payers, d.get("analytics_error"))
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -188,48 +191,11 @@ def _gather_dashboard_data(days: int) -> dict[str, Any]:
     }
 
 
-def _network_rows(networks: dict) -> str:
-    return (
-        "".join(
-            f"<tr><td>{n}</td><td>{d.get('count', 0)}</td><td>{_fmt_usd(d.get('total_usd', 0))}</td></tr>"
-            for n, d in networks.items()
-        )
-        or "<tr><td colspan='3' class='empty'>No payments yet</td></tr>"
-    )
-
-
-def _treasury_rows(treasury: dict) -> str:
-    return (
-        "".join(
-            f"<tr><td>{chain.upper()}</td><td>{_fmt_usd(b.get('balance_usd', b.get('total_usd', 0)))}</td>"
-            f"<td class='muted'>{b.get('address', b.get('wallet', '') or '—')}</td></tr>"
-            for chain, b in treasury.items()
-            if isinstance(b, dict)
-        )
-        or "<tr><td colspan='3' class='empty'>Treasury not configured</td></tr>"
-    )
-
-
-def _recent_rows(recent: list) -> str:
-    return (
-        "".join(
-            f"<tr><td class='muted'>{(p.get('ts', '') or '')[:19]}</td>"
-            f"<td>{p.get('network', '?')}</td><td>{p.get('asset', '?')}</td>"
-            f"<td>{_fmt_usd(p.get('amount_usd', 0))}</td>"
-            f"<td><span class='badge {'badge-ok' if p.get('verified') else 'badge-err'}'>"
-            f"{'verified' if p.get('verified') else 'failed'}</span></td></tr>"
-            for p in recent
-        )
-        or "<tr><td colspan='5' class='empty'>No payments yet</td></tr>"
-    )
-
-
-def _payer_rows(top_payers: list, analytics_error: str | None = None) -> str:
-    if analytics_error:
-        return "<tr><td colspan='2' class='empty'>Unavailable — analytics error</td></tr>"
-    return (
-        "".join(
-            f"<tr><td>{p['payer']}</td><td>{_fmt_usd(p['total_usd'])}</td></tr>" for p in top_payers
-        )
-        or "<tr><td colspan='2' class='empty'>No payers yet</td></tr>"
-    )
+# Re-exported so `from pry.api.routers.core.admin_html import _payer_rows` (and
+# friends) keep working. The bodies live in admin_html_rows.
+from pry.api.routers.core.admin_html_rows import (  # noqa: E402,F401
+    _network_rows,
+    _payer_rows,
+    _recent_rows,
+    _treasury_rows,
+)
