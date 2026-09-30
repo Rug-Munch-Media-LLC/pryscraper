@@ -14,56 +14,32 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy.exc import SQLAlchemyError
-
-from pry.core.db import Usage, async_session_scope
+from pry.core import user_ratelimit_quota, user_ratelimit_stats
+from pry.core.db import async_session_scope
+from pry.core.user_ratelimit_types import (
+    TIER_LIMITS,
+    QuotaUnavailableError,
+    UserBucket,
+)
 
 logger = logging.getLogger(__name__)
 
-# Tier-based default limits
-TIER_LIMITS = {
-    "FREE": {"rpm": 60, "quota_monthly": 10_000, "burst": 100},
-    "PRO": {"rpm": 300, "quota_monthly": 100_000, "burst": 500},
-    "ENTERPRISE": {"rpm": 1200, "quota_monthly": 1_000_000, "burst": 2000},
-    # x402 pay-per-request: every call is already paid for on-chain, so the
-    # rate limit is a burst/abuse guard, not a revenue gate. Higher than FREE
-    # so a paying caller is never throttled below what they paid for, but
-    # still bounded so a single caller cannot hammer a target domain.
-    "X402": {"rpm": 600, "quota_monthly": 1_000_000, "burst": 1000},
-}
+# Re-exported so the historical patch point ``pry.core.user_ratelimit.
+# async_session_scope`` keeps governing every database access, including the
+# ones ``user_ratelimit_quota`` makes (it resolves the name through this
+# module at call time). Kept for import sites and fault injection.
+__all__ = [
+    "TIER_LIMITS",
+    "QuotaUnavailableError",
+    "UserBucket",
+    "UserRateLimiter",
+    "async_session_scope",
+    "user_ratelimit_stats",
+    "user_ratelimiter",
+]
 
-
-@dataclass
-class UserBucket:
-    """Token bucket for a specific user/API key."""
-
-    tokens: float
-    last_refill: float
-    total_requests: int = 0
-    blocked_requests: int = 0
-    quota_used: float = 0.0
-    quota_reset_at: float = 0.0
-    # True when the last quota sync failed and the stored quota_used is
-    # UNVERIFIED. Callers must deny: an unverified bucket is fail-closed, not
-    # a user with zero usage.
-    quota_unverified: bool = False
-    # When the last successful quota read happened. A bucket that has NEVER
-    # synced has quota_synced_at == 0.0, which is stale for every TTL and
-    # so forces the first request through the sync path.
-    quota_synced_at: float = 0.0
-
-
-class QuotaUnavailableError(RuntimeError):
-    """Raised when the monthly quota cannot be read from the database.
-
-    Fail-closed. During a DB outage every bucket's usage is unknown, so
-    treating the read as ``0`` would advertise an UNLIMITED quota to every
-    user and turn a database failure into a quota/rate-limit bypass. The
-    check instead denies with an explicit, retryable reason.
-    """
 
 
 class UserRateLimiter:
@@ -93,69 +69,20 @@ class UserRateLimiter:
 
     def _get_quota_reset_timestamp(self) -> float:
         """Get the timestamp for the next monthly quota reset (1st of next month)."""
-        from datetime import UTC, datetime
-
-        now = datetime.now(UTC)
-        if now.month == 12:
-            next_month = datetime(now.year + 1, 1, 1, tzinfo=UTC)
-        else:
-            next_month = datetime(now.year, now.month + 1, 1, tzinfo=UTC)
-        return next_month.timestamp()
+        return user_ratelimit_quota.quota_reset_timestamp()
 
     async def _load_quota_from_db(self, api_key_id: str) -> int:
-        """Load current month's quota usage from database."""
-        try:
-            from datetime import UTC, datetime
-
-            now = datetime.now(UTC)
-            month_start = datetime(now.year, now.month, 1, tzinfo=UTC)
-
-            async with async_session_scope() as session:
-                from sqlalchemy import func, select
-
-                result = await session.execute(
-                    select(func.coalesce(func.sum(Usage.cost_usd), 0))
-                    .where(Usage.api_key_id == api_key_id)
-                    .where(Usage.created_at >= month_start)
-                )
-                return int(result.scalar() or 0)
-        except SQLAlchemyError as e:
-            # FAIL-CLOSED. Returning 0 here would read as "this user has used
-            # no quota", i.e. an unlimited user, so a database outage would
-            # silently disable quota enforcement fleet-wide. Deny instead.
-            logger.error(
-                "quota_read_failed_denying: %s",
-                e,
-                extra={"api_key_id": api_key_id},
-            )
-            raise QuotaUnavailableError(
-                "quota state unavailable; denying request rather than assuming zero usage"
-            ) from e
+        """Load current month's quota usage from database (fail-closed)."""
+        return await user_ratelimit_quota.load_quota_from_db(api_key_id)
 
     async def _sync_quota(self, api_key_id: str, bucket: UserBucket) -> None:
         """Refresh the cached quota for one bucket, fail-closed.
 
-        This is the request-path entry point: the HTTP middleware awaits it
-        before ``check()`` so a database outage actually reaches the deny
-        branch. It only touches the database when the cached quota is older
-        than ``quota_ttl``; a fresh bucket is served from cache (a DB round
-        trip per request would make the limiter the slowest thing in the
-        request).
-
-        On a read failure the bucket is marked unverified rather than being
-        reset to zero — the previous usage total is kept and the bucket is
-        denied until a later sync succeeds.
+        Delegates to ``user_ratelimit_quota.sync_quota``; see that module for
+        the full contract. This method is the request-path entry point: the
+        HTTP middleware awaits it before ``check()``.
         """
-        now = time.time()
-        if now - bucket.quota_synced_at <= self.quota_ttl:
-            return
-        try:
-            bucket.quota_used = await self._load_quota_from_db(api_key_id)
-        except QuotaUnavailableError:
-            bucket.quota_unverified = True
-        else:
-            bucket.quota_unverified = False
-            bucket.quota_synced_at = now
+        await user_ratelimit_quota.sync_quota(bucket, api_key_id, self.quota_ttl)
 
     def _new_bucket(self, now: float) -> UserBucket:
         """Build a bucket with a full burst and this month's quota window.
@@ -296,29 +223,7 @@ class UserRateLimiter:
 
     def get_stats(self, api_key_id: str | None = None) -> dict[str, Any]:
         """Get rate limiter statistics."""
-        if api_key_id:
-            bucket = self._buckets.get(api_key_id)
-            if not bucket:
-                return {"error": "not_found"}
-            limits = self._get_limits("FREE")  # default
-            return {
-                "api_key_id": api_key_id,
-                "remaining": int(bucket.tokens),
-                "limit": limits["rpm"],
-                "quota_used": bucket.quota_used,
-                "quota_limit": limits["quota_monthly"],
-                "total_requests": bucket.total_requests,
-                "blocked_requests": bucket.blocked_requests,
-            }
-        else:
-            total_active = len(self._buckets)
-            total_blocked = sum(b.blocked_requests for b in self._buckets.values())
-            total_requests = sum(b.total_requests for b in self._buckets.values())
-            return {
-                "active_keys": total_active,
-                "total_requests": total_requests,
-                "total_blocked": total_blocked,
-            }
+        return user_ratelimit_stats.build_stats(self._buckets, api_key_id)
 
     async def record_usage(
         self,
@@ -336,28 +241,20 @@ class UserRateLimiter:
         error_message: str = "",
     ) -> None:
         """Record usage to database for billing/analytics."""
-        try:
-            async with async_session_scope() as session:
-                usage = Usage(
-                    user_id=user_id,
-                    api_key_id=api_key_id,
-                    operation=operation,
-                    endpoint=endpoint,
-                    status=status,
-                    duration_ms=duration_ms,
-                    bytes_in=bytes_in,
-                    bytes_out=bytes_out,
-                    cost_usd=cost_usd,
-                    ip=ip,
-                    user_agent=user_agent,
-                    error_message=error_message,
-                )
-                session.add(usage)
-        except (SQLAlchemyError, RuntimeError, OSError) as e:
-            # Best-effort contract: usage recording must never break the
-            # request. Covers DB driver errors, session-scope failures and
-            # I/O errors; programming errors still surface.
-            logger.warning("usage_recording_failed: %s", e)
+        await user_ratelimit_quota.record_usage(
+            api_key_id=api_key_id,
+            user_id=user_id,
+            operation=operation,
+            endpoint=endpoint,
+            status=status,
+            duration_ms=duration_ms,
+            bytes_in=bytes_in,
+            bytes_out=bytes_out,
+            cost_usd=cost_usd,
+            ip=ip,
+            user_agent=user_agent,
+            error_message=error_message,
+        )
 
 
 # Global instance
