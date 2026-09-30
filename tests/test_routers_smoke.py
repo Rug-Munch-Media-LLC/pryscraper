@@ -52,6 +52,8 @@ NON_ROUTER_HELPERS = {
     "core.admin_html_rows",
     "commerce.x402_engines",
     "scraping.scraping_models",
+    "scraping.crawl_adaptive",
+    "scraping.extraction_llm",
 }
 
 

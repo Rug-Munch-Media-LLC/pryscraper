@@ -73,9 +73,17 @@ expect_rc() { # expect_rc <want> <actual> <label>
 }
 
 echo "gate-selftest: clean fixture must PASS (exit 0)"
+# Both gates now FAIL CLOSED (exit 2) on an absent baseline, because an unreadable
+# baseline previously made them report PASS — which is exactly the false confidence
+# this selftest exists to prevent. So a "clean" fixture must actually carry the
+# baselines; without them the expected code is 2, not 0.
 reset_fixture
 expect_rc 0 "$(struct_rc)" "clean fixture (structure)"
+reset_fixture
+printf '{"total": 0, "files": {}}' >"$FIXTURE/scripts/monkeypatch-baseline.json"
 expect_rc 0 "$(monkey_rc)" "clean fixture (monkeypatch)"
+reset_fixture
+expect_rc 2 "$(monkey_rc)" "absent baseline -> exit 2 (cannot measure)"
 
 echo "gate-selftest: injected violations must FAIL (exit 1)"
 reset_fixture

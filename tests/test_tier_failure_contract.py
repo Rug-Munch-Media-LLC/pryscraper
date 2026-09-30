@@ -48,6 +48,10 @@ _TIER_FILES = (
     "tiers_http.py",
     "tiers_special.py",
     "tier_chain.py",
+    # The three delegated tiers moved here, carrying three broad `except` handlers
+    # that this ratchet exists to keep visible. Leaving it out of the tuple would
+    # have silently stopped covering them.
+    "tiers_special_delegated.py",
 )
 _ZONES = {"silent-fallthrough", "value-passthrough", "explicit-failure-return"}
 _OPTS: dict[str, Any] = {}
