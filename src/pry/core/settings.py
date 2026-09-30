@@ -11,6 +11,7 @@ inheritance (pure code move — behavior identical):
 - `settings_payments.py` — LLM provider keys, CAPTCHA credentials, sports keys
 - `settings_limits.py`   — rate limits, retry budgets, rotation timing, quotas
 - `settings_flags.py`    — feature toggles (captcha, stealth, output flags)
+- `settings_services.py` — sidecar endpoints (flaresolverr) + webhook secret
 """
 
 # SPDX-License-Identifier: MIT
@@ -32,6 +33,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pry.core.settings_flags import FlagsSettings
 from pry.core.settings_limits import LimitsSettings
 from pry.core.settings_payments import PaymentsSettings
+from pry.core.settings_services import ServicesSettings
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +72,7 @@ _NESTED_KEY_MAP: dict[str, str] = {
 }
 
 
-class PrySettings(PaymentsSettings, LimitsSettings, FlagsSettings, BaseSettings):
+class PrySettings(PaymentsSettings, LimitsSettings, FlagsSettings, ServicesSettings, BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="PRY_",
         env_file=".env",
@@ -94,25 +96,10 @@ class PrySettings(PaymentsSettings, LimitsSettings, FlagsSettings, BaseSettings)
     database_url: str = "postgresql+asyncpg://pry:pry@localhost/pry"
     redis_url: str = "redis://localhost:6379/0"
 
-    # Services
-    # Was http://flaresolverr:8191/v1 — the BARE hostname. The bare compose
-    # alias resolves to a GHOST container (pry-flaresolverr, 7h old) rather
-    # than the live one (pry-flaresolverr-pry), so any caller that read the
-    # default instead of the env var was driving a stale instance. Measured
-    # cost: blog.soliditylang.com flipped between 7/8 and 8/8 because it was
-    # being solved by a different flaresolverr depending on which path ran.
-    # The -pry suffix is the real compose service name; the bare alias is the
-    # one that drifts when an orphan lingers.
-    flaresolverr_url: str = "http://flaresolverr-pry:8191/v1"
-    # SECURITY (2026-08-20 audit, P0-4): the original hardcoded default was a
-    # published static secret — anyone reading this OSS repo could forge
-    # webhook signatures. Now fail-closed with NO static default: if neither
-    # PRY_WEBHOOK_SECRET env nor the secrets backend (gopass
-    # pry/webhook_secret) provides a value, _ensure_webhook_secret()
-    # generates a random 32-byte hex secret at boot and logs a warning that
-    # it is EPHEMERAL (does not survive restarts). Operators MUST set
-    # PRY_WEBHOOK_SECRET in production.
-    webhook_secret: str = ""
+    # Services (sidecar endpoints + signing secret) live in
+    # `settings_services.py`; they are collected as fields of this class
+    # through the ServicesSettings mixin, so PRY_FLARESOLVERR_URL and
+    # PRY_WEBHOOK_SECRET resolve through the same model_config as below.
 
     # Proxy (legacy env aliases for migration)
     proxy_url: str = Field(

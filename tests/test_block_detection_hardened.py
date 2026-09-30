@@ -5,8 +5,9 @@
 # Licensed under MIT. See LICENSE.
 """Hardened tests for engine/block_detection.py — untested branches.
 
-Complements tests/test_block_detection.py by targeting branches that suite
-does not reach:
+Complements tests/test_block_detection.py (per-marker basics), its _gates.py
+(anti-false-positive) and its _gates_edge.py siblings by targeting branches
+that none of them reach:
 
 * ``detect_block`` with ``html=None`` (not just ``""``).
 * ``detect_block`` with ``headers=None`` passed explicitly.
@@ -26,73 +27,8 @@ from __future__ import annotations
 
 import pytest
 
-from pry.engine.block_detection import (
-    BlockSignal,
-    _body_evidence,
-    _is_scripts_only,
-    _norm_headers,
-    classify_response,
-    detect_block,
-)
-
-# ── _norm_headers ───────────────────────────────────────────────────────────
-
-
-class TestNormHeaders:
-    def test_none_returns_empty_dict(self) -> None:
-        assert _norm_headers(None) == {}
-
-    def test_empty_dict_returns_empty_dict(self) -> None:
-        assert _norm_headers({}) == {}
-
-    def test_keys_lowercased_and_values_stringified(self) -> None:
-        result = _norm_headers({"CF-Ray": "abc", "Server": 123})
-        assert result == {"cf-ray": "abc", "server": "123"}
-
-    def test_mixed_case_keys_collapse(self) -> None:
-        result = _norm_headers({"CF-Ray": "a", "cf-ray": "b"})
-        assert result == {"cf-ray": "b"}  # later key wins
-
-
-# ── _body_evidence ──────────────────────────────────────────────────────────
-
-
-class TestBodyEvidence:
-    def test_no_markers_returns_empty_list(self) -> None:
-        assert _body_evidence(("just a moment",), "clean body text") == []
-
-    def test_markers_found_return_evidence_strings(self) -> None:
-        result = _body_evidence(("just a moment", "cf-chl-"), "just a moment please")
-        assert result == ["body contains 'just a moment'"]
-
-    def test_only_present_markers_are_reported(self) -> None:
-        result = _body_evidence(("a", "b", "c"), "has a and c")
-        assert result == ["body contains 'a'", "body contains 'c'"]
-
-
-# ── _is_scripts_only ────────────────────────────────────────────────────────
-
-
-class TestIsScriptsOnly:
-    def test_empty_html_is_false(self) -> None:
-        assert _is_scripts_only("") is False
-
-    def test_none_html_is_false(self) -> None:
-        assert _is_scripts_only(None) is False  # type: ignore[arg-type]
-
-    def test_visible_text_means_not_scripts_only(self) -> None:
-        html = "<script>var x=1;</script><p>real content here</p>"
-        assert _is_scripts_only(html) is False
-
-    def test_scripts_with_no_visible_text_is_true(self) -> None:
-        html = "<html><body><script>window.__DATA__={};</script></body></html>"
-        assert _is_scripts_only(html) is True
-
-    def test_script_content_does_not_count_as_visible(self) -> None:
-        # The JS inside <script> must be stripped before the visible-text check.
-        html = "<script>lots of javascript words here that are not visible</script>"
-        assert _is_scripts_only(html) is True
-
+from pry.engine.block_detection import BlockSignal, classify_response, detect_block
+from tests.block_page_fixtures import CLOUDFLARE_INTERSTITIAL
 
 # ── detect_block: None / empty inputs ───────────────────────────────────────
 
@@ -159,25 +95,8 @@ class TestDetectBlockHeaderBranches:
 
 class TestDetectBlockPriority:
     def test_cloudflare_body_beats_captcha(self) -> None:
-        # A REAL Cloudflare interstitial carries several CF markers together —
-        # the title, the challenge-platform script and the widget div. The old
-        # fixture had exactly ONE ("just a moment") plus a captcha marker, which
-        # is not a Cloudflare page; under the 2+ density gate it is correctly
-        # NOT classified as Cloudflare, and this test was red because its
-        # fixture did not match the thing it claimed to test.
-        #
-        # The density gate is deliberate and was added because a 744 KB served
-        # ARTICLE was being rejected for containing challenge-platform once. A
-        # single incidental mention is not a block; a real interstitial is
-        # unambiguous. Fixing the fixture keeps both properties true.
-        html = (
-            "<html><head><title>Just a moment...</title></head><body>"
-            "<div id='cf-please-wait'></div>"
-            "<script src='/cdn-cgi/challenge-platform/h/b/orchestrate'></script>"
-            "grecaptcha"
-            "</body></html>"
-        )
-        signal = detect_block(html, 200, {})
+        # Fixture shape argued in tests/block_page_fixtures.py.
+        signal = detect_block(CLOUDFLARE_INTERSTITIAL, 200, {})
         assert signal.kind == "cloudflare"
         assert signal.confidence == 0.90
 
