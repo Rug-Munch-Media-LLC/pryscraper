@@ -1259,7 +1259,9 @@ jobs:
     # fleet-sync-gates.sh): structure ≤200-line cap (shrink-only ratchet,
     # baseline scripts/structure-baseline.json), monkeypatch ratchet
     # (scripts/monkeypatch-baseline.json), antipattern ratchet
-    # (scripts/antipattern-baseline.json), and the gate self-test that
+    # (scripts/antipattern-baseline.json), the package-discovery gate that
+    # keeps [tool.setuptools.packages.find].include equal to the real package
+    # set under src/ in both directions, and the gate self-test that
     # proves every gate catches its violation class. Shrink freely; growth
     # or NEW offenders fail the build. Regenerate deliberately:
     # --update-baseline.
@@ -1274,5 +1276,7 @@ jobs:
         run: python3 scripts/check-monkeypatch.py --repo .
       - name: Antipattern gate (per-repo ratchet)
         run: python3 scripts/check-antipatterns.py --repo .
+      - name: Package-discovery gate (include list == real packages, both directions)
+        run: python3 scripts/check-package-discovery.py --repo .
       - name: Gate self-test (every gate catches its violation class)
         run: bash scripts/ci-gate-selftest.sh

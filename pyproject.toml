@@ -174,36 +174,14 @@ pryscraper-mcp = "pry.misc.cli:mcp_serve"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = [
-    "pry*",
-    "crypto_market*",
-    "compliance*",
-    "extraction*",
-    "legal_docs*",
-    "real_estate*",
-    "jobs*",
-    "travel*",
-    "attention*",
-    "local_data*",
-    "gov_data*",
-    "ip_data*",
-    "site_catalog*",
-    "sports_data*",
-    "healthcare_data*",
-    "commerce_data*",
-    "climate_data*",
-    "research_data*",
-    "events_data*",
-    "freight_data*",
-    "energy_data*",
-    "food_data*",
-    "supply_data*",
-    "app_store_data*",
-    "news_data*",
-    "compliance_data*",
-    "deals_data*",
-    "bidding_data*",
-]
+# The src-layout migration (07b025b) folded every top-level domain under
+# src/pry/, so `pry*` selects the whole runtime tree. This list used to carry
+# 27 further patterns (crypto_market*, compliance*, site_catalog*, …) naming
+# packages that do not exist: setuptools drops a pattern matching nothing
+# without an error, so the wheel built green while the list lied about what
+# shipped. scripts/check-package-discovery.py now fails on a phantom pattern
+# or a real package no pattern matches, in either direction.
+include = ["pry*"]
 
 [tool.ruff]
 # Vendored copy of standards/templates/ruff-base.toml — CI checkouts do not
