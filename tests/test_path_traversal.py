@@ -162,11 +162,16 @@ def test_template_id_rejects_traversal() -> None:
 
 
 def test_credential_id_rejects_traversal() -> None:
-    """Kills: reverting the auth_connector fix."""
-    from pry.api import auth_connector
+    """Kills: reverting the credential-vault ``safe_join`` fix.
+
+    ``_vault_path`` moved to ``pry.api.credential_vault`` when the authz lane
+    extracted the vault out of ``auth_connector``. Test the module that owns
+    the function now, not the module it used to live in.
+    """
+    from pry.api import credential_vault
 
     with pytest.raises(InvalidRequestError):
-        auth_connector._vault_path("../../etc/passwd")
+        credential_vault._vault_path("../../etc/passwd")
 
 
 # --- Error contract ----------------------------------------------------------

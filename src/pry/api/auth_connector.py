@@ -1,5 +1,15 @@
 """Pry — Enterprise SSO / Auth Connector System.
-Credential vault, session persistence, SSO flow automation, CAPTCHA integration."""
+SSO flow automation, CAPTCHA integration, session health.
+
+The credential vault itself now lives in ``pry.api.credential_vault``; the
+public vault names are re-exported here so existing importers keep working.
+That module also holds the owner-scoping rules that stop anonymous callers
+sharing one namespace.
+
+Part of Pry — Stealth / Anti-Detection Module
+Licensed under Business Source License 1.1 — see LICENSE-BSL-STEALTH.
+Change Date: 2029-01-01 (converts to MIT).
+"""
 
 # SPDX-License-Identifier: BSL-1.1
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -7,174 +17,37 @@ Credential vault, session persistence, SSO flow automation, CAPTCHA integration.
 # Part of Pry — Stealth / Anti-Detection Module
 # Licensed under Business Source License 1.1 — see LICENSE-BSL-STEALTH.
 # Change Date: 2029-01-01 (converts to MIT).
+from __future__ import annotations
+
 import asyncio
-import json
 import logging
-import os
 import time
-import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, Literal
 
 import httpx
 
-from pry.core.paths import PRY_DATA_DIR
-from pry.core.pathsafe import safe_join
+from pry.api.credential_vault import (
+    VAULT_DIR,
+    delete_credential,
+    get_credential,
+    list_credentials,
+    store_credential,
+)
 
 logger = logging.getLogger(__name__)
 
-VAULT_DIR = PRY_DATA_DIR / "vault"
-VAULT_DIR.mkdir(parents=True, exist_ok=True)
-
-# ── Credential Vault (owner-scoped; secrets masked on read) ──
-
-_MASKED = "***"
-
-
-def _vault_path(credential_id: str) -> Path:
-    return safe_join(VAULT_DIR, credential_id, ".json", kind="credential_id")
-
-
-def _public_entry(entry: dict[str, Any]) -> dict[str, Any]:
-    """Return a credential entry with secret values masked on read.
-
-    The on-disk vault still holds plaintext until at-rest encryption lands
-    (see [REVIEW]); every read path returns this masked shape instead.
-    """
-    public = dict(entry)
-    public["credentials"] = _MASKED
-    public["secrets_masked"] = True
-    return public
-
-
-def store_credential(
-    name: str,
-    credential_type: str,
-    credentials: dict[str, Any],
-    target_url: str = "",
-    owner: str = "",
-) -> dict[str, Any]:
-    """Store credentials in the vault.
-
-    Args:
-        name: Human-readable name for this credential
-        credential_type: "password", "api_key", "cookie", "token", "sso"
-        credentials: Dict containing the credential details
-        target_url: The URL these credentials are for
-        owner: Caller identity (JWT sub / API-key hash). Credentials are
-            scoped to this owner so other callers cannot read or delete them.
-
-    The response masks secrets (``***``); callers never receive plaintext
-    back. The on-disk entry keeps the real values for internal automation
-    use until at-rest encryption is implemented (see [REVIEW]).
-    """
-    credential_id = uuid.uuid4().hex[:12]
-    entry = {
-        "id": credential_id,
-        "name": name,
-        "type": credential_type,
-        "target_url": target_url,
-        "owner": owner,
-        "credentials": credentials,
-        "created_at": datetime.now(UTC).isoformat(),
-        "last_used": None,
-        "use_count": 0,
-        "note": "WARNING: Stored as plaintext JSON on disk. API responses mask secrets; at-rest encryption is a follow-up.",
-    }
-    try:
-        path = _vault_path(credential_id)
-        path.write_text(json.dumps(entry, indent=2))
-        logger.info(
-            "credential_stored",
-            extra={
-                "credential_id": credential_id,
-                "credential_name": name,
-                "type": credential_type,
-                "owner": owner,
-            },
-        )
-        return {
-            "success": True,
-            "credential_id": credential_id,
-            "credential": _public_entry(entry),
-        }
-    except OSError as e:
-        return {"success": False, "error": str(e)}
-
-
-def get_credential(credential_id: str, owner: str | None = None) -> dict[str, Any] | None:
-    """Retrieve credentials from the vault (owner-scoped, secrets masked).
-
-    When ``owner`` is provided, entries owned by a different caller are not
-    returned (access control). Secrets are masked to ``***`` on read; the
-    raw values remain on disk until at-rest encryption lands (see [REVIEW]).
-    """
-    path = _vault_path(credential_id)
-    if not path.exists():
-        return None
-    try:
-        entry = json.loads(path.read_text())
-        if owner is not None and entry.get("owner") != owner:
-            return None
-        entry["last_used"] = datetime.now(UTC).isoformat()
-        entry["use_count"] = entry.get("use_count", 0) + 1
-        path.write_text(json.dumps(entry, indent=2))
-        return _public_entry(entry)
-    except (json.JSONDecodeError, OSError):
-        return None
-
-
-def delete_credential(credential_id: str, owner: str | None = None) -> bool:
-    """Delete credentials from the vault (owner-scoped).
-
-    When ``owner`` is provided, only the owner of the entry may delete it;
-    foreign entries are treated as not found.
-    """
-    path = _vault_path(credential_id)
-    if not path.exists():
-        return False
-    if owner is not None:
-        try:
-            entry = json.loads(path.read_text())
-        except (json.JSONDecodeError, OSError):
-            return False
-        if entry.get("owner") != owner:
-            return False
-    path.unlink()
-    logger.info("credential_deleted", extra={"credential_id": credential_id})
-    return True
-
-
-def list_credentials(owner: str | None = None) -> list[dict[str, Any]]:
-    """List stored credentials (without exposing secrets).
-
-    When ``owner`` is provided, only entries owned by that caller are
-    returned; ``None`` lists every entry (legacy behavior). Legacy entries
-    stored before owner-scoping have owner ``""``.
-    """
-    credentials = []
-    for path in sorted(VAULT_DIR.glob("*.json"), key=os.path.getmtime, reverse=True):
-        try:
-            entry = json.loads(path.read_text())
-        except (json.JSONDecodeError, OSError):
-            continue
-        if owner is not None and entry.get("owner") != owner:
-            continue
-        credentials.append(
-            {
-                "id": entry["id"],
-                "name": entry["name"],
-                "type": entry["type"],
-                "target_url": entry.get("target_url", ""),
-                "created_at": entry["created_at"],
-                "last_used": entry.get("last_used"),
-                "use_count": entry.get("use_count", 0),
-                "owner": entry.get("owner", ""),
-            }
-        )
-    return credentials
-
+__all__ = [
+    "SSO_PROVIDERS",
+    "VAULT_DIR",
+    "check_session_health",
+    "delete_credential",
+    "generate_sso_script",
+    "get_credential",
+    "list_credentials",
+    "solve_captcha",
+    "store_credential",
+]
 
 # ── SSO Flow Automation ──
 

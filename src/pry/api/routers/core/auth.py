@@ -35,7 +35,13 @@ from typing import Any
 from fastapi import APIRouter, Body, HTTPException, Request
 
 from pry.core.errors import NotFoundError  # type: ignore[import-not-found]
-from pry.core.jwt_auth import is_jwt, validate_rmi_jwt
+
+from .credential_scope import LEGACY_SHARED_OWNER, request_owner as _request_owner
+
+__all__ = [
+    "LEGACY_SHARED_OWNER",
+    "router",
+]
 
 router = APIRouter(tags=["Auth"])
 
@@ -72,37 +78,6 @@ def _verify_password(password: str, stored: str) -> bool:
         "sha256", password.encode("utf-8"), bytes.fromhex(salt_hex), int(iterations)
     )
     return hmac.compare_digest(digest.hex(), hash_hex)
-
-
-def _request_owner(request: Request) -> str:
-    """Derive a stable per-caller owner id for credential-vault scoping.
-
-    Preference order:
-      1. Identity stashed on request.state by auth middleware, if present
-         (e.g. ``request.state.identity`` / ``request.state.user_id``).
-      2. The Authorization header the middleware already validated: JWT
-         ``sub`` claim for rmi-backend users, or a one-way SHA-256 hash of
-         the token for legacy API-key callers.
-
-    The current middleware (PryHttpMiddleware in api.py) only authenticates
-    and does not stash identity, so the header path is the active one.
-    Callers with no Authorization header get owner ``""`` (legacy entries).
-    """
-    state_id = getattr(request.state, "identity", None) or getattr(request.state, "user_id", None)
-    if state_id:
-        return str(state_id)
-    auth = request.headers.get("authorization", "")
-    if not auth.lower().startswith("bearer "):
-        return ""
-    token = auth[7:].strip()
-    if not token:
-        return ""
-    if is_jwt(token):
-        claims = validate_rmi_jwt(token)
-        if claims and claims.get("id"):
-            return f"jwt:{claims['id']}"
-    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
-    return f"key:{digest}"
 
 
 @router.post("/v1/auth/credentials", summary="Store credentials in the vault")

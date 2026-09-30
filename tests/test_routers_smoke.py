@@ -57,6 +57,8 @@ NON_ROUTER_HELPERS = {
     # SSRF-guarded fetch helper shared by the scraping routers; it exposes no
     # router by design — the routers that call it are still covered below.
     "scraping.fetch",
+    # Owner derivation for the credential routes; pure logic, no router.
+    "core.credential_scope",
 }
 
 

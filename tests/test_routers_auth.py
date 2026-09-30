@@ -14,14 +14,6 @@ app.include_router(router)
 client = TestClient(app, raise_server_exceptions=False)
 
 
-def test_request_owner_no_auth():
-    req = MagicMock()
-    req.state.identity = None
-    req.state.user_id = None
-    req.headers = {}
-    assert _request_owner(req) == ""
-
-
 def test_request_owner_state_identity():
     req = MagicMock(spec=["state"])
     req.state.identity = "user-123"
@@ -36,25 +28,27 @@ def test_request_owner_state_user_id():
 
 
 def test_request_owner_bearer_jwt():
-    req = MagicMock(spec=["state"])
+    req = MagicMock(spec=["state", "headers", "scope"])
     req.state.identity = None
     req.state.user_id = None
     req.headers = {"authorization": "Bearer eyJ.eyJpZCI6ICJ1c2VyLTc4OSJ9.sig"}
+    req.scope = {"client": ("203.0.113.9", 1)}
     with (
-        patch("pry.api.routers.core.auth.is_jwt", return_value=True),
-        patch("pry.api.routers.core.auth.validate_rmi_jwt", return_value={"id": "user-789"}),
+        patch("pry.api.routers.core.credential_scope.is_jwt", return_value=True),
+        patch("pry.api.routers.core.credential_scope.validate_rmi_jwt", return_value={"id": "u1"}),
     ):
-        assert _request_owner(req) == "jwt:user-789"
+        assert _request_owner(req) == "jwt:u1"
 
 
 def test_request_owner_bearer_apikey():
-    req = MagicMock(spec=["state"])
+    req = MagicMock(spec=["state", "headers", "scope"])
     req.state.identity = None
     req.state.user_id = None
     req.headers = {"authorization": "Bearer my-api-key-123"}
-    with patch("pry.api.routers.core.auth.is_jwt", return_value=False):
+    req.scope = {"client": ("203.0.113.9", 1)}
+    with patch("pry.api.routers.core.credential_scope.is_jwt", return_value=False):
         owner = _request_owner(req)
-        assert owner.startswith("key:")
+    assert owner.startswith("key:")
 
 
 def test_store_credentials():
