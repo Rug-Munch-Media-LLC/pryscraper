@@ -11,7 +11,8 @@ import logging
 import re
 from typing import Any
 
-import httpx
+from pry.api.enrichment_fetch import fetch_enrichment_source
+from pry.core.errors import InvalidRequestError
 
 logger = logging.getLogger(__name__)
 
@@ -187,19 +188,17 @@ async def enrich_url(
 ) -> dict[str, Any]:
     """Run full enrichment pipeline on a URL/content.
 
-    Returns: tech stack, social profiles, company info, domain age, security.
-    """
-    from pry.api.client import get_client
+    Returns tech stack, social profiles and company info.
 
-    if not html:
-        try:
-            client = await get_client()
-            resp = await client.get(url, timeout=20, follow_redirects=True)
-            if resp.is_success:
-                html = resp.text
-                headers = dict(resp.headers)
-        except (httpx.HTTPError, httpx.RequestError) as e:
-            logger.warning("enrichment_fetch_failed", extra={"url": url, "error": str(e)})
+    Raises InvalidRequestError (4xx) if ``url`` is refused by the SSRF guard or
+    the page cannot be read, rather than reporting empty enrichment as success.
+    """
+    # ``url`` is caller-supplied, so the fetch (when no HTML was passed) goes
+    # through the SSRF guard. The route returns a fixed field set, so a swallowed
+    # reason would be invisible: an unreadable source is a 4xx, like a refusal.
+    html, headers, error = await fetch_enrichment_source(url, html)
+    if error is not None:
+        raise InvalidRequestError(error, details={"url": url})
 
     result: dict[str, Any] = {
         "url": url,

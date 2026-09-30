@@ -25,10 +25,15 @@ class DocumentParser:
     async def parse(self, url: str, timeout_s: int = 60) -> dict[str, Any]:
         import httpx
 
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(timeout_s), follow_redirects=True
-        ) as client:
-            resp = await client.get(url)
+        from pry.engine.fetch_guard import guard_get
+
+        # SSRF guard: ``url`` is the caller's request body (``POST /v1/parse``),
+        # so it is validated before the first request AND every redirect hop is
+        # re-validated by guard_get. ``follow_redirects`` therefore stays False
+        # on the client — safe_get follows redirects itself so each Location can
+        # be re-checked; leaving it True here would follow them unvalidated.
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s)) as client:
+            resp = await guard_get(client, url, timeout=timeout_s)
             resp.raise_for_status()
             content = resp.content
             content_type = resp.headers.get("content-type", "")
