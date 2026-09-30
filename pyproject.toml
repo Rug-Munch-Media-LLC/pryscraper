@@ -218,6 +218,9 @@ extend-select = ["A", "BLE", "T201"]
 extend-ignore = ["N815", "A002", "RUF006"]
 
 [tool.ruff.lint.per-file-ignores]
+  # The 88 routers are consumed via the namespace dict handed to
+  # router_registry_mount, which is a dynamic lookup ruff cannot follow.
+  "src/pry/api/router_registry.py" = ["F401"]
 # Test fixtures legitimately hardcode dummy credentials / temp paths.
 "tests/**" = ["S105", "S106", "S108"]
 "tests/test_sports_sources.py" = ["B007", "PT018"]

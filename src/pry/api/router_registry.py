@@ -11,6 +11,7 @@ live in :func:`register_routers` so the app factory stays thin.
 # Licensed under MIT. See LICENSE.
 
 import logging
+import sys
 from typing import Any
 
 from fastapi import FastAPI
@@ -249,120 +250,20 @@ except ImportError:  # pragma: no cover — parallel build not landed yet
     _HOSTING_ROUTER = None
 
 
+from pry.api.router_registry_mount import mount_primary, mount_secondary  # noqa: E402
+
+
 def register_routers(app: FastAPI) -> None:
-    """Mount every router on *app* (order preserved from the original api.py)."""
-    app.include_router(auth_router)
-    app.include_router(health_router)
-    app.include_router(healthcare_data_router)
-    app.include_router(scraping_router)
-    app.include_router(templates_router)
-    app.include_router(ai_router)
-    app.include_router(admin_router)
-    app.include_router(advanced_router)
-    app.include_router(agency_router)
-    app.include_router(alerts_router)
-    app.include_router(analysis_router)
-    app.include_router(automation_router)
-    app.include_router(batch_router)
-    app.include_router(account_router)
-    app.include_router(crm_router)
-    app.include_router(crypto_market_router)
-    app.include_router(circuit_breaker_router)
-    app.include_router(commerce_router)
-    app.include_router(commerce_data_router)
-    app.include_router(compliance_router)
-    app.include_router(capabilities_router)
-    app.include_router(config_router)
-    app.include_router(costing_router)
-    app.include_router(dashboard_router)
-    app.include_router(diagnostics_router)
-    app.include_router(email_router)
-    app.include_router(enrichment_router)
-    app.include_router(execute_router)
-    app.include_router(export_router)
-    app.include_router(extraction_router)
-    app.include_router(freshness_router)
-    app.include_router(attention_router)
-    app.include_router(gdpr_router)
-    app.include_router(integrations_router)
-    app.include_router(intelligence_router)
-    app.include_router(jobs_router)
-    app.include_router(legal_docs_router)
-    app.include_router(local_data_router)
-    app.include_router(marketplace_router)
-    # gov_data / ip_data routers are included when their modules have landed.
-    if _GOV_DATA_ROUTER is not None:
-        app.include_router(_GOV_DATA_ROUTER)
-    if _IP_DATA_ROUTER is not None:
-        app.include_router(_IP_DATA_ROUTER)
-    # climate_data / research_data routers are included when they have landed.
-    if _CLIMATE_DATA_ROUTER is not None:
-        app.include_router(_CLIMATE_DATA_ROUTER)
-    if _RESEARCH_DATA_ROUTER is not None:
-        app.include_router(_RESEARCH_DATA_ROUTER)
-    # events_data / freight_data / energy_data / food_data / supply_data routers
-    # are included when they have landed.
-    if _EVENTS_DATA_ROUTER is not None:
-        app.include_router(_EVENTS_DATA_ROUTER)
-    if _FREIGHT_DATA_ROUTER is not None:
-        app.include_router(_FREIGHT_DATA_ROUTER)
-    if _ENERGY_DATA_ROUTER is not None:
-        app.include_router(_ENERGY_DATA_ROUTER)
-    if _FOOD_DATA_ROUTER is not None:
-        app.include_router(_FOOD_DATA_ROUTER)
-    if _SUPPLY_DATA_ROUTER is not None:
-        app.include_router(_SUPPLY_DATA_ROUTER)
-    # app_store_data / news_data / compliance_data / deals_data routers are
-    # included when they have landed.
-    if _APP_STORE_DATA_ROUTER is not None:
-        app.include_router(_APP_STORE_DATA_ROUTER)
-    if _NEWS_DATA_ROUTER is not None:
-        app.include_router(_NEWS_DATA_ROUTER)
-    if _COMPLIANCE_DATA_ROUTER is not None:
-        app.include_router(_COMPLIANCE_DATA_ROUTER)
-    if _DEALS_DATA_ROUTER is not None:
-        app.include_router(_DEALS_DATA_ROUTER)
-    # bidding_data router is included when it has landed.
-    if _BIDDING_DATA_ROUTER is not None:
-        app.include_router(_BIDDING_DATA_ROUTER)
-    # billing_packs router is included when it has landed.
-    if _BILLING_PACKS_ROUTER is not None:
-        app.include_router(_BILLING_PACKS_ROUTER)
-    # billing_subscription router is included when it has landed.
-    if _BILLING_SUBSCRIPTION_ROUTER is not None:
-        app.include_router(_BILLING_SUBSCRIPTION_ROUTER)
-    # hosting router (cloud hosting signup + checkout) is included when it has landed.
-    if _HOSTING_ROUTER is not None:
-        app.include_router(_HOSTING_ROUTER)
-    app.include_router(monitoring_router)
-    app.include_router(parsing_router)
-    app.include_router(pipeline_router)
-    app.include_router(real_estate_router)
-    app.include_router(travel_router)
-    app.include_router(pipelines_router)
-    app.include_router(proxy_router)
-    app.include_router(quality_router)
-    app.include_router(reconciliation_router)
-    app.include_router(recorder_router)
-    app.include_router(referrals_router)
-    app.include_router(reports_router)
-    app.include_router(review_router)
-    app.include_router(seo_router)
-    app.include_router(scraping_api_router)
-    app.include_router(sessions_router)
-    app.include_router(share_router)
-    app.include_router(signup_router)
-    app.include_router(well_known_router)
-    app.include_router(sports_data_router)
-    app.include_router(stats_router)
-    app.include_router(analytics_router)
-    app.include_router(structure_router)
-    app.include_router(system_router)
-    app.include_router(training_router)
-    app.include_router(transform_router)
-    app.include_router(streams_router)
-    app.include_router(api_keys_router)
-    app.include_router(vision_router)
-    app.include_router(webhooks_router)
-    app.include_router(x402_router)
-    app.include_router(crypto_payment_router)
+    """Mount every router on *app* (order preserved from the original api.py).
+
+    The 88 mount calls live in router_registry_mount, split by mount ORDER because
+    order determines route precedence and is the property worth protecting. Routers
+    are handed over as a namespace read from sys.modules at CALL time, not from
+    globals() at import time: the guarded optional imports below are assigned during
+    module execution, and a dict captured then can predate them. sys.modules is used
+    over a plain import in this file for the same reason — the mount module must not
+    be imported before those assignments, or the reload test loses its guard.
+    """
+    ns = vars(sys.modules[__name__])
+    mount_primary(app, ns)
+    mount_secondary(app, ns)
