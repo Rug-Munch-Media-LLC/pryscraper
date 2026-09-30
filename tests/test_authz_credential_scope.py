@@ -20,8 +20,6 @@ writes the operator's real ``~/.pry/vault``.
 
 from __future__ import annotations
 
-from tests.authz_support import isolated_vault, set_env  # noqa: F401
-
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -33,6 +31,7 @@ from pry.api import credential_vault
 from pry.api.exception_handlers import add_error_handlers
 from pry.api.routers.core import credential_scope
 from pry.api.routers.core.auth import router
+from tests.authz_support import isolated_vault, set_env  # noqa: F401
 
 if TYPE_CHECKING:
     from pathlib import Path

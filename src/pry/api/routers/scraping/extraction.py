@@ -226,15 +226,12 @@ async def find_emails(url: str = Body(...)) -> dict[str, Any]:
         client = await get_client()
         resp = await guard_get(client, url)
         html_text = resp.text
-    except (httpx.HTTPError, httpx.RequestError) as e:
+    except (httpx.HTTPError, httpx.RequestError, PryError) as e:
+        # PryError covers the SSRF guard: it raises InvalidRequestError, which is
+        # not an httpx error, so letting it escape would turn a rejected URL into
+        # a 500. A blocked fetch belongs in the same channel as a failed one.
         social_error = f"{type(e).__name__}: {e}"[:300]
         logger.warning("emails_social_fetch_failed", extra={"url": url, "error": social_error})
-    except PryError as e:
-        # The SSRF guard raises InvalidRequestError, which is not an httpx error.
-        # Letting it escape would turn a rejected URL into a 500; a blocked fetch
-        # is a 4xx and belongs in the same "could not fetch" channel as the rest.
-        social_error = f"{type(e).__name__}: {e}"[:300]
-        logger.warning("emails_social_fetch_rejected", extra={"url": url, "error": social_error})
 
     result = await scraper.scrape(url)
     emails = advanced.find_emails(result.get("content", ""))

@@ -16,7 +16,6 @@ asserted in tests/test_authz_credential_scope.py.
 
 from pathlib import Path
 
-from pry.api import credential_vault
 from pry.api.auth_connector import (
     SSO_PROVIDERS,
     delete_credential,

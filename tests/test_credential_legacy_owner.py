@@ -16,8 +16,6 @@ Cross-caller isolation lives in tests/test_authz_credential_scope.py.
 
 from __future__ import annotations
 
-from tests.authz_support import isolated_vault, set_env  # noqa: F401
-
 import importlib
 import inspect
 import json
@@ -28,6 +26,7 @@ import pytest
 from pry.api import credential_vault
 from pry.api.routers.core import credential_scope
 from pry.core.errors import InvalidRequestError
+from tests.authz_support import isolated_vault, set_env  # noqa: F401
 
 
 def _write_legacy_row(vault: Any, credential_id: str) -> None:

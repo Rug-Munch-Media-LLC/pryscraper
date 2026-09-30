@@ -178,15 +178,10 @@ def temp_data_dir(monkeypatch, tmp_path):
 def empty_scrape() -> Generator[None, None, None]:
     """Make the injected ``scraper.scrape`` return empty HTML.
 
-    ``/v1/shadow-dom`` and ``/v1/extract/css`` only perform their own guarded
-    fetch when the scraper produced no HTML. Without this the real scraper
-    attempts a live network call, fails (no network under test), and the route
-    returns before the guarded fetch is reached — which would leave the SSRF
-    guard silently untested for those two routes.
-
-    DI seam rather than attribute patching: ``scraper`` is the injected
-    ``PryScraper`` singleton, so its state is set and restored directly and the
-    route logic runs unmodified.
+    ``/v1/shadow-dom`` and ``/v1/extract/css`` only run their own guarded fetch
+    when the scraper produced no HTML; without this the real scraper attempts a
+    live call, fails, and the guard is never reached. DI seam, not patching:
+    ``scraper`` is the injected singleton, restored below.
     """
     from unittest.mock import AsyncMock
 
@@ -197,6 +192,6 @@ def empty_scrape() -> Generator[None, None, None]:
     yield
     scraper.scrape = real_scrape
 
-# GDPR erasure fixtures live in tests/gdpr_fixtures.py so the three split
-# erasure test files share one definition (the suite was 311 lines in one file).
+# GDPR erasure fixtures live in tests/gdpr_fixtures.py: the suite was 311 lines
+# in one file, and pytest only discovers fixtures registered here or in conftest.
 pytest_plugins = ("tests.gdpr_fixtures",)
