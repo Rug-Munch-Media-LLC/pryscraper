@@ -32,6 +32,7 @@ from pry.core.errors import InvalidRequestError
 from pry.core.observability import SCRAPE_LATENCY, span
 from pry.engine.circuit_breaker import BREAKER_FOR_TIER, domain_semaphore
 from pry.engine.domain_key import memory_domain
+from pry.engine.reachability_precheck import reachability_verdict
 from pry.engine.retry import async_retry
 from pry.engine.scraper_premium_first import PremiumFirstMixin
 from pry.engine.tier_chain import TierChainMixin
@@ -276,6 +277,10 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
 
         self._record_telemetry(domain, ordered_names, attempts, None, False, scrape_start, errors)
         last_err = errors[-1] if errors else "all_tiers_failed"
+        # A fact about the TARGET, collected once and attached to the failure.
+        # Absent on success: a target that answers is never prechecked, so no
+        # probe can alter a reachable site's tier order.
+        target = await reachability_verdict(url)
         result: dict[str, Any] = {
             "status": "error",
             "verdict": classify_verdict(errors, latest_signal, len(ordered_names)),
@@ -290,6 +295,10 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
             "tiers_skipped": list(self._last_skipped_tiers),
             "content": "",
             "proxy_recommendation": self._recommend_proxy(last_err),
+            # blame_tier False means the chain was never exercised against a
+            # working site, so these tier failures are not tier evidence.
+            "target_reachability": target["reachability"],
+            "blame_tier": target["blame_tier"],
         }
         if latest_signal is not None:
             result["block_signal"] = latest_signal
