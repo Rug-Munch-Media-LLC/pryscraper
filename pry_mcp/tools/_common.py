@@ -11,8 +11,103 @@ Split from the former monolithic ``pry_mcp/tools.py`` god file.
 
 from __future__ import annotations
 
+import importlib
 import json
-from typing import Any
+import logging
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from types import ModuleType
+
+logger = logging.getLogger(__name__)
+
+# Every data domain (``food_data``, ``sports_data``, ``gov_data``, ...) is a
+# subpackage of the top-level ``datasets`` package — the same namespace the REST
+# routers import through (``src/pry/api/routers/data/*.py``:
+# ``importlib.import_module(f"datasets.{package}.{module_name}")``). There is
+# no bare top-level ``food_data`` / ``sports_data`` / ``gov_data`` directory,
+# so a bare ``{package}.{module}`` import can never succeed.
+DATASETS_PACKAGE = "datasets"
+
+
+class _ModuleNotFound(Exception):
+    """No candidate namespace held ``{package}.{module_name}``."""
+
+
+def resolve_domain_module(package: str, module_name: str) -> ModuleType:
+    """Import ``{package}.{module_name}`` from the namespace that holds it.
+
+    Resolution is deterministic, not a best-effort chain. The domain packages
+    live under ``datasets`` (``DATASETS_PACKAGE``) — the namespace the REST
+    routers import them from — so ``datasets.{package}.{module_name}`` is the
+    canonical path and is tried first. A top-level ``{package}.{module}`` is
+    attempted only as a compatibility fallback, so the loader still works for a
+    deployment that installs a domain package at the top level.
+
+    A bare ``ModuleNotFoundError`` is not proof the module is absent: a module
+    that exists but whose own import fails raises the same exception with
+    ``exc.name`` naming the *missing dependency*, not the module we asked for.
+    Swallowing that would report a broken module as "not landed yet", so it is
+    distinguished by ``exc.name`` and re-raised. The namespace genuinely does
+    not hold the module when the missing name is the candidate itself or one of
+    its parents (a parent package that is absent).
+
+    Raises ``_ModuleNotFound`` when no namespace holds the module. Callers turn
+    that into the ``MODULE_UNAVAILABLE`` payload, so a module that does exist is
+    never reported unavailable and one that genuinely has not landed still
+    degrades to a readable message.
+    """
+    dotted = f"{package}.{module_name}"
+    for candidate in (f"{DATASETS_PACKAGE}.{dotted}", dotted):
+        try:
+            return importlib.import_module(candidate)
+        except ModuleNotFoundError as exc:
+            if not _absent_from_namespace(candidate, exc.name):
+                logger.debug(
+                    "domain module present but its own import failed",
+                    extra={"candidate": candidate, "missing_name": exc.name},
+                )
+                raise
+            logger.debug(
+                "domain module namespace miss",
+                extra={"candidate": candidate},
+            )
+    raise _ModuleNotFound(dotted)
+
+
+def resolve_domain_package(package: str) -> ModuleType:
+    """Import the ``datasets.{package}`` subpackage itself.
+
+    Some registries name a package rather than a module (``gov_data`` re-exports
+    ``search_opportunities`` / ``search_recalls`` from its ``__init__``). Same
+    namespace rule and the same missing-name distinction as
+    ``resolve_domain_module``.
+    """
+    candidates = (f"{DATASETS_PACKAGE}.{package}", package)
+    for candidate in candidates:
+        try:
+            return importlib.import_module(candidate)
+        except ModuleNotFoundError as exc:
+            if not _absent_from_namespace(candidate, exc.name):
+                logger.debug(
+                    "domain package present but its own import failed",
+                    extra={"candidate": candidate, "missing_name": exc.name},
+                )
+                raise
+            logger.debug("domain package namespace miss", extra={"candidate": candidate})
+    raise _ModuleNotFound(package)
+
+
+def _absent_from_namespace(candidate: str, missing_name: str | None) -> bool:
+    """Does ``missing_name`` mean ``candidate`` is absent, rather than broken?
+
+    ``missing_name`` names the module or one of its parents when the candidate
+    (or its containing package) does not exist. Anything else — a dependency the
+    candidate itself imports — means the candidate exists and is broken.
+    """
+    if not missing_name:
+        return False
+    return candidate == missing_name or candidate.startswith(f"{missing_name}.")
 
 
 def _data_module_unavailable(tool_name: str, package: str) -> dict[str, Any]:
@@ -164,8 +259,8 @@ async def _call_domain_dispatcher(
         return _missing_arg(name, required_args[name])
     for module_name, candidates in entry:
         try:
-            mod = __import__(f"{package}.{module_name}", fromlist=[module_name])
-        except ImportError:
+            mod = resolve_domain_module(package, module_name)
+        except _ModuleNotFound:
             continue
         fn = next((getattr(mod, cand, None) for cand in candidates if hasattr(mod, cand)), None)
         if fn is None:
@@ -235,9 +330,13 @@ def _broad_domain_tool_kwargs(name: str, arguments: dict[str, Any]) -> dict[str,
             kwargs["date"] = arguments["date"]
         return kwargs
     if name == "pry_grocery":
-        kwargs = {"query": arguments.get("query", "") or arguments.get("item", "")}
-        if arguments.get("zip"):
-            kwargs["zip"] = arguments["zip"]
+        # The landed handler is ``get_grocery_prices(query, zip_code, limit)``;
+        # it treats zip as required, so the MCP ``zip`` argument maps to
+        # ``zip_code`` rather than being dropped by ``_callable_accepts``.
+        kwargs = {
+            "query": arguments.get("query", "") or arguments.get("item", ""),
+            "zip_code": arguments.get("zip", "") or arguments.get("zip_code", ""),
+        }
         if arguments.get("limit") is not None:
             kwargs["limit"] = int(arguments["limit"])
         return kwargs

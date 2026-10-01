@@ -14,7 +14,12 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from ._common import _data_module_unavailable, _missing_arg
+from ._common import (
+    _data_module_unavailable,
+    _missing_arg,
+    _ModuleNotFound,
+    resolve_domain_package,
+)
 
 PRY_TOOLS: list[dict[str, Any]] = [
     {
@@ -252,8 +257,11 @@ async def _call_candidate_domain_tool(
         return _missing_arg(name, "query")
     limit = int(arguments.get("limit", 20))
     try:
-        mod = __import__(package, fromlist=[package])
-    except ImportError:
+        # ``gov_data`` / ``ip_data`` are subpackages of the top-level
+        # ``datasets`` namespace, so resolve the package the same way the
+        # per-module dispatchers do rather than importing the bare name.
+        mod = resolve_domain_package(package)
+    except _ModuleNotFound:
         return _data_module_unavailable(name, package)
     fn = next((getattr(mod, cand, None) for cand in candidates if hasattr(mod, cand)), None)
     if fn is None:

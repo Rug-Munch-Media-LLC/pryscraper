@@ -16,9 +16,14 @@ and the guarded ``call_sports_tool`` dispatcher.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
-from ._common import _callable_accepts
+from ._common import (
+    _callable_accepts,
+    _ModuleNotFound,
+    resolve_domain_module,
+)
 from .prediction_markets import _PREDICTION_TOOL_FNS as _PREDICTION_TOOL_FNS
 from .sports_analytics import _SPORTS_TOOL_FNS as _ANALYTICS_TOOL_FNS, PRY_TOOLS as _ANALYTICS_TOOLS
 from .sports_bankroll import _SPORTS_TOOL_FNS as _BANKROLL_TOOL_FNS
@@ -36,6 +41,8 @@ from .sports_live_intel import (  # noqa: F401
 )
 from .sports_player_intel import _SPORTS_TOOL_FNS as _PLAYER_TOOL_FNS
 from .sports_sharp_intel import _SHARP_TOOL_FNS as _SHARP_TOOL_FNS
+
+logger = logging.getLogger(__name__)
 
 # Merge the per-domain tool lists, preserving the exact tool order of the
 # former monolithic sports.py PRY_TOOLS list:
@@ -216,7 +223,7 @@ async def call_sports_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
     # the fallback.
     if name == "pry_scrape_methods":
         try:
-            mod = __import__("scraping_methods", fromlist=["METHODS"])
+            mod = resolve_domain_module("sports_data", "scraping_methods")
             registry = getattr(mod, "METHODS", {})
             if isinstance(registry, dict):
                 methods = [
@@ -260,11 +267,14 @@ async def call_sports_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
                 ],
                 "isError": False,
             }
-        except ImportError:
-            pass
+        except _ModuleNotFound:
+            logger.debug(
+                "pry_scrape_methods registry not found",
+                extra={"candidate": "sports_data.scraping_methods"},
+            )
         try:
-            mod = __import__("sports_data.books", fromlist=["books"])
-        except ImportError:
+            mod = resolve_domain_module("sports_data", "books")
+        except _ModuleNotFound:
             return _sports_module_unavailable(name)
         book_methods: tuple[str, ...] = getattr(mod, "METHODS", ())
         return {
@@ -284,8 +294,8 @@ async def call_sports_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
         }
     for module_name, candidates in entry:
         try:
-            mod = __import__(f"sports_data.{module_name}", fromlist=[module_name])
-        except ImportError:
+            mod = resolve_domain_module("sports_data", module_name)
+        except _ModuleNotFound:
             continue
         fn = next((getattr(mod, cand, None) for cand in candidates if hasattr(mod, cand)), None)
         if fn is None:

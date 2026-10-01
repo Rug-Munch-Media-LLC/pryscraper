@@ -57,7 +57,10 @@ from ._common import (
     _domain_module_unavailable,
     _domain_tool_kwargs,
     _missing_arg,
+    _ModuleNotFound,
     _new_domain_tool_kwargs,
+    resolve_domain_module,
+    resolve_domain_package,
 )
 from .actor import ACTOR_TOOL_NAMES, _actor_catalog_entries, _actor_tool_kwargs, call_actor_tool
 from .annotations import _TOOL_ANNOTATIONS, _annotations_for
@@ -124,6 +127,7 @@ __all__ = [
     "_SPORTS_TOOL_FNS",
     "_SUPPLY_TOOL_FNS",
     "_TOOL_ANNOTATIONS",
+    "_ModuleNotFound",
     "_actor_catalog_entries",
     "_actor_tool_kwargs",
     "_annotations_for",
@@ -166,6 +170,8 @@ __all__ = [
     "call_sports_tool",
     "call_supply_tool",
     "call_travel_tool",
+    "resolve_domain_module",
+    "resolve_domain_package",
 ]
 
 # Aggregate the per-domain tool lists into the single registry, preserving

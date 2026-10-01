@@ -25,6 +25,7 @@ Covers four layers of the MCP surface:
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import json
 import re
 import sys
@@ -507,6 +508,14 @@ assert set(_DOMAIN_TOOLS) | set(_REST_PROXY_TOOLS) | set(_LOCAL_ACTOR_TOOLS) == 
 _MISSING = object()
 
 
+def _module_exists(dotted: str) -> bool:
+    """True when ``dotted`` names an importable module."""
+    try:
+        return importlib.util.find_spec(dotted) is not None
+    except (ImportError, AttributeError, ValueError):
+        return False
+
+
 @contextmanager
 def _patch_module(name: str, module: Any) -> Iterator[None]:
     """Swap ``sys.modules[name]`` for the duration of the test.
@@ -515,18 +524,40 @@ def _patch_module(name: str, module: Any) -> Iterator[None]:
     CPython raises ``ImportError`` for ``from X import Y`` when
     ``sys.modules[X]`` is None) or a fake module object (success path).
     """
-    if "." in name:
-        with suppress(ImportError):
-            __import__(name.rsplit(".", 1)[0])
-    original: Any = sys.modules.get(name, _MISSING)
-    sys.modules[name] = module
+    # The dispatchers import domain modules from their REAL namespace,
+    # `datasets.<pkg>.<module>` -- no domain module resolves bare. These tests
+    # were written against the old resolver, which tried the bare name first,
+    # so `sys.modules["crypto_market.token_launches"] = fake` never intercepted
+    # anything and the tool executed real code (observed: a live
+    # `usda_nass_api_key_missing` warning from datasets.climate_data.agri).
+    # Point the patch at the dotted path the resolver will actually import.
+    # The namespace is MIXED: some domain modules import bare
+    # (crypto_market.token_launches), the rest only under `datasets.`. The
+    # resolver tries an ordered candidate list, so a patch that covers only one
+    # of the two is a no-op for the other -- which is how these tests ended up
+    # executing real code. Patch every candidate that actually exists.
+    candidates = [name]
+    prefixed = f"datasets.{name}"
+    if prefixed not in candidates:
+        candidates.append(prefixed)
+    live = [c for c in candidates if _module_exists(c)] or [name]
+
+    saved: list[tuple[str, Any]] = []
+    for cand in live:
+        parent = cand.rsplit(".", 1)[0]
+        if "." in cand:
+            with suppress(ImportError):
+                __import__(parent)
+        saved.append((cand, sys.modules.get(cand, _MISSING)))
+        sys.modules[cand] = module
     try:
         yield
     finally:
-        if original is _MISSING:
-            sys.modules.pop(name, None)
-        else:
-            sys.modules[name] = original
+        for cand, original in saved:
+            if original is _MISSING:
+                sys.modules.pop(cand, None)
+            else:
+                sys.modules[cand] = original
 
 
 def _fake_module(**attrs: Any) -> types.ModuleType:
