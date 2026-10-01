@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from ._common import _data_module_unavailable, _missing_arg
+from ._common import _data_module_unavailable, _missing_arg, _ModuleNotFound, resolve_domain_module
 
 PRY_TOOLS: list[dict[str, Any]] = [
     {
@@ -131,10 +131,10 @@ async def call_attention_tool(name: str, arguments: dict[str, Any]) -> dict[str,
             return _missing_arg(name, "q")
         num = int(arguments.get("num", 10))
         try:
-            from attention.serp import serp
-        except ImportError:
+            serp_mod = resolve_domain_module("attention", "serp")
+        except _ModuleNotFound:
             return _data_module_unavailable(name, "attention")
-        data = await serp(q, num=num)
+        data = await serp_mod.serp(q, num=num)
         return {
             "content": [
                 {
@@ -153,10 +153,10 @@ async def call_attention_tool(name: str, arguments: dict[str, Any]) -> dict[str,
             return _missing_arg(name, "keyword")
         timeframe = arguments.get("timeframe", "today 12-m")
         try:
-            from attention.trends import trend_interest
-        except ImportError:
+            trends = resolve_domain_module("attention", "trends")
+        except _ModuleNotFound:
             return _data_module_unavailable(name, "attention")
-        data = await trend_interest(keyword, timeframe=timeframe)
+        data = await trends.trend_interest(keyword, timeframe=timeframe)
         return {
             "content": [
                 {

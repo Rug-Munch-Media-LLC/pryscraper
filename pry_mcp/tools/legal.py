@@ -14,7 +14,13 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from ._common import _apply_offset, _data_module_unavailable, _missing_arg
+from ._common import (
+    _apply_offset,
+    _data_module_unavailable,
+    _missing_arg,
+    _ModuleNotFound,
+    resolve_domain_module,
+)
 
 PRY_TOOLS: list[dict[str, Any]] = [
     {
@@ -187,15 +193,15 @@ async def call_legal_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
             return _missing_arg(name, "query")
         limit = int(arguments.get("limit", 20))
         try:
-            from legal_docs.dockets import search_dockets
-        except ImportError:
+            dockets = resolve_domain_module("legal_docs", "dockets")
+        except _ModuleNotFound:
             return _data_module_unavailable(name, "legal_docs")
         try:
             offset = int(arguments.get("offset") or 0)
         except (TypeError, ValueError):
             offset = 0
         # Over-fetch by offset so the slice still yields a full page.
-        data = await search_dockets(query=query, limit=limit + offset)
+        data = await dockets.search_dockets(query=query, limit=limit + offset)
         data, total = _apply_offset(data, arguments)
         payload: dict[str, Any] = {"success": True, "data": data, "query": query}
         if total:
@@ -217,10 +223,10 @@ async def call_legal_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
         form_type = arguments.get("form_type", "8-K")
         limit = int(arguments.get("limit", 20))
         try:
-            from legal_docs.sec_filings import search_filings
-        except ImportError:
+            sec = resolve_domain_module("legal_docs", "sec_filings")
+        except _ModuleNotFound:
             return _data_module_unavailable(name, "legal_docs")
-        data = await search_filings(ticker=ticker, form_type=form_type, limit=limit)
+        data = await sec.search_filings(ticker=ticker, form_type=form_type, limit=limit)
         return {
             "content": [
                 {
@@ -238,10 +244,10 @@ async def call_legal_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
         if not screen:
             return _missing_arg(name, "name")
         try:
-            from legal_docs.sanctions import screen_name
-        except ImportError:
+            sanctions = resolve_domain_module("legal_docs", "sanctions")
+        except _ModuleNotFound:
             return _data_module_unavailable(name, "legal_docs")
-        data = await screen_name(name=screen)
+        data = await sanctions.screen_name(name=screen)
         return {
             "content": [
                 {

@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from ._common import _data_module_unavailable, _missing_arg
+from ._common import _data_module_unavailable, _missing_arg, _ModuleNotFound, resolve_domain_module
 
 PRY_TOOLS: list[dict[str, Any]] = [
     {
@@ -139,10 +139,10 @@ async def call_local_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
         location = arguments.get("location", "")
         limit = int(arguments.get("limit", 20))
         try:
-            from local_data.places import search_places
-        except ImportError:
+            places = resolve_domain_module("local_data", "places")
+        except _ModuleNotFound:
             return _data_module_unavailable(name, "local_data")
-        data = await search_places(query, location=location, limit=limit)
+        data = await places.search_places(query, location=location, limit=limit)
         return {
             "content": [
                 {
@@ -163,10 +163,10 @@ async def call_local_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
         source = arguments.get("source", "google")
         limit = int(arguments.get("limit", 20))
         try:
-            from local_data.reviews import get_reviews
-        except ImportError:
+            reviews = resolve_domain_module("local_data", "reviews")
+        except _ModuleNotFound:
             return _data_module_unavailable(name, "local_data")
-        data = await get_reviews(place_id, source=source, limit=limit)
+        data = await reviews.get_reviews(place_id, source=source, limit=limit)
         return {
             "content": [
                 {

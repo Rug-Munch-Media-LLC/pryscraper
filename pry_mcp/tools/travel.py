@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from ._common import _data_module_unavailable, _missing_arg
+from ._common import _data_module_unavailable, _missing_arg, _ModuleNotFound, resolve_domain_module
 
 PRY_TOOLS: list[dict[str, Any]] = [
     {
@@ -140,10 +140,10 @@ async def call_travel_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
         if not (origin and dest and start_date and end_date):
             return _missing_arg(name, "origin/dest/start_date/end_date")
         try:
-            from travel.flights import cheapest_date_grid
-        except ImportError:
+            flights = resolve_domain_module("travel", "flights")
+        except _ModuleNotFound:
             return _data_module_unavailable(name, "travel")
-        data = await cheapest_date_grid(origin, dest, start_date, end_date)
+        data = await flights.cheapest_date_grid(origin, dest, start_date, end_date)
         return {
             "content": [
                 {
@@ -171,10 +171,10 @@ async def call_travel_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
         if not (hotel_name and checkin and checkout):
             return _missing_arg(name, "hotel_name/checkin/checkout")
         try:
-            from travel.hotels import get_hotel_rates
-        except ImportError:
+            hotels = resolve_domain_module("travel", "hotels")
+        except _ModuleNotFound:
             return _data_module_unavailable(name, "travel")
-        hotel_data = await get_hotel_rates(hotel_name, checkin, checkout)
+        hotel_data = await hotels.get_hotel_rates(hotel_name, checkin, checkout)
         return {
             "content": [
                 {

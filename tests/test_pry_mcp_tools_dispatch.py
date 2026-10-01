@@ -227,7 +227,7 @@ class TestCallLegalTool:
     """One data-domain dispatcher (legal) — the dispatch layer, not the package."""
 
     async def test_missing_module_returns_not_available(self) -> None:
-        with _patch_module("legal_docs.dockets", None):
+        with _patch_module("datasets.legal_docs.dockets", None):
             result = await mcp_tools.call_legal_tool(
                 "pry_legal_dockets", {"query": "OpenAI copyright"}
             )
@@ -255,7 +255,7 @@ class TestCallLegalTool:
                 return_value=[{"id": 1, "case_name": "ACME v. Corp", "court": "SDNY"}]
             )
         )
-        with _patch_module("legal_docs.dockets", fake):
+        with _patch_module("datasets.legal_docs.dockets", fake):
             result = await mcp_tools.call_legal_tool(
                 "pry_legal_dockets", {"query": "OpenAI", "limit": 2}
             )
@@ -294,7 +294,7 @@ class TestCombinedToolExecutor:
     async def test_domain_tool_falls_through_to_domain_dispatcher(self) -> None:
         """Crypto/marketplace decline the tool; the legal dispatcher serves it."""
         fake = _fake_module(search_dockets=AsyncMock(return_value=[]))
-        with _patch_module("legal_docs.dockets", fake):
+        with _patch_module("datasets.legal_docs.dockets", fake):
             result = await combined_tool_executor(
                 "pry_legal_dockets", {"query": "OpenAI", "limit": 1}
             )
@@ -311,7 +311,7 @@ class TestCombinedToolExecutor:
             await combined_tool_executor("pry_scrape", {"url": "https://example.com"})
 
     async def test_missing_domain_module_returns_not_available(self) -> None:
-        with _patch_module("legal_docs.sec_filings", None):
+        with _patch_module("datasets.legal_docs.sec_filings", None):
             result = await combined_tool_executor(
                 "pry_legal_sec", {"ticker": "AAPL", "form_type": "8-K"}
             )
