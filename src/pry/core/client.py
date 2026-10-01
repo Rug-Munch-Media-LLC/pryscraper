@@ -61,8 +61,20 @@ async def get_client() -> httpx.AsyncClient:
 
 
 async def close_client() -> None:
-    """Close the shared client on shutdown."""
+    """Close the shared client on shutdown.
+
+    Shutdown must not raise. The client may have been built on a loop that has
+    already closed (TestClient contexts, and any host that tears the loop down
+    before running lifespan shutdown), in which case ``aclose()`` raises
+    "RuntimeError: Event loop is closed" out of the lifespan and turns a clean
+    exit into a traceback. The global is cleared either way -- a client that
+    cannot be closed on this loop is unusable on the next one.
+    """
     global http_client
-    if http_client and not http_client.is_closed:
-        await http_client.aclose()
-    http_client = None
+    client, http_client = http_client, None
+    if client is None or client.is_closed:
+        return
+    try:
+        await client.aclose()
+    except RuntimeError as exc:
+        logger.warning("http_client_close_skipped", extra={"error": str(exc)})

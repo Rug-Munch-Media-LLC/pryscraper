@@ -409,6 +409,12 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# pytest-asyncio 1.x defaults fixtures and tests to DIFFERENT event loops unless
+# this is pinned, so a fixture-scoped async resource (httpx client, engine, pool)
+# is bound to a loop that the next TestClient context closes. Symptom:
+# "RuntimeError: Event loop is closed" in tests that pass in isolation and fail
+# in a full-suite run -- observed in tests/test_portal_auth.py.
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 # Import paths for the dual-layout repo: `pry.*` lives in src/, while the
 # routers/ package is still at the repo root (SYSTEM-AUDIT-V2 move A2 will

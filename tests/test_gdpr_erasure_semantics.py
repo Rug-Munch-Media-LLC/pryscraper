@@ -5,7 +5,6 @@
 # Licensed under MIT. See LICENSE.
 """Erasure semantics: zero-deletion, completion stamp, HOME regression (split 2 of 3)."""
 
-
 from __future__ import annotations
 
 import asyncio
@@ -13,7 +12,10 @@ import json
 import os
 from typing import TYPE_CHECKING
 
+import pytest
+
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from pathlib import Path
 
 from tests.gdpr_fixtures import (
@@ -21,6 +23,26 @@ from tests.gdpr_fixtures import (
     SUBJECT,
     _plant_quality,
 )
+
+
+@pytest.fixture(autouse=True)
+def _restore_home() -> Iterator[None]:
+    """Restore $HOME after every test in this module.
+
+    ``test_erasure_scans_pry_data_dir_not_home`` sets ``os.environ["HOME"]``
+    to a decoy path. HOME is process-global, so writing it with no restore
+    leaked a tmp_path into every test that ran afterwards in the session --
+    an ordering dependency with no visible cause. try/finally rather than a
+    patching helper so the shrink-only size gate stays put.
+    """
+    real = os.environ.get("HOME")
+    try:
+        yield
+    finally:
+        if real is None:
+            os.environ.pop("HOME", None)
+        else:
+            os.environ["HOME"] = real
 
 
 def test_erasure_leaves_other_subjects_records_intact(data_root: Path) -> None:
@@ -128,5 +150,3 @@ def test_non_existent_home_does_not_change_scan_target(data_root: Path, tmp_path
     assert not real.exists(), "scan target moved away from PRY_DATA_DIR when HOME changed"
     assert decoy_record.exists(), "scan target moved onto $HOME"
     assert result["deleted_records"] == 1
-
-

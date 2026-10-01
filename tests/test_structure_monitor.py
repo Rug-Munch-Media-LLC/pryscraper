@@ -58,6 +58,10 @@ def _fresh_db(monkeypatch):
 
     monkeypatch.setenv("PRY_DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("PRY_DATA_DIR", "/tmp")
+    # Snapshot the globals and RESTORE them. The previous teardown assigned
+    # None, which discarded whatever engine the process already had -- an
+    # ordering dependency on any later test that expected one.
+    saved = (db_module._engine, db_module._SessionLocal, client_module.http_client)
     db_module._engine = create_engine(
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, future=True
     )
@@ -67,10 +71,10 @@ def _fresh_db(monkeypatch):
 
     Base.metadata.create_all(db_module._engine)
     client_module.http_client = None
-    yield
-    db_module._engine = None
-    db_module._SessionLocal = None
-    client_module.http_client = None
+    try:
+        yield
+    finally:
+        db_module._engine, db_module._SessionLocal, client_module.http_client = saved
 
 
 @pytest.fixture
