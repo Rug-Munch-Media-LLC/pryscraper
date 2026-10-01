@@ -16,7 +16,7 @@ note: Every count below is traced to source. The live source of truth is `pry_mc
 
 # Tool Catalog
 
-Pry exposes **99 MCP tools** across **35+ categories**. Each tool has a
+Pry exposes **99 MCP tools** across **33 categories**. Each tool has a
 structured input/output schema, annotation hints (`readOnlyHint`,
 `destructiveHint`, `idempotentHint`), a registry category, and (where gated)
 an x402 operation with server-authoritative pricing.
@@ -142,7 +142,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Sports Betting (13 tools — flat $0.01/scan)
+## Sports Betting (99 tools — flat $0.01/scan)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -166,7 +166,7 @@ an x402 operation with server-authoritative pricing.
 
 
 
-## Prediction Markets (2 tools)
+## Prediction Markets (99 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -199,7 +199,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Player Intelligence (4 tools)
+## Player Intelligence (99 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -210,7 +210,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Sharp Money (5 tools)
+## Sharp Money (99 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -222,7 +222,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Live Analytics (5 tools)
+## Live Analytics (99 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -234,7 +234,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Game Context (3 tools)
+## Game Context (99 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -328,7 +328,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Payments / Billing / Account (3 tools)
+## Payments / Billing / Account (99 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -343,7 +343,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Actors / Marketplace (2 tools)
+## Actors / Marketplace (99 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -378,7 +378,7 @@ an x402 operation with server-authoritative pricing.
 | sharp_money | 5 | live_analytics | 5 |
 | game_context | 3 | | |
 
-**Totals: 99 tools across 35+ categories.**
+**Totals: 99 tools across 33 categories.**
 
 > **Pricing note.** Price cells marked `$0` indicate the operation is
 > explicitly classified free in `x402_middleware/classification.py`

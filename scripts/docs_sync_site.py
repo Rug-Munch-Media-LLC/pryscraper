@@ -16,28 +16,22 @@ DOCS_CONFIG = REPO / "website/docusaurus.config.js"
 
 _CODEBERG = "https://codeberg.org/RugMunchMedia/pryscraper"
 
-RULES: list[tuple[str, str, str]] = [
+RULES: list[tuple[str, str]] = [
     (
         r'url: "https://docs\.pry\.rugmunch\.io"',
         'url: "https://docs.pryscraper.com"',
-        'url: "https://docs.pryscraper.com"',
     ),
-    (r'onBrokenLinks: "warn"', 'onBrokenLinks: "throw"', 'onBrokenLinks: "throw"'),
+    (r'onBrokenLinks: "warn"', 'onBrokenLinks: "throw"'),
+    (r"https://git\.rugmunch\.io/RugMunchMedia/pryscraper", _CODEBERG),
     (
-        r"https://git\.rugmunch\.io/RugMunchMedia/pryscraper",
-        _CODEBERG,
-        _CODEBERG,
-    ),
-    (
-        r'\s*\{\ label: "Discord", href: "https://discord\.gg/pry" \},\n',
+        r'\s*\{{\ label: "Discord", href: "https://discord\.gg/pry" \}},\n',
         "\n",
-        'label: "Discord"',
     ),
 ]
 
 
-def patch_site_config(patch: object, check: bool) -> list[str]:
+def patch_site_config(patch: object, check: bool, facts: dict[str, str]) -> list[str]:
     """Apply :data:`RULES` to the docusaurus config. ``patch`` is injected."""
     if not DOCS_CONFIG.exists():
         return []
-    return patch(DOCS_CONFIG, RULES, check)  # type: ignore[operator]
+    return patch(DOCS_CONFIG, RULES, check, facts)  # type: ignore[operator]

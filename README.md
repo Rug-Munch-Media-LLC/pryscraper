@@ -15,7 +15,7 @@
 
 **Status: Live** — hosted at [api.pryscraper.com](https://api.pryscraper.com), self-hostable.
 
-**15-tier anti-bot bypass** · Cloudflare, DataDome, Akamai · **Pay-per-call API** via crypto · **112 MCP tools** · **112 Apify Actors**
+**15-tier anti-bot bypass** · Cloudflare, DataDome, Akamai · **Pay-per-call API** via crypto · **99 MCP tools** · **109 actors**
 
 [Installation](#installation) · [Quickstart](#quickstart) · [Who pays?](#who-pays) · [Configuration](#configuration) · [MCP Server](#mcp-server) · [x402 Payments](#x402-payments) · [Registry Listings](#registry-listings) · [FAQ](docs/FAQ.md) · [Tool Catalog](docs/ops/TOOLS-CATALOG.md) · [API Reference](docs/ops/API-REFERENCE.md) · [Payments](docs/ops/PAYMENTS.md) · [Operations](docs/ops/DEPLOYMENT.md)
 
@@ -42,7 +42,7 @@ domain.
 
 ### For AI Agents (MCP)
 
-Pry exposes **99 MCP tools** across 35+ categories — web scraping, data extraction,
+Pry exposes **99 MCP tools** across 33 categories — web scraping, data extraction,
 monitoring, sports betting, legal intelligence, real estate, jobs, research, and more.
 Every tool has structured input/output schemas, annotations (`readOnlyHint`,
 `destructiveHint`, `idempotentHint`), and bot-readable descriptions.
@@ -66,7 +66,7 @@ curl -X POST https://api.pryscraper.com/v1/scrape \
 - **More MCP tools than any competitor** — 99 tools (Firecrawl: ~6, Crawl4AI: ~4, ScrapeGraphAI: ~3)
 - **15-tier anti-bot bypass** — competitors typically have 1–3 tiers
 - **x402 native pay-per-call** — no competitor has this
-- **112 Apify actors** — the largest actor fleet on Apify
+- **109 actors** — the largest actor fleet on Apify
 - **Sports betting intelligence** — no competitor offers this
 
 ### Feature Highlights
@@ -84,7 +84,7 @@ curl -X POST https://api.pryscraper.com/v1/scrape \
 - **Sports Betting Intelligence**: 35+ sports tools — live odds, arbitrage,
   +EV, player props, sharp money tracking, Kelly criterion, prediction
   markets, live game analytics, and weather impact.
-- **112 Apify Actors** (verified `actor_factory/actors/`): including sports
+- **109 actors** (verified `actor_factory/actors/`): including sports
   betting intel, odds comparison, best-line, and a props engine.
 
 ---
@@ -431,7 +431,7 @@ paid reliability backstop, so MCP scrapes run at near-zero cost.
 
 ## MCP Server
 
-### Tools (99 total, 35+ categories)
+### Tools (99 total, 33 categories)
 
 > Full breakdown with per-category tables and pricing: [docs/ops/TOOLS-CATALOG.md](docs/ops/TOOLS-CATALOG.md)
 
@@ -628,7 +628,7 @@ GET /llms.txt                     → AI agent discovery (llms.txt standard)
 │  │Proxy│ive  │     │Vis  │API   │                          │
 │  └─────┴─────┴─────┴─────┴─────┘                           │
 ├─────────────────────────────────────────────────────────────┤
-│  Data: 110+ templates · 20+ domains · 7 blockchain networks │
+│  Data: 110 templates · 20+ domains · 7 blockchain networks │
 └─────────────────────────────────────────────────────────────┘
 ```
 

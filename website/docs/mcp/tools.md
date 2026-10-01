@@ -1,6 +1,6 @@
 # MCP Tools
 
-Pry exposes **113 MCP tools across 33 categories**. Every tool has a
+Pry exposes **99 MCP tools across 33 categories**. Every tool has a
 structured input/output schema and MCP 2025-11-25 annotations.
 
 Full machine-readable catalog: [`llms.txt`](https://codeberg.org/RugMunchMedia/pryscraper/raw/branch/main/llms.txt)

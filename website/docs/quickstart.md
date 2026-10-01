@@ -16,7 +16,7 @@ Add Pry to your MCP client configuration:
 }
 ```
 
-All 113 tools are immediately available. Bearer auth is only enforced when `PRY_API_KEY` is set (loopback-only by default).
+All 99 tools are immediately available. Bearer auth is only enforced when `PRY_API_KEY` is set (loopback-only by default).
 
 ## Option 2: Docker (Self-hosted)
 

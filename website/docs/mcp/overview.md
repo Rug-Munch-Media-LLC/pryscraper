@@ -36,7 +36,7 @@ pry mcp --stdio
 
 ## Tools (99 total, 33 categories)
 
-### Web Scraping (6 tools)
+### Web Scraping (99 tools)
 - `pry_scrape` — Scrape any URL to markdown
 - `pry_crawl` — Crawl entire websites
 - `pry_screenshot` — Full-page screenshots
@@ -44,7 +44,7 @@ pry mcp --stdio
 - `pry_search_templates` — Search template catalog
 - `pry_scrape_methods` — Get available scraping methods
 
-### Sports Betting (13 tools)
+### Sports Betting (99 tools)
 - `pry_odds` — Get odds from 112+ sportsbooks
 - `pry_arbitrage` — Find arbitrage opportunities
 - `pry_plus_ev` — Find +EV bets
@@ -59,19 +59,19 @@ pry mcp --stdio
 - `pry_betting_percentages` — Public betting percentages
 - `pry_all_sources` — All available sources
 
-### Legal Intelligence (5 tools)
+### Legal Intelligence (99 tools)
 - `pry_legal_dockets` — Court dockets (CourtListener)
 - `pry_legal_sec` — SEC EDGAR filings
 - `pry_legal_sanctions` — OFAC sanctions list
 - `pry_patents` — Patent search
 - `pry_trademarks` — Trademark search
 
-### Government (3 tools)
+### Government (99 tools)
 - `pry_contracts` — Government contracts (SAM.gov)
 - `pry_grants` — Government grants
 - `pry_procurement` — Procurement data
 
-### Data Domains (20+ categories)
+### Data Domains (33 categories)
 Jobs, real estate, news, energy, freight, food, grocery, deals, travel, events, research, patents, trademarks, sentiment, reviews, app store, weather, compliance, crypto, and more.
 
 ## Tool Annotations

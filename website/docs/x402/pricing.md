@@ -29,7 +29,7 @@ server never trusts a client-supplied amount.
 After the domain/tier merges the live surface is **64 priced operations**.
 Representative tiers:
 
-- Sports betting — flat **$0.01/scan** across all 13 tools
+- Sports betting — flat **$0.01/scan** across all 99 tools
 - Legal / real estate / patents / trademarks — $0.005
 - Jobs / travel / search / local / news — $0.002–$0.01
 - Crypto (launches, CEX listings, security) — $0.002–$0.005

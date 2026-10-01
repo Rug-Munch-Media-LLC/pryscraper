@@ -56,7 +56,10 @@ _COUNT_RE = re.compile(
 # A category subtotal ("- sports_betting: 13 tools") is a per-category count,
 # not the surface total. It is validated against the real per-category
 # histogram by check_category_counts() instead of against PRY_TOOLS.
-_CATEGORY_SUBTOTAL_RE = re.compile(r"^\s*-\s*\w+:\s*\d+\s+tools?\b")
+_CATEGORY_SUBTOTAL_RE = re.compile(
+    r"^\s*-\s*\w+:\s*\d+\s+tools?\b"
+    r"|^#+\s*[^*]*\(\d+\s+tools?\)"
+)
 # "N actors" / "N Apify actors" / "N+ catalog" style
 _ACTOR_RE = re.compile(r"(?<![\w.])(\d{2,3})\s+(?:Apify\s+)?[Aa]ctors?\b")
 _TOOL_REF_RE = re.compile(r"`(pry_[a-z0-9_]+)`")

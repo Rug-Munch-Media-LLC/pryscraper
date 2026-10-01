@@ -25,7 +25,7 @@ OpenTelemetry + Jaeger.
 
 ## Components
 
-- **MCP Layer (113 tools)** — `/mcp` (SSE + Streamable HTTP), `/mcp/messages`
+- **MCP Layer (99 tools)** — `/mcp` (SSE + Streamable HTTP), `/mcp/messages`
   (auth-gated), `/sse`, stdio (`pry mcp serve`).
 - **REST API (v1, ~298 operations)** — `/v1/*` (93 router files),
   `/.well-known/*` + `/llms.txt`.

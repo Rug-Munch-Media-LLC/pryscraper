@@ -26,8 +26,8 @@ import logging
 import httpx
 
 from pry.api.client import get_client
-from pry.engine.fetch_guard import guard_get
 from pry.core.errors import PryError
+from pry.engine.fetch_guard import guard_get
 
 logger = logging.getLogger(__name__)
 

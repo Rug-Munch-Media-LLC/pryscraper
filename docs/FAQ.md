@@ -134,7 +134,7 @@ events with per-event USD pricing, memory specs, and a processor that runs
 the same engine code path as the core API.
 
 **How do actors relate to the MCP tools?**
-Two surfaces, one engine: 113 MCP tools cover the core operations (scrape,
+Two surfaces, one engine: 99 MCP tools cover the core operations (scrape,
 crawl, extract, templates, monitors, 10 data domains), and the actor surface
 (`pry_actor_catalog` + `pry_actor_run`) exposes all 109 store actors through
 MCP — so an agent can enumerate the store and run any actor without leaving

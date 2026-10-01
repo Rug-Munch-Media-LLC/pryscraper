@@ -184,9 +184,7 @@ def cmd_serve(host: str = "127.0.0.1", port: int = 8005) -> None:
     print(f"{CYAN}🔧 Starting Pry v{VERSION} on {host}:{port}{NC}")
     print(f"  Dashboard: http://localhost:{port}/dashboard")
     print(f"  Health:    http://localhost:{port}/health")
-    # src-layout: the app lives at pry.api.api, so a bare "api:app" target cannot
-    # be imported and uvicorn exits before binding the port.
-    os.execvp("uvicorn", ["uvicorn", "pry.api.api:app", "--host", host, "--port", str(port)])  # noqa: S606 S607 - execvp replaces the process; "uvicorn" resolved from PATH intentionally
+    os.execvp("uvicorn", ["uvicorn", "pry.api.api:app", "--host", host, "--port", str(port)])  # noqa: S606 S607 - execvp replaces the process; "uvicorn" from PATH. src-layout: a bare "api:app" cannot be imported
 
 
 def cmd_completions(shell: str = "bash") -> None:

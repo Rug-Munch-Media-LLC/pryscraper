@@ -61,79 +61,118 @@ def _alt(values: tuple[str, ...]) -> str:
     return "|".join(values)
 
 
-def generic_rules(
-    tools_n: str, actors_n: str, templates_n: str, categories_n: str
-) -> list[tuple[str, str, str]]:
+def generic_rules() -> list[tuple[str, str]]:
     """Return ``(pattern, repl, correct)`` rules for every count phrasing.
 
-    Every pattern is anchored to a known-stale literal, so applying the rules
-    twice is a no-op. ``correct`` is retained for ``patch()``'s signature.
+    Tool counts match ANY integer, never an enumerated stale literal. An
+    enumerated list was the original design and it rots silently: when the real
+    count moved 113 -> 99, every doc still said 113, so 113 was absent from the
+    stale list and none of those lines were ever rewritten. The list needed a
+    hand edit on every change to the tool set.
+
+    A bare ``\\d+`` is safe because every pattern is anchored on BOTH sides, so a
+    rule re-matching its own output rewrites it to itself. The earlier
+    compounding corruption came from UNANCHORED ``\\d{2,3}`` matching part of an
+    inserted number ("****113 MCP tools** MCP tools**"), which these cannot do.
+    Per-category counts are excluded by the caller's ``skip_re``, so the sweep
+    never rewrites them. ``correct`` is retained for ``patch()``'s signature.
     """
-    t, a, tm, c = (
-        _alt(STALE_TOOL_COUNTS),
-        _alt(STALE_ACTOR_COUNTS),
-        _alt(STALE_TEMPLATE_COUNTS),
-        _alt(STALE_CATEGORY_COUNTS),
-    )
     return [
-        (rf"\b({t}) MCP tools\b", f"{tools_n} MCP tools", f"{tools_n} MCP tools"),
-        (rf"\b({t})-tool\b", f"{tools_n}-tool", f"{tools_n}-tool"),
-        (rf"\b({t}) tools\b", f"{tools_n} tools", f"{tools_n} tools"),
+        (r"\b\d+ MCP tools\b", "{tools} MCP tools"),
+        (r"\b\d+-tool\b", "{tools}-tool"),
+        (r"\b\d+ tools\b", "{tools} tools"),
         # comparison tables: "### Tools (112 total," and "| MCP tools | **112** |"
-        (rf"\b({t}) total,", f"{tools_n} total,", f"{tools_n} total,"),
-        (
-            rf"(tools\s*\|\s*\*\*)(?:{t})(\*\*)",
-            rf"\g<1>{tools_n}\g<2>",
-            f"**{tools_n}**",
-        ),
-        (
-            rf"MCP Layer \((?:{t}) tools\)",
-            f"MCP Layer ({tools_n} tools)",
-            f"MCP Layer ({tools_n} tools)",
-        ),
-        (
-            rf"\b({a}) (?:Apify )?[Aa]ctors\b",
-            f"{actors_n} actors",
-            f"{actors_n} actors",
-        ),
-        (rf"\b({tm})\+ templates\b", f"{templates_n} templates", f"{templates_n} templates"),
-        (
-            rf"\b({c})\+ categories\b",
-            f"{categories_n} categories",
-            f"{categories_n} categories",
-        ),
+        (r"\b\d+ total,", "{tools} total,"),
+        (r"(tools\s*\|\s*\*\*)\d+(\*\*)", r"\g<1>{tools}\g<2>"),
+        (r"MCP Layer \(\d+ tools\)", "MCP Layer ({tools} tools)"),
+        (r"\b\d+ (?:Apify )?[Aa]ctors\b", "{actors} actors"),
+        (r"\b\d+\+ templates\b", "{templates} templates"),
+        (r"\b\d+\+ categories\b", "{categories} categories"),
     ]
 
 
-def sweep(
-    patch: object,
-    check: bool,
-    tools_n: str,
-    actors_n: str,
-    templates_n: str,
-    categories_n: str,
-) -> list[str]:
+# Signatures of a compounding-substitution accident: a bare \\d{2,3} pattern that
+# re-matched part of its own inserted output. Once a doc contains one of these,
+# a generic (\\d+) rule AMPLIFIES it on every run, so the sync must refuse to
+# write rather than make it worse.
+COMPOUNDED_RE = re.compile(
+    # Only signatures that cannot occur in legitimate prose. An earlier draft
+    # also matched r"-\w+-tier", which false-positived on the ADR filename
+    # "0005-15-tier-scraping.md" -- a guard that cries wolf gets switched off.
+    r"\*{4,}"  # ****99 MCP tools** MCP tools**
+    r"|(?:MCP-){2,}"  # MCP-MCP-MCP-99_tools
+    r"|(?:_tools){2,}"  # 99_tools_tools_tools
+    r"|tools\*\*\s*[A-Za-z][A-Za-z ]*tools\*\*"  # 99 tools** MCP tools**
+)
+
+
+def find_compounded() -> list[str]:
+    """Return ``file:line`` for every doc already showing compounding damage."""
+    out: list[str] = []
+    for path in sorted(REPO.glob("**/*.md")):
+        if any(part in {".venv", "node_modules", "__pycache__"} for part in path.parts):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for lineno, line in enumerate(text.splitlines(), 1):
+            if COMPOUNDED_RE.search(line):
+                out.append(f"{path.relative_to(REPO)}:{lineno}")
+    return out
+
+
+def sweep(patch: object, check: bool, facts: dict[str, str]) -> list[str]:
     """Apply :func:`generic_rules` to every doc. ``patch`` is injected.
 
     ``patch`` is ``docs_sync.patch``, passed in rather than imported so this
     module never depends on the hyphenated filename directly.
     """
-    rules = generic_rules(tools_n, actors_n, templates_n, categories_n)
+    rules = generic_rules()
     notes: list[str] = []
     for rel in SWEEP_DOCS:
         path = REPO / rel
         if path.exists():
-            notes += patch(path, rules, check, CATEGORY_SUBTOTAL_RE)  # type: ignore[operator]
+            notes += patch(path, rules, check, facts, CATEGORY_SUBTOTAL_RE)  # type: ignore[operator]
     return notes
 
 
-def verify_llms_sections(tools_n: int) -> list[str]:
-    """Report when llms.txt has a different number of tool sections than PRY_TOOLS."""
-    llms = (REPO / "llms.txt").read_text()
-    n = len(re.findall(r"^### pry_", llms, re.M))
-    if n == tools_n:
-        return []
-    return [f"  llms.txt: {n} tool sections vs {tools_n} in PRY_TOOLS — regenerate llms.txt"]
+def verify_llms_sections(tools_n: int, check: bool = False) -> list[str]:
+    """Verify llms.txt against PRY_TOOLS, and REGENERATE the category histogram.
+
+    The histogram used to be hand-maintained prose, so it silently went stale
+    whenever a tool was added or removed -- the sweep skips these lines on
+    purpose (``CATEGORY_SUBTOTAL_RE``), which left nothing keeping them honest.
+    It is now derived from ``_categorize`` on every run.
+
+    Returns notes describing what changed (or what would change under ``check``).
+    """
+    import collections
+
+    from pry.api.registry_metadata import _categorize
+    from pry_mcp.tools import PRY_TOOLS
+
+    path = REPO / "llms.txt"
+    llms = path.read_text()
+
+    notes: list[str] = []
+    n_sections = len(re.findall(r"^### pry_", llms, re.M))
+    if n_sections != tools_n:
+        notes.append(f"  llms.txt: {n_sections} tool sections vs {tools_n} in PRY_TOOLS")
+
+    hist = collections.Counter(_categorize(t["name"]) for t in PRY_TOOLS)
+    block = "".join(f"- {k}: {v} tool{'s' if v != 1 else ''}\n" for k, v in sorted(hist.items()))
+    lines = llms.splitlines(keepends=True)
+    idx = [i for i, ln in enumerate(lines) if re.match(r"^- \w+: \d+ tools?$", ln.rstrip())]
+    if idx and "".join(lines[idx[0] : idx[-1] + 1]) != block:
+        notes.append(
+            f"  llms.txt: category histogram rewritten ({len(hist)} categories, "
+            f"sum {sum(hist.values())})"
+        )
+        if not check:
+            lines[idx[0] : idx[-1] + 1] = [block]
+            path.write_text("".join(lines))
+    return notes
 
 
 def actor_count() -> int:

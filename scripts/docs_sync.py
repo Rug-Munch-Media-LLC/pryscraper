@@ -27,8 +27,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from docs_sync_rules import README_RULES, SKILL_RULES, SMITHERY_RULES, WEBSITE_RULES
 from docs_sync_site import patch_site_config
-from docs_sync_sweep import actor_count, sweep, template_count, verify_llms_sections
+from docs_sync_sweep import (
+    actor_count,
+    find_compounded,
+    sweep,
+    template_count,
+    verify_llms_sections,
+)
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
@@ -75,30 +82,57 @@ def server_json_tool_count() -> int:
 
 FACTS = {}
 
+# The single source every rule template draws from. Bare values only: a template
+# supplies all formatting. See patch() for why the third rule element was removed.
+VALUES: dict[str, str] = {}
+
 
 # ── Patch helpers ────────────────────────────────────────────────────────────
 
 
 def patch(
     path: Path,
-    rules: list[tuple[str, str, str]],
+    rules: list[tuple[str, ...]],
     check: bool,
+    facts: dict[str, str],
     skip_re: re.Pattern[str] | None = None,
 ) -> list[str]:
-    """Apply ``(pattern_fmt, repl_fmt, correct)`` rules.
+    """Apply ``(pattern_fmt, repl_fmt)`` rules.
 
-    ``{n}`` placeholders in the patterns are filled with the correct value, so
-    an already-correct line rewrites to itself. ``skip_re`` protects lines that
-    must never change (llms.txt's per-category histogram).
+    Named placeholders (``{tools}``, ``{tiers}``...) resolve from the caller's
+    ``facts`` mapping, so
+    an already-correct line rewrites to itself and the sweep is idempotent.
+    ``skip_re`` protects lines that must never change (llms.txt's histogram).
+
+    Rules are TWO elements on purpose. An earlier three-element form
+    ``(pattern, repl, correct)`` fed ``correct`` into BOTH templates, so passing
+    a pre-formatted value ("**15-tier anti-bot bypass**") instead of the bare
+    number ("15") expanded the replacement into itself and corrupted the file on
+    every run -- README badge read ``MCP-MCP-MCP-MCP-99_tools_tools_tools...``.
+    Deriving the value from a single source removes the whole class of bug.
     """
+    # Validate every rule BEFORE touching the filesystem: a malformed rule must
+    # fail loudly, not after a half-applied edit or an unrelated file error.
+    for rule in rules:
+        if len(rule) != 2:
+            msg = (
+                "docs_sync: rule must be (pattern_fmt, repl_fmt), got "
+                f"{len(rule)} elements: {rule!r}"
+            )
+            raise ValueError(msg)
+
     text = path.read_text()
     original = text
     notes: list[str] = []
-    for pattern_fmt, repl_fmt, correct in rules:
-        if correct in text:
-            continue
-        pattern = pattern_fmt.replace("{n}", correct)
-        repl = repl_fmt.replace("{n}", correct)
+    for pattern_fmt, repl_fmt in rules:
+        # Per-RULE idempotence, not per-file. A file-level `if correct in text`
+        # skipped every rule whenever the correct value appeared anywhere in the
+        # file, so after the tool count moved 113 -> 99 the stale 113 lines were
+        # never rewritten because "99" already occurred for an unrelated reason.
+        # Each rule is anchored on both sides (e.g. \*\*\d+ MCP tools\*\*), so
+        # re-matching its own output rewrites it to itself and no guard is needed.
+        pattern = pattern_fmt.format(**facts)
+        repl = repl_fmt.format(**facts)
         # Per line, so skip_re can protect a whole line. This guard is what
         # stops a broad pattern from re-matching its own insertion.
         out, hits = [], 0
@@ -106,8 +140,13 @@ def patch(
             if skip_re is not None and skip_re.match(ln):
                 out.append(ln)
                 continue
-            new, k = re.subn(pattern, repl, ln)
-            hits += k
+            new, _matched = re.subn(pattern, repl, ln)
+            # Count only substitutions that ACTUALLY change the line. re.subn
+            # returns a count for every match, including one that rewrites the
+            # line to itself -- so a rule already satisfied still reported a
+            # change and --check never converged.
+            if new != ln:
+                hits += 1
             out.append(new)
         if hits:
             notes.append(f"  {path.relative_to(REPO)}: {hits}x /{pattern[:60]}/")
@@ -151,116 +190,51 @@ def main() -> int:
     actors_n = str(FACTS["actors"])
     templates_n = str(FACTS["templates"])
 
+    VALUES.update(
+        tools=tools_n,
+        categories=cats_n,
+        tests=tests_n,
+        tiers=tiers_n,
+        actors=actors_n,
+        templates=templates_n,
+    )
+
+    # Refuse to touch a repo whose docs already carry compounding damage. A
+    # generic (\d+) rule would amplify it on every run, so stop and let a human
+    # repair the text first. This is the guard that stops one bad run becoming
+    # permanent, unreadable documentation.
+    damaged = find_compounded()
+    if damaged:
+        print(
+            "docs_sync: REFUSING TO RUN -- these docs already show compounding "
+            "substitution damage. Repair them by hand first:",
+            file=sys.stderr,
+        )
+        for loc in damaged[:20]:
+            print(f"  {loc}", file=sys.stderr)
+        return 2
+
     changes: list[str] = []
 
     # ── Generic sweep: any "N tools" / "N actors" / "N+ templates" that is
     # not the real count is rewritten, in every prose doc. A per-file rule
     # list drifts the moment a new doc lands; one sweep does not.
-    changes += sweep(patch, check, tools_n, actors_n, templates_n, cats_n)
+    changes += sweep(patch, check, VALUES)
 
-    # ── README.md ────────────────────────────────────────────────────────
-    changes += patch(
-        REPO / "README.md",
-        [
-            (r"tests-\d+%2B?_passing", "tests-{n}_files", f"tests-{tests_n}_files"),
-            (r"\*\*\d+ MCP tools\*\*", "**{n} MCP tools**", f"**{tools_n} MCP tools**"),
-            (r"MCP-\d+_tools", "MCP-{n}_tools", f"MCP-{tools_n}_tools"),
-            (
-                r"\*\*\d+-tier anti-bot bypass\*\*",
-                "**{n}-tier anti-bot bypass**",
-                f"**{tiers_n}-tier anti-bot bypass**",
-            ),
-            (
-                r"\*\*\d+-tier fallback chain\*\*",
-                "**{n}-tier fallback chain**",
-                f"**{tiers_n}-tier fallback chain**",
-            ),
-            (r"across \d+ categories", "across {n} categories", f"across {cats_n} categories"),
-            (
-                r"### Tools \(\d+ total, \d+ categories\)",
-                "### Tools ({n})",
-                f"### Tools ({tools_n} total, {cats_n} categories)",
-            ),
-            (r"MCP Layer \(\d+ tools\)", "MCP Layer ({n} tools)", f"MCP Layer ({tools_n} tools)"),
-        ],
-        check,
-    )
+    # ── Per-document rules. The rule sets live in docs_sync_rules.py; see that
+    # module for why every rule is a two-element pair.
+    changes += patch(REPO / "README.md", README_RULES, check, VALUES)
+    changes += patch(REPO / "SKILL.md", SKILL_RULES, check, VALUES)
 
-    # ── SKILL.md ─────────────────────────────────────────────────────────
-    changes += patch(
-        REPO / "SKILL.md",
-        [
-            (
-                r"via a \d+-tier fallback chain",
-                "via a {n}-tier fallback chain",
-                f"via a {tiers_n}-tier fallback chain",
-            ),
-            (
-                r"exposes \d+ tools for crawling",
-                "exposes {n} tools for crawling",
-                f"exposes {tools_n} tools for crawling",
-            ),
-            (
-                r"- \*\*No API keys needed\*\* — self-hosted; the server is a FastAPI app mounted at `/mcp` plus a stdio entry point \(`pry-mcp`\)\.",
-                "- **Auth**: self-hosted by default — loopback-only when `PRY_API_KEY` is unset; "
-                "set `PRY_API_KEY` to require `Authorization: Bearer` for remote clients. "
-                "The server is a FastAPI app mounted at `/mcp` plus a stdio entry point (`pry-mcp`).",
-                "- **Auth**: self-hosted by default",
-            ),
-        ],
-        check,
-    )
-
-    # ── website/docs ─────────────────────────────────────────────────────
     web = REPO / "website/docs"
     for md in sorted(web.rglob("*.md")):
-        changes += patch(
-            md,
-            [
-                (r"\b73 tools\b", "{n} tools", f"{tools_n} tools"),
-                (r"\b73 MCP tools\b", "{n} MCP tools", f"{tools_n} MCP tools"),
-                (r"MCP tools \| \*\*\d+\*\*", "MCP tools | **{n}**", f"MCP tools | **{tools_n}**"),
-                (
-                    r"MCP Layer \(\d+ tools\)",
-                    "MCP Layer ({n} tools)",
-                    f"MCP Layer ({tools_n} tools)",
-                ),
-                (r"\b27 categories\b", "{n} categories", f"{cats_n} categories"),
-                (
-                    r"Tools \(\d+ total, \d+ categories\)",
-                    "Tools ({n})",
-                    f"Tools ({tools_n} total, {cats_n} categories)",
-                ),
-                (
-                    r"That's it\. No API key\.",
-                    "Bearer auth: free on loopback; set `PRY_API_KEY` for remote access.",
-                    "Bearer auth: free on loopback",
-                ),
-                (
-                    r"All \d+ tools are immediately available\. No API key required\.",
-                    f"All {tools_n} tools are immediately available. Bearer auth is only enforced when "
-                    "`PRY_API_KEY` is set (loopback-only by default).",
-                    f"All {tools_n} tools are immediately available. Bearer auth",
-                ),
-                (
-                    r"https://git\.rugmunch\.io/RugMunchMedia/pryscraper",
-                    "https://codeberg.org/RugMunchMedia/pryscraper",
-                    "https://codeberg.org/RugMunchMedia/pryscraper",
-                ),
-            ],
-            check,
-        )
+        changes += patch(md, WEBSITE_RULES, check, VALUES)
 
-    changes += patch_site_config(patch, check)
+    changes += patch_site_config(patch, check, VALUES)
 
-    changes += verify_llms_sections(FACTS["tools"])
+    changes += verify_llms_sections(FACTS["tools"], check)
 
-    # ── smithery.yaml count comment ─────────────────────────────────────
-    changes += patch(
-        REPO / "smithery.yaml",
-        [(r"exposes \d+ tools", "exposes {n} tools", f"exposes {tools_n} tools")],
-        check,
-    )
+    changes += patch(REPO / "smithery.yaml", SMITHERY_RULES, check, VALUES)
 
     if changes:
         print("changes:" if not check else "would change:")

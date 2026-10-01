@@ -18,7 +18,7 @@ Pry is a self-hosted web scraping and browser automation platform with native x4
 }
 ```
 
-Bearer auth: free on loopback; set `PRY_API_KEY` for remote access. 76 tools immediately available.
+Bearer auth: free on loopback; set `PRY_API_KEY` for remote access. 99 tools immediately available.
 
 ### Self-hosted (Docker)
 
@@ -66,7 +66,7 @@ pry crawl https://docs.com --max-pages 20
 │  │Proxy│ive  │     │Vis  │API   │                          │
 │  └─────┴─────┴─────┴─────┴─────┘                           │
 ├─────────────────────────────────────────────────────────────┤
-│  Data: 110+ templates · 20+ domains · 7 blockchain networks │
+│  Data: 110 templates · 20+ domains · 7 blockchain networks │
 └─────────────────────────────────────────────────────────────┘
 ```
 

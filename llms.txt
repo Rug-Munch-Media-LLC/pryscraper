@@ -28,7 +28,7 @@
 - crypto: 3 tools
 - data: 3 tools
 - data_enrichment: 2 tools
-- data_extraction: 6 tools
+- data_extraction: 1 tool
 - document_processing: 1 tool
 - energy: 1 tool
 - events: 1 tool
@@ -49,8 +49,8 @@
 - sports_betting: 17 tools
 - trade: 1 tool
 - travel: 2 tools
-- utility: 29 tools
-- web_scraping: 10 tools
+- utility: 24 tools
+- web_scraping: 6 tools
 
 ## Tools
 
