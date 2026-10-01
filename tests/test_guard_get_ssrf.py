@@ -79,6 +79,15 @@ def test_normal_public_url_still_suggested() -> None:
     target = respx.get("https://example.com/product").mock(
         return_value=httpx.Response(200, text=SUGGEST_PAGE)
     )
+    # /v1/suggest also asks the LOCAL Ollama for selector suggestions
+    # (_suggest_support._add_llm_suggestions). That is server configuration, not
+    # caller input, so it is deliberately not SSRF-guarded -- but respx
+    # asserts on ANY unmocked request, and AllMockedAssertionError is not an
+    # httpx.HTTPError, so it escaped the best-effort except and surfaced as a
+    # 500. Mock it: this test is about the guard, not about the LLM.
+    respx.post(url__startswith="http://localhost:11434").mock(
+        return_value=httpx.Response(200, json={"response": "{}"})
+    )
 
     r = client.post("/v1/suggest", json={"url": "https://example.com/product"})
 
