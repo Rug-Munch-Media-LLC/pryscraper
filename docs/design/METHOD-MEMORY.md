@@ -305,9 +305,13 @@ which cooldown then keeps demoting). Two guards:
 
 ## 3. Five highest-value MCP tools
 
-Pry's MCP surface is **auto-derived from FastAPI routes** (`api/mcp_tools.py::discover_api_tools`
-walks `app.routes`; `pry_mcp/tool_registry.py` dispatches by name). So each tool is a
-**route** in a new `api/routers/core/method_memory.py` — no separate tool plumbing.
+Pry's MCP surface is **hand-declared**, not auto-derived: `pry_mcp/tools.py::PRY_TOOLS`
+is the source of truth and `pry_mcp/tool_registry.py` dispatches by name. (An earlier
+`api/mcp_tools.py::discover_api_tools()` claimed to walk `app.routes` and expose every
+endpoint, but it saw only 4 tools because `app.routes` holds 88 router stubs rather than
+expanded routes, and nothing called it; it was deleted.) So each tool also needs a
+**route** in a new `api/routers/core/method_memory.py` — the two lists are maintained
+separately, which is why `scripts/check-doc-claims.py` gates the counts.
 Auth reuses the `_require_auth` pattern from `routers/core/diagnostics.py:25-33`.
 
 | # | Tool | Route | Why it earns its slot |
@@ -371,7 +375,8 @@ Each phase is independently shippable and leaves the system working.
 - EDIT `src/pry/api/routers/core/__init__.py` (or the router registry) to mount it.
 - EDIT `src/pry/api/routers/commerce/x402.py` — add #1/#4 to `X402_PRICING`.
 - EDIT `src/pry/api/routers/core/diagnostics.py` — fold the new store into `/v1/diagnostics`.
-- **Gate:** MCP tool appears in `discover_api_tools()`; auth test; x402 price test.
+- **Gate:** MCP tool appears in `pry_mcp/tools.py::PRY_TOOLS`; auth test; x402 price test;
+  `python3 scripts/check-doc-claims.py` still exits 0.
   **Done when** an agent can call `method_memory_recommend` over MCP and act on it.
 
 ### Phase 4 — Close the taxonomy gap + cold start

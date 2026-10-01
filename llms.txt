@@ -19,44 +19,44 @@
 ## Categories
 
 - actors: 2 tools
-- affiliate: 1 tools
-- agriculture: 1 tools
+- affiliate: 1 tool
+- agriculture: 1 tool
 - alerts: 2 tools
-- app_store: 1 tools
+- app_store: 1 tool
 - business: 2 tools
-- compliance: 1 tools
-- crypto: 4 tools
-- data: 1 tools
+- compliance: 1 tool
+- crypto: 3 tools
+- data: 3 tools
 - data_enrichment: 2 tools
-- data_extraction: 1 tools
-- document_processing: 1 tools
-- energy: 1 tools
-- events: 1 tools
+- data_extraction: 6 tools
+- document_processing: 1 tool
+- energy: 1 tool
+- events: 1 tool
 - government: 3 tools
 - jobs_careers: 2 tools
 - legal: 5 tools
-- local: 1 tools
-- logistics: 1 tools
-- monitoring: 1 tools
-- news_intelligence: 1 tools
-- payments: 3 tools
-- real_estate: 1 tools
-- research: 1 tools
+- local: 1 tool
+- logistics: 1 tool
+- monitoring: 1 tool
+- news_intelligence: 1 tool
+- payments: 1 tool
+- real_estate: 1 tool
+- research: 1 tool
 - retail: 4 tools
-- safety: 1 tools
+- safety: 1 tool
 - search: 2 tools
 - social: 3 tools
-- sports_betting: 13 tools
-- trade: 1 tools
+- sports_betting: 17 tools
+- trade: 1 tool
 - travel: 2 tools
-- utility: 4 tools
-- web_scraping: 6 tools
+- utility: 29 tools
+- web_scraping: 10 tools
 
 ## Tools
 
 ### pry_actor_catalog
 
-List every Pry Apify Store actor (109) with description, pricing events and per-event USD price. Store parity surface: anything runnable on Apify is discoverable here. Filter by optional 'domain' subst
+List every Pry Apify Store actor (109) with description, category, pricing events and per-event USD price. Store parity surface: anything runnable on Apify is discoverable here. Filter by optional 'domain' substring (e.g. 'monitor', 'crypto', 'seo'). Supports offset/limit pagination over the full catalog.
 
 Category: actors
 
@@ -452,7 +452,7 @@ Category: search
 
 ### pry_sharp_consensus
 
-Get the sharp consensus: the closing-line value and consensus price from sharp books (Pinnacle, Circa, BetOnline) for the biggest games. Use to identify where professional money is, e.g. 'what is the
+Games where MULTIPLE sharp indicators align on the same side: steam moves, reverse line movement, and bet/money divergence all pointing at one team. Each record includes the event, which indicators fired, the consensus sharp pick, a confidence level (high when 3+ indicators agree), and a recommended bet summary. Use for the highest-conviction plays only, e.g. 'which games have the strongest sharp consensus tonight?' or call with sport='nba' to filter the slate down to multi-signal games.
 
 Category: sports_betting
 
@@ -650,8 +650,7 @@ Filter HTML, convert to minimal Markdown, and chunk it for RAG / vector database
 
 ### pry_mega_search
 
-Search the web with every engine at once and return one consensus-ranked list. Six independent engines are queried in parallel and each hit is ranked by how many engines independently found it, so a link four engines agree on outranks one only a single engine returned. Use when you want the best possible answer and do not need page bodies; for full-page reading use pry_search instead. For example pry_mega_search(query='best rust web frameworks 2026', num_results=10) returns one deduplicated list where every result reports how many engines found it.
-
+Search the web with EVERY engine at once and return one consensus-ranked list. Six independent engines (SearXNG, DuckDuckGo, Mojeek, Seznam, Yahoo, Qwant) are queried in parallel, results are deduplicated, and each hit is ranked by how many engines independently found it - so a link four engines agree on outranks a link only one returned. Use this when you want the best possible answer to a factual question and do not need page bodies; for full-page reading use pry_search instead. Results carry 'consensus' (engine count) and 'sources'; engines_ok / engines_failed show which legs answered.For example, pry_mega_search(query='best rust web frameworks 2026', num_results=10) returns one deduplicated list where every result reports how many engines found it.
 
 ### pry_search
 

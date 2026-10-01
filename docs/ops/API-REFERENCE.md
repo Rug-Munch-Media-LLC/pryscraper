@@ -19,7 +19,7 @@ note: Both the REST surface and the MCP tools are generated from the same FastAP
 Pry exposes one API through two transports:
 
 1. **REST** (`/v1/*`) — for humans, SDKs, and server-to-server automation.
-2. **MCP** (`/mcp`, `/mcp/sse`, stdio) — 76 tools auto-discovered from the same
+2. **MCP** (`/mcp`, `/mcp/sse`, stdio) — 113 tools auto-discovered from the same
    routers, for AI agents. Each MCP tool maps back to a REST route.
 
 **Route count.** `openapi.json` (built artifact) reports **293 paths** /
@@ -286,7 +286,7 @@ MCP tools are auto-generated and enriched by `registry_metadata.py`. The
 | `pry_serp` | `GET /v1/attention/serp` |
 | `pry_token_launches` | `GET /v1/crypto/token-launches` |
 
-The full 76-tool list with per-category grouping is in
+The full 113-tool list with per-category grouping is in
 [docs/ops/TOOLS-CATALOG.md](TOOLS-CATALOG.md).
 
 ---

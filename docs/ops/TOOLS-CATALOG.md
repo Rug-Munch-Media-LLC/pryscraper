@@ -16,7 +16,7 @@ note: Every count below is traced to source. The live source of truth is `pry_mc
 
 # Tool Catalog
 
-Pry exposes **112 MCP tools** across **35+ categories**. Each tool has a
+Pry exposes **113 MCP tools** across **33 categories**. Each tool has a
 structured input/output schema, annotation hints (`readOnlyHint`,
 `destructiveHint`, `idempotentHint`), a registry category, and (where gated)
 an x402 operation with server-authoritative pricing.
@@ -27,7 +27,7 @@ an x402 operation with server-authoritative pricing.
 > - `src/pry/api/registry_metadata.py` — `get_tools_by_category()` returns
 >   35+ category groups; `get_registry_manifest()` reports `tools.count = 112`.
 > - `server.json`, `glama.json`, `registry_manifest.json` each carry the same
->   112-tool payload (machine-readable registry listings).
+>   113-tool payload (machine-readable registry listings).
 
 ---
 
@@ -142,7 +142,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Sports Betting (13 tools — flat $0.01/scan)
+## Sports Betting (113 tools — flat $0.01/scan)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -414,7 +414,7 @@ an x402 operation with server-authoritative pricing.
 | sharp_money | 6 | live_analytics | 5 |
 | game_context | 3 | | |
 
-**Totals: 112 tools across 35+ categories.**
+**Totals: 113 tools across 33 categories.**
 
 > **Pricing note.** Price cells marked `$0` indicate the operation is
 > explicitly classified free in `x402_middleware/classification.py`

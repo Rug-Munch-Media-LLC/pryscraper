@@ -23,7 +23,7 @@ install:
 	pip install -e ".[dev]"
 
 dev:
-	uvicorn api:app --reload --host 0.0.0.0 --port 8005
+	uvicorn pry.api.api:app --reload --host 0.0.0.0 --port 8005
 
 lint:
 	ruff check .

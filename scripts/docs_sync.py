@@ -25,6 +25,11 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from docs_sync_site import patch_site_config
+from docs_sync_sweep import actor_count, sweep, template_count, verify_llms_sections
+
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "src"))
@@ -74,12 +79,17 @@ FACTS = {}
 # ── Patch helpers ────────────────────────────────────────────────────────────
 
 
-def patch(path: Path, rules: list[tuple[str, str, str]], check: bool) -> list[str]:
+def patch(
+    path: Path,
+    rules: list[tuple[str, str, str]],
+    check: bool,
+    skip_re: re.Pattern[str] | None = None,
+) -> list[str]:
     """Apply ``(pattern_fmt, repl_fmt, correct)`` rules.
 
-    ``pattern_fmt``/``repl_fmt`` may contain ``{n}`` placeholders filled with
-    the correct value. A rule is skipped when the already-correct string is
-    present, which makes the script idempotent.
+    ``{n}`` placeholders in the patterns are filled with the correct value, so
+    an already-correct line rewrites to itself. ``skip_re`` protects lines that
+    must never change (llms.txt's per-category histogram).
     """
     text = path.read_text()
     original = text
@@ -89,10 +99,19 @@ def patch(path: Path, rules: list[tuple[str, str, str]], check: bool) -> list[st
             continue
         pattern = pattern_fmt.replace("{n}", correct)
         repl = repl_fmt.replace("{n}", correct)
-        new, n = re.subn(pattern, repl, text)
-        if n:
-            notes.append(f"  {path.relative_to(REPO)}: {n}x /{pattern[:60]}/")
-            text = new
+        # Per line, so skip_re can protect a whole line. This guard is what
+        # stops a broad pattern from re-matching its own insertion.
+        out, hits = [], 0
+        for ln in text.splitlines(keepends=True):
+            if skip_re is not None and skip_re.match(ln):
+                out.append(ln)
+                continue
+            new, k = re.subn(pattern, repl, ln)
+            hits += k
+            out.append(new)
+        if hits:
+            notes.append(f"  {path.relative_to(REPO)}: {hits}x /{pattern[:60]}/")
+            text = "".join(out)
     if text != original and not check:
         path.write_text(text)
     return notes
@@ -111,10 +130,13 @@ def main() -> int:
         tests=test_file_count(),
         version=version(),
         server_tools=server_json_tool_count(),
+        actors=actor_count(),
+        templates=template_count(),
     )
     print(
         "facts: tools={tools} categories={categories} tiers={tiers} "
-        "tests={tests} version={version} server.json tools={server_tools}".format(**FACTS)
+        "tests={tests} version={version} server.json tools={server_tools} "
+        "actors={actors} templates={templates}".format(**FACTS)
     )
     if FACTS["tools"] != FACTS["server_tools"]:
         print(
@@ -126,8 +148,15 @@ def main() -> int:
     cats_n = str(FACTS["categories"])
     tests_n = str(FACTS["tests"])
     tiers_n = str(FACTS["tiers"])
+    actors_n = str(FACTS["actors"])
+    templates_n = str(FACTS["templates"])
 
     changes: list[str] = []
+
+    # ── Generic sweep: any "N tools" / "N actors" / "N+ templates" that is
+    # not the real count is rewritten, in every prose doc. A per-file rule
+    # list drifts the moment a new doc lands; one sweep does not.
+    changes += sweep(patch, check, tools_n, actors_n, templates_n, cats_n)
 
     # ── README.md ────────────────────────────────────────────────────────
     changes += patch(
@@ -222,37 +251,9 @@ def main() -> int:
             check,
         )
 
-    # ── website/docusaurus.config.js ─────────────────────────────────────
-    changes += patch(
-        REPO / "website/docusaurus.config.js",
-        [
-            (
-                r'url: "https://docs\.pry\.rugmunch\.io"',
-                'url: "https://docs.pryscraper.com"',
-                'url: "https://docs.pryscraper.com"',
-            ),
-            (r'onBrokenLinks: "warn"', 'onBrokenLinks: "throw"', 'onBrokenLinks: "throw"'),
-            (
-                r"https://git\.rugmunch\.io/RugMunchMedia/pryscraper",
-                "https://codeberg.org/RugMunchMedia/pryscraper",
-                "https://codeberg.org/RugMunchMedia/pryscraper",
-            ),
-            (
-                r'\s*\{\ label: "Discord", href: "https://discord\.gg/pry" \},\n',
-                "\n",
-                'label: "Discord"',
-            ),
-        ],
-        check,
-    )
+    changes += patch_site_config(patch, check)
 
-    # ── llms.txt verification (generated elsewhere; verify only) ────────
-    llms = (REPO / "llms.txt").read_text()
-    n_llms_tools = len(re.findall(r"^### pry_", llms, re.M))
-    if n_llms_tools != FACTS["tools"]:
-        changes.append(
-            f"  llms.txt: {n_llms_tools} tool sections vs {tools_n} in PRY_TOOLS — regenerate llms.txt"
-        )
+    changes += verify_llms_sections(FACTS["tools"])
 
     # ── smithery.yaml count comment ─────────────────────────────────────
     changes += patch(

@@ -108,37 +108,3 @@ class TestPaymentAnalytics:
     def test_analytics_instance(self) -> None:
         a1 = PaymentAnalytics("/tmp/a.jsonl", "/tmp/b.jsonl")
         assert isinstance(a1, PaymentAnalytics)
-
-
-class TestDynamicMCPTools:
-    """Test dynamic MCP tool generation."""
-
-    def test_discover_api_tools_returns_list(self) -> None:
-        from pry.api.mcp_tools import discover_api_tools
-
-        tools = discover_api_tools()
-        assert isinstance(tools, list)
-        assert len(tools) > 0
-
-    def test_tool_has_required_fields(self) -> None:
-        from pry.api.mcp_tools import discover_api_tools
-
-        tools = discover_api_tools()
-        for tool in tools:
-            assert "name" in tool
-            assert "description" in tool
-            assert "inputSchema" in tool
-
-    def test_path_to_tool_name(self) -> None:
-        from pry.api.mcp_tools import _path_to_tool_name
-
-        assert _path_to_tool_name("/v1/scrape", "POST") == "pry_scrape"
-        assert _path_to_tool_name("/v1/crawl", "POST") == "pry_crawl"
-
-    def test_type_to_json_schema(self) -> None:
-        from pry.api.mcp_tools import _type_to_json_schema
-
-        assert _type_to_json_schema(int) == "integer"
-        assert _type_to_json_schema(float) == "number"
-        assert _type_to_json_schema(bool) == "boolean"
-        assert _type_to_json_schema(str) == "string"

@@ -40,7 +40,7 @@ buildCommand:
   script: |
     pip install -e ".[dev]"
 
-# The Pry MCP server exposes 112 tools across web scraping, browser
+# The Pry MCP server exposes exposes exposes exposes exposes 113 tools tools tools tools tools across web scraping, browser
 # automation, and the fifteen data-domain packages (crypto, marketplace,
 # legal, real estate, jobs, travel, attention, local, gov, ip, sports,
 # climate/research, events/freight/energy/food/supply, the app-store /

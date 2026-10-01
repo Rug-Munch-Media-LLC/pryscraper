@@ -87,11 +87,10 @@ async def x402_manifest() -> dict[str, Any]:
                 "methods": ["POST"],
                 "pricing": {"base": "$0.003", "per_field": "$0.0005"},
             },
-            "/v1/search": {
-                "description": "Search engine scraping",
-                "methods": ["POST"],
-                "pricing": {"base": "$0.002", "per_result": "$0.0001"},
-            },
+            # NOTE: no /v1/search entry. Web search is exposed over MCP only
+            # (pry_search / pry_search_web / pry_mega_search); there is no
+            # REST route for it, so this manifest must not advertise a price
+            # for it. scripts/check-doc-claims.py enforces this.
             "/v1/signup": {
                 "description": "Automated account registration",
                 "methods": ["POST"],
