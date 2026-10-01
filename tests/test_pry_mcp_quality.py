@@ -456,8 +456,11 @@ _DOMAIN_TOOLS: dict[str, tuple[str, tuple[str, ...], dict[str, Any]]] = {
         ("get_game_context",),
         {"lat": 40.0, "lon": -74.0, "home_team": "Giants", "away_team": "Cowboys"},
     ),
-    # ── Web search + browser actions (4 new tools, 2026-09-05) ──
-    # These go through REST proxy, not domain dispatchers
+    "pry_mega_search": (
+        "pry.engine.mega_search",
+        ("mega_search",),
+        {"query": "test", "num_results": 3},
+    ),
 }
 
 # REST-proxy tools: name -> sample arguments. The fallback server calls the
@@ -486,38 +489,6 @@ _REST_PROXY_TOOLS: dict[str, dict[str, Any]] = {
     "pry_buy_pack": {"pack_id": "starter"},
     "pry_referrals": {"category": "proxies"},
     "pry_scrape_methods": {},
-    # ── Site mapping + content filtering + web search + actions (10 new REST tools) ──
-    "pry_map_site": {"url": "https://example.com"},
-    "pry_crawl_to_markdown": {"url": "https://example.com"},
-    "pry_crawl_for_rag": {"url": "https://example.com"},
-    "pry_filter_content": {"html": "<html><body><p>test</p></body></html>"},
-    "pry_extract_main": {"html": "<html><body><article><p>main</p></article></body></html>"},
-    "pry_chunk_for_rag": {"html": "<html><body><p>test content</p></body></html>"},
-    "pry_search": {"query": "test"},
-    "pry_mega_search": {"query": "test"},
-    "pry_search_web": {"query": "test"},
-    "pry_search_extract": {"query": "test", "schema": {"name": "string"}},
-    "pry_scrape_with_actions": {
-        "url": "https://example.com",
-        "actions": [{"type": "wait", "ms": 100}],
-    },
-    # ── Schema extraction + adaptive selectors (4 new tools) ──
-    "pry_extract_schema": {
-        "url": "https://example.com",
-        "schema": {"name": "string", "price": "number"},
-    },
-    "pry_extract_batch": {
-        "urls": ["https://example.com"],
-        "schema": {"name": "string"},
-    },
-    "pry_extract_prompt": {
-        "url": "https://example.com",
-        "prompt": "Extract the product name and price",
-    },
-    "pry_adaptive_scrape": {
-        "url": "https://example.com",
-        "selectors": {"title": "h1"},
-    },
 }
 
 # Local actor-parity tools: name -> sample arguments. Executed through

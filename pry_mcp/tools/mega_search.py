@@ -1,7 +1,6 @@
 """Pry - MCP tool definition: consensus web search across every engine.
 
-Unlike :mod:`pry_mcp.tools.web_search` (which reads whole pages), this
-returns a merged SERP. Every engine is queried concurrently and hits are
+Returns a merged SERP. Every engine is queried concurrently and hits are
 ranked by how many engines independently surfaced them, so the answer is
 stronger than any single provider can give. Backed by
 :mod:`pry.engine.mega_search`.
@@ -15,6 +14,7 @@ stronger than any single provider can give. Backed by
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 PRY_MEGA_SEARCH_TOOLS: list[dict[str, Any]] = [
@@ -115,7 +115,23 @@ async def call_mega_search_tool(name: str, arguments: dict[str, Any]) -> Any:
     try:
         from pry.engine.mega_search import mega_search
     except Exception as exc:  # noqa: BLE001 - degrade, never crash the server
-        return {"error": f"consensus search unavailable: {exc}"}
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        {
+                            "error": (
+                                f"Tool {name} is not available yet: the consensus search "
+                                f"engine could not be imported ({exc})."
+                            ),
+                            "code": "MODULE_UNAVAILABLE",
+                        }
+                    ),
+                }
+            ],
+            "isError": False,
+        }
     return await mega_search(**_kwargs(arguments))
 
 

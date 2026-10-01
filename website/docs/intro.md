@@ -18,7 +18,7 @@ Pry is a self-hosted web scraping and browser automation platform with native x4
 }
 ```
 
-Bearer auth: free on loopback; set `PRY_API_KEY` for remote access. 113 tools immediately available.
+Bearer auth: free on loopback; set `PRY_API_KEY` for remote access. 76 tools immediately available.
 
 ### Self-hosted (Docker)
 
@@ -42,7 +42,7 @@ pry crawl https://docs.com --max-pages 20
 | Feature | Pry | Firecrawl | Scrapling | Apify |
 |---------|:---:|:---------:|:---------:|:-----:|
 | Anti-detection tiers | **15** | 2 | 3 | 1 |
-| MCP tools | **MCP tools | **MCP tools | **MCP tools | **MCP tools | **113********** | 5 | 8 | 0 |
+| MCP tools | **99** | 5 | 8 | 0 |
 | x402 payments | ✅ | ❌ | ❌ | ❌ |
 | Self-hosted | ✅ | ❌ | ✅ | ✅ |
 | Templates | **110+** | 0 | 0 | 1000+ |
@@ -54,7 +54,7 @@ pry crawl https://docs.com --max-pages 20
 ┌─────────────────────────────────────────────────────────────┐
 │                        Pry Platform                          │
 ├─────────────────────────────────────────────────────────────┤
-│  MCP Layer (MCP Layer (MCP Layer (MCP Layer (MCP Layer (113 tools) tools) tools) tools) tools)  │  REST API  │  x402 Payments        │
+│  MCP Layer (99 tools)  │  REST API  │  x402 Payments        │
 ├─────────────────────────────────────────────────────────────┤
 │  15-Tier Scraping Engine                                    │
 │  ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐  │
@@ -66,7 +66,7 @@ pry crawl https://docs.com --max-pages 20
 │  │Proxy│ive  │     │Vis  │API   │                          │
 │  └─────┴─────┴─────┴─────┴─────┘                           │
 ├─────────────────────────────────────────────────────────────┤
-│  Data: 110 templates · 20+ domains · 7 blockchain networks │
+│  Data: 110+ templates · 20+ domains · 7 blockchain networks │
 └─────────────────────────────────────────────────────────────┘
 ```
 

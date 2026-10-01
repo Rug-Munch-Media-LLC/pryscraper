@@ -320,60 +320,8 @@
 			"description": "Full game-context bundle for a matchup: venue weather, weather impact on scoring, rest days / back-to-back flags (ESPN), and travel distance / time-zone / altitude change. Use for situational edges, e.g. 'any rest or travel edge for the Nuggets at the Lakers?'"
 		},
 		{
-			"name": "pry_map_site",
-			"description": "Map an entire domain: discover all URLs via sitemap.xml (including sitemap indexes) plus internal-link crawling, Firecrawl-style. Use before crawling or scraping a whole site to see its full URL structure — e.g. call with url='https://example.com' and max_urls=100 to list every discoverable page on the domain. Sitemap-first discovery is fast and polite; link crawling fills any remaining budget when no sitemap exists."
-		},
-		{
-			"name": "pry_crawl_to_markdown",
-			"description": "Crawl a site and convert every page to clean, chunked Markdown — Firecrawl-style output ready for vector databases. Maps the domain, fetches each page through the anti-bot fallback chain (Cloudflare/DataDome bypass), prunes nav/footer/boilerplate noise, and splits content into ~chunk_size character chunks. Use to harvest an entire docs site or blog as structured Markdown — e.g. call with url='https://example.com/docs' and max_pages=50 to convert the docs section to Markdown chunks."
-		},
-		{
-			"name": "pry_crawl_for_rag",
-			"description": "Crawl a site and produce RAG-ready chunks for vector databases — each chunk carries provenance metadata (source URL, page title, chunk index, token estimate) so embeddings stay traceable to their origin. Uses overlapping chunks (chunk_overlap) to preserve context across boundaries. Use when building a RAG pipeline over a website — e.g. call with url='https://example.com' and chunk_size=1000, chunk_overlap=100 to get embedding-ready chunks."
-		},
-		{
-			"name": "pry_filter_content",
-			"description": "Filter HTML to essential content, removing boilerplate and noise. Strips nav bars, footers, headers, asides, scripts, styles, cookie/GDPR banners, ad containers, social share widgets, newsletter forms, related posts, and comment sections — then converts to minimal Markdown with redundant whitespace collapsed and empty headings dropped. Use before feeding scraped pages to an LLM to cut token costs by 60-90%: call with the raw HTML from pry_scrape and get back clean Markdown plus a token estimate and reduction percentage, e.g. filter_content(html='<html>...<nav>...</nav><article>main text</article>...</html>') returns just the article text."
-		},
-		{
-			"name": "pry_extract_main",
-			"description": "Extract the main content block from a page using readability-style heuristics. Prioritizes <article>, <main>, [role=main], and common content containers (.post-content, .entry-content, .article-body); falls back to the largest text block on the page. Also returns the page title and how much boilerplate was stripped. Use when you want just the article body from a cluttered page — e.g. a news site with sidebars, related-article carousels, and cookie banners — without writing per-site selectors."
-		},
-		{
-			"name": "pry_chunk_for_rag",
-			"description": "Filter HTML, convert to minimal Markdown, and chunk it for RAG / vector databases. Full pipeline: boilerplate removal -> minimal Markdown -> overlapping chunks split on paragraph boundaries. Returns the chunks, total token estimate, chunk count, and reduction percentage. Use when indexing scraped pages into a vector DB or feeding long documents to an LLM with a context budget — e.g. call with chunk_size=1000 and chunk_overlap=100 to get retrieval-ready chunks with ~10% overlap for continuity."
-		},
-		{
-			"name": "pry_search",
-			"description": "Search the web and get the FULL page content of each result — Firecrawl-style search, not a plain SERP scraper. Each result carries the complete scraped content and clean markdown of its page, fetched through the 15-tier anti-bot fallback chain (direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver). Use when you need to research a topic and read the actual pages, e.g. search_and_scrape(query='best rust web frameworks 2026', num_results=5) returns five full articles ready for analysis or RAG ingestion."
-		},
-		{
-			"name": "pry_search_web",
-			"description": "Quick web search returning titles and snippets only — no page scraping. Fast and cheap: uses self-hosted SearXNG (free, no API key) with a DuckDuckGo HTML fallback. Use when you just need to find URLs or get an overview of what's out there, e.g. search_web(query='site:docs.example.com auth', num_results=10). For full page content use pry_search instead."
-		},
-		{
-			"name": "pry_search_extract",
-			"description": "Search the web, scrape each result page, and extract structured JSON data from every page using your schema — pattern extraction first, LLM fallback for complex schemas. Use when you need specific fields from many pages found via search, e.g. search_and_extract(query='python job postings remote', schema={'company': 'company name', 'salary': 'salary range', 'location': 'job location'}, num_results=5) returns structured records from each result page."
-		},
-		{
-			"name": "pry_scrape_with_actions",
-			"description": "Scrape a page after performing browser actions before extraction — Firecrawl-style interactions for dynamic pages. Specify a sequence of actions (click elements, type text into inputs, scroll, wait for elements or fixed delays, press keys, run JavaScript, select dropdown options, check/uncheck checkboxes, hover, focus) that are executed in order on the loaded page, then the page content is extracted. Use when a plain scrape cannot reach the content: dismissing cookie banners, logging in or submitting search forms, infinite-scroll loading, expanding collapsed sections, or paginating before capture. Example: [{type: 'click', selector: '#cookie-accept'}, {type: 'wait', ms: 1000}, {type: 'scroll', direction: 'down', amount: 2000}, {type: 'wait', selector: '.results'}]."
-		},
-		{
-			"name": "pry_extract_schema",
-			"description": "Extract structured data from a URL using a JSON schema — no CSS selectors needed. You describe WHAT you want (e.g. {\"product_name\": \"the product title\", \"price\": \"current price in USD\", \"reviews\": \"customer reviews\"}) and the engine figures out WHERE it lives on the page: JSON-LD structured data first, then meta tags, then AI extraction for anything left over. Works across any page structure. Example: pry_extract_schema(url='https://store.example.com/widget', schema={'name': 'product name', 'price': 'price', 'rating': 'average rating'}) → {'url': ..., 'data': {'name': 'Widget', 'price': '$9.99', 'rating': '4.5'}, 'method': 'pattern', 'confidence': 1.0}."
-		},
-		{
-			"name": "pry_extract_batch",
-			"description": "Extract structured data from MULTIPLE URLs using the same JSON schema, with bounded concurrency (asyncio semaphore). Ideal for scraping a product catalog, a list of blog posts, or comparison pages. Example: pry_extract_batch(urls=['https://store.example.com/a', 'https://store.example.com/b'], schema={'name': 'product name', 'price': 'price'}, max_concurrent=5) → [{'url': ..., 'data': {'name': 'A', 'price': '$5'}, ...}, ...]. Results are returned in input order; each entry has the same shape as pry_extract_schema output."
-		},
-		{
-			"name": "pry_extract_prompt",
-			"description": "Extract data using a natural-language prompt instead of a schema — ScrapeGraphAI-style smart extraction. Describe what you want in plain English and the LLM finds it on the page. Example: pry_extract_prompt(url='https://blog.example.com/post', prompt='Extract the article title, author, publish date, and a 2-sentence summary') → {'url': ..., 'data': {'title': ..., 'author': ..., 'date': ..., 'summary': ...}, 'method': 'ai', 'confidence': 0.85}. Optionally pass a schema to constrain the output shape. Slower than pry_extract_schema (uses the LLM) but handles vague or open-ended requests."
-		},
-		{
-			"name": "pry_adaptive_scrape",
-			"description": "Scrape a page with adaptive selectors that auto-relocate when pages change (Scrapling-style). Provide a mapping of field names to CSS selectors; each selector is matched against the page, and if a selector breaks because the site was redesigned, the engine uses previously captured context (text content, tag name, attributes, parent/sibling structure) to find the element again and report a confidence score (1.0 = exact CSS match, 0.5 = relocated by context, 0.0 = not found). Pass old_html (a previously fetched version of the same page) to enable relocation against the new markup. Use when you scrape the same site repeatedly and want extraction to survive layout changes without manually updating selectors."
+			"name": "pry_mega_search",
+			"description": "Search the web with every engine at once and return one consensus-ranked list. Six independent engines are queried in parallel and each hit is ranked by how many engines independently found it, so a link four engines agree on outranks one only a single engine returned. Use when you want the best possible answer and do not need page bodies; for full-page reading use pry_search instead. For example pry_mega_search(query='best rust web frameworks 2026', num_results=10) returns one deduplicated list where every result reports how many engines found it."
 		},
 		{
 			"name": "pry_scrape_methods",
@@ -474,10 +422,6 @@
 		{
 			"name": "pry_actor_run",
 			"description": "Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors. Use after pry_actor_catalog: pass the actor name plus target urls; results are the same dataset items the Apify run would produce. x402 pay-per-call: each processed URL bills the actor's first PPE pricing event (see pry_actor_catalog / pry_x402_pricing for per-event USD prices). Examples: actor='news-feed-monitor', actor='universal-scraper', actor='token-safety-scanner'."
-		},
-		{
-			"name": "pry_mega_search",
-			"description": "Search the web with every engine at once and return one consensus-ranked list. Six independent engines are queried in parallel and each hit is ranked by how many engines independently found it, so a link four engines agree on outranks one only a single engine returned. Use when you want the best possible answer and do not need page bodies; for full-page reading use pry_search instead. For example pry_mega_search(query='best rust web frameworks 2026', num_results=10) returns one deduplicated list where every result reports how many engines found it."
 		}
 	],
 	"tags": [

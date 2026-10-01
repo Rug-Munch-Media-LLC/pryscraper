@@ -11,11 +11,11 @@
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![x402](https://img.shields.io/badge/payments-x402%20%2F%20USDC%20%2F%20SOL%20%2F%20TRX-blueviolet)](https://docs.x402.org/)
-[![MCP](https://img.shields.io/badge/MCP-MCP-113_tools_tools-purple)](https://modelcontextprotocol.io/)
+[![MCP](https://img.shields.io/badge/MCP-99_tools-purple)](https://modelcontextprotocol.io/)
 
 **Status: Live** — hosted at [api.pryscraper.com](https://api.pryscraper.com), self-hostable.
 
-**15-tier anti-bot bypass** · Cloudflare, DataDome, Akamai · **Pay-per-call API** via crypto · **113 MCP tools** · **109 actors**
+**15-tier anti-bot bypass** · Cloudflare, DataDome, Akamai · **Pay-per-call API** via crypto · **112 MCP tools** · **112 Apify Actors**
 
 [Installation](#installation) · [Quickstart](#quickstart) · [Who pays?](#who-pays) · [Configuration](#configuration) · [MCP Server](#mcp-server) · [x402 Payments](#x402-payments) · [Registry Listings](#registry-listings) · [FAQ](docs/FAQ.md) · [Tool Catalog](docs/ops/TOOLS-CATALOG.md) · [API Reference](docs/ops/API-REFERENCE.md) · [Payments](docs/ops/PAYMENTS.md) · [Operations](docs/ops/DEPLOYMENT.md)
 
@@ -42,7 +42,7 @@ domain.
 
 ### For AI Agents (MCP)
 
-Pry exposes **113 MCP tools** across 33 categories — web scraping, data extraction,
+Pry exposes **99 MCP tools** across 35+ categories — web scraping, data extraction,
 monitoring, sports betting, legal intelligence, real estate, jobs, research, and more.
 Every tool has structured input/output schemas, annotations (`readOnlyHint`,
 `destructiveHint`, `idempotentHint`), and bot-readable descriptions.
@@ -63,10 +63,10 @@ curl -X POST https://api.pryscraper.com/v1/scrape \
 
 ### What makes Pry different
 
-- **More MCP tools than any competitor** — 113 tools (Firecrawl: ~6, Crawl4AI: ~4, ScrapeGraphAI: ~3)
+- **More MCP tools than any competitor** — 99 tools (Firecrawl: ~6, Crawl4AI: ~4, ScrapeGraphAI: ~3)
 - **15-tier anti-bot bypass** — competitors typically have 1–3 tiers
 - **x402 native pay-per-call** — no competitor has this
-- **109 actors** — the largest actor fleet on Apify
+- **112 Apify actors** — the largest actor fleet on Apify
 - **Sports betting intelligence** — no competitor offers this
 
 ### Feature Highlights
@@ -84,7 +84,7 @@ curl -X POST https://api.pryscraper.com/v1/scrape \
 - **Sports Betting Intelligence**: 35+ sports tools — live odds, arbitrage,
   +EV, player props, sharp money tracking, Kelly criterion, prediction
   markets, live game analytics, and weather impact.
-- **109 actors** (verified `actor_factory/actors/`): including sports
+- **112 Apify Actors** (verified `actor_factory/actors/`): including sports
   betting intel, odds comparison, best-line, and a props engine.
 
 ---
@@ -431,7 +431,7 @@ paid reliability backstop, so MCP scrapes run at near-zero cost.
 
 ## MCP Server
 
-### Tools (113 total, 33 categories)
+### Tools (99 total, 35+ categories)
 
 > Full breakdown with per-category tables and pricing: [docs/ops/TOOLS-CATALOG.md](docs/ops/TOOLS-CATALOG.md)
 
@@ -598,7 +598,7 @@ GET /llms.txt                     → AI agent discovery (llms.txt standard)
 | Feature | Pry | Firecrawl | Scrapling | Apify |
 |---------|:---:|:---------:|:---------:|:-----:|
 | Anti-detection tiers | **15** | 2 | 3 | 1 |
-| MCP tools | **113** | 5 | 8 | 0 |
+| MCP tools | **99** | 5 | 8 | 0 |
 | x402 payments | ✅ | ❌ | ❌ | ❌ |
 | Self-hosted | ✅ | ❌ | ✅ | ✅ |
 | Templates | **110+** | 0 | 0 | 1000+ |
@@ -616,7 +616,7 @@ GET /llms.txt                     → AI agent discovery (llms.txt standard)
 ┌─────────────────────────────────────────────────────────────┐
 │                        Pry Platform                          │
 ├─────────────────────────────────────────────────────────────┤
-│  MCP Layer (113 tools)  │  REST API  │  x402 Payments        │
+│  MCP Layer (99 tools)  │  REST API  │  x402 Payments        │
 ├─────────────────────────────────────────────────────────────┤
 │  15-Tier Scraping Engine                                    │
 │  ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐  │

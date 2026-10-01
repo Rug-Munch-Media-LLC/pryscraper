@@ -16,16 +16,13 @@ from __future__ import annotations
 from typing import Any
 
 from . import (
-    actions,
     actor,
-    adaptive,
     appstore,
     attention,
     bidding,
     billing,
     climate,
     compliance,
-    content_filter,
     crypto,
     data,
     deals,
@@ -40,9 +37,7 @@ from . import (
     prediction_markets,
     realestate,
     research,
-    schema_extract,
     scraping,
-    site_mapping,
     sports,
     sports_bankroll,
     sports_context,
@@ -53,7 +48,6 @@ from . import (
     sports_sharp_intel,
     sportsbooks,
     travel,
-    web_search,
 )
 from ._common import (
     _apply_offset,
@@ -98,6 +92,7 @@ from .jobs import call_jobs_tool
 from .legal import call_legal_tool
 from .local import call_local_tool
 from .marketplace import _marketplace_module_unavailable, call_marketplace_tool
+from .mega_search import call_mega_search_tool
 from .news import _NEWS_TOOL_FNS, call_news_tool
 from .realestate import call_realestate_tool
 from .research import _RESEARCH_TOOL_FNS, call_research_tool
@@ -164,6 +159,7 @@ __all__ = [
     "call_legal_tool",
     "call_local_tool",
     "call_marketplace_tool",
+    "call_mega_search_tool",
     "call_news_tool",
     "call_realestate_tool",
     "call_research_tool",
@@ -201,13 +197,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
     *sports_sharp_intel.PRY_TOOLS,
     *sports_live_intel.PRY_TOOLS,
     *sports_context.PRY_TOOLS,
-    *site_mapping.PRY_TOOLS,
-    *content_filter.PRY_FILTER_TOOLS,
-    *web_search.PRY_SEARCH_TOOLS,
     *mega_search.PRY_MEGA_SEARCH_TOOLS,
-    *actions.PRY_TOOLS,
-    *schema_extract.PRY_SCHEMA_TOOLS,
-    *adaptive.PRY_ADAPTIVE_TOOLS,
     *scraping.PRY_SOURCE_TOOLS,
     *climate.PRY_TOOLS,
     *research.PRY_TOOLS,

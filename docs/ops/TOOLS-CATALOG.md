@@ -16,18 +16,18 @@ note: Every count below is traced to source. The live source of truth is `pry_mc
 
 # Tool Catalog
 
-Pry exposes **113 MCP tools** across **33 categories**. Each tool has a
+Pry exposes **99 MCP tools** across **35+ categories**. Each tool has a
 structured input/output schema, annotation hints (`readOnlyHint`,
 `destructiveHint`, `idempotentHint`), a registry category, and (where gated)
 an x402 operation with server-authoritative pricing.
 
 > **Count source of truth**
-> - `pry_mcp/tools.py` — `PRY_TOOLS`, 112 `"name"` entries (verify with
+> - `pry_mcp/tools/` — `PRY_TOOLS`, 99 `"name"` entries (verify with
 >   `grep -cE '"name": "'`).
 > - `src/pry/api/registry_metadata.py` — `get_tools_by_category()` returns
->   35+ category groups; `get_registry_manifest()` reports `tools.count = 112`.
+>   35+ category groups; `get_registry_manifest()` reports `tools.count = 99`.
 > - `server.json`, `glama.json`, `registry_manifest.json` each carry the same
->   113-tool payload (machine-readable registry listings).
+>   99-tool payload (machine-readable registry listings).
 
 ---
 
@@ -142,7 +142,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Sports Betting (113 tools — flat $0.01/scan)
+## Sports Betting (13 tools — flat $0.01/scan)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -162,43 +162,9 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Site Mapping (3 tools)
 
-| Tool | Operation | Price | Purpose |
-|------|-----------|:-----:|---------|
-| `pry_map_site` | `map_site` | $0.002 | Discover and map a site's URL structure |
-| `pry_crawl_to_markdown` | `crawl_to_markdown` | $0.01 | Crawl a site and emit clean markdown per page |
-| `pry_crawl_for_rag` | `crawl_for_rag` | $0.01 | Crawl a site optimized for RAG ingestion |
 
----
 
-## Content Filtering (3 tools)
-
-| Tool | Operation | Price | Purpose |
-|------|-----------|:-----:|---------|
-| `pry_filter_content` | `filter_content` | $0.001 | Filter scraped content by rules / relevance |
-| `pry_extract_main` | `extract_main` | $0.001 | Extract main article content from a page |
-| `pry_chunk_for_rag` | `chunk_for_rag` | $0.001 | Chunk documents into RAG-ready segments |
-
----
-
-## Schema Extraction (3 tools)
-
-| Tool | Operation | Price | Purpose |
-|------|-----------|:-----:|---------|
-| `pry_extract_schema` | `extract_schema` | $0.003 | Schema-based AI extraction — define a JSON schema, get structured data (no CSS selectors) |
-| `pry_extract_batch` | `extract_batch` | $0.003 | Batch schema extraction across multiple URLs |
-| `pry_extract_prompt` | `extract_prompt` | $0.003 | Natural-language prompt extraction — describe what you want in plain English |
-
----
-
-## Adaptive Selectors (1 tool)
-
-| Tool | Operation | Price | Purpose |
-|------|-----------|:-----:|---------|
-| `pry_adaptive_scrape` | `adaptive_scrape` | $0.002 | Adaptive scraping with auto-relocating selectors — survives site redesigns via context capture (text, structure, attributes) and confidence scoring |
-
----
 
 ## Prediction Markets (2 tools)
 
@@ -244,7 +210,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Sharp Money (6 tools)
+## Sharp Money (5 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -253,7 +219,6 @@ an x402 operation with server-authoritative pricing.
 | `pry_bet_money_divergence` | `sports_money_divergence` | $0.01 | Betting % vs money divergence |
 | `pry_line_watch` | `sports_line_watch` | $0.01 | Watch line movement for a game |
 | `pry_sharp_report` | `sports_sharp_report` | $0.01 | Sharp money report for a game |
-| `pry_sharp_consensus` | `sports_sharp_consensus` | $0.01 | Sharp consensus lines |
 
 ---
 
@@ -288,11 +253,12 @@ an x402 operation with server-authoritative pricing.
 | `pry_reviews` | `reviews` | $0.003 | Google Maps / Yelp review history |
 | `pry_app_reviews` | `app_store_reviews` | $0.002 | App Store user reviews by app id |
 
-### search (2)
+### search (3)
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
 | `pry_serp` | `serp` | $0.003 | Google SERP scrape (organic + AI Overview + PAA) |
 | `pry_trends` | `trends` | $0.003 | Google Trends interest timeline |
+| `pry_mega_search` | `mega_search` | $0.003 | Consensus web search — six engines queried in parallel, hits ranked by cross-engine agreement |
 
 ### news_intelligence (1)
 | Tool | Operation | Price | Purpose |
@@ -397,7 +363,7 @@ an x402 operation with server-authoritative pricing.
 | monitoring | 1 | jobs_careers | 2 |
 | compliance | 1 | travel | 2 |
 | social | 3 | real_estate | 1 |
-| search | 2 | retail | 4 |
+| search | 3 | retail | 4 |
 | news_intelligence | 1 | utility | 4 |
 | alerts | 2 | local | 1 |
 | business | 2 | trade | 1 |
@@ -406,15 +372,13 @@ an x402 operation with server-authoritative pricing.
 | payments | 3 | events | 1 |
 | data | 1 | research | 1 |
 | agriculture | 1 | safety | 1 |
-| app_store | 1 | site_mapping | 3 |
-| content_filtering | 3 | prediction_markets | 2 |
-| schema_extraction | 3 | adaptive_selectors | 1 |
+| app_store | 1 | prediction_markets | 2 |
 | sports_futures | 1 | sports_derivatives | 1 |
 | sports_bankroll | 1 | player_intelligence | 4 |
-| sharp_money | 6 | live_analytics | 5 |
+| sharp_money | 5 | live_analytics | 5 |
 | game_context | 3 | | |
 
-**Totals: 113 tools across 33 categories.**
+**Totals: 99 tools across 35+ categories.**
 
 > **Pricing note.** Price cells marked `$0` indicate the operation is
 > explicitly classified free in `x402_middleware/classification.py`

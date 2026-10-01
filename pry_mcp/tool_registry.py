@@ -203,6 +203,7 @@ def _domain_executor(
 # The data-domain dispatchers chained after crypto/marketplace, in dispatch
 # order (actor-parity first, then the twenty-one data-domain packages).
 _DOMAIN_DISPATCHERS = (
+    "call_mega_search_tool",
     "call_legal_tool",
     "call_realestate_tool",
     "call_jobs_tool",

@@ -23,10 +23,10 @@ Multi-source crypto intelligence crawler (pryscraper). Scraper, extractor, parse
 - Root modules: 718 Python files (api.py, extractor.py, parser.py, etc.)
 - `browser-extension/`: Chrome/Firefox extension
 - `routers/`: FastAPI routers split from `api.py` (scraping, templates, health, auth, captcha, …)
-- `pry_mcp/`: 113 MCP tools across 33 categories (scraping, sports betting, crypto, prediction markets, site mapping, content filtering, schema extraction, adaptive selectors, etc.)
+- `pry_mcp/`: 99 MCP tools across 35+ categories (scraping, sports betting, crypto, prediction markets, consensus web search, etc.)
 - `pry_x402/`: x402 constants + enums (split from `x402.py` 2026-07-06)
 - `pry_<name>.py`: 19 root modules renamed to remove `routers/` collision (2026-07-06)
-- `actor_factory/`: 109 actors with PPE monetization (3 sports betting actors: intel, odds-comparison, props-engine)
+- `actor_factory/`: 112 Apify actors with PPE monetization (3 sports betting actors: intel, odds-comparison, props-engine)
 - `src/pry/engine/site_mapper.py`: Firecrawl-style domain mapping + crawl-to-markdown
 - `src/pry/engine/content_filter.py`: Crawl4AI-style content filtering + RAG chunking
 - `datasets/sports_data/`: 60+ modules covering odds, arbitrage, +EV, props, sharp money, live analytics, weather, prediction markets, Kelly criterion, derivatives
@@ -46,9 +46,9 @@ Multi-source crypto intelligence crawler (pryscraper). Scraper, extractor, parse
 - crawl4ai-style content filtering (in-house: `src/pry/engine/content_filter.py`)
 
 ## Competitive Position
-- 113 MCP tools (Firecrawl: ~6, Crawl4AI: ~4, ScrapeGraphAI: ~3)
+- 99 MCP tools (Firecrawl: ~6, Crawl4AI: ~4, ScrapeGraphAI: ~3)
 - 15-tier anti-bot bypass (competitors: 1-3 tiers)
-- 109 actors (largest fleet on Apify)
+- 112 Apify actors (largest fleet on Apify)
 - x402 native pay-per-call (no competitor has this)
 - Sports betting intelligence (no competitor offers this)
 

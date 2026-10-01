@@ -1,6 +1,6 @@
 # MCP Server
 
-Pry exposes 113 MCP tools across 33 categories. Every tool has structured input/output schemas and annotations.
+Pry exposes 99 MCP tools across 33 categories. Every tool has structured input/output schemas and annotations.
 
 ## Connecting
 
@@ -34,7 +34,7 @@ Pry exposes 113 MCP tools across 33 categories. Every tool has structured input/
 pry mcp --stdio
 ```
 
-## Tools (Tools (Tools (Tools (Tools (113 total, 33 categories)))))
+## Tools (99 total, 33 categories)
 
 ### Web Scraping (6 tools)
 - `pry_scrape` — Scrape any URL to markdown
@@ -44,7 +44,7 @@ pry mcp --stdio
 - `pry_search_templates` — Search template catalog
 - `pry_scrape_methods` — Get available scraping methods
 
-### Sports Betting (113 tools)
+### Sports Betting (13 tools)
 - `pry_odds` — Get odds from 112+ sportsbooks
 - `pry_arbitrage` — Find arbitrage opportunities
 - `pry_plus_ev` — Find +EV bets
@@ -71,7 +71,7 @@ pry mcp --stdio
 - `pry_grants` — Government grants
 - `pry_procurement` — Procurement data
 
-### Data Domains (33 categories)
+### Data Domains (20+ categories)
 Jobs, real estate, news, energy, freight, food, grocery, deals, travel, events, research, patents, trademarks, sentiment, reviews, app store, weather, compliance, crypto, and more.
 
 ## Tool Annotations

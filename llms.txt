@@ -13,7 +13,7 @@
 - URL: https://api.pryscraper.com/mcp/
 - Transport: SSE, Streamable HTTP, stdio
 - Auth: x402 pay-per-call (no account/API key for discovery; paid prefixes require an x402 payment signature or a paid-tier API key)
-- Tools: 112
+- Tools: 99
 - Categories: 33
 
 ## Categories
@@ -619,73 +619,7 @@ Translate venue weather into betting impact: wind/temp/precip bands, a total (po
 
 Full game-context bundle for a matchup: venue weather, weather impact on scoring, rest days / back-to-back flags (ESPN), and travel distance / time-zone / altitude change. Use for situational edges, e
 
-### pry_map_site
-
-Map an entire domain: discover all URLs via sitemap.xml (including sitemap indexes) plus internal-link crawling, Firecrawl-style. Use before crawling or scraping a whole site to see its full URL struc
-
-
-### pry_crawl_to_markdown
-
-Crawl a site and convert every page to clean, chunked Markdown — Firecrawl-style output ready for vector databases. Maps the domain, fetches each page through the anti-bot fallback chain (Cloudflare/D
-
-
-### pry_crawl_for_rag
-
-Crawl a site and produce RAG-ready chunks for vector databases — each chunk carries provenance metadata (source URL, page title, chunk index, token estimate) so embeddings stay traceable to their orig
-
-
-### pry_filter_content
-
-Filter HTML to essential content, removing boilerplate and noise. Strips nav bars, footers, headers, asides, scripts, styles, cookie/GDPR banners, ad containers, social share widgets, newsletter forms
-
-
-### pry_extract_main
-
-Extract the main content block from a page using readability-style heuristics. Prioritizes <article>, <main>, [role=main], and common content containers (.post-content, .entry-content, .article-body);
-
-
-### pry_chunk_for_rag
-
-Filter HTML, convert to minimal Markdown, and chunk it for RAG / vector databases. Full pipeline: boilerplate removal -> minimal Markdown -> overlapping chunks split on paragraph boundaries. Returns t
-
 ### pry_mega_search
 
 Search the web with EVERY engine at once and return one consensus-ranked list. Six independent engines (SearXNG, DuckDuckGo, Mojeek, Seznam, Yahoo, Qwant) are queried in parallel, results are deduplicated, and each hit is ranked by how many engines independently found it - so a link four engines agree on outranks a link only one returned. Use this when you want the best possible answer to a factual question and do not need page bodies; for full-page reading use pry_search instead. Results carry 'consensus' (engine count) and 'sources'; engines_ok / engines_failed show which legs answered.For example, pry_mega_search(query='best rust web frameworks 2026', num_results=10) returns one deduplicated list where every result reports how many engines found it.
 
-### pry_search
-
-Search the web and get the FULL page content of each result — Firecrawl-style search, not a plain SERP scraper. Each result carries the complete scraped content and clean markdown of its page, fetched
-
-
-### pry_search_web
-
-Quick web search returning titles and snippets only — no page scraping. Fast and cheap: uses self-hosted SearXNG (free, no API key) with a DuckDuckGo HTML fallback. Use when you just need to find URLs
-
-
-### pry_search_extract
-
-Search the web, scrape each result page, and extract structured JSON data from every page using your schema — pattern extraction first, LLM fallback for complex schemas. Use when you need specific fie
-
-
-### pry_scrape_with_actions
-
-Scrape a page after performing browser actions before extraction — Firecrawl-style interactions for dynamic pages. Specify a sequence of actions (click elements, type text into inputs, scroll, wait fo
-
-### pry_extract_schema
-
-Extract structured data from a URL using a JSON schema — no CSS selectors needed. You describe WHAT you want (e.g. {"product_name": "the product title", "price": "current price in USD", "reviews": "cu
-
-
-### pry_extract_batch
-
-Extract structured data from MULTIPLE URLs using the same JSON schema, with bounded concurrency (asyncio semaphore). Ideal for scraping a product catalog, a list of blog posts, or comparison pages. Ex
-
-
-### pry_extract_prompt
-
-Extract data using a natural-language prompt instead of a schema — ScrapeGraphAI-style smart extraction. Describe what you want in plain English and the LLM finds it on the page. Example: pry_extract_
-
-
-### pry_adaptive_scrape
-
-Scrape a page with adaptive selectors that auto-relocate when pages change (Scrapling-style). Provide a mapping of field names to CSS selectors; each selector is matched against the page, and if a sel
