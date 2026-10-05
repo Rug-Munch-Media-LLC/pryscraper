@@ -11,6 +11,7 @@ from typing import Any
 
 import httpx
 
+from pry.commerce.commerce_sync_push import push_product, summarize
 from pry.core.paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
@@ -176,70 +177,6 @@ async def sync_to_shopify(
 
     results = []
     for product in products:
-        shopify_product = {
-            "product": {
-                "title": (product.get("name") or "Unnamed Product")[:255],
-                "body_html": f"<div>{(product.get('description') or product.get('content', ''))[:5000]}</div>",
-                "vendor": "Pry Import",
-                "product_type": "Reference",
-                "status": "draft",
-                "variants": [
-                    {
-                        "price": str(product.get("price", 0)),
-                        "inventory_management": "shopify",
-                    }
-                ],
-                "metafields": [
-                    {
-                        "key": "pry_source_url",
-                        "value": product.get("url", ""),
-                        "type": "single_line_text_field",
-                        "namespace": "pry",
-                    }
-                ],
-            }
-        }
+        await push_product(client, product, base_url, access_token, results)
 
-        try:
-            resp = await client.post(
-                f"{base_url}/admin/api/2024-01/products.json",
-                json=shopify_product,
-                headers={"X-Shopify-Access-Token": access_token},
-                timeout=30,
-            )
-            if resp.is_success:
-                data = resp.json()
-                pid = data.get("product", {}).get("id")
-                results.append(
-                    {
-                        "success": True,
-                        "shopify_id": pid,
-                        "name": data.get("product", {}).get("title"),
-                        "edit_url": f"{base_url}/admin/products/{pid}",
-                    }
-                )
-            else:
-                results.append(
-                    {
-                        "success": False,
-                        "name": product.get("name", "Unknown"),
-                        "error": f"Shopify error {resp.status_code}: {resp.text[:200]}",
-                    }
-                )
-        except (httpx.HTTPError, httpx.RequestError) as e:
-            results.append(
-                {
-                    "success": False,
-                    "name": product.get("name", "Unknown"),
-                    "error": str(e)[:200],
-                }
-            )
-
-    success_count = sum(1 for r in results if r["success"])
-    return {
-        "success": success_count > 0,
-        "total": len(products),
-        "synced": success_count,
-        "failed": len(products) - success_count,
-        "results": results,
-    }
+    return summarize(len(products), results)
