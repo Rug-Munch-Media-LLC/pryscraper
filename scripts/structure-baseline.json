@@ -75,7 +75,6 @@
 		"src/pry/compliance/gdpr.py": 395,
 		"src/pry/core/cache.py": 330,
 		"src/pry/core/config_validation.py": 303,
-		"src/pry/core/db/import_json.py": 298,
 		"src/pry/core/db/models_billing.py": 239,
 		"src/pry/core/db/session.py": 321,
 		"src/pry/core/logging_config.py": 315,
