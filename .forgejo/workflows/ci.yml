@@ -1287,3 +1287,26 @@ jobs:
         run: python3 scripts/check-package-discovery.py --repo .
       - name: Gate self-test (every gate catches its violation class)
         run: bash scripts/ci-gate-selftest.sh
+
+  # Guardian — dangerous-diff gate (required). Fails a PR that deletes tests,
+  # edits CI config while deleting tests, adds shell/exec or dynamic eval, or
+  # exceeds the scope budget. The policy is pinned in scripts/guardian_scan.py
+  # and read from the BASE branch, never from the diff under review, so the
+  # gate cannot be relaxed by the change it judges. Blocks on push and PR.
+  guardian:
+    name: Guardian (dangerous-diff)
+    runs-on: docker-x64
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Scan the staged/PR diff
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags origin "${{ github.base_ref }}" || true
+            git diff --no-color "origin/${{ github.base_ref }}...HEAD" > /tmp/guardian.diff
+          else
+            git diff --no-color HEAD~1..HEAD > /tmp/guardian.diff
+          fi
+          python3 scripts/check-guardian.py --diff /tmp/guardian.diff
