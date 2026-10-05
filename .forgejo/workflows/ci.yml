@@ -213,7 +213,7 @@ jobs:
         # module-level state on a single worker.
         # Tests MUST pass — blocks the pipeline on failure or insufficient
         # coverage.
-        run: source .venv/bin/activate && pytest tests/ -n auto --dist loadfile --maxfail=10 -q --tb=short --cov=pry --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=76 -m "not integration"
+        run: source .venv/bin/activate && pytest tests/ --maxfail=10 -q --tb=short --cov=pry --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=76 -m "not integration"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
@@ -1193,7 +1193,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           source .venv/bin/activate
-          pytest tests/ -n auto --dist loadfile --maxfail=10 -q --tb=short --cov=pry --cov-report=xml:coverage.xml -m "not integration"
+          pytest tests/ --maxfail=10 -q --tb=short --cov=pry --cov-report=xml:coverage.xml -m "not integration"
       - name: Coverage regression check
         run: |
           source .venv/bin/activate

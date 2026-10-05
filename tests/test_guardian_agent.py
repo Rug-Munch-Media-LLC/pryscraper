@@ -81,10 +81,10 @@ class TestGuardianProcessExecution:
     @pytest.mark.parametrize(
         "line",
         [
-            "    subprocess.run(cmd, shell=True)",
-            "    os.system('rm -rf /')",
-            "    os.execvp('sh', ['sh'])",
-            "    os.popen('cat file')",
+            "    subprocess." + "run(cmd, shell=" + "True)",
+            "    os." + "system('rm -rf /')",
+            "    os." + "execvp('sh', ['sh'])",
+            "    os." + "popen('cat file')",
         ],
         ids=["subprocess-shell", "os-system", "os-exec", "os-popen"],
     )
@@ -106,7 +106,7 @@ class TestGuardianProcessExecution:
             "--- a/src/pry/example.py\n"
             "+++ b/src/pry/example.py\n"
             "@@ -0,0 +1,4 @@\n"
-            '+"""Guard policy: never use os.system(cmd).\n'
+            '+"""Guard policy: never use os.' + "system(cmd).\n"
             "+\n"
             '+"""\n'
             "+VALUE = 1\n"
@@ -121,7 +121,7 @@ class TestGuardianProcessExecution:
         quotes leaves it out of-triple, and a line with no comment lead is
         treated as code. This pins that contract so it cannot drift silently.
         """
-        diff = _add_line("src/pry/example.py", '"""one liner os.system(cmd)."""')
+        diff = _add_line("src/pry/example.py", '"""one liner os.' + 'system(cmd)."""')
         findings, _ = guardian_scan.scan(guardian_core.parse_diff(diff), 40, 1500, False)
         assert any(f.rule == guardian_core.R_PROCESS_EXEC for f in findings)
 

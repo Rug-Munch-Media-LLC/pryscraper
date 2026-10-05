@@ -46,7 +46,7 @@ async def sync_to_woocommerce(
     base_url = wp_url.rstrip("/")
     auth = (consumer_key, consumer_secret)
 
-    results = []
+    results: list = []
     for product in products:
         wc_product = {
             "name": product.get("name", "Unnamed Product")[:255],
