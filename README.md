@@ -232,7 +232,7 @@ First scrape in under 5 minutes:
 pip install pryscraper-mcp
 
 # 2. Run the API server (or skip and use the hosted api.pryscraper.com)
-pry serve                 # API on 127.0.0.1:8002
+pry serve                 # API on 127.0.0.1:8005 (CLI default)
 
 # 3. Scrape — first call returns HTTP 402 with x402 payment terms,
 #    subsequent calls are gated by payment signature
@@ -280,7 +280,7 @@ curl -s http://localhost:8002/v1/scrape \
 ### CLI
 
 ```bash
-pry serve          # API on 127.0.0.1:8002 (see docs/ops/DEPLOYMENT.md)
+pry serve          # API on 127.0.0.1:8005 (CLI default; see docs/ops/DEPLOYMENT.md)
 pry open https://example.com
 pry crawl https://docs.com --max-pages 20
 ```

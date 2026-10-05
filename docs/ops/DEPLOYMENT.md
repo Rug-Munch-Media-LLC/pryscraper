@@ -241,7 +241,7 @@ For self-hosting use the overlay above, not this file.
 pip install pryscraper-mcp            # PyPI
 # or from source:
 uv sync                                # locked env from uv.lock
-uv run pry serve                       # API on 127.0.0.1:8002
+uv run pry serve                       # API on 127.0.0.1:8005 (CLI default)
 python -m playwright install chromium  # required for JS rendering
 ```
 

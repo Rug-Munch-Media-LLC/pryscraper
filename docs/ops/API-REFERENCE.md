@@ -22,9 +22,10 @@ Pry exposes one API through two transports:
 2. **MCP** (`/mcp`, `/mcp/sse`, stdio) — 99 tools auto-discovered from the same
    routers, for AI agents. Each MCP tool maps back to a REST route.
 
-**Route count.** `openapi.json` (built artifact) reports **293 paths** /
-**~298 operations** across ~117 path-group prefixes, composed from 93 router
-files under `src/pry/api/routers/**`. This table groups them by domain.
+**Route count.** The live app (`pry.api.api:app.openapi()`) reports
+**365 paths** / **371 operations**, composed from 129 router files under
+`src/pry/api/routers/**`. (An admin path prefix is generated at import time;
+the counts above are stable.) This table groups them by domain.
 
 > **Base URL (cloud)**: `https://api.pryscraper.com`
 > **Base URL (self-host)**: `http://localhost:8002` (or `:8005` from the Docker

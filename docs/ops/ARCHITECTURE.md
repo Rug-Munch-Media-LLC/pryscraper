@@ -27,7 +27,7 @@ OpenTelemetry + Jaeger.
 
 - **MCP Layer (99 tools)** — `/mcp` (SSE + Streamable HTTP), `/mcp/messages`
   (auth-gated), `/sse`, stdio (`pry mcp serve`).
-- **REST API (v1, ~298 operations)** — `/v1/*` (93 router files),
+- **REST API (v1, 371 operations)** — `/v1/*` (129 router files),
   `/.well-known/*` + `/llms.txt`.
 - **Middleware** — `X402Middleware` (payment gate, outermost) →
   `PryHttpMiddleware` (auth, rate-limit, request-id, metrics) → CORS → routers.
