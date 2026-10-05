@@ -327,7 +327,7 @@ class ResourceHandler:
                     for t in templates
                     if arg_value.lower() in t.get("template_id", "").lower()
                 ][:10]
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 # An empty suggestion list is indistinguishable from "no
                 # matching template" at the protocol level, so a real failure
                 # (import error, registry shape change) would be reported to

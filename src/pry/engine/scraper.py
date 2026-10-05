@@ -225,7 +225,7 @@ class PryScraper:
                             "method": result.get("method", "unknown"),
                         }
                     )
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.warning(
                     "crawl_page_scrape_failed", extra={"url": current_url}, exc_info=True
                 )
@@ -241,7 +241,7 @@ class PryScraper:
                 continue
             try:
                 links = await self._extract_links(current_url, {"limit": max_pages - len(visited)})
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.warning(
                     "crawl_link_expansion_failed",
                     extra={"url": current_url},
