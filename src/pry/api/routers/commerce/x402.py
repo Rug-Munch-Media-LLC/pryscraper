@@ -136,7 +136,7 @@ async def x402_catalog() -> dict[str, Any]:
             }
             for name, spec in sorted(ALL_PRESETS.items())
         ]
-    except Exception:  # noqa: BLE001
+    except Exception:
         # An empty ``actors`` list is indistinguishable from a factory that
         # genuinely ships no presets, so a client pricing a call would be told
         # a capability does not exist when it does. Serve the paid-operation
