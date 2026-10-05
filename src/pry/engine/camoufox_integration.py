@@ -1,7 +1,10 @@
 """Pry — Camoufox (Firefox anti-detection) integration.
-Camoufox patches Firefox at the source level to bypass fingerprinting
-more effectively than Playwright/Puppeteer. It's a drop-in alternative
-for Playwright that focuses on stealth."""
+
+Camoufox patches Firefox at the source level to bypass fingerprinting more
+effectively than Playwright/Puppeteer. This module is the public facade: it owns
+optional-dependency detection and the process-level pooled browser, delegating
+profiles, SSRF guarding, page mechanics and human-behaviour to sibling modules.
+"""
 
 # SPDX-License-Identifier: BSL-1.1
 # Copyright (c) 2026 Rug Munch Media LLC
@@ -10,18 +13,18 @@ for Playwright that focuses on stealth."""
 # Licensed under Business Source License 1.1 — see LICENSE-BSL-STEALTH.
 # Change Date: 2029-01-01 (converts to MIT).
 
+from __future__ import annotations
+
 import contextlib
 import logging
-import random
-import time
 from typing import Any, ClassVar
-from urllib.parse import urlparse
 
-from pry.core.errors import InvalidRequestError
+from pry.core.errors import InvalidRequestError  # noqa: F401 - re-export surface
+from pry.engine.camoufox_config import DEFAULT_CONFIGS, resolve_config
+from pry.engine.camoufox_guard import guard_route
+from pry.engine.camoufox_page import FetchSpec, fetch_page
+from pry.engine.camoufox_stealth import apply_human_behavior
 from pry.engine.url_guard import validate_url
-
-# SystemRandom: crypto-grade entropy so human-behavior simulation is unpredictable.
-_RNG = random.SystemRandom()
 
 logger = logging.getLogger(__name__)
 
@@ -34,20 +37,17 @@ try:
 except ImportError:
     _has_camoufox = False
 
-# Module-level pooled Camoufox browser. Launched once on first use and reused
-# across requests (each request gets a fresh page that is closed after use),
-# avoiding the 1-3s per-request browser launch cost. Only used for the no-proxy
-# path — a proxy is a launch-time config so proxied requests get a fresh browser.
+# Module-level pooled Camoufox browser: launched once, reused across requests
+# (a fresh page is closed after each). No-proxy path only.
 _pooled_camoufox: Any = None
 _pooled_camoufox_config: dict[str, Any] | None = None
+_MISSING_ERROR = "camoufox not installed. Run: pip install camoufox && python -m camoufox fetch"
 
 
 async def _get_pooled_camoufox(config: dict[str, Any]) -> Any:
-    """Return the shared Camoufox browser, launching it once.
+    """Return the shared Camoufox browser, launching it once and caching it.
 
-    The browser is entered (``__aenter__``) once and cached. If the requested
-    config differs from the cached one (e.g. a different profile), the cached
-    browser is closed and relaunched with the new config.
+    A changed config closes the cached browser and relaunches with the new one.
     """
     global _pooled_camoufox, _pooled_camoufox_config
     if _pooled_camoufox is not None and _pooled_camoufox_config == config:
@@ -78,36 +78,7 @@ async def close_browsers() -> None:
 class CamoufoxBrowser:
     """Anti-detection Firefox browser using Camoufox."""
 
-    DEFAULT_CONFIGS: ClassVar[dict[str, dict[str, Any]]] = {
-        "chrome_windows": {
-            "headless": True,
-            "os": "windows",
-            "browser": "chrome",
-            "screen": (1920, 1080),
-            "window": (1920, 1080),
-        },
-        "firefox_windows": {
-            "headless": True,
-            "os": "windows",
-            "browser": "firefox",
-            "screen": (1920, 1080),
-            "window": (1920, 1080),
-        },
-        "chrome_mac": {
-            "headless": True,
-            "os": "macos",
-            "browser": "chrome",
-            "screen": (2560, 1600),
-            "window": (1440, 900),
-        },
-        "firefox_linux": {
-            "headless": True,
-            "os": "linux",
-            "browser": "firefox",
-            "screen": (1920, 1080),
-            "window": (1920, 1080),
-        },
-    }
+    DEFAULT_CONFIGS: ClassVar[dict[str, dict[str, Any]]] = DEFAULT_CONFIGS
 
     def __init__(self, default_profile: str = "chrome_windows"):
         self.default_profile = default_profile
@@ -118,32 +89,17 @@ class CamoufoxBrowser:
             )
 
     async def _guarded_route(self, route: Any) -> None:
-        """Playwright route guard: abort requests that target SSRF-sensitive hosts.
+        """Playwright route guard: abort requests to SSRF-sensitive hosts."""
+        await guard_route(route)
 
-        The browser follows redirects internally, so a ``302 -> 169.254.169.254``
-        would otherwise bypass URL validation. Every network request (including
-        each redirect hop) passes through this handler and is re-validated with
-        :func:`url_guard.validate_url` before continuing. Non-network schemes
-        (``data:``, ``blob:``, ``about:``, ...) never touch the network and are
-        allowed through.
-        """
-        request_url = route.request.url
+    async def _run_on_browser(self, browser: Any, spec: FetchSpec) -> dict[str, Any]:
+        """Acquire an isolated page, fetch, and close only the page."""
+        page = await browser.new_page()
         try:
-            parsed = urlparse(request_url)
-        except ValueError:
-            await route.abort()
-            return
-        if parsed.scheme not in {"http", "https"}:
-            # Non-network scheme (data:, blob:, about:) — no SSRF surface.
-            await route.continue_()
-            return
-        try:
-            validate_url(request_url)
-        except InvalidRequestError:
-            logger.warning("camoufox_ssrf_blocked", extra={"url": request_url})
-            await route.abort()
-            return
-        await route.continue_()
+            return await fetch_page(page, spec, self._guarded_route)
+        finally:
+            with contextlib.suppress(Exception):
+                await page.close()
 
     async def fetch(
         self,
@@ -157,110 +113,36 @@ class CamoufoxBrowser:
     ) -> dict[str, Any]:
         """Fetch a URL with Camoufox anti-detection.
 
-        Args:
-            url: The URL to fetch
-            profile: Browser profile (chrome_windows, firefox_windows, etc.)
-            wait_selector: CSS selector to wait for before returning
-            wait_time: Time to wait in milliseconds
-            proxy: Proxy URL
-            cookies: Cookies to set before navigation
-            browser: Optional shared Camoufox browser to reuse (pooling). When
-                provided, a fresh page is created per request and closed after
-                use; the browser itself is left open for the next request.
+        ``browser`` optionally supplies a shared browser to reuse (pooling): a
+        fresh page is created per request and closed after use.
         """
         if not _has_camoufox:
-            return {
-                "success": False,
-                "error": "camoufox not installed. Run: pip install camoufox && python -m camoufox fetch",
-            }
+            return {"success": False, "error": _MISSING_ERROR}
         profile_name = profile or self.default_profile
-        config = dict(
-            self.DEFAULT_CONFIGS.get(profile_name, self.DEFAULT_CONFIGS["chrome_windows"])
-        )
+        config = resolve_config(profile_name)
         if proxy:
             config["proxy"] = proxy
+        spec = FetchSpec(
+            url=url,
+            profile_name=profile_name,
+            wait_selector=wait_selector,
+            wait_time=wait_time,
+            cookies=cookies,
+        )
         try:
-            start = time.time()
             validate_url(url)
             if browser is not None:
-                # Explicit pooled path: reuse the shared browser, isolate per
-                # request with a fresh page, and close only the page afterwards.
-                page = await browser.new_page()
-                try:
-                    return await self._fetch_page(
-                        page, url, wait_selector, wait_time, cookies, profile_name, start
-                    )
-                finally:
-                    try:
-                        await page.close()
-                    except Exception:
-                        logger.debug("browser_cleanup_failed", exc_info=True)
+                # Explicit pooled path: reuse the caller's shared browser.
+                return await self._run_on_browser(browser, spec)
             if not proxy:
                 # No proxy: reuse the module-level pooled browser (launched
                 # once) instead of launching a fresh Firefox per request.
                 pooled = await _get_pooled_camoufox(config)
-                page = await pooled.new_page()
-                try:
-                    return await self._fetch_page(
-                        page, url, wait_selector, wait_time, cookies, profile_name, start
-                    )
-                finally:
-                    try:
-                        await page.close()
-                    except Exception:
-                        logger.debug("browser_cleanup_failed", exc_info=True)
-            async with AsyncCamoufox(**config) as browser:
-                page = await browser.new_page()
-                try:
-                    return await self._fetch_page(
-                        page, url, wait_selector, wait_time, cookies, profile_name, start
-                    )
-                finally:
-                    try:
-                        await page.close()
-                    except Exception:
-                        logger.debug("browser_cleanup_failed", exc_info=True)
+                return await self._run_on_browser(pooled, spec)
+            async with AsyncCamoufox(**config) as fresh:
+                return await self._run_on_browser(fresh, spec)
         except Exception as e:
             return {"success": False, "error": str(e)[:300], "url": url}
-
-    async def _fetch_page(
-        self,
-        page: Any,
-        url: str,
-        wait_selector: str,
-        wait_time: int,
-        cookies: list[dict] | None,
-        profile_name: str,
-        start: float,
-    ) -> dict[str, Any]:
-        """Shared page-fetch logic used by both pooled and fresh browsers."""
-        # Route guard re-validates every request, including internal
-        # redirect hops the browser follows on its own.
-        await page.route("**/*", self._guarded_route)
-        if cookies:
-            for cookie in cookies:
-                await page.context.add_cookies([cookie])
-        await page.goto(url, wait_until="domcontentloaded")
-        if wait_selector:
-            with contextlib.suppress(Exception):
-                await page.wait_for_selector(wait_selector, timeout=wait_time)
-        else:
-            await page.wait_for_timeout(wait_time)
-        content = await page.content()
-        title = await page.title()
-        elapsed = time.time() - start
-        cookies_received = await page.context.cookies()
-        return {
-            "success": True,
-            "url": url,
-            "title": title,
-            "content": content,
-            "raw_html": content,
-            "status_code": 200,
-            "elapsed": round(elapsed, 2),
-            "profile": profile_name,
-            "cookies": cookies_received,
-        }
 
     async def fetch_with_stealth(
         self,
@@ -270,11 +152,11 @@ class CamoufoxBrowser:
     ) -> dict[str, Any]:
         """Fetch with built-in human behavior simulation.
 
-        The result always reports whether the human-behaviour pass ran:
+        The result always reports whether the human-behaviour pass ran.
         ``human_behavior_applied`` is True only when a non-empty
-        ``human_behavior`` was requested and fully executed, and
-        ``human_behavior_error`` names the failure otherwise. A caller can
-        therefore never read a direct-path success as "stealthed fetch".
+        ``human_behavior`` was requested and fully executed; otherwise
+        ``human_behavior_error`` names the failure — a direct-path success can
+        never be read as "stealthed fetch".
         """
         result = await self.fetch(url, proxy=proxy)
         if not result.get("success"):
@@ -300,39 +182,18 @@ class CamoufoxBrowser:
         return result
 
     async def _apply_human_behavior(self, url: str, human_behavior: dict, proxy: str) -> str:
-        """Run the human-behaviour pass in a fresh browser and return the HTML.
-
-        Raises on any failure so fetch_with_stealth can record
-        human_behavior_error instead of silently returning direct-path HTML.
-        """
-        from camoufox import AsyncCamoufox
-
+        """Run the human-behaviour pass in a fresh browser and return the HTML."""
         config = dict(self.DEFAULT_CONFIGS.get(self.default_profile, {}))
         if proxy:
             config["proxy"] = proxy
-        async with AsyncCamoufox(**config) as browser:
-            page = await browser.new_page()
-            try:
-                await page.route("**/*", self._guarded_route)
-                await page.goto(url, wait_until="domcontentloaded")
-                for scroll_y in human_behavior.get("scroll", []):
-                    await page.evaluate(f"window.scrollTo(0, {scroll_y})")
-                    await page.wait_for_timeout(_RNG.randint(200, 800))
-                if human_behavior.get("wait_time"):
-                    await page.wait_for_timeout(human_behavior["wait_time"])
-                return await page.content()
-            finally:
-                with contextlib.suppress(Exception):
-                    await page.close()
+        return await apply_human_behavior(url, config, self._guarded_route, human_behavior)
 
     def is_available(self) -> bool:
         return _has_camoufox
 
     def default_config(self) -> dict[str, Any]:
         """Return the config dict for the default profile (for pooling)."""
-        return dict(
-            self.DEFAULT_CONFIGS.get(self.default_profile, self.DEFAULT_CONFIGS["chrome_windows"])
-        )
+        return resolve_config(self.default_profile)
 
     @staticmethod
     def list_profiles() -> list[str]:
