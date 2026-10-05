@@ -145,7 +145,6 @@
 		"src/pry/payments/x402/tron_verifier.py": 395,
 		"src/pry/payments/x402_middleware/classification.py": 412,
 		"src/pry/payments/x402_middleware/config.py": 390,
-		"src/pry/payments/x402_middleware/enforcement.py": 400,
 		"tests/fuzz/test_url_guard_fuzz.py": 331,
 		"tests/test_actor_catalog_contracts.py": 208,
 		"tests/test_actor_economics.py": 435,
