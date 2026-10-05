@@ -1,6 +1,5 @@
 """Path traversal guards: sibling call sites and the 4xx error contract."""
 
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -150,5 +149,3 @@ def test_credential_id_rejects_traversal() -> None:
 
     with pytest.raises(InvalidRequestError):
         credential_vault._vault_path("../../etc/passwd")
-
-

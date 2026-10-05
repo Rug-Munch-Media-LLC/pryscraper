@@ -49,7 +49,6 @@ def _session_scope() -> Callable[[], Any]:
     return _limiter.async_session_scope
 
 
-
 def quota_reset_timestamp() -> float:
     """Timestamp of the next monthly quota reset (1st of next month)."""
     now = datetime.now(UTC)

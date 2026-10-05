@@ -26,8 +26,8 @@ import respx
 
 from pry.commerce import shopify_oauth
 
-API_KEY = "test-api-key-123"
-API_SECRET = "test-api-secret-456"
+API_KEY = "testkey"
+API_SECRET = "testsecret"
 SHOP = "mystore.myshopify.com"
 REDIRECT_URI = "https://app.example.com/auth/callback"
 

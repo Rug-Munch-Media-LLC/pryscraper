@@ -100,7 +100,9 @@ def list_credentials(owner: str | None = None) -> list[dict[str, Any]]:
     if owner == "":
         raise ValueError("owner must be non-empty; use None to list every entry deliberately")
     credentials = []
-    for path in sorted(credential_vault.VAULT_DIR.glob("*.json"), key=os.path.getmtime, reverse=True):
+    for path in sorted(
+        credential_vault.VAULT_DIR.glob("*.json"), key=os.path.getmtime, reverse=True
+    ):
         try:
             entry = json.loads(path.read_text())
         except (json.JSONDecodeError, OSError):

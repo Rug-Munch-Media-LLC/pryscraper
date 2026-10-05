@@ -32,9 +32,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-DEFAULT_PATH = Path(
-    os.getenv("PRY_TIER_HEALTH_PATH", "/app/pry-data/tier_health.json")
-)
+DEFAULT_PATH = Path(os.getenv("PRY_TIER_HEALTH_PATH", "/app/pry-data/tier_health.json"))
 
 _FIELDS = ("attempts", "wins", "losses", "cost_ms_total")
 
@@ -67,9 +65,7 @@ def record(
         target.parent.mkdir(parents=True, exist_ok=True)
         # Atomic replace: a half-written health file is worse than a stale one,
         # and this is written from a request path.
-        with tempfile.NamedTemporaryFile(
-            "w", dir=target.parent, delete=False, suffix=".tmp"
-        ) as fh:
+        with tempfile.NamedTemporaryFile("w", dir=target.parent, delete=False, suffix=".tmp") as fh:
             json.dump(data, fh, indent=2, sort_keys=True)
             tmp = Path(fh.name)
         tmp.replace(target)

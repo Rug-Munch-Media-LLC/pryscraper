@@ -124,4 +124,4 @@ else:
         " internal callers bypass payment via the owner key or internal HMAC; "
         "external callers still receive 402."
     )
-print(_EMIT, file=sys.stderr)
+print(_EMIT, file=sys.stderr)  # noqa: T201 — import-time operator banner, intentionally stderr

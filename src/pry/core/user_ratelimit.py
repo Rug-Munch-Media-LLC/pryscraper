@@ -41,7 +41,6 @@ __all__ = [
 ]
 
 
-
 class UserRateLimiter:
     """Per-user rate limiter with monthly quota enforcement.
 

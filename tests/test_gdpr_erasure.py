@@ -5,7 +5,6 @@
 # Licensed under MIT. See LICENSE.
 """Erasure deletes records from the real data root (split 1 of 3)."""
 
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -55,5 +54,3 @@ def test_erasure_deletes_planted_session_record_under_data_root(data_root: Path)
     assert not planted.exists(), "session record under PRY_DATA_DIR was not erased"
     assert result["deleted_records"] == 1
     assert result["success"] is True
-
-

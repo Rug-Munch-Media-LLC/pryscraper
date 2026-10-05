@@ -57,9 +57,13 @@ def resolve(root: Path, cfg: dict) -> tuple[list[str], list[str]]:
     from setuptools import find_namespace_packages
 
     # find_namespace_packages mirrors the build backend's default (namespaces is
-    # unset in pyproject, so setuptools uses PEP 420 discovery). It takes no
-    # root_dir, so pass only `where` -- the repo root is not the search dir.
-    where = (cfg.get("where") or ["."])[0]
+    # unset in pyproject, so setuptools uses PEP 420 discovery). `where` is a
+    # path relative to the repo root, so resolve it against `root` — using the
+    # bare string would search the process CWD instead (the ci-gate-selftest
+    # caught this: run from the repo it scanned the repo's src but the
+    # fixture's include list, and reported both as drift).
+    where_rel = (cfg.get("where") or ["."])[0]
+    where = str((root / where_rel).resolve())
     include = list(cfg.get("include", [])) or ["*"]
     real = find_namespace_packages(where=where, include=["*"])
     selected = find_namespace_packages(where=where, include=include)

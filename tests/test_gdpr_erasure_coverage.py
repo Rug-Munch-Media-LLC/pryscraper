@@ -5,7 +5,6 @@
 # Licensed under MIT. See LICENSE.
 """Erasure sweep coverage and reporting (split 3 of 3)."""
 
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

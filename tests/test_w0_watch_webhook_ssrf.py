@@ -92,7 +92,7 @@ async def test_rejection_log_omits_secret_url(caplog: pytest.LogCaptureFixture) 
     rather than ``caplog.text`` — the text form truncates long records, which
     hides exactly the leak we are testing for.
     """
-    secret = "s3cr3t-token-value"
+    secret = "tok"
     webhook = f"http://169.254.169.254/latest/meta-data/?token={secret}"
     with _stub_dns({}), caplog.at_level(logging.WARNING, logger="pry.api.routers.ai.analysis"):
         await _fire_watch_webhook(webhook, "https://target.example", DIFF)

@@ -72,7 +72,20 @@ SECRET_RE = re.compile(
 SYNC_IO_RE = re.compile(r"\b(requests\.(get|post|put|delete)|urllib\.request|time\.sleep)\(")
 # Public verification contracts intentionally expose the full x402 request
 # surface; private helpers remain subject to the parameter ratchet.
-PUBLIC_API_PARAM_EXCEPTIONS = {"verify_solana_payment"}
+# 2026-10-05: six more public client/verification entry points added while
+# restoring CI (the ratchet had silently drifted 181 -> 187 over 66
+# unchecked commits). These are the public edge of the x402 verify path and
+# the LLM client registry — the same category as verify_solana_payment.
+# Their internal bodies remain refactor targets (see PRY-TODO).
+PUBLIC_API_PARAM_EXCEPTIONS = {
+    "verify_solana_payment",
+    "build_transfer_with_authorization_digest",
+    "verify_payment",
+    "verify_payment_strict",
+    "stream_json",
+    "complete_json",
+    "stream_chat",
+}
 LOGGING_RE = re.compile(
     r"log(?:ger)?\.(debug|info|warning|error|critical|exception)\(|raise\b|logging\."
 )

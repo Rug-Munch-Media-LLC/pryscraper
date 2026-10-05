@@ -188,4 +188,3 @@ def test_request_owner_require_auth_flag_refuses_anonymous(set_env):
     set_env({credential_scope.REQUIRE_AUTH_FOR_CREDENTIALS: "1"})
     with pytest.raises(InvalidRequestError):
         credential_scope.request_owner(_anon_request())
-

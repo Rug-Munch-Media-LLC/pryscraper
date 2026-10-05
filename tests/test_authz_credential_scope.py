@@ -110,9 +110,12 @@ def test_anonymous_caller_cannot_read_another_callers_credential(isolated_vault:
     assert owner_a["credentials"][0]["owner"] == credential_scope.request_owner(
         _request(CALLER_A_IP)
     )
-    assert credential_vault.get_credential(
-        cred_id, owner=owner_a["credentials"][0]["owner"]
-    )["credentials"] == "***"
+    assert (
+        credential_vault.get_credential(cred_id, owner=owner_a["credentials"][0]["owner"])[
+            "credentials"
+        ]
+        == "***"
+    )
 
 
 def test_anonymous_caller_cannot_delete_another_callers_credential(isolated_vault: Path) -> None:

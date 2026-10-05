@@ -188,5 +188,3 @@ def test_suggest_stops_a_redirect_chain_at_the_offending_hop() -> None:
 
     assert not metadata.called
     assert 400 <= r.status_code < 500, r.text
-
-

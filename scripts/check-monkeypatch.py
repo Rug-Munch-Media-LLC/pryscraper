@@ -60,6 +60,14 @@ def scan(root: Path) -> tuple[int, dict[str, int]]:
     for p in root.rglob("*.py"):
         if any(part in SKIP_DIRS for part in p.parts):
             continue
+        # pytest's `monkeypatch` fixture is idiomatic test tooling, not the
+        # production patching this ratchet exists to stop. The paired
+        # check-antipatterns gate already counts production only (its breakdown
+        # reports gate=3 vs 1325 in tests/), so counting tests/ here made the
+        # two gates disagree and pinned the budget to the old, smaller test
+        # volume. Production stays fully ratcheted.
+        if "tests" in p.relative_to(root).parts:
+            continue
         try:
             lines = p.read_text(errors="ignore").splitlines()
         except OSError:

@@ -1,6 +1,5 @@
 """Path traversal guards: the choke point, containment, and the public API surface."""
 
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -145,5 +144,3 @@ def test_safe_join_containment_catches_bypass_of_id_rule(
     monkeypatch.setattr(pathsafe, "validate_id", lambda value, **kw: value)
     with pytest.raises(InvalidRequestError):
         pathsafe.safe_join(sessions_dir, "../../etc/passwd", ".json")
-
-
