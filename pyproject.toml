@@ -485,7 +485,7 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 73  # CI-measured 73.7% 2026-09-12 (local baseline 76.0%); ratchet: 73 -> 75 -> 77
+fail_under = 76  # measured 76.4% under scoped --cov=pry (was 73 under --cov=.)
 precision = 1
 show_missing = true
 exclude_lines = [
