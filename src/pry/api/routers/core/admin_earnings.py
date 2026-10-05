@@ -127,7 +127,7 @@ async def admin_earnings_apify() -> dict[str, Any]:
     month_start = day_start.replace(day=1)
     try:
         with get_session() as session:
-            revenue_by_actor_rows = (
+            revenue_by_actor_rows: list = (
                 session.query(Actor.actor_id, Actor.name, Actor.revenue_usd)
                 .order_by(Actor.revenue_usd.desc())
                 .all()

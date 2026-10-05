@@ -41,7 +41,7 @@ async def admin_api_usage() -> dict[str, Any]:
                 .scalar()
                 or 0
             )
-            by_endpoint_rows = (
+            by_endpoint_rows: list = (
                 session.query(Usage.endpoint, sa_func.count())
                 .filter(Usage.created_at >= cutoff)
                 .group_by(Usage.endpoint)
@@ -59,7 +59,7 @@ async def admin_api_usage() -> dict[str, Any]:
                 .scalar()
                 or 0
             )
-            top_rows = (
+            top_rows: list = (
                 session.query(Usage.user_id, sa_func.count().label("calls"))
                 .filter(Usage.created_at >= cutoff)
                 .group_by(Usage.user_id)

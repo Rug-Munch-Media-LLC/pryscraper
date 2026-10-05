@@ -104,7 +104,7 @@ async def get_usage(request: Request) -> dict[str, Any]:
             base.filter(models_auth.Usage.created_at >= now.replace(hour=0, minute=0)).count()
         )
 
-        by_endpoint_rows = (
+        by_endpoint_rows: list = (
             session.query(models_auth.Usage.operation, func.count(models_auth.Usage.id))
             .filter(
                 models_auth.Usage.user_id == user_id,

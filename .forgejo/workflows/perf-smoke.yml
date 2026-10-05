@@ -52,7 +52,7 @@ jobs:
 
       - name: Upload k6 summary
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: k6-smoke-summary
           path: perf/smoke-summary.json

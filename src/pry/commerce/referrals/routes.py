@@ -106,7 +106,7 @@ class ReferralTracker:
                     or 0
                 )
 
-                click_rows = (
+                click_rows: list = (
                     s.query(
                         ReferralClick.provider,
                         func.count(ReferralClick.id).label("cnt"),
@@ -117,7 +117,7 @@ class ReferralTracker:
                 )
                 clicks_by_provider = {r.provider: r.cnt for r in click_rows}
 
-                conv_rows = (
+                conv_rows: list = (
                     s.query(
                         ReferralConversion.provider,
                         func.count(ReferralConversion.id).label("cnt"),

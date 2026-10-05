@@ -48,10 +48,10 @@ DOMAIN_MEMORY_SAVE_INTERVAL    = 10.0
 `scraper_orchestrate.py::_scrape_with_fallbacks`:
 
 ```python
-tier_order  = self._build_tier_order(proxy_url, premium_first)   # L158 static 15-tier baseline
-name_to_fn  = dict(tier_order)
+tier_order = self._build_tier_order(proxy_url, premium_first)  # L158 static 15-tier baseline
+name_to_fn = dict(tier_order)
 ordered_names = registry.reorder_for_domain(domain, [n for n, _ in tier_order])  # L165
-tier_order  = [(n, name_to_fn[n]) for n in ordered_names]        # L166
+tier_order = [(n, name_to_fn[n]) for n in ordered_names]  # L166
 ```
 
 Per-domain semaphore wraps the whole call (`scrape()`, L~110). Circuit breakers
@@ -131,26 +131,26 @@ and mirrors `core/cache.py:56-70` semantics for a different key space.
 ```python
 class MethodMemory(Base):
     __tablename__ = "method_memory"
-    id              = Column(Integer, primary_key=True)
-    domain          = Column(String(256), unique=True, index=True, nullable=False)  # registrable
+    id = Column(Integer, primary_key=True)
+    domain = Column(String(256), unique=True, index=True, nullable=False)  # registrable
     # per-method stats, JSON: {"direct": {"ok": 12, "fail": 1, "p50_ms": 180,
     #                     "p95_ms": 900, "cost_usd": 0.0, "last_ok": 1737..., "last_fail": 0}}
-    stats           = Column(JSON, default=dict)
+    stats = Column(JSON, default=dict)
     # best known method, denormalised for a single-row read
-    best_method     = Column(String(32), default="", index=True)
-    best_score      = Column(Float, default=0.0)
+    best_method = Column(String(32), default="", index=True)
+    best_score = Column(Float, default=0.0)
     # bot-wall shape: {"kinds": {"cloudflare": 9, "captcha": 2},
     #                  "vendor": "cloudflare", "confidence": 0.95, "paywall": false,
     #                  "last_kind": "cloudflare", "seen_at": 1737...}
-    block_shape     = Column(JSON, default=dict)
+    block_shape = Column(JSON, default=dict)
     # ordered full chain (learned), not just the winner
-    learned_order   = Column(JSON, default=list)
-    samples         = Column(Integer, default=0)
-    confidence      = Column(Float, default=0.0)   # 0..1, how much we trust this row
-    first_seen_at   = Column(DateTime, default=_now)
-    last_seen_at    = Column(DateTime, default=_now, index=True)
+    learned_order = Column(JSON, default=list)
+    samples = Column(Integer, default=0)
+    confidence = Column(Float, default=0.0)  # 0..1, how much we trust this row
+    first_seen_at = Column(DateTime, default=_now)
+    last_seen_at = Column(DateTime, default=_now, index=True)
     last_success_at = Column(DateTime, nullable=True)
-    expires_at      = Column(DateTime, nullable=True, index=True)  # TTL anchor
+    expires_at = Column(DateTime, nullable=True, index=True)  # TTL anchor
 ```
 
 **Postgres — `method_memory_events` (append-only, the feedback loop's raw material)**

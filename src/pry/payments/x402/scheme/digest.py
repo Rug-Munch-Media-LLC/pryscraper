@@ -34,7 +34,7 @@ try:  # pragma: no cover - depends on runtime deps
     from eth_utils import (  # type: ignore[attr-defined] # pyright: ignore[reportPrivateImportUsage]
         keccak as _keccak,
     )
-except Exception:  # noqa: BLE001 - optional crypto dep; attestation disabled
+except ImportError:  # optional crypto dep; attestation disabled
     # (backward compatible) even when eth_keys/eth_utils are absent.
     logger.debug("eth_keys/eth_utils unavailable; x402 attestation disabled", exc_info=True)
     _eth_keys = None  # type: ignore[assignment]

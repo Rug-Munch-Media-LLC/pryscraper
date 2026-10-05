@@ -168,7 +168,7 @@ async def api_popularity() -> dict[str, Any]:
     latency_sum: dict[str, float] = defaultdict(float)
 
     with get_session() as session:
-        rows = session.query(Usage.endpoint, Usage.status, Usage.duration_ms).all()  # type: ignore[attr-defined]
+        rows: list = session.query(Usage.endpoint, Usage.status, Usage.duration_ms).all()  # type: ignore[attr-defined]
     for endpoint, status, duration_ms in rows:
         name = endpoint or "unknown"
         calls[name] += 1
@@ -202,7 +202,7 @@ async def signup_funnel() -> dict[str, Any]:
     signups_by_day: Counter[str] = Counter()
     signups_by_source: Counter[str] = Counter()
     with get_session() as session:
-        rows = session.query(User.created_at).all()  # type: ignore[attr-defined]
+        rows: list = session.query(User.created_at).all()  # type: ignore[attr-defined]
     for (created_at,) in rows:
         if created_at is None:
             continue

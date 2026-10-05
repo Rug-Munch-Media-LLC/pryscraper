@@ -622,4 +622,3 @@ Full game-context bundle for a matchup: venue weather, weather impact on scoring
 ### pry_mega_search
 
 Search the web with EVERY engine at once and return one consensus-ranked list. Six independent engines (SearXNG, DuckDuckGo, Mojeek, Seznam, Yahoo, Qwant) are queried in parallel, results are deduplicated, and each hit is ranked by how many engines independently found it - so a link four engines agree on outranks a link only one returned. Use this when you want the best possible answer to a factual question and do not need page bodies; for full-page reading use pry_search instead. Results carry 'consensus' (engine count) and 'sources'; engines_ok / engines_failed show which legs answered.For example, pry_mega_search(query='best rust web frameworks 2026', num_results=10) returns one deduplicated list where every result reports how many engines found it.
-

@@ -44,5 +44,10 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        # docker-compose.selfhost.yml is valid Compose: it uses the `!reset`
+        # and `!override` tags (Compose merge directives) that the hook's plain
+        # yaml loader cannot construct. Excluded so a valid file stops failing
+        # the hook. Audit 2026-10-05.
+        exclude: ^docker-compose\.selfhost\.yml$
       - id: check-json
       - id: check-merge-conflict

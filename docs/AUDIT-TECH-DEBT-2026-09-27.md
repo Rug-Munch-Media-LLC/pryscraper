@@ -2,7 +2,7 @@
 
 - **Date:** 2026-09-27
 - **Scope:** READ-ONLY audit. No file was edited, committed, or pushed.
-- **Repo:** `/srv/work/repos/pryscraper` @ `c8cff6bc` (branch `main`, clean tree)
+- **Repo:** `[REPO_ROOT]/pryscraper` @ `c8cff6bc` (branch `main`, clean tree)
 - **Method:** authoritative ledger tool → in-tree gate scripts → independent AST/rg measurement
 - **Headline:** **all three in-repo ratchet gates are currently FAILING on `main`.** See §1.
 
@@ -17,7 +17,7 @@
  "error_code": "NO_LEDGER"}
 ```
 
-The script exists at `/srv/work/repos/contextcrypto/scripts/tech_debt_ledger.py`. It has not been
+The script exists at `[REPO_ROOT]/contextcrypto/scripts/tech_debt_ledger.py`. It has not been
 run. **`tech_debt` is UNVERIFIED for this session and for any repo.** Everything in §1–§3 below is
 therefore measured from Pry's own committed gate scripts plus independent AST/rg passes — which is
 the stronger evidence anyway (per-file, per-line, reproducible).
@@ -363,7 +363,7 @@ endpoint that has a deliberate shape. **This is a blanket architectural gap, not
 src/pry/engine/methods/pagination.py:   time.sleep(per_page_delay)
 src/pry/misc/cli_helpers.py:           time.sleep(0.1)
 ```
-Instances: 2 · Risk: Medium — blocks the event loop. `cli_helpers.py` is CLI-only (low). 
+Instances: 2 · Risk: Medium — blocks the event loop. `cli_helpers.py` is CLI-only (low).
 `methods/pagination.py` needs inspection of its call path; if it is reachable from a scrape
 worker coroutine, each page blocks the whole loop for `per_page_delay`.
 
