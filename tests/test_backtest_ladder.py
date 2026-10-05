@@ -27,6 +27,50 @@ import ladder_aggregate as agg  # noqa: E402
 from tests.ladder_harness import _dead, _fail, _ok  # noqa: E402
 
 
+def test_p95_is_never_below_p50() -> None:
+    """The off-by-one that made p95 smaller than the median.
+
+    `sorted(latencies)[int(len*0.95) - 1]` returned index 0 for n=2, so the
+    "95th percentile" was the MINIMUM and p95 < p50 held for any two-point set.
+    The nearest-rank estimate must be >= p50 for every n.
+    """
+    for n in range(1, 30):
+        run = [_ok(f"https://{i}.example/", ms=float(i)) for i in range(n)]
+        summary = agg.summarise(run, [1.0])
+        assert summary["p95_ms"] >= summary["p50_ms"], f"p95 < p50 at n={n}"
+
+    two = [_ok("https://a.example/", ms=100.0), _ok("https://b.example/", ms=50.0)]
+    assert agg.summarise(two, [1.0])["p95_ms"] == 100.0
+
+
+def test_offline_replay_is_deterministic() -> None:
+    """Replaying the same fixture twice must produce identical summaries.
+
+    Determinism is the whole point of the offline path: the live probe is
+    nondeterministic (latency and success vary run to run), so grading the
+    committed per-source fixture is the only way to get a reproducible number.
+    """
+    run = [_ok("https://a.example/", ms=5.0), _fail("https://b.example/")]
+    a = agg.offline_summary(run, 3)
+    b = agg.offline_summary(run, 3)
+
+    assert a == b
+    assert a["success_rate"] == 0.5
+    assert a["success_rate_observed"]["runs"] == 3
+
+
+def test_offline_without_a_fixture_is_unmeasurable(capsys) -> None:
+    """No fixture is a fail-loud, not a fabricated pass."""
+    original = cli.read_results
+    cli.read_results = lambda path=None: []
+    try:
+        assert cli._offline(["--offline"]) == cli.EXIT_UNMEASURABLE
+    finally:
+        cli.read_results = original
+
+    assert "UNMEASURABLE" in capsys.readouterr().out
+
+
 def test_summary_records_the_median_not_the_last_run() -> None:
     """The 2026-08-29 incident, pinned.
 

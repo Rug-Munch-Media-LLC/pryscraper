@@ -31,11 +31,24 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
-from typing import Any
 
 import httpx
-from ladder_aggregate import BASELINE, measured, read_baseline, summarise, write_baseline
+from ladder_aggregate import (
+    BASELINE,
+    measured,
+    offline_summary,
+    read_baseline,
+    read_results,
+    summarise,
+    write_baseline,
+)
 from ladder_backtest import SOURCES, run_ladder
+from ladder_report import compare, report
+
+# Re-exported under the old private names so the existing tests
+# (`cli._compare`, the reporting half) keep importing the one surface.
+_report = report
+_compare = compare
 
 #: Measured and regressed.
 EXIT_REGRESSION = 1
@@ -51,6 +64,14 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--compare", action="store_true", help="diff against the committed baseline")
     ap.add_argument("--no-warmup", action="store_true", help="skip the discarded warm-up pass")
     ap.add_argument(
+        "--offline",
+        action="store_true",
+        help="replay the committed per-source fixture (data/ladder_baseline.json) "
+        "through the same aggregation with no network and no Pry. Deterministic: "
+        "the same file yields the same output on every machine. Fail-loud (exit "
+        "2) if there is no fixture to replay — never a fabricated pass.",
+    )
+    ap.add_argument(
         "--repeat",
         type=int,
         default=3,
@@ -62,54 +83,51 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return ap.parse_args(argv)
 
 
-def _report(results: list[dict[str, Any]], rates: list[float], summary: dict[str, Any]) -> None:
-    print("\n== per source ==")
-    for r in results:
-        flag = "OK  " if r["result"] == "ok" else "FAIL"
-        via = f" via {r['via']}" if r.get("via") else ""
-        print(f"  {flag} {r['latency_ms']:>8.1f}ms  {r['url'][:46]:<48}{via}")
-        if r["result"] != "ok":
-            print(f"       expected={r['expect']}  detail={r.get('detail', '')[:90]}")
-    print("\n== summary ==")
-    for k, v in summary.items():
-        print(f"  {k:14} {v}")
+def _offline(argv: list[str] | None) -> int:
+    """Replay the committed fixture: no network, no Pry, deterministic.
 
-
-def _compare(base: dict[str, Any], summary: dict[str, Any]) -> list[tuple[str, Any, Any]]:
-    """Print the diff and return the keys that moved the wrong way.
-
-    A key regresses when it went DOWN relative to the baseline. `p50_ms` and
-    `p95_ms` are latencies, so a lower number is the better one and the
-    direction is inverted for them.
+    The live path measures a DEPLOYED ladder; this path grades the recorded
+    per-source results through the identical aggregation. Same file → same
+    output on every machine, which is what makes it usable as a reproducible
+    check. There is no synthetic jitter: if the fixture is absent the run is
+    UNMEASURABLE (exit 2) with a message that names the missing file, because a
+    plausible-looking number that no probe produced is exactly the fake result
+    this harness must never emit.
     """
-    print("\n== vs baseline ==")
-    band = summary.get("success_rate_observed") or {}
-    if band:
+    args = _parse_args(argv)
+    results = read_results()
+    if not results:
         print(
-            f"  observed spread baseline={band.get('min')}..{band.get('max')} "
-            f"over {band.get('runs')} runs"
+            f"\n  UNMEASURABLE: no committed fixture at {BASELINE} to replay "
+            f"offline (or it has no 'results'). Nothing was measured; refusing "
+            f"to fabricate a pass. Run the live path once with "
+            f"--update-baseline to record one."
         )
-    regressions: list[tuple[str, Any, Any]] = []
-    for key in ("success_rate", "p50_ms", "p95_ms", "ok"):
-        b, n = base.get(key), summary.get(key)
-        delta = (
-            "n/a"
-            if b is None or n is None or isinstance(b, str)
-            else round(n - b, 3)
-            if isinstance(b, float)
-            else n - b
-        )
-        print(f"  {key:14} baseline={b}  now={n}  delta={delta}")
-        if delta == "n/a" or delta == 0:
-            continue
-        worse = delta < 0 if key in ("success_rate", "ok") else delta > 0
-        if worse:
-            regressions.append((key, b, n))
-    return regressions
+        return EXIT_UNMEASURABLE
+
+    summary = offline_summary(results, args.repeat)
+    rates = [summary["success_rate"]] * summary["success_rate_observed"]["runs"]
+    print(f"\n== OFFLINE replay of {BASELINE} (deterministic, no network)")
+    print(f"\n== {len(rates)} runs, success_rate per run: {sorted(rates)}")
+    print(
+        f"== median {summary['success_rate']}  (baseline compares against the MEDIAN, not a single run)"
+    )
+    _report(results, rates, summary)
+
+    if args.compare:
+        regressions = _compare(read_baseline(), summary)
+        if regressions:
+            for key, b, n in regressions:
+                print(f"\n  REGRESSION: {key} baseline={b} now={n}")
+            print(f"  ladder REGRESSED against the committed baseline (exit {EXIT_REGRESSION})")
+            return EXIT_REGRESSION
+    return 0
 
 
 async def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
+    if args.offline:
+        return _offline(argv)
     sources = SOURCES[: args.limit] if args.limit else SOURCES
 
     async with httpx.AsyncClient(timeout=args.timeout + 30) as client:

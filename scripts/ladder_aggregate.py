@@ -12,6 +12,7 @@ a baseline, and it is only testable if it is separable from the wire.
 from __future__ import annotations
 
 import json
+import math
 import statistics
 from pathlib import Path
 from typing import Any
@@ -80,6 +81,24 @@ def spread(rates: list[float]) -> dict[str, Any]:
     }
 
 
+def p95(latencies: list[float]) -> float | None:
+    """Nearest-rank 95th percentile of the successful latencies.
+
+    The previous inline `sorted(latencies)[int(len*0.95) - 1]` was off by one
+    for small n: with n=2 it returned index 0 (the MINIMUM), so `p95_ms` could
+    come out BELOW `p50_ms` — a latency that a "95th percentile is worse than
+    the median" claim cannot survive. Nearest-rank is `ceil(q*n) - 1`, clamped
+    into `[0, n-1]` (the histogram estimator, which is what a p95 of a small
+    hand-labelled set should be). Returns None for an empty list so the caller
+    records no number rather than a fabricated 0.
+    """
+    if not latencies:
+        return None
+    ordered = sorted(latencies)
+    idx = max(0, min(len(ordered) - 1, math.ceil(0.95 * len(ordered)) - 1))
+    return round(ordered[idx], 1)
+
+
 def summarise(results: list[dict[str, Any]], rates: list[float]) -> dict[str, Any]:
     """The summary dict: the MEDIAN rate, latency, tier mix, and the spread."""
     ok = [r for r in results if r["result"] == "ok"]
@@ -90,9 +109,7 @@ def summarise(results: list[dict[str, Any]], rates: list[float]) -> dict[str, An
         "fail": len(results) - len(ok),
         "success_rate": median_rate(rates),
         "p50_ms": round(statistics.median(latencies), 1) if latencies else None,
-        "p95_ms": round(sorted(latencies)[int(len(latencies) * 0.95) - 1], 1)
-        if latencies
-        else None,
+        "p95_ms": p95(latencies),
         "by_via": {v: sum(1 for r in ok if r.get("via") == v) for v in {r.get("via") for r in ok}},
         "success_rate_observed": spread(rates),
     }
@@ -110,3 +127,35 @@ def read_baseline(path: Path = BASELINE) -> dict[str, Any]:
     if not path.exists():
         return {}
     return json.loads(path.read_text()).get("summary", {})
+
+
+def read_results(path: Path = BASELINE) -> list[dict[str, Any]]:
+    """The per-source detail committed alongside a baseline, or [] if absent.
+
+    This is what makes an OFFLINE run possible: the recorded probe results are
+    a real, labelled fixture. Replaying them through the same aggregation gives
+    the same numbers on every machine with no network and no Pry, so the
+    harness can be exercised in CI without a deployment — and a missing file is
+    an empty list, which `measured` then treats as "nothing measured" rather
+    than a fabricated pass.
+    """
+    if not path.exists():
+        return []
+    data = json.loads(path.read_text())
+    results = data.get("results", [])
+    return results if isinstance(results, list) else []
+
+
+def offline_summary(results: list[dict[str, Any]], repeat: int) -> dict[str, Any]:
+    """Deterministic summary from recorded results — no probe, no network.
+
+    Every replay sees the identical fixture, so every per-run rate is equal and
+    the median equals that rate: the output is byte-identical run to run. This
+    is deliberately NOT a simulation of probe jitter — inventing per-run
+    variance would fabricate the very number the live path exists to measure.
+    `repeat` is honoured only to shape the observed-spread block the way a real
+    run would (all repeats equal); it never introduces artificial differences.
+    """
+    run = list(results)
+    rates = [rate(run) for _ in range(max(1, repeat))]
+    return summarise(run, rates)

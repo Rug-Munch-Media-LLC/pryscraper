@@ -70,7 +70,7 @@ SOURCES: list[dict[str, Any]] = [
 
 #: Sources used to warm a specific tier, because the tier pool is shared and
 #: cold-starting it is what produces the misleading latency.
-WARMUP_TIERS = ("https://blog.soliditylang.com/",)
+WARMUP_TIERS = ("https://base.org/",)
 
 
 def owner_key() -> str:
