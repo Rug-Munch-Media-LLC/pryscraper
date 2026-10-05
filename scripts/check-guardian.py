@@ -14,7 +14,7 @@ one (modelled on OpenArbiter/arbiter's "dangerous-diff auto-reviewer"):
                      check, then loosen the gate").
   process_execution  new `subprocess.*(shell=True)`, `os.system(`, `os.exec*`,
                      `os.popen(`. FAIL.
-  eval_dynamic       new `eval(` / `exec(` in non-test source. FAIL.
+  eval_dynamic       new dynamic eval/exec calls in non-test source. FAIL.
   scope_creep        > N files or M lines (default 40 / 1500). WARN; escalate
                      with --strict-scope.
 
