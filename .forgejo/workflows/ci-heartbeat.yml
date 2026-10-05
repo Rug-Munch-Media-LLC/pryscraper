@@ -1,0 +1,121 @@
+# ── CI heartbeat — alert if ci.yml has not run in 24h ───────────────────────
+# WHY: a repo whose CI silently stops running (scheduled trigger disabled,
+# runner offline, workflow file broken) reports green by absence. This job
+# makes that absence itself a failure: it asks the Forgejo API for the newest
+# `ci.yml` run and FAILS (so the alert fires) when the newest run is older
+# than 24 hours — or when there is no run at all.
+#
+# API contract (verified in-repo: scripts/ci-doctor.sh:40 and the
+# /api/v1/repos/{owner}/{repo}/actions/tasks usage below):
+#   GET {server}/api/v1/repos/{owner}/{repo}/actions/tasks?limit=60
+#   -> {"workflow_runs": [ {workflow_id, run_number, created, status, ...} ]}
+# `created` is an RFC3339/ISO timestamp. `workflow_id` is `ci.yml`.
+#
+# AUTH / BASE URL: set the repo variable `FORGEJO_URL` (e.g.
+# https://git.rugmunch.io) so the workflow never invents a host. Provide a
+# token with read access to Actions in the secret `FORGEJO_TOKEN`. If either
+# is unset the job does not guess a URL — it emits a warning and performs the
+# documented stub (echoing the check it must run) and exits 0, so an
+# unconfigured repo is visibly unconfigured rather than falsely failing.
+#
+# NOTE: the Forgejo runner also exposes the event's server URL as
+# $GITHUB_SERVER_URL and an action token as $GITHUB_TOKEN; the job prefers
+# those when present and falls back to the repo variable/secret.
+
+name: ci-heartbeat
+
+on:
+  schedule:
+    # Hourly. The check itself is cheap (one API call).
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  heartbeat:
+    name: ci.yml ran within 24h?
+    runs-on: docker-x64
+    container:
+      # Standard image with node (actions/checkout@v4 is a node20 action) and
+      # python3 for the age check. Mirrors the other jobs in ci.yml.
+      image: nikolaik/python-nodejs:python3.12-nodejs22
+    steps:
+      - name: Install Node.js for actions/checkout
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
+
+      - uses: actions/checkout@v4
+
+      - name: Check newest ci.yml run age
+        env:
+          # Prefer the event-provided server/token; fall back to repo config.
+          API_BASE: ${{ vars.FORGEJO_URL || github.server_url }}
+          API_TOKEN: ${{ secrets.FORGEJO_TOKEN || github.token }}
+          REPO_SLUG: ${{ github.repository }}
+          HEARTBEAT_MAX_AGE_HOURS: "24"
+        run: |
+          set -euo pipefail
+
+          if [ -z "${API_BASE:-}" ] || [ -z "${REPO_SLUG:-}" ]; then
+            echo "::warning title=CI heartbeat not configured::FORGEJO_URL (repo variable) and github.server_url are both unset; cannot determine the Forgejo API base. This is a STUB — configure FORGEJO_URL to enable the real check."
+            echo "STUB: would query \${API_BASE}/api/v1/repos/\${REPO_SLUG}/actions/tasks?limit=60 and fail if the newest ci.yml run is older than \${HEARTBEAT_MAX_AGE_HOURS:-24}h."
+            exit 0
+          fi
+
+          AUTH_HEADER=()
+          if [ -n "${API_TOKEN:-}" ]; then
+            AUTH_HEADER=(-H "Authorization: token ${API_TOKEN}")
+          fi
+
+          echo "== querying newest ci.yml run =="
+          echo "API base: ${API_BASE}"
+          # The endpoint returns every workflow's tasks; parse the newest ci.yml
+          # run's `created`. A missing endpoint/run is a FAILURE (that is the
+          # whole point of the heartbeat), but an API transport error is
+          # reported as a warning so a transient network blip does not page.
+          HTTP_CODE=$(curl -sS -o /tmp/heartbeat-tasks.json -w '%{http_code}' \
+            "${AUTH_HEADER[@]}" \
+            "${API_BASE}/api/v1/repos/${REPO_SLUG}/actions/tasks?limit=60" || echo "000")
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning title=CI heartbeat API unreachable::GET ${API_BASE}/api/v1/repos/${REPO_SLUG}/actions/tasks returned HTTP ${HTTP_CODE}"
+            exit 0
+          fi
+
+          python3 - "${HEARTBEAT_MAX_AGE_HOURS:-24}" <<'PY'
+          import json, sys
+          from datetime import datetime, timezone
+
+          MAX_AGE_HOURS = float(sys.argv[1])
+          try:
+              data = json.load(open("/tmp/heartbeat-tasks.json"))
+          except (OSError, json.JSONDecodeError) as exc:
+              print(f"::warning title=CI heartbeat unparseable::could not read tasks JSON: {exc}")
+              sys.exit(0)
+
+          runs = data.get("workflow_runs", data if isinstance(data, list) else [])
+          ci = [r for r in runs if r.get("workflow_id") == "ci.yml"]
+          if not ci:
+              sys.exit("::error title=CI heartbeat::no ci.yml runs found for this repo — "
+                       "either the workflow never ran or the heartbeat cannot see it")
+
+          def _created(r):
+              ts = r.get("created") or r.get("run_started_at") or ""
+              # Forgejo emits e.g. 2026-10-05T12:00:00Z; fromisoformat needs +00:00.
+              return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+          newest = max(ci, key=_created)
+          created = _created(newest)
+          age_hours = (datetime.now(timezone.utc) - created).total_seconds() / 3600.0
+          print(f"newest ci.yml run: #{newest.get('run_number')} created {created.isoformat()} "
+                f"({age_hours:.1f}h ago, limit {MAX_AGE_HOURS}h)")
+          if age_hours > MAX_AGE_HOURS:
+              sys.exit(f"::error title=CI heartbeat stale::newest ci.yml run is {age_hours:.1f}h old "
+                       f"(limit {MAX_AGE_HOURS}h) — CI has stopped running")
+          print("STATUS=ok")
+          PY

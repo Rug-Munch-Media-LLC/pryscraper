@@ -202,12 +202,18 @@ jobs:
           curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar xz -C /usr/local/bin gitleaks
       - name: Test with coverage
         # Coverage floor: 73% (measured 73.7% in CI 2026-09-12; ratchet back
-        # toward the 76% local baseline as env-dependent skips are reduced)
-        # `--cov=.` measures the whole repo (no `pryscraper` module exists — the
-        # package is `pry` with top-level modules api/scraper/etc.). Omit list
-        # comes from pyproject [tool.coverage.run]. Tests MUST pass — blocks the
-        # pipeline on failure or insufficient coverage.
-        run: source .venv/bin/activate && pytest tests/ --maxfail=10 -q --tb=short --cov=. --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=73 -m "not integration"
+        # toward the 76% local baseline as env-dependent skips are reduced).
+        # Scope is `--cov=pry` (the shipped package under src/pry/) rather than
+        # `--cov=.`: whole-repo coverage over scripts/datasets/website is noise
+        # and adds collection overhead. The 73% floor is UNCHANGED; the scoped
+        # number may differ and must be re-measured, not guessed.
+        # `-n auto --dist loadfile` (pytest-xdist, in [dev] extras) parallelizes
+        # by test FILE: one worker per core, each file's tests on one worker
+        # (~10 min serial -> ~2-3 min). loadfile keeps a file's fixtures and
+        # module-level state on a single worker.
+        # Tests MUST pass — blocks the pipeline on failure or insufficient
+        # coverage.
+        run: source .venv/bin/activate && pytest tests/ -n auto --dist loadfile --maxfail=10 -q --tb=short --cov=pry --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=73 -m "not integration"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
@@ -1187,7 +1193,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           source .venv/bin/activate
-          pytest tests/ --maxfail=10 -q --tb=short --cov=. --cov-report=xml:coverage.xml -m "not integration"
+          pytest tests/ -n auto --dist loadfile --maxfail=10 -q --tb=short --cov=pry --cov-report=xml:coverage.xml -m "not integration"
       - name: Coverage regression check
         run: |
           source .venv/bin/activate

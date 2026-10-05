@@ -114,6 +114,10 @@ dev = [
     "pytest>=9.1.0",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
+    # pytest-xdist: parallel test execution. The ~7.5k-test suite runs ~10 min
+    # serially; `-n auto --dist loadfile` brings it to ~2-3 min. See ci.yml
+    # `test` job and standards/templates/forgejo-ci-python.yml for the form.
+    "pytest-xdist>=3.6.0",
     "ruff>=0.16.0",
     "mypy>=2.3.0",
     "bandit>=1.9.0",
