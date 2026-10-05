@@ -14,6 +14,10 @@ on:
     - cron: '0 */6 * * *'
     # Nightly integration tests (Postgres + Redis) — non-blocking
     - cron: '30 2 * * *'
+  # Manual trigger: lets operators re-run CI on demand (e.g. after a workflow
+  # fix) without pushing a dummy commit. Added 2026-10-05 after a duplicate
+  # YAML key silently stopped all ci.yml scheduling.
+  workflow_dispatch: {}
 
 env:
   UV_BIN: $HOME/.local/bin/uv
@@ -579,9 +583,6 @@ jobs:
   # `mutation-test` job below, and its mutmut fallback (--paths-to-mutate .)
   # would have mutated the entire repo including tests. The scoped
   # `mutation-test` job (engine-core baseline, 60% gate) is the single gate.
-
-  secrets:
-    name: Secret scan (gitleaks)
 
   secrets:
     name: Secret scan (gitleaks)
