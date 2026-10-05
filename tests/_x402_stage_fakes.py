@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+# Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+"""Tests for the split x402 enforcement stages.
+
+Payment-critical: these cover the early-stage helpers extracted from
+``X402Middleware.__call__`` (``enforcement_stages``) and the pure checks plus
+verify→settle orchestration in ``enforcement_payment_checks`` /
+``enforcement_payment``. No network, no facilitator, no Redis — collaborators
+are injected fakes. The ordering assertions are the point: verify must be
+consulted before settle, and settle must have happened before serving.
+"""
+
+from __future__ import annotations
+
+import base64
+import json
+from typing import Any
+
+
+def _sig(payload: dict[str, Any]) -> str:
+    return base64.b64encode(json.dumps(payload).encode()).decode()
+
+
+def _decoded(frames: list[dict[str, Any]]) -> dict[str, Any]:
+    """Reassemble an ASGI send stream into a status + headers + body dict."""
+    start = next(f for f in frames if f["type"] == "http.response.start")
+    body = b"".join(f.get("body", b"") for f in frames if f["type"] == "http.response.body")
+    parsed_body: Any = None
+    if body:
+        try:
+            parsed_body = json.loads(body)
+        except ValueError:
+            parsed_body = body
+    return {
+        "status": start["status"],
+        "headers": dict(start.get("headers", [])),
+        "body": parsed_body,
+    }
+
+
+class _Recorder:
+    """Collects ASGI messages from a fake ``send`` callable."""
+
+    def __init__(self) -> None:
+        self.frames: list[dict[str, Any]] = []
+
+    async def __call__(self, message: dict[str, Any]) -> None:
+        self.frames.append(message)
+
+
+class _FakeApp:
+    """Records that the wrapped app was served, with the scope it saw."""
+
+    def __init__(self, status: int = 200) -> None:
+        self.calls: list[dict[str, Any]] = []
+        self.status = status
+
+    async def __call__(self, scope, receive, send):
+        self.calls.append(scope)
+        await send({"type": "http.response.start", "status": self.status, "headers": []})
+        await send({"type": "http.response.body", "body": b"ok"})
+
+
+class _FakeHandler:
+    """Fake X402Handler exposing the verify/settle contract the gate drives."""
+
+    def __init__(
+        self,
+        *,
+        verified: bool = True,
+        settlement: dict[str, Any] | None = None,
+        paid: bool = False,
+    ) -> None:
+        self.calls: list[str] = []
+        self.verify_kwargs: dict[str, Any] = {}
+        self.settle_kwargs: dict[str, Any] = {}
+        self._verified = verified
+        self._settlement = settlement if settlement is not None else {"success": True}
+        self._paid = paid
+
+    def refresh(self) -> None:
+        self.calls.append("refresh")
+
+    async def verify_payment(self, payment_id, tx_hash, **kwargs):
+        self.calls.append("verify")
+        self.verify_kwargs = {"payment_id": payment_id, "tx_hash": tx_hash, **kwargs}
+        return {"verified": self._verified}
+
+    async def settle_payment(self, payment_id, tx_hash, **kwargs):
+        self.calls.append("settle")
+        self.settle_kwargs = {"payment_id": payment_id, "tx_hash": tx_hash, **kwargs}
+        return self._settlement
+
+    def is_paid(self, payment_id, **kwargs):
+        return self._paid
+
+
+class _FakeMW:
+    """Minimal middleware stand-in with only the attributes stages touch."""
+
+    def __init__(self, *, handler=None, verifier=None, network="base") -> None:
+        self.app = _FakeApp()
+        self.handler = handler or _FakeHandler()
+        self.network = network
+        self._free = False
+        self._verifier = verifier
+
+    def _is_free(self, path):
+        return self._free
+
+    async def _send_payment_required(self, operation, path, send):
+        assert self._verifier is not None
+        await self._verifier(operation, path, send)
