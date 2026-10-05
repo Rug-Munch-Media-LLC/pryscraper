@@ -24,17 +24,20 @@ from typing import Any
 
 from pry.payments.x402.scheme.digest import _eth_keys  # type: ignore[attr-defined]
 
+from .attestation_binding import (
+    attested_max_amount_required as _attested_max_amount_required,
+)
+from .attestation_verify import (
+    verify_payment_required_attestation as _verify_payment_required_attestation,
+)
 from .digest import (
     X402_ATTEST_ALGORITHM,
     X402_ATTEST_DOMAIN,
     X402_ATTEST_KEY_ENV,
-    X402_ATTEST_MAX_AGE_SECONDS,
-    X402_ATTEST_MAX_SKEW_SECONDS,
     X402_ATTEST_SECRET_ENV,
     X402_ATTEST_VERSION,
     _attestation_digest,
 )
-from .networks import normalize_network_id
 
 logger = logging.getLogger(__name__)
 
@@ -141,164 +144,10 @@ def verify_payment_required_attestation(
 ) -> dict[str, Any]:
     """Verify the server attestation on a payment-required body.
 
-    Returns ``{"verified", "reason", "attested", "signer", "signer_ok"}``.
-
-    - ``attested=False`` - no ``attestation`` on the body (no server key was
-      configured at issue time). Callers decide whether to enforce; this is
-      the backward-compatible path.
-    - ``verified=True`` - every accept's signature validates against the
-      recomputed digest AND the ecrecovered signer matches the embedded
-      ``signer`` AND (when ``expected_signer`` is supplied) that signer equals
-      ``expected_signer`` (trusted out-of-band). This is what a settle/verify
-      path should require before trusting ``payToAddress``.
+    Thin re-export of :func:`.attestation_verify.verify_payment_required_attestation`
+    kept for backward compatibility (``scheme.__init__`` imports it here).
     """
-    if not isinstance(body, dict):
-        return {
-            "verified": False,
-            "reason": "body not a mapping",
-            "attested": False,
-            "signer": "",
-            "signer_ok": False,
-        }
-    attest = body.get("attestation")
-    if not isinstance(attest, dict):
-        return {
-            "verified": False,
-            "reason": "no attestation present",
-            "attested": False,
-            "signer": "",
-            "signer_ok": False,
-        }
-    signer = str(attest.get("signer", ""))
-    if not _eth_keys:
-        return {
-            "verified": False,
-            "reason": "attestation crypto unavailable",
-            "attested": True,
-            "signer": signer,
-            "signer_ok": False,
-        }
-    if int(attest.get("version", 0)) != X402_ATTEST_VERSION:
-        return {
-            "verified": False,
-            "reason": "unsupported attestation version",
-            "attested": True,
-            "signer": signer,
-            "signer_ok": False,
-        }
-    if attest.get("algorithm") != X402_ATTEST_ALGORITHM:
-        return {
-            "verified": False,
-            "reason": "unsupported attestation algorithm",
-            "attested": True,
-            "signer": signer,
-            "signer_ok": False,
-        }
-    nonce = str(attest.get("nonce", ""))
-    issued_at = int(attest.get("issued_at", 0) or 0)
-    if issued_at <= 0:
-        return {
-            "verified": False,
-            "reason": "attestation missing issued_at",
-            "attested": True,
-            "signer": signer,
-            "signer_ok": False,
-        }
-    now = int(time.time())
-    if issued_at - now > X402_ATTEST_MAX_SKEW_SECONDS:
-        return {
-            "verified": False,
-            "reason": (
-                "attestation issued_at in the future beyond clock-skew tolerance "
-                f"(> {X402_ATTEST_MAX_SKEW_SECONDS}s) — fetch a fresh 402 challenge"
-            ),
-            "attested": True,
-            "signer": signer,
-            "signer_ok": False,
-        }
-    if now - issued_at > X402_ATTEST_MAX_AGE_SECONDS:
-        return {
-            "verified": False,
-            "reason": (
-                f"attestation expired (issued_at older than {X402_ATTEST_MAX_AGE_SECONDS}s) "
-                "— fetch a fresh 402 challenge"
-            ),
-            "attested": True,
-            "signer": signer,
-            "signer_ok": False,
-        }
-    sig_map = {
-        int(s.get("index", -1)): str(s.get("signature", ""))
-        for s in attest.get("accepts", [])
-        if isinstance(s, dict)
-    }
-    accepts = body.get("accepts")
-    if not isinstance(accepts, list):
-        return {
-            "verified": False,
-            "reason": "no accepts to verify",
-            "attested": True,
-            "signer": signer,
-            "signer_ok": False,
-        }
-    for index, accept in enumerate(accepts):
-        if not isinstance(accept, dict):
-            return {
-                "verified": False,
-                "reason": f"accept {index} not a mapping",
-                "attested": True,
-                "signer": signer,
-                "signer_ok": False,
-            }
-        raw_sig = sig_map.get(index, "")
-        if not raw_sig:
-            return {
-                "verified": False,
-                "reason": f"missing signature for accept {index}",
-                "attested": True,
-                "signer": signer,
-                "signer_ok": False,
-            }
-        try:
-            signature = _eth_keys.Signature(bytes.fromhex(raw_sig))
-            digest = _attestation_digest(issued_at, nonce, index, accept)
-            recovered = signature.recover_public_key_from_msg_hash(digest).to_address()
-        except (ValueError, TypeError):
-            return {
-                "verified": False,
-                "reason": f"invalid signature for accept {index}",
-                "attested": True,
-                "signer": signer,
-                "signer_ok": False,
-            }
-        if not signer or recovered != signer:
-            return {
-                "verified": False,
-                "reason": (
-                    f"signature mismatch for accept {index} (tampered payTo/amount/network?)"
-                ),
-                "attested": True,
-                "signer": signer,
-                "signer_ok": False,
-            }
-    signer_ok = True
-    if expected_signer:
-        signer_ok = signer.lower() == expected_signer.lower()
-        if not signer_ok:
-            return {
-                "verified": False,
-                "reason": "signer not in trusted set",
-                "attested": True,
-                "signer": signer,
-                "signer_ok": False,
-            }
-    return {
-        "verified": True,
-        "reason": "",
-        "attested": True,
-        "signer": signer,
-        "signer_ok": signer_ok,
-    }
+    return _verify_payment_required_attestation(body, expected_signer=expected_signer)
 
 
 def attested_max_amount_required(
@@ -308,38 +157,10 @@ def attested_max_amount_required(
 ) -> int:
     """Extract the attested ``maxAmountRequired`` (atomic) for (network, asset).
 
-    Price binding (audit #7): the ``maxAmountRequired`` inside a VERIFIED
-    server attestation is the authoritative required amount for THAT payment —
-    it was signed at challenge-issuance time, so an honest payer who
-    authorized the quoted amount must not be re-priced against a live oracle
-    that moved in between. Callers MUST verify the body's attestation
-    (:func:`verify_payment_required_attestation`) BEFORE trusting the value
-    returned here; this helper performs no crypto of its own.
-
-    Returns the positive atomic amount of the accept matching the normalized
-    (network, asset) pair, or 0 when the body is unattested / unusable / no
-    accept matches (callers then fall back to the live-quote comparison).
+    Thin re-export of :func:`.attestation_verify.attested_max_amount_required`
+    kept for backward compatibility (``scheme.__init__`` imports it here).
     """
-    if not isinstance(body, dict) or not isinstance(body.get("attestation"), dict):
-        return 0
-    network_id = normalize_network_id(str(network or ""))
-    asset_upper = str(asset or "").upper()
-    accepts = body.get("accepts")
-    if not isinstance(accepts, list):
-        return 0
-    for accept in accepts:
-        if not isinstance(accept, dict):
-            continue
-        if normalize_network_id(str(accept.get("network", ""))) != network_id:
-            continue
-        if str(accept.get("asset", "")).upper() != asset_upper:
-            continue
-        try:
-            value = int(str(accept.get("maxAmountRequired", "")))
-        except (ValueError, TypeError):
-            return 0
-        return value if value > 0 else 0
-    return 0
+    return _attested_max_amount_required(body, network, asset)
 
 
 def _encode_payment_required_body(body: dict[str, Any]) -> str:

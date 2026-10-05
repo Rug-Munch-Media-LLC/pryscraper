@@ -28,6 +28,7 @@ from pry.payments.x402 import (
     X402_WALLET,
 )
 from pry.payments.x402.facilitator import FacilitatorRouter, get_facilitator_router
+from pry.payments.x402.handler_authorize import AuthorizeMixin
 from pry.payments.x402.handler_response import ResponseMixin
 from pry.payments.x402.handler_settle import SettleError, SettleMixin
 from pry.payments.x402.handler_state import StateMixin
@@ -56,7 +57,7 @@ class FacilitatorTimeoutError(Exception):
         super().__init__(f"facilitator {facilitator} timed out")
 
 
-class X402Handler(StateMixin, ResponseMixin, VerifyMixin, SettleMixin):
+class X402Handler(StateMixin, ResponseMixin, VerifyMixin, AuthorizeMixin, SettleMixin):
     """Handle x402 pay-per-request payments per the spec.
 
     Implements:
