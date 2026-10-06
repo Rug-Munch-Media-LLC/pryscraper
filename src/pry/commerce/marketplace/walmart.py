@@ -5,7 +5,6 @@ the ``__NEXT_DATA__`` JSON embedded in the page — a free, no-API approach.
 Falls back to Walmart's ``__WML_REDUX_INITIAL_STATE__`` JSON and then to
 OpenGraph meta tags when ``__NEXT_DATA__`` is missing.
 Contract:
-
 * ``get_product(product_id)`` → ``{product_id,title,price,currency,seller,
   rating,stock,url}`` (``{}`` on failure).
 * ``search_products(query, limit=20)`` → list of the same shape (``[]`` on
