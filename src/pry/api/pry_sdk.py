@@ -28,6 +28,7 @@ def _get_or_create_loop() -> asyncio.AbstractEventLoop:
     try:
         return asyncio.get_running_loop()
     except RuntimeError:
+        logger.warning("pry_sdk_exception_handler", exc_info=True)
         if _LOOP is None or _LOOP.is_closed():
             _LOOP = asyncio.new_event_loop()
             asyncio.set_event_loop(_LOOP)

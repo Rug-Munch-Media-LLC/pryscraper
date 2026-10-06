@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import secrets
 import time
 from typing import Any
@@ -37,6 +38,8 @@ from fastapi import APIRouter, Body, HTTPException, Request
 from pry.core.errors import NotFoundError  # type: ignore[import-not-found]
 
 from .credential_scope import LEGACY_SHARED_OWNER, request_owner as _request_owner
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "LEGACY_SHARED_OWNER",
@@ -71,6 +74,7 @@ def _verify_password(password: str, stored: str) -> bool:
     try:
         scheme, iterations, salt_hex, hash_hex = stored.split("$", 3)
     except ValueError:
+        logger.warning("auth_exception_handler", exc_info=True)
         return False
     if scheme != "pbkdf2_sha256":
         return False

@@ -89,6 +89,7 @@ def _is_trusted_proxy(ip: str) -> bool:
     try:
         addr = ipaddress.ip_address(ip)
     except ValueError:
+        logger.warning("middleware_exception_handler", exc_info=True)
         return False
     return any(addr in network for network in _TRUSTED_PROXY_NETWORKS)
 
@@ -119,6 +120,7 @@ def _resolve_client_ip(scope: Mapping[str, Any]) -> str:
                     if ipaddress.ip_address(hop).is_loopback:
                         continue
                 except ValueError:
+                    logger.warning("middleware_exception_handler", exc_info=True)
                     break  # non-IP hop — use it as-is (can't be loopback)
                 return hop
     return peer

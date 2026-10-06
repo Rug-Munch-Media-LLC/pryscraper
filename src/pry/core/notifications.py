@@ -103,6 +103,7 @@ async def send_notification(
         loop = asyncio.get_running_loop()
         ok = await loop.run_in_executor(None, _send_email_sync, user_email, subject, body)
     except RuntimeError:
+        logger.warning("notifications_exception_handler", exc_info=True)
         ok = _send_email_sync(user_email, subject, body)
     if not ok:
         logger.warning("Notification send failed: type=%s to=%s", notification_type, user_email)

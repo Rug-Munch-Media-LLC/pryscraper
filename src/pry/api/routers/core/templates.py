@@ -101,7 +101,8 @@ async def batch_execute(body: list[BatchItem]) -> dict[str, Any]:
                 "url": item.url,
                 "result": result,
             }
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
+            logger.warning("templates_exception_handler", exc_info=True)
             return {
                 "template_id": item.template_id,
                 "url": item.url,

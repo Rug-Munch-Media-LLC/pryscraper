@@ -33,4 +33,5 @@ async def stream_endpoint(websocket: WebSocket, job_id: str = "live") -> None:
             data = await websocket.receive_text()
             await streams.broadcast(job_id, {"echo": data})
     except WebSocketDisconnect:
+        logger.warning("streams_exception_handler", exc_info=True)
         streams.unregister(job_id, websocket)

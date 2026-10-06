@@ -40,6 +40,7 @@ def _validate_url(url: str) -> tuple[None, str] | tuple[str, None]:
     try:
         parsed = urllib.parse.urlparse(url)
     except ValueError:
+        logger.warning("webhook_delivery_exception_handler", exc_info=True)
         return None, "invalid URL"
     if not parsed.hostname:
         return None, "missing hostname"
@@ -51,6 +52,7 @@ def _validate_url(url: str) -> tuple[None, str] | tuple[str, None]:
     try:
         infos = socket.getaddrinfo(parsed.hostname, None)
     except socket.gaierror:
+        logger.warning("webhook_delivery_exception_handler", exc_info=True)
         return None, "hostname unresolvable"
     # Resolve once, validate every address, and pin the FIRST address.
     # httpx connects to the pinned IP; the original hostname is preserved
@@ -203,6 +205,7 @@ class WebhookDelivery:
                                 "error": "Client error",
                             }
                     except (httpx.HTTPError, httpx.RequestError) as e:
+                        logger.warning("webhook_delivery_exception_handler", exc_info=True)
                         record = {
                             "url": url,
                             "attempt": attempt,
@@ -213,6 +216,7 @@ class WebhookDelivery:
                     if attempt < max_retries:
                         await asyncio.sleep(retry_delay * (2 ** (attempt - 1)))
         except TimeoutError:
+            logger.warning("webhook_delivery_exception_handler", exc_info=True)
             self._dead_letter(payload, url, "Delivery timeout (15s)")
             return {"success": False, "error": "delivery timeout", "url": url}
         self._dead_letter(payload, url, "Max retries exceeded")

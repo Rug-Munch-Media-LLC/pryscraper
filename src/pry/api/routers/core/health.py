@@ -25,6 +25,7 @@ Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 from __future__ import annotations
 
 import asyncio
+import logging
 
 import redis
 from fastapi import APIRouter
@@ -32,6 +33,8 @@ from fastapi.responses import JSONResponse
 
 from pry.api.client import get_client
 from pry.core.settings import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Health"])
 
@@ -48,6 +51,7 @@ async def _check_redis() -> bool:
         await r.close()  # type: ignore[attr-defined]  # redis.asyncio.Redis has close() in older stubs
         return True
     except redis.RedisError:
+        logger.warning("health_exception_handler", exc_info=True)
         return False
 
 
@@ -62,7 +66,8 @@ async def _check_database() -> bool:
 
         result = await asyncio.to_thread(db_health)
         return bool(result.get("available"))
-    except Exception:  # noqa: BLE001 - probe must never break /health
+    except Exception:
+        logger.warning("health_exception_handler", exc_info=True)
         return False
 
 
@@ -77,7 +82,8 @@ async def _check_flaresolverr() -> bool:
             timeout=3,
         )
         return r.is_success
-    except Exception:  # noqa: BLE001
+    except Exception:
+        logger.warning("health_exception_handler", exc_info=True)
         return False
 
 
@@ -87,7 +93,8 @@ async def _check_ollama() -> bool:
         c = await get_client()
         r = await c.get(f"{settings.ollama_url}/api/tags", timeout=3)
         return r.is_success
-    except Exception:  # noqa: BLE001
+    except Exception:
+        logger.warning("health_exception_handler", exc_info=True)
         return False
 
 

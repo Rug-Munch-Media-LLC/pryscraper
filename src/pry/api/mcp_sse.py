@@ -98,7 +98,8 @@ async def _keepalive_loop(session_id: str) -> None:
             await asyncio.sleep(30)
             queue.put_nowait(": ping\n\n")
     except asyncio.CancelledError:
-        pass  # cancellation is control flow, not failure
+        logger.warning("mcp_sse_exception_handler", exc_info=True)
+        # cancellation is control flow, not failure
     except Exception as e:  # noqa: BLE001
         logger.warning("mcp_sse_keepalive_error", extra={"session_id": session_id, "error": str(e)})
 
@@ -144,6 +145,7 @@ async def mcp_sse_endpoint(
     try:
         _test_close_after = int(request.query_params.get("_sse_test_close_after", "0"))
     except ValueError:
+        logger.warning("mcp_sse_exception_handler", exc_info=True)
         _test_close_after = 0
 
     async def event_stream() -> AsyncIterator[str]:
@@ -163,6 +165,7 @@ async def mcp_sse_endpoint(
                         if messages_yielded >= _test_close_after:
                             break
                 except TimeoutError:
+                    logger.warning("mcp_sse_exception_handler", exc_info=True)
                     if time.time() - last_activity > SESSION_TTL_SECONDS:
                         yield _create_event(
                             "error",
@@ -171,7 +174,8 @@ async def mcp_sse_endpoint(
                         break
                     continue
         except asyncio.CancelledError:
-            pass  # cancellation is control flow, not failure
+            logger.warning("mcp_sse_exception_handler", exc_info=True)
+            # cancellation is control flow, not failure
         finally:
             _cleanup_session(session_id, observer)
 
@@ -202,6 +206,7 @@ async def mcp_post_message(
     try:
         body = await request.json()
     except json.JSONDecodeError as e:
+        logger.warning("mcp_sse_exception_handler", exc_info=True)
         _enqueue_response(
             session_id,
             {

@@ -31,7 +31,7 @@ try:
     from sqlalchemy.orm import Session, sessionmaker
     from sqlalchemy.pool import NullPool
 except ImportError:  # pragma: no cover
-    pass
+    logging.getLogger(__name__).warning("session_exception_handler", exc_info=True)
 
 from pry.core.db.models import _HAS_SA, Base
 from pry.core.paths import PRY_DATA_DIR

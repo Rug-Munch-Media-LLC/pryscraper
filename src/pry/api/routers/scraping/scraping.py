@@ -173,6 +173,7 @@ async def detect_block(url: str = Body(...)) -> dict[str, Any]:
         detection = detector.detect(resp.text, resp.status_code, dict(resp.headers))
         results.append({"method": "direct", "status": resp.status_code, **detection})
     except (httpx.HTTPError, httpx.RequestError) as e:
+        logger.warning("scraping_exception_handler", exc_info=True)
         results.append({"method": "direct", "error": str(e)})
 
     # Test FlareSolverr
@@ -191,6 +192,7 @@ async def detect_block(url: str = Body(...)) -> dict[str, Any]:
             else:
                 results.append({"method": "flaresolverr", "error": f"HTTP {fs_resp.status_code}"})
     except (httpx.HTTPError, httpx.RequestError) as e:
+        logger.warning("scraping_exception_handler", exc_info=True)
         results.append({"method": "flaresolverr", "error": str(e)})
 
     return {"success": True, "data": {"url": url, "results": results}}

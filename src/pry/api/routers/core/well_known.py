@@ -167,6 +167,7 @@ def _load_server_json() -> str | None:
             if candidate.is_file():
                 return candidate.read_text(encoding="utf-8")
         except OSError:
+            logger.warning("well_known_exception_handler", exc_info=True)
             continue
     return None
 

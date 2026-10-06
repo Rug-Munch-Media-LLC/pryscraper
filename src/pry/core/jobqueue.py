@@ -59,6 +59,7 @@ class JobQueue:
                 self._redis = await aioredis.from_url(self.redis_url, socket_timeout=3)
                 await self._redis.ping()
             except (aioredis.RedisError, OSError, TimeoutError):
+                logger.warning("jobqueue_exception_handler", exc_info=True)
                 self._redis = None  # Fallback to local storage
         return self._redis
 
@@ -172,4 +173,5 @@ class JobQueue:
                     },
                 )
         except (httpx.RequestError, OSError):
-            pass  # Webhook fire is best-effort
+            logger.warning("jobqueue_exception_handler", exc_info=True)
+            # Webhook fire is best-effort

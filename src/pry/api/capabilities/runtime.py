@@ -92,6 +92,7 @@ def _import_tor_fallback() -> Any | None:
     try:
         return importlib.import_module(probes.MOD_TOR_FALLBACK)
     except ImportError:
+        logger.warning("runtime_exception_handler", exc_info=True)
         return None
 
 

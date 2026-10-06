@@ -115,6 +115,7 @@ try:
 
     _GOV_DATA_ROUTER: Any | None = gov_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.data.gov_data")
     _GOV_DATA_ROUTER = None
 try:
@@ -122,6 +123,7 @@ try:
 
     _IP_DATA_ROUTER: Any | None = ip_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.data.ip_data")
     _IP_DATA_ROUTER = None
 # climate_data / research_data routers land in this tree; import them guarded
@@ -132,6 +134,7 @@ try:
 
     _CLIMATE_DATA_ROUTER: Any | None = climate_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.data.climate_data")
     _CLIMATE_DATA_ROUTER = None
 try:
@@ -139,6 +142,7 @@ try:
 
     _RESEARCH_DATA_ROUTER: Any | None = research_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.data.research_data")
     _RESEARCH_DATA_ROUTER = None
 # events_data / freight_data / energy_data / food_data / supply_data routers
@@ -149,6 +153,7 @@ try:
 
     _EVENTS_DATA_ROUTER: Any | None = events_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.data.events_data")
     _EVENTS_DATA_ROUTER = None
 try:
@@ -156,6 +161,7 @@ try:
 
     _FREIGHT_DATA_ROUTER: Any | None = freight_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.data.freight_data")
     _FREIGHT_DATA_ROUTER = None
 try:
@@ -163,6 +169,7 @@ try:
 
     _ENERGY_DATA_ROUTER: Any | None = energy_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.data.energy_data")
     _ENERGY_DATA_ROUTER = None
 try:
@@ -170,6 +177,7 @@ try:
 
     _FOOD_DATA_ROUTER: Any | None = food_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.data.food_data")
     _FOOD_DATA_ROUTER = None
 try:
@@ -177,6 +185,7 @@ try:
 
     _SUPPLY_DATA_ROUTER: Any | None = supply_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.data.supply_data")
     _SUPPLY_DATA_ROUTER = None
 # app_store_data / news_data / compliance_data / deals_data routers land in
@@ -187,6 +196,7 @@ try:
 
     _APP_STORE_DATA_ROUTER: Any | None = app_store_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.data.app_store_data")
     _APP_STORE_DATA_ROUTER = None
 try:
@@ -194,6 +204,7 @@ try:
 
     _NEWS_DATA_ROUTER: Any | None = news_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.data.news_data")
     _NEWS_DATA_ROUTER = None
 try:
@@ -201,6 +212,7 @@ try:
 
     _COMPLIANCE_DATA_ROUTER: Any | None = compliance_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.integrations.compliance_data")
     _COMPLIANCE_DATA_ROUTER = None
 try:
@@ -208,6 +220,7 @@ try:
 
     _DEALS_DATA_ROUTER: Any | None = deals_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.data.deals_data")
     _DEALS_DATA_ROUTER = None
 # bidding_data router lands from a parallel agent; import it guarded so
@@ -217,6 +230,7 @@ try:
 
     _BIDDING_DATA_ROUTER: Any | None = bidding_data_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.data.bidding_data")
     _BIDDING_DATA_ROUTER = None
 # billing_packs router (bulk scrape-credit crypto checkout) — guarded so
@@ -226,6 +240,7 @@ try:
 
     _BILLING_PACKS_ROUTER: Any | None = billing_packs_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.commerce.billing_packs")
     _BILLING_PACKS_ROUTER = None
 # billing_subscription router (hosted subscription crypto checkout) — guarded
@@ -237,6 +252,7 @@ try:
 
     _BILLING_SUBSCRIPTION_ROUTER: Any | None = billing_subscription_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.commerce.billing_subscription")
     _BILLING_SUBSCRIPTION_ROUTER = None
 # hosting router (cloud hosting signup + checkout) — guarded so the app keeps
@@ -246,6 +262,7 @@ try:
 
     _HOSTING_ROUTER: Any | None = hosting_router
 except ImportError:  # pragma: no cover — parallel build not landed yet
+    logger.warning("router_registry_exception_handler", exc_info=True)
     _log_missing_router("pry.api.routers.commerce.hosting")
     _HOSTING_ROUTER = None
 

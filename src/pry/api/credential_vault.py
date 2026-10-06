@@ -155,4 +155,5 @@ def store_credential(
             "credential": _public_entry(entry),
         }
     except OSError as e:
+        logger.warning("credential_vault_exception_handler", exc_info=True)
         return {"success": False, "error": str(e)}

@@ -4,11 +4,14 @@
 # Copyright (c) 2026 Rug Munch Media LLC
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from pry.api.capabilities import probes
 from pry.core.settings import settings
+
+logger = logging.getLogger(__name__)
 
 
 def _default_db_port(scheme: str) -> int:
@@ -32,13 +35,15 @@ def _db_capability() -> tuple[bool, str]:
             path = urlsplit(url).path
             present = bool(path) and Path(path).exists()
             return present, f"sqlite database file {'present' if present else 'missing'}"
-        except Exception:  # noqa: BLE001 - capability probes fail closed
+        except Exception:
+            logger.warning("storage_exception_handler", exc_info=True)
             return False, "sqlite database unavailable"
     parts = urlsplit(url)
     host = parts.hostname or "localhost"
     try:
         port = parts.port
     except ValueError:
+        logger.warning("storage_exception_handler", exc_info=True)
         port = None
     port = port or _default_db_port(parts.scheme)
     if probes._tcp_reachable(host, port):
@@ -56,6 +61,7 @@ def _redis_capability() -> tuple[bool, str]:
     try:
         port = parts.port
     except ValueError:
+        logger.warning("storage_exception_handler", exc_info=True)
         port = None
     port = port or 6379
     if probes._tcp_reachable(host, port):

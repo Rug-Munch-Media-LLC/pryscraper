@@ -137,6 +137,7 @@ def db_health() -> dict[str, Any]:
             "sqlite_version": sqlite_version,
         }
     except SQLAlchemyError as e:
+        logger.warning("migrations_exception_handler", exc_info=True)
         return {"available": False, "error": str(e)[:200]}
 
 
@@ -155,4 +156,5 @@ async def db_health_async() -> dict[str, Any]:
             else _resolve_async_database_url(),
         }
     except SQLAlchemyError as e:
+        logger.warning("migrations_exception_handler", exc_info=True)
         return {"available": False, "error": str(e)[:200]}

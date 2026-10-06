@@ -98,6 +98,7 @@ async def adaptive_crawl(
             result = await owner.scraper.scrape(current_url, {"bypass_cloudflare": True})
             content = result.get("content", "") or ""
         except pydantic.ValidationError as e:
+            logger.warning("crawl_adaptive_exception_handler", exc_info=True)
             _warn_page_failed(current_url, str(e))
             continue
 
@@ -113,6 +114,7 @@ async def adaptive_crawl(
             except RuntimeError as e:
                 # map_urls raises on a transport failure (direct + flaresolverr
                 # both failed) instead of returning an empty "no links" list.
+                logger.warning("crawl_adaptive_exception_handler", exc_info=True)
                 _warn_map_failed(current_url, str(e))
                 continue
             for link in links:

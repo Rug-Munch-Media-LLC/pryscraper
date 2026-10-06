@@ -40,12 +40,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 from typing import TYPE_CHECKING
 
 from pry.core.errors import InvalidRequestError
 from pry.core.jwt_auth import is_jwt, validate_rmi_jwt
 from pry.core.middleware import _resolve_client_ip
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -154,6 +157,7 @@ def legacy_owner_count(vault_dir: Path) -> int:
         try:
             entry = json.loads(path.read_text())
         except (ValueError, OSError):
+            logger.warning("credential_scope_exception_handler", exc_info=True)
             continue
         if entry.get("owner", LEGACY_SHARED_OWNER) == LEGACY_SHARED_OWNER:
             count += 1

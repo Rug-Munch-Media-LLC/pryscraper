@@ -262,6 +262,7 @@ async def extract_pdf(
         result = e.extract(resp.content, method=method)
         return {"success": "error" not in result, "data": result}
     except (httpx.HTTPError, httpx.RequestError) as e:
+        logger.warning("advanced_exception_handler", exc_info=True)
         return {"success": False, "error": str(e)[:300]}
 
 

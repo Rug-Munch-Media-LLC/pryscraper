@@ -69,6 +69,7 @@ def _parse_ts(raw: Any) -> datetime | None:
     try:
         return datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError:
+        logger.warning("admin_shared_exception_handler", exc_info=True)
         return None
 
 
@@ -77,6 +78,7 @@ def _payment_amount(p: dict[str, Any]) -> float:
     try:
         return float(p.get("amount_usd", 0) or 0)
     except (TypeError, ValueError):
+        logger.warning("admin_shared_exception_handler", exc_info=True)
         return 0.0
 
 
@@ -214,6 +216,7 @@ def _fmt_usd(v: Any) -> str:
     try:
         return f"${float(v):,.2f}"
     except (TypeError, ValueError):
+        logger.warning("admin_shared_exception_handler", exc_info=True)
         return "$0.00"
 
 

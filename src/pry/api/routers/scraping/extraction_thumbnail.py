@@ -22,11 +22,14 @@ cleanly on its own.
 
 from __future__ import annotations
 
+import logging
 import re
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 from fastapi import Body
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -52,11 +55,12 @@ async def extract_thumbnail(url: str = Body(...)) -> dict[str, Any]:
             client = await owner.get_client()
             resp = await owner.guard_get(client, url)
             html = resp.text
-    except Exception:  # noqa: BLE001 — thumbnail is best-effort; any failure yields None
+    except Exception:
         # ``{"thumbnail": None}`` is the SAME payload a page with no og:image /
         # twitter:image / img tag returns, so a transport or parse failure would
         # be reported as "this page has no thumbnail" — a fabricated result.
         # Signal the failure explicitly instead.
+        logger.warning("extraction_thumbnail_exception_handler", exc_info=True)
         return {
             "success": False,
             "error": "thumbnail extraction failed",

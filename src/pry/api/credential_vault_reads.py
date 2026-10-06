@@ -20,11 +20,14 @@ Change Date: 2029-01-01 (converts to MIT).
 from __future__ import annotations
 
 import json
+import logging
 import os
 from datetime import UTC, datetime
 from typing import Any
 
 from pry.api import credential_vault
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["delete_credential", "get_credential", "list_credentials"]
 
@@ -58,6 +61,7 @@ def get_credential(credential_id: str, owner: str | None = None) -> dict[str, An
         path.write_text(json.dumps(entry, indent=2))
         return credential_vault._public_entry(entry)
     except (json.JSONDecodeError, OSError):
+        logger.warning("credential_vault_reads_exception_handler", exc_info=True)
         return None
 
 
@@ -77,6 +81,7 @@ def delete_credential(credential_id: str, owner: str | None = None) -> bool:
         try:
             entry = json.loads(path.read_text())
         except (json.JSONDecodeError, OSError):
+            logger.warning("credential_vault_reads_exception_handler", exc_info=True)
             return False
         if entry.get("owner") != owner:
             return False
@@ -106,6 +111,7 @@ def list_credentials(owner: str | None = None) -> list[dict[str, Any]]:
         try:
             entry = json.loads(path.read_text())
         except (json.JSONDecodeError, OSError):
+            logger.warning("credential_vault_reads_exception_handler", exc_info=True)
             continue
         if owner is not None and entry.get("owner") != owner:
             continue

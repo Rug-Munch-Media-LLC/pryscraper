@@ -232,6 +232,7 @@ class PrySettings(PaymentsSettings, LimitsSettings, FlagsSettings, ServicesSetti
         try:
             from pry.core.secrets_backend import get_secret
         except ImportError:
+            logger.warning("settings_exception_handler", exc_info=True)
             return
         for fname in sensitive:
             current = getattr(self, fname, None)
@@ -249,6 +250,7 @@ class PrySettings(PaymentsSettings, LimitsSettings, FlagsSettings, ServicesSetti
             with open(path, encoding="utf-8") as f:
                 data = json.load(f)
         except (OSError, json.JSONDecodeError):
+            logger.warning("settings_exception_handler", exc_info=True)
             return
         if not isinstance(data, dict):
             return
@@ -280,6 +282,7 @@ class PrySettings(PaymentsSettings, LimitsSettings, FlagsSettings, ServicesSetti
                     else:
                         setattr(self, attr, expected_type(value))
                 except (TypeError, ValueError):
+                    logger.warning("settings_exception_handler", exc_info=True)
                     setattr(self, attr, value)
 
     @property

@@ -156,7 +156,8 @@ class ResponseCache(RedisBackendMixin):
         if client is not None:
             try:
                 raw = await client.get(self._redis_key(key))
-            except Exception as e:  # noqa: BLE001 — Redis down → memory fallback
+            except Exception as e:
+                logger.warning("cache_exception_handler", exc_info=True)
                 self._drop_redis(e)
             else:
                 if raw is not None:
@@ -223,7 +224,8 @@ class ResponseCache(RedisBackendMixin):
         if client is not None:
             try:
                 await client.setex(self._redis_key(key), ttl, json.dumps(data))
-            except Exception as e:  # noqa: BLE001 — Redis down → memory only
+            except Exception as e:
+                logger.warning("cache_exception_handler", exc_info=True)
                 self._drop_redis(e)
 
     def _store_local(self, key: str, data: dict[str, Any], ttl: int = 300) -> None:

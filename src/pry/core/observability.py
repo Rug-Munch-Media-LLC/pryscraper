@@ -48,6 +48,7 @@ try:
 
     _has_otlp = True
 except ImportError:
+    logger.warning("observability_exception_handler", exc_info=True)
     _has_otlp = False
 
 
@@ -133,7 +134,8 @@ def get_tracer(name: str = "pry") -> Any:
     if _TRACER is None:
         try:
             _TRACER = trace.get_tracer(name)
-        except Exception:  # noqa: BLE001 — tracing must never break scraping
+        except Exception:
+            logger.warning("observability_exception_handler", exc_info=True)
             _TRACER = None
     return _TRACER
 
@@ -276,6 +278,7 @@ def _sample(name: str, metric: Any) -> int:
             sum(s.value for s in metric.collect()[0].samples if not s.name.endswith("_created"))
         )
     except _SAMPLE_ERRORS:
+        logger.warning("observability_exception_handler", exc_info=True)
         return 0
 
 

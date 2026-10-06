@@ -112,6 +112,7 @@ def billing_subscription_change_tier(payload: SubscriptionChangeTierRequest) -> 
             remaining = datetime.fromisoformat(str(expires_at)) - datetime.now(UTC)
             months_remaining = max(1, math.ceil(remaining.total_seconds() / (30 * 24 * 3600)))
         except ValueError:
+            logger.warning("renewals_exception_handler", exc_info=True)
             months_remaining = 1
 
     if (new.price_usd_monthly or 0.0) > (current.price_usd_monthly or 0.0):

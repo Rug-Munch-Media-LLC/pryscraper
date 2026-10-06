@@ -47,6 +47,7 @@ def billing_subscription_status(api_key: str) -> dict[str, Any]:
             remaining = datetime.fromisoformat(str(expires_at)) - datetime.now(UTC)
             months_remaining = max(0, math.ceil(remaining.total_seconds() / (30 * 24 * 3600)))
         except ValueError:
+            logger.warning("account_exception_handler", exc_info=True)
             months_remaining = 0
 
     return {

@@ -26,6 +26,7 @@ try:
 
     _HAS_JWT = True
 except ImportError:
+    logging.getLogger(__name__).warning("jwt_auth_exception_handler", exc_info=True)
     pyjwt = None  # type: ignore[assignment]
     _HAS_JWT = False
 

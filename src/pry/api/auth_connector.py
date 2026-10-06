@@ -207,6 +207,7 @@ async def _solve_capsolver(
 
         return {"success": False, "error": "CAPTCHA solving timed out"}
     except (httpx.HTTPError, httpx.RequestError) as e:
+        logger.warning("auth_connector_exception_handler", exc_info=True)
         return {"success": False, "error": str(e)[:200]}
 
 

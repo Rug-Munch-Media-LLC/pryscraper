@@ -12,13 +12,17 @@ Licensed under MIT. See LICENSE.
 # pyright: basic
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
+
+logger = logging.getLogger(__name__)
 
 try:
     from sqlalchemy.orm import DeclarativeBase
 
     _HAS_SA = True
 except ImportError:  # pragma: no cover
+    logger.warning("models_base_exception_handler", exc_info=True)
     _HAS_SA = False
 
 if _HAS_SA:

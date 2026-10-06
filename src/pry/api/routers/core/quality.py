@@ -85,6 +85,7 @@ async def quality_stats() -> dict[str, Any]:
                 }
             )
         except (json.JSONDecodeError, OSError):
+            logger.warning("quality_exception_handler", exc_info=True)
             continue
 
     return {"success": True, "data": {"total_checked": len(stats), "recent": stats}}

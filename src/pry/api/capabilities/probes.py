@@ -53,7 +53,8 @@ def _module_import_state(name: str) -> Literal["ok", "broken", "missing"]:
         sys.modules.pop(name, None)
     try:
         return "broken" if importlib.util.find_spec(name) is not None else "missing"
-    except Exception:  # noqa: BLE001 - capability probes fail closed
+    except Exception:
+        logger.warning("probes_exception_handler", exc_info=True)
         return "missing"
 
 
@@ -81,6 +82,7 @@ def _playwright_browser_installs() -> list[str]:
             if entry.is_dir() and entry.name.startswith(_BROWSER_PREFIXES)
         )
     except OSError:
+        logger.warning("probes_exception_handler", exc_info=True)
         return []
 
 
@@ -91,6 +93,7 @@ def _stealth_scripts_present() -> bool:
     try:
         return any(STEALTH_SCRIPTS_DIR.glob("*.js"))
     except OSError:
+        logger.warning("probes_exception_handler", exc_info=True)
         return False
 
 
@@ -100,4 +103,5 @@ def _tcp_reachable(host: str, port: int, timeout: float = _TCP_PROBE_TIMEOUT) ->
         with socket.create_connection((host, port), timeout=timeout):
             return True
     except OSError:
+        logger.warning("probes_exception_handler", exc_info=True)
         return False

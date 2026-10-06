@@ -32,9 +32,12 @@ Licensed under MIT. See LICENSE.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 from urllib.parse import urlsplit
+
+logger = logging.getLogger(__name__)
 
 # Hosts/patterns that count as "loopback-only" — an API key is not required
 # when the service binds to these. Anything else (0.0.0.0, ::, an internal
@@ -80,6 +83,7 @@ def _as_int(value: Any, name: str) -> int | None:
     try:
         return int(value)
     except (TypeError, ValueError):
+        logger.warning("config_validation_exception_handler", exc_info=True)
         return None
 
 
@@ -98,6 +102,7 @@ def _proxy_scheme(url: str) -> str:
     try:
         return urlsplit(url).scheme.lower()
     except ValueError:
+        logger.warning("config_validation_exception_handler", exc_info=True)
         return ""
 
 

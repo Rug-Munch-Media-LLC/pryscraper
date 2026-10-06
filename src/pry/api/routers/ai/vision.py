@@ -105,6 +105,7 @@ async def vision(
                     },
                 }
             except httpx.HTTPStatusError as e:
+                logger.warning("vision_exception_handler", exc_info=True)
                 attempts.append(
                     {
                         "model": m,
@@ -113,6 +114,7 @@ async def vision(
                     }
                 )
             except OSError as e:
+                logger.warning("vision_exception_handler", exc_info=True)
                 attempts.append({"model": m, "error": str(e)})
 
         raise ExternalServiceError(

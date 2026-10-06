@@ -111,6 +111,7 @@ async def sync_quota(bucket: UserBucket, api_key_id: str, quota_ttl: float) -> N
     try:
         bucket.quota_used = await load_quota_from_db(api_key_id)
     except QuotaUnavailableError:
+        logger.warning("user_ratelimit_quota_exception_handler", exc_info=True)
         bucket.quota_unverified = True
     else:
         bucket.quota_unverified = False
