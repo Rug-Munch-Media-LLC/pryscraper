@@ -196,7 +196,6 @@ def _caller_from_scope(scope: dict[str, Any]) -> str:
 
 def mark_internal_verified(scope: dict[str, Any]) -> None:
     """Mark the ASGI scope so the inner auth layer accepts the call.
-
     Same payment-shaped dict the owner path uses: the auth layer reads
     ``payment_id``/``batch_id`` off it, so a bool would crash it.
     """

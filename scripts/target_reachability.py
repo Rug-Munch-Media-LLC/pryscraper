@@ -138,7 +138,6 @@ def classify(probe: TargetProbe, hostname: str) -> Reachability:
 
 def blame_tier(reachability: Reachability) -> bool:
     """May this target's state be reported as a SCRAPE failure?
-
     No for UNREACHABLE and UNKNOWN — those are facts about the target or our
     probe, not about the tier. Yes for REACHABLE and REFUSING: the tier engaged
     with the site, so a failure there is ours.
@@ -181,7 +180,6 @@ def _cert_to_probe(cert: dict) -> tuple[str | None, tuple[str, ...]]:
 
 def precheck_tls(hostname: str, port: int = 443, timeout: float = 5.0) -> TargetProbe:
     """Live TLS probe reporting what was actually PRESENTED.
-
     ``CERT_OPTIONAL`` is load-bearing: it verifies without aborting on an
     untrusted chain, so ``getpeercert()`` returns a populated dict and the SAN
     is readable for a cert we would not trust. ``CERT_NONE`` returns an EMPTY

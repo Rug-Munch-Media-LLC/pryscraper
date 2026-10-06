@@ -161,7 +161,6 @@ async def eip7702_verify(
     amount_usd: float,
 ) -> dict[str, Any]:
     """EIP-7702 self-verify: poll RPC for tx receipt AND check payTo/amount.
-
     A successful receipt alone is NOT proof of payment. We require:
     - the tx to have been sent to the facilitator's wallet (native) or to
       the asset's token contract with a transfer() to our wallet (ERC-20);

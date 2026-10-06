@@ -1,7 +1,6 @@
 """Pry — Adaptive Freshness Scheduling.
 Conditional scraping, content fingerprinting, staleness dashboard, adaptive frequency."""
 
-# SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper

@@ -335,7 +335,6 @@ def set_facilitator_router(router: FacilitatorRouter) -> None:
 
 def register_facilitator(network: str, impl: Any) -> None:
     """Register a custom facilitator for ``network`` on the global router.
-
     Convenience wrapper over :meth:`FacilitatorRouter.register_facilitator`.
     Use this to plug in a custom verifier (e.g. TRON, which remains
     scaffolded until an impl is registered). ``impl`` must expose

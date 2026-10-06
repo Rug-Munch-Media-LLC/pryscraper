@@ -4,8 +4,6 @@ exponential backoff on 429 (honoring Retry-After), 5xx and transport
 errors; any other 4xx is a hard failure.
 """
 
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.

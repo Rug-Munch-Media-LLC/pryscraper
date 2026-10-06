@@ -1,9 +1,6 @@
 """Pry — Reverse ETL to CRM.
 Sync scraped data to Salesforce, HubSpot, Pipedrive, and Close.com."""
 
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 import logging

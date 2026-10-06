@@ -20,8 +20,6 @@ import httpx
 logger = logging.getLogger(__name__)
 TEMPLATES_DIR = Path(__file__).parent
 
-# Test URLs picked for each site — known-good article/product pages.
-# Add more as templates are validated.
 SITE_TEST_URLS: dict[str, str] = {
     "bbc.com": "https://www.bbc.com/news/articles/c0lz0v3gg41o",
     "nytimes.com": "https://www.nytimes.com/2026/07/01/business/economy.html",
@@ -53,7 +51,6 @@ SITE_TEST_URLS: dict[str, str] = {
     "vox.com": "https://www.vox.com/",
     "slate.com": "https://slate.com/",
     "vice.com": "https://www.vice.com/",
-    # E-commerce
     "amazon.com": "https://www.amazon.com/dp/B08N5WRWNW",
     "ebay.com": "https://www.ebay.com/itm/123456",
     "etsy.com": "https://www.etsy.com/listing/123456",
