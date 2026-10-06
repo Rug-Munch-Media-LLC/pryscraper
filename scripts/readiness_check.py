@@ -88,7 +88,6 @@ def check_ci_wired() -> tuple[bool, str]:
         if missing:
             return False, f"ci.yml jobs missing (no yaml): {missing}"
         return True, f"ci.yml parsed as text, all {len(required)} jobs present"
-
     try:
         doc = yaml.safe_load(ci.read_text())
     except Exception as exc:  # noqa: BLE001

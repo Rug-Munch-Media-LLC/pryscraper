@@ -51,7 +51,6 @@ class PaymentAnalytics:
         for p in payments:
             payer = p.get("signer", "anonymous")
             payer_totals[payer] = payer_totals.get(payer, 0) + p.get("amount_usd", 0)
-
         sorted_payers = sorted(payer_totals.items(), key=lambda x: x[1], reverse=True)
         return [{"payer": p, "total_usd": round(a, 6)} for p, a in sorted_payers[:limit]]
 

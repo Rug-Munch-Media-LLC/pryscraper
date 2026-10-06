@@ -71,7 +71,6 @@ class TargetProbe:
 
 def classify_tls(probe: TargetProbe, hostname: str) -> Failure:
     """TLS-only verdict. Requires a verified cert with subject AND covering SAN.
-
     ``tls_completed`` alone is never sufficient — that is the exact trap.
     """
     if probe.tls_completed is None:
