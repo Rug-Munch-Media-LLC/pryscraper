@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Any
 
 import httpx
 
@@ -30,7 +31,9 @@ _FLARESOLVERR_URL = os.environ.get("PRY_FLARESOLVERR_URL", "http://flaresolverr-
 _FLARESOLVERR_URL = os.environ.get("PRY_FLARESOLVERR_URL", "http://flaresolverr-pry:8191/v1")
 
 
-async def fetch_via_flaresolverr(url: str, timeout_s: float = 90.0) -> str:
+async def fetch_via_flaresolverr(
+    url: str, timeout_s: float = 90.0, proxy: str | None = None
+) -> str:
     """Fetch a URL through FlareSolverr. Returns "" when unavailable.
 
     DuckDuckGo answers plain HTTP clients with a 202 challenge page that
@@ -40,7 +43,17 @@ async def fetch_via_flaresolverr(url: str, timeout_s: float = 90.0) -> str:
     HTML endpoint returns parseable results.
     """
     try:
-        payload = {"cmd": "request.get", "url": url, "maxTimeout": int(timeout_s * 1000)}
+        payload: dict[str, Any] = {
+            "cmd": "request.get",
+            "url": url,
+            "maxTimeout": int(timeout_s * 1000),
+        }
+        # Residential egress: Google/DuckDuckGo block a bare datacenter IP. When a
+        # proxy is supplied it is handed to FlareSolverr's own ``proxy`` field so
+        # the browser exits through it. (Rotation pool: gopass
+        # rmi/infra/webshare_proxy_list_v2; see docs/ops/site-access-playbook.md.)
+        if proxy:
+            payload["proxy"] = {"url": proxy}
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s)) as client:
             resp = await client.post(_FLARESOLVERR_URL, json=payload)
             resp.raise_for_status()
