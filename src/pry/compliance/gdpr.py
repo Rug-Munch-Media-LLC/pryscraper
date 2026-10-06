@@ -86,6 +86,7 @@ async def record_consent(
         )
         return {"success": True, "record_id": record_id, "consent": record}
     except OSError as e:
+        logger.warning("gdpr_suppressed", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
@@ -134,6 +135,7 @@ def revoke_consent(user_id: str, purpose: str = "data_collection") -> dict[str, 
                 path.write_text(json.dumps(record, indent=2))
                 revoked += 1
         except (json.JSONDecodeError, OSError):
+            logger.warning("gdpr_suppressed", exc_info=True)
             unreadable.append(path.name)
             continue
     result: dict[str, Any] = {"success": True, "revoked_records": revoked}
@@ -187,6 +189,7 @@ def _apply_retention_policy_sync() -> dict[str, Any]:
         except (json.JSONDecodeError, OSError, ValueError, KeyError, TypeError):
             # An expired record we cannot read is NOT removed. Count it so the
             # caller sees a partial sweep instead of a silently clean result.
+            logger.warning("gdpr_suppressed", exc_info=True)
             skipped.append(path.name)
             continue
 
@@ -229,6 +232,7 @@ def _remove_expired(
                 path.unlink()
                 removed[0] += 1
         except OSError:
+            logger.warning("gdpr_suppressed", exc_info=True)
             skipped.append(path.name)
 
 
@@ -255,6 +259,7 @@ async def log_audit_event(
             f.write(json.dumps(event) + "\n")
         return {"success": True, "event_id": event_id}
     except OSError as e:
+        logger.warning("gdpr_suppressed", exc_info=True)
         return {"success": False, "error": str(e)}
 
 

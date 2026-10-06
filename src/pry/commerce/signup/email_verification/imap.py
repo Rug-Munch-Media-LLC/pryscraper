@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import imaplib
+import logging
 from email.parser import BytesParser
 from typing import TYPE_CHECKING, Any
 
@@ -15,6 +16,8 @@ from pry.commerce.signup.email_verification.common import (
 
 if TYPE_CHECKING:
     from email.message import Message
+
+logger = logging.getLogger(__name__)
 
 
 def _walk_message_bodies(message: Message) -> list[str]:
@@ -51,6 +54,7 @@ def _try_logout(mail: Any) -> None:
         mail.logout()
     except (OSError, imaplib.IMAP4.error):
         # Best-effort logout; the connection is being discarded anyway.
+        logger.warning("imap_suppressed", exc_info=True)
         return
 
 
@@ -73,6 +77,7 @@ def poll_imap_for_verification(
     try:
         mail = imaplib.IMAP4_SSL(config.host, config.port)
     except (OSError, imaplib.IMAP4.error) as exc:
+        logger.warning("imap_suppressed", exc_info=True)
         return {
             "success": False,
             "error": f"imap connect failed: {exc}",
@@ -106,6 +111,7 @@ def poll_imap_for_verification(
                 return {"success": True, "link": link, "code": code}
         return {"success": True, "link": None, "code": None}
     except (imaplib.IMAP4.error, OSError) as exc:
+        logger.warning("imap_suppressed", exc_info=True)
         return {"success": False, "error": f"imap error: {exc}", "link": None, "code": None}
     finally:
         _try_logout(mail)

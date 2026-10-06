@@ -17,11 +17,14 @@ caller can answer UNKNOWN rather than guessing.
 from __future__ import annotations
 
 import json
+import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
     from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # A record that parses as JSON but is structurally wrong is just as unreadable
 # as one that is truncated. KeyError/TypeError/ValueError cover the shape.
@@ -52,6 +55,7 @@ def load(path: Path) -> dict[str, Any] | None:
     try:
         return json.loads(path.read_text())
     except RECORD_ERRORS:
+        logger.warning("record_store_suppressed", exc_info=True)
         return None
 
 
@@ -64,6 +68,7 @@ def _mtime(path: Path) -> float:
     try:
         return path.stat().st_mtime
     except OSError:
+        logger.warning("record_store_suppressed", exc_info=True)
         return 0.0
 
 

@@ -19,6 +19,7 @@ failures are returned as ``{"success": False, "error": ...}``.
 from __future__ import annotations
 
 import inspect
+import logging
 import re
 import secrets
 import string
@@ -32,6 +33,7 @@ from pry.commerce.signup.form_detection import detect_signup_form
 if TYPE_CHECKING:
     from pry.commerce.signup.form_detection import SignupField, SignupForm
 
+logger = logging.getLogger(__name__)
 # Optional CAPTCHA solver. Not a hard dependency: when unavailable the engine
 # simply skips CAPTCHA solving (the submit may still succeed). This repo ships
 # its own async captcha_solver (captcha_type/sitekey/url signature); a plain
@@ -40,8 +42,8 @@ solve_captcha: Any | None
 try:
     from pry.engine.captcha_solver import solve_captcha  # type: ignore[import-not-found]
 except ImportError:
+    logger.warning("engine_suppressed", exc_info=True)
     solve_captcha = None
-
 PASSWORD_ALPHABET = string.ascii_letters + string.digits
 DEFAULT_PASSWORD_LENGTH = 16
 
@@ -97,10 +99,13 @@ class SignupAutomation:
         try:
             return await self._register(url, profile, email)
         except httpx.HTTPError as exc:
+            logger.warning("engine_suppressed", exc_info=True)
             return {"success": False, "error": f"http error: {exc}"}
         except (OSError, ValueError) as exc:
+            logger.warning("engine_suppressed", exc_info=True)
             return {"success": False, "error": str(exc)}
-        except Exception as exc:  # noqa: BLE001 - contract: register never raises
+        except Exception as exc:
+            logger.warning("engine_suppressed", exc_info=True)
             return {"success": False, "error": f"signup failed: {exc}"}
 
     # -- implementation ------------------------------------------------------
@@ -114,7 +119,6 @@ class SignupAutomation:
             page_resp = await client.get(url)
             page_resp.raise_for_status()
             html = page_resp.text
-
             form = detect_signup_form(html, str(page_resp.url))
             if form is None:
                 return {
@@ -122,16 +126,13 @@ class SignupAutomation:
                     "error": "no signup form detected on page",
                     "url": url,
                 }
-
             password = generate_password()
             values = self._build_form_values(form, profile, email, password)
             values.update(await self._solve_captcha(html, str(page_resp.url)))
-
             if form.method.lower() == "get":
                 submit_resp = await client.get(form.action, params=values)
             else:
                 submit_resp = await client.post(form.action, data=values)
-
             verification = await verify_email(email, client=client)
 
             confirmed = False
@@ -141,6 +142,7 @@ class SignupAutomation:
                     confirm_resp = await follow_verification_link(client, str(confirm_url))
                     confirmed = confirm_resp.status_code < 400
                 except httpx.HTTPError:
+                    logger.warning("engine_suppressed", exc_info=True)
                     confirmed = False
 
             return {
@@ -163,7 +165,8 @@ class SignupAutomation:
     def _cookies_to_dict(client: httpx.AsyncClient) -> dict[str, str]:
         try:
             return dict(client.cookies)
-        except Exception:  # noqa: BLE001 - cookie extraction is best-effort
+        except Exception:
+            logger.warning("engine_suppressed", exc_info=True)
             return {}
 
     @staticmethod
@@ -206,7 +209,8 @@ class SignupAutomation:
                     result = await candidate
                 else:
                     result = candidate
-        except Exception:  # noqa: BLE001 - CAPTCHA solving is best-effort
+        except Exception:
+            logger.warning("engine_suppressed", exc_info=True)
             return {}
         if not result:
             return {}
