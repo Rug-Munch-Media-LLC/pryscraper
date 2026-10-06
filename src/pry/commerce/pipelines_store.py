@@ -36,6 +36,7 @@ def save_pipeline(pipeline: dict[str, Any]) -> dict[str, Any]:
         )
         return {"success": True, "pipeline_id": pipeline_id}
     except OSError as e:
+        logger.warning("pipelines_store_suppressed", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
@@ -47,6 +48,7 @@ def get_pipeline(pipeline_id: str) -> dict[str, Any] | None:
     try:
         return cast("dict[str, Any]", json.loads(path.read_text()))
     except (json.JSONDecodeError, OSError):
+        logger.warning("pipelines_store_suppressed", exc_info=True)
         return None
 
 
@@ -66,6 +68,7 @@ def list_pipelines() -> list[dict[str, Any]]:
                 }
             )
         except (json.JSONDecodeError, OSError):
+            logger.warning("pipelines_store_suppressed", exc_info=True)
             continue
     return pipelines
 

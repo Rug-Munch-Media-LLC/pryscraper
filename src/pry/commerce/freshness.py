@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 FRESHNESS_DIR = PRY_DATA_DIR / "freshness"
 FRESHNESS_DIR.mkdir(parents=True, exist_ok=True)
 
-
 # ── Content Fingerprinting ──
 
 
@@ -98,6 +97,7 @@ async def quick_health_check(url: str) -> dict[str, Any]:
             "etag": resp.headers.get("etag", ""),
         }
     except (httpx.HTTPError, httpx.RequestError) as e:
+        logger.warning("freshness_suppressed", exc_info=True)
         return {"url": url, "accessible": False, "error": str(e)[:100]}
 
 
@@ -222,6 +222,7 @@ def get_staleness_dashboard() -> dict[str, Any]:
                 stale_count += 1
 
         except (json.JSONDecodeError, OSError):
+            logger.warning("freshness_suppressed", exc_info=True)
             continue
 
     # Sort by last_checked (oldest first)

@@ -6,7 +6,6 @@ renewal rollover) with optional JSON persistence, and
 :func:`subscription_status` reports the current state including a
 best-effort usage snapshot from a fresh
 :class:`billing.enforcer.BillingEnforcer`.
-
 NOTE [REVIEW]: the ``usage`` snapshot is per-call construction — it is
 best-effort, not the exact counter state of the middleware's long-lived
 enforcer instance.
@@ -19,6 +18,7 @@ enforcer instance.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from pry.commerce.billing import subscription as _facade
@@ -33,6 +33,8 @@ from pry.commerce.billing.subscription_state import (
 )
 from pry.commerce.billing.subscription_time import _add_months, _parse_iso, _utc_iso
 from pry.commerce.billing.tiers import get_tier
+
+logger = logging.getLogger(__name__)
 
 
 # ── Activation + status ─────────────────────────────────────────────────────
@@ -61,6 +63,7 @@ def activate_subscription(api_key: str, tier: str, months: int) -> dict[str, Any
             try:
                 previous_expiry = _parse_iso(str(previous["expires_at"]))
             except ValueError:
+                logger.warning("subscription_activation_suppressed", exc_info=True)
                 previous_expiry = now
             if previous_expiry > now and str(previous.get("tier", "")) == resolved.name:
                 base = previous_expiry
@@ -98,6 +101,7 @@ def subscription_status(api_key: str) -> dict[str, Any]:
     try:
         expires_at = _parse_iso(str(record["expires_at"]))
     except ValueError:
+        logger.warning("subscription_activation_suppressed", exc_info=True)
         expires_at = now
     return {
         "tier": str(record.get("tier", "free")),
@@ -117,4 +121,5 @@ def _usage_for(api_key: str) -> dict[str, Any]:
             "quota_exceeded": bool(stats.get("quota_exceeded", False)),
         }
     except (OSError, ValueError, TypeError):
+        logger.warning("subscription_activation_suppressed", exc_info=True)
         return {"month_requests": 0, "quota_remaining": None, "quota_exceeded": False}

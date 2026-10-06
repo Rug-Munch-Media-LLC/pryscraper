@@ -94,6 +94,7 @@ async def update_cost_table(overrides: dict[str, float]) -> dict[str, Any]:
         logger.info("cost_table_updated", extra={"overrides": overrides})
         return {"success": True, "cost_table": table}
     except OSError as e:
+        logger.warning("costing_suppressed", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
@@ -127,6 +128,7 @@ def get_monthly_usage(year: int | None = None, month: int | None = None) -> dict
                 operation_breakdown[op]["count"] += 1
                 operation_breakdown[op]["total_cost"] += cost
         except (json.JSONDecodeError, OSError):
+            logger.warning("costing_suppressed", exc_info=True)
             continue
 
     # Compute averages

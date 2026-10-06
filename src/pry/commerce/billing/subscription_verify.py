@@ -80,6 +80,7 @@ def verify_subscription_payment(invoice_id: str) -> dict[str, Any]:
     try:
         expires_at = _parse_iso(str(invoice["expires_at"]))
     except ValueError:
+        logger.warning("subscription_verify_suppressed", exc_info=True)
         expires_at = now  # malformed persisted expiry → fail closed
     expired = now >= expires_at
     if invoice.get("payment_method") == "btcpay":
@@ -214,6 +215,7 @@ def _verify_btcpay(invoice: dict[str, Any], *, expired: bool) -> dict[str, Any]:
         response.raise_for_status()
         data = response.json()
     except (httpx.HTTPError, ValueError, TypeError) as exc:
+        logger.warning("subscription_verify_suppressed", exc_info=True)
         return {
             "paid": False,
             "tx_hash": None,

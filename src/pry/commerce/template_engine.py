@@ -39,6 +39,7 @@ def list_templates() -> list[dict[str, Any]]:
                 }
             )
         except (json.JSONDecodeError, OSError):
+            logger.warning("template_engine_suppressed", exc_info=True)
             continue
     return templates
 
@@ -51,6 +52,7 @@ def get_template(template_id: str) -> dict[str, Any] | None:
     try:
         return cast("dict[str, Any]", json.loads(path.read_text()))
     except (json.JSONDecodeError, OSError):
+        logger.warning("template_engine_suppressed", exc_info=True)
         return None
 
 

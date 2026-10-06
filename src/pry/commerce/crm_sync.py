@@ -65,6 +65,7 @@ async def sync_to_salesforce(
                     }
                 )
         except (httpx.HTTPError, httpx.RequestError) as e:
+            logger.warning("crm_sync_suppressed", exc_info=True)
             results.append(
                 {
                     "success": False,
@@ -178,6 +179,7 @@ async def sync_to_hubspot(
                     }
                 )
         except (httpx.HTTPError, httpx.RequestError) as e:
+            logger.warning("crm_sync_suppressed", exc_info=True)
             results.append(
                 {
                     "success": False,
@@ -269,6 +271,7 @@ async def sync_to_pipedrive(
                     }
                 )
         except (httpx.HTTPError, httpx.RequestError) as e:
+            logger.warning("crm_sync_suppressed", exc_info=True)
             results.append(
                 {
                     "success": False,
@@ -352,6 +355,7 @@ async def sync_to_close(
                     }
                 )
         except (httpx.HTTPError, httpx.RequestError) as e:
+            logger.warning("crm_sync_suppressed", exc_info=True)
             results.append(
                 {"success": False, "name": obj.get("name", "Unknown"), "error": str(e)[:200]}
             )

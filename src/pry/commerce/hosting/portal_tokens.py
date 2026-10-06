@@ -63,6 +63,7 @@ def _ttl_seconds() -> int:
     try:
         hours = int(os.getenv("PRY_PORTAL_TOKEN_TTL_HOURS", str(_DEFAULT_TTL_HOURS)))
     except ValueError:
+        logger.warning("portal_tokens_suppressed", exc_info=True)
         hours = _DEFAULT_TTL_HOURS
     return max(1, min(hours, _MAX_TOKEN_AGE_HARD_CAP_HOURS)) * 3600
 
@@ -102,6 +103,7 @@ def verify_portal_token(token: str) -> str | None:
         payload = _b64url_decode(payload_b64)
         sig = _b64url_decode(sig_b64)
     except (ValueError, TypeError):
+        logger.warning("portal_tokens_suppressed", exc_info=True)
         return None
     expected = hmac.new(_signing_key(), payload, hashlib.sha256).digest()
     if not hmac.compare_digest(expected, sig):
@@ -113,6 +115,7 @@ def verify_portal_token(token: str) -> str | None:
         if int(issued_at) > int(time.time()) + 60:  # clock-skew tolerance
             return None
     except (ValueError, UnicodeDecodeError):
+        logger.warning("portal_tokens_suppressed", exc_info=True)
         return None
     return email.strip().lower() or None
 
@@ -139,7 +142,8 @@ def _redis_client() -> Any | None:
         import redis
 
         return redis.Redis.from_url(url, socket_timeout=2, decode_responses=True)
-    except Exception:  # noqa: BLE001 — fall back to in-memory
+    except Exception:  # fall back to in-memory
+        logger.warning("portal_tokens_suppressed", exc_info=True)
         return None
 
 

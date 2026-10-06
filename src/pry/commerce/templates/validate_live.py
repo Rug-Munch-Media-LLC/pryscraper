@@ -9,6 +9,7 @@ Usage:
 
 import argparse
 import json
+import logging
 import os
 import sys
 import time
@@ -16,6 +17,8 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 TEMPLATES_DIR = Path(__file__).parent
 
@@ -161,6 +164,7 @@ def main() -> int:
             data["_path"] = p.name
             templates.append(data)
         except json.JSONDecodeError:
+            logger.warning("validate_live_suppressed", exc_info=True)
             continue
 
     if args.max_templates:
@@ -229,7 +233,8 @@ def main() -> int:
                     "elapsed_s": round(elapsed, 1),
                 }
             )
-        except Exception as e:  # noqa: BLE001 - live validation must record all failures
+        except Exception as e:  # live validation must record all failures
+            logger.warning("validate_live_suppressed", exc_info=True)
             results["errors"] += 1
             results["details"].append(
                 {
