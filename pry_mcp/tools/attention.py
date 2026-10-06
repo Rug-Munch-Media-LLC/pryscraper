@@ -12,9 +12,12 @@ Split from the former monolithic ``pry_mcp/tools.py`` god file.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from ._common import _data_module_unavailable, _missing_arg, _ModuleNotFound, resolve_domain_module
+
+logger = logging.getLogger(__name__)
 
 PRY_TOOLS: list[dict[str, Any]] = [
     {
@@ -132,7 +135,12 @@ async def call_attention_tool(name: str, arguments: dict[str, Any]) -> dict[str,
         num = int(arguments.get("num", 10))
         try:
             serp_mod = resolve_domain_module("attention", "serp")
-        except _ModuleNotFound:
+        except _ModuleNotFound as e:
+            logger.warning(
+                "suppressed %s in call_attention_tool (attention.py:139): %s",
+                "_ModuleNotFound",
+                e,
+            )
             return _data_module_unavailable(name, "attention")
         data = await serp_mod.serp(q, num=num)
         return {
@@ -154,7 +162,12 @@ async def call_attention_tool(name: str, arguments: dict[str, Any]) -> dict[str,
         timeframe = arguments.get("timeframe", "today 12-m")
         try:
             trends = resolve_domain_module("attention", "trends")
-        except _ModuleNotFound:
+        except _ModuleNotFound as e:
+            logger.warning(
+                "suppressed %s in call_attention_tool (attention.py:161): %s",
+                "_ModuleNotFound",
+                e,
+            )
             return _data_module_unavailable(name, "attention")
         data = await trends.trend_interest(keyword, timeframe=timeframe)
         return {

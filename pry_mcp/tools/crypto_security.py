@@ -11,10 +11,13 @@ Split from the former ``pry_mcp/tools/crypto.py`` god file.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from ._common import _missing_arg
 from .crypto_common import _crypto_module_unavailable, _json_result
+
+logger = logging.getLogger(__name__)
 
 PRY_TOKEN_SECURITY_TOOLS: list[dict[str, Any]] = [
     {
@@ -84,7 +87,12 @@ async def handle_token_security(name: str, arguments: dict[str, Any]) -> dict[st
         return _missing_arg(name, "chain and address")
     try:
         from crypto_market.token_security import scan_token
-    except ImportError:
+    except ImportError as e:
+        logger.warning(
+            "suppressed %s in handle_token_security (crypto_security.py:91): %s",
+            "ImportError",
+            e,
+        )
         return _crypto_module_unavailable(name)
     scan_data = await scan_token(chain, address)
     return _json_result(scan_data)

@@ -11,9 +11,12 @@ Split from the former ``pry_mcp/tools/crypto.py`` god file.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from .crypto_common import _crypto_module_unavailable, _json_result
+
+logger = logging.getLogger(__name__)
 
 PRY_LAUNCH_TOOLS: list[dict[str, Any]] = [
     {
@@ -158,7 +161,12 @@ async def handle_token_launches(name: str, arguments: dict[str, Any]) -> dict[st
             get_new_tokens,
             get_trending_tokens,
         )
-    except ImportError:
+    except ImportError as e:
+        logger.warning(
+            "suppressed %s in handle_token_launches (crypto_launches.py:165): %s",
+            "ImportError",
+            e,
+        )
         return _crypto_module_unavailable(name)
     fn = {
         "tokens": get_new_tokens,
@@ -175,7 +183,12 @@ async def handle_cex_listings(name: str, arguments: dict[str, Any]) -> dict[str,
     lookback_hours = int(arguments.get("lookback_hours", 24))
     try:
         from crypto_market.cex_listings import get_listing_signals
-    except ImportError:
+    except ImportError as e:
+        logger.warning(
+            "suppressed %s in handle_cex_listings (crypto_launches.py:182): %s",
+            "ImportError",
+            e,
+        )
         return _crypto_module_unavailable(name)
     signals_data = await get_listing_signals(exchanges=exchanges, lookback_hours=lookback_hours)
     return _json_result(signals_data)

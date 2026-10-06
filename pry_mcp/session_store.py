@@ -39,7 +39,12 @@ def _session_ttl() -> int:
     raw = os.getenv("MCP_SESSION_TTL_SECONDS", "")
     try:
         ttl = int(raw)
-    except ValueError:
+    except ValueError as e:
+        logger.warning(
+            "suppressed %s in _session_ttl (session_store.py:42): %s",
+            "ValueError",
+            e,
+        )
         return DEFAULT_SESSION_TTL_SECONDS
     return ttl if ttl > 0 else DEFAULT_SESSION_TTL_SECONDS
 
@@ -114,7 +119,12 @@ class RedisSessionStore:
             return False
         try:
             return bool(await self._client.ping())
-        except Exception:  # noqa: BLE001 — Redis down → fallback
+        except Exception as e:  # noqa: BLE001 — Redis down → fallback
+            logger.warning(
+                "suppressed %s in _ping_ok (session_store.py:117): %s",
+                "Exception",
+                e,
+            )
             return False
 
     async def add(self, session_id: str) -> None:

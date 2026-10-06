@@ -13,6 +13,7 @@ monolithic ``pry_mcp/tools.py`` god file.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from . import (
@@ -106,6 +107,8 @@ from .sports import (
     call_sports_tool,
 )
 from .travel import call_travel_tool
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "ACTOR_TOOL_NAMES",
@@ -240,7 +243,12 @@ def _sync_actor_catalog_description() -> None:
         from actor_factory.presets import ALL_PRESETS
 
         count = len(ALL_PRESETS)
-    except ImportError:  # pragma: no cover - presets not installed yet
+    except ImportError as e:  # pragma: no cover - presets not installed yet
+        logger.warning(
+            "suppressed %s in _sync_actor_catalog_description (__init__.py:247): %s",
+            "ImportError",
+            e,
+        )
         count = None
     for tool in PRY_TOOLS:
         if tool.get("name") == "pry_actor_catalog":

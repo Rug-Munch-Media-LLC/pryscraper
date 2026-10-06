@@ -85,7 +85,12 @@ def _coerce_str_to_int(value: Any) -> int | None:
         stripped = value.strip()
         try:
             return int(stripped)
-        except ValueError:
+        except ValueError as e:
+            logger.warning(
+                "suppressed %s in _coerce_str_to_int (validation.py:88): %s",
+                "ValueError",
+                e,
+            )
             return None
     return None
 

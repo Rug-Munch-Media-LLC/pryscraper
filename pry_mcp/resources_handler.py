@@ -160,6 +160,11 @@ class ResourceHandler:
                     indent=2,
                 )
             except (json.JSONDecodeError, ValueError, ImportError) as e:
+                logger.warning(
+                    "suppressed %s in _resource_text (resources_handler.py:162): %s",
+                    "(json.JSONDecodeError, ValueError, ImportError)",
+                    e,
+                )
                 return json.dumps({"error": f"Could not load site catalog coverage: {e}"})
         if uri == "pry://domains":
             try:
@@ -168,6 +173,11 @@ class ResourceHandler:
                     indent=2,
                 )
             except (json.JSONDecodeError, ValueError, ImportError) as e:
+                logger.warning(
+                    "suppressed %s in _resource_text (resources_handler.py:170): %s",
+                    "(json.JSONDecodeError, ValueError, ImportError)",
+                    e,
+                )
                 return json.dumps({"error": f"Could not load data domains: {e}"})
         return f"Resource {uri} (placeholder)"
 

@@ -155,7 +155,12 @@ def _callable_accepts(fn: Any, kwarg: str) -> bool:
 
     try:
         params = inspect.signature(fn).parameters
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as e:
+        logger.warning(
+            "suppressed %s in _callable_accepts (_common.py:158): %s",
+            "(TypeError, ValueError)",
+            e,
+        )
         return True
     return kwarg in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
 
@@ -229,7 +234,12 @@ def _apply_offset(data: Any, arguments: dict[str, Any]) -> tuple[Any, int]:
     total = len(data)
     try:
         offset = int(arguments.get("offset") or 0)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as e:
+        logger.warning(
+            "suppressed %s in _apply_offset (_common.py:232): %s",
+            "(TypeError, ValueError)",
+            e,
+        )
         offset = 0
     if offset <= 0:
         return data, total
@@ -260,7 +270,12 @@ async def _call_domain_dispatcher(
     for module_name, candidates in entry:
         try:
             mod = resolve_domain_module(package, module_name)
-        except _ModuleNotFound:
+        except _ModuleNotFound as e:
+            logger.warning(
+                "suppressed %s in _call_domain_dispatcher (_common.py:263): %s",
+                "_ModuleNotFound",
+                e,
+            )
             continue
         fn = next((getattr(mod, cand, None) for cand in candidates if hasattr(mod, cand)), None)
         if fn is None:
@@ -270,7 +285,12 @@ async def _call_domain_dispatcher(
         # still yields a full ``limit``-sized page past the skipped rows.
         try:
             _offset = int(arguments.get("offset") or 0)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as e:
+            logger.warning(
+                "suppressed %s in _call_domain_dispatcher (_common.py:273): %s",
+                "(TypeError, ValueError)",
+                e,
+            )
             _offset = 0
         if _offset > 0:
             kwargs["limit"] = int(kwargs.get("limit") or 20) + _offset

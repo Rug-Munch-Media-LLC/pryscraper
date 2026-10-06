@@ -12,9 +12,12 @@ Split from the former monolithic ``pry_mcp/tools.py`` god file.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from ._common import _data_module_unavailable, _missing_arg, _ModuleNotFound, resolve_domain_module
+
+logger = logging.getLogger(__name__)
 
 PRY_TOOLS: list[dict[str, Any]] = [
     {
@@ -140,7 +143,12 @@ async def call_jobs_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]
         limit = int(arguments.get("limit", 50))
         try:
             ats = resolve_domain_module("jobs", "ats")
-        except _ModuleNotFound:
+        except _ModuleNotFound as e:
+            logger.warning(
+                "suppressed %s in call_jobs_tool (jobs.py:147): %s",
+                "_ModuleNotFound",
+                e,
+            )
             return _data_module_unavailable(name, "jobs")
         data = await ats.list_jobs(company, board=board, limit=limit)
         return {
@@ -163,7 +171,12 @@ async def call_jobs_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]
         role = arguments.get("role", "software_engineer")
         try:
             salary = resolve_domain_module("jobs", "salary")
-        except _ModuleNotFound:
+        except _ModuleNotFound as e:
+            logger.warning(
+                "suppressed %s in call_jobs_tool (jobs.py:170): %s",
+                "_ModuleNotFound",
+                e,
+            )
             return _data_module_unavailable(name, "jobs")
         salary_data = await salary.get_salary(company, role=role)
         return {

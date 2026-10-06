@@ -25,10 +25,13 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import logging
 import re
 import sys
 from pathlib import Path
 from typing import NoReturn
+
+logger = logging.getLogger(__name__)
 
 # Exit 2 is reserved and means one thing only: the gate could not measure.
 #   0 = measured, within budget (pass)
@@ -122,7 +125,12 @@ def scan_python(path: Path, counts: dict[str, int]) -> None:
     try:
         src = path.read_text(errors="ignore")
         tree = ast.parse(src)
-    except (SyntaxError, UnicodeDecodeError, OSError):
+    except (SyntaxError, UnicodeDecodeError, OSError) as e:
+        logger.warning(
+            "suppressed %s in scan_python (check-antipatterns.py:129): %s",
+            "(SyntaxError, UnicodeDecodeError, OSError)",
+            e,
+        )
         return
     lines = src.splitlines()
     if len(lines) > 500:
@@ -170,7 +178,12 @@ def scan_ts(path: Path, counts: dict[str, int]) -> None:
     """Scan one TS/JS file for slop markers."""
     try:
         src = path.read_text(errors="ignore")
-    except OSError:
+    except OSError as e:
+        logger.warning(
+            "suppressed %s in scan_ts (check-antipatterns.py:177): %s",
+            "OSError",
+            e,
+        )
         return
     if len(src.splitlines()) > 500:
         counts["god-file"] = counts.get("god-file", 0) + 1
@@ -227,10 +240,20 @@ def load_baseline(path: Path) -> dict[str, int]:
     try:
         raw = path.read_text()
     except OSError as exc:
+        logger.warning(
+            "suppressed %s in load_baseline (check-antipatterns.py:233): %s",
+            "OSError",
+            exc,
+        )
         _unreadable(f"baseline file is unreadable: {path} ({exc.strerror or exc})")
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
+        logger.warning(
+            "suppressed %s in load_baseline (check-antipatterns.py:237): %s",
+            "json.JSONDecodeError",
+            exc,
+        )
         _unreadable(f"baseline file is not valid JSON: {path} (line {exc.lineno}, col {exc.colno})")
     if not isinstance(data, dict):
         _unreadable(f"baseline has the wrong shape: {path} (expected a JSON object)")

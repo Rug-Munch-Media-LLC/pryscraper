@@ -15,7 +15,10 @@ stronger than any single provider can give. Backed by
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 PRY_MEGA_SEARCH_TOOLS: list[dict[str, Any]] = [
     {
@@ -115,6 +118,11 @@ async def call_mega_search_tool(name: str, arguments: dict[str, Any]) -> Any:
     try:
         from pry.engine.mega_search import mega_search
     except Exception as exc:  # noqa: BLE001 - degrade, never crash the server
+        logger.warning(
+            "suppressed %s in call_mega_search_tool (mega_search.py:121): %s",
+            "Exception",
+            exc,
+        )
         return {
             "content": [
                 {

@@ -19,9 +19,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import re
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parent.parent
 BASELINE = Path(__file__).resolve().parent / "structure-baseline.json"
@@ -80,7 +83,12 @@ def scan():
     for p, rel in iter_py():
         try:
             text = p.read_text()
-        except (OSError, UnicodeDecodeError):
+        except (OSError, UnicodeDecodeError) as e:
+            logger.warning(
+                "suppressed %s in scan (check-code-structure.py:87): %s",
+                "(OSError, UnicodeDecodeError)",
+                e,
+            )
             continue
         lines = text.splitlines()
         files[str(rel)] = len(lines)

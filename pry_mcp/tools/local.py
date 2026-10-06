@@ -12,9 +12,12 @@ Split from the former monolithic ``pry_mcp/tools.py`` god file.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from ._common import _data_module_unavailable, _missing_arg, _ModuleNotFound, resolve_domain_module
+
+logger = logging.getLogger(__name__)
 
 PRY_TOOLS: list[dict[str, Any]] = [
     {
@@ -140,7 +143,12 @@ async def call_local_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
         limit = int(arguments.get("limit", 20))
         try:
             places = resolve_domain_module("local_data", "places")
-        except _ModuleNotFound:
+        except _ModuleNotFound as e:
+            logger.warning(
+                "suppressed %s in call_local_tool (local.py:147): %s",
+                "_ModuleNotFound",
+                e,
+            )
             return _data_module_unavailable(name, "local_data")
         data = await places.search_places(query, location=location, limit=limit)
         return {
@@ -164,7 +172,12 @@ async def call_local_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
         limit = int(arguments.get("limit", 20))
         try:
             reviews = resolve_domain_module("local_data", "reviews")
-        except _ModuleNotFound:
+        except _ModuleNotFound as e:
+            logger.warning(
+                "suppressed %s in call_local_tool (local.py:171): %s",
+                "_ModuleNotFound",
+                e,
+            )
             return _data_module_unavailable(name, "local_data")
         data = await reviews.get_reviews(place_id, source=source, limit=limit)
         return {

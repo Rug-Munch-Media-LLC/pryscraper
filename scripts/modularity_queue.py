@@ -19,7 +19,10 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import logging
 import pathlib
+
+logger = logging.getLogger(__name__)
 
 CAP = 200
 SELF_THRESHOLD = 3
@@ -30,14 +33,24 @@ SEARCH = ("src", "pry_mcp", "datasets")
 def analyse(path: pathlib.Path) -> dict[str, object] | None:
     try:
         src = path.read_text(errors="ignore")
-    except OSError:
+    except OSError as e:
+        logger.warning(
+            "suppressed %s in analyse (modularity_queue.py:37): %s",
+            "OSError",
+            e,
+        )
         return None
     lines = len(src.splitlines())
     if lines <= CAP:
         return None
     try:
         tree = ast.parse(src)
-    except SyntaxError:
+    except SyntaxError as e:
+        logger.warning(
+            "suppressed %s in analyse (modularity_queue.py:44): %s",
+            "SyntaxError",
+            e,
+        )
         return {
             "file": str(path.relative_to(ROOT)),
             "lines": lines,

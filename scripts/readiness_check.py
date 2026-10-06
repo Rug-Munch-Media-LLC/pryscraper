@@ -19,6 +19,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -183,6 +185,11 @@ def main() -> int:
         try:
             ok, detail = fn()
         except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "suppressed %s in main (readiness_check.py:185): %s",
+                "Exception",
+                exc,
+            )
             ok, detail = False, f"check raised: {exc!r}"
         status = "PASS" if ok else "FAIL"
         if not ok:

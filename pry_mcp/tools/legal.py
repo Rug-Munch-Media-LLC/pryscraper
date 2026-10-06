@@ -12,6 +12,7 @@ Split from the former monolithic ``pry_mcp/tools.py`` god file.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from ._common import (
@@ -21,6 +22,8 @@ from ._common import (
     _ModuleNotFound,
     resolve_domain_module,
 )
+
+logger = logging.getLogger(__name__)
 
 PRY_TOOLS: list[dict[str, Any]] = [
     {
@@ -194,11 +197,21 @@ async def call_legal_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
         limit = int(arguments.get("limit", 20))
         try:
             dockets = resolve_domain_module("legal_docs", "dockets")
-        except _ModuleNotFound:
+        except _ModuleNotFound as e:
+            logger.warning(
+                "suppressed %s in call_legal_tool (legal.py:201): %s",
+                "_ModuleNotFound",
+                e,
+            )
             return _data_module_unavailable(name, "legal_docs")
         try:
             offset = int(arguments.get("offset") or 0)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as e:
+            logger.warning(
+                "suppressed %s in call_legal_tool (legal.py:205): %s",
+                "(TypeError, ValueError)",
+                e,
+            )
             offset = 0
         # Over-fetch by offset so the slice still yields a full page.
         data = await dockets.search_dockets(query=query, limit=limit + offset)
@@ -224,7 +237,12 @@ async def call_legal_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
         limit = int(arguments.get("limit", 20))
         try:
             sec = resolve_domain_module("legal_docs", "sec_filings")
-        except _ModuleNotFound:
+        except _ModuleNotFound as e:
+            logger.warning(
+                "suppressed %s in call_legal_tool (legal.py:231): %s",
+                "_ModuleNotFound",
+                e,
+            )
             return _data_module_unavailable(name, "legal_docs")
         data = await sec.search_filings(ticker=ticker, form_type=form_type, limit=limit)
         return {
@@ -245,7 +263,12 @@ async def call_legal_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
             return _missing_arg(name, "name")
         try:
             sanctions = resolve_domain_module("legal_docs", "sanctions")
-        except _ModuleNotFound:
+        except _ModuleNotFound as e:
+            logger.warning(
+                "suppressed %s in call_legal_tool (legal.py:252): %s",
+                "_ModuleNotFound",
+                e,
+            )
             return _data_module_unavailable(name, "legal_docs")
         data = await sanctions.screen_name(name=screen)
         return {

@@ -74,7 +74,12 @@ async def _call_crypto_tool(name: str, arguments: dict[str, Any]) -> dict[str, A
     """
     try:
         from pry_mcp.tools import call_crypto_tool
-    except ImportError:
+    except ImportError as e:
+        logger.warning(
+            "suppressed %s in _call_crypto_tool (tool_registry.py:77): %s",
+            "ImportError",
+            e,
+        )
         return None
     try:
         return await call_crypto_tool(name, arguments)
@@ -113,7 +118,12 @@ async def _call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[s
     """
     try:
         from pry_mcp.tools import call_marketplace_tool
-    except ImportError:
+    except ImportError as e:
+        logger.warning(
+            "suppressed %s in _call_marketplace_tool (tool_registry.py:116): %s",
+            "ImportError",
+            e,
+        )
         return None
     try:
         return await call_marketplace_tool(name, arguments)
@@ -154,7 +164,12 @@ async def _call_domain_tool(
     """
     try:
         from pry_mcp import tools as _mcp_tools
-    except ImportError:
+    except ImportError as e:
+        logger.warning(
+            "suppressed %s in _call_domain_tool (tool_registry.py:157): %s",
+            "ImportError",
+            e,
+        )
         return None
     dispatcher = getattr(_mcp_tools, dispatcher_name, None)
     if dispatcher is None:
@@ -299,7 +314,12 @@ class ToolRegistry:
         for executor in self._executors.values():
             try:
                 result = await executor(name, arguments)
-            except _ToolNotHandled:
+            except _ToolNotHandled as e:
+                logger.warning(
+                    "suppressed %s in _combined_tool_executor_inner (tool_registry.py:302): %s",
+                    "_ToolNotHandled",
+                    e,
+                )
                 continue
             if result is not None:
                 logger.debug(

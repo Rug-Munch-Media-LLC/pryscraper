@@ -67,7 +67,12 @@ try:
     )
 
     _has_mcp_sdk = True
-except ImportError:
+except ImportError as e:
+    logger.warning(
+        "suppressed %s in <module> (sdk_server.py:70): %s",
+        "ImportError",
+        e,
+    )
     _has_mcp_sdk = False
 
 

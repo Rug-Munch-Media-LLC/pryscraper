@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import sys
 import tempfile
@@ -40,6 +41,8 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -279,6 +282,11 @@ def _request(
         with urllib.request.urlopen(req, timeout=60) as resp:  # nosec B310 — fixed https base URL
             return resp.status, json.loads(resp.read().decode("utf-8", "replace") or "{}")
     except urllib.error.HTTPError as exc:
+        logger.warning(
+            "suppressed %s in _request (apify-smoke-test.py:285): %s",
+            "urllib.error.HTTPError",
+            exc,
+        )
         return exc.code, exc.read().decode("utf-8", "replace")[:300]
 
 

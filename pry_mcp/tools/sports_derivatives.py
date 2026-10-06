@@ -175,7 +175,12 @@ def call_sports_derivatives_tool(arguments: dict[str, Any]) -> dict[str, Any]:
         return {"success": False, "error": "At least two legs are required"}
     try:
         options = _validated_options(bet_type, legs, arguments)
-    except ValueError:
+    except ValueError as e:
+        logger.warning(
+            "suppressed %s in call_sports_derivatives_tool (sports_derivatives.py:178): %s",
+            "ValueError",
+            e,
+        )
         return {"success": False, "error": "derivatives pricing failed"}
     try:
         from datasets.sports_data import derivatives

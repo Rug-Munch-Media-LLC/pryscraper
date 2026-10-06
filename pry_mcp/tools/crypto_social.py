@@ -11,9 +11,12 @@ Split from the former ``pry_mcp/tools/crypto.py`` god file.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from .crypto_common import _crypto_module_unavailable, _json_result
+
+logger = logging.getLogger(__name__)
 
 PRY_KOL_TOOLS: list[dict[str, Any]] = [
     {
@@ -101,12 +104,22 @@ async def handle_kol_leaderboards(name: str, arguments: dict[str, Any]) -> dict[
     health_only = bool(arguments.get("health_only", False))
     try:
         from crypto_market.kol_leaderboards import fetch_kol_leaderboards
-    except ImportError:
+    except ImportError as e:
+        logger.warning(
+            "suppressed %s in handle_kol_leaderboards (crypto_social.py:108): %s",
+            "ImportError",
+            e,
+        )
         return _crypto_module_unavailable(name)
     if health_only:
         try:
             from crypto_market.kol_leaderboards import source_health
-        except ImportError:
+        except ImportError as e:
+            logger.warning(
+                "suppressed %s in handle_kol_leaderboards (crypto_social.py:113): %s",
+                "ImportError",
+                e,
+            )
             return _crypto_module_unavailable(name)
         return _json_result(source_health())
     sources = None if source == "all" else [source]

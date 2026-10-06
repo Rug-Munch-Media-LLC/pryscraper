@@ -12,6 +12,7 @@ Split from the former monolithic ``pry_mcp/tools.py`` god file.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from ._common import (
@@ -20,6 +21,8 @@ from ._common import (
     _ModuleNotFound,
     resolve_domain_package,
 )
+
+logger = logging.getLogger(__name__)
 
 PRY_TOOLS: list[dict[str, Any]] = [
     {
@@ -261,7 +264,12 @@ async def _call_candidate_domain_tool(
         # ``datasets`` namespace, so resolve the package the same way the
         # per-module dispatchers do rather than importing the bare name.
         mod = resolve_domain_package(package)
-    except _ModuleNotFound:
+    except _ModuleNotFound as e:
+        logger.warning(
+            "suppressed %s in _call_candidate_domain_tool (gov.py:268): %s",
+            "_ModuleNotFound",
+            e,
+        )
         return _data_module_unavailable(name, package)
     fn = next((getattr(mod, cand, None) for cand in candidates if hasattr(mod, cand)), None)
     if fn is None:
@@ -285,7 +293,12 @@ def _candidate_takes_limit(fn: Any) -> bool:
     try:
         params = inspect.signature(fn).parameters
         return "limit" in params
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as e:
+        logger.warning(
+            "suppressed %s in _candidate_takes_limit (gov.py:292): %s",
+            "(TypeError, ValueError)",
+            e,
+        )
         return True
 
 

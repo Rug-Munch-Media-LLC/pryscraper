@@ -11,9 +11,12 @@ be read from the base branch.
 
 from __future__ import annotations
 
+import logging
 import re
 import subprocess
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Rule identifiers — stable strings; CI logs and reviewers key off these.
 R_TEST_DELETION = "test_deletion"
@@ -178,7 +181,12 @@ def load_diff(diff_file):
             text=True,
             check=False,
         )
-    except OSError:
+    except OSError as e:
+        logger.warning(
+            "suppressed %s in load_diff (guardian_core.py:185): %s",
+            "OSError",
+            e,
+        )
         return None
     if out.returncode != 0:
         return None

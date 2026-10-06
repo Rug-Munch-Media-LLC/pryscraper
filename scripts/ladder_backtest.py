@@ -24,12 +24,15 @@ and it was done by MOVING code, never by dropping it.
 
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 import time
 from typing import Any
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 PRY_URL = os.getenv("PRY_URL", "http://127.0.0.1:8005")
 
@@ -91,7 +94,12 @@ def owner_key() -> str:
             timeout=15,
             check=False,
         )
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.SubprocessError) as e:
+        logger.warning(
+            "suppressed %s in owner_key (ladder_backtest.py:94): %s",
+            "(OSError, subprocess.SubprocessError)",
+            e,
+        )
         return ""
     for line in out.stdout.splitlines():
         if line.startswith("PRY_API_KEY="):
@@ -112,12 +120,22 @@ async def probe(client: httpx.AsyncClient, src: dict[str, Any], pry_timeout: int
         # and carry on. The other sources still measure the ladder. Note this
         # is NOT the same as a fail: an `unavailable` source is one Pry never
         # answered, so it says nothing about the ladder. `rate` ignores both.
+        logger.warning(
+            "suppressed %s in probe (ladder_backtest.py:110): %s",
+            "(httpx.HTTPError, OSError)",
+            exc,
+        )
         return {**src, "result": UNAVAILABLE, "latency_ms": 0, "detail": type(exc).__name__}
     ms = round((time.monotonic() - start) * 1000, 1)
     body: dict[str, Any] = {}
     try:
         body = r.json()
-    except ValueError:
+    except ValueError as e:
+        logger.warning(
+            "suppressed %s in probe (ladder_backtest.py:120): %s",
+            "ValueError",
+            e,
+        )
         return {**src, "result": UNAVAILABLE, "latency_ms": ms, "detail": "non-json"}
     if r.status_code == 200 and (body.get("data") or {}).get("markdown"):
         meta = (body.get("data") or {}).get("metadata") or {}
@@ -136,7 +154,12 @@ async def warm_browser_tier(client: httpx.AsyncClient, url: str, budget: int) ->
         # `budget` is Pry's own timeout field, NOT an httpx socket wait;
         # named so the two cannot be confused (ASYNC109).
         await probe(client, {"url": url, "expect": "ok", "note": "warmup"}, budget)
-    except Exception:  # noqa: BLE001 - warm-up must never break a measurement
+    except Exception as e:  # noqa: BLE001 - warm-up must never break a measurement
+        logger.warning(
+            "suppressed %s in warm_browser_tier (ladder_backtest.py:139): %s",
+            "Exception",
+            e,
+        )
         return
 
 

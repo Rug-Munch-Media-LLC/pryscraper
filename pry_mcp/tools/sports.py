@@ -274,7 +274,12 @@ async def call_sports_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
             )
         try:
             mod = resolve_domain_module("sports_data", "books")
-        except _ModuleNotFound:
+        except _ModuleNotFound as e:
+            logger.warning(
+                "suppressed %s in call_sports_tool (sports.py:277): %s",
+                "_ModuleNotFound",
+                e,
+            )
             return _sports_module_unavailable(name)
         book_methods: tuple[str, ...] = getattr(mod, "METHODS", ())
         return {
@@ -295,7 +300,12 @@ async def call_sports_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
     for module_name, candidates in entry:
         try:
             mod = resolve_domain_module("sports_data", module_name)
-        except _ModuleNotFound:
+        except _ModuleNotFound as e:
+            logger.warning(
+                "suppressed %s in call_sports_tool (sports.py:298): %s",
+                "_ModuleNotFound",
+                e,
+            )
             continue
         fn = next((getattr(mod, cand, None) for cand in candidates if hasattr(mod, cand)), None)
         if fn is None:

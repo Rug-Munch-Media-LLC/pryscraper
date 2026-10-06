@@ -12,9 +12,12 @@ Split from the former monolithic ``pry_mcp/tools.py`` god file.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from ._common import _data_module_unavailable, _missing_arg, _ModuleNotFound, resolve_domain_module
+
+logger = logging.getLogger(__name__)
 
 PRY_TOOLS: list[dict[str, Any]] = [
     {
@@ -141,7 +144,12 @@ async def call_travel_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
             return _missing_arg(name, "origin/dest/start_date/end_date")
         try:
             flights = resolve_domain_module("travel", "flights")
-        except _ModuleNotFound:
+        except _ModuleNotFound as e:
+            logger.warning(
+                "suppressed %s in call_travel_tool (travel.py:148): %s",
+                "_ModuleNotFound",
+                e,
+            )
             return _data_module_unavailable(name, "travel")
         data = await flights.cheapest_date_grid(origin, dest, start_date, end_date)
         return {
@@ -172,7 +180,12 @@ async def call_travel_tool(name: str, arguments: dict[str, Any]) -> dict[str, An
             return _missing_arg(name, "hotel_name/checkin/checkout")
         try:
             hotels = resolve_domain_module("travel", "hotels")
-        except _ModuleNotFound:
+        except _ModuleNotFound as e:
+            logger.warning(
+                "suppressed %s in call_travel_tool (travel.py:179): %s",
+                "_ModuleNotFound",
+                e,
+            )
             return _data_module_unavailable(name, "travel")
         hotel_data = await hotels.get_hotel_rates(hotel_name, checkin, checkout)
         return {

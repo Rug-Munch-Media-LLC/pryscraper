@@ -19,10 +19,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import re
 import sys
 from pathlib import Path
 from typing import NoReturn
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_BASELINE = "scripts/monkeypatch-baseline.json"
 
@@ -70,7 +73,12 @@ def scan(root: Path) -> tuple[int, dict[str, int]]:
             continue
         try:
             lines = p.read_text(errors="ignore").splitlines()
-        except OSError:
+        except OSError as e:
+            logger.warning(
+                "suppressed %s in scan (check-monkeypatch.py:77): %s",
+                "OSError",
+                e,
+            )
             continue
         n = sum(1 for ln in lines if MONKEY_RE.search(ln))
         if n:
@@ -107,10 +115,20 @@ def load_baseline(path: Path) -> int:
     try:
         raw = path.read_text()
     except OSError as exc:
+        logger.warning(
+            "suppressed %s in load_baseline (check-monkeypatch.py:113): %s",
+            "OSError",
+            exc,
+        )
         _unreadable(f"baseline file is unreadable: {path} ({exc.strerror or exc})")
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
+        logger.warning(
+            "suppressed %s in load_baseline (check-monkeypatch.py:117): %s",
+            "json.JSONDecodeError",
+            exc,
+        )
         _unreadable(f"baseline file is not valid JSON: {path} (line {exc.lineno}, col {exc.colno})")
     if not isinstance(data, dict) or not isinstance(data.get("total"), int):
         _unreadable(

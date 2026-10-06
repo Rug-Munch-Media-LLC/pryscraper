@@ -21,8 +21,11 @@ Imported by ``docs_sync.py``; not run standalone.
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -114,7 +117,12 @@ def find_compounded() -> list[str]:
             continue
         try:
             text = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
+        except (OSError, UnicodeDecodeError) as e:
+            logger.warning(
+                "suppressed %s in find_compounded (docs_sync_sweep.py:121): %s",
+                "(OSError, UnicodeDecodeError)",
+                e,
+            )
             continue
         for lineno, line in enumerate(text.splitlines(), 1):
             if COMPOUNDED_RE.search(line):

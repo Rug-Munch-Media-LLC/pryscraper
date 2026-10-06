@@ -21,11 +21,14 @@ socket, so the taxonomy is testable offline by injecting :class:`TargetProbe`.
 
 from __future__ import annotations
 
+import logging
 import socket
 import ssl
 from dataclasses import dataclass
 from enum import StrEnum
 from urllib.parse import urlsplit
+
+logger = logging.getLogger(__name__)
 
 
 class Failure(StrEnum):
@@ -96,8 +99,12 @@ def _san_covers(sans: tuple[str, ...], hostname: str) -> bool:
     host = hostname.lower().strip(".")
     try:
         socket.inet_aton(host)
-    except OSError:
-        pass
+    except OSError as e:
+        logger.warning(
+            "suppressed %s in _san_covers (target_reachability.py:103): %s",
+            "OSError",
+            e,
+        )
     else:
         return host in {s.lower().strip(".") for s in sans}
     for san in sans:
@@ -157,11 +164,21 @@ def precheck_dns_and_tcp(hostname: str, port: int = 443, timeout: float = 5.0) -
     try:
         socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
     except OSError as exc:
+        logger.warning(
+            "suppressed %s in precheck_dns_and_tcp (target_reachability.py:163): %s",
+            "OSError",
+            exc,
+        )
         return TargetProbe(dns_ok=False, dns_error=str(exc))
     try:
         with socket.create_connection((hostname, port), timeout=timeout):
             return TargetProbe(dns_ok=True, tcp_ok=True)
     except OSError as exc:
+        logger.warning(
+            "suppressed %s in precheck_dns_and_tcp (target_reachability.py:168): %s",
+            "OSError",
+            exc,
+        )
         return TargetProbe(dns_ok=True, tcp_ok=False, tcp_error=str(exc))
 
 
@@ -197,4 +214,9 @@ def precheck_tls(hostname: str, port: int = 443, timeout: float = 5.0) -> Target
                 tls_error=None if subject else "no peer certificate",
             )
     except (ssl.SSLError, OSError) as exc:
+        logger.warning(
+            "suppressed %s in precheck_tls (target_reachability.py:203): %s",
+            "(ssl.SSLError, OSError)",
+            exc,
+        )
         return TargetProbe(tls_completed=False, tls_error=str(exc))

@@ -12,9 +12,12 @@ Split from the former monolithic ``pry_mcp/tools.py`` god file.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from ._common import _missing_arg
+
+logger = logging.getLogger(__name__)
 
 PRY_TOOLS: list[dict[str, Any]] = [
     {
@@ -244,7 +247,12 @@ async def call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[st
             return _missing_arg(name, "asin")
         try:
             from pry.commerce.marketplace.amazon import get_product as get_amazon_product
-        except ImportError:
+        except ImportError as e:
+            logger.warning(
+                "suppressed %s in call_marketplace_tool (marketplace.py:251): %s",
+                "ImportError",
+                e,
+            )
             return _marketplace_module_unavailable(name)
         product_data = await get_amazon_product(asin)
         return {
@@ -264,7 +272,12 @@ async def call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[st
         limit = int(arguments.get("limit", 20))
         try:
             from pry.commerce.marketplace.amazon import search_products as search_amazon_products
-        except ImportError:
+        except ImportError as e:
+            logger.warning(
+                "suppressed %s in call_marketplace_tool (marketplace.py:271): %s",
+                "ImportError",
+                e,
+            )
             return _marketplace_module_unavailable(name)
         search_data = await search_amazon_products(query, limit=limit)
         return {
@@ -283,7 +296,12 @@ async def call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[st
             return _missing_arg(name, "product_id")
         try:
             from pry.commerce.marketplace.walmart import get_product as get_walmart_product
-        except ImportError:
+        except ImportError as e:
+            logger.warning(
+                "suppressed %s in call_marketplace_tool (marketplace.py:290): %s",
+                "ImportError",
+                e,
+            )
             return _marketplace_module_unavailable(name)
         product_data = await get_walmart_product(product_id)
         return {
@@ -300,7 +318,12 @@ async def call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[st
         limit = int(arguments.get("limit", 50))
         try:
             from pry.commerce.marketplace.tiktok_shop import get_trending
-        except ImportError:
+        except ImportError as e:
+            logger.warning(
+                "suppressed %s in call_marketplace_tool (marketplace.py:307): %s",
+                "ImportError",
+                e,
+            )
             return _marketplace_module_unavailable(name)
         trending_data = await get_trending(limit=limit)
         return {

@@ -17,6 +17,7 @@ omitted, a standalone lazy fallback server is created on first use.
 
 import asyncio
 import json
+import logging
 import uuid
 from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
@@ -36,6 +37,8 @@ from pry_mcp.notifications import (
     unregister_mcp_notification_observer,
 )
 from pry_mcp.session_store import get_memory_store, get_session_store
+
+logger = logging.getLogger(__name__)
 
 # Same CORS allow-list the main app uses; the MCP sub-app is mounted under the
 # same origin(s) and must accept the same browser clients.
@@ -132,7 +135,12 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
         # 1. Parse the body — JSON-RPC -32700 on malformed JSON.
         try:
             body = await request.json()
-        except (json.JSONDecodeError, ValueError):
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning(
+                "suppressed %s in create_mcp_app (app.py:139): %s",
+                "(json.JSONDecodeError, ValueError)",
+                e,
+            )
             return JSONResponse(
                 status_code=200,
                 content={
@@ -277,7 +285,12 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
         # without hanging on the infinite stream.
         try:
             _test_close_after = int(request.query_params.get("_sse_test_close_after", "0"))
-        except ValueError:
+        except ValueError as e:
+            logger.warning(
+                "suppressed %s in create_mcp_app (app.py:284): %s",
+                "ValueError",
+                e,
+            )
             _test_close_after = 0
 
         async def event_stream() -> AsyncIterator[str]:
@@ -288,10 +301,19 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
                 while True:
                     try:
                         yield await asyncio.wait_for(queue.get(), timeout=30.0)
-                    except TimeoutError:
+                    except TimeoutError as e:
+                        logger.warning(
+                            "suppressed %s in create_mcp_app (app.py:295): %s",
+                            "TimeoutError",
+                            e,
+                        )
                         yield ": ping\n\n"
-            except asyncio.CancelledError:
-                pass
+            except asyncio.CancelledError as e:
+                logger.warning(
+                    "suppressed %s in create_mcp_app (app.py:297): %s",
+                    "asyncio.CancelledError",
+                    e,
+                )
             finally:
                 unregister_mcp_notification_observer(observer)
 

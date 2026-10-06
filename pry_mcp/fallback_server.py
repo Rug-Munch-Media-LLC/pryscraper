@@ -157,10 +157,14 @@ def make_fallback_server(
             try:
                 result = await executor(name, arguments)
                 return self._tool_result_to_content(result, name)
-            except _ToolNotHandled:
+            except _ToolNotHandled as e:
                 # Local executors declined (non-local tool) — fall through to
                 # the REST proxy below.
-                pass
+                logger.warning(
+                    "suppressed %s in make_fallback_server (fallback_server.py:160): %s",
+                    "_ToolNotHandled",
+                    e,
+                )
             except Exception as e:  # noqa: BLE001
                 logger.warning("mcp_tool_executor_failed", extra={"tool": name, "error": str(e)})
                 return {
@@ -407,6 +411,11 @@ def make_fallback_server(
                     "error": {"code": -32601, "message": f"Method not found: {method}"},
                 }
             except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "suppressed %s in make_fallback_server (fallback_server.py:409): %s",
+                    "Exception",
+                    e,
+                )
                 return {
                     "jsonrpc": "2.0",
                     "id": req_id,
@@ -428,9 +437,14 @@ def make_fallback_server(
                     if response is not None:
                         sys.stdout.write(json.dumps(response) + "\n")
                         sys.stdout.flush()
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
                     # JSON-RPC 2.0 §2.4.2: a parse error gets a response with
                     # id null (we cannot know the request id from bad JSON).
+                    logger.warning(
+                        "suppressed %s in make_fallback_server (fallback_server.py:431): %s",
+                        "json.JSONDecodeError",
+                        e,
+                    )
                     response = {
                         "jsonrpc": "2.0",
                         "id": None,
@@ -438,7 +452,12 @@ def make_fallback_server(
                     }
                     sys.stdout.write(json.dumps(response) + "\n")
                     sys.stdout.flush()
-                except (EOFError, KeyboardInterrupt):
+                except (EOFError, KeyboardInterrupt) as e:
+                    logger.warning(
+                        "suppressed %s in make_fallback_server (fallback_server.py:441): %s",
+                        "(EOFError, KeyboardInterrupt)",
+                        e,
+                    )
                     break
 
     return FallbackMCPServer(base_url=base_url, tool_executor=tool_executor)

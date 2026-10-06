@@ -12,9 +12,12 @@ Split from the former monolithic ``pry_mcp/tools.py`` god file.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from ._common import _missing_arg
+
+logger = logging.getLogger(__name__)
 
 PRY_TOOLS: list[dict[str, Any]] = [
     {
@@ -229,7 +232,12 @@ async def call_actor_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
         # offset/limit pagination over the (109+) row catalog.
         try:
             offset = int(arguments.get("offset") or 0)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as e:
+            logger.warning(
+                "suppressed %s in call_actor_tool (actor.py:236): %s",
+                "(TypeError, ValueError)",
+                e,
+            )
             offset = 0
         limit = arguments.get("limit")
         total = len(entries)
@@ -302,6 +310,11 @@ async def call_actor_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any
             try:
                 item = await runner.process_url(url, options)
             except Exception as e:  # noqa: BLE001 - bad targets must not kill batches
+                logger.warning(
+                    "suppressed %s in call_actor_tool (actor.py:308): %s",
+                    "Exception",
+                    e,
+                )
                 item = {
                     "url": url,
                     "status": "error",
