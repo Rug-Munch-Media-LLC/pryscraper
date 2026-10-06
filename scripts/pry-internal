@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# pry-internal — first-party (non-x402) client for a SELF-HOSTED Pry.
+#
+# Product policy: x402 is the CONSUMER gate. A self-hoster running Pry must not
+# pay its own gate — first-party callers present a signed internal credential
+# and are served without a payment challenge (see
+# src/pry/payments/x402_middleware/internal.py). This is also the MCP-usable
+# path for self-hosted deployments.
+#
+# Usage: pry-internal METHOD /v1/path?query [json-body]
+# Env:   PRY_INTERNAL_BASE  (default http://127.0.0.1:8002, i.e. inside the pry container)
+#        CONTAINER          (default 'pry'); when set and running, the client runs
+#                           inside it so the bound caller identity is 127.0.0.1.
+set -euo pipefail
+
+METHOD="${1:?usage: pry-internal METHOD /path?query [body]}"
+PATHQ="${2:?path required}"
+BODY="${3:-}"
+CONTAINER="${CONTAINER:-pry}"
+
+run_client() {
+  python3 - "$METHOD" "$PATHQ" "$BODY" "${PRY_INTERNAL_BASE:-http://127.0.0.1:8002}" <<'PY'
+import hashlib, hmac, os, sys, time, urllib.error, urllib.request
+
+method, pathq, body, base = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+token = (os.environ.get("PRY_INTERNAL_TOKEN") or "").strip()
+if not token:
+    sys.exit("pry-internal: PRY_INTERNAL_TOKEN is not set (internal lane fails closed)")
+
+path, _, _query = pathq.partition("?")
+stamp = str(int(time.time()))
+caller = os.environ.get("PRY_INTERNAL_CALLER", "127.0.0.1")
+fingerprint = f"{method.upper()}\n{path}\n{caller}\n{stamp}"
+signature = hmac.new(token.encode(), fingerprint.encode(), hashlib.sha256).hexdigest()
+
+req = urllib.request.Request(base + pathq, data=body.encode() if body else None,
+                             method=method.upper())
+req.add_header("X-Internal-Token", token)
+req.add_header("X-Internal-Timestamp", stamp)
+req.add_header("X-Internal-Signature", signature)
+if body:
+    req.add_header("Content-Type", "application/json")
+try:
+    with urllib.request.urlopen(req, timeout=90) as resp:
+        sys.stdout.write(resp.read().decode())
+except urllib.error.HTTPError as exc:
+    sys.stdout.write(f"HTTP {exc.code}\n{exc.read().decode()[:800]}")
+PY
+}
+
+if docker inspect "$CONTAINER" >/dev/null 2>&1 \
+   && [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null)" = "true" ] \
+   && [ -z "${PRY_INTERNAL_BASE:-}" ]; then
+  docker exec -i "$CONTAINER" python3 - "$METHOD" "$PATHQ" "$BODY" "http://127.0.0.1:8002" <<'PY'
+import hashlib, hmac, os, sys, time, urllib.error, urllib.request
+method, pathq, body, base = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+token = (os.environ.get("PRY_INTERNAL_TOKEN") or "").strip()
+path, _, _query = pathq.partition("?")
+stamp = str(int(time.time()))
+fingerprint = f"{method.upper()}\n{path}\n127.0.0.1\n{stamp}"
+signature = hmac.new(token.encode(), fingerprint.encode(), hashlib.sha256).hexdigest()
+req = urllib.request.Request(base + pathq, data=body.encode() if body else None, method=method.upper())
+req.add_header("X-Internal-Token", token)
+req.add_header("X-Internal-Timestamp", stamp)
+req.add_header("X-Internal-Signature", signature)
+if body:
+    req.add_header("Content-Type", "application/json")
+try:
+    with urllib.request.urlopen(req, timeout=90) as resp:
+        sys.stdout.write(resp.read().decode())
+except urllib.error.HTTPError as exc:
+    sys.stdout.write(f"HTTP {exc.code}\n{exc.read().decode()[:800]}")
+PY
+else
+  run_client
+fi
