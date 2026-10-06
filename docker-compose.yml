@@ -50,7 +50,7 @@ services:
       # rmi/infra/webshare_proxy_list (20 rotating residential proxies). The
       # mismatch meant the premium-proxy rung never had credentials, so the ladder
       # silently stopped one rung early on every hard-blocked site.
-      - PRY_WEBSHARE_GOPASS_PATH=rmi/infra/webshare_proxy_list
+      - PRY_WEBSHARE_GOPASS_PATH=rmi/infra/webshare_proxy_list_v2
       - PYTHONUNBUFFERED=1
       - PRY_TIMEOUT=60
       # PRY_API_KEY intentionally NOT listed here: any `environment:` entry
@@ -372,7 +372,12 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          # 2026-10-06: raised 512M -> 1536M. FlareSolverr v3 runs a full
+          # headless Chrome; 512M OOM-killed its chromium repeatedly (kernel
+          # memcg OOM at 10:51-10:54 on 2026-10-06 while a session hammered
+          # 127.0.0.1:8192). The dedicated flaresolverr-pry already ran 1500m;
+          # the shared instance was the odd one out. Match it.
+          memory: 1536M
           cpus: "1"
 
   tor:
