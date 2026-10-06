@@ -16,13 +16,11 @@ from typing import Any, cast
 from pry.core.paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
-
 AGENCY_DIR = PRY_DATA_DIR / "agency"
 AGENCY_DIR.mkdir(parents=True, exist_ok=True)
 
+
 # ── Agency Profile ──
-
-
 def create_agency(
     name: str,
     owner_email: str,

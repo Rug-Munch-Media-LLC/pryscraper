@@ -1,15 +1,11 @@
 """Signup automation engine — register accounts on arbitrary websites.
-
 The :class:`SignupAutomation` engine orchestrates the full registration flow:
-
     fetch page → detect form → fill fields (generated password) →
     optional CAPTCHA → submit → poll email for verification → confirm →
     return status + session cookies
-
 Everything runs in-memory (no DB models) and the engine never raises:
 failures are returned as ``{"success": False, "error": ...}``.
 """
-
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #

@@ -1,8 +1,6 @@
 """Pry — subscription payment verification + settlement.
-
 Checks the payment status of subscription invoices and settles verified
 x402 payments on-chain:
-
 - **x402**: verifies the recorded tx via the self-facilitator
   (``SelfFacilitator.verify``); settlement broadcasts the EIP-3009
   authorization via ``SelfFacilitator.settle`` — verify alone only

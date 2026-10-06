@@ -6,7 +6,6 @@ Native write destinations: Google Sheets, Slack, Airtable, email."""
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import json
 import logging
 from datetime import UTC, datetime
@@ -18,7 +17,6 @@ import httpx
 from pry.api.client import get_client
 
 logger = logging.getLogger(__name__)
-
 # ── Slack ──
 
 

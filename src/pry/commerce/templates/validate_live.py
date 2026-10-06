@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Live validation: scrape a real URL per template, count fields extracted.
-
 Usage:
   python templates/validate_live.py [--pry-url http://127.0.0.1:8005]
                                    [--max-templates 10]
@@ -19,7 +18,6 @@ from typing import Any
 import httpx
 
 logger = logging.getLogger(__name__)
-
 TEMPLATES_DIR = Path(__file__).parent
 
 # Test URLs picked for each site — known-good article/product pages.
