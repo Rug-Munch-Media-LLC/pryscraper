@@ -125,8 +125,8 @@ class TestActorPackaging:
     def test_input_schema_contract(self) -> None:
         props = self._actor_spec()["input"]["properties"]
         assert props["urls"]["type"] == "array"
-        assert "output_format" in props
-        assert set(props["output_format"]["enum"]) == {"markdown", "text", "html"}
+        # Matches ApifyActorInput's output_format pattern (see apify_schema_parity).
+        assert set(props["output_format"]["enum"]) == {"markdown", "html", "text", "json"}
         # standalone INPUT_SCHEMA.json stays in lockstep with the embedded one
         standalone = json.loads((REPO / ".actor" / "INPUT_SCHEMA.json").read_text())
         assert standalone["properties"] == props

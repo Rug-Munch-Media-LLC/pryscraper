@@ -33,45 +33,80 @@
 					}
 				]
 			},
-			"output_format": {
-				"title": "Output format",
-				"type": "string",
-				"description": "Content format pushed to the dataset.",
+			"max_pages": {
+				"title": "Max pages",
+				"type": "integer",
+				"description": "Maximum number of pages to scrape (1-1000). Hard cap on processed items for this run - keeps trial costs predictable; billing stops when the cap or your spending limit is reached.",
 				"sectionCaption": "Scraping settings",
-				"editor": "select",
-				"default": "markdown",
-				"enum": ["markdown", "text", "html"],
-				"example": "markdown"
+				"default": 1,
+				"minimum": 1,
+				"maximum": 1000,
+				"example": 1
 			},
 			"timeout": {
 				"title": "Timeout (seconds)",
 				"type": "integer",
-				"description": "Per-URL timeout.",
+				"description": "Timeout per URL in seconds (5-120).",
 				"default": 30,
 				"minimum": 5,
 				"maximum": 120,
 				"example": 30
 			},
-			"max_items": {
-				"title": "Max items (cost cap)",
-				"type": "integer",
-				"description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
-				"sectionCaption": "Advanced",
-				"default": 25,
-				"minimum": 1,
-				"example": 25
+			"output_format": {
+				"title": "Output format",
+				"type": "string",
+				"description": "Content format pushed to the dataset.",
+				"editor": "select",
+				"default": "markdown",
+				"enum": ["markdown", "html", "text", "json"],
+				"example": "markdown"
 			},
-			"proxy_configuration": {
+			"crawl": {
+				"title": "Crawl linked pages",
+				"type": "boolean",
+				"description": "Follow same-domain links and crawl.",
+				"sectionCaption": "Advanced",
+				"default": false,
+				"example": false
+			},
+			"max_depth": {
+				"title": "Max crawl depth",
+				"type": "integer",
+				"description": "Maximum crawl depth (0-5).",
+				"default": 2,
+				"minimum": 0,
+				"maximum": 5,
+				"example": 2
+			},
+			"proxy_config": {
 				"title": "Proxy configuration",
 				"type": "object",
-				"description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+				"description": "Proxy settings passed through to Pry's premium-proxy tier. Leave default to scrape without Apify-provided proxies.",
 				"sectionCaption": "Advanced",
 				"editor": "hidden",
 				"prefill": {
-					"useApifyProxy": true
+					"use_apify_proxies": false,
+					"proxy_country": "US"
 				},
 				"example": {
-					"useApifyProxy": true
+					"use_apify_proxies": false,
+					"proxy_country": "US"
+				},
+				"properties": {
+					"use_apify_proxies": {
+						"title": "Use Apify residential proxies",
+						"type": "boolean",
+						"default": false,
+						"example": false
+					},
+					"proxy_country": {
+						"title": "Proxy country code",
+						"type": "string",
+						"default": "US",
+						"minLength": 2,
+						"maxLength": 2,
+						"example": "US"
+					}
 				}
 			}
 		},
