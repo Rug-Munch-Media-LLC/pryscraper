@@ -9,8 +9,8 @@
 #
 # Covered assertions:
 #   (i)   501-line file                -> structure gate exits 1
-#   (ii)  >200 non-allowlisted file    -> structure gate exits 1
-#   (iii) allowlist-growth case        -> structure gate exits 1
+#   (ii)  201-line non-allowlisted     -> structure gate exits 0 (advisory; >500 is the fail)
+#   (iii) allowlist growth (<500)       -> structure gate exits 0 (advisory)
 #   (iv)  +1 monkeypatch occurrence    -> monkeypatch gate exits 1
 #   (v)   phantom package-discovery    -> discovery gate exits 1
 #   (vi)  omitted real package         -> discovery gate exits 1
@@ -115,12 +115,12 @@ expect_rc 1 "$(struct_rc)" "501-line file -> exit 1"
 
 reset_fixture
 gen 201 "$FIXTURE/src/rugbrain/over.py"
-expect_rc 1 "$(struct_rc)" "201-line non-allowlisted -> exit 1"
+expect_rc 0 "$(struct_rc)" "201-line non-allowlisted -> exit 0 (advisory under 500)"
 
 reset_fixture
 printf '{"files": {"src/rugbrain/growth.py": 205}}' >"$FIXTURE/scripts/structure-baseline.json"
 gen 260 "$FIXTURE/src/rugbrain/growth.py"
-expect_rc 1 "$(struct_rc)" "allowlist growth -> exit 1"
+expect_rc 0 "$(struct_rc)" "allowlist growth <500 -> exit 0 (advisory)"
 
 reset_fixture
 printf '{"total": 0, "files": {}}' >"$FIXTURE/scripts/monkeypatch-baseline.json"
