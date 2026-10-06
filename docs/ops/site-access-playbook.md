@@ -40,3 +40,28 @@ Call the running service on the **first-party lane** (`pry-internal`) — no x40
 ## Rule
 A method is only "known" once it has a date + the result that proved it here.
 Unverified guesses do not go in this file.
+
+## Fallback ladder — AUTHORITATIVE ORDER (cheapest first, proxies LAST)
+Try in order; stop at the first tier that yields usable content. A tier that
+returns a block/consent/captcha page is a MISS, not a success — fall through.
+
+1. **Direct HTTP** (`httpx`) — free, fast. Default lane.
+2. **FlareSolverr** browser tier (`fetch_via_flaresolverr`) — solves JS/challenge; datacenter IP.
+3. **Tor** (`<TOR_SOCKS>`) — different egress, free; slow. Use for
+   IP-reputation blocks the browser alone does not clear.
+4. **Camoufox** stealth browser — only where installed (NOT in the pry venv as of 2026-10-06).
+5. **Residential proxy** (gopass `<PROXY_POOL_PATH>`, brightdata
+   web-unlocker) — **LAST RESORT / paid**. Pass to FlareSolverr's `proxy` field
+   (`fetch_via_flaresolverr(url, proxy=...)`); rotate on each miss.
+
+"Usable content" = page passes a shape check (expected markers present, anchor/
+result count > 0). Never accept "status ok" as success — check the content.
+
+### Tier status (verified 2026-10-06)
+- Direct HTTP: works for open sites; **blocked by Google**.
+- FlareSolverr: UP after restart; works (Yahoo returns results). It can report
+  docker-`healthy` while `/v1` is dead — probe before trusting.
+- Tor SOCKS5 `:9050`: **works** (`<TOR_CHECK>` 200). Privoxy `:8118`: DOWN.
+- Camoufox: **not installed in the pry venv** (`import camoufox` fails) → guarded imports are dead paths.
+- Residential proxies: pool present in gopass; **Pry currently sends none** (no proxy env set) and the browser tier only gained `proxy=` support on 2026-10-06.
+- Google through a residential proxy: still returned a non-SERP interstitial (title "www.google.com") → needs consent/cookie handling; treat as a MISS and fall through.
