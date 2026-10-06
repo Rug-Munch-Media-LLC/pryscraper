@@ -15,6 +15,10 @@ with an ImportError) if the package table is unavailable.
 
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 try:
     from pry.payments.x402.scheme import SUPPORTED_ASSETS as _SUPPORTED_ASSETS
 
@@ -22,8 +26,12 @@ try:
     SOLANA_USDC_MINT = str(_SOLANA_TABLE["USDC"]["contract"])
     SOLANA_USDT_MINT = str(_SOLANA_TABLE["USDT"]["contract"])
     SOLANA_NATIVE_DECIMALS = int(_SOLANA_TABLE["SOL"]["decimals"])
-except (ImportError, KeyError, TypeError, ValueError):  # pragma: no cover
+except (ImportError, KeyError, TypeError, ValueError) as exc:  # pragma: no cover
     # Defensive fallback — must mirror scheme.py's solana:mainnet entries.
+    logger.warning(
+        "payments_exception_swallowed",
+        extra={"error": str(exc), "handler": "<module>"},
+    )
     SOLANA_USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
     SOLANA_USDT_MINT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
     SOLANA_NATIVE_DECIMALS = 9

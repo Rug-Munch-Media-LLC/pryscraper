@@ -14,6 +14,7 @@ No RPC calls, no I/O — deterministic helpers only.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import Any
 
@@ -23,6 +24,8 @@ from pry.payments.x402.solana_constants import (
     SYSTEM_PROGRAM_ID,
     VERIFIABLE_TYPES,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_amount(info: dict[str, Any]) -> tuple[int, int] | None:
@@ -41,22 +44,38 @@ def _parse_amount(info: dict[str, Any]) -> tuple[int, int] | None:
         if raw is not None:
             try:
                 amount = int(str(raw))
-            except (ValueError, TypeError):
+            except (ValueError, TypeError) as exc:
+                logger.warning(
+                    "payments_exception_swallowed",
+                    extra={"error": str(exc), "handler": "_parse_amount"},
+                )
                 return None
             try:
                 decimals = int(token_amount.get("decimals", 6))
-            except (ValueError, TypeError):
+            except (ValueError, TypeError) as exc:
+                logger.warning(
+                    "payments_exception_swallowed",
+                    extra={"error": str(exc), "handler": "_parse_amount"},
+                )
                 decimals = 6
             return amount, decimals
     raw = info.get("amount")
     if raw is not None:
         try:
             amount = int(str(raw))
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "_parse_amount"},
+            )
             return None
         try:
             decimals = int(info.get("decimals", 6))
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "_parse_amount"},
+            )
             decimals = 6
         return amount, decimals
     return None
@@ -73,7 +92,11 @@ def _parse_lamports(info: dict[str, Any]) -> int | None:
         return None
     try:
         lamports = int(str(raw))
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_parse_lamports"},
+        )
         return None
     return lamports if lamports >= 0 else None
 
@@ -169,5 +192,9 @@ def _confirmed_at(result: dict[str, Any]) -> str:
         return ""
     try:
         return datetime.fromtimestamp(int(block_time), tz=UTC).isoformat()
-    except (ValueError, OSError, OverflowError):
+    except (ValueError, OSError, OverflowError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_confirmed_at"},
+        )
         return ""

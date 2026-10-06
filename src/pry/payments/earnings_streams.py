@@ -114,8 +114,11 @@ class StreamMixin:
                     when = datetime.fromisoformat(date)
                     if _ensure_aware(when) < cutoff:
                         continue
-                except ValueError:
-                    pass
+                except ValueError as exc:
+                    logger.warning(
+                        "payments_exception_swallowed",
+                        extra={"error": str(exc), "handler": "StreamMixin._subscription_stream"},
+                    )
                 out.append(
                     {
                         "amount_usd": float(inv.get("amount_usd", 0) or 0),

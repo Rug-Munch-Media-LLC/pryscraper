@@ -119,6 +119,10 @@ class EVMSettleMixin:
             try:
                 data = self._build_transfer_with_auth_calldata(auth)
             except (ValueError, KeyError) as e:
+                logger.warning(
+                    "payments_exception_swallowed",
+                    extra={"error": str(e), "handler": "EVMSettleMixin.settle_with_details"},
+                )
                 return SettleOutcome(
                     False,
                     error_code=SettleErrorCode.NOT_SETTLABLE.value,
@@ -168,7 +172,14 @@ class EVMSettleMixin:
                                 error_code=SettleErrorCode.WRONG_CHAIN.value,
                                 error_detail=detail,
                             )
-                    except ValueError:
+                    except ValueError as exc:
+                        logger.warning(
+                            "payments_exception_swallowed",
+                            extra={
+                                "error": str(exc),
+                                "handler": "EVMSettleMixin.settle_with_details",
+                            },
+                        )
                         detail = "unparseable eth_chainId result"
                         self._mark_pending_failed(pid, SettleErrorCode.RPC_ERROR.value, detail)
                         return SettleOutcome(

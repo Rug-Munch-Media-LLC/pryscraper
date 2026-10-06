@@ -17,12 +17,15 @@ Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 
 import httpx
 
 from pry.payments.earnings_cache import TREASURY_CACHE_TTL_S, _cached, _store
+
+logger = logging.getLogger(__name__)
 
 #: Operator treasuries (public receiving addresses — safe to embed).
 TREASURY_EVM = "0x1E3AC01d0fdb976179790BDD02823196A92705C9"
@@ -82,6 +85,10 @@ class TreasuryMixin:
             }
             return _store(cache_key, result)
         except (ImportError, OSError, ValueError, TypeError, KeyError, httpx.HTTPError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "TreasuryMixin._evm_balance"},
+            )
             return {"address": TREASURY_EVM, "error": str(exc)}
 
     def _evm_etherscan(self, api_key: str) -> float:
@@ -168,6 +175,10 @@ class TreasuryMixin:
                 },
             )
         except (ImportError, OSError, ValueError, TypeError, KeyError, httpx.HTTPError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "TreasuryMixin._solana_balance"},
+            )
             return {"address": TREASURY_SOLANA, "error": str(exc)}
 
     def _tron_balance(self) -> dict[str, Any]:
@@ -191,4 +202,8 @@ class TreasuryMixin:
                 },
             )
         except (ImportError, OSError, ValueError, TypeError, KeyError, httpx.HTTPError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "TreasuryMixin._tron_balance"},
+            )
             return {"address": TREASURY_TRON, "error": str(exc)}

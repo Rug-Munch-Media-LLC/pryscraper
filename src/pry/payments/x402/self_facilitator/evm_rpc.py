@@ -7,11 +7,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import httpx
 
 from .evm_common import _DEFAULT_TX_GAS
+
+logger = logging.getLogger(__name__)
 
 
 class EVMRpcMixin:
@@ -60,8 +63,11 @@ class EVMRpcMixin:
             )
             if estimated is not None:
                 gas_limit = int(str(estimated), 16)
-        except (ValueError, httpx.HTTPError):
-            pass
+        except (ValueError, httpx.HTTPError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "EVMRpcMixin._send_tx"},
+            )
 
         gas_price_hex = await self._rpc_call(client, "eth_gasPrice", [])
         if gas_price_hex is None:

@@ -4,11 +4,15 @@ Split out of the former monolithic x402_middleware.py. Import surface
 is preserved via the package __init__.
 """
 
+import logging
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 from typing import Any
 
 from pry.payments.x402 import X402_PRICING
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["X402_GATE_MISCONFIGURED", "X402_PRICING"]
 
@@ -20,7 +24,11 @@ try:
         "pry_x402_gate_misconfigured_total",
         "Requests refused because a paid endpoint lacked its pricing entry",
     )
-except ImportError:  # optional dependency
+except ImportError as exc:  # optional dependency
+    logger.warning(
+        "payments_exception_swallowed",
+        extra={"error": str(exc), "handler": "<module>"},
+    )
     X402_GATE_MISCONFIGURED = None
 
 # Path prefix -> x402 operation. ``path.startswith(prefix)`` gates the

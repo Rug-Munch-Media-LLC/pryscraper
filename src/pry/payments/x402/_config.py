@@ -35,10 +35,10 @@ def _env_flag(name: str) -> bool:
     return os.getenv(name, "false").lower() in ("1", "true", "yes")
 
 
-# Prefer gopass for the x402 wallet and facilitator URL. Env vars override only
-# if the backend returns an empty string. This lets you:
-#   gopass insert -m pry/x402_wallet               # persistent across restarts
-#   PRY_X402_WALLET=0x...                          # one-off override (CI, dev)
+# Prefer the secrets backend for the x402 wallet and facilitator URL. Env vars
+# override only if the backend returns an empty string. Persistent values live
+# in the secrets backend; PRY_X402_WALLET / PRY_X402_FACILITATOR provide one-off
+# overrides (CI, dev). Do not document the secret-manager invocation here.
 #
 # Reload-recomputable: the package __init__ reloads this module so
 # importlib.reload(x402) recomputes the secrets-backed values — tests patch
@@ -65,7 +65,11 @@ try:
     X402_FACILITATOR_URL: str = _gs("x402_facilitator") or os.getenv(
         "PRY_X402_FACILITATOR", "https://x402.org/facilitator"
     )
-except ImportError:
+except ImportError as exc:
+    logger.warning(
+        "payments_exception_swallowed",
+        extra={"error": str(exc), "handler": "<module>"},
+    )
     X402_WALLET = os.getenv("PRY_X402_WALLET", "") or os.getenv("PRY_EVM_TREASURY_ADDRESS", "")
     X402_FACILITATOR_URL = os.getenv("PRY_X402_FACILITATOR", "https://x402.org/facilitator")
 

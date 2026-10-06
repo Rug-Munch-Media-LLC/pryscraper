@@ -171,7 +171,14 @@ class PaymentAnalytics:
                             verified_at = datetime.fromisoformat(p.get("verified_at", ""))
                             if verified_at >= cutoff:
                                 payments.append(p)
-                        except (ValueError, TypeError):
+                        except (ValueError, TypeError) as exc:
+                            logger.warning(
+                                "payments_exception_swallowed",
+                                extra={
+                                    "error": str(exc),
+                                    "handler": "PaymentAnalytics._load_payments",
+                                },
+                            )
                             continue
         except OSError as e:
             logger.warning("analytics_load_failed", extra={"error": str(e)[:160]})
@@ -196,7 +203,14 @@ class PaymentAnalytics:
                             settled_at = datetime.fromisoformat(s.get("settled_at", ""))
                             if settled_at >= cutoff:
                                 settlements.append(s)
-                        except (ValueError, TypeError):
+                        except (ValueError, TypeError) as exc:
+                            logger.warning(
+                                "payments_exception_swallowed",
+                                extra={
+                                    "error": str(exc),
+                                    "handler": "PaymentAnalytics._load_settlements",
+                                },
+                            )
                             continue
         except OSError as e:
             logger.warning("analytics_load_failed", extra={"error": str(e)[:160]})

@@ -36,7 +36,11 @@ class NonceStore:
             return
         try:
             data = json.loads(self._path.read_text())
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "NonceStore._load"},
+            )
             return
         nonces = data.get("nonces") if isinstance(data, dict) else data
         if not isinstance(nonces, list):

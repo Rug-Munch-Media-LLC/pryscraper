@@ -1,5 +1,7 @@
 """x402 route classification — fail-closed free/paid gate (audit E41)."""
 
+import logging
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 import os
@@ -10,6 +12,8 @@ from pry.payments.x402_middleware import config as _pricing_config
 from pry.payments.x402_middleware.config import (
     PAID_ENDPOINTS,
 )
+
+logger = logging.getLogger(__name__)
 
 # ── Route classification (fail-closed gate) ──────────────────────────────────
 # Every HTTP route MUST be explicitly classified as free or paid. The old
@@ -329,7 +333,11 @@ def _admin_prefix() -> str:
         from pry.api.routers.core.admin import ADMIN_PREFIX
 
         return ADMIN_PREFIX
-    except Exception:  # noqa: BLE001  # pragma: no cover - admin router optional
+    except Exception as exc:  # noqa: BLE001  # pragma: no cover - admin router optional
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_admin_prefix"},
+        )
         secret = os.getenv("PRY_ADMIN_PATH", "")
         return f"/{secret}" if secret else "/__admin_unavailable__"
 
@@ -404,7 +412,11 @@ def _caller_key_from_scope(scope: dict[str, Any]) -> str:
         from pry.core.middleware import _resolve_client_ip
 
         return str(_resolve_client_ip(scope))
-    except ImportError:  # pragma: no cover — resolver unavailable (partial import)
+    except ImportError as exc:  # pragma: no cover — resolver unavailable (partial import)
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_caller_key_from_scope"},
+        )
         client = scope.get("client")
         if client and isinstance(client, (list, tuple)) and len(client) >= 1 and client[0]:
             return str(client[0])

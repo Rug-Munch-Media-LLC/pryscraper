@@ -135,6 +135,10 @@ class CoinbaseCommerceProvider(CryptoPaymentProvider):
                     "payments": data.get("payments", []),
                 }
         except (httpx.HTTPError, ValueError, KeyError, OSError) as e:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(e), "handler": "CoinbaseCommerceProvider.check_status"},
+            )
             return {"charge_id": charge_id, "status": "error", "error": str(e)}
 
 
@@ -211,6 +215,10 @@ class NowPaymentsProvider(CryptoPaymentProvider):
                 data = resp.json()
                 return {"charge_id": charge_id, "status": data.get("payment_status", "unknown")}
         except (httpx.HTTPError, ValueError, KeyError, OSError) as e:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(e), "handler": "NowPaymentsProvider.check_status"},
+            )
             return {"charge_id": charge_id, "status": "error", "error": str(e)}
 
 
@@ -286,6 +294,10 @@ class BTCPayProvider(CryptoPaymentProvider):
                 data = resp.json()
                 return {"charge_id": charge_id, "status": data.get("status", "unknown")}
         except (httpx.HTTPError, ValueError, KeyError, OSError) as e:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(e), "handler": "BTCPayProvider.check_status"},
+            )
             return {"charge_id": charge_id, "status": "error", "error": str(e)}
 
 

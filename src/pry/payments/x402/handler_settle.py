@@ -49,7 +49,11 @@ def _retry_after_seconds(exc: Exception, attempt: int) -> float:
         retry_after = int(
             (getattr(exc, "response", None) and exc.response.headers.get("Retry-After", "0")) or "0"
         )
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_retry_after_seconds"},
+        )
         retry_after = 0
     return min(max(retry_after, 0.5 * 2**attempt), 30)
 

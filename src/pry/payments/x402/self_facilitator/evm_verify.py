@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any
 
@@ -26,6 +27,8 @@ from .pricing import (
     resolve_required_atomic as _resolve_required_atomic,
 )
 from .response import VerifyResult
+
+logger = logging.getLogger(__name__)
 
 
 class EVMVerifyMixin:
@@ -88,7 +91,11 @@ class EVMVerifyMixin:
         # this payment; without one the live-oracle/static comparison applies.
         try:
             value = _to_int(auth.get("value"))
-        except ValueError:
+        except ValueError as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "EVMVerifyMixin.verify"},
+            )
             return VerifyResult(
                 False, "unparseable authorization value", asset=asset, network=network
             )
@@ -113,7 +120,11 @@ class EVMVerifyMixin:
         # Recipient must be our configured payTo wallet.
         try:
             to_address = to_checksum_address(str(auth.get("to") or ""))
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "EVMVerifyMixin.verify"},
+            )
             return VerifyResult(
                 False, "missing/invalid authorization 'to'", asset=asset, network=network
             )
@@ -241,7 +252,11 @@ def _chain_id_failure(
                 asset=asset,
                 network=network,
             )
-    except ValueError:
+    except ValueError as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_chain_id_failure"},
+        )
         return VerifyResult(
             False, "unparseable authorization chainId", asset=asset, network=network
         )
@@ -270,7 +285,11 @@ def _recover_signer(
         )
     try:
         from_address = to_checksum_address(str(auth.get("from") or ""))
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_recover_signer"},
+        )
         return None, VerifyResult(
             False, "missing/invalid authorization 'from'", asset=asset, network=network
         )
@@ -289,6 +308,10 @@ def _recover_signer(
         )
         recovered = keys.PublicKey.recover_from_msg_hash(digest, signature)
     except (ValueError, TypeError) as e:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(e), "handler": "_recover_signer"},
+        )
         return None, VerifyResult(
             False, f"cannot verify authorization: {e}", asset=asset, network=network
         )
@@ -314,7 +337,11 @@ def _validity_failure(
     try:
         valid_after = _to_int(auth.get("validAfter") or 0)
         valid_before = _to_int(auth.get("validBefore") or 0)
-    except ValueError:
+    except ValueError as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_validity_failure"},
+        )
         return VerifyResult(
             False,
             "unparseable authorization validity window",

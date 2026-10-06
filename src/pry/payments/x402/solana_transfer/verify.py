@@ -60,7 +60,11 @@ async def verify_solana_payment(
 
         try:
             finite_amount = amount_usd is None or math.isfinite(amount_usd)
-        except (TypeError, ValueError, OverflowError):
+        except (TypeError, ValueError, OverflowError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "verify_solana_payment"},
+            )
             return _failure("invalid (negative) required amount")
         if not finite_amount:
             return _failure("invalid (negative) required amount")

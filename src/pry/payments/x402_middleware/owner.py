@@ -4,12 +4,15 @@ x402 is the revenue path for external callers. Our own CLI, MCP server,
 internal services and self-hosted tooling authenticate with the owner API key
 (``PRY_API_KEY``) and must never be charged or blocked by the payment gate.
 """
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
-
 import hmac
+import logging
 import os
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 OWNER_SCOPE_KEY = "x402_verified"
 
@@ -21,7 +24,11 @@ def owner_key() -> str:
         return key
     try:
         from pry.core.config import settings  # app-level config
-    except (ImportError, AttributeError):
+    except (ImportError, AttributeError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "owner_key"},
+        )
         return ""
     return str(getattr(settings, "api_key", "") or "").strip()
 

@@ -25,15 +25,17 @@ Security posture:
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
-
 import hashlib
 import hmac
+import logging
 import os
 import time
 from collections import OrderedDict
 from typing import Any
 
 from pry.payments.x402_middleware import internal_replay_selection as _selection
+
+logger = logging.getLogger(__name__)
 
 INTERNAL_TOKEN_HEADER = b"x-internal-token"
 INTERNAL_SIG_HEADER = b"x-internal-signature"
@@ -93,7 +95,11 @@ def internal_max_skew() -> int:
         return DEFAULT_MAX_SKEW_SECONDS
     try:
         skew = int(raw.strip())
-    except ValueError:
+    except ValueError as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "internal_max_skew"},
+        )
         return 0
     return skew if skew > 0 else 0
 
@@ -145,7 +151,11 @@ def _fresh_timestamp(headers: dict[bytes, bytes], now: float) -> str | None:
         return None
     try:
         stamp = int(raw)
-    except ValueError:  # pragma: no cover - isdigit() already guards
+    except ValueError as exc:  # pragma: no cover - isdigit() already guards
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_fresh_timestamp"},
+        )
         return None
     if abs(now - stamp) > skew:
         return None
@@ -185,7 +195,11 @@ def _caller_from_scope(scope: dict[str, Any]) -> str:
         from pry.payments.x402_middleware.classification import _caller_key_from_scope
 
         return _caller_key_from_scope(scope)
-    except ImportError:  # pragma: no cover - partial import during startup
+    except ImportError as exc:  # pragma: no cover - partial import during startup
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_caller_from_scope"},
+        )
         client = scope.get("client") or ()
         return str(client[0]) if client and client[0] else ""
 

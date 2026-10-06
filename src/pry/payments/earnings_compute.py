@@ -18,10 +18,13 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from pry.payments.earnings_shared import TIERS_SAFE, _count_by, _ensure_aware
+
+logger = logging.getLogger(__name__)
 
 
 class ComputeMixin:
@@ -95,7 +98,11 @@ class ComputeMixin:
             _sub._ensure_loaded()
             with _sub._lock:
                 subs = [dict(s) for s in _sub._SUBSCRIPTIONS.values()]
-        except (ImportError, OSError, ValueError, TypeError, KeyError):
+        except (ImportError, OSError, ValueError, TypeError, KeyError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "ComputeMixin.get_mrr"},
+            )
             subs = []
 
         now = datetime.now(UTC)
@@ -108,7 +115,11 @@ class ComputeMixin:
                 continue
             try:
                 expires = datetime.fromisoformat(str(s.get("expires_at", "")))
-            except ValueError:
+            except ValueError as exc:
+                logger.warning(
+                    "payments_exception_swallowed",
+                    extra={"error": str(exc), "handler": "ComputeMixin.get_mrr"},
+                )
                 continue
             if expires <= now:
                 continue
@@ -164,6 +175,10 @@ class ComputeMixin:
                     when = datetime.fromisoformat(e.get("date", ""))
                     if cutoff_start <= _ensure_aware(when) < cutoff_end:
                         total += e["amount_usd"]
-                except ValueError:
+                except ValueError as exc:
+                    logger.warning(
+                        "payments_exception_swallowed",
+                        extra={"error": str(exc), "handler": "ComputeMixin._previous_window_total"},
+                    )
                     continue
         return total

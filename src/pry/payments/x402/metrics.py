@@ -15,13 +15,20 @@ Exposed via the existing ``/metrics`` endpoint (prometheus_client registry).
 
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 try:
     from prometheus_client import Counter, Gauge, Histogram
 
     _has_prometheus = True
-except ImportError:  # pragma: no cover — prometheus-client is a hard dep, guard anyway
+except ImportError as exc:  # pragma: no cover — prometheus-client is a hard dep, guard anyway
+    logger.warning(
+        "payments_exception_swallowed",
+        extra={"error": str(exc), "handler": "<module>"},
+    )
     _has_prometheus = False
 
 CHALLENGES_SENT: Any = None
@@ -100,7 +107,11 @@ def _safe(metric: Any, **labels: str) -> Any | None:
         return None
     try:
         return metric.labels(**labels)
-    except (ValueError, TypeError):  # unexpected label set — never break the flow
+    except (ValueError, TypeError) as exc:  # unexpected label set — never break the flow
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_safe"},
+        )
         return None
 
 

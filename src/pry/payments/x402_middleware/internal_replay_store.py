@@ -58,7 +58,11 @@ def _redis_errors() -> tuple[type[BaseException], ...]:
     """
     try:
         from redis.exceptions import RedisError
-    except ImportError:  # pragma: no cover - redis is optional
+    except ImportError as exc:  # pragma: no cover - redis is optional
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_redis_errors"},
+        )
         return ()
     return (RedisError,)
 

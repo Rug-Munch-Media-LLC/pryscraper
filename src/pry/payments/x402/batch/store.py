@@ -31,7 +31,11 @@ def _get_redis() -> Any:
             from pry.core.settings import settings
 
             state._redis_url = getattr(settings, "redis_url", "") or ""
-        except Exception:  # noqa: BLE001 — settings import must never break payments
+        except Exception as exc:  # noqa: BLE001 — settings import must never break payments
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "_get_redis"},
+            )
             state._redis_url = ""
     if not state._redis_url:
         return None

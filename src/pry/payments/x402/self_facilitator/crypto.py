@@ -7,10 +7,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from eth_keys.datatypes import Signature
 from eth_utils import keccak, to_canonical_address
+
+logger = logging.getLogger(__name__)
 
 # EIP-712 typehashes (EIP-3009 / EIP-712 domain).
 _EIP712_DOMAIN_TYPEHASH = keccak(
@@ -189,7 +192,11 @@ def _parse_signature(auth: dict[str, Any]) -> Signature | None:
         else:
             try:
                 raw = bytes.fromhex(str(signature).removeprefix("0x"))
-            except ValueError:
+            except ValueError as exc:
+                logger.warning(
+                    "payments_exception_swallowed",
+                    extra={"error": str(exc), "handler": "_parse_signature"},
+                )
                 return None
         if len(raw) != 65:
             return None
@@ -203,6 +210,10 @@ def _parse_signature(auth: dict[str, Any]) -> Signature | None:
         r = r_value.to_bytes(32, "big") if isinstance(r_value, int) else _hex_to_bytes(str(r_value))
         s = s_value.to_bytes(32, "big") if isinstance(s_value, int) else _hex_to_bytes(str(s_value))
         v = int(auth.get("v", 27))
-    except (ValueError, OverflowError):
+    except (ValueError, OverflowError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_parse_signature"},
+        )
         return None
     return _signature_from_bytes(r, s, v)

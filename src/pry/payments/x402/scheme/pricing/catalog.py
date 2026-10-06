@@ -4,6 +4,7 @@
 # Copyright (c) 2026 Rug Munch Media LLC
 from __future__ import annotations
 
+import logging
 import math
 import os
 from typing import Any
@@ -13,6 +14,8 @@ from pry.payments.x402 import X402_DEFAULT_ASSET
 from ..enums import ASSET_DECIMALS
 from ..networks import normalize_network_id, resolve_asset_entry
 from ..oracle import X402_ASSET_USD_PER_UNIT
+
+logger = logging.getLogger(__name__)
 
 
 def _public_base_url() -> str:
@@ -118,7 +121,11 @@ def validate_client_amount(
         else:
             required_atomic = _to_atomic(required, asset)
             client_atomic = _to_atomic(client_amount_usd, asset)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "validate_client_amount"},
+        )
         return False, "invalid amount/asset for pricing check"
     if client_atomic < required_atomic:
         return (

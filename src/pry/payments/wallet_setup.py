@@ -312,6 +312,10 @@ def wallets_test(env_file: Path | None, network: str | None, amount: str) -> Non
             wallet_configured,
         )
     except Exception as exc:  # noqa: BLE001 - pragma: no cover - import guard
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "wallets_test"},
+        )
         click.echo(click.style(f"✖ Could not import x402 module: {exc}", fg="red"))
         sys.exit(1)
 
@@ -350,6 +354,10 @@ def wallets_test(env_file: Path | None, network: str | None, amount: str) -> Non
                 f"maxAmountRequired={acc.get('maxAmountRequired')}"
             )
     except Exception as exc:  # noqa: BLE001 - pragma: no cover - network/price oracle failure
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "wallets_test"},
+        )
         click.echo(click.style(f"✖ Test challenge failed: {exc}", fg="red"))
         sys.exit(1)
 

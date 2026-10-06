@@ -123,5 +123,9 @@ def _decode_payment_signature(header: str) -> dict[str, Any] | None:  # test-onl
     """Decode the PAYMENT-SIGNATURE header per x402 spec."""
     try:
         return cast("dict[str, Any]", json.loads(base64.b64decode(header).decode()))
-    except (ValueError, OSError):
+    except (ValueError, OSError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_decode_payment_signature"},
+        )
         return None

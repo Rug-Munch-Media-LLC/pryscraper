@@ -45,7 +45,11 @@ def _parse_dt(value: str | None) -> Any:
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=UTC)
         return dt
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_parse_dt"},
+        )
         return None
 
 
@@ -84,7 +88,11 @@ def record_payment(record: dict[str, Any]) -> None:
         row.asset = str(record.get("asset", ""))  # type: ignore[assignment]
         try:
             row.amount_usd = float(record.get("amount_usd", 0.0))  # type: ignore[assignment]
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "record_payment"},
+            )
             row.amount_usd = 0.0  # type: ignore[assignment]
         row.required_amount_atomic = str(record.get("required_amount_atomic", ""))  # type: ignore[assignment]
         row.operation = str(record.get("operation", ""))  # type: ignore[assignment]
@@ -204,5 +212,9 @@ def available() -> bool:
         with session_scope() as session:
             session.execute(text("SELECT 1"))
         return True
-    except Exception:  # noqa: BLE001 — availability probe
+    except Exception as exc:  # noqa: BLE001 — availability probe
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "available"},
+        )
         return False

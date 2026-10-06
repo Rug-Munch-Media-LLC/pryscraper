@@ -115,7 +115,11 @@ def _normalize_log_address(address: Any) -> str:
         try:
             int(addr, 16)
             return addr.lower()
-        except ValueError:
+        except ValueError as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "_normalize_log_address"},
+            )
             return ""
     return _base58check_to_hex(addr)
 
@@ -167,7 +171,11 @@ def _confirmed_at_from_timestamp(timestamp_ms: int | float | None) -> str:
         return ""
     try:
         return datetime.fromtimestamp(int(timestamp_ms) / 1000, tz=UTC).isoformat()
-    except (ValueError, OSError, OverflowError):
+    except (ValueError, OSError, OverflowError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_confirmed_at_from_timestamp"},
+        )
         return ""
 
 
@@ -217,7 +225,11 @@ def _iter_trc20_transfers(contract_result: dict[str, Any]) -> list[dict[str, Any
 
         try:
             value = int(data_hex, 16) if str(data_hex).startswith("0x") else int(data_hex)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "_iter_trc20_transfers"},
+            )
             continue
 
         events.append(
@@ -307,10 +319,22 @@ async def verify_tron_trc20_payment(
             response.raise_for_status()
             data = response.json()
     except httpx.HTTPStatusError as e:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(e), "handler": "verify_tron_trc20_payment"},
+        )
         return _failure(f"rpc_http_error: {e.response.status_code}")
     except httpx.RequestError as e:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(e), "handler": "verify_tron_trc20_payment"},
+        )
         return _failure(f"rpc_error: {e}")
     except ValueError as e:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(e), "handler": "verify_tron_trc20_payment"},
+        )
         return _failure(f"rpc_invalid_json: {e}")
 
     if not isinstance(data, dict):

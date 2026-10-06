@@ -12,9 +12,12 @@ Callers MUST verify the body's attestation first; this helper does no crypto.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from .networks import normalize_network_id
+
+logger = logging.getLogger(__name__)
 
 
 def attested_max_amount_required(
@@ -52,7 +55,11 @@ def attested_max_amount_required(
             continue
         try:
             value = int(str(accept.get("maxAmountRequired", "")))
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "attested_max_amount_required"},
+            )
             return 0
         return value if value > 0 else 0
     return 0

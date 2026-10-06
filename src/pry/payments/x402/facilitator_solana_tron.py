@@ -16,6 +16,7 @@ method wrappers for backwards compatibility.
 
 from __future__ import annotations
 
+import logging
 import math
 from typing import Any
 
@@ -31,6 +32,8 @@ from pry.payments.x402.scheme import (
     normalize_network_id,
     resolve_asset_entry,
 )
+
+logger = logging.getLogger(__name__)
 
 # Chains with NO real on-chain settlement verification implemented yet.
 # Payments for these networks validate structure/price/asset server-side and
@@ -163,8 +166,12 @@ async def verify_solana(
         }
     try:
         from pry.payments.x402.solana_verifier import verify_solana_payment
-    except ImportError:
+    except ImportError as exc:
         # Module absent (older checkout) — keep the honest scaffold path.
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "verify_solana"},
+        )
         return _scaffold_non_evm_verify(payment_id, tx_hash, network, asset, amount_usd)
 
     # Native SOL verification needs a SOL/USD price — there is no stable
@@ -255,7 +262,11 @@ async def verify_tron(
         }
     try:
         from pry.payments.x402.tron_verifier import verify_tron_trc20_payment
-    except ImportError:
+    except ImportError as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "verify_tron"},
+        )
         return _scaffold_non_evm_verify(payment_id, tx_hash, network, asset, amount_usd)
 
     result = await verify_tron_trc20_payment(tx_hash, recipient, amount_usd)

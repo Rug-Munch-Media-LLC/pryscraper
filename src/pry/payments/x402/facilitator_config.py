@@ -11,10 +11,13 @@ config dataclass, and the default facilitator list (env-overridable).
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 
 from pry.payments.x402 import X402_TIMEOUT_SECONDS
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -60,7 +63,11 @@ class SignerRegistry:
             try:
                 with open(s.file_path) as f:
                     return f.read().strip()
-            except OSError:
+            except OSError as exc:
+                logger.warning(
+                    "payments_exception_swallowed",
+                    extra={"error": str(exc), "handler": "SignerRegistry.resolve_key"},
+                )
                 return ""
         return ""
 

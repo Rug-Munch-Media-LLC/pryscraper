@@ -11,6 +11,7 @@ back ``settle_with_details``.
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -22,6 +23,8 @@ from pry.payments.x402.scheme import normalize_network_id
 from .crypto import _nonce_hex
 from .evm_common import _pkg
 from .networks import _chain_id_for
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections import OrderedDict
@@ -90,5 +93,9 @@ class EVMTrackerMixin:
     def _normalize_address(value: str) -> str:
         try:
             return to_checksum_address(value)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "EVMTrackerMixin._normalize_address"},
+            )
             return value

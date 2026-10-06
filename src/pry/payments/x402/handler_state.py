@@ -43,6 +43,8 @@ from pry.payments.x402.scheme import (
     resolve_price_usd,
 )
 
+logger = logging.getLogger(__name__)
+
 # Reuse the handler module's logger so log records keep their original
 # logger name (tests filter caplog on ``pry.payments.x402.handler``).
 logger = logging.getLogger("pry.payments.x402.handler")
@@ -298,7 +300,11 @@ class StateMixin:
                 try:
                     if datetime.fromisoformat(expires_at) <= now:
                         continue  # expired — must pay again
-                except ValueError:
+                except ValueError as exc:
+                    logger.warning(
+                        "payments_exception_swallowed",
+                        extra={"error": str(exc), "handler": "StateMixin.is_paid"},
+                    )
                     continue  # malformed expiry → fail closed
             else:
                 continue  # no expiry recorded → treat as expired (fail closed)
@@ -335,14 +341,22 @@ class StateMixin:
             return False  # no authoritative price → fail closed
         try:
             required_atomic = asset_to_atomic(required, asset, network)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "StateMixin._amount_covers"},
+            )
             return False  # unquoteable price → fail closed
         raw_paid = payment.get("required_amount_atomic")
         if raw_paid is None:
             return False  # pre-hardening record without atomics → fail closed
         try:
             paid_atomic = int(raw_paid)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "StateMixin._amount_covers"},
+            )
             return False  # garbled atomics → fail closed
         return paid_atomic >= required_atomic
 

@@ -184,7 +184,11 @@ def is_batch_paid(batch_id: str, caller_key: str = "", operation: str = "") -> b
         try:
             if datetime.fromisoformat(expires_at) <= datetime.now(UTC):
                 return False
-        except ValueError:
+        except ValueError as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "is_batch_paid"},
+            )
             return False
     else:
         return False  # no expiry recorded → fail closed

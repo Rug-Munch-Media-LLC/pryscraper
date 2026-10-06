@@ -51,7 +51,11 @@ def configured_redis_url() -> str:
         ValueError,
         AttributeError,
         KeyError,
-    ):  # a settings import must never break the gate
+    ) as exc:  # a settings import must never break the gate
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "configured_redis_url"},
+        )
         return ""
 
 

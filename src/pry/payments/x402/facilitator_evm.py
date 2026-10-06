@@ -16,6 +16,7 @@ method wrappers for backwards compatibility (tests call them unbound with
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import Any
 
@@ -33,6 +34,8 @@ from pry.payments.x402.scheme import (
     normalize_network_id,
     resolve_pay_to,
 )
+
+logger = logging.getLogger(__name__)
 
 # Reverse map: CAIP-2 ID -> short name (for EIP7702_RPC key lookup).
 # EIP7702_RPC uses legacy short names ("base", "ethereum", ...) but the
@@ -126,7 +129,11 @@ def eip7702_matches(
         recipient = "0x" + calldata[34:74]
         try:
             paid_atomic = int(calldata[74:138], 16)
-        except ValueError:
+        except ValueError as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "eip7702_matches"},
+            )
             return False, "unparseable ERC-20 transfer amount"
         if recipient.lower() != pay_to:
             return False, f"transfer recipient {recipient} != server wallet {pay_to}"
@@ -142,7 +149,11 @@ def eip7702_matches(
             return False, f"tx recipient {tx_to} != server wallet {pay_to}"
         try:
             value_atomic = int(tx.get("value") or "0x0", 16)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "eip7702_matches"},
+            )
             return False, "unparseable tx value"
         expected_atomic = asset_to_atomic(amount_usd, asset, network)
         if value_atomic < expected_atomic:
@@ -204,6 +215,10 @@ async def eip7702_verify(
                 "facilitator": "eip-7702",
             }
     except (httpx.HTTPError, httpx.RequestError) as e:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(e), "handler": "eip7702_verify"},
+        )
         return {"verified": False, "reason": f"EIP-7702 verify failed: {e}", "settlement": None}
 
 

@@ -14,8 +14,11 @@ Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def _ensure_aware(dt: datetime) -> datetime:
@@ -37,7 +40,11 @@ def _tiers_safe() -> dict[str, dict[str, Any]]:
         from pry.commerce.billing.tiers import TIERS
 
         return {name: {"price_usd_monthly": tier.price_usd_monthly} for name, tier in TIERS.items()}
-    except (ImportError, AttributeError):  # pragma: no cover
+    except (ImportError, AttributeError) as exc:  # pragma: no cover
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_tiers_safe"},
+        )
         return {}
 
 

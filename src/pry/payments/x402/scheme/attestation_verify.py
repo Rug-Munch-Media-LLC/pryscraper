@@ -12,6 +12,7 @@ signer check. Public entry point ``verify_payment_required_attestation``.
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any
 
@@ -24,6 +25,8 @@ from .digest import (
     X402_ATTEST_VERSION,
     _attestation_digest,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _fail(reason: str, signer: str = "", attested: bool = True) -> dict[str, Any]:
@@ -86,7 +89,11 @@ def _recover_signer(
         signature = _eth_keys.Signature(bytes.fromhex(raw_sig))
         digest = _attestation_digest(issued_at, nonce, index, accept)
         return signature.recover_public_key_from_msg_hash(digest).to_address()
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_recover_signer"},
+        )
         return None
 
 

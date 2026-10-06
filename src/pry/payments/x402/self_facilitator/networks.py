@@ -7,10 +7,13 @@
 
 from __future__ import annotations
 
+import logging
 import os
 
 from pry.payments.x402 import X402_DEBUG_MODE
 from pry.payments.x402.scheme import normalize_network_id
+
+logger = logging.getLogger(__name__)
 
 # CAIP-2 / legacy network name -> EVM chain id (used for the EIP-712 domain
 # and the signed transaction's EIP-155 v). eip155:NNNN ids not listed here
@@ -106,6 +109,10 @@ def _chain_id_for(network: str) -> int | None:
     if network_id.startswith("eip155:"):
         try:
             return int(network_id.split(":", 1)[1])
-        except ValueError:
+        except ValueError as exc:
+            logger.warning(
+                "payments_exception_swallowed",
+                extra={"error": str(exc), "handler": "_chain_id_for"},
+            )
             return None
     return None

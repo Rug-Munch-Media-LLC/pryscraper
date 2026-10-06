@@ -207,12 +207,24 @@ class FacilitatorRouter(DispatchMixin, SettleReceiptMixin, FacilitatorHealthMixi
                     "facilitator": facilitator.name,
                 }
             except httpx.HTTPStatusError as e:
+                logger.warning(
+                    "payments_exception_swallowed",
+                    extra={"error": str(e), "handler": "FacilitatorRouter.verify"},
+                )
                 last_error = f"{facilitator.name}: HTTP {e.response.status_code}"
                 self._mark_failure(facilitator)
             except httpx.RequestError as e:
+                logger.warning(
+                    "payments_exception_swallowed",
+                    extra={"error": str(e), "handler": "FacilitatorRouter.verify"},
+                )
                 last_error = f"{facilitator.name}: {e}"
                 self._mark_failure(facilitator)
             except json.JSONDecodeError as e:
+                logger.warning(
+                    "payments_exception_swallowed",
+                    extra={"error": str(e), "handler": "FacilitatorRouter.verify"},
+                )
                 last_error = f"{facilitator.name}: invalid JSON response - {e}"
                 self._mark_failure(facilitator)
 
@@ -280,12 +292,24 @@ class FacilitatorRouter(DispatchMixin, SettleReceiptMixin, FacilitatorHealthMixi
                         data, payment_id, tx_hash, network, facilitator.name
                     )
                 except httpx.HTTPStatusError as e:
+                    logger.warning(
+                        "payments_exception_swallowed",
+                        extra={"error": str(e), "handler": "FacilitatorRouter.settle"},
+                    )
                     last_error = f"{facilitator.name}: HTTP {e.response.status_code}"
                     self._mark_failure(facilitator)
                 except httpx.RequestError as e:
+                    logger.warning(
+                        "payments_exception_swallowed",
+                        extra={"error": str(e), "handler": "FacilitatorRouter.settle"},
+                    )
                     last_error = f"{facilitator.name}: {e}"
                     self._mark_failure(facilitator)
                 except json.JSONDecodeError as e:
+                    logger.warning(
+                        "payments_exception_swallowed",
+                        extra={"error": str(e), "handler": "FacilitatorRouter.settle"},
+                    )
                     last_error = f"{facilitator.name}: invalid JSON response - {e}"
                     self._mark_failure(facilitator)
 

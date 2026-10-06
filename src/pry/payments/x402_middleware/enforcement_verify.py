@@ -36,12 +36,19 @@ def _decode_presented_payment_required(raw: Any) -> dict[str, Any] | None:
     try:
         decoded = json.loads(text)
         return decoded if isinstance(decoded, dict) else None
-    except (ValueError, TypeError):
-        pass
+    except (ValueError, TypeError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_decode_presented_payment_required"},
+        )
     try:
         decoded = json.loads(base64.b64decode(text).decode())
         return decoded if isinstance(decoded, dict) else None
-    except (ValueError, TypeError, OSError):
+    except (ValueError, TypeError, OSError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "_decode_presented_payment_required"},
+        )
         return None
 
 

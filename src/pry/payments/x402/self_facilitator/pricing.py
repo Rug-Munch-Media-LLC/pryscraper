@@ -25,6 +25,7 @@ cheap to test exhaustively — see ``tests/test_x402_required_atomic_floor.py``.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import logging
 import math
 from typing import Any
 
@@ -33,6 +34,8 @@ from pry.payments.x402.scheme import normalize_network_id
 
 from .evm_common import _pkg
 from .response import VerifyResult
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "resolve_context",
@@ -57,7 +60,11 @@ def resolve_context(payment: dict[str, Any]) -> tuple[str, str, float]:
     asset = str(payment.get("asset") or X402_DEFAULT_ASSET).upper()
     try:
         amount_usd = float(payment.get("amount_usd") or 0.0)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "resolve_context"},
+        )
         amount_usd = 0.0
     return network, asset, amount_usd
 
@@ -78,7 +85,11 @@ async def resolve_required_atomic(
     attested_atomic = 0
     try:
         attested_atomic = int(payment.get("attested_required_atomic") or 0)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError) as exc:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(exc), "handler": "resolve_required_atomic"},
+        )
         attested_atomic = 0
     if attested_atomic > 0:
         return attested_atomic, None

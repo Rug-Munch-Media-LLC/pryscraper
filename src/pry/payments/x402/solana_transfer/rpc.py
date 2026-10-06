@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import httpx
 
 from pry.payments.x402.solana_constants import SOLANA_RPC_TIMEOUT_SECONDS
 from pry.payments.x402.solana_result import _failure
+
+logger = logging.getLogger(__name__)
 
 
 async def _fetch_transaction(
@@ -31,10 +34,22 @@ async def _fetch_transaction(
             response.raise_for_status()
             data = response.json()
     except httpx.HTTPStatusError as e:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(e), "handler": "_fetch_transaction"},
+        )
         return None, 0, _failure(f"rpc_http_error: {e.response.status_code}")
     except httpx.RequestError as e:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(e), "handler": "_fetch_transaction"},
+        )
         return None, 0, _failure(f"rpc_error: {e}")
     except ValueError as e:
+        logger.warning(
+            "payments_exception_swallowed",
+            extra={"error": str(e), "handler": "_fetch_transaction"},
+        )
         return None, 0, _failure(f"rpc_invalid_json: {e}")
 
     if not isinstance(data, dict):
