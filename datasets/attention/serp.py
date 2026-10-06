@@ -29,6 +29,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import re
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -153,6 +155,51 @@ def _extract_results(root: Any, num: int) -> list[dict[str, Any]]:
         )
         if len(results) >= max(num, 1):
             break
+
+    if not results:
+        # Strategy B (current Google DOM): container classes are obfuscated and
+        # organic links are wrapped in an opaque /goto?url=<token> redirect.
+        # Anchor on every <h3> and take its nearest ancestor <a href>; the
+        # redirect is resolved later in serp(). Strategy A above is unchanged so
+        # legacy fixtures keep working.
+        try:
+            headings = root.cssselect("h3")
+        except (AttributeError, TypeError, ValueError):
+            headings = []
+        for heading in headings:
+            node = heading
+            link = None
+            for _ in range(4):
+                node = node.getparent()
+                if node is None:
+                    break
+                if node.tag == "a" and node.get("href"):
+                    link = node
+                    break
+            if link is None:
+                continue
+            url = _clean_google_url(link.get("href", ""))
+            if not url:
+                href = link.get("href", "")
+                if href.startswith("/"):
+                    url = "https://www.google.com" + href
+            if not url or url in seen:
+                continue
+            title = _text(heading)
+            if not title:
+                continue
+            seen.add(url)
+            container = link.getparent()
+            results.append(
+                {
+                    "position": len(results) + 1,
+                    "title": title,
+                    "url": url,
+                    "snippet": _extract_snippet(container) if container is not None else "",
+                }
+            )
+            if len(results) >= max(num, 1):
+                break
     return results
 
 
@@ -286,6 +333,109 @@ def _to_root(html: str) -> Any | None:
         return None
 
 
+def _serp_url(query: str, num: int) -> str:
+    """Absolute Google SERP URL for a query (shared by the fetch tiers)."""
+    from urllib.parse import urlencode
+
+    params = {
+        "q": query,
+        "num": str(min(max(num, 1), _MAX_NUM)),
+        "hl": "en",
+        "gl": "us",
+    }
+    return f"{_SERP_URL}?{urlencode(params)}"
+
+
+_MIN_USABLE_SERP_BYTES = 20000
+
+
+def _usable_serp_html(html: str) -> bool:
+    """True when a fetched page is plausibly a results SERP, not a block shell.
+
+    Google answers a blocked datacenter IP with a tiny consent/interstitial page
+    (~6 KB, no headings). A usable page has organic <h3> headings and real size.
+    A block is a MISS, not a success.
+    """
+    return bool(html) and len(html) >= _MIN_USABLE_SERP_BYTES and "<h3" in html
+
+
+def _proxy_pool() -> list[str]:
+    """Residential egress pool from WEBSHARE_PROXY_LIST (space/comma separated)."""
+    raw = (os.environ.get("WEBSHARE_PROXY_LIST") or "").strip()
+    return [p for p in re.split(r"[\s,]+", raw) if p.startswith("http")]
+
+
+async def _fetch_serp_browser(query: str, num: int) -> str:
+    """Fetch the SERP through the browser tier, retrying across egress.
+
+    Google blocks a bare datacenter IP; first-party Pry ships the FlareSolverr
+    ladder used by the other engines. We try the direct browser first, then
+    rotate the residential proxy pool, accepting the first page that passes the
+    usable-shape check. Never raises; "" when no tier yields a usable page.
+    """
+    try:
+        from pry.engine.flaresolverr import fetch_via_flaresolverr
+    except ImportError as exc:
+        logger.warning("serp_browser_unavailable", extra={"error": str(exc)[:160]})
+        return ""
+
+    url = _serp_url(query, num)
+    last_html = ""
+    # tier 1: direct browser; tier 2..: one attempt per residential proxy.
+    for proxy in [None, *_proxy_pool()[:4]]:
+        try:
+            html = await fetch_via_flaresolverr(url, proxy=proxy) or ""
+        except (OSError, RuntimeError, ValueError, httpx.HTTPError) as exc:
+            logger.warning(
+                "serp_browser_fetch_failed",
+                extra={"proxied": proxy is not None, "error": str(exc)[:160]},
+            )
+            continue
+        last_html = html
+        if _usable_serp_html(html):
+            return html
+    return last_html if _usable_serp_html(last_html) else ""
+
+
+async def _resolve_google_redirects(
+    results: list[dict[str, Any]], limit: int
+) -> list[dict[str, Any]]:
+    """Follow Google's opaque result redirects to the real target URL.
+
+    Google wraps organic links as /goto?url=<opaque token>; the token is not
+    decodable client-side so the URL must be obtained by following the
+    redirect. Bounded to ``limit``; an unresolved entry keeps the Google URL
+    rather than being dropped. Never raises.
+    """
+    with_redirects = [
+        r
+        for r in results
+        if isinstance(r.get("url"), str)
+        and "google." in r["url"]
+        and ("/goto?" in r["url"] or "/url?" in r["url"])
+    ]
+    if not with_redirects:
+        return results
+    try:
+        from pry.api.client import get_client
+
+        client = await get_client()
+    except (ImportError, RuntimeError, OSError) as exc:
+        logger.warning("serp_resolver_unavailable", extra={"error": str(exc)[:160]})
+        return results
+    for entry in with_redirects[: max(limit, 1)]:
+        try:
+            resp = await client.get(
+                entry["url"], headers=_HEADERS, timeout=_TIMEOUT, follow_redirects=True
+            )
+            final = str(resp.url)
+            if final and "google." not in final:
+                entry["url"] = final
+        except httpx.HTTPError as exc:
+            logger.warning("serp_redirect_resolve_failed", extra={"error": str(exc)[:160]})
+    return results
+
+
 async def serp(query: str, num: int = 10) -> dict[str, Any]:
     """Scrape Google SERP for ``query``: organic results, AI Overview, PAA.
 
@@ -311,19 +461,21 @@ async def serp(query: str, num: int = 10) -> dict[str, Any]:
                 "error": "empty response",
             }
         root = _to_root(html)
-        if root is None:
-            return {
-                "query": query,
-                "results": [],
-                "ai_overview": None,
-                "paa": [],
-                "error": "parse failed",
-            }
+        extracted = _extract_results(root, max(num, 1)) if root is not None else []
+        if not extracted:
+            # plain HTTP was blocked/empty or the DOM shape changed — use the
+            # browser ladder and re-parse (a block is a miss, not a success).
+            html = await _fetch_serp_browser(query.strip(), num)
+            root2 = _to_root(html) if html else None
+            if root2 is not None:
+                root = root2
+                extracted = _extract_results(root, max(num, 1))
+        extracted = await _resolve_google_redirects(extracted, max(num, 1))
         return {
             "query": query,
-            "results": _extract_results(root, max(num, 1)),
-            "ai_overview": _extract_ai_overview(root),
-            "paa": _extract_paa(root),
+            "results": extracted,
+            "ai_overview": _extract_ai_overview(root) if root is not None else None,
+            "paa": _extract_paa(root) if root is not None else [],
         }
     except (httpx.HTTPError, ValueError, TypeError, KeyError, IndexError) as exc:
         logger.warning("serp_failed", extra={"query": query[:80], "error": str(exc)[:200]})
