@@ -175,7 +175,7 @@ async def sync_to_shopify(
     client = await get_client()
     base_url = shop_url.rstrip("/")
 
-    results = []
+    results: list = []
     for product in products:
         await push_product(client, product, base_url, access_token, results)
 
