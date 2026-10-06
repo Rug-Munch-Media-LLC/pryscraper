@@ -86,6 +86,7 @@ class GraphQLDiscovery:
                     try:
                         data = resp.json()
                     except (json.JSONDecodeError, ValueError):
+                        logger.warning("silent_exception_swallowed", exc_info=True)
                         continue
                     if "data" in data or "errors" in data:
                         found.append({"url": url, "method": "path_probe"})
@@ -106,6 +107,7 @@ class GraphQLDiscovery:
             if resp.is_success:
                 return resp.json()
         except (httpx.HTTPError, httpx.RequestError) as e:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {"error": str(e)[:300]}
         return {}
 
@@ -127,6 +129,7 @@ class GraphQLDiscovery:
             if resp.is_success:
                 return resp.json()
         except (httpx.HTTPError, httpx.RequestError) as e:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {"error": str(e)[:300]}
         return {}
 

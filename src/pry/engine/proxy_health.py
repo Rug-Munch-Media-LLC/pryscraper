@@ -276,6 +276,7 @@ class ProxyHealthMixin:
                     "status": r.status_code,
                 }
         except (httpx.HTTPError, httpx.RequestError) as e:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {"working": False, "error": str(e)[:100]}
 
     def needs_premium_proxy(self, last_error: str) -> bool:

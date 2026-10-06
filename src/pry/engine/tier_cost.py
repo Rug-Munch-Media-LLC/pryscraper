@@ -29,7 +29,10 @@ read from operator configuration, or explicitly unknown.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 # Tiers whose marginal cost is structural zero: the work happens in a process
 # we already run, or is a free upstream (archive.org, Google cache). Their
@@ -69,6 +72,7 @@ def premium_proxy_cost_usd() -> float:
     try:
         value = float(raw)
     except ValueError:
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return 0.0
     return value if value > 0 else 0.0
 

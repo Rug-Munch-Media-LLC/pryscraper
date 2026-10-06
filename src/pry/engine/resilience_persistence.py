@@ -63,7 +63,8 @@ def default_state_path() -> Path | None:
         from pry.core.paths import PRY_DATA_DIR
 
         return PRY_DATA_DIR / RESILIENCE_STATE_FILENAME
-    except Exception:  # noqa: BLE001 - never let persistence break startup
+    except Exception:
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return Path("~/.pry").expanduser() / RESILIENCE_STATE_FILENAME
 
 

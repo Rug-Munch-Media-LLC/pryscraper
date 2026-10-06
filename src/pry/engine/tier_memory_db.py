@@ -150,6 +150,7 @@ def _int(value: Any) -> int:
     try:
         return int(value or 0)
     except (TypeError, ValueError):
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return 0
 
 
@@ -157,4 +158,5 @@ def _float(value: Any) -> float:
     try:
         return max(0.0, float(value or 0.0))
     except (TypeError, ValueError):
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return 0.0

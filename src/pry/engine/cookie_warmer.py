@@ -159,6 +159,7 @@ class CookieWarmer:
                 "expires_at": cookie_data["expires_at"],
             }
         except (json.JSONDecodeError, ValueError) as e:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {"success": False, "error": str(e)[:300]}
 
     def get_warmed_cookies(self, session_id: str) -> dict[str, Any] | None:
@@ -174,6 +175,7 @@ class CookieWarmer:
                 return None
             return data
         except (json.JSONDecodeError, ValueError):
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return None
 
     def list_sessions(self) -> list[dict[str, Any]]:

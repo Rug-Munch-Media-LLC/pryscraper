@@ -23,6 +23,7 @@ and tier methods resolve them lazily through ``tiers_base._us_flag``.
 from __future__ import annotations
 
 import importlib.util
+import logging
 
 # ``time`` is unused here but must stay importable as a module attribute:
 # tests freeze the clock via ``monkeypatch.setattr(ultimate_scraper.time, ...)``.
@@ -37,6 +38,8 @@ from pry.engine.browser_pool import (
 from pry.engine.resilience import registry  # noqa: F401  (tests patch/replace this)
 from pry.engine.scraper_orchestrate import ScrapeOrchestrator
 
+logger = logging.getLogger(__name__)
+
 __all__ = ["BrowserPool", "UltimateScraper", "close_browsers", "get_browser_pool"]
 
 # Try importing optional bypass libraries
@@ -50,6 +53,7 @@ _has_tls = True
 try:
     from pry.engine.tls_fingerprint import TLSScraper
 except ImportError:  # pragma: no cover - optional dependency
+    logger.warning("silent_exception_swallowed", exc_info=True)
     _has_tls = False
 
 CamoufoxBrowser: Any = None
@@ -57,6 +61,7 @@ _has_camoufox = True
 try:
     from pry.engine.camoufox_integration import CamoufoxBrowser
 except ImportError:  # pragma: no cover - optional dependency
+    logger.warning("silent_exception_swallowed", exc_info=True)
     _has_camoufox = False
 
 _stealth_engine: Any
@@ -65,6 +70,7 @@ try:
 
     _stealth_engine = StealthEngine()
 except ImportError:
+    logger.warning("silent_exception_swallowed", exc_info=True)
     _stealth_engine = None
 
 # Optional block-detection + fallback-telemetry integration (guarded so the
@@ -77,7 +83,7 @@ try:
     _block_detect = _block_detection_mod.detect_block
     _HAS_BLOCK_DETECTION = True
 except ImportError:  # pragma: no cover - optional dependency
-    pass
+    logger.warning("silent_exception_swallowed", exc_info=True)
 
 _HAS_FALLBACK_TELEMETRY = False
 _record_fallback: Any = None
@@ -87,7 +93,7 @@ try:
     _record_fallback = record_fallback
     _HAS_FALLBACK_TELEMETRY = True
 except ImportError:  # pragma: no cover - optional dependency
-    pass
+    logger.warning("silent_exception_swallowed", exc_info=True)
 
 # Tiers 13-15: Advanced scraping methods
 _ai_visual: Any = None
@@ -97,6 +103,7 @@ try:
 
     _ai_visual = AIVisualScraper()
 except ImportError:
+    logger.warning("silent_exception_swallowed", exc_info=True)
     _has_ai_visual = False
 
 _mobile_scraper: Any = None
@@ -106,6 +113,7 @@ try:
 
     _mobile_scraper = MobileAppScraper()
 except ImportError:
+    logger.warning("silent_exception_swallowed", exc_info=True)
     _has_mobile = False
 
 _graphql_scraper: Any = None
@@ -115,6 +123,7 @@ try:
 
     _graphql_scraper = GraphQLScraper()
 except ImportError:
+    logger.warning("silent_exception_swallowed", exc_info=True)
     _has_graphql = False
 
 

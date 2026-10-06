@@ -9,12 +9,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 from urllib.parse import urljoin
 
 from pry.engine.methods import _common
 from pry.engine.methods._common import _origin_of, _resolve_candidate
+
+logger = logging.getLogger(__name__)
 
 _GRAPHQL_QUOTED_RE = re.compile(
     r"""["']([^"']*(?:graphql|apollo|hasura|gql)[^"']*)["']""", re.IGNORECASE
@@ -120,6 +123,7 @@ def query_graphql(
     try:
         payload = response.json()
     except (json.JSONDecodeError, ValueError):
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return None
     return payload if isinstance(payload, dict) else None
 

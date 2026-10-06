@@ -16,6 +16,9 @@ from pry.engine.methods import _common
 
 if TYPE_CHECKING:
     import httpx
+import logging
+
+logger = logging.getLogger(__name__)
 
 _JSON_LIST_KEYS = ("results", "data", "items")
 
@@ -25,6 +28,7 @@ def _json_list_items(response: httpx.Response) -> list[dict[str, Any]]:
     try:
         payload = response.json()
     except (json.JSONDecodeError, ValueError):
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return []
     if isinstance(payload, list):
         return [item for item in payload if isinstance(item, dict)]

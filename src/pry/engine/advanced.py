@@ -8,15 +8,17 @@ All powered by local Ollama — no API keys needed."""
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import difflib
 import hashlib
 import json
+import logging
 import os
 import re
 from datetime import datetime
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 OLLAMA_BASE = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
@@ -51,6 +53,7 @@ class PryAdvanced:
                 )
                 return {"summary": resp.json().get("response", ""), "model": "qwen2.5-coder:3b"}
         except (httpx.HTTPError, httpx.RequestError) as e:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {"summary": content[:500], "error": str(e)}
 
     # ── 2. Diff Tracking — Compare page versions ──
@@ -115,6 +118,7 @@ class PryAdvanced:
                 data = json.loads(m.group(1))
                 results.append(data)
             except json.JSONDecodeError:
+                logger.warning("silent_exception_swallowed", exc_info=True)
                 continue
 
         # Open Graph / Twitter Card meta tags
@@ -183,6 +187,7 @@ class PryAdvanced:
                 arr_match = re.search(r"\[.*?\]", raw, re.S)
                 return json.loads(arr_match.group(0)) if arr_match else ["uncategorized"]
         except (json.JSONDecodeError, ValueError):
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return ["uncategorized"]
 
     # ── 7. Keyword density analysis ──

@@ -100,6 +100,7 @@ class PryScraper:
         try:
             validate_url(url)
         except InvalidRequestError as e:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {"status": "error", "url": url, "error": str(e), "content": ""}
 
         opts = options or {}

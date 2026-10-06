@@ -5,6 +5,7 @@
 # Licensed under MIT. See LICENSE.
 """Microsoft Graph / Outlook integration — list and parse messages."""
 
+import logging
 import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -13,6 +14,8 @@ import httpx
 
 from pry.engine.email_scraper.extractor import extract_email_data
 from pry.engine.email_scraper.tokens import require_token
+
+logger = logging.getLogger(__name__)
 
 
 async def fetch_outlook_emails(
@@ -58,6 +61,7 @@ async def fetch_outlook_emails(
         return {"success": True, "total": len(emails), "emails": emails}
 
     except (httpx.HTTPError, httpx.RequestError) as e:
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return {"success": False, "error": str(e)[:300]}
 
 

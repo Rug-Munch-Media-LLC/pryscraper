@@ -105,6 +105,7 @@ class WebSocketScraper:
         try:
             import websockets
         except ImportError:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {
                 "success": False,
                 "error": "websockets not installed. Run: pip install websockets",
@@ -122,6 +123,7 @@ class WebSocketScraper:
                     try:
                         msg = await asyncio.wait_for(ws.recv(), timeout=2)
                     except TimeoutError:
+                        logger.warning("silent_exception_swallowed", exc_info=True)
                         break
                     if isinstance(msg, bytes):
                         msg = msg.decode("utf-8", errors="replace")
@@ -130,9 +132,11 @@ class WebSocketScraper:
                     try:
                         parsed: Any = json.loads(msg)
                     except (json.JSONDecodeError, ValueError):
+                        logger.warning("silent_exception_swallowed", exc_info=True)
                         parsed = msg
                     messages.append({"data": parsed, "raw": msg, "received_at": time.time()})
         except (json.JSONDecodeError, ValueError) as e:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {"success": False, "error": str(e)[:300]}
 
         return {
@@ -177,6 +181,7 @@ class WebSocketScraper:
                             try:
                                 parsed: Any = json.loads(raw_data)
                             except (json.JSONDecodeError, ValueError):
+                                logger.warning("silent_exception_swallowed", exc_info=True)
                                 parsed = raw_data
                             if event_filter and event_filter not in str(parsed):
                                 data_buf = []
@@ -200,4 +205,5 @@ class WebSocketScraper:
                 "count": len(events),
             }
         except (json.JSONDecodeError, ValueError) as e:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {"success": False, "error": str(e)[:300]}

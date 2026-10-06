@@ -8,12 +8,15 @@
 
 from __future__ import annotations
 
+import logging
 from urllib.parse import urlparse
 
 from defusedxml import ElementTree as ET  # noqa: N817
 
 from pry.engine.methods import _common
 from pry.engine.methods._common import _localname, _resolve_candidate
+
+logger = logging.getLogger(__name__)
 
 _MAX_SITEMAP_DEPTH = 2
 _MAX_SITEMAP_FETCHES = 20
@@ -38,6 +41,7 @@ def _walk_sitemap(url: str, out: list[str], seen: set[str], *, depth: int) -> No
         # (defusedxml used for safe XML parsing of untrusted input.)
         root = ET.fromstring(response.text)
     except (ET.ParseError, ValueError):
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return
     locs = [
         child.text.strip()
@@ -96,6 +100,7 @@ def discover_sitemap(domain: str) -> str | None:
     try:
         parsed = urlparse(domain)
     except ValueError:
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return None
     if parsed.scheme not in ("http", "https") or not parsed.netloc:
         return None

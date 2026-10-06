@@ -26,11 +26,14 @@ failure. That is a fact about the ladder, and it was invisible in telemetry.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
 import time
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_PATH = Path(os.getenv("PRY_TIER_HEALTH_PATH", "/app/pry-data/tier_health.json"))
 
@@ -42,6 +45,7 @@ def _load(path: Path) -> dict[str, Any]:
         data = json.loads(path.read_text())
         return data if isinstance(data, dict) else {}
     except (OSError, ValueError):
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return {}
 
 
@@ -70,6 +74,7 @@ def record(
             tmp = Path(fh.name)
         tmp.replace(target)
     except (OSError, TypeError, ValueError):
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return
 
 

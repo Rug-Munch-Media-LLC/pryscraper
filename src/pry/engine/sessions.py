@@ -100,6 +100,7 @@ async def list_sessions() -> list[dict[str, Any]]:
                 }
             )
         except (json.JSONDecodeError, OSError):
+            logger.warning("silent_exception_swallowed", exc_info=True)
             continue
     return sessions
 

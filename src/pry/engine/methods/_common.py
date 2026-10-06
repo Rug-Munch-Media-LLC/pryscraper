@@ -97,6 +97,7 @@ def _sync_fetch(
     try:
         validate_url(url)
     except InvalidRequestError:
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return None
     try:
         with httpx.Client(follow_redirects=False, timeout=timeout) as client:
@@ -110,11 +111,13 @@ def _sync_fetch(
                 try:
                     validate_redirect_url(target)
                 except InvalidRequestError:
+                    logger.warning("silent_exception_swallowed", exc_info=True)
                     return None
                 response = client.request(method, target, json=json_body)
                 redirects += 1
             return response
     except (httpx.HTTPError, InvalidRequestError):
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return None
     except Exception:
         logger.debug("sync_fetch_failed", extra={"url": url[:120]}, exc_info=True)
@@ -136,6 +139,7 @@ def _origin_of(url: str) -> str | None:
     try:
         parsed = urlparse(url)
     except ValueError:
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return None
     if parsed.scheme not in ("http", "https") or not parsed.netloc:
         return None
@@ -150,6 +154,7 @@ def _resolve_candidate(raw: str, page_url: str) -> str | None:
     try:
         resolved = urljoin(page_url, candidate)
     except ValueError:
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return None
     parsed = urlparse(resolved)
     if parsed.scheme not in ("http", "https") or not parsed.netloc:

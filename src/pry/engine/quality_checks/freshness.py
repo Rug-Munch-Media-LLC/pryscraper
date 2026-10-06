@@ -12,10 +12,13 @@ already watches.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import logging
 import math
 import time
 from datetime import datetime
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def compute_freshness(
@@ -73,6 +76,7 @@ def compute_freshness(
             dt = datetime.fromisoformat(ts)
             age = now - dt.timestamp()
         except (ValueError, TypeError):
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {
                 "fresh": True,
                 "age_seconds": None,

@@ -189,6 +189,7 @@ async def fetch_rendered(
     try:
         validate_url(url)
     except InvalidRequestError:
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return None
     renderer = _pick_renderer(prefer)
     if renderer == "camoufox":

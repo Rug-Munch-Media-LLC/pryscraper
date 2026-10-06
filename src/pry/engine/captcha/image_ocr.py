@@ -50,10 +50,12 @@ def _normalize_image(image: bytes | str | None) -> bytes | None:
         try:
             return Path(text).read_bytes()
         except OSError:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return None
     try:
         return base64.b64decode(text) or None
     except (binascii.Error, ValueError):
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return None
 
 

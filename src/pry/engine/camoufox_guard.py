@@ -33,6 +33,7 @@ async def guard_route(route: Any) -> None:
     try:
         parsed = urlparse(request_url)
     except ValueError:
+        logger.warning("silent_exception_swallowed", exc_info=True)
         await route.abort()
         return
     if parsed.scheme not in {"http", "https"}:

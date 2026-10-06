@@ -28,6 +28,7 @@ Licensed under MIT. See LICENSE.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -40,6 +41,8 @@ from pry.engine.method_stats_writer import (
     MethodStatsWriter,
     MethodStatUpdate,
 )
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "FLUSH_INTERVAL_SECONDS",
@@ -73,6 +76,7 @@ class MethodStatsStore(MethodStatsWriter):
             RuntimeError,
             SQLAlchemyError,
         ) as e:  # cold start must not break ranking
+            logger.warning("silent_exception_swallowed", exc_info=True)
             self.fail(e)
             return []
 

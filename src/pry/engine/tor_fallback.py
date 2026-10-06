@@ -48,6 +48,7 @@ def _aiohttp_socks_installed() -> bool:
     try:
         return importlib.util.find_spec("aiohttp_socks") is not None
     except (ImportError, ValueError):
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return False
 
 
@@ -57,6 +58,7 @@ def _socks_port_reachable(host: str, port: int) -> bool:
         with socket.create_connection((host, port), timeout=_SOCKS_PROBE_TIMEOUT):
             return True
     except OSError:
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return False
 
 

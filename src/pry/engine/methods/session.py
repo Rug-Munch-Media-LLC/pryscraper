@@ -64,6 +64,7 @@ class PersistentSession:
         try:
             parsed = urlparse(url)
         except ValueError:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return None
         if parsed.scheme not in ("http", "https") or not parsed.netloc:
             return None
@@ -104,6 +105,7 @@ class PersistentSession:
             self._warmed = True
             return True
         except (httpx.HTTPError, InvalidRequestError):
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return False
         except Exception:  # noqa: BLE001 - never-raise guard
             logger.debug("persistent_session_warmup_failed", exc_info=True)
@@ -125,6 +127,7 @@ class PersistentSession:
         try:
             validate_url(url)
         except InvalidRequestError:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return None
         client = await self._ensure_client()
         if not self._warmed:
@@ -137,6 +140,7 @@ class PersistentSession:
         try:
             return await safe_get(client, url, params=params, max_redirects=self.max_redirects)
         except (httpx.HTTPError, InvalidRequestError):
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return None
         except Exception:  # noqa: BLE001 - never-raise guard
             logger.debug("persistent_session_fetch_failed", exc_info=True)

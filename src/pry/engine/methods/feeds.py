@@ -18,6 +18,9 @@ from pry.engine.methods._common import _localname, _resolve_candidate
 
 if TYPE_CHECKING:
     from xml.etree.ElementTree import Element as _ETElement
+import logging
+
+logger = logging.getLogger(__name__)
 
 _FEED_TAG_RE = re.compile(r"<link\b[^>]*>", re.IGNORECASE)
 _FEED_REL_ALTERNATE_RE = re.compile(r"""rel\s*=\s*["']alternate["']""", re.IGNORECASE)
@@ -97,6 +100,7 @@ def parse_feed(url: str) -> list[dict[str, str]]:
         # (defusedxml used for safe XML parsing of untrusted input.)
         root = ET.fromstring(response.text)
     except (ET.ParseError, ValueError):
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return []
     root_name = _localname(root.tag)
     if root_name == "rss":

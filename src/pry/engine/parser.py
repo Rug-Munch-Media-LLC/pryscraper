@@ -12,10 +12,13 @@ Temp files are always cleaned up in finally blocks.
 import asyncio
 import contextlib
 import io
+import logging
 import os
 import tempfile
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentParser:
@@ -74,6 +77,7 @@ class DocumentParser:
                 text = data.decode("utf-8", errors="replace")
                 return {"text": text[:500000], "format": "unknown", "pages": 1}
             except UnicodeDecodeError:
+                logger.warning("silent_exception_swallowed", exc_info=True)
                 return {
                     "text": f"[Binary file: {filename}, {len(data)} bytes]",
                     "format": "binary",
@@ -125,6 +129,7 @@ class DocumentParser:
             )
             return {"text": result.stdout, "format": "image", "pages": 1}
         except OSError as e:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {"text": f"[Image OCR failed: {e}]", "format": "image", "pages": 0}
         finally:
             if fname and os.path.exists(fname):

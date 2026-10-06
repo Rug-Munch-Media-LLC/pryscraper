@@ -151,6 +151,7 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
         try:
             validate_url(url)
         except InvalidRequestError as e:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {"status": "error", "url": url, "error": str(e)}
 
         proxy_url = self._resolve_proxy_url(opts)
@@ -273,6 +274,7 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
                     )
                     i += 1
         except TimeoutError:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             errors.append("timeout_45s")
 
         self._record_telemetry(domain, ordered_names, attempts, None, False, scrape_start, errors)

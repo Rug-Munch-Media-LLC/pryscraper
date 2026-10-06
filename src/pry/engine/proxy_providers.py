@@ -16,12 +16,16 @@ focused on selection/health.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 try:
     from pry.commerce.proxy_referrals import PROVIDER_REFERRALS as _PROXY_REFERRALS
 except ImportError:  # proxy_referrals module not always present in slim installs
+    logger.warning("silent_exception_swallowed", exc_info=True)
     _PROXY_REFERRALS: dict[str, dict[str, Any]] = {}
 
 # Free proxy sources (no signup required)
@@ -257,4 +261,5 @@ def parse_ts(ts: str) -> float:
     try:
         return datetime.fromisoformat(ts).timestamp()
     except (ValueError, TypeError):
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return 0.0

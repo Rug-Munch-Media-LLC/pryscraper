@@ -69,6 +69,7 @@ class SchemaExtractor:
         try:
             tree = lxml_html.fromstring(html)
         except ParserError:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return []
         results: list[dict[str, Any]] = []
         for elem in tree.xpath("//*[@itemtype]"):
@@ -96,6 +97,7 @@ class SchemaExtractor:
         try:
             tree = lxml_html.fromstring(html)
         except ParserError:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return []
         results: list[dict[str, Any]] = []
         for elem in tree.xpath("//*[@typeof]"):

@@ -107,8 +107,8 @@ class TierBase:
             )
             if content and len(content) > 100:
                 return content
-        except Exception:  # noqa: S110 - fallback: try the next extractor
-            pass
+        except Exception:
+            logger.warning("silent_exception_swallowed", exc_info=True)
         try:
             from readability import Document
 
@@ -118,8 +118,8 @@ class TierBase:
                 from markdownify import markdownify
 
                 return markdownify(content, heading_arrows=False, strip=["script", "style"])  # type: ignore[call-arg]  # markdownify supports heading_arrows at runtime
-        except Exception:  # noqa: S110 - fallback: strip tags as last resort
-            pass
+        except Exception:
+            logger.warning("silent_exception_swallowed", exc_info=True)
         # Last resort: strip HTML tags
         text = re.sub(r"<[^>]+>", " ", html)
         text = re.sub(r"\s+", " ", text).strip()

@@ -35,6 +35,7 @@ try:
 
     _has_camoufox = True
 except ImportError:
+    logger.warning("silent_exception_swallowed", exc_info=True)
     _has_camoufox = False
 
 # Module-level pooled Camoufox browser: launched once, reused across requests
@@ -142,6 +143,7 @@ class CamoufoxBrowser:
             async with AsyncCamoufox(**config) as fresh:
                 return await self._run_on_browser(fresh, spec)
         except Exception as e:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {"success": False, "error": str(e)[:300], "url": url}
 
     async def fetch_with_stealth(

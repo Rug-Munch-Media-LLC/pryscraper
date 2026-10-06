@@ -26,21 +26,21 @@ try:
 
     _pdfplumber = True
 except ImportError:  # optional dependency — feature degrades gracefully
-    pass
+    logger.warning("silent_exception_swallowed", exc_info=True)
 
 try:
     import camelot  # noqa: F401
 
     _camelot = True
 except ImportError:  # optional dependency — feature degrades gracefully
-    pass
+    logger.warning("silent_exception_swallowed", exc_info=True)
 
 try:
     from pdfminer.high_level import extract_text  # noqa: F401
 
     _pdfminer = True
 except ImportError:  # optional dependency — feature degrades gracefully
-    pass
+    logger.warning("silent_exception_swallowed", exc_info=True)
 
 
 class PDFTableExtractor:

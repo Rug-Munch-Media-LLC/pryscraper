@@ -132,6 +132,7 @@ def _parse_braced_json(text: str, start: int) -> dict[str, Any] | None:
                         return parsed
                     return None
                 except json.JSONDecodeError:
+                    logger.warning("silent_exception_swallowed", exc_info=True)
                     return None
     return None
 

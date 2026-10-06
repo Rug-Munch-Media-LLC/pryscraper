@@ -22,6 +22,7 @@ try:
 
     _has_tesseract = True
 except ImportError:  # pragma: no cover - optional OCR extra
+    logger.warning("silent_exception_swallowed", exc_info=True)
     pytesseract = None  # type: ignore[assignment]
     Image = None  # type: ignore[assignment]
     _has_tesseract = False
@@ -71,6 +72,7 @@ class ImageOCR:
                 "language": self.language,
             }
         except OSError as e:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {"success": False, "error": str(e)[:200]}
 
     def extract_from_file(self, image_path: str) -> dict[str, Any]:
@@ -90,6 +92,7 @@ class ImageOCR:
             if resp.is_success:
                 return self.extract_from_bytes(resp.content)
         except (httpx.HTTPError, httpx.RequestError) as e:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {"success": False, "error": str(e)[:200]}
         return {"success": False, "error": "Failed to download image"}
 

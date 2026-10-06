@@ -31,6 +31,7 @@ try:
 
     _has_curl_cffi = True
 except ImportError:
+    logger.warning("silent_exception_swallowed", exc_info=True)
     _has_curl_cffi = False
 
 # Browser fingerprints that curl_cffi can impersonate
@@ -173,7 +174,10 @@ class TLSScraper:
                     "elapsed": round(elapsed, 2),
                     "impersonate": impersonate,
                 }
-        except Exception as e:  # noqa: BLE001  # curl_cffi raises heterogeneous exceptions; dict-contract error path
+        except (
+            Exception
+        ) as e:  # curl_cffi raises heterogeneous exceptions; dict-contract error path
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return {
                 "success": False,
                 "error": str(e)[:300],

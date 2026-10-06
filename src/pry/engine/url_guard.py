@@ -103,7 +103,7 @@ def _validate_host(
         ip = ipaddress.ip_address(hostname)
     except ValueError:
         # Not an IP literal — continue with hostname checks.
-        pass
+        logger.warning("silent_exception_swallowed", exc_info=True)
     else:
         for net in _PRIVATE_NETS:
             if ip in ipaddress.ip_network(net):
@@ -125,6 +125,7 @@ def _validate_host(
             try:
                 ip = ipaddress.ip_address(addr)
             except ValueError:
+                logger.warning("silent_exception_swallowed", exc_info=True)
                 continue
             for net in _PRIVATE_NETS:
                 if ip in ipaddress.ip_network(net):

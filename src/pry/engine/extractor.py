@@ -9,13 +9,15 @@ No hallucination: JSON output is always parsed and validated.
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 import json
+import logging
 import os
 import re
 from typing import Any
 
 from pry.engine.resilience import registry
+
+logger = logging.getLogger(__name__)
 
 
 def _find_labeled_value(content: str, field: str) -> str | None:
@@ -115,7 +117,8 @@ class SchemaExtractor:
                 # Merge: LLM values override pattern, but pattern fills gaps
                 merged = {**pattern_result, **llm_result}
                 return {k: v for k, v in merged.items() if v is not None and v != ""}
-        except Exception:  # noqa: BLE001
+        except Exception:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             registry.record_service_result("ollama", False)
 
         return pattern_result
@@ -171,5 +174,6 @@ class SchemaExtractor:
             registry.record_service_result("ollama", True)
             return {"_raw": response[:500]}
         except (json.JSONDecodeError, ValueError) as e:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             registry.record_service_result("ollama", False)
             return {"_error": str(e)}

@@ -73,6 +73,7 @@ async def fetch_gmail_emails(
         return _build_result(emails, failed_ids)
 
     except (httpx.HTTPError, httpx.RequestError) as e:
+        logger.warning("silent_exception_swallowed", exc_info=True)
         return {"success": False, "error": str(e)[:300]}
 
 
@@ -153,7 +154,8 @@ def _get_gmail_body(payload: dict[str, Any]) -> str:
         data = payload["body"]["data"]
         try:
             return base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
-        except Exception:  # noqa: BLE001
+        except Exception:
+            logger.warning("silent_exception_swallowed", exc_info=True)
             return ""
 
     # Check parts
@@ -163,7 +165,8 @@ def _get_gmail_body(payload: dict[str, Any]) -> str:
             data = part["body"]["data"]
             try:
                 return base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
-            except Exception:  # noqa: BLE001, S112 - one bad part must not fail the whole message
+            except Exception:
+                logger.warning("silent_exception_swallowed", exc_info=True)
                 continue
         # Recursive check
         if part.get("parts"):
