@@ -1,10 +1,8 @@
 """TikTok Shop marketplace scraper — product detail + trending (keyless).
-
 Fetches the unauthenticated web render endpoint
 (``https://www.tiktok.com/shop/pdp/render/{product_id}`` — the JSON the
 TikTok Shop web app itself uses, no API key) with an OpenGraph-meta
 fallback on the product page, then normalizes into the marketplace schema.
-
 ``get_trending`` attempts the category bestseller page; TikTok Shop's
 bestseller surfaces are JS-rendered and require signed requests, so when
 the scrape yields nothing it returns ``[]`` (or clearly-marked placeholder
@@ -108,6 +106,7 @@ def _tiktok_price(value: Any) -> tuple[float, str]:
         try:
             amount = float(token.replace(",", ""))
         except ValueError:
+            logger.warning("tiktok_shop_suppressed", exc_info=True)
             continue
     return amount, currency
 
@@ -246,6 +245,7 @@ async def get_trending(limit: int = 50) -> list[dict[str, Any]]:
     try:
         cap = max(1, min(int(limit), 100))
     except (TypeError, ValueError):
+        logger.warning("tiktok_shop_suppressed", exc_info=True)
         cap = 50
     try:
         # Best-effort: the bestseller JSON surface used by some regions.

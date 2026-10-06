@@ -1,5 +1,4 @@
 """Marketplace HTTP transport — UA rotation, retries, robots.txt honoring.
-
 Never raises: every fetch returns ``None`` on failure. Retries with
 exponential backoff on 429 (honoring Retry-After), 5xx and transport
 errors; any other 4xx is a hard failure.
@@ -44,6 +43,7 @@ def _retry_after_seconds(resp: httpx.Response) -> float | None:
     try:
         return float(value)
     except ValueError:
+        logger.warning("http_suppressed", exc_info=True)
         return None
 
 
@@ -62,7 +62,6 @@ async def _fetch_html(
     request_timeout: httpx.Timeout = HTTP_TIMEOUT,
 ) -> str | None:
     """GET ``url`` and return the response text; None on any failure.
-
     Never raises. Rotates the User-Agent per attempt, retries with
     exponential backoff on 429 (honoring Retry-After), 5xx and transport
     errors, and treats any 4xx as a hard failure.
@@ -119,6 +118,7 @@ async def _fetch_json(
     try:
         return json.loads(text)
     except ValueError:
+        logger.warning("http_suppressed", exc_info=True)
         return None
 
 
@@ -174,7 +174,8 @@ async def _fetch_robots(host: str, path: str) -> bool:
         if resp.status_code == 200:
             allow, disallow = _robots_rules(resp.text)
     except httpx.HTTPError:
-        pass  # robots.txt unreachable → allow (standard convention)
+        logger.warning("http_suppressed", exc_info=True)
+        # robots.txt unreachable → allow (standard convention)
     for rule in allow:
         if _rule_matches(rule, path):
             return True
@@ -190,6 +191,7 @@ async def _robots_allowed(url: str) -> bool:
         host = parts.hostname or ""
         path = parts.path or "/"
     except ValueError:
+        logger.warning("http_suppressed", exc_info=True)
         return True
     if not host:
         return True

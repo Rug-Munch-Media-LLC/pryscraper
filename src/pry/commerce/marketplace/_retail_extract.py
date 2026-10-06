@@ -1,9 +1,7 @@
 """Embedded-JSON extraction for retail marketplace pages.
-
 Extracts JSON-LD ``Product`` / ``ItemList`` objects and the Next.js
 ``__NEXT_DATA__`` state / ``window.__INITIAL_STATE__`` /
 ``__PRELOADED_STATE__`` / ``__APOLLO_STATE__`` redux blobs.
-
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
@@ -14,10 +12,13 @@ Extracts JSON-LD ``Product`` / ``ItemList`` objects and the Next.js
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 
 from pry.commerce.marketplace import _find_script_json
+
+logger = logging.getLogger(__name__)
 
 _WINDOW_STATE_MARKERS = (
     "__NEXT_DATA__",
@@ -65,6 +66,7 @@ def _extract_window_state(html_text: str, marker: str) -> Any:
                     data = json.loads(html_text[start : i + 1])
                     return data if isinstance(data, dict) else None
                 except json.JSONDecodeError:
+                    logger.warning("retail_extract_suppressed", exc_info=True)
                     return None
     return None
 
@@ -88,6 +90,7 @@ def _json_ld_objects(html_text: str) -> list[Any]:
         try:
             data = json.loads(match.group(1).strip())
         except json.JSONDecodeError:
+            logger.warning("retail_extract_suppressed", exc_info=True)
             continue
         if isinstance(data, list):
             out.extend(data)

@@ -1,11 +1,9 @@
 """Walmart marketplace scraper — product detail + search (keyless).
-
 Fetches the public product page (``https://www.walmart.com/ip/{product_id}``)
 and search page (``https://www.walmart.com/search?q={query}``) and parses
 the ``__NEXT_DATA__`` JSON embedded in the page — a free, no-API approach.
 Falls back to Walmart's ``__WML_REDUX_INITIAL_STATE__`` JSON and then to
 OpenGraph meta tags when ``__NEXT_DATA__`` is missing.
-
 Contract:
 
 * ``get_product(product_id)`` → ``{product_id,title,price,currency,seller,
@@ -93,6 +91,7 @@ def _product_state(data: Any) -> dict[str, Any]:
     try:
         product = data["props"]["pageProps"]["initialData"]["data"].get("product")
     except (KeyError, TypeError):
+        logger.warning("walmart_suppressed", exc_info=True)
         product = None
     if isinstance(product, dict) and ("name" in product or "priceInfo" in product):
         return product
@@ -116,6 +115,7 @@ def _search_items(data: Any) -> list[dict[str, Any]]:
     try:
         search_result = data["props"]["pageProps"]["initialData"]["searchResult"]
     except (KeyError, TypeError):
+        logger.warning("walmart_suppressed", exc_info=True)
         search_result = None
     items: list[dict[str, Any]] = []
     for result in (
@@ -235,6 +235,7 @@ async def search_products(query: str, limit: int = 20) -> list[dict[str, Any]]:
     try:
         cap = max(1, min(int(limit), 100))
     except (TypeError, ValueError):
+        logger.warning("walmart_suppressed", exc_info=True)
         cap = 20
     try:
         html_text = await _fetch_html(

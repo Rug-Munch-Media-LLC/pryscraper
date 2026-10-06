@@ -1,5 +1,4 @@
 """Marketplace parsing helpers — text cleanup, coercion, price parsing, HTML.
-
 Internal helpers (``_``-prefixed) shared by the marketplace submodules;
 not part of the public API.
 """
@@ -13,13 +12,14 @@ from __future__ import annotations
 
 import html
 import json
+import logging
 import re
 from typing import Any
 
 from lxml import html as lxml_html
 
+logger = logging.getLogger(__name__)
 # ── Shared small helpers ───────────────────────────────────────────────
-
 _WHITESPACE_RE = re.compile(r"\s+")
 
 
@@ -35,6 +35,7 @@ def _to_float(value: Any, default: float = 0.0) -> float:
             return default
         return float(value)
     except (TypeError, ValueError):
+        logger.warning("helpers_suppressed", exc_info=True)
         return default
 
 
@@ -45,6 +46,7 @@ def _to_int(value: Any, default: int = 0) -> int:
             return default
         return int(float(value))
     except (TypeError, ValueError, OverflowError):
+        logger.warning("helpers_suppressed", exc_info=True)
         return default
 
 
@@ -78,6 +80,7 @@ def _price_parts(text: Any) -> tuple[float, str]:
     try:
         amount = float(raw)
     except ValueError:
+        logger.warning("helpers_suppressed", exc_info=True)
         return 0.0, ""
     symbol = (match.group("sym") or "").strip()
     return amount, _SYMBOL_CURRENCY.get(symbol, "")
@@ -101,6 +104,7 @@ def _lxml_doc(html_text: str) -> Any:
     try:
         return lxml_html.fromstring(html_text)
     except (ValueError, TypeError):
+        logger.warning("helpers_suppressed", exc_info=True)
         return None
 
 
@@ -118,6 +122,7 @@ def _find_script_json(html_text: str, script_id: str) -> Any:
     try:
         return json.loads(match.group(1).strip())
     except ValueError:
+        logger.warning("helpers_suppressed", exc_info=True)
         return None
 
 
@@ -138,6 +143,7 @@ def _find_redux_state(html_text: str) -> Any:
     try:
         return json.loads(match.group(1))
     except ValueError:
+        logger.warning("helpers_suppressed", exc_info=True)
         return None
 
 
