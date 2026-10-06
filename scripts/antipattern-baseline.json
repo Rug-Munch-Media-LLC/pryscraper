@@ -1,13 +1,12 @@
 {
- "rules": {
-  "god-file": 42,
-  "too-many-params": 181,
-  "monkeypatch": 1217,
-  "long-function": 96,
-  "hardcoded-secret": 1,
-  "bare-except": 850,
-  "slop-markers": 2,
-  "fstring-logging": 6
- },
- "total": 2395
+	"rules": {
+		"god-file": 40,
+		"too-many-params": 179,
+		"long-function": 92,
+		"bare-except": 524,
+		"slop-markers": 1,
+		"fstring-logging": 6,
+		"monkeypatch": 3
+	},
+	"total": 845
 }

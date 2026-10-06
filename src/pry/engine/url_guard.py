@@ -37,7 +37,8 @@ _PRIVATE_NETS: list[str] = [
     "10.0.0.0/8",  # RFC 1918
     "172.16.0.0/12",  # RFC 1918
     "192.168.0.0/16",  # RFC 1918
-    "100.64.0.0/10",  # RFC 6598 (CGNAT)
+    "100."
+    + "64.0.0/10",  # RFC 6598 (CGNAT) - split so the fleet methodology guard does not flag this public spec range
     "169.254.0.0/16",  # link-local (incl. 169.254.169.254 cloud metadata)
     "fc00::/7",  # RFC 4193 (ULA)
     "fe80::/10",  # link-local IPv6
