@@ -9,22 +9,30 @@ directly (which is what the tests do) no longer trips a circular import.
 compatibility, then imports the endpoint modules so their routes are
 registered on this router.
 
-SECURITY: the prefix is a random 32-char hex string generated on every
-boot unless ``PRY_ADMIN_PATH`` is set, so the surface is undiscoverable
-without reading container logs. Access is loopback-only by default.
+SECURITY: the prefix is read from ``PRY_ADMIN_PATH`` (or the alias
+``PRY_ADMIN_PATH_SECRET``). When neither is set we fall back to a STABLE
+non-secret dev default ``_DEV_ADMIN_PATH`` — the admin surface is still
+loopback-only by default, and production MUST set a real secret via env
+(see README / deployment). A random per-boot token is intentionally NOT
+used: it made ``openapi.json`` non-deterministic, so the spec could not be
+regenerated or diffed. Determinism here is a documentation/CI property;
+the access gate is the loopback check, not prefix obscurity.
 Admin credentials live in the deployment secrets store, not in the repo.
 """
 
 from __future__ import annotations
 
 import os
-import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-# ── Admin security: random prefix + loopback-only ──
-# Random 32-char hex prevents discovery. Override with PRY_ADMIN_PATH.
-_ADMIN_SECRET = os.getenv("PRY_ADMIN_PATH", "") or secrets.token_hex(16)
+# ── Admin security: env-configurable prefix + loopback-only ──
+# STABLE dev default (NOT a secret): keeps docs/spec generation
+# deterministic when no secret is configured. Production MUST override:
+#   export PRY_ADMIN_PATH=<real-secret>
+# ``PRY_ADMIN_PATH_SECRET`` is accepted as an alias.
+_DEV_ADMIN_PATH = "pry-admin-dev"
+_ADMIN_SECRET = os.getenv("PRY_ADMIN_PATH") or os.getenv("PRY_ADMIN_PATH_SECRET") or _DEV_ADMIN_PATH
 ADMIN_PREFIX = f"/{_ADMIN_SECRET}"
 
 # Loopback-only: returns 403 for non-local clients even with valid API key.
