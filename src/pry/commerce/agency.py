@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 AGENCY_DIR = PRY_DATA_DIR / "agency"
 AGENCY_DIR.mkdir(parents=True, exist_ok=True)
 
-
 # ── Agency Profile ──
 
 
@@ -58,6 +57,7 @@ def create_agency(
         logger.info("agency_created", extra={"agency_id": agency_id, "agency_name": name})
         return {"success": True, "agency": agency}
     except OSError as e:
+        logger.warning("agency_suppressed", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
@@ -69,6 +69,7 @@ def get_agency(agency_id: str) -> dict[str, Any] | None:
     try:
         return cast("dict[str, Any]", json.loads(path.read_text()))
     except (json.JSONDecodeError, OSError):
+        logger.warning("agency_suppressed", exc_info=True)
         return None
 
 
@@ -98,6 +99,7 @@ def update_agency_branding(
         path.write_text(json.dumps(agency, indent=2))
         return {"success": True, "agency": agency}
     except OSError as e:
+        logger.warning("agency_suppressed", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
@@ -139,6 +141,7 @@ def create_client(
         logger.info("client_created", extra={"client_id": client_id, "agency_id": agency_id})
         return {"success": True, "client": {k: v for k, v in client.items() if k != "api_key"}}
     except OSError as e:
+        logger.warning("agency_suppressed", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
@@ -152,6 +155,7 @@ def get_client(client_id: str) -> dict[str, Any] | None:
         # Strip API key from response
         return {k: v for k, v in data.items() if k != "api_key"}
     except (json.JSONDecodeError, OSError):
+        logger.warning("agency_suppressed", exc_info=True)
         return None
 
 
@@ -164,6 +168,7 @@ def list_clients(agency_id: str) -> list[dict[str, Any]]:
             if data.get("agency_id") == agency_id:
                 clients.append({k: v for k, v in data.items() if k != "api_key"})
         except (json.JSONDecodeError, OSError):
+            logger.warning("agency_suppressed", exc_info=True)
             continue
     return clients
 
@@ -179,6 +184,7 @@ def update_client_quota(client_id: str, new_quota: int) -> dict[str, Any]:
         path.write_text(json.dumps(client, indent=2))
         return {"success": True, "client_id": client_id, "monthly_quota": new_quota}
     except (json.JSONDecodeError, OSError) as e:
+        logger.warning("agency_suppressed", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
@@ -193,6 +199,7 @@ def record_client_usage(client_id: str, requests: int = 1) -> dict[str, Any]:
         path.write_text(json.dumps(client, indent=2))
         return {"success": True, "usage": client["usage_this_month"]}
     except (json.JSONDecodeError, OSError) as e:
+        logger.warning("agency_suppressed", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
@@ -215,6 +222,7 @@ def check_client_quota(client_id: str) -> dict[str, Any]:
             "exceeded": usage >= quota,
         }
     except (json.JSONDecodeError, OSError) as e:
+        logger.warning("agency_suppressed", exc_info=True)
         return {"success": False, "error": str(e)}
 
 

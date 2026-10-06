@@ -60,8 +60,10 @@ async def write_to_slack(
             return {"success": False, "error": f"Slack returned {resp.status_code}: {error_body}"}
         return {"success": True, "destination": "slack"}
     except httpx.InvalidURL:
+        logger.warning("destinations_suppressed", exc_info=True)
         return {"success": False, "error": "Invalid Slack webhook URL"}
     except httpx.RequestError as e:
+        logger.warning("destinations_suppressed", exc_info=True)
         return {"success": False, "error": f"Slack request failed: {str(e)[:200]}"}
 
 
@@ -143,8 +145,10 @@ async def _write_to_sheets_api(
         }
 
     except json.JSONDecodeError:
+        logger.warning("destinations_suppressed", exc_info=True)
         return {"success": False, "error": "Invalid credentials JSON"}
     except ValueError as e:
+        logger.warning("destinations_suppressed", exc_info=True)
         return {"success": False, "error": str(e)[:200]}
 
 
@@ -199,6 +203,7 @@ async def write_to_airtable(
                     }
                 )
         except (httpx.HTTPError, httpx.RequestError) as e:
+            logger.warning("destinations_suppressed", exc_info=True)
             all_results.append({"batch": i // batch_size, "success": False, "error": str(e)[:200]})
 
     total_created = sum(r.get("created", 0) for r in all_results if r.get("success"))
@@ -270,7 +275,8 @@ async def _send_smtp(
             server.send_message(msg)
 
         return {"success": True, "destination": "email"}
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
+        logger.warning("destinations_suppressed", exc_info=True)
         return {"success": False, "error": f"SMTP error: {str(e)[:200]}"}
 
 
