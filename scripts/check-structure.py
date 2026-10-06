@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """check-structure.py — firm per-file size policy (shrink-only ratchet).
 
-Policy: >150 REPORTED · >200 HARD FAIL unless allowlisted · allowlisted files
-may never GROW · >500 HARD FAIL unless allowlisted. ``--update-baseline``
-only ever removes/shrinks; per-repo roots via [tool.fleet-gates].scan-roots.
+Policy: >500 HARD FAIL. Line count is a coarse proxy only — the enforced rule is
+the 500-line hard cap; the real design rule is one module = one responsibility
+(less is more). Growth under 500 is REPORTED, never a failure, so agents optimise
+cohesion instead of an arbitrary number. ``--update-baseline`` only removes/shrinks:
+per-repo roots via [tool.fleet-gates].scan-roots.
 
 Usage: python3 scripts/check-structure.py [--repo .] [--update-baseline]
 """
@@ -19,7 +21,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 ADVISORY_THRESHOLD = 150
-FAIL_THRESHOLD = 200
+FAIL_THRESHOLD = 500
 GOD_THRESHOLD = 500
 DEFAULT_BASELINE = "scripts/structure-baseline.json"
 
@@ -142,7 +144,12 @@ def evaluate(
         if path in base:
             recorded = base[path]
             if n > recorded:
-                failures.append(f"{path}: {recorded} -> {n} lines (allowlisted file grew)")
+                # Growth is no longer a failure (2026-10-06): a shrink-only line
+                # count made agents race to hit an arbitrary number instead of
+                # improving cohesion. Modularity is a DESIGN principle (one module
+                # = one responsibility), not a constant; the only enforced line
+                # rule is the >500 hard cap below.
+                reports.append(f"{path}: {recorded} -> {n} lines (grew; advisory only)")
             elif n < recorded:
                 shrinks.append(f"{path}: {recorded} -> {n} (run --update-baseline)")
             if n <= FAIL_THRESHOLD:
