@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """The network half of the scrape-ladder backtest: source set, probe, warm-up.
-
 WHY THIS EXISTS. Every change to the tier chain so far has been argued rather
 than measured. The timeout fix (30 -> 120) was correct and I could not prove
 it: the only evidence was one site that happened to work once. Worse, the
@@ -36,10 +35,6 @@ logger = logging.getLogger(__name__)
 
 PRY_URL = os.getenv("PRY_URL", "http://127.0.0.1:8005")
 
-#: Labelled sources. `expect` is what a HEALTHY chain should achieve, measured
-#: with plain curl and a browser User-Agent before this harness existed — not
-#: what Pry currently returns. That distinction is the point: a tier that fails
-#: to deliver a source curl can read is a tier burning time and money.
 SOURCES: list[dict[str, Any]] = [
     {"url": "https://rekt.news/", "expect": "ok", "note": "html, plain"},
     {"url": "https://blog.trailofbits.com/", "expect": "ok", "note": "html, plain"},
@@ -52,27 +47,11 @@ SOURCES: list[dict[str, Any]] = [
         "expect": "blocked",
         "note": "403 to curl; RSS is the answer",
     },
-    # 2026-08-29: blog.soliditylang.com REMOVED, replaced by three sources that
-    # are actually reachable and that exercise the browser tier.
-    #
-    # Why it was removed rather than fixed: the host answers the TLS ClientHello
-    # with `tlsv1 unrecognized name` and presents NO certificate. openssl
-    # tolerates that and prints "Verify return code: 0"; Chrome does not, so the
-    # browser FlareSolverr drives fails with net::ERR_SSL_UNRECOGNIZED_NAME_ALERT
-    # and the tier intermittently returns 0 bytes. Both A records (13.248.169.48,
-    # 76.223.154.146) behave identically, so it is a hostname/cert
-    # misconfiguration at the site, not one bad backend in a pool. No ladder
-    # ordering, proxy, tier or timeout can make a hostname with no certificate
-    # load in a browser, and a source that is unreachable for reasons outside our
-    # control is a bad test fixture: it pins the baseline at 7/8 forever and makes
-    # every future run look like a regression.
     {"url": "https://bitcoin.org/en/", "expect": "ok", "note": "browser tier, small"},
     {"url": "https://geth.ethereum.org/", "expect": "ok", "note": "browser tier"},
     {"url": "https://base.org/", "expect": "ok", "note": "browser tier, JS-rendered"},
 ]
 
-#: Sources used to warm a specific tier, because the tier pool is shared and
-#: cold-starting it is what produces the misleading latency.
 WARMUP_TIERS = ("https://base.org/",)
 
 

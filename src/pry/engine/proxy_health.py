@@ -9,7 +9,6 @@ attributes (``health_window_size``, ``consecutive_failure_threshold``,
 Proxies are the LAST-RESORT fallback tier, so only healthy, known-good
 proxies should ever be returned by ``get_proxy_url()``/``get_best_proxy()``.
 
-# SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper

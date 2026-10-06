@@ -3,11 +3,6 @@
 Signs and broadcasts EIP-3009 ``transferWithAuthorization`` (or pre-approved
 ``transferFrom``) settlements with idempotency and error taxonomy.
 """
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
@@ -38,8 +33,6 @@ logger = logging.getLogger(__name__)
 
 class EVMSettleMixin:
     """Settlement broadcast for :class:`SelfFacilitator`."""
-
-    # ── settle ───────────────────────────────────────────────────────────────
 
     async def settle(self, payment: dict[str, Any]) -> str | None:
         """Sign + broadcast settlement. Returns the tx hash, or None.
@@ -82,8 +75,6 @@ class EVMSettleMixin:
         network = normalize_network_id(str(payment.get("network") or ""))
         asset = str(payment.get("asset") or X402_DEFAULT_ASSET).upper()
 
-        # Testnet rejection (fix #2) — never broadcast settlement on a testnet
-        # unless explicitly allowed (dev/test only, debug-gated).
         if is_testnet_network(network) and not _allow_testnets():
             return SettleOutcome(
                 False,
@@ -106,8 +97,6 @@ class EVMSettleMixin:
                 error_detail=f"no EVM chain id known for {network}",
             )
 
-        # Idempotency: an already-settled payment returns the existing hash —
-        # never re-broadcast (double-spend of the same authorization).
         settle_id = self._settlement_id(payment)
         if settle_id and settle_id in self._settled_txs:
             existing = str(self._settled_txs[settle_id])
@@ -154,7 +143,6 @@ class EVMSettleMixin:
         self._mark_pending(pid)
         try:
             async with self._client() as client:
-                # Refuse to broadcast on the wrong chain.
                 onchain_chain = await self._rpc_call(client, "eth_chainId", [])
                 if onchain_chain is not None:
                     try:

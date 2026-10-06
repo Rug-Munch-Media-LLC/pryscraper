@@ -5,9 +5,6 @@ is preserved via the package __init__.
 """
 
 import logging
-
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
 from typing import Any
 
 from pry.payments.x402 import X402_PRICING
@@ -31,13 +28,7 @@ except ImportError as exc:  # optional dependency
     )
     X402_GATE_MISCONFIGURED = None
 
-# Path prefix -> x402 operation. ``path.startswith(prefix)`` gates the
-# endpoint, so a bare prefix (e.g. "/v1/capture") covers every sub-route.
-# Every operation here MUST exist in X402_PRICING or the gate is skipped.
 PAID_ENDPOINTS = {
-    # NOTE: prefix order matters — the first matching prefix wins, so the
-    # more specific /v1/scrape/methods (scrape-method registry, $0.002) must
-    # be listed before the broad /v1/scrape gate.
     "/v1/scrape/methods": "scrape_methods",
     "/v1/scrape": "scrape",
     # Specific prefixes MUST precede their broad parents (first match wins).

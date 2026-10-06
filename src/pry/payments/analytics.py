@@ -1,10 +1,4 @@
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 """Payment analytics dashboard for Pry.
-
 Tracks revenue, volume, top payers, conversion funnels, and payment method performance.
 """
 
@@ -16,7 +10,6 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pry.payments.earnings import EarningsTracker
-
 logger = logging.getLogger(__name__)
 
 
@@ -111,8 +104,6 @@ class PaymentAnalytics:
 
         router = get_facilitator_router()
         return router.facilitator_stats()
-
-    # ── Unified earnings (delegates to EarningsTracker) ─────────────────────
 
     def get_total_earnings(self, days: int = 30) -> dict[str, Any]:
         """Total earnings across ALL streams (x402, packs, subscriptions, actors)."""
@@ -217,7 +208,6 @@ class PaymentAnalytics:
         return settlements
 
 
-# Global analytics instance
 _analytics: PaymentAnalytics | None = None
 
 

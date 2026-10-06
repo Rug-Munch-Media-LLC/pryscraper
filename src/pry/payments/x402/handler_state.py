@@ -5,11 +5,6 @@ replay-hardening indexes (consumed txs, settled txs), the hook registries,
 the payment gate (``is_paid`` / ``_amount_covers``) and stats reporting.
 Mixed into :class:`~pry.payments.x402.handler.X402Handler` as ``StateMixin``.
 """
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
@@ -45,8 +40,6 @@ from pry.payments.x402.scheme import (
 
 logger = logging.getLogger(__name__)
 
-# Reuse the handler module's logger so log records keep their original
-# logger name (tests filter caplog on ``pry.payments.x402.handler``).
 logger = logging.getLogger("pry.payments.x402.handler")
 
 
@@ -59,9 +52,6 @@ class StateMixin:
     ``_settled_txs``, ``_authorized_payments`` and the hook lists).
     """
 
-    # Host-supplied state (declared here for type-checking only; the concrete
-    # ``X402Handler.__init__`` assigns them). Bare annotations create no
-    # runtime attributes, so mixin behaviour is unchanged.
     wallet: str
     facilitator_url: str
     payments_file: Path
@@ -134,9 +124,6 @@ class StateMixin:
         DB is authoritative when reachable; the file append is best-effort
         and never blocks the payment flow.
         """
-        # Ensure the in-memory payment index is loaded before appending —
-        # ``verify_payment`` records a payment without a prior ``is_paid`` /
-        # ``_tx_consumed`` read, so ``self.payments`` may not be initialized yet.
         self._ensure_loaded()
         if self._use_db:
             try:
@@ -184,7 +171,6 @@ class StateMixin:
         concurrent duplicate returns the existing receipt instead of writing
         a second row. Callers index the success path themselves.
         """
-        # Customer attribution: inherit the caller_key from the payment record
         # so the settlement row can be queried by user_id directly.
         settlement.setdefault(
             "user_id", self._payment_caller_key(str(settlement.get("payment_id") or ""))

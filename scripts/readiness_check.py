@@ -4,7 +4,6 @@ Read-only. Offline. Deterministic. Prints PASS/FAIL per check and exits
 non-zero if any check fails. It mutates nothing and is safe to run in CI.
 Usage:
     python3 scripts/readiness_check.py
-
 Exit code:
     0  every readiness check passed  → app is go-live ready
     1  one or more checks failed     → see FAIL lines / backlog
@@ -20,13 +19,11 @@ import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
-
 ROOT = Path(__file__).resolve().parent.parent
 
 
 def _run(args: list[str], **kw: object) -> subprocess.CompletedProcess[str]:
     """Run a command from ROOT, capturing output. Never raises on exit code."""
-    # args are hard-coded by the checks below; no untrusted input reaches here.
     return subprocess.run(  # noqa: S603
         args, cwd=ROOT, capture_output=True, text=True, timeout=120, **kw
     )

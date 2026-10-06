@@ -1,20 +1,12 @@
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 """Target reachability precheck — classify a target BEFORE blaming a tier.
-
 The failure this prevents: an operator sees a browser tier fail, assumes Pry
 is broken, and rebuilds a ladder that was never the problem. The usual cause is
 an unreachable target presented as a scrape error. Unreachable is a fact about
 the TARGET, not about us.
-
 The TLS half exists because ``openssl s_client`` prints
 ``Verify return code: 0`` even when the handshake failed and NO peer
 certificate was presented. That line alone is not evidence; only a subject
 plus a SAN covering the hostname is.
-
 Classification is pure — ``classify``/``classify_tls``/``blame_tier`` open no
 socket, so the taxonomy is testable offline by injecting :class:`TargetProbe`.
 """
@@ -55,7 +47,6 @@ class Reachability(StrEnum):
 @dataclass(frozen=True)
 class TargetProbe:
     """Facts observed for one target. Every field defaults to UNKNOWN.
-
     Absence of evidence is represented, never guessed: ``dns_ok=False`` with
     ``dns_error=None`` is still UNKNOWN — we cannot tell a lookup failure
     from a probe that never ran.
@@ -111,7 +102,6 @@ def _san_covers(sans: tuple[str, ...], hostname: str) -> bool:
         name = san.lower().strip(".")
         if name == host:
             return True
-        # Wildcard covers exactly one left-most label, never a bare suffix.
         if name.startswith("*.") and host.split(".", 1)[-1] == name[2:] and name.count("*") == 1:
             return True
     return False

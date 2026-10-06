@@ -1,9 +1,6 @@
 """x402 route classification — fail-closed free/paid gate (audit E41)."""
 
 import logging
-
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
 import os
 from collections.abc import Iterator
 from typing import Any
@@ -15,15 +12,6 @@ from pry.payments.x402_middleware.config import (
 
 logger = logging.getLogger(__name__)
 
-# ── Route classification (fail-closed gate) ──────────────────────────────────
-# Every HTTP route MUST be explicitly classified as free or paid. The old
-# behavior silently served any route missing from PAID_ENDPOINTS for free,
-# which meant a new endpoint (or a pricing-table regression) leaked paid
-# capability at $0. The startup audit (audit_route_classification) plus the
-# runtime fail-closed branch below close that hole.
-#
-# Classification rules, in order:
-#   1. exact match in DEFAULT_FREE_PATHS            -> free
 #   2. prefix match in DEFAULT_FREE_PREFIXES        -> free
 #   3. under the admin router prefix                -> free (loopback-gated)
 #   4. prefix match in PAID_ENDPOINTS with the

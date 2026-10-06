@@ -8,11 +8,6 @@ without a real verifier yet.
 These are module-level functions; :class:`FacilitatorRouter` keeps thin
 method wrappers for backwards compatibility.
 """
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
@@ -35,12 +30,6 @@ from pry.payments.x402.scheme import (
 
 logger = logging.getLogger(__name__)
 
-# Chains with NO real on-chain settlement verification implemented yet.
-# Payments for these networks validate structure/price/asset server-side and
-# then report "needs_facilitator" — they are NOT claimed as verified. [REVIEW]
-# Solana was moved to a REAL on-chain verifier (x402.solana_verifier — SPL RPC
-# getTransaction jsonParsed); TRON stays scaffolded until a TRC-20 verifier
-# exists.
 SCAFFOLDED_NETWORKS: set[str] = {"tron:mainnet"}
 
 

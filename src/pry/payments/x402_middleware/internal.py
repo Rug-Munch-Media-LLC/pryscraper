@@ -1,10 +1,8 @@
 """First-party (internal) service access for the x402 gate.
-
 Product policy (2026-09-26): external customers stay x402-paid; our own
 first-party jobs must not pay ourselves. So a caller presenting
 ``X-Internal-Token`` with a valid HMAC over the request fingerprint is served
 without a payment challenge.
-
 Security posture:
 - FAIL CLOSED when ``PRY_INTERNAL_TOKEN`` is unset — an unset token must never
   degrade into "everyone is internal", which would silently zero the revenue
@@ -23,8 +21,6 @@ Security posture:
   open is the right availability trade here.
 """
 
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
 import hashlib
 import hmac
 import logging
@@ -36,20 +32,14 @@ from typing import Any
 from pry.payments.x402_middleware import internal_replay_selection as _selection
 
 logger = logging.getLogger(__name__)
-
 INTERNAL_TOKEN_HEADER = b"x-internal-token"
 INTERNAL_SIG_HEADER = b"x-internal-signature"
 INTERNAL_TIMESTAMP_HEADER = b"x-internal-timestamp"
 INTERNAL_SCOPE_KEY = "x402_verified"
-
 DEFAULT_MAX_SKEW_SECONDS = 300
 MAX_SKEW_ENV = "PRY_INTERNAL_MAX_SKEW_SECONDS"
-# Evict a seen signature once it can no longer be inside the skew window, so
-# the cache cannot grow without bound while still covering every replay.
 REPLAY_TTL_SECONDS = 2 * DEFAULT_MAX_SKEW_SECONDS
 MAX_REPLAY_ENTRIES = 8192
-# Bounded LRU: when the cap is hit the oldest entry is dropped, which only
-# ever widens a window that has already expired past the skew bound.
 _SEEN_SIGNATURES: OrderedDict[str, float] = OrderedDict()
 
 

@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parent.parent
 
-# llms.txt's per-category histogram lines are subtotals, not the surface
 # total; a blanket "N tools" rewrite would turn "13 tools" into "113 tools".
 CATEGORY_SUBTOTAL_RE = re.compile(r"^\s*-\s*\w+:\s*\d+\s+tools?\b")
 

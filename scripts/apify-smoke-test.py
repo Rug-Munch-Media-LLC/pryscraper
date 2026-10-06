@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Functional smoke tests: run every deployed Pry actor on the platform.
-
 Proves each actor *does what its description says*, not merely that it
 builds. For every preset the harness:
 
@@ -22,12 +21,6 @@ Usage:
 
 Exit codes: 0 = all succeeded, 1 = one or more failed, 2 = prerequisite error.
 """
-
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
@@ -52,8 +45,6 @@ from actor_factory.presets import ALL_PRESETS  # noqa: E402
 API_BASE = "https://api.apify.com/v2"
 ORG = "rugmunchmedia"
 
-# Realistic demo targets overriding the generic example.com prefill.
-# Chosen for stability + no-auth + exercising the actor's actual promise.
 SMOKE_INPUTS: dict[str, dict] = {
     "pry-universal-scraper": {"urls": [{"url": "https://example.com"}]},
     "pry-site-crawler": {

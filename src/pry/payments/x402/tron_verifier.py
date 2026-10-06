@@ -1,8 +1,3 @@
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 """Pry — TRON TRC-20 USDT x402 payment verifier.
 
 Verifies a TRON TRC-20 USDT payment on-chain by querying the TRON Grid
@@ -35,22 +30,16 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# TRON mainnet USDT contract address (base58, no prefix).
 TRON_USDT_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
 
-# Default public TRON Grid RPC (override per call / env in production).
 DEFAULT_TRON_RPC_URL = "https://api.trongrid.io"
 
-# RPC timeout — verify is a single round-trip, keep it short.
 TRON_RPC_TIMEOUT_SECONDS = 15.0
 
-# TRC-20 Transfer event topic0 (keccak256("Transfer(address,address,uint256)")).
 TRANSFER_EVENT_TOPIC0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
-# TRON mainnet address prefix byte (base58check encoding starts with 'T').
 TRON_ADDRESS_PREFIX = "41"
 
-# Base58 alphabet (Bitcoin-style, used by TRON addresses).
 _BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 
@@ -69,7 +58,6 @@ def _base58check_to_hex(address: str) -> str:
             return ""
         num = num * 58 + idx
     raw = num.to_bytes((num.bit_length() + 7) // 8, "big") if num else b""
-    # Leading '1' characters encode leading zero bytes.
     raw = b"\x00" * (len(address) - len(address.lstrip("1"))) + raw
     if len(raw) != 25:  # 1 version byte + 20-byte payload + 4-byte checksum
         return ""
@@ -79,10 +67,6 @@ def _base58check_to_hex(address: str) -> str:
     return payload.hex().lower()
 
 
-# Hex form of TRON_USDT_CONTRACT (41-prefixed) for comparing against the
-# emitting contract address on each log entry. Derived at import time so the
-# base58 constant stays the single source of truth. If the constant were ever
-# malformed this becomes "" and every verification fails closed.
 TRON_USDT_CONTRACT_HEX = _base58check_to_hex(TRON_USDT_CONTRACT)
 
 
@@ -190,8 +174,6 @@ def _iter_trc20_transfers(contract_result: dict[str, Any]) -> list[dict[str, Any
     scam token's Transfer event would otherwise pass verification.
     """
     events: list[dict[str, Any]] = []
-    # TRON Grid returns events in ``contractResult`` or ``internal_transactions``.
-    # The canonical location is the ``log`` array in the transaction receipt.
     logs = contract_result.get("log") or contract_result.get("logs") or []
     if not isinstance(logs, list):
         return events
@@ -199,9 +181,6 @@ def _iter_trc20_transfers(contract_result: dict[str, Any]) -> list[dict[str, Any
     for entry in logs:
         if not isinstance(entry, dict):
             continue
-        # SECURITY: the log's emitting contract must be the configured USDT
-        # contract. Without this check any TRC-20 token (scam tokens included)
-        # transferring to the treasury would pass verification.
         log_contract = _normalize_log_address(
             entry.get("address") or entry.get("contract_address") or ""
         )
@@ -215,9 +194,6 @@ def _iter_trc20_transfers(contract_result: dict[str, Any]) -> list[dict[str, Any
         if topic0.lower() != TRANSFER_EVENT_TOPIC0:
             continue
 
-        # Decode the Transfer event.
-        # topics[1] = from (32-byte, address is last 20 bytes, TRON prefix 41)
-        # topics[2] = to (32-byte, address is last 20 bytes, TRON prefix 41)
         # data = value (uint256)
         from_hex = topics[1][-40:] if len(topics[1]) >= 40 else topics[1]
         to_hex = topics[2][-40:] if len(topics[2]) >= 40 else topics[2]

@@ -5,7 +5,6 @@ Implements the official Model Context Protocol HTTP+SSE transport:
   2. Server sends an `endpoint` event with a POST URL (e.g., /mcp/messages/{session_id})
   3. Client POSTs JSON-RPC messages to that URL
   4. Server replies by enqueueing JSON-RPC responses as `message` events on the SSE stream
-
 Session state is kept in memory. For production multi-worker deployments, use a
 Redis-backed queue or sticky sessions.
 """
@@ -15,7 +14,6 @@ Redis-backed queue or sticky sessions.
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-
 from __future__ import annotations
 
 import asyncio
@@ -36,13 +34,10 @@ from pry_mcp import (
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
-
 logger = logging.getLogger(__name__)
-
 # In-memory session store. Maps session_id -> outbound message queue.
 MCP_SSE_SESSIONS: dict[str, asyncio.Queue[str]] = {}
 MCP_SSE_TASKS: dict[str, asyncio.Task[Any]] = {}
-
 SESSION_TTL_SECONDS = 300  # cleanup idle sessions after 5 minutes
 
 
@@ -109,18 +104,15 @@ async def mcp_sse_endpoint(
     message_handler: Any,
 ) -> StreamingResponse:
     """SSE endpoint for MCP clients.
-
     Args:
         request: FastAPI request object (used to build the post-back URL).
         message_handler: An object with an async `handle_request` method.
     """
     session_id = _new_session_id()
     queue = _get_or_create_queue(session_id)
-
     # Build the post-back URL. Prefer absolute URL from request headers if available.
     base_url = str(request.base_url).rstrip("/")
     post_url = f"{base_url}/mcp/messages/{session_id}"
-
     # Prepare the endpoint event. It is yielded directly so the client gets it
     # immediately without waiting on the outbound queue.
     endpoint_event = _create_event("endpoint", post_url)
@@ -131,13 +123,10 @@ async def mcp_sse_endpoint(
         _enqueue_response(session_id, notification)
 
     register_mcp_notification_observer(observer)
-
     # Start keepalive task.
     keepalive_task = asyncio.create_task(_keepalive_loop(session_id))
     MCP_SSE_TASKS[session_id] = keepalive_task
-
     last_activity = time.time()
-
     # Private test hook: close the SSE stream after N message events (not counting
     # the endpoint event). httpx's ASGITransport cannot consume an infinite
     # streaming response in tests, so this lets integration tests verify the
@@ -196,13 +185,11 @@ async def mcp_post_message(
     message_handler: Any,
 ) -> Response:
     """Receive a JSON-RPC message from an MCP client and enqueue the response.
-
     Returns HTTP 202 Accepted immediately; the actual JSON-RPC response is sent
     over the SSE stream associated with session_id.
     """
     if session_id not in MCP_SSE_SESSIONS:
         raise HTTPException(status_code=404, detail="MCP SSE session not found")
-
     try:
         body = await request.json()
     except json.JSONDecodeError as e:
@@ -216,7 +203,6 @@ async def mcp_post_message(
             },
         )
         return Response(status_code=202)
-
     # SECURITY: Auth-gate tools/call on the legacy SSE transport, matching
     # the Streamable HTTP transport (app.py).  Discovery methods
     # (tools/list, resources/list, etc.) stay public so agents can
@@ -239,9 +225,7 @@ async def mcp_post_message(
             },
         )
         return Response(status_code=202)
-
     response = await message_handler.handle_request(body)
     if response is not None:
         _enqueue_response(session_id, response)
-
     return Response(status_code=202)

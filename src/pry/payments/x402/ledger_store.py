@@ -1,20 +1,12 @@
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 """Postgres-backed x402 ledger storage (audit item #2, storage layer).
-
 Replaces the JSONL files' semantics with a repository the handler can
 adopt (PART 2 rewires the handler; this module is standalone):
-
 - payments: insert-or-update by (payment_id, tx_hash); indexed lookups
   replace the O(n) in-memory scan.
 - settlements: DB-enforced idempotency — a UNIQUE index on the settlement
   key (``tx:{network}:{tx_hash}``, fallback ``pid:{payment_id}``) makes a
   concurrent duplicate insert return the EXISTING receipt instead of
   writing a second one.
-
 Records are stored losslessly in a JSON column (``record`` / ``receipt``)
 with the hot fields promoted to indexed real columns. Same dict shapes as
 the JSONL era, so call sites don't change shape.
@@ -170,7 +162,6 @@ def record_settlement(receipt: dict[str, Any], settle_key: str) -> dict[str, Any
                 )
             )
         except (IntegrityError, FlushError, OperationalError):
-            # Concurrent duplicate — another request won the insert.
             session.rollback()
             row = session.query(X402SettlementRecord).filter_by(settlement_key=settle_key).first()
             if row is None:

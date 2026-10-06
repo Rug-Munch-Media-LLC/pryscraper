@@ -1,14 +1,11 @@
 """Pry — x402 facilitator router.
-
 Owns the facilitator configuration, the smart router with auto-fallback
 (including the EIP-7702 self-verify fallback for EVM chains), and the global
 router instance accessors. Config constants (``X402_WALLET``,
 ``X402_TIMEOUT_SECONDS``, ``EIP7702_RPC``, …) are imported from the package
 root; scheme helpers come from ``x402.scheme``.
-
 Chain-specific verification and settlement helpers live in cohesive sibling
 modules:
-
 - ``facilitator_dispatch`` — per-network facilitator registration, pending
   authorizations and the chain-specific verify delegates (Solana / TRON /
   scaffolded non-EVM / EIP-7702).
@@ -18,11 +15,6 @@ modules:
 - ``facilitator_solana_tron`` — Solana (SPL RPC) and TRON (TRC-20 Grid)
   on-chain verifiers plus the honest scaffolded fallback.
 """
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
@@ -156,9 +148,6 @@ class FacilitatorRouter(DispatchMixin, SettleReceiptMixin, FacilitatorHealthMixi
             return {"verified": False, "reason": "unsupported network", "settlement": None}
         set_chain_active(network_id, True)
 
-        # Self-hosted mode: verify locally instead of contacting the external
-        # facilitator URLs (no Coinbase/CDP). Registered per-network impls
-        # take precedence over the built-in SelfFacilitator.
         if self.self_hosted or self._impl_for(network) is not None:
             return await self._verify_self_hosted(
                 payment_id, tx_hash, network, asset, amount_usd, attested_required_atomic
@@ -180,7 +169,6 @@ class FacilitatorRouter(DispatchMixin, SettleReceiptMixin, FacilitatorHealthMixi
         if not healthy:
             return {"verified": False, "reason": "no healthy facilitator", "settlement": None}
 
-        # Weighted random: higher health score = higher probability
         facilitator = self._select_facilitator(healthy)
         async with httpx.AsyncClient(timeout=X402_TIMEOUT_SECONDS) as client:
             try:
@@ -228,15 +216,12 @@ class FacilitatorRouter(DispatchMixin, SettleReceiptMixin, FacilitatorHealthMixi
                 last_error = f"{facilitator.name}: invalid JSON response - {e}"
                 self._mark_failure(facilitator)
 
-        # EIP-7702 self-verify fallback for supported EVM chains
         if _eip7702_rpc_key(network) is not None:
             result = await self._eip7702_verify(tx_hash, network, asset, amount_usd)
             if result["verified"]:
                 return result
             last_error = result.get("reason", last_error)
 
-        # Non-EVM chains: Solana verifies on-chain via the SPL RPC verifier;
-        # TRON verifies on-chain via the TRC-20 Grid verifier.
         if network_family(network) == "solana":
             return await self._verify_solana(payment_id, tx_hash, network, asset, amount_usd)
         if network_family(network) == "tron":
@@ -262,8 +247,6 @@ class FacilitatorRouter(DispatchMixin, SettleReceiptMixin, FacilitatorHealthMixi
             return {"success": False, "error": "unsupported network"}
         set_chain_active(network_id, True)
 
-        # Self-hosted mode: settle locally instead of contacting the external
-        # facilitator URLs (no Coinbase/CDP).
         if self.self_hosted or self._impl_for(network) is not None:
             return await self._settle_self_hosted(payment_id, tx_hash, network, asset, amount_usd)
 
@@ -313,11 +296,9 @@ class FacilitatorRouter(DispatchMixin, SettleReceiptMixin, FacilitatorHealthMixi
                     last_error = f"{facilitator.name}: invalid JSON response - {e}"
                     self._mark_failure(facilitator)
 
-        # EIP-7702 fallback settlement receipt
         if _eip7702_rpc_key(network) is not None:
             return self._eip7702_settlement(payment_id, tx_hash, network)
 
-        # Non-EVM chains have no settlement verifier yet — report honestly.
         if network_family(network) in ("solana", "tron"):
             return {
                 "success": False,
@@ -335,7 +316,6 @@ class FacilitatorRouter(DispatchMixin, SettleReceiptMixin, FacilitatorHealthMixi
         }
 
 
-# Global router instance (can be overridden in tests)
 _facilitator_router: FacilitatorRouter | None = None
 
 

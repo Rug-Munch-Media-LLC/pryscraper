@@ -1,10 +1,4 @@
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 """Crypto payment integration for Pry.
-
 Accepts cryptocurrency payments via Coinbase Commerce, NowPayments, and BTCPay Server.
 Falls back across providers for maximum reliability.
 """
@@ -18,7 +12,6 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Supported crypto assets (x402-compatible)
 SUPPORTED_CRYPTO = {
     "BTC": {"name": "Bitcoin", "chain": "bitcoin", "decimals": 8},
     "ETH": {"name": "Ethereum", "chain": "ethereum", "decimals": 18},
@@ -28,7 +21,6 @@ SUPPORTED_CRYPTO = {
     "TRX": {"name": "TRON", "chain": "tron", "decimals": 6},
 }
 
-# Provider configurations
 PROVIDERS = ["coinbase_commerce", "nowpayments", "btcpay"]
 
 
@@ -312,7 +304,6 @@ class CryptoPaymentRouter:
         """Load configured providers from environment."""
         import os
 
-        # Coinbase Commerce
         cb_key = os.getenv("PRY_COINBASE_COMMERCE_API_KEY", "")
         if cb_key:
             self._providers.append(
@@ -322,7 +313,6 @@ class CryptoPaymentRouter:
                 )
             )
 
-        # NowPayments
         np_key = os.getenv("PRY_NOWPAYMENTS_API_KEY", "")
         if np_key:
             self._providers.append(
@@ -332,7 +322,6 @@ class CryptoPaymentRouter:
                 )
             )
 
-        # BTCPay
         btcpay_url = os.getenv("PRY_BTCPAY_URL", "")
         btcpay_key = os.getenv("PRY_BTCPAY_API_KEY", "")
         if btcpay_url and btcpay_key:
@@ -372,7 +361,6 @@ class CryptoPaymentRouter:
         return len(self._providers) > 0
 
 
-# Global router instance
 _crypto_router: CryptoPaymentRouter | None = None
 
 

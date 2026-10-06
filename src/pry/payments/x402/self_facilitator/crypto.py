@@ -1,9 +1,4 @@
 """Pry — self-facilitator ABI encoding, EIP-712 digests, signature parsing."""
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
@@ -15,7 +10,6 @@ from eth_utils import keccak, to_canonical_address
 
 logger = logging.getLogger(__name__)
 
-# EIP-712 typehashes (EIP-3009 / EIP-712 domain).
 _EIP712_DOMAIN_TYPEHASH = keccak(
     text="EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
 )
@@ -25,15 +19,11 @@ _TRANSFER_WITH_AUTH_TYPEHASH = keccak(
     "uint256 validBefore,bytes32 nonce)"
 )
 
-# ERC-20 selectors used to build settlement calldata.
 _TRANSFER_WITH_AUTH_SELECTOR = keccak(
     text="transferWithAuthorization("
     "address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)"
 )[:4]
 _TRANSFER_FROM_SELECTOR = keccak(text="transferFrom(address,address,uint256)")[:4]
-
-
-# ── ABI encoding helpers (minimal EIP-712 subset) ────────────────────────────
 
 
 def _encode_address(addr: str) -> bytes:
@@ -89,9 +79,6 @@ def _hex_to_bytes(value: str) -> bytes:
     if len(s) % 2:
         s = "0" + s
     return bytes.fromhex(s)
-
-
-# ── EIP-712 / EIP-3009 digest ────────────────────────────────────────────────
 
 
 def domain_separator(
@@ -159,9 +146,6 @@ def build_transfer_with_authorization_digest(
         nonce=nonce,
     )
     return keccak(b"\x19\x01" + domain + struct)
-
-
-# ── Signature helpers ────────────────────────────────────────────────────────
 
 
 def _signature_from_bytes(r: bytes, s: bytes, v: int) -> Signature | None:

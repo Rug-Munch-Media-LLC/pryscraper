@@ -1,18 +1,11 @@
 """Pry — x402 facilitator EVM verification (EIP-7702 self-verify fallback).
-
 Extracted from ``facilitator.py``: the EIP-7702 on-chain receipt verification
 helpers — RPC key resolution (CAIP-2 → legacy short name), JSON-RPC calls,
 payTo/amount matching against the tx, and the settlement receipt builder.
-
 These are module-level functions; :class:`FacilitatorRouter` keeps thin
 method wrappers for backwards compatibility (tests call them unbound with
 ``self=None``).
 """
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
@@ -37,10 +30,6 @@ from pry.payments.x402.scheme import (
 
 logger = logging.getLogger(__name__)
 
-# Reverse map: CAIP-2 ID -> short name (for EIP7702_RPC key lookup).
-# EIP7702_RPC uses legacy short names ("base", "ethereum", ...) but the
-# verify flow receives CAIP-2 IDs ("eip155:8453"). Without this lookup the
-# EIP-7702 on-chain fallback never runs for any EVM chain.
 _CAIP2_TO_SHORT: dict[str, str] = {
     v: k
     for k, v in {
@@ -72,7 +61,6 @@ def _eip7702_rpc_key(network: str) -> str | None:
     return None
 
 
-# ERC-20 transfer(address,uint256) selector — used to parse token payments.
 ERC20_TRANSFER_SELECTOR = "0xa9059cbb"
 
 

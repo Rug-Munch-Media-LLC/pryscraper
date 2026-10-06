@@ -7,11 +7,6 @@ affiliate/signup details, and the curated proxy referral catalog loaded from
 Split out of :mod:`pry.engine.proxy_manager` so the manager logic stays
 focused on selection/health.
 
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 """
 
 from __future__ import annotations
