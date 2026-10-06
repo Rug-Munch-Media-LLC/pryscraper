@@ -6,7 +6,6 @@ Per-extraction quality metrics, anomaly detection, freshness tracking."""
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-import difflib
 import hashlib
 import json
 import logging
@@ -22,6 +21,11 @@ logger = logging.getLogger(__name__)
 # here so the four existing `from pry.engine.quality import compute_freshness`
 # call sites keep working unchanged.
 from pry.engine.quality_checks.freshness import compute_freshness  # noqa: E402
+
+# detect_anomalies moved to pry.engine.quality_report (detection rules live in
+# pry.engine.quality_anomaly_rules). Re-exported so existing import sites keep
+# working unchanged.
+from pry.engine.quality_report import detect_anomalies  # noqa: E402
 
 __all__ = [
     "QUALITY_DIR",
@@ -166,130 +170,6 @@ def compute_null_rate(data: dict[str, Any] | list[dict[str, Any]]) -> dict[str, 
         }
         for field, stats in field_stats.items()
     }
-
-
-def detect_anomalies(
-    current_data: dict[str, Any],
-    previous_data: dict[str, Any] | None = None,
-    z_score_threshold: float = 2.0,
-) -> list[dict[str, Any]]:
-    """Detect anomalies in extracted data compared to previous runs.
-
-    Flags:
-    - Missing fields (field present before, absent now)
-    - New fields (field absent before, present now)
-    - Value type changes
-    - Large value swings (for numeric fields)
-    - Empty results when previous had data
-    """
-    anomalies: list[dict[str, Any]] = []
-
-    if previous_data is None:
-        return []
-
-    # Check for empty results
-    if not current_data and previous_data:
-        anomalies.append(
-            {
-                "type": "empty_result",
-                "severity": "critical",
-                "field": "*",
-                "message": "Extraction returned empty — previous run had data",
-            }
-        )
-        return anomalies
-
-    if not isinstance(current_data, dict) or not isinstance(previous_data, dict):
-        return anomalies
-
-    prev_keys = set(previous_data.keys())
-    curr_keys = set(current_data.keys())
-
-    # Missing fields
-    missing = prev_keys - curr_keys
-    for field in missing:
-        anomalies.append(
-            {
-                "type": "missing_field",
-                "severity": "high",
-                "field": field,
-                "message": f"Field '{field}' was present in previous extraction but is now missing",
-            }
-        )
-
-    # New fields
-    new_fields = curr_keys - prev_keys
-    for field in new_fields:
-        anomalies.append(
-            {
-                "type": "new_field",
-                "severity": "info",
-                "field": field,
-                "message": f"New field '{field}' appeared",
-            }
-        )
-
-    # Value changes for common fields
-    common = prev_keys & curr_keys
-    for field in common:
-        prev_val = previous_data[field]
-        curr_val = current_data[field]
-
-        # Type change
-        if prev_val is not None and curr_val is not None and type(prev_val) is not type(curr_val):
-            anomalies.append(
-                {
-                    "type": "type_change",
-                    "severity": "high",
-                    "field": field,
-                    "message": f"Field '{field}' changed type: {type(prev_val).__name__} → {type(curr_val).__name__}",
-                    "previous_type": type(prev_val).__name__,
-                    "current_type": type(curr_val).__name__,
-                }
-            )
-            continue
-
-        # Numeric swing
-        if (
-            isinstance(prev_val, (int, float))
-            and isinstance(curr_val, (int, float))
-            and prev_val != 0
-        ):
-            z_score = abs((curr_val - prev_val) / max(abs(prev_val), 0.01))
-            if z_score > z_score_threshold:
-                pct = ((curr_val - prev_val) / abs(prev_val)) * 100
-                anomalies.append(
-                    {
-                        "type": "value_swing",
-                        "severity": "high" if abs(pct) > 50 else "medium",
-                        "field": field,
-                        "message": f"Field '{field}' changed by {pct:+.1f}% ({prev_val} → {curr_val})",
-                        "previous_value": prev_val,
-                        "current_value": curr_val,
-                        "change_pct": round(pct, 1),
-                    }
-                )
-
-        # Text content change
-        if (
-            isinstance(prev_val, str)
-            and isinstance(curr_val, str)
-            and prev_val != curr_val
-            and len(prev_val) > 20
-        ):
-            ratio = difflib.SequenceMatcher(None, prev_val, curr_val).ratio()
-            if ratio < 0.5:
-                anomalies.append(
-                    {
-                        "type": "content_drift",
-                        "severity": "medium",
-                        "field": field,
-                        "message": f"Field '{field}' content changed significantly ({round(ratio * 100)}% similarity)",
-                        "similarity": round(ratio, 3),
-                    }
-                )
-
-    return anomalies
 
 
 async def run_quality_check(
