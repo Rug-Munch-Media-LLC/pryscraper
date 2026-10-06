@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """Go-live readiness check: assert the app is ready to ship.
-
 Read-only. Offline. Deterministic. Prints PASS/FAIL per check and exits
 non-zero if any check fails. It mutates nothing and is safe to run in CI.
-
 Usage:
     python3 scripts/readiness_check.py
 
@@ -15,6 +13,7 @@ Exit code:
 from __future__ import annotations
 
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -74,6 +73,7 @@ def check_ci_wired() -> tuple[bool, str]:
     try:
         import yaml  # type: ignore[import-untyped]
     except ImportError:
+        logging.warning("readiness: handled %s", "ImportError")
         raw = ci.read_text()
         required = [
             "lint",
@@ -93,6 +93,7 @@ def check_ci_wired() -> tuple[bool, str]:
     try:
         doc = yaml.safe_load(ci.read_text())
     except Exception as exc:  # noqa: BLE001
+        logging.warning("readiness: handled %s", "Exception")
         return False, f"ci.yml does not parse: {exc}"
     jobs = set((doc or {}).get("jobs") or {})
     required = [
@@ -138,6 +139,7 @@ def check_apify_manifest() -> tuple[bool, str]:
     try:
         doc = json.loads(manifest.read_text())
     except Exception as exc:  # noqa: BLE001
+        logging.warning("readiness: handled %s", "Exception")
         return False, f".actor/actor.json does not parse: {exc}"
     refs = [doc.get("dockerfile"), doc.get("output")]
     refs += list((doc.get("storages") or {}).values())
