@@ -1310,3 +1310,26 @@ jobs:
             git diff --no-color HEAD~1..HEAD > /tmp/guardian.diff
           fi
           python3 scripts/check-guardian.py --diff /tmp/guardian.diff
+
+  # ===================================================================
+  # GATE: commitlint (conventional commits)
+  # ===================================================================
+  commitlint:
+    runs-on: docker-x64
+    container:
+      image: node:22-bookworm
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Install commitlint
+        run: npm install -g @commitlint/cli @commitlint/config-conventional
+      - name: Validate commits
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git log --format="%H %s" origin/main..HEAD | while read hash msg; do
+              echo "$hash $msg" | npx commitlint --from="$hash^" --to="$hash" || exit 1
+            done
+          else
+            npx commitlint --from=HEAD~1 --to=HEAD
+          fi
