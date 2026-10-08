@@ -1,0 +1,7 @@
+commit-msg:
+  commands:
+    methodology-leak-msg:
+      run: bash scripts/commit-msg-methodology-check.sh {1}
+      skip:
+      - merge
+      - rebase
