@@ -1,0 +1,45 @@
+Pry — NOTICE
+============
+
+Pry (pryscraper-mcp)
+Copyright (c) 2026 Rug Munch Media LLC
+https://git.rugmunch.io/RugMunchMedia/pryscraper
+
+Pry is distributed under the licence expression:
+
+    MIT AND LicenseRef-BSL-1.1
+
+Most of the tree is MIT (see LICENSE). The stealth / anti-detection modules are
+licensed under the Business Source License 1.1 (see LICENSE-BSL-STEALTH, whose
+SPDX-BSL-FILE-LIST block is the authoritative file list).
+
+--------------------------------------------------------------------------------
+Third-party components requiring attribution
+--------------------------------------------------------------------------------
+
+This distribution depends on the following Apache-2.0 licensed components.
+Their attribution notices are reproduced here as required by Apache License
+2.0, section 4(d). The full licence text ships with each component.
+
+1. trafilatura
+   Copyright (c) Adrien Barbaresi
+   Licensed under the Apache License, Version 2.0.
+   https://github.com/adbar/trafilatura
+
+2. readability-lxml
+   Copyright (c) Yuri Baburov and contributors
+   Based on Readability, Copyright (c) 2010 Arc90, Inc.
+   Licensed under the Apache License, Version 2.0.
+   https://github.com/buriy/python-readability
+
+No third-party source code in this distribution has been modified by
+Rug Munch Media LLC.
+
+--------------------------------------------------------------------------------
+Optional dependencies are outside this distribution's licence grant
+--------------------------------------------------------------------------------
+
+The `stealth` extra (pryscraper-mcp[stealth]) installs undetected-chromedriver,
+which is licensed under GPL-3.0. It is deliberately not a dependency of the
+core distribution and is not covered by the MIT or BSL-1.1 terms above;
+installing that extra means accepting GPL-3.0 for that component.

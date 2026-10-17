@@ -8,7 +8,10 @@ Auto-extracted from api.py during the router-split refactor.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
 
@@ -18,7 +21,20 @@ from pry.core.errors import NotFoundError
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["Monitoring"])
+
+@asynccontextmanager
+async def _monitor_lifespan(_app: Any):
+    """Start the in-process monitor scheduler with the app; stop on shutdown."""
+    from pry.core.scheduler import start_scheduler, stop_scheduler
+
+    await start_scheduler()
+    try:
+        yield
+    finally:
+        await stop_scheduler()
+
+
+router = APIRouter(tags=["Monitoring"], lifespan=_monitor_lifespan)
 
 
 @router.post("/v1/monitor", tags=["Monitoring"], summary="Create a scheduled content monitor")
@@ -81,37 +97,56 @@ async def delete_monitor_endpoint(monitor_id: str) -> dict[str, Any]:
 
 @router.post("/v1/monitor/check", tags=["Monitoring"], summary="Run all due monitors")
 async def run_due_monitors() -> dict[str, Any]:
-    """Check all monitors and run any that are due based on their cron schedule."""
+    """Run due monitors with bounded concurrency, a per-monitor timeout and
+    per-monitor failure reporting (never a serial sweep of up to 500)."""
     import croniter
 
     from pry.actors.monitor import list_monitors, run_monitor
 
     monitors = await list_monitors()
     now = datetime.now(UTC)
-    results = []
+    due = []
     for m in monitors:
+        if m.get("status") != "active":
+            continue
         last_run = m.get("last_run_at")
         last_dt = datetime.fromisoformat(last_run) if last_run else datetime.min.replace(tzinfo=UTC)
-
         try:
-            cron = croniter.croniter(m["schedule_cron"], last_dt)
-            next_run = cron.get_next(datetime)
-            if next_run <= now:
-                result = await run_monitor(m["id"])
-                results.append(result)
-        except Exception as e:  # noqa: BLE001
+            nxt = croniter.croniter(m["schedule_cron"], last_dt).get_next(datetime)
+            if nxt.tzinfo is None:
+                nxt = nxt.replace(tzinfo=UTC)
+            if nxt <= now:
+                due.append(m["id"])
+        except Exception as e:  # noqa: BLE001 — bad cron must not abort the sweep
             logger.warning(
                 "monitor_schedule_check_failed", extra={"monitor_id": m["id"], "error": str(e)}
             )
+
+    concurrency = max(1, int(os.getenv("PRY_MONITOR_SWEEP_CONCURRENCY", "5")))
+    timeout_s = float(os.getenv("PRY_MONITOR_SWEEP_TIMEOUT_S", "120"))
+    sem = asyncio.Semaphore(concurrency)
+
+    async def _one(monitor_id: str) -> dict[str, Any]:
+        async with sem:
+            try:
+                return await asyncio.wait_for(run_monitor(monitor_id), timeout=timeout_s)
+            except TimeoutError:
+                logger.warning("monitor_sweep_timeout", extra={"monitor_id": monitor_id})
+                return {"monitor_id": monitor_id, "error": "timeout"}
+
+    gathered = await asyncio.gather(*(_one(mid) for mid in due), return_exceptions=True)
+    results: list[dict[str, Any]] = [
+        r if isinstance(r, dict) else {"error": repr(r)} for r in gathered
+    ]
+    failures = [r for r in results if "error" in r]
 
     return {
         "success": True,
         "data": {
             "total_monitors": len(monitors),
+            "due_count": len(due),
             "ran_count": len(results),
+            "failures": failures,
             "results": results,
         },
     }
-
-
-logger = logging.getLogger(__name__)

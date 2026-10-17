@@ -15,9 +15,13 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-import httpx
-
 from pry.core.db import Monitor, MonitorRun, session_scope
+from pry.core.scheduler import (
+    claim_monitor,
+    record_run,
+    release_monitor,
+    scrape_with_retry,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +34,8 @@ def _compute_diff(previous: str, current: str) -> str:
     return f"{added} lines added, {removed} lines removed"
 
 
-def _monitor_to_dict(m: Monitor) -> dict[str, Any]:
+def _monitor_to_dict(m: Monitor, last_run_status: str | None = None) -> dict[str, Any]:
+    status = ("error" if last_run_status == "error" else "inactive") if not m.active else "active"
     return {
         "id": m.monitor_id,
         "name": m.monitor_name,
@@ -39,7 +44,7 @@ def _monitor_to_dict(m: Monitor) -> dict[str, Any]:
         "goal": m.goal or "",
         "webhook_url": m.webhook_url or "",
         "use_llm_judge": m.use_llm_judge or False,
-        "status": "active" if m.active else "inactive",
+        "status": status,
         "created_at": m.created_at.isoformat() if m.created_at else "",
         "last_run_at": m.last_run_at.isoformat() if m.last_run_at else None,
         "current_version": m.current_version or 0,
@@ -320,23 +325,33 @@ def _persist_run(
 
 
 async def run_monitor(monitor_id: str) -> dict[str, Any]:
+    """Run one monitor check, holding a cross-process claim for its duration.
+
+    Concurrent calls for the same monitor return ``skipped`` — the claim is
+    what prevents duplicate MonitorRun rows, doubled counters and webhooks.
+    """
+    token = await claim_monitor(monitor_id)
+    if token is None:
+        logger.info("monitor_run_skipped_locked", extra={"monitor_id": monitor_id})
+        return {"monitor_id": monitor_id, "skipped": True, "reason": "already_running"}
     try:
         loaded = await asyncio.to_thread(_load_monitor, monitor_id)
         if loaded is None:
             return {"error": f"Monitor not found: {monitor_id}"}
 
         previous_content = loaded["previous_content"]
-
-        try:
-            from pry.engine.scraper import PryScraper
-
-            scraper = PryScraper()
-            result = await scraper.scrape(loaded["url"])
-            current_content = result.get("content", "")
-        except Exception as e:
-            logger.exception("monitor_scrape_failed", extra={"monitor_id": monitor_id})
-            await asyncio.to_thread(_record_error_run, monitor_id, str(e), datetime.now(UTC))
-            return {"error": f"Scrape failed: {e!s}"}
+        current_content, scrape_error = await scrape_with_retry(monitor_id, loaded["url"])
+        if scrape_error is not None or current_content is None:
+            # scrape_with_retry retried with backoff, wrote the dead-letter
+            # record and marked the monitor exhausted (active=False ->
+            # surfaced as status "error" by list_monitors()).
+            await asyncio.to_thread(
+                _record_error_run,
+                monitor_id,
+                scrape_error or "scrape returned no content",
+                datetime.now(UTC),
+            )
+            return {"monitor_id": monitor_id, "error": f"Scrape failed: {scrape_error}"}
 
         judger = ChangeJudger(use_llm=loaded["use_llm_judge"])
         judgment = await judger.judge(previous_content, current_content, loaded["goal"])
@@ -344,39 +359,52 @@ async def run_monitor(monitor_id: str) -> dict[str, Any]:
         result = await asyncio.to_thread(
             _persist_run, monitor_id, previous_content, current_content, judgment
         )
+        record_run("changed" if result.get("changed") else "success", monitor_id)
 
-        meaningful = bool(judgment["meaningful"])
-        if meaningful and loaded["webhook_url"]:
+        if judgment["meaningful"] and loaded["webhook_url"]:
             await _fire_webhook(loaded["webhook_url"], result)
 
         return result
     except Exception:
+        record_run("error", monitor_id)
         logger.exception("monitor_run_failed", extra={"monitor_id": monitor_id})
         return {"error": f"Monitor run failed: {monitor_id}"}
+    finally:
+        await release_monitor(monitor_id, token)
 
 
 async def _fire_webhook(webhook_url: str, payload: dict[str, Any]) -> None:
-    try:
-        from pry.api.client import get_client
+    """Deliver via WebhookDelivery: SSRF-validated, HMAC-signed, retried, DLQ'd."""
+    from urllib.parse import urlparse
 
-        client = await get_client()
-        await client.post(webhook_url, json=payload, timeout=10)
-        logger.info("monitor_webhook_fired", extra={"webhook": webhook_url})
-    except (httpx.HTTPError, httpx.RequestError) as e:
-        logger.warning("monitor_webhook_failed", extra={"webhook": webhook_url, "error": str(e)})
+    from pry.api.webhook_delivery import WebhookDelivery
+
+    host = urlparse(webhook_url).hostname or "invalid"
+    result = await WebhookDelivery().deliver(webhook_url, payload, event_type="monitor.change")
+    if result.get("success"):
+        logger.info("monitor_webhook_fired", extra={"webhook_host": host})
+    else:
+        logger.warning(
+            "monitor_webhook_failed",
+            extra={"webhook_host": host, "error": result.get("error")},
+        )
 
 
 async def list_monitors() -> list[dict[str, Any]]:
     try:
         with session_scope() as s:
-            monitors = (
-                s.query(Monitor)
-                .filter(Monitor.active.is_(True))
-                .order_by(Monitor.created_at.desc())
-                .limit(500)
+            monitors = s.query(Monitor).order_by(Monitor.created_at.desc()).limit(500).all()
+            # Latest run status per monitor so an exhausted monitor surfaces
+            # as "error" rather than silently vanishing (active=False).
+            latest: dict[str, str] = {}
+            for mid, status in (
+                s.query(MonitorRun.monitor_id, MonitorRun.status)
+                .order_by(MonitorRun.id.desc())
+                .limit(5000)
                 .all()
-            )
-            return [_monitor_to_dict(m) for m in monitors]
+            ):
+                latest.setdefault(mid, status)
+            return [_monitor_to_dict(m, latest.get(m.monitor_id)) for m in monitors]
     except Exception:
         logger.exception("monitor_list_failed")
         return []

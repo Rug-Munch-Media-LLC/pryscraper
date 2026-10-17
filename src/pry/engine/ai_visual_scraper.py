@@ -10,6 +10,10 @@ traditional scraping. Works when the page is rendered via JS, behind
 login walls, or uses canvas/WebGL rendering.
 
 Flow: screenshot → LLM vision model → structured extraction
+
+The vision endpoint is restricted to a server-side allowlist. A caller may
+select an endpoint, but never a host the operator did not approve: the Bearer
+key must not be sent to an arbitrary destination.
 """
 
 from __future__ import annotations
@@ -17,9 +21,56 @@ from __future__ import annotations
 import base64
 import importlib.util
 import logging
+import os
+import urllib.parse
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_VISION_ENDPOINT = "https://api.openai.com/v1/chat/completions"
+
+# Server-side default: configured LLM providers only. Extend with
+# PRY_VISION_ALLOWED_HOSTS="host1,host2" (never from caller input).
+DEFAULT_ALLOWED_VISION_HOSTS = frozenset(
+    {
+        "api.openai.com",
+        "api.anthropic.com",
+        "generativelanguage.googleapis.com",
+        "openrouter.ai",
+        "api.deepseek.com",
+        "api.groq.com",
+        "api.mistral.ai",
+    }
+)
+
+
+class VisionEndpointNotAllowed(ValueError):
+    """Raised when a caller supplies a vision endpoint that is not allow-listed."""
+
+
+def allowed_vision_hosts() -> frozenset[str]:
+    """Return the effective allowlist (env override or built-in providers)."""
+    raw = os.getenv("PRY_VISION_ALLOWED_HOSTS", "")
+    configured = {h.strip().lower() for h in raw.split(",") if h.strip()}
+    return frozenset(configured) if configured else DEFAULT_ALLOWED_VISION_HOSTS
+
+
+def validate_vision_endpoint(endpoint: str) -> str:
+    """Validate an endpoint against the allowlist and return it unchanged."""
+    url = endpoint or DEFAULT_VISION_ENDPOINT
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme != "https":
+        raise VisionEndpointNotAllowed(f"vision endpoint must use https: {url!r}")
+    host = (parsed.hostname or "").lower()
+    if not host:
+        raise VisionEndpointNotAllowed("vision endpoint is missing a hostname")
+    if host not in allowed_vision_hosts():
+        raise VisionEndpointNotAllowed(
+            f"vision endpoint host {host!r} is not allow-listed; "
+            "set PRY_VISION_ALLOWED_HOSTS server-side to permit it"
+        )
+    return url
+
 
 # Optional dependencies
 _has_playwright = False
@@ -39,7 +90,7 @@ class AIVisualScraper:
     """AI-powered visual scraping using screenshot + LLM vision."""
 
     def __init__(self, llm_endpoint: str = "", llm_api_key: str = ""):
-        self.llm_endpoint = llm_endpoint or "https://api.openai.com/v1/chat/completions"
+        self.llm_endpoint = validate_vision_endpoint(llm_endpoint)
         self.llm_api_key = llm_api_key
 
     def is_available(self) -> bool:
@@ -76,13 +127,20 @@ class AIVisualScraper:
 
     async def _extract_with_llm(self, screenshot: bytes, url: str) -> str | None:
         """Extract content from screenshot using LLM vision."""
+        # Re-validate at send time: the key must never reach a host that is
+        # not allow-listed, even if the attribute was mutated after __init__.
+        try:
+            endpoint = validate_vision_endpoint(self.llm_endpoint)
+        except VisionEndpointNotAllowed as e:
+            logger.error("vision_endpoint_rejected", extra={"error": str(e)[:160]})
+            return None
         try:
             import httpx
 
             b64_image = base64.b64encode(screenshot).decode()
             async with httpx.AsyncClient(timeout=60) as client:
                 resp = await client.post(
-                    self.llm_endpoint,
+                    endpoint,
                     headers={
                         "Authorization": f"Bearer {self.llm_api_key}",
                         "Content-Type": "application/json",

@@ -59,8 +59,22 @@ def get_template(template_id: str) -> dict[str, Any] | None:
 async def execute_template(template_id: str, url: str, **options: Any) -> dict[str, Any]:
     """Execute a scraper template against a URL.
 
-    This scrapes the URL and extracts structured data using the template's schema.
+    Every failure is returned with a machine-readable ``code``; unexpected
+    errors are logged and surfaced rather than converted into a silent
+    success with empty data.
     """
+    try:
+        return await _execute_template(template_id, url, **options)
+    except Exception as e:
+        logger.exception("template_execution_failed", extra={"template_id": template_id})
+        return {
+            "success": False,
+            "code": "execution_error",
+            "error": f"Template execution failed: {e}",
+        }
+
+
+async def _execute_template(template_id: str, url: str, **options: Any) -> dict[str, Any]:
     template = get_template(template_id)
     if not template:
         return {"success": False, "error": f"Template not found: {template_id}"}

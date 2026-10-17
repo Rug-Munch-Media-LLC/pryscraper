@@ -3,6 +3,7 @@ Reliable webhook delivery with retries, signing (HMAC), and dead letter queue.""
 
 # Licensed under MIT. See LICENSE.
 import asyncio
+import concurrent.futures
 import hashlib
 import hmac
 import ipaddress
@@ -23,6 +24,27 @@ from pry.core.settings import settings
 logger = logging.getLogger(__name__)
 
 WEBHOOK_DIR = PRY_DATA_DIR / "webhooks"
+
+_REDACT_KEYS = ("token", "secret", "password", "api_key", "authorization")
+_PRODUCTION_ENVS = frozenset({"production", "prod"})
+_ATTEMPT_TIMEOUT = 10.0
+
+
+def _is_production() -> bool:
+    env = (os.getenv("PRY_ENV") or os.getenv("ENVIRONMENT") or "").strip().lower()
+    return env in _PRODUCTION_ENVS
+
+
+def _redact(value: Any) -> Any:
+    """Recursively redact sensitive keys in nested objects and arrays."""
+    if isinstance(value, dict):
+        return {
+            k: ("***REDACTED***" if any(n in str(k).lower() for n in _REDACT_KEYS) else _redact(v))
+            for k, v in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_redact(v) for v in value]
+    return value
 
 
 def _validate_url(url: str) -> tuple[None, str] | tuple[str, None]:
@@ -87,20 +109,47 @@ class WebhookDelivery:
         WEBHOOK_DIR.mkdir(parents=True, exist_ok=True)
         # Secret resolution order: explicit arg → PRY_WEBHOOK_SECRET env →
         # settings.webhook_secret (which reads PRY_WEBHOOK_SECRET /
-        # pry/webhook_secret in gopass — see settings.py). An empty secret
-        # means signatures cannot be produced; deliver() refuses to send.
+        # pry/webhook_secret in gopass — see settings.py).
         self.signing_secret = (
             signing_secret or os.getenv("PRY_WEBHOOK_SECRET") or settings.webhook_secret
         )
-        if not self.signing_secret:
-            logger.warning(
-                "webhook_secret_empty — webhook delivery will be REFUSED "
-                "(fail-closed). Set PRY_WEBHOOK_SECRET (or gopass "
-                "pry/webhook_secret) in production."
-            )
+        # settings._ensure_webhook_secret() GENERATES an ephemeral secret at
+        # boot when none is configured. Signing with it silently breaks every
+        # receiver after a restart, so treat a settings-sourced value as
+        # ephemeral: persist a warning, and refuse to sign in production.
+        if signing_secret:
+            self._key_origin = "explicit"
+        elif os.getenv("PRY_WEBHOOK_SECRET"):
+            self._key_origin = "env"
+        elif self.signing_secret:
+            self._key_origin = "settings"
+        else:
+            self._key_origin = "missing"
+        self._ephemeral_secret = self._key_origin == "settings"
+        self._refuse_signing = not self.signing_secret or (
+            self._ephemeral_secret
+            and _is_production()
+            and os.getenv("PRY_ALLOW_EPHEMERAL_WEBHOOK_SECRET") != "1"
+        )
+        if self._ephemeral_secret or not self.signing_secret:
+            self._persist_secret_warning()
         self.delivery_log = WEBHOOK_DIR / "deliveries.jsonl"
         self.dead_letter = WEBHOOK_DIR / "dead_letter.jsonl"
         self.log: list[dict] = []  # lazy-loaded by _load_log() on demand
+
+    def _persist_secret_warning(self) -> None:
+        """Persist (not just log) that the signing secret is not durable."""
+        msg = (
+            "webhook signing secret is EPHEMERAL (missing or generated at boot); "
+            "signatures will not survive a restart. Set PRY_WEBHOOK_SECRET; "
+            "signing is refused when PRY_ENV=production."
+        )
+        logger.warning("webhook_secret_ephemeral", extra={"source": self._key_origin})
+        try:
+            with open(WEBHOOK_DIR / "secret_warning.log", "a") as f:
+                f.write(f"{datetime.now(UTC).isoformat()} {msg}\n")
+        except OSError as e:
+            logger.warning("webhook_secret_warning_write_failed", extra={"error": str(e)})
 
     @property
     def secret_configured(self) -> bool:
@@ -122,6 +171,11 @@ class WebhookDelivery:
                 "webhook signing secret is not configured — refusing to produce "
                 "a forgeable signature. Set PRY_WEBHOOK_SECRET."
             )
+        if self._refuse_signing:
+            raise WebhookSecretNotConfigured(
+                "webhook signing secret is ephemeral (generated at boot) and "
+                "PRY_ENV=production — refusing to sign. Set PRY_WEBHOOK_SECRET."
+            )
         body = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         signed = f"{timestamp}.{event_type}.{body}"
         return hmac.new(self.signing_secret.encode(), signed.encode(), hashlib.sha256).hexdigest()
@@ -133,6 +187,7 @@ class WebhookDelivery:
         event_type: str = "monitor.change",
         max_retries: int = 3,
         retry_delay: float = 5.0,
+        record_dead_letter: bool = True,
     ) -> dict[str, Any]:
         """Deliver a webhook with retries.
 
@@ -165,16 +220,20 @@ class WebhookDelivery:
             "X-Pry-Signature": f"sha256={signature}",
             "X-Pry-Timestamp": ts,
         }
+        # Size the outer cap from the retry budget so the final attempt cannot
+        # be cancelled mid-flight: N attempts + all back-off sleeps + slack.
+        sleep_budget = sum(retry_delay * (2 ** (i - 1)) for i in range(1, max_retries))
+        outer_budget = max_retries * _ATTEMPT_TIMEOUT + sleep_budget + 5.0
         client = await get_client()
         try:
-            async with asyncio.timeout(15):
+            async with asyncio.timeout(outer_budget):
                 for attempt in range(1, max_retries + 1):
                     try:
                         resp = await client.post(
                             pinned_url,
                             json=payload,
                             headers=headers,
-                            timeout=10,
+                            timeout=_ATTEMPT_TIMEOUT,
                             follow_redirects=False,
                             extensions={"sni_hostname": urllib.parse.urlparse(url).hostname or ""},
                         )
@@ -194,7 +253,10 @@ class WebhookDelivery:
                                 "attempts": attempt,
                             }
                         if resp.status_code < 500:
-                            self._dead_letter(payload, url, f"HTTP {resp.status_code}")
+                            if record_dead_letter:
+                                self._dead_letter(
+                                    payload, url, f"HTTP {resp.status_code}", event_type
+                                )
                             return {
                                 "success": False,
                                 "status": resp.status_code,
@@ -213,9 +275,13 @@ class WebhookDelivery:
                         await asyncio.sleep(retry_delay * (2 ** (attempt - 1)))
         except TimeoutError:
             logger.warning("webhook_delivery_exception_handler", exc_info=True)
-            self._dead_letter(payload, url, "Delivery timeout (15s)")
+            if record_dead_letter:
+                self._dead_letter(
+                    payload, url, f"Delivery timeout ({outer_budget:.0f}s)", event_type
+                )
             return {"success": False, "error": "delivery timeout", "url": url}
-        self._dead_letter(payload, url, "Max retries exceeded")
+        if record_dead_letter:
+            self._dead_letter(payload, url, "Max retries exceeded", event_type)
         return {"success": False, "error": "Max retries exceeded", "delivered": False}
 
     def _log(self, record: dict) -> None:
@@ -226,22 +292,18 @@ class WebhookDelivery:
             logger.warning("webhook_log_write_failed", extra={"error": str(e)})
         self.log.append(record)
 
-    def _dead_letter(self, payload: dict, url: str, reason: str) -> None:
+    def _dead_letter(
+        self, payload: dict, url: str, reason: str, event_type: str = "monitor.change"
+    ) -> None:
         try:
             with open(self.dead_letter, "a") as f:
                 record = {
-                    "payload": payload,
+                    "payload": _redact(payload),
                     "url": url,
+                    "event": event_type,
                     "reason": reason,
                     "timestamp": datetime.now(UTC).isoformat(),
                 }
-                _safe_payload = {
-                    k: "***REDACTED***"
-                    if k.lower() in ("token", "secret", "password", "api_key", "authorization")
-                    else v
-                    for k, v in payload.items()
-                }
-                record["payload"] = _safe_payload
                 f.write(json.dumps(record) + "\n")
         except OSError as e:
             logger.warning("dead_letter_write_failed", extra={"error": str(e)})
@@ -257,6 +319,53 @@ class WebhookDelivery:
                 logger.warning("webhook_log_load_failed", extra={"error": str(e)[:160]})
         return items
 
-    def retry_dead_letter(self) -> dict[str, Any]:
+    def _write_dead_letter(self, items: list[dict]) -> None:
+        tmp = self.dead_letter.with_suffix(".jsonl.tmp")
+        try:
+            with open(tmp, "w") as f:
+                for item in items:
+                    f.write(json.dumps(item) + "\n")
+            os.replace(tmp, self.dead_letter)
+        except OSError as e:
+            logger.warning("dead_letter_write_failed", extra={"error": str(e)})
+
+    async def _retry_dead_letter_async(self, limit: int) -> dict[str, Any]:
         items = self.get_dead_letter()
-        return {"total": len(items), "items": items[:20]}
+        batch, keep = items[:limit], items[limit:]
+        delivered = failed = 0
+        for item in batch:
+            result = await self.deliver(
+                item.get("url", ""),
+                item.get("payload", {}),
+                event_type=item.get("event", "monitor.change"),
+                max_retries=1,
+                retry_delay=0.0,
+                record_dead_letter=False,
+            )
+            if result.get("success"):
+                delivered += 1
+            else:
+                failed += 1
+                keep.append(item)
+        self._write_dead_letter(keep)
+        return {
+            "total": len(items),
+            "attempted": len(batch),
+            "delivered": delivered,
+            "failed": failed,
+            "items": keep,
+        }
+
+    def retry_dead_letter(self, limit: int = 20) -> dict[str, Any]:
+        """Re-attempt dead-lettered webhooks via the normal signed path.
+
+        Successes are removed from the dead-letter file; failures are kept.
+        """
+        coro = self._retry_dead_letter_async(limit)
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(coro)
+        # Called from a sync endpoint inside a running loop: run it elsewhere.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result()

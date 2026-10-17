@@ -1,15 +1,9 @@
-"""Pry — Actor Marketplace (Apify-style).
-Pre-built scrapers that can be subscribed to and run on schedule.
-Users can publish their own actors. We earn from usage."""
-
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 import json
 import logging
 import uuid
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
@@ -17,9 +11,18 @@ from typing import Any
 from pry.core.paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
-
 ACTOR_DIR = PRY_DATA_DIR / "actors"
 ACTOR_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def preset_specs() -> dict[str, Any]:
+    """Return ``{preset_id: ActorSpec}``; empty when actor_factory is absent."""
+    try:
+        from actor_factory.presets import ALL_PRESETS
+    except Exception:
+        logger.warning("actor_presets_unavailable", exc_info=True)
+        return {}
+    return dict(ALL_PRESETS)
 
 
 class ActorVisibility(StrEnum):
@@ -28,51 +31,30 @@ class ActorVisibility(StrEnum):
     UNLISTED = "unlist"
 
 
+@dataclass
 class Actor:
     """A reusable scraper actor that can be run on demand or schedule."""
 
-    def __init__(
-        self,
-        actor_id: str,
-        name: str,
-        description: str,
-        template_id: str = "",
-        code: str = "",
-        price_per_run: float = 0.0,
-        visibility: ActorVisibility = ActorVisibility.PRIVATE,
-        schedule_cron: str = "",
-        tags: list[str] | None = None,
-    ):
-        self.actor_id = actor_id
-        self.name = name
-        self.description = description
-        self.template_id = template_id
-        self.code = code
-        self.price_per_run = price_per_run
-        self.visibility = visibility
-        self.schedule_cron = schedule_cron
-        self.tags = tags or []
-        self.created_at = datetime.now(UTC).isoformat()
-        self.run_count = 0
-        self.revenue_usd = 0.0
-        self.author = ""
+    actor_id: str
+    name: str
+    description: str
+    template_id: str = ""
+    code: str = ""
+    price_per_run: float = 0.0
+    visibility: ActorVisibility = ActorVisibility.PRIVATE
+    schedule_cron: str = ""
+    tags: list[str] = field(default_factory=list)
+    author: str = ""
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    run_count: int = 0
+    revenue_usd: float = 0.0
+    processor: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "actor_id": self.actor_id,
-            "name": self.name,
-            "description": self.description,
-            "template_id": self.template_id,
-            "code": self.code,
-            "price_per_run": self.price_per_run,
-            "visibility": self.visibility.value,
-            "schedule_cron": self.schedule_cron,
-            "tags": self.tags,
-            "created_at": self.created_at,
-            "run_count": self.run_count,
-            "revenue_usd": round(self.revenue_usd, 4),
-            "author": self.author,
-        }
+        data = dict(self.__dict__)
+        data["visibility"] = self.visibility.value
+        data["revenue_usd"] = round(self.revenue_usd, 4)
+        return data
 
 
 class ActorMarketplace:
@@ -120,41 +102,113 @@ class ActorMarketplace:
             price_per_run,
             visibility,
             schedule_cron,
-            tags,
+            tags or [],
+            author,
         )
-        actor.author = author
         self.actors[actor.actor_id] = actor
         self._save(actor)
         return actor
 
     def list(self, visibility: str = "", tag: str = "") -> list[dict[str, Any]]:
-        results = []
-        for actor in self.actors.values():
-            if visibility and actor.visibility.value != visibility:
-                continue
-            if tag and tag not in actor.tags:
-                continue
-            results.append(actor.to_dict())
-        return sorted(results, key=lambda x: -x.get("run_count", 0))
+        rows = [
+            a.to_dict()
+            for a in self.actors.values()
+            if (not visibility or a.visibility.value == visibility) and (not tag or tag in a.tags)
+        ]
+        return sorted(rows, key=lambda x: -x.get("run_count", 0))
 
     async def run(self, actor_id: str, inputs: dict[str, Any] | None = None) -> dict[str, Any]:
         actor = self.actors.get(actor_id)
-        if not actor:
-            return {"success": False, "error": f"Actor not found: {actor_id}"}
-        actor.run_count += 1
-        if actor.price_per_run > 0:
-            actor.revenue_usd += actor.price_per_run
-        self._save(actor)
+        ephemeral = actor is None
+        if actor is None:
+            spec = preset_specs().get(actor_id)
+            if spec is None:
+                return {
+                    "success": False,
+                    "code": "not_found",
+                    "error": f"Actor not found: {actor_id}",
+                }
+            category = str(getattr(spec.category, "value", spec.category))
+            actor = Actor(
+                actor_id,
+                spec.title or actor_id,
+                spec.description,
+                visibility=ActorVisibility.PUBLIC,
+                tags=[category],
+            )
+            actor.processor = spec.processor
+        if ephemeral and actor.processor is None:
+            return {
+                "success": False,
+                "code": "requires_processor",
+                "error": f"Actor '{actor_id}' is unpriced (no processor)",
+            }
+        url = str((inputs or {}).get("url") or "").strip()
+        if not url:
+            return {"success": False, "code": "invalid_input", "error": "Missing 'url' input"}
         if actor.template_id:
-            from pry.commerce.template_engine import execute_template
+            result = await self._run_template(actor.template_id, url)
+        elif ephemeral and actor.processor:
+            result = await self._run_scrape(url)
+        else:
+            return {
+                "success": False,
+                "code": "no_template",
+                "error": f"Actor '{actor_id}' has no template to execute",
+            }
+        if not result["success"]:
+            return {"success": False, "code": result["code"], "error": result["error"]}
+        data = result["data"]
+        if not data:
+            return {
+                "success": False,
+                "code": "empty_result",
+                "error": f"Actor '{actor_id}' produced no data",
+            }
+        # Accounting only after a real, non-empty result; never for presets.
+        if not ephemeral:
+            actor.run_count += 1
+            if actor.price_per_run > 0:
+                actor.revenue_usd += actor.price_per_run
+            self._save(actor)
+        extra = {"engine": actor.processor} if ephemeral else {}
+        return {"success": True, "actor_id": actor_id, "data": data, **extra}
 
-            url = (inputs or {}).get("url", "")
-            if not url:
-                return {"success": False, "error": "Missing 'url' input"}
-            result = await execute_template(actor.template_id, url)
-            return {"success": True, "actor_id": actor_id, "data": result.get("data", {})}
+    async def _run_template(self, template_id: str, url: str) -> dict[str, Any]:
+        from pry.commerce.template_engine import execute_template
+
+        try:
+            result = await execute_template(template_id, url)
+        except Exception as e:
+            logger.exception("actor_template_failed", extra={"template_id": template_id})
+            return {"success": False, "code": "execution_error", "error": f"Template failed: {e}"}
+        if result.get("success"):
+            return {"success": True, "data": result.get("data") or {}}
+        error = str(result.get("error") or "Template execution failed")
+        code = "template_not_found" if error.startswith("Template not found") else "execution_error"
+        return {"success": False, "code": result.get("code") or code, "error": error}
+
+    async def _run_scrape(self, url: str) -> dict[str, Any]:
+        from pry.engine.scraper import PryScraper
+
+        try:
+            result = await PryScraper().scrape(url, {"bypass_cloudflare": True})
+        except Exception as e:
+            logger.exception("actor_scrape_failed", extra={"url": url})
+            return {"success": False, "code": "scrape_failed", "error": f"Scrape failed: {e}"}
+        if result.get("status") != "ok":
+            return {
+                "success": False,
+                "code": "scrape_failed",
+                "error": result.get("error") or "Scrape failed",
+            }
+        content = str(result.get("content") or result.get("raw_html") or "")
         return {
             "success": True,
-            "actor_id": actor_id,
-            "message": "Custom actor code not yet executed",
+            "data": {
+                "url": url,
+                "status": "ok",
+                "content": content,
+                "content_length": len(content),
+            },
         }

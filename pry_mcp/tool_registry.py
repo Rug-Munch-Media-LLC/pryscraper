@@ -1,10 +1,8 @@
-"""Pry - MCP tool registry and dispatch logic.
+"""Pry - MCP tool registry and dict-based dispatch.
 
-Extracted from ``fallback_server.py``. Contains the standalone tool-dispatch
-functions (hot-cache helpers, guarded domain dispatchers, the validated
-``combined_tool_executor`` seam) and the ``ToolRegistry`` class that replaces
-the old 23-deep try/except chain with dict-based dispatch over registered
-executors.
+Holds the hot-cache helpers, the guarded domain dispatchers and the
+``combined_tool_executor`` seam; ``ToolRegistry`` replaces the old 23-deep
+try/except chain.
 """
 
 # SPDX-License-Identifier: MIT
@@ -24,22 +22,39 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Hot MCP tools get a dispatch-level 10s memoization on top of any module
-# cache (e.g. sports_data.odds._http_cache uses the same 10s TTL). Bots that
-# poll the same tool+arguments sub-minute skip the whole guarded-import chain
-# and get an O(1) read, mirroring the "10s cache path" used by the data
-# packages. Entries expire lazily on read; the dict is bounded by
-# _HOT_TOOL_CACHE_MAX entries (LRU by insertion order).
+# Hot tools get a dispatch-level 10s memo (same TTL as the data packages'
+# _http_cache). Entries expire lazily on read and the dict is capped at
+# _HOT_TOOL_CACHE_MAX (LRU by insertion order).
 _HOT_TOOL_CACHE_MAX = 128
-_hot_tool_cache: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
+_hot_tool_cache: dict[tuple[str, str, str], tuple[float, dict[str, Any]]] = {}
 _HOT_TOOLS_10S = frozenset({"pry_odds", "pry_serp", "pry_live_odds", "pry_scores", "pry_alerts"})
+# Argument keys that identify the caller. The 10s memo must never let one
+# tenant's paid response be served to another on identical arguments.
+_IDENTITY_KEYS = ("api_key", "apikey", "tenant", "tenant_id", "auth", "caller_id")
 
 
-def _hot_cache_get(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+def _identity_of(arguments: dict[str, Any], identity: str | None = None) -> str:
+    """Caller namespace for the hot cache: explicit, else an argument, else public."""
+    if identity:
+        return str(identity)
+    for name in _IDENTITY_KEYS:
+        value = arguments.get(name)
+        if value:
+            return str(value)
+    return "public"
+
+
+def _hot_cache_get(
+    name: str, arguments: dict[str, Any], identity: str | None = None
+) -> dict[str, Any] | None:
     """Return a fresh (<=10s) cached MCP result for a hot tool, else None."""
     import time
 
-    key = (name, json.dumps(arguments, sort_keys=True, default=str))
+    key = (
+        name,
+        _identity_of(arguments, identity),
+        json.dumps(arguments, sort_keys=True, default=str),
+    )
     entry = _hot_tool_cache.get(key)
     if entry is None:
         return None
@@ -50,14 +65,20 @@ def _hot_cache_get(name: str, arguments: dict[str, Any]) -> dict[str, Any] | Non
     return None
 
 
-def _hot_cache_set(name: str, arguments: dict[str, Any], result: dict[str, Any]) -> None:
+def _hot_cache_set(
+    name: str, arguments: dict[str, Any], result: dict[str, Any], identity: str | None = None
+) -> None:
     """Memoize an MCP result for a hot tool for 10 seconds (bounded LRU)."""
     import time
 
     if len(_hot_tool_cache) >= _HOT_TOOL_CACHE_MAX:
         # Drop the oldest entry (dicts preserve insertion order).
         _hot_tool_cache.pop(next(iter(_hot_tool_cache)))
-    key = (name, json.dumps(arguments, sort_keys=True, default=str))
+    key = (
+        name,
+        _identity_of(arguments, identity),
+        json.dumps(arguments, sort_keys=True, default=str),
+    )
     _hot_tool_cache[key] = (time.monotonic(), result)
 
 
@@ -66,12 +87,7 @@ class _ToolNotHandled(Exception):
 
 
 async def _call_crypto_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
-    """Dispatch crypto-market tools to their guarded handlers in pry_mcp.tools.
-
-    The ``crypto_market`` subpackage is built in parallel by other agents;
-    the dispatcher handles missing modules gracefully. Returns ``None`` for
-    non-crypto tools so callers fall through to their normal execution path.
-    """
+    """Dispatch crypto tools; ``None`` means "not mine, fall through"."""
     try:
         from pry_mcp.tools import call_crypto_tool
     except ImportError as e:
@@ -99,10 +115,7 @@ async def _call_crypto_tool(name: str, arguments: dict[str, Any]) -> dict[str, A
 
 
 async def crypto_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    """Local MCP tool executor: runs crypto-market tools directly (guarded
-    import) and signals non-crypto tools to fall through to the REST proxy.
-    Pass as ``tool_executor`` to ``make_fallback_server``.
-    """
+    """Run crypto tools locally; raise ``_ToolNotHandled`` to fall through."""
     result = await _call_crypto_tool(name, arguments)
     if result is None:
         raise _ToolNotHandled(name)
@@ -110,12 +123,7 @@ async def crypto_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str
 
 
 async def _call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
-    """Dispatch marketplace-intelligence tools to their guarded handlers.
-
-    The ``marketplace`` subpackage is built in parallel by other agents; the
-    dispatcher handles missing modules gracefully. Returns ``None`` for
-    non-marketplace tools so callers fall through to their normal execution path.
-    """
+    """Dispatch marketplace tools; ``None`` means "not mine, fall through"."""
     try:
         from pry_mcp.tools import call_marketplace_tool
     except ImportError as e:
@@ -143,10 +151,7 @@ async def _call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[s
 
 
 async def marketplace_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    """Local MCP tool executor: runs marketplace-intelligence tools directly
-    (guarded import) and signals non-marketplace tools to fall through to the
-    REST proxy. Pass as ``tool_executor`` to ``make_fallback_server``.
-    """
+    """Run marketplace tools locally; raise ``_ToolNotHandled`` to fall through."""
     result = await _call_marketplace_tool(name, arguments)
     if result is None:
         raise _ToolNotHandled(name)
@@ -156,12 +161,7 @@ async def marketplace_tool_executor(name: str, arguments: dict[str, Any]) -> dic
 async def _call_domain_tool(
     dispatcher_name: str, name: str, arguments: dict[str, Any]
 ) -> dict[str, Any] | None:
-    """Call one guarded domain dispatcher from ``pry_mcp.tools``.
-
-    Each data-domain dispatcher (legal, real estate, jobs, travel, attention,
-    local, gov, ip) is imported lazily and returns ``None`` for tools it does
-    not own so the chain falls through to the next dispatcher.
-    """
+    """Call one guarded domain dispatcher; ``None`` means "not mine" (lazy import)."""
     try:
         from pry_mcp import tools as _mcp_tools
     except ImportError as e:
@@ -192,11 +192,7 @@ async def _call_domain_tool(
 
 
 def _structured_error(tool_name: str, code: str, message: str) -> dict[str, Any]:
-    """Build an error result readable by both transports.
-
-    Carries ``error`` (consumed by the SDK server's ``call_tool``) plus an
-    MCP ``content``/``isError`` shape (consumed by the fallback stdio server).
-    """
+    """Error result for both transports: ``error`` + MCP ``content``/``isError``."""
     return {
         "error": {"code": code, "message": message},
         "content": [{"type": "text", "text": json.dumps({"error": message, "code": code})}],
@@ -260,7 +256,9 @@ class ToolRegistry:
         """Register an executor under a dispatcher name."""
         self._executors[name] = executor
 
-    async def dispatch(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    async def dispatch(
+        self, name: str, arguments: dict[str, Any], identity: str | None = None
+    ) -> dict[str, Any]:
         """Dispatch a tool to a registered executor.
 
         Looks up ``name`` directly in ``self._executors``; if a tool-name-keyed
@@ -280,7 +278,7 @@ class ToolRegistry:
             logger.warning("mcp_tool_invalid_args", extra={"tool": name, "error": str(exc)})
             return _structured_error(name, "invalid_args", str(exc))
         try:
-            return await self._combined_tool_executor_inner(name, validated)
+            return await self._combined_tool_executor_inner(name, validated, identity)
         except _ToolNotHandled:
             raise
         except Exception as e:  # noqa: BLE001 — structured error, not a crash
@@ -288,7 +286,7 @@ class ToolRegistry:
             return _structured_error(name, "tool_failed", f"Tool {name} failed: {e}")
 
     async def _combined_tool_executor_inner(
-        self, name: str, arguments: dict[str, Any]
+        self, name: str, arguments: dict[str, Any], identity: str | None = None
     ) -> dict[str, Any]:
         """Run every registered executor in order until one owns the tool.
 
@@ -304,7 +302,7 @@ class ToolRegistry:
         reads. Every dispatch logs its wall time at debug level.
         """
         if name in _HOT_TOOLS_10S:
-            cached = _hot_cache_get(name, arguments)
+            cached = _hot_cache_get(name, arguments, identity)
             if cached is not None:
                 logger.debug("mcp_dispatch_cache_hit", extra={"tool": name})
                 return cached
@@ -327,7 +325,7 @@ class ToolRegistry:
                     extra={"tool": name, "ms": round((time.monotonic() - started) * 1000, 2)},
                 )
                 if name in _HOT_TOOLS_10S:
-                    _hot_cache_set(name, arguments, result)
+                    _hot_cache_set(name, arguments, result, identity)
                 return result
         raise _ToolNotHandled(name)
 
@@ -348,7 +346,9 @@ def register_standard_executors(registry: ToolRegistry) -> ToolRegistry:
 _default_registry = register_standard_executors(ToolRegistry())
 
 
-async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+async def combined_tool_executor(
+    name: str, arguments: dict[str, Any], identity: str | None = None
+) -> dict[str, Any]:
     """Validated seam in front of the chained domain dispatchers.
 
     Validates arguments against ``pry_mcp.validation.TOOL_REQUIREMENTS``
@@ -356,4 +356,4 @@ async def combined_tool_executor(name: str, arguments: dict[str, Any]) -> dict[s
     structured error dicts instead of propagating. ``_ToolNotHandled`` still
     propagates so callers fall through to the REST proxy.
     """
-    return await _default_registry.dispatch(name, arguments)
+    return await _default_registry.dispatch(name, arguments, identity)

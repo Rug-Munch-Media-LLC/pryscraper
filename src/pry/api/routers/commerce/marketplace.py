@@ -26,13 +26,26 @@ import importlib
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Body, HTTPException, Query
 
 from pry.core.errors import ExternalServiceError
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Marketplace"])
+
+# Failure code -> HTTP status for actor runs. Never report a failed execution
+# as a 200 with success:true.
+_RUN_STATUS: dict[str, int] = {
+    "not_found": 404,
+    "template_not_found": 404,
+    "invalid_input": 422,
+    "requires_processor": 422,
+    "no_template": 409,
+    "empty_result": 502,
+    "scrape_failed": 502,
+    "execution_error": 502,
+}
 
 
 @router.post(
@@ -86,11 +99,21 @@ async def list_actors(visibility: str = "", tag: str = "") -> dict[str, Any]:
     summary="Run an actor",
 )
 async def run_actor(actor_id: str, inputs: dict[str, Any] | None = Body(None)) -> dict[str, Any]:
-    """Run an actor with the provided inputs."""
+    """Run an actor (a stored actor or any ``ALL_PRESETS`` id).
+
+    Preset ids resolve read-only when the store has no match. A failed or
+    empty execution is an HTTP error, never ``success: true, data: {}``.
+    """
     from pry.commerce.actor_marketplace import ActorMarketplace
 
-    m = ActorMarketplace()
-    return await m.run(actor_id, inputs or {})
+    result = await ActorMarketplace().run(actor_id, inputs or {})
+    if not result.get("success"):
+        status = _RUN_STATUS.get(str(result.get("code")), 502)
+        raise HTTPException(
+            status_code=status,
+            detail=result.get("error", "Actor run failed"),
+        )
+    return result
 
 
 def _marketplace_module(module_name: str) -> Any:

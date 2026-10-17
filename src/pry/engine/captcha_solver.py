@@ -23,11 +23,12 @@ themselves in :data:`captcha.registry.REGISTRY`:
 Set ``PRY_CAPTCHA_ENABLED=false`` to disable all solving (returns None).
 """
 
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: BSL-1.1
 # Copyright (c) 2026 Rug Munch Media LLC
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
+# Licensed under the Business Source License 1.1. See LICENSE-BSL-STEALTH.
+# Change Date: 2029-01-01 (converts to MIT).
 from __future__ import annotations
 
 import logging

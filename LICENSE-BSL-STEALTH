@@ -2,9 +2,10 @@ Business Source License 1.1
 
 Licensor:             Rug Munch Media LLC
 Licensed Work:        Pry — Stealth / Anti-Detection Module
-                       (the specific files listed in the DUAL LICENSING NOTICE
-                        in LICENSE and individually marked with
-                        SPDX-License-Identifier: BSL-1.1)
+                       (the specific files in the SPDX-BSL-FILE-LIST block at
+                        the end of this file; each is individually marked with
+                        SPDX-License-Identifier: BSL-1.1 and the list is
+                        enforced by scripts/check_licence_spdx.py)
 Change Date:          2029-01-01
 Change License:       MIT License (see LICENSE)
 
@@ -66,3 +67,49 @@ THE LICENSED WORK IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS
 OR IMPLIED. THE LICENSOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS
 LICENSED WORK, INCLUDING ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS
 FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+--------------------------------------------------------------------------------
+SPDX-BSL-FILE-LIST — authoritative covered files
+--------------------------------------------------------------------------------
+Every file below carries `SPDX-License-Identifier: BSL-1.1` in its header.
+Paths are relative to the repository root. The set is verified by
+`python3 scripts/check_licence_spdx.py`, which fails when the headers and this
+list disagree in either direction. Do not hand-edit entries: regenerate with
+`python3 scripts/check_licence_spdx.py --list`.
+
+<!-- BEGIN SPDX-BSL-FILE-LIST -->
+src/pry/api/auth_connector.py
+src/pry/api/credential_vault.py
+src/pry/api/credential_vault_reads.py
+src/pry/engine/actions.py
+src/pry/engine/adaptive.py
+src/pry/engine/ai_visual_scraper.py
+src/pry/engine/behavioral_biometrics.py
+src/pry/engine/browser_pool.py
+src/pry/engine/camoufox_config.py
+src/pry/engine/camoufox_guard.py
+src/pry/engine/camoufox_integration.py
+src/pry/engine/camoufox_page.py
+src/pry/engine/camoufox_stealth.py
+src/pry/engine/captcha_solver.py
+src/pry/engine/cookie_warmer.py
+src/pry/engine/graphql_scraper_enhanced.py
+src/pry/engine/lazy_load.py
+src/pry/engine/mobile_app_scraper.py
+src/pry/engine/network.py
+src/pry/engine/reachability_precheck.py
+src/pry/engine/scraper_orchestrate.py
+src/pry/engine/scraper_premium_first.py
+src/pry/engine/shadow_dom.py
+src/pry/engine/stealth_engine.py
+src/pry/engine/stealth_scripts/audio_noise.js
+src/pry/engine/stealth_scripts/canvas_noise.js
+src/pry/engine/stealth_scripts/human_mouse.js
+src/pry/engine/stealth_scripts/human_type.js
+src/pry/engine/stealth_scripts/webdriver_hide.js
+src/pry/engine/stealth_scripts/webgl_noise.js
+src/pry/engine/tier_chain.py
+src/pry/engine/tier_retry_policy.py
+src/pry/engine/tls_fingerprint.py
+src/pry/engine/ultimate_scraper.py
+<!-- END SPDX-BSL-FILE-LIST -->

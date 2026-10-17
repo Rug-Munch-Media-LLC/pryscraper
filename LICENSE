@@ -40,9 +40,12 @@ under the Business Source License 1.1 — see LICENSE-BSL-STEALTH:
   - network.py                 (Tor / SOCKS5 routing)
   - captcha_solver.py          (CAPTCHA bypass)
   - shadow_dom.py              (stealth DOM extraction)
-  - lazy_load.py               (human-like scroll)
-  - signup_automator.py        (human-like signup)
-  - auth_connector.py          (human-like login)
+  - lazy_load.py                (human-like scroll)
+  - auth_connector.py           (human-like login)
+
+That list is a summary only. The authoritative, machine-checked list of every
+BSL-licensed file is the SPDX-BSL-FILE-LIST block in LICENSE-BSL-STEALTH;
+scripts/check_licence_spdx.py fails when it drifts from the actual headers.
 
 Each of those files is individually marked with:
   SPDX-License-Identifier: BSL-1.1

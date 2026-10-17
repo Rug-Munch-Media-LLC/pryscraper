@@ -3,7 +3,10 @@
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 [build-system]
-requires = ["setuptools>=69.0"]
+# PEP 639 (license expressions + license-files globs) needs setuptools >= 77.
+# On an older backend the `license` expression below is read as legacy free
+# text and the wheel falls back to a bare `License-Expression: MIT`.
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -19,7 +22,11 @@ version = "3.0.0"
 description = "Free web scraping + browser automation API — self-hosted, no API keys needed"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "MIT"
+# PEP 639 licence expression. Most of the tree is MIT; the stealth /
+# anti-detection modules are BSL-1.1 (LICENSE-BSL-STEALTH, "LicenseRef-BSL-1.1").
+# A bare "MIT" here built a wheel declaring `License-Expression: MIT` while
+# 34 BSL-1.1 files shipped inside it.
+license = "MIT AND LicenseRef-BSL-1.1"
 authors = [{ name = "Rug Munch Media LLC" }]
 keywords = [
     "scraping",
@@ -89,7 +96,11 @@ dependencies = [
     "cloudscraper>=1.2.0",
     "aiohttp-socks[aiohttp]>=0.8.0",
     "aiohttp>=3.9.0",
-    "undetected-chromedriver>=3.5.0",
+    # undetected-chromedriver is GPL-3.0, so it is NOT a core dependency of
+    # this MIT + BSL-1.1 distribution — it lives in the optional `stealth`
+    # extra. Every call site degrades gracefully when it is absent:
+    # ultimate_scraper._has_undetected is an importlib.util.find_spec probe
+    # and tiers_browser skips the undetected tier when it is False.
     "pyjwt>=2.8.0",
     "apify>=2.0.0",
     "playwright-stealth>=1.0.0",
@@ -129,6 +140,8 @@ dev = [
     "hypothesis>=6.0.0",
     # distutils shim: removed from the 3.12 stdlib; undetected_chromedriver
     # imports distutils at runtime (surfaced by the browser-pool tests in CI).
+    # Those tests also need the GPL-3.0 optional extra:
+    #   pip install -e ".[dev,stealth]"
     "setuptools>=69.0",
     "mutmut>=3.7.0",
     "pact-python>=2.0.0",
@@ -156,6 +169,15 @@ scrape = [
     "pdfminer.six>=20221105",
     "pytesseract>=0.3.10",
     "easyocr>=1.7.0",
+]
+
+# GPL-3.0 browser automation, deliberately kept OUT of the core MIT + BSL-1.1
+# wheels so the declared licence expression stays truthful. Import-guarded at
+# both call sites (ultimate_scraper._has_undetected, tiers_browser), so the
+# engine still runs — with one fewer tier — when the extra is not installed.
+# `pip install pryscraper-mcp[stealth]`.
+stealth = [
+    "undetected-chromedriver>=3.5.0",
 ]
 
 [project.scripts]
@@ -186,6 +208,22 @@ where = ["src"]
 # shipped. scripts/check-package-discovery.py now fails on a phantom pattern
 # or a real package no pattern matches, in either direction.
 include = ["pry*"]
+
+[tool.setuptools.package-data]
+# The commerce recipe catalogue is DATA, not code: 110 *.json files under
+# pry/commerce/templates/ were absent from every built wheel because no
+# package-data rule named them (the package imported fine, the templates did
+# not exist). `pry` is the anchor package; paths are relative to it.
+pry = ["commerce/templates/*.json"]
+
+[tool.setuptools.exclude-package-data]
+# templates/ is a data directory with no __init__.py, so these helpers are not
+# modules — they are operator/CI validation entry points with test-only deps
+# and must not be collected into the wheel as package data either.
+pry = [
+    "commerce/templates/test_live.py",
+    "commerce/templates/validate_*.py",
+]
 
 [tool.ruff]
 # Vendored copy of standards/templates/ruff-base.toml — CI checkouts do not
