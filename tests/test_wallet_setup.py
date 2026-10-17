@@ -75,12 +75,14 @@ class TestEnvHelpers:
     def test_read_env_parses_and_strips_quotes(self, tmp_path: Path) -> None:
         p = tmp_path / ".env"
         p.write_text("# comment\nA=1\nB=\"two\"\nC='three'\n\nD=has=equals\nno_equals_line\n")
-        assert ws._read_env(p) == {"A": "1", "B": "two", "C": "three", "D": "has=equals"}
+        expected = {"A": "1", "B": "two", "C": "three", "D": "has=equals"}
+        assert ws._read_env(p) == expected
 
     def test_read_env_last_value_wins(self, tmp_path: Path) -> None:
         p = tmp_path / ".env"
         p.write_text("A=1\nA=2\n")
-        assert ws._read_env(p) == {"A": "2"}
+        expected = {"A": "2"}
+        assert ws._read_env(p) == expected
 
     def test_write_env_replaces_in_place_preserving_comments(self, tmp_path: Path) -> None:
         p = tmp_path / ".env"
@@ -106,7 +108,8 @@ class TestEnvHelpers:
     def test_write_env_roundtrip(self, tmp_path: Path) -> None:
         p = tmp_path / ".env"
         ws._write_env(p, {"X": "y"})
-        assert ws._read_env(p) == {"X": "y"}
+        expected = {"X": "y"}
+        assert ws._read_env(p) == expected
 
 
 class TestMask:
@@ -199,7 +202,8 @@ class TestWalletsCli:
         )
         assert result.exit_code == 0
         assert "Wrote 1 wallet(s)" in result.output
-        assert ws._read_env(p) == {"PRY_X402_WALLET_BASE": "0x" + "a" * 40}
+        expected = {"PRY_X402_WALLET_BASE": "0x" + "a" * 40}
+        assert ws._read_env(p) == expected
 
     def test_init_invalid_wallet_not_written(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

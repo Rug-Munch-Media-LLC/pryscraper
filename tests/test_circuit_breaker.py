@@ -26,12 +26,13 @@ def _reset_registry() -> None:
 
 class TestBreakerForTier:
     def test_mapping_exact(self) -> None:
-        assert cb.BREAKER_FOR_TIER == {
+        expected = {
             "flaresolverr": "flaresolverr",
             "playwright": "playwright",
             "camoufox": "camoufox",
             "tls_fingerprint": "tls_fingerprint",
         }
+        assert expected == cb.BREAKER_FOR_TIER
 
     def test_domain_max_concurrency(self) -> None:
         assert cb.DOMAIN_MAX_CONCURRENCY == 10
@@ -56,7 +57,8 @@ class TestDomainSemaphore:
     def test_registry_tracks_each_domain(self) -> None:
         cb.domain_semaphore("a.com")
         cb.domain_semaphore("b.com")
-        assert set(cb._domain_semaphores) == {"a.com", "b.com"}
+        expected = {"a.com", "b.com"}
+        assert set(cb._domain_semaphores) == expected
 
     def test_lru_eviction_at_cap(self) -> None:
         for i in range(cb._DOMAIN_SEMAPHORE_MAX):

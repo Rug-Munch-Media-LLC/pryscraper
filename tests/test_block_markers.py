@@ -30,11 +30,13 @@ class TestNormHeaders:
 
     def test_keys_lowercased_and_values_stringified(self) -> None:
         result = _norm_headers({"CF-Ray": "abc", "Server": 123})
-        assert result == {"cf-ray": "abc", "server": "123"}
+        expected = {"cf-ray": "abc", "server": "123"}
+        assert result == expected
 
     def test_mixed_case_keys_collapse(self) -> None:
         result = _norm_headers({"CF-Ray": "a", "cf-ray": "b"})
-        assert result == {"cf-ray": "b"}  # later key wins
+        expected = {"cf-ray": "b"}
+        assert result == expected  # later key wins
 
 
 # ── _body_evidence ──────────────────────────────────────────────────────────
@@ -46,11 +48,13 @@ class TestBodyEvidence:
 
     def test_markers_found_return_evidence_strings(self) -> None:
         result = _body_evidence(("just a moment", "cf-chl-"), "just a moment please")
-        assert result == ["body contains 'just a moment'"]
+        expected = ["body contains 'just a moment'"]
+        assert result == expected
 
     def test_only_present_markers_are_reported(self) -> None:
         result = _body_evidence(("a", "b", "c"), "has a and c")
-        assert result == ["body contains 'a'", "body contains 'c'"]
+        expected = ["body contains 'a'", "body contains 'c'"]
+        assert result == expected
 
 
 # ── _is_scripts_only ────────────────────────────────────────────────────────

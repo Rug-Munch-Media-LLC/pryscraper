@@ -50,7 +50,8 @@ async def test_run_empty_hook():
     """Running a hook point with no hooks returns kwargs."""
     p = Pipeline()
     result = await p.run("before_scrape", url="http://example.com")
-    assert result == {"url": "http://example.com"}
+    expected = {"url": "http://example.com"}
+    assert result == expected
 
 
 @pytest.mark.asyncio

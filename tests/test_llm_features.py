@@ -40,7 +40,8 @@ def mock_registry() -> MagicMock:
 
 async def test_compliance_analyze_routes_through_complete_json(mock_registry: MagicMock) -> None:
     result = await llm_compliance_analyze("Some terms text", url="https://example.com")
-    assert result == {"ok": True}
+    expected = {"ok": True}
+    assert result == expected
     mock_registry.complete_json.assert_awaited_once()
     call = mock_registry.complete_json.call_args
     assert "Terms of Service" in call.args[0]
@@ -51,7 +52,8 @@ async def test_compliance_analyze_routes_through_complete_json(mock_registry: Ma
 
 async def test_compliance_analyze_empty_text_short_circuits(mock_registry: MagicMock) -> None:
     result = await llm_compliance_analyze("")
-    assert result == {"risk_level": "unknown", "reason": "No ToS text provided"}
+    expected = {"risk_level": "unknown", "reason": "No ToS text provided"}
+    assert result == expected
     mock_registry.complete_json.assert_not_awaited()
 
 
@@ -69,7 +71,8 @@ async def test_seo_analyze_routes_through_complete_json(mock_registry: MagicMock
     result = await llm_seo_analyze(
         "https://example.com", "<h1>Widget</h1>", target_keywords=["widget", "gadget"]
     )
-    assert result == {"ok": True}
+    expected = {"ok": True}
+    assert result == expected
     call = mock_registry.complete_json.call_args
     assert "widget, gadget" in call.args[0]
     assert call.kwargs["schema"] == PROMPTS["seo_analyze"]["schema"]
@@ -77,7 +80,8 @@ async def test_seo_analyze_routes_through_complete_json(mock_registry: MagicMock
 
 async def test_seo_analyze_empty_content_short_circuits(mock_registry: MagicMock) -> None:
     result = await llm_seo_analyze("https://example.com", "")
-    assert result == {"score": 0, "recommendations": []}
+    expected = {"score": 0, "recommendations": []}
+    assert result == expected
     mock_registry.complete_json.assert_not_awaited()
 
 
@@ -87,7 +91,8 @@ async def test_seo_analyze_empty_content_short_circuits(mock_registry: MagicMock
 async def test_entity_reconcile_routes_through_complete_json(mock_registry: MagicMock) -> None:
     records = [{"id": "1", "name": "Acme"}, {"id": "2", "name": "Acme Pro"}]
     result = await llm_entity_reconcile(records, vertical="product")
-    assert result == {"ok": True}
+    expected = {"ok": True}
+    assert result == expected
     call = mock_registry.complete_json.call_args
     assert "product" in call.args[0]
     assert '"id": "1"' in call.args[0]
@@ -97,7 +102,8 @@ async def test_entity_reconcile_routes_through_complete_json(mock_registry: Magi
 
 async def test_entity_reconcile_single_record_short_circuits(mock_registry: MagicMock) -> None:
     result = await llm_entity_reconcile([{"id": "1"}])
-    assert result == {"entities": [{"id": "1"}], "matches": []}
+    expected = {"entities": [{"id": "1"}], "matches": []}
+    assert result == expected
     mock_registry.complete_json.assert_not_awaited()
 
 
@@ -107,7 +113,8 @@ async def test_entity_reconcile_single_record_short_circuits(mock_registry: Magi
 async def test_pii_detect_routes_through_complete_json(mock_registry: MagicMock) -> None:
     text = "Contact sales@example.com for details" * 5
     result = await llm_pii_detect(text)
-    assert result == {"ok": True}
+    expected = {"ok": True}
+    assert result == expected
     call = mock_registry.complete_json.call_args
     assert "sales@example.com" in call.args[0]
     assert call.kwargs["schema"] == PROMPTS["pii_detect"]["schema"]
@@ -116,7 +123,8 @@ async def test_pii_detect_routes_through_complete_json(mock_registry: MagicMock)
 
 async def test_pii_detect_short_text_short_circuits(mock_registry: MagicMock) -> None:
     result = await llm_pii_detect("short")
-    assert result == {"pii_found": [], "redacted_text": "short"}
+    expected = {"pii_found": [], "redacted_text": "short"}
+    assert result == expected
     mock_registry.complete_json.assert_not_awaited()
 
 
@@ -127,7 +135,8 @@ async def test_anomaly_detect_routes_through_complete_json(mock_registry: MagicM
     historical = [{"price": 10}, {"price": 11}]
     current = {"price": 5}
     result = await llm_anomaly_detect(historical, current, field="price")
-    assert result == {"ok": True}
+    expected = {"ok": True}
+    assert result == expected
     call = mock_registry.complete_json.call_args
     assert "price" in call.args[0]
     assert '"price": 5' in call.args[0]
@@ -137,7 +146,8 @@ async def test_anomaly_detect_routes_through_complete_json(mock_registry: MagicM
 
 async def test_anomaly_detect_missing_data_short_circuits(mock_registry: MagicMock) -> None:
     result = await llm_anomaly_detect([], {"price": 5})
-    assert result == {"anomaly": False, "reason": "Insufficient data"}
+    expected = {"anomaly": False, "reason": "Insufficient data"}
+    assert result == expected
     mock_registry.complete_json.assert_not_awaited()
 
 

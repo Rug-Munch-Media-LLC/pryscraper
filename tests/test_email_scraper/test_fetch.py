@@ -83,7 +83,8 @@ async def test_byok_token_is_sent_as_a_bearer_header(monkeypatch):
 
     assert seen["Authorization"] == "Bearer ya29.my-token"
     # BYOK means no ambient credential is attached alongside the caller's.
-    assert set(seen) == {"Authorization"}
+    expected = {"Authorization"}
+    assert set(seen) == expected
 
 
 async def test_outlook_fetch_is_wired_to_graph(monkeypatch):

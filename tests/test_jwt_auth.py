@@ -189,8 +189,10 @@ def test_validate_rmi_jwt_enforces_rs256_and_exp(mock_decode):
     ):
         validate_rmi_jwt("good.jwt.token")
         _args, kwargs = mock_decode.call_args
-        assert kwargs.get("algorithms") == ["RS256"]
-        assert kwargs.get("options", {}).get("require") == ["exp"]
+        expected = ["RS256"]
+        assert kwargs.get("algorithms") == expected
+        expected_2 = ["exp"]
+        assert kwargs.get("options", {}).get("require") == expected_2
 
 
 # ── is_jwt ──

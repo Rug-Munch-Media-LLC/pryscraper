@@ -53,17 +53,24 @@ curl -s http://127.0.0.1:8005/v1/scrape \
 
 `method` names the tier that served the page. `total` is the full Markdown length; `offset` and `limit` page through large bodies (`ScrapeRequest`, `src/pry/api/routers/scraping/scraping_models.py`).
 
+`metadata.markdown_quality` scores the cleaned Markdown from 0 to 100. It runs seven weighted checks: relative links, fenced-code languages, heading structure, stray HTML tables, images, boilerplate noise, and duplicate blocks. A low score means the page kept little readable content; raise the tier, or switch to `POST /v1/extract` for typed output. The per-check breakdown is `metadata.markdown_checks` (`src/pry/engine/markdown_quality.py`).
+
 ## What you can do
 
 | Job | Endpoint | Request |
 |---|---|---|
 | Scrape one page | `POST /v1/scrape` | `{"url":"https://example.com"}` |
+| Search the web | `POST /v1/search` | `{"query":"rust web frameworks","limit":5}` |
 | Crawl a site | `POST /v1/crawl` | `{"url":"https://example.com","maxPages":10}` |
-| Map URLs | `POST /v1/map` | `{"url":"https://example.com","limit":50}` |
+| Map a site's URLs | `POST /v1/map` | `{"url":"https://example.com","limit":50}` |
 | Extract fields | `POST /v1/extract` | `{"url":"https://shop.example/p/1","fields":{"price":"Price in USD"}}` |
 | Run a template | `POST /v1/templates/execute` | `{"template_id":"amazon_product","url":"https://amazon.com/dp/..."}` |
 
-Crawl returns `{"success":true,"data":{"id":"sync","url":"...","pages":[...]}}`. Map returns `data.links`. Extract returns the requested keys as JSON. Templates read from `src/pry/commerce/templates/` (110 files).
+`/v1/search` returns ranked web results (`data.results[]` with `url`, `title`, `description`). It queries SearXNG and falls back to DuckDuckGo.
+
+`/v1/map` returns same-origin URLs in `data.links`. It reads the sitemap when `ignoreSitemap` is false, and falls back to link extraction. The cap is 500.
+
+Crawl returns `{"success":true,"data":{"id":"sync","url":"...","pages":[...]}}`. Extract returns the requested keys as JSON. Templates read from `src/pry/commerce/templates/` (110 files).
 
 All 99 tools are callable over MCP at `/mcp/` (Streamable HTTP) or `/mcp/sse` (SSE). Discovery is keyless; execution needs an API key or an x402 payment.
 
@@ -72,6 +79,7 @@ All 99 tools are callable over MCP at `/mcp/` (Streamable HTTP) or `/mcp/sse` (S
 | Operation | USD per call | Operation key |
 |---|---:|---|
 | Scrape one URL | $0.001 | `scrape` |
+| Web search | $0.003 | `search` |
 | Crawl up to 10 pages | $0.010 | `crawl` |
 | Structured extraction | $0.005 | `extract` |
 | Execute a template | $0.002 | `template_execute` |
@@ -85,6 +93,17 @@ Seven networks settle: Base, Ethereum, Arbitrum, Optimism, Polygon, Solana, TRON
 curl -s https://api.pryscraper.com/v1/scrape -H 'Content-Type: application/json' -d '{"url":"https://example.com"}'
 # 402 Payment Required -> pay the quoted amount -> retry with PAYMENT-SIGNATURE
 ```
+
+## Async jobs
+
+Crawl runs synchronously unless you pass a `webhook`. With a webhook it returns a job id straight away:
+
+```bash
+POST /v1/crawl   {"url":"https://example.com","maxPages":10,"webhook":"https://example.com/hook"}
+# -> {"success":true,"data":{"id":"crawl-7f3a","status":"pending"}}
+```
+
+Poll `GET /v1/crawl/{id}` for status and the completed pages. `DELETE /v1/crawl/{id}` cancels a queued or running job, and repeating it is safe. `GET /v1/crawl/{id}/errors` lists per-URL failures. A finished job also posts its body to the webhook.
 
 ## Self-host
 

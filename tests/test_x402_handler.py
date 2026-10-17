@@ -25,12 +25,21 @@ def test_x402_pricing_has_scrape():
 
 
 def test_supported_networks_nonempty():
-    assert len(SUPPORTED_NETWORKS) > 0
+    assert [n["network"] for n in SUPPORTED_NETWORKS] == [
+        "eip155:8453",
+        "eip155:1",
+        "eip155:42161",
+        "eip155:10",
+        "eip155:137",
+        "solana:mainnet",
+        "tron:mainnet",
+    ]
 
 
 def test_resolve_price_usd():
     price = resolve_price_usd("scrape")
-    assert price > 0
+    assert price == X402_PRICING["scrape"]["price_usd"]
+    assert price == 0.001
 
 
 def test_resolve_price_usd_unknown():
@@ -59,7 +68,8 @@ def test_create_payment_request():
     assert "payment_id" in req
     assert req["operation"] == "scrape"
     assert req["asset"] == "USDC"
-    assert req["extra"] == {"source": "test"}
+    expected = {"source": "test"}
+    assert req["extra"] == expected
 
 
 def test_create_payment_request_unknown():
@@ -78,7 +88,8 @@ async def test_create_batch_payment():
     # Both operations are valid, so the batch must carry a positive total and
     # a per-operation breakdown covering exactly the requested ops.
     assert result["total_usd"] > 0
-    assert {op["operation"] for op in result["operations"]} == {"scrape", "monitor"}
+    expected = {"scrape", "monitor"}
+    assert {op["operation"] for op in result["operations"]} == expected
     assert "payment_required" in result
 
 

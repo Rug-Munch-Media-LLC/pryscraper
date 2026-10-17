@@ -316,13 +316,14 @@ def _record(**kw: Any) -> dict[str, Any]:
 
 
 def test_source_registry_has_all_five_sources() -> None:
-    assert set(sources.SOURCES) == {
+    expected = {
         "the_odds_api",
         "espn",
         "oddsportal",
         "bovada",
         "betonline",
     }
+    assert set(sources.SOURCES) == expected
     for name, entry in sources.SOURCES.items():
         assert 0 <= entry["confidence"] <= 1
         assert entry["kind"] in {"api", "scrape"}
@@ -335,13 +336,14 @@ def test_source_status_shape() -> None:
     entry = status["oddsportal"]
     assert entry["name"] == "oddsportal"
     assert entry["confidence"] == sources.SOURCES["oddsportal"]["confidence"]
-    assert set(entry["availability"]) == {
+    expected = {
         "reachable",
         "blocked",
         "last_checked",
         "latency_ms",
         "error",
     }
+    assert set(entry["availability"]) == expected
     assert sources.source_status("bogus") == {}
 
 
@@ -536,7 +538,8 @@ def test_merge_odds_keeps_different_books() -> None:
     b = _record(book="draftkings", source="the_odds_api", home_odds=2.10)
     merged = sources.merge_odds([a, b])
     assert len(merged) == 2
-    assert [r["book"] for r in merged] == ["bovada", "draftkings"]
+    expected = ["bovada", "draftkings"]
+    assert [r["book"] for r in merged] == expected
 
 
 def test_merge_odds_newer_update_wins_same_source() -> None:
@@ -556,7 +559,8 @@ def test_merge_odds_preserves_input_order() -> None:
     b = _record(book="draftkings", source="the_odds_api")
     c = _record(book="pinnacle", source="oddsportal")
     merged = sources.merge_odds([a, b, c])
-    assert [r["book"] for r in merged] == ["bovada", "draftkings", "pinnacle"]
+    expected = ["bovada", "draftkings", "pinnacle"]
+    assert [r["book"] for r in merged] == expected
 
 
 def test_merge_odds_ignores_non_dicts_and_empty() -> None:
@@ -602,7 +606,8 @@ async def test_get_odds_sources_espn_and_bovada_merged() -> None:
     respx.get(_SCORE_NBA).mock(return_value=httpx.Response(200, json=_espn_scoreboard_payload()))
     respx.get(_BOVADA_NBA).mock(return_value=httpx.Response(200, json=_bovada_payload()))
     results = await odds.get_odds(sport="nba", sources="espn,bovada", limit=50)
-    assert {record["source"] for record in results} == {"espn", "bovada"}
+    expected = {"espn", "bovada"}
+    assert {record["source"] for record in results} == expected
     # Same (event, market, book) would be deduped; different books stay.
     assert len(results) >= 2
 

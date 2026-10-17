@@ -125,7 +125,8 @@ class TestPackStream:
 
         entries = tracker._pack_stream(30)
         assert len(entries) == 2
-        assert {e["amount_usd"] for e in entries} == {5.0, 2.5}
+        expected = {5.0, 2.5}
+        assert {e["amount_usd"] for e in entries} == expected
         assert tracker.get_total_earnings(30)["by_stream"]["packs"] == pytest.approx(7.5)
 
     def test_db_down_degrades_to_empty(self, tracker, monkeypatch) -> None:
@@ -201,7 +202,8 @@ class TestSubscriptionStream:
         assert mrr["mrr_usd"] == pytest.approx(49.0 + 199.0)
         assert mrr["arr_usd"] == pytest.approx((49.0 + 199.0) * 12)
         assert mrr["active_subscriptions"] == 2
-        assert mrr["by_tier"] == {"pro": 1, "team": 1}
+        expected = {"pro": 1, "team": 1}
+        assert mrr["by_tier"] == expected
 
 
 # ── Aggregations ─────────────────────────────────────────────────────────────
@@ -340,7 +342,8 @@ class TestTreasuryBalances:
         evm = tracker._evm_balance()
         assert evm["native_balance"] == pytest.approx(3.0)
         assert evm["usdc_balance"] == pytest.approx(150.0)
-        assert set(seen_actions) == {"balance", "tokenbalance"}
+        expected = {"balance", "tokenbalance"}
+        assert set(seen_actions) == expected
 
     def test_evm_etherscan_error_status_raises_value(self, tracker, monkeypatch) -> None:
         """Etherscan status != 1 → error entry, never raises out of the tracker."""

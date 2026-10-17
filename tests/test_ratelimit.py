@@ -18,8 +18,8 @@ def test_rate_limiter_tracks_total() -> None:
     for _ in range(5):
         rl.check("127.0.0.1")
     stats = rl.get_stats()
-    assert stats["total_requests"] >= 5
-    assert stats["active_ips"] >= 1
+    assert stats["total_requests"] == 5
+    assert stats["active_ips"] == 1
 
 
 def test_rate_limiter_blocks_excessive_burst() -> None:
@@ -103,7 +103,8 @@ def test_redis_backend_shared_counter_limits_across_instances() -> None:
 
     results = [rl_b.check("9.9.9.9")[0] for _ in range(5)]
     # Shared window of 3 across BOTH limiter instances (multi-replica sim).
-    assert results == [True, True, True, False, False]
+    expected = [True, True, True, False, False]
+    assert results == expected
     assert rl_b.backend == "redis"
 
 

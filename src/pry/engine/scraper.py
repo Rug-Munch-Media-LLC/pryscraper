@@ -23,7 +23,7 @@ from trafilatura.settings import use_config
 from pry.core.errors import InvalidRequestError
 from pry.core.settings import settings
 from pry.engine.block_detector import BlockDetector
-from pry.engine.extraction import finalize_markdown
+from pry.engine.dom_prune import finalize_document, select_main_content
 from pry.engine.url_guard import safe_get, validate_url
 
 logger = logging.getLogger(__name__)
@@ -123,7 +123,6 @@ class PryScraper:
         extracted["quality_score"] = quality
         extracted["method"] = result.get("method", "unknown")
 
-        # Keep raw_html for template engines
         if "raw_html" not in extracted:
             extracted["raw_html"] = raw_html
 
@@ -141,6 +140,7 @@ class PryScraper:
             result["description"] = m.group(1).strip()[:500]
 
         # Primary: trafilatura
+        raw_html = select_main_content(raw_html, out=result)
         content = trafilatura.extract(
             raw_html,
             config=self.config,
@@ -154,14 +154,14 @@ class PryScraper:
         include_images = bool(opts.get("include_images", False))
         if content:
             result["content"] = content
-            return finalize_markdown(result, url, include_images)
+            return finalize_document(result, url, include_images)
 
         # Fallback: markdownify
         from markdownify import markdownify
 
         content = markdownify(raw_html, heading_arrows=False, strip=["script", "style"])  # type: ignore[call-arg]  # markdownify supports heading_arrows at runtime
         result["content"] = content
-        return finalize_markdown(result, url, include_images)
+        return finalize_document(result, url, include_images)
 
     async def _fetch_direct(self, url: str, headers: dict, timeout_s: int) -> str:
         proxy_url = settings.resolved_proxy_url

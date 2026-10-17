@@ -94,7 +94,8 @@ async def test_first_run_seeds_snapshot_and_returns_empty(tmp_path) -> None:
     signals = await cex.get_listing_signals(exchanges=["binance"])
     assert signals == []
     snapshot = _read_snapshot_file(tmp_path, "binance")
-    assert {s["symbol"] for s in snapshot["symbols"]} == {"BTCUSDT", "ETHUSDT"}
+    expected = {"BTCUSDT", "ETHUSDT"}
+    assert {s["symbol"] for s in snapshot["symbols"]} == expected
     assert snapshot["version"] == 1
 
     # Second run with the same data → still no signals (idempotent).
@@ -173,7 +174,8 @@ async def test_stale_snapshot_is_reseeded_not_diffed(tmp_path) -> None:
     _write_raw_snapshot(tmp_path, "binance", ["BTCUSDT"], updated_hours_ago=48)
     signals = await cex.get_listing_signals(exchanges=["binance"], lookback_hours=24)
     assert signals == []  # too old to attribute → re-seed silently
-    assert {s["symbol"] for s in _read_snapshot_file(tmp_path, "binance")["symbols"]} == {"BTCUSDT"}
+    expected = {"BTCUSDT"}
+    assert {s["symbol"] for s in _read_snapshot_file(tmp_path, "binance")["symbols"]} == expected
 
 
 @respx.mock
@@ -222,10 +224,11 @@ async def test_failed_poll_preserves_snapshot(tmp_path) -> None:
 
     assert await cex.get_listing_signals(exchanges=["binance"]) == []
     # Snapshot survives the failure untouched (no wipe, no spurious signals).
-    assert {s["symbol"] for s in _read_snapshot_file(tmp_path, "binance")["symbols"]} == {
+    expected = {
         "BTCUSDT",
         "ETHUSDT",
     }
+    assert {s["symbol"] for s in _read_snapshot_file(tmp_path, "binance")["symbols"]} == expected
     # Healthy poll with the same data → still no signals.
     assert await cex.get_listing_signals(exchanges=["binance"]) == []
 
@@ -246,7 +249,8 @@ async def test_multiple_exchanges_concurrent(tmp_path) -> None:
     await cex.get_listing_signals(exchanges=["binance", "okx"])  # seed
 
     signals = await cex.get_listing_signals(exchanges=["binance", "okx"])
-    assert {s["symbol"] for s in signals} == {"DOGEUSDT", "SOL-USDT"}
+    expected = {"DOGEUSDT", "SOL-USDT"}
+    assert {s["symbol"] for s in signals} == expected
     by_symbol = {s["symbol"]: s for s in signals}
     assert by_symbol["DOGEUSDT"]["exchange"] == "binance"
     assert by_symbol["DOGEUSDT"]["base"] == "DOGE"

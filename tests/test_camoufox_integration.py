@@ -113,7 +113,8 @@ async def test_fetch_builds_launch_args_from_profile() -> None:
     launch_kwargs = mock_camoufox.call_args.kwargs
     assert launch_kwargs["os"] == "windows"
     assert launch_kwargs["browser"] == "chrome"
-    assert launch_kwargs["screen"] == (1920, 1080)
+    expected = (1920, 1080)
+    assert launch_kwargs["screen"] == expected
     assert launch_kwargs["headless"] is True
     # No proxy → not passed through
     assert "proxy" not in launch_kwargs
@@ -332,11 +333,12 @@ async def test_fetch_with_stealth_scrolls_and_returns_content() -> None:
     assert result["success"] is True
     assert result["content"] == "<html>after-scroll</html>"
     scroll_calls = [c.args[0] for c in browser2.evaluate.await_args_list]
-    assert scroll_calls == [
+    expected = [
         "window.scrollTo(0, 0)",
         "window.scrollTo(0, 500)",
         "window.scrollTo(0, 1000)",
     ]
+    assert scroll_calls == expected
     browser2.wait_for_timeout.assert_awaited_with(1200)
 
 

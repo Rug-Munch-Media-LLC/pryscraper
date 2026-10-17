@@ -45,7 +45,8 @@ def test_ttl_set_get_roundtrip() -> None:
     clock = FakeClock()
     cache = TTLCache(default_ttl=10.0, clock=clock)
     cache.set("odds:nba", {"home": 1.85})
-    assert cache.get("odds:nba") == {"home": 1.85}
+    expected = {"home": 1.85}
+    assert cache.get("odds:nba") == expected
 
 
 def test_ttl_missing_returns_none() -> None:
@@ -56,7 +57,8 @@ def test_ttl_missing_returns_none() -> None:
 def test_ttl_tuple_keys() -> None:
     cache = TTLCache()
     cache.set(("odds", "nba", "us"), [1, 2, 3])
-    assert cache.get(("odds", "nba", "us")) == [1, 2, 3]
+    expected = [1, 2, 3]
+    assert cache.get(("odds", "nba", "us")) == expected
 
 
 def test_ttl_delete() -> None:
@@ -187,7 +189,8 @@ def test_ttl_async_aliases() -> None:
 
     async def run() -> None:
         await cache.aset("k", {"odds": 1.85})
-        assert await cache.aget("k") == {"odds": 1.85}
+        expected = {"odds": 1.85}
+        assert await cache.aget("k") == expected
         await cache.aclear()
         assert await cache.aget("k") is None
 

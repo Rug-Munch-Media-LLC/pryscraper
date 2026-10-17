@@ -22,7 +22,7 @@ class TestListTemplates:
         templates = te.list_templates()
         assert len(templates) >= 40
         first = templates[0]
-        assert set(first) == {
+        expected = {
             "id",
             "name",
             "description",
@@ -31,6 +31,7 @@ class TestListTemplates:
             "fields",
             "icon",
         }
+        assert set(first) == expected
 
     def test_sorted_by_id(self) -> None:
         ids = [t["id"] for t in te.list_templates()]
@@ -42,14 +43,16 @@ class TestListTemplates:
         assert amazon["name"] == "Amazon Product"
         assert amazon["site"] == "amazon.com"
         assert amazon["category"] == "ecommerce"
-        assert [f["name"] for f in amazon["fields"]][:2] == ["title", "price"]
+        expected = ["title", "price"]
+        assert [f["name"] for f in amazon["fields"]][:2] == expected
 
     def test_skips_malformed_json(self, tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         (tmp_path / "good.json").write_text('{"name": "Good"}')
         (tmp_path / "bad.json").write_text("{not json")
         monkeypatch.setattr(te, "TEMPLATES_DIR", tmp_path)
         templates = te.list_templates()
-        assert [t["id"] for t in templates] == ["good"]
+        expected = ["good"]
+        assert [t["id"] for t in templates] == expected
         assert templates[0]["name"] == "Good"
         assert templates[0]["category"] == "general"
         assert templates[0]["icon"] == "🌐"
@@ -75,7 +78,8 @@ class TestExecuteTemplate:
     @pytest.mark.asyncio
     async def test_unknown_template(self) -> None:
         result = await te.execute_template("nope-xyz", "http://x")
-        assert result == {"success": False, "error": "Template not found: nope-xyz"}
+        expected = {"success": False, "error": "Template not found: nope-xyz"}
+        assert result == expected
 
     @pytest.mark.asyncio
     async def test_template_without_schema(
@@ -84,7 +88,8 @@ class TestExecuteTemplate:
         (tmp_path / "empty.json").write_text('{"name": "Empty"}')
         monkeypatch.setattr(te, "TEMPLATES_DIR", tmp_path)
         result = await te.execute_template("empty", "http://x")
-        assert result == {"success": False, "error": "Template has no extraction schema"}
+        expected = {"success": False, "error": "Template has no extraction schema"}
+        assert result == expected
 
     @pytest.mark.asyncio
     async def test_scrape_failure_returns_error(
@@ -98,7 +103,8 @@ class TestExecuteTemplate:
         scraper.scrape.return_value = {"status": "error", "error": "blocked"}
         with patch("pry.engine.scraper.PryScraper", return_value=scraper):
             result = await te.execute_template("t", "http://x")
-        assert result == {"success": False, "error": "blocked"}
+        expected = {"success": False, "error": "blocked"}
+        assert result == expected
 
     @pytest.mark.asyncio
     async def test_successful_extraction(
@@ -118,7 +124,8 @@ class TestExecuteTemplate:
         assert result["data"]["template_id"] == "t"
         assert result["data"]["template_name"] == "T"
         assert result["data"]["url"] == "http://x"
-        assert result["data"]["items"] == [{"title": "Widget"}]
+        expected = [{"title": "Widget"}]
+        assert result["data"]["items"] == expected
         assert result["data"]["count"] == 1
         assert "extracted_at" in result["data"]
 
@@ -162,7 +169,8 @@ class TestExecuteTemplate:
         ]
         with patch("pry.engine.scraper.PryScraper", return_value=scraper):
             result = await te.execute_template("t", "http://x")
-        assert result["data"]["items"] == [{"title": "Rendered"}]
+        expected = [{"title": "Rendered"}]
+        assert result["data"]["items"] == expected
 
     @pytest.mark.asyncio
     async def test_tier2_js_render_when_first_scrape_fails(
@@ -181,7 +189,8 @@ class TestExecuteTemplate:
         ]
         with patch("pry.engine.scraper.PryScraper", return_value=scraper):
             result = await te.execute_template("t", "http://x")
-        assert result["data"]["items"] == [{"title": "FromJS"}]
+        expected = [{"title": "FromJS"}]
+        assert result["data"]["items"] == expected
         assert scraper.scrape.await_count == 2
 
     @pytest.mark.asyncio
@@ -199,4 +208,5 @@ class TestExecuteTemplate:
         ]
         with patch("pry.engine.scraper.PryScraper", return_value=scraper):
             result = await te.execute_template("t", "http://x")
-        assert result == {"success": False, "error": "tier1"}
+        expected = {"success": False, "error": "tier1"}
+        assert result == expected

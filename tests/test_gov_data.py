@@ -404,8 +404,10 @@ async def test_search_recalls_all_merges_and_truncates() -> None:
     results = await recalls.search_recalls("peanut", agency="all", limit=3)
     assert len(results) == 2
     agencies = {r["agency"] for r in results}
-    assert agencies == {"cpsc", "fda"}
-    assert sorted(r["date"] for r in results) == ["2023-01-01", "2023-01-01"]
+    expected = {"cpsc", "fda"}
+    assert agencies == expected
+    expected_2 = ["2023-01-01", "2023-01-01"]
+    assert sorted(r["date"] for r in results) == expected_2
 
 
 @respx.mock

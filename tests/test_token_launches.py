@@ -226,7 +226,8 @@ async def test_get_new_tokens_sorts_newest_first_and_limits() -> None:
 
     result = await get_new_tokens(chain="solana", limit=1)
 
-    assert [entry["address"] for entry in result] == ["new"]
+    expected = ["new"]
+    assert [entry["address"] for entry in result] == expected
 
 
 @respx.mock
@@ -257,16 +258,19 @@ async def test_get_new_tokens_chain_filter() -> None:
     _mock_tokens("ethereum", _pair(chain="ethereum", base="eth-tok", pair="p-eth"))
 
     solana_only = await get_new_tokens(chain="solana")
-    assert [entry["address"] for entry in solana_only] == ["sol-tok"]
+    expected = ["sol-tok"]
+    assert [entry["address"] for entry in solana_only] == expected
 
     all_chains = await get_new_tokens(chain="all")
-    assert {entry["chain"] for entry in all_chains} == {"solana", "ethereum"}
+    expected_2 = {"solana", "ethereum"}
+    assert {entry["chain"] for entry in all_chains} == expected_2
 
 
 @respx.mock
 async def test_get_new_tokens_unsupported_chain_returns_empty_without_network() -> None:
     result = await get_new_tokens(chain="tron")
     assert result == []
+    assert respx.calls.call_count == 0
 
 
 # ── get_new_tokens: min_age_minutes filtering ───────────────────────────
@@ -300,7 +304,8 @@ async def test_get_new_pairs_returns_all_pairs_deduped_sorted() -> None:
 
     result = await get_new_pairs(chain="solana")
 
-    assert [entry["pair_address"] for entry in result] == ["p-new", "p-old"]
+    expected = ["p-new", "p-old"]
+    assert [entry["pair_address"] for entry in result] == expected
 
 
 # ── get_trending_tokens ─────────────────────────────────────────────────
@@ -368,7 +373,8 @@ async def test_get_trending_tokens_coingecko_fallback() -> None:
 
 @respx.mock
 async def test_empty_on_server_error() -> None:
-    _mock_profiles()
+    # A profile is required, else the token fetch is skipped and the 500 never runs.
+    _mock_profiles(_profile(address="tok1"))
     respx.get(url__startswith=f"{DEX}/tokens/v1/").mock(
         return_value=httpx.Response(500, text="boom")
     )
@@ -376,6 +382,7 @@ async def test_empty_on_server_error() -> None:
     assert await get_new_tokens() == []
     assert await get_new_pairs() == []
     assert await get_trending_tokens() == []
+    assert respx.calls.call_count == 3
 
 
 @respx.mock
@@ -386,6 +393,7 @@ async def test_empty_on_network_error() -> None:
 
     assert await get_new_tokens(chain="solana") == []
     assert await get_new_pairs(chain="solana") == []
+    assert respx.calls.call_count == 2
 
 
 @respx.mock
@@ -395,6 +403,7 @@ async def test_empty_on_timeout() -> None:
     )
 
     assert await get_new_tokens(chain="solana") == []
+    assert respx.calls.call_count == 2
 
 
 @respx.mock
@@ -405,6 +414,7 @@ async def test_empty_on_bad_json() -> None:
 
     assert await get_new_tokens() == []
     assert await get_new_pairs() == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
@@ -470,6 +480,7 @@ async def test_get_new_tokens_cmc_bad_html_returns_empty() -> None:
     respx.get(url=CMC_NEW).mock(return_value=httpx.Response(200, text="<html>no data</html>"))
 
     assert await get_new_tokens(chain="solana") == []
+    assert respx.calls.call_count == 3
 
 
 @respx.mock
@@ -479,6 +490,7 @@ async def test_get_new_tokens_cmc_http_error_returns_empty() -> None:
     respx.get(url=CMC_NEW).mock(return_value=httpx.Response(403))
 
     assert await get_new_tokens(chain="solana") == []
+    assert respx.calls.call_count == 3
 
 
 # ── Birdeye token list fallback ────────────────────────────────────────
@@ -562,6 +574,7 @@ async def test_rate_limit_429_exhausted_returns_empty() -> None:
     respx.get(f"{DEX}/token-profiles/latest/v1").mock(return_value=httpx.Response(429, json={}))
 
     assert await get_new_tokens(chain="solana") == []
+    assert respx.calls.call_count == 2
 
 
 # ── caching ─────────────────────────────────────────────────────────────
@@ -607,6 +620,7 @@ async def test_get_chain_context_empty_on_failure() -> None:
     respx.get(f"{LLAMA}/v2/chains").mock(return_value=httpx.Response(500, text="boom"))
 
     assert await get_chain_context() == []
+    assert respx.calls.call_count == 2
 
 
 # ── package exports ─────────────────────────────────────────────────────
@@ -621,4 +635,5 @@ def test_crypto_market_package_exports() -> None:
 
 
 def test_supported_chains_constant() -> None:
-    assert SUPPORTED_CHAINS == ("ethereum", "solana", "base", "bsc", "arbitrum", "polygon")
+    expected = ("ethereum", "solana", "base", "bsc", "arbitrum", "polygon")
+    assert expected == SUPPORTED_CHAINS

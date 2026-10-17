@@ -43,7 +43,7 @@ class TestDetectAnomaliesContract:
 
     def test_empty_current_with_previous_is_critical(self) -> None:
         result = detect_anomalies({}, {"a": 1})
-        assert result == [
+        expected = [
             {
                 "type": "empty_result",
                 "severity": "critical",
@@ -51,6 +51,7 @@ class TestDetectAnomaliesContract:
                 "message": "Extraction returned empty — previous run had data",
             }
         ]
+        assert result == expected
 
     def test_non_dict_inputs_return_empty(self) -> None:
         assert detect_anomalies(["x"], {"a": 1}) == []  # type: ignore[arg-type]
@@ -66,7 +67,7 @@ class TestDetectAnomaliesContract:
     def test_new_field_info(self) -> None:
         result = detect_anomalies({"a": 1, "new": 9}, {"a": 1})
         new = [a for a in result if a["type"] == "new_field"]
-        assert new == [
+        expected = [
             {
                 "type": "new_field",
                 "severity": "info",
@@ -74,6 +75,7 @@ class TestDetectAnomaliesContract:
                 "message": "New field 'new' appeared",
             }
         ]
+        assert new == expected
 
     def test_type_change_high_and_none_values_exempt(self) -> None:
         result = detect_anomalies({"a": "now-str"}, {"a": 42})
@@ -176,11 +178,12 @@ class TestFormatAgeLadder:
 class TestComputeFreshness:
     def test_no_timestamp_field_is_fresh_unknown(self) -> None:
         result = compute_freshness({"unrelated": 1})
-        assert result == {
+        expected = {
             "fresh": True,
             "age_seconds": None,
             "note": "No timestamp field found in data — cannot verify freshness",
         }
+        assert result == expected
 
     def test_timestamp_key_priority_order(self) -> None:
         """'timestamp' wins even when other recognised keys also exist."""
@@ -218,11 +221,12 @@ class TestComputeFreshness:
 
     def test_unknown_type_timestamp(self) -> None:
         result = compute_freshness({"timestamp": ["nope"]})
-        assert result == {
+        expected = {
             "fresh": True,
             "age_seconds": None,
             "note": "Timestamp in unknown format",
         }
+        assert result == expected
 
 
 # ── completeness ─────────────────────────────────────────────────────────────
@@ -230,13 +234,14 @@ class TestComputeFreshness:
 
 class TestDictCompleteness:
     def test_empty_dict_contract(self) -> None:
-        assert compute_completeness({}) == {
+        expected = {
             "score": 0,
             "total_fields": 0,
             "filled_fields": 0,
             "null_fields": 0,
             "empty_fields": 0,
         }
+        assert compute_completeness({}) == expected
 
     def test_classification_filled_null_empty(self) -> None:
         data = {
@@ -263,11 +268,12 @@ class TestDictCompleteness:
 
 class TestListCompleteness:
     def test_empty_list_contract_three_keys_only(self) -> None:
-        assert compute_completeness([]) == {
+        expected = {
             "score": 0,
             "record_count": 0,
             "avg_record_score": 0,
         }
+        assert compute_completeness([]) == expected
 
     def test_full_shape_with_records(self) -> None:
         records = [{"a": 1, "b": 2}, {"a": 1, "b": None}]
@@ -292,19 +298,21 @@ class TestListCompleteness:
 class TestSchemaAdherence:
     def test_no_expected_types_scores_perfect(self) -> None:
         result = compute_schema_adherence({"a": 1}, {})
-        assert result == {
+        expected = {
             "score": 100.0,
             "total_checks": 0,
             "type_mismatches": 0,
             "field_issues": {},
         }
+        assert result == expected
 
     def test_mismatch_tracking_per_field(self) -> None:
         data = [{"a": "str-not-int", "b": 1}, {"a": 5, "b": "also-not-int"}]
         result = compute_schema_adherence(data, {"a": int, "b": int})
         assert result["total_checks"] == 4
         assert result["type_mismatches"] == 2
-        assert result["field_issues"] == {"a": 1, "b": 1}
+        expected = {"a": 1, "b": 1}
+        assert result["field_issues"] == expected
         assert result["score"] == 50.0
 
     def test_none_values_are_exempt_from_type_checks(self) -> None:
@@ -321,13 +329,17 @@ class TestNullRate:
             {"a": 3, "b": "x", "c": 3},
         ]
         result = compute_null_rate(records)
-        assert result["a"] == {"null_rate": 66.7, "empty_rate": 0.0, "total": 3}
-        assert result["b"] == {"null_rate": 0.0, "empty_rate": 66.7, "total": 3}
-        assert result["c"] == {"null_rate": 0.0, "empty_rate": 0.0, "total": 3}
+        expected = {"null_rate": 66.7, "empty_rate": 0.0, "total": 3}
+        assert result["a"] == expected
+        expected_2 = {"null_rate": 0.0, "empty_rate": 66.7, "total": 3}
+        assert result["b"] == expected_2
+        expected_3 = {"null_rate": 0.0, "empty_rate": 0.0, "total": 3}
+        assert result["c"] == expected_3
 
     def test_single_dict_wrapped(self) -> None:
         result = compute_null_rate({"x": None})
-        assert result["x"] == {"null_rate": 100.0, "empty_rate": 0.0, "total": 1}
+        expected = {"null_rate": 100.0, "empty_rate": 0.0, "total": 1}
+        assert result["x"] == expected
 
 
 class TestFreshnessKeyCoverage:
@@ -377,13 +389,14 @@ class TestAnomalyExactContracts:
         # prev=100 -> curr=350 gives z = 250/100 = 2.5: flagged at the default
         # threshold 2.0, but a 3.0-default mutant would miss it.
         result = detect_anomalies({"p": 350}, {"p": 100})
-        assert [a["type"] for a in result if a["type"] == "value_swing"] == ["value_swing"]
+        expected = ["value_swing"]
+        assert [a["type"] for a in result if a["type"] == "value_swing"] == expected
         # And z = 1.5 must stay quiet at the default threshold.
         quiet = detect_anomalies({"p": 250}, {"p": 100})
         assert [a for a in quiet if a["type"] == "value_swing"] == []
 
     def test_missing_field_exact_dict(self) -> None:
-        assert detect_anomalies({"b": 2}, {"a": 1, "b": 2}) == [
+        expected = [
             {
                 "type": "missing_field",
                 "severity": "high",
@@ -391,16 +404,18 @@ class TestAnomalyExactContracts:
                 "message": ("Field 'a' was present in previous extraction but is now missing"),
             }
         ]
+        assert detect_anomalies({"b": 2}, {"a": 1, "b": 2}) == expected
 
     def test_new_field_and_type_change_exact_dicts(self) -> None:
         result = detect_anomalies({"keep": 1, "add": 2, "tc": "s"}, {"keep": 1, "tc": 9})
         by_type = {a["type"]: a for a in result}
-        assert by_type["new_field"] == {
+        expected = {
             "type": "new_field",
             "severity": "info",
             "field": "add",
             "message": "New field 'add' appeared",
         }
+        assert by_type["new_field"] == expected
         tc = by_type["type_change"]
         assert tc["field"] == "tc"
         assert tc["previous_type"] == "int"
@@ -409,7 +424,7 @@ class TestAnomalyExactContracts:
     def test_value_swing_exact_dict(self) -> None:
         result = detect_anomalies({"p": 145}, {"p": 100}, z_score_threshold=0.4)
         swing = next(a for a in result if a["type"] == "value_swing")
-        assert swing == {
+        expected = {
             "type": "value_swing",
             "severity": "medium",
             "field": "p",
@@ -418,13 +433,15 @@ class TestAnomalyExactContracts:
             "current_value": 145,
             "change_pct": 45.0,
         }
+        assert swing == expected
 
     def test_content_drift_exact_dict(self) -> None:
         prev = "the quick brown fox jumps over the lazy dog again and again"
         curr = "zz zz zz zz zz zz zz zz zz zz zz zz zz zz zz zz zz zz zz zz"
         result = detect_anomalies({"t": curr}, {"t": prev})
         drift = next(a for a in result if a["type"] == "content_drift")
-        assert set(drift.keys()) == {"type", "severity", "field", "message", "similarity"}
+        expected = {"type", "severity", "field", "message", "similarity"}
+        assert set(drift.keys()) == expected
         assert drift["type"] == "content_drift"
         assert drift["severity"] == "medium"
         assert drift["field"] == "t"

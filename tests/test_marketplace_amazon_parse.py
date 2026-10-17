@@ -42,11 +42,13 @@ class TestValidAsin:
 class TestAmazonPrice:
     def test_reads_offscreen_amount_and_currency(self) -> None:
         doc = _lxml_doc('<span class="a-price"><span class="a-offscreen">$19.99</span></span>')
-        assert _amazon_price(doc) == (19.99, "USD")
+        expected = (19.99, "USD")
+        assert _amazon_price(doc) == expected
 
     def test_ignores_strikethrough_price_block(self) -> None:
         doc = _lxml_doc("<html></html>")
-        assert _amazon_price(doc) == (0.0, "")
+        expected = (0.0, "")
+        assert _amazon_price(doc) == expected
 
 
 class TestAmazonRating:
@@ -78,7 +80,8 @@ class TestAmazonBsr:
         assert category == "Electronics"
 
     def test_absent_rank_returns_zero_and_empty(self) -> None:
-        assert _amazon_bsr_category(_lxml_doc("<p>x</p>"), "no rank") == (0, "")
+        expected = (0, "")
+        assert _amazon_bsr_category(_lxml_doc("<p>x</p>"), "no rank") == expected
 
 
 class TestAmazonOfferCount:
@@ -92,7 +95,8 @@ class TestAmazonOfferCount:
 class TestAmazonBadges:
     def test_collects_badge_text(self) -> None:
         doc = _lxml_doc('<span class="a-badge-text">Amazon&#39;s Choice</span>')
-        assert _amazon_badges(doc) == ["Amazon's Choice"]
+        expected = ["Amazon's Choice"]
+        assert _amazon_badges(doc) == expected
 
     def test_no_badge_returns_empty_list(self) -> None:
         assert _amazon_badges(_lxml_doc("<p>plain</p>")) == []

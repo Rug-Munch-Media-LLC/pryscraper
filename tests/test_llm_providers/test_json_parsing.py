@@ -27,14 +27,16 @@ def test_parse_json_response_fenced_with_schema() -> None:
 def test_parse_json_response_fallback_on_garbage() -> None:
     fallback = {"score": 0}
     data = parse_json_response("sorry, no json here", fallback=fallback)
-    assert data == {"score": 0}
+    expected = {"score": 0}
+    assert data == expected
     # The caller's fallback dict must not be mutated by later calls.
     fallback["extra"] = True
     assert "extra" not in parse_json_response("nope", fallback={"score": 0})
 
 
 def test_parse_json_response_fallback_on_non_object() -> None:
-    assert parse_json_response("[1,2,3]", fallback={"x": 1}) == {"x": 1}
+    expected = {"x": 1}
+    assert parse_json_response("[1,2,3]", fallback={"x": 1}) == expected
 
 
 def test_coerce_to_schema_types_and_enums() -> None:
@@ -63,12 +65,15 @@ def test_coerce_to_schema_types_and_enums() -> None:
     assert data["ratio"] == 0.5
     assert data["ok"] is True
     assert data["risk"] == "GREEN"
-    assert data["nested"] == {"sub": 2.5}
-    assert data["tags"] == ["a", "b"]
+    expected = {"sub": 2.5}
+    assert data["nested"] == expected
+    expected_2 = ["a", "b"]
+    assert data["tags"] == expected_2
     assert data["missing"] is None
     assert data["unknown_key"] == "kept"
 
 
 def test_coerce_to_schema_never_crashes_on_uncoercible() -> None:
     data = coerce_to_schema({"score": {"oops": 1}}, {"score": "int"})
-    assert data["score"] == {"oops": 1}
+    expected = {"oops": 1}
+    assert data["score"] == expected

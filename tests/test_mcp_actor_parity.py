@@ -55,7 +55,8 @@ class TestRegistration:
 
     def test_run_tool_requires_actor_and_urls(self) -> None:
         run = next(t for t in PRY_TOOLS if t["name"] == "pry_actor_run")
-        assert set(run["inputSchema"]["required"]) == {"actor", "urls"}
+        expected = {"actor", "urls"}
+        assert set(run["inputSchema"]["required"]) == expected
 
     def test_catalog_is_read_only_annotated(self) -> None:
         cat = next(t for t in PRY_TOOLS if t["name"] == "pry_actor_catalog")

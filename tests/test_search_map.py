@@ -47,10 +47,11 @@ def test_search_returns_result_shape(client: TestClient) -> None:
     assert response.status_code == 200
     body: dict[str, Any] = response.json()
     assert body["query"] == "pry api"
-    assert body["results"] == [
+    expected = [
         {"url": "https://example.com/a", "title": "A", "description": "first"},
         {"url": "https://example.com/b", "title": "B", "description": "second"},
     ]
+    assert body["results"] == expected
 
 
 def test_map_returns_deduped_same_origin_links(client: TestClient) -> None:
@@ -70,10 +71,11 @@ def test_map_returns_deduped_same_origin_links(client: TestClient) -> None:
     body = response.json()
     assert body["url"] == "https://example.com"
     assert body["count"] == 2
-    assert body["links"] == [
+    expected = [
         {"url": "https://example.com/a"},
         {"url": "https://example.com/b"},
     ]
+    assert body["links"] == expected
 
 
 def test_search_limit_cap_enforced(client: TestClient) -> None:

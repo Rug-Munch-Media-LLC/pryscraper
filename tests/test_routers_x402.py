@@ -95,7 +95,8 @@ def test_x402_payment_request_with_metadata():
     assert data["asset"] == "USDC"
     assert data["network"]
     assert data["maxAmountRequired"]
-    assert data["extra"] == {"source": "test"}
+    expected = {"source": "test"}
+    assert data["extra"] == expected
 
 
 # ---------------------------------------------------------------------------

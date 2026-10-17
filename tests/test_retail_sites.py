@@ -225,7 +225,8 @@ def _mock_all_search_routes_fallback() -> None:
 def test_retail_module_surface() -> None:
     assert callable(retail.search_retail)
     assert callable(retail.get_retail_product)
-    assert set(retail.__all__) == {"search_retail", "get_retail_product"}
+    expected = {"search_retail", "get_retail_product"}
+    assert set(retail.__all__) == expected
 
 
 def test_store_registry_shape() -> None:
@@ -373,7 +374,8 @@ async def test_bestbuy_search_next_data_deep_walk() -> None:
         )
         results = await retail.search_retail("macbook", store="bestbuy", limit=5)
     assert len(results) == 2
-    assert [r["product_id"] for r in results] == ["6455735", "6455736"]
+    expected = ["6455735", "6455736"]
+    assert [r["product_id"] for r in results] == expected
     assert results[0]["price"] == 999.99
     assert results[0]["url"] == "https://www.bestbuy.com/site/6455735"
 

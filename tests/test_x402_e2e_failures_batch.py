@@ -69,7 +69,8 @@ class TestReplayGuard:
 
         recorder, served = await _call(mw, sig)
         assert served is True
-        assert mw.handler.calls == ["verify", "settle"]
+        expected = ["verify", "settle"]
+        assert mw.handler.calls == expected
         assert _status(recorder) == 200
 
         # Replay: real handler rejects the already-consumed tx at verify.
@@ -77,7 +78,8 @@ class TestReplayGuard:
         mw.handler.calls.clear()
         _, served = await _call(mw, sig)
         assert served is False, "failed verify falls back to a fresh 402"
-        assert mw.handler.calls == ["verify"], "a replayed tx must not settle twice"
+        expected_2 = ["verify"]
+        assert mw.handler.calls == expected_2, "a replayed tx must not settle twice"
         assert len(mw.app.calls) == 1, "only the first request reached the app"
 
 
@@ -96,7 +98,8 @@ class TestFailureMatrix:
         recorder, served = await _call(mw, _sig(PID))
         assert served is True
         assert _status(recorder) == 402
-        assert mw.sent == [("scrape", PAID_PATH)]
+        expected = [("scrape", PAID_PATH)]
+        assert mw.sent == expected
         assert mw.handler.calls == []
         assert mw.app.calls == []
 

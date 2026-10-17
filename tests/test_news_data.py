@@ -137,7 +137,7 @@ async def test_headlines_json_success() -> None:
 
     assert len(results) == 2
     first = results[0]
-    assert first == {
+    expected = {
         "title": "Bitcoin Surges To Record High",
         "url": "https://news.example.com/bitcoin-surge",
         "source": "news.example.com",
@@ -145,6 +145,7 @@ async def test_headlines_json_success() -> None:
         "published": "2026-08-15T12:00:00Z",
         "image": "https://news.example.com/img1.jpg",
     }
+    assert first == expected
     assert results[1]["image"] == ""
     # JSON path used — no RSS request
     assert len(respx.calls) == 1
@@ -283,7 +284,8 @@ async def test_get_article_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert article["text"].startswith("Bitcoin hit a new record high")
     assert article["summary"]  # non-empty extractive summary
     assert article["keywords"]  # non-empty keyword list
-    assert article["authors"] == ["Jane Doe"]
+    expected = ["Jane Doe"]
+    assert article["authors"] == expected
     assert article["published"] == "2026-08-15T12:00:00Z"
 
 
@@ -354,7 +356,8 @@ def test_summarize_and_keywords() -> None:
     summary = headlines._summarize(long_text)
     assert len(summary) <= 350
     assert summary.startswith("First sentence about bitcoin.")
-    assert headlines._keywords("Bitcoin bitcoin bitcoin rally rally") == ["bitcoin", "rally"]
+    expected = ["bitcoin", "rally"]
+    assert headlines._keywords("Bitcoin bitcoin bitcoin rally rally") == expected
 
 
 # ── sentiment: get_sentiment ───────────────────────────────────────────
@@ -371,10 +374,11 @@ async def test_get_sentiment_csv_success() -> None:
     assert result["avg_tone"] == pytest.approx(round((2.5 - 3.0 + 1.0) / 3, 2))
     assert result["positive_pct"] == pytest.approx(round(200.0 / 3, 1))
     assert result["negative_pct"] == pytest.approx(round(100.0 / 3, 1))
-    assert result["mentions_timeline"] == [
+    expected = [
         {"date": "2026-08-15", "count": 1, "avg_tone": 2.5},
         {"date": "2026-08-16", "count": 2, "avg_tone": -1.0},
     ]
+    assert result["mentions_timeline"] == expected
 
 
 @respx.mock
@@ -447,7 +451,7 @@ async def test_get_entity_timeline_csv_success() -> None:
 
     timeline = await sentiment.get_entity_timeline("bitcoin", timeframe="7d")
 
-    assert timeline == [
+    expected = [
         {
             "date": "2026-08-15",
             "articles": 1,
@@ -464,6 +468,7 @@ async def test_get_entity_timeline_csv_success() -> None:
             ],
         },
     ]
+    assert timeline == expected
     assert respx.calls[0].request.url.params["format"] == "csv"
 
 

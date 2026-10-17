@@ -45,7 +45,8 @@ def test_parse_proxy_list_space_separated() -> None:
 
 def test_parse_proxy_list_newlines_and_whitespace() -> None:
     raw = "http://a:b@1.1.1.1:80\n\n  http://c:d@2.2.2.2:80  \n"
-    assert parse_proxy_list(raw) == ["http://a:b@1.1.1.1:80", "http://c:d@2.2.2.2:80"]
+    expected = ["http://a:b@1.1.1.1:80", "http://c:d@2.2.2.2:80"]
+    assert parse_proxy_list(raw) == expected
 
 
 def test_parse_proxy_list_empty() -> None:
@@ -82,12 +83,13 @@ def test_next_proxy_round_robin(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(WEBSHARE_PROXY_LIST_ENV, _SAMPLE)
     clear_cache()
     seen = [next_webshare_proxy() for _ in range(4)]
-    assert seen == [
+    expected = [
         "http://user:pass@10.0.0.1:8080",
         "http://user:pass@10.0.0.2:8080",
         "http://user:pass@10.0.0.3:8080",
         "http://user:pass@10.0.0.1:8080",
     ]
+    assert seen == expected
 
 
 def test_next_proxy_empty_pool(monkeypatch: pytest.MonkeyPatch) -> None:

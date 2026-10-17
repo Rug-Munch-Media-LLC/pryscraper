@@ -33,7 +33,8 @@ class TestExtractLinks:
             '<a href="https://e.com/c">c</a>'
         )
         links = _extract_links(html, "http://e.com/start")
-        assert links == ["http://e.com/a", "https://e.com/c"]
+        expected = ["http://e.com/a", "https://e.com/c"]
+        assert links == expected
 
     def test_root_relative_href_resolved(self) -> None:
         html = '<a href="/sub/page">x</a>'
@@ -47,7 +48,8 @@ class TestExtractLinks:
             '<a href="http://e.com/page">again</a>'
         )
         links = _extract_links(html, "http://e.com/")
-        assert links == ["http://e.com/page"]
+        expected = ["http://e.com/page"]
+        assert links == expected
 
     def test_cap_fifty_per_page(self) -> None:
         html = "".join(f'<a href="http://e.com/{i}">{i}</a>' for i in range(80))
@@ -126,7 +128,8 @@ class TestActorPackaging:
         props = self._actor_spec()["input"]["properties"]
         assert props["urls"]["type"] == "array"
         # Matches ApifyActorInput's output_format pattern (see apify_schema_parity).
-        assert set(props["output_format"]["enum"]) == {"markdown", "html", "text", "json"}
+        expected = {"markdown", "html", "text", "json"}
+        assert set(props["output_format"]["enum"]) == expected
         # standalone INPUT_SCHEMA.json stays in lockstep with the embedded one
         standalone = json.loads((REPO / ".actor" / "INPUT_SCHEMA.json").read_text())
         assert standalone["properties"] == props
@@ -210,7 +213,8 @@ class TestApifyActorInputValidation:
         from pry.actors.apify_actor import ApifyActorInput
 
         inp = ApifyActorInput.model_validate({"urls": "https://example.com"})
-        assert inp.urls == ["https://example.com"]
+        expected = ["https://example.com"]
+        assert inp.urls == expected
 
     def test_missing_urls_raises(self) -> None:
         from pydantic import ValidationError
@@ -237,7 +241,8 @@ class TestApifyActorInputValidation:
                 "urls": ["  https://example.com  ", ""],
             }
         )
-        assert inp.urls == ["https://example.com"]
+        expected = ["https://example.com"]
+        assert inp.urls == expected
 
     def test_max_pages_out_of_range_raises(self) -> None:
         from pydantic import ValidationError

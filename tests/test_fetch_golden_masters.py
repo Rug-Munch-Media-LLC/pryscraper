@@ -80,7 +80,8 @@ class TestUltimateScraperResultContract:
         assert result["status"] == "ok"
         assert result["url"] == "http://example.com/page"
         assert result["method"] == "direct"
-        assert set(result.keys()) == {"status", "url", "raw_html", "method", "content"}
+        expected = {"status", "url", "raw_html", "method", "content"}
+        assert set(result.keys()) == expected
         assert "lorem ipsum" in result["raw_html"]
 
     @pytest.mark.asyncio
@@ -135,7 +136,8 @@ class TestUltimateScraperAttemptOrder:
         with _start(patchers):
             result = await us.scrape("http://example.com/order")
         assert result["method"] == "tls_fingerprint"
-        assert calls == ["direct", "tls_fingerprint"]
+        expected = ["direct", "tls_fingerprint"]
+        assert calls == expected
 
     @pytest.mark.asyncio
     async def test_empty_body_is_not_success(self, us: UltimateScraper) -> None:
@@ -153,7 +155,8 @@ class TestUltimateScraperAttemptOrder:
             patchers.append(patch.object(us, attr, new=AsyncMock(side_effect=_fake)))
         with _start(patchers):
             result = await us.scrape("http://example.com/empty")
-        assert calls == ["direct", "tls_fingerprint"]
+        expected = ["direct", "tls_fingerprint"]
+        assert calls == expected
         assert result["status"] == "ok"
 
 
@@ -171,18 +174,20 @@ class TestPryScraperDelegation:
     @pytest.mark.asyncio
     async def test_invalid_url_error_contract(self, ps) -> None:
         result = await ps.scrape("ftp://nope")
-        assert result == {
+        expected = {
             "status": "error",
             "url": "ftp://nope",
             "error": "Invalid URL",
             "content": "",
         }
+        assert result == expected
 
     @pytest.mark.asyncio
     async def test_upstream_failure_passes_through_untouched(self, ps) -> None:
         ps._ultimate.scrape = AsyncMock(return_value={"status": "error", "error": "dead"})
         result = await ps.scrape("http://example.com/dead")
-        assert result == {"status": "error", "error": "dead"}
+        expected = {"status": "error", "error": "dead"}
+        assert result == expected
 
     @pytest.mark.asyncio
     async def test_success_enriches_with_quality_and_method(self, ps) -> None:
@@ -224,7 +229,7 @@ class TestScrapingMethodsGolden:
         from pry.engine.scraping_methods import _rss_entries
 
         entries = _rss_entries(ET.fromstring(self.RSS))  # noqa: S314 - trusted fixture
-        assert entries == [
+        expected = [
             {
                 "title": "One",
                 "link": "http://e.com/1",
@@ -233,17 +238,19 @@ class TestScrapingMethodsGolden:
             },
             {"title": "Two", "link": "http://e.com/2", "summary": "", "published": ""},
         ]
+        assert entries == expected
 
     def test_atom_entries_content_and_updated_fallbacks(self) -> None:
         from pry.engine.scraping_methods import _atom_entries
 
         entries = _atom_entries(ET.fromstring(self.ATOM))  # noqa: S314 - trusted fixture
-        assert entries[0] == {
+        expected = {
             "title": "A1",
             "link": "http://a.com/1",
             "summary": "s1",
             "published": "",
         }
+        assert entries[0] == expected
         # <content> falls back into summary; <updated> into published.
         assert entries[1]["summary"] == "c2"
         assert entries[1]["published"] == "2026-01-02T00:00:00Z"
@@ -265,7 +272,8 @@ class TestScrapingMethodsGolden:
         with patch.object(sm._common, "_sync_get") as get:
             get.return_value.text = self.SITEMAP
             urls = sm.parse_sitemap("http://s.com/sitemap.xml")
-        assert sorted(urls) == ["http://s.com/a", "http://s.com/b"]
+        expected = ["http://s.com/a", "http://s.com/b"]
+        assert sorted(urls) == expected
 
     def test_discover_feed_resolves_relative_href(self) -> None:
         from pry.engine.scraping_methods import discover_feed

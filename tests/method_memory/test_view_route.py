@@ -98,7 +98,7 @@ class TestExplainTopPick:
         assert "unconfigured" in reason
         assert "No recorded block" in reason
         # The passed entry is not mutated by explanation.
-        assert entry == {
+        expected = {
             "tier": "premium_proxy",
             "samples": 2,
             "success_rate": 1.0,
@@ -107,6 +107,7 @@ class TestExplainTopPick:
             "cost_known": False,
             "last_block_kind": None,
         }
+        assert entry == expected
 
 
 class TestRoute:
@@ -117,7 +118,8 @@ class TestRoute:
             getattr(route, "path", None): getattr(route, "methods", None)
             for route in diagnostics_router.routes
         }
-        assert paths["/v1/diagnostics/method-plan"] == {"GET"}
+        expected = {"GET"}
+        assert paths["/v1/diagnostics/method-plan"] == expected
 
     def test_classified_free_not_x402_paid(self) -> None:
         assert classify_path("/v1/diagnostics/method-plan") == "free"

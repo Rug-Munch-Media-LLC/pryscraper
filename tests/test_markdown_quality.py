@@ -95,7 +95,7 @@ def test_score_penalises_broken_markdown() -> None:
 def test_finalize_attaches_metadata() -> None:
     out = finalize_markdown({"content": markdownify(FIXTURE)}, BASE)
     assert out["metadata"]["markdown_quality"] == out["markdown_quality"] == 100
-    assert set(out["metadata"]["markdown_checks"]) == {
+    expected = {
         "links",
         "code",
         "headings",
@@ -104,6 +104,7 @@ def test_finalize_attaches_metadata() -> None:
         "noise",
         "dedup",
     }
+    assert set(out["metadata"]["markdown_checks"]) == expected
 
 
 def test_trafilatura_path_stays_high_quality() -> None:

@@ -267,16 +267,10 @@ async def crawl(request: CrawlRequest, http_request: Request) -> dict[str, Any]:
     return {"success": True, "data": {"id": "sync", "url": request.url, "pages": pages}}
 
 
-@router.post("/v1/map", summary="Discover URLs on a site")
-async def map_pages(request: MapRequest) -> dict[str, Any]:
-    """Discover URLs on a site."""
-    validate_url(request.url)
-    try:
-        with track_scrape(method="map"):
-            urls = await scraper.map_urls(request.url, {"limit": request.limit})
-    except RuntimeError as e:
-        raise ScrapeError(str(e)) from e
-    return {"success": True, "data": {"links": urls}}
+# ``/v1/map`` lives in ``search_map.py`` only (single registration). The legacy
+# handler that returned ``{success, data: {links: [str]}}`` was removed here; the
+# canonical route now also emits those two fields as deprecated aliases for one
+# release so existing clients keep parsing.
 
 
 @router.post("/v1/batch", summary="Scrape multiple URLs in parallel")

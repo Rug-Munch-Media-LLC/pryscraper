@@ -16,6 +16,24 @@
 - Tools: 99
 - Categories: 33
 
+## Endpoints
+
+REST surface, all under the same base URL. Bodies are JSON.
+
+- `POST /v1/scrape` — fetch one URL and return clean Markdown plus metadata. $0.001.
+- `POST /v1/search` — search the web and return ranked links (`url`, `title`, `description`). $0.003.
+- `POST /v1/crawl` — follow links from a URL and return up to `maxPages` pages. $0.010.
+- `POST /v1/map` — list same-origin URLs for a site. Link extraction by default; pass `ignoreSitemap: false` to read the sitemap first.
+- `POST /v1/extract` — pull named fields out of a page with an LLM. $0.005.
+- `POST /v1/templates/execute` — run a stored recipe for a known site. $0.002.
+- `GET /v1/job/{id}` — async job record, used after a webhook crawl.
+- `GET /v1/x402/pricing` — live price table.
+- `GET /health` — liveness.
+
+## Metadata
+
+`data.metadata.markdown_quality` scores the Markdown 0-100 across seven weighted checks (links, code fences, headings, tables, images, noise, duplicate blocks). `data.metadata.markdown_checks` holds the per-check values.
+
 ## Categories
 
 - actors: 2 tools

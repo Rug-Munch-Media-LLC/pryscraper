@@ -85,7 +85,8 @@ class TestFindDuplicatesEdgeCases:
         d = Deduplicator(threshold=0.0)
         d.add("doc", "content")
         hits = d.find_duplicates("content")
-        assert set(hits[0].keys()) == {"doc_id", "similarity", "distance"}
+        expected = {"doc_id", "similarity", "distance"}
+        assert set(hits[0].keys()) == expected
 
     def test_similarity_is_float_and_distance_is_int(self) -> None:
         d = Deduplicator(threshold=0.0)
@@ -113,13 +114,15 @@ class TestClusterEdgeCases:
     def test_single_document_forms_one_cluster(self) -> None:
         d = Deduplicator()
         clusters = d.cluster({"only": "some text"})
-        assert clusters == {"cluster_0": ["only"]}
+        expected = {"cluster_0": ["only"]}
+        assert clusters == expected
 
     def test_all_identical_docs_form_single_cluster(self) -> None:
         d = Deduplicator(threshold=1.0)
         clusters = d.cluster({"a": "same", "b": "same", "c": "same"})
         assert len(clusters) == 1
-        assert sorted(clusters["cluster_0"]) == ["a", "b", "c"]
+        expected = ["a", "b", "c"]
+        assert sorted(clusters["cluster_0"]) == expected
 
     def test_cluster_members_are_lists_of_strings(self) -> None:
         d = Deduplicator(threshold=0.0)
@@ -151,12 +154,13 @@ class TestDiffEdgeCases:
     def test_diff_returns_exact_keys(self) -> None:
         d = Deduplicator()
         out = d.diff("a b c", "a b d")
-        assert set(out.keys()) == {
+        expected = {
             "similarity",
             "hamming_distance",
             "changed",
             "change_severity",
         }
+        assert set(out.keys()) == expected
 
     def test_changed_false_when_similarity_at_threshold(self) -> None:
         # changed = sim < threshold (strict). At sim == threshold it's False.

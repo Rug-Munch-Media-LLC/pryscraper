@@ -32,12 +32,14 @@ class TestParseAmount:
             "tokenAmount": {"amount": "1000000", "decimals": 6},
         }
         result = _parse_amount(info)
-        assert result == (1000000, 6)
+        expected = (1000000, 6)
+        assert result == expected
 
     def test_parse_amount_from_legacy_field(self) -> None:
         info = {"amount": "500000", "decimals": 6}
         result = _parse_amount(info)
-        assert result == (500000, 6)
+        expected = (500000, 6)
+        assert result == expected
 
     def test_parse_amount_malformed(self) -> None:
         info = {"amount": "not_a_number", "decimals": 6}

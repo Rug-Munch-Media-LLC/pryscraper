@@ -277,10 +277,14 @@ async def test_get_closing_line_success(monkeypatch: pytest.MonkeyPatch) -> None
     result = await historical.get_closing_line("eid123")
     assert result["event_id"] == "eid123"
     assert result["sport"] == "nba"
-    assert result["closing"]["Pinnacle"] == {"home": 1.95, "away": 1.90}
-    assert result["closing"]["DraftKings"] == {"home": 2.00, "away": 1.85}
-    assert result["best"]["home"] == {"book": "DraftKings", "odds": 2.00}
-    assert result["best"]["away"] == {"book": "Pinnacle", "odds": 1.90}
+    expected = {"home": 1.95, "away": 1.90}
+    assert result["closing"]["Pinnacle"] == expected
+    expected_2 = {"home": 2.00, "away": 1.85}
+    assert result["closing"]["DraftKings"] == expected_2
+    expected_3 = {"book": "DraftKings", "odds": 2.00}
+    assert result["best"]["home"] == expected_3
+    expected_4 = {"book": "Pinnacle", "odds": 1.90}
+    assert result["best"]["away"] == expected_4
     assert result["source"] == "the_odds_api"
 
 
@@ -441,16 +445,20 @@ def test_no_vig_pure_math() -> None:
 
 def test_no_vig_even_line_is_fair() -> None:
     fair = sharp._no_vig(2.0, 2.0)
-    assert fair == (0.5, 0.5)
+    expected = (0.5, 0.5)
+    assert fair == expected
 
 
 def test_teams_from_label() -> None:
-    assert sharp._teams_from_label("Boston Celtics @ Los Angeles Lakers") == (
+    expected = (
         "Los Angeles Lakers",
         "Boston Celtics",
     )
-    assert sharp._teams_from_label("no separator") == (None, None)
-    assert sharp._teams_from_label("") == (None, None)
+    assert sharp._teams_from_label("Boston Celtics @ Los Angeles Lakers") == expected
+    expected_2 = (None, None)
+    assert sharp._teams_from_label("no separator") == expected_2
+    expected_3 = (None, None)
+    assert sharp._teams_from_label("") == expected_3
 
 
 # ── sharp_consensus: composite line ────────────────────────────────────
@@ -471,8 +479,10 @@ async def test_get_sharp_consensus_three_books(monkeypatch: pytest.MonkeyPatch) 
     result = await sharp.get_sharp_consensus("eid123")
     assert result["event_id"] == "eid123"
     assert result["market"] == "h2h"
-    assert result["consensus_books"] == ["betcris", "circa", "pinnacle"]
-    assert result["books_used"] == ["betcris", "circa", "pinnacle"]
+    expected = ["betcris", "circa", "pinnacle"]
+    assert result["consensus_books"] == expected
+    expected_2 = ["betcris", "circa", "pinnacle"]
+    assert result["books_used"] == expected_2
     # p_home for (home, away) = (1/home)/(1/home + 1/away); mean over the
     # three sharp books: pinnacle 0.493506, betcris 0.495872, circa 0.490911.
     assert result["no_vig_prob"]["home"] == pytest.approx(0.4934, abs=0.002)
@@ -489,7 +499,8 @@ async def test_get_sharp_consensus_single_book_low_confidence(
 
     monkeypatch.setattr(sharp, "_get_event_odds", fake_event_odds)
     result = await sharp.get_sharp_consensus("eid123")
-    assert result["consensus_books"] == ["pinnacle"]
+    expected = ["pinnacle"]
+    assert result["consensus_books"] == expected
     assert result["confidence"] < 0.5
 
 
@@ -504,7 +515,8 @@ async def test_get_sharp_consensus_custom_books(monkeypatch: pytest.MonkeyPatch)
 
     monkeypatch.setattr(sharp, "_get_event_odds", fake_event_odds)
     result = await sharp.get_sharp_consensus("eid123", books=("draftkings",))
-    assert result["consensus_books"] == ["draftkings"]
+    expected = ["draftkings"]
+    assert result["consensus_books"] == expected
 
 
 async def test_get_sharp_consensus_no_sharp_books_returns_empty(
@@ -563,19 +575,23 @@ async def test_set_alert_invalid_input(monkeypatch: pytest.MonkeyPatch) -> None:
         return {}
 
     monkeypatch.setattr(alerts, "_get_event_odds", fake_event_odds)
-    assert await alerts.set_alert("", "h2h", 5.0) == {"alert_id": "", "status": "error"}
-    assert await alerts.set_alert("eid123", "nonsense", 5.0) == {
+    expected = {"alert_id": "", "status": "error"}
+    assert await alerts.set_alert("", "h2h", 5.0) == expected
+    expected_2 = {
         "alert_id": "",
         "status": "error",
     }
-    assert await alerts.set_alert("eid123", "h2h", 0.0) == {
+    assert await alerts.set_alert("eid123", "nonsense", 5.0) == expected_2
+    expected_3 = {
         "alert_id": "",
         "status": "error",
     }
-    assert await alerts.set_alert("eid123", "h2h", "garbage") == {  # type: ignore[arg-type]
+    assert await alerts.set_alert("eid123", "h2h", 0.0) == expected_3
+    expected_4 = {  # type: ignore[arg-type]
         "alert_id": "",
         "status": "error",
     }
+    assert await alerts.set_alert("eid123", "h2h", "garbage") == expected_4
     assert await alerts.list_alerts() == []
 
 

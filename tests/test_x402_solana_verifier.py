@@ -26,6 +26,27 @@ def test_parse_amount_missing():
 
 def test_iter_spl_instructions_empty():
     assert list(_iter_spl_instructions({})) == []
+    from pry.payments.x402.solana_verifier import SPL_TOKEN_PROGRAM_ID
+
+    found = list(
+        _iter_spl_instructions(
+            {
+                "transaction": {
+                    "message": {
+                        "instructions": [
+                            {
+                                "program": "splToken",
+                                "programId": SPL_TOKEN_PROGRAM_ID,
+                                "parsed": {"type": "transferChecked", "info": {}},
+                            }
+                        ]
+                    }
+                }
+            }
+        )
+    )
+    assert len(found) == 1
+    assert found[0][0] == "transferChecked"
 
 
 def test_amount_usd_value():

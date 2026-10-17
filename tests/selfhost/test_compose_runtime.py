@@ -56,7 +56,8 @@ class TestSelfhostRuntimeConfig:
 
     def test_pry_waits_for_the_browser_tier(self) -> None:
         deps = render_compose()["services"]["pry"]["depends_on"]
-        assert set(deps) == {"flaresolverr-pry"}
+        expected = {"flaresolverr-pry"}
+        assert set(deps) == expected
 
 
 class TestSelfhostEnvTemplate:

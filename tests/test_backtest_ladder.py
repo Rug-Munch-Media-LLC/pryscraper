@@ -143,7 +143,8 @@ def test_compare_flags_a_success_rate_regression(capsys) -> None:
     worse = {"success_rate": 0.5, "ok": 5, "p50_ms": 5.0, "p95_ms": 6.0}
     same = {"success_rate": 1.0, "ok": 10, "p50_ms": 5.0, "p95_ms": 6.0}
 
-    assert [k for k, _, _ in cli._compare(base, worse)] == ["success_rate", "ok"]
+    expected = ["success_rate", "ok"]
+    assert [k for k, _, _ in cli._compare(base, worse)] == expected
     assert cli._compare(base, same) == []
 
 
@@ -153,5 +154,6 @@ def test_compare_inverts_the_direction_for_latency(capsys) -> None:
     slower = {"success_rate": 1.0, "ok": 10, "p50_ms": 50.0, "p95_ms": 60.0}
     faster = {"success_rate": 1.0, "ok": 10, "p50_ms": 1.0, "p95_ms": 2.0}
 
-    assert {k for k, _, _ in cli._compare(base, slower)} == {"p50_ms", "p95_ms"}
+    expected = {"p50_ms", "p95_ms"}
+    assert {k for k, _, _ in cli._compare(base, slower)} == expected
     assert cli._compare(base, faster) == []

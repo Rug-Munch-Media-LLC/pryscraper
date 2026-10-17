@@ -38,7 +38,8 @@ def test_sweep_reports_its_coverage(data_root: Path) -> None:
     # Remove one root: the gap must be reported, not silently absorbed.
     (data_root / "sessions").rmdir()
     gapped = process_deletion(SUBJECT)
-    assert gapped["missing_roots"] == ["sessions"]
+    expected = ["sessions"]
+    assert gapped["missing_roots"] == expected
     assert gapped["success"] is False
 
 

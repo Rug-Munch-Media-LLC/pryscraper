@@ -21,10 +21,12 @@ def test_input_schema_basic() -> None:
     assert schema["description"] == "Scrape product details"
     assert schema["type"] == "object"
     assert schema["schemaVersion"] == 1
-    assert schema["required"] == ["url"]
+    expected = ["url"]
+    assert schema["required"] == expected
     assert schema["properties"]["url"]["type"] == "string"
     assert schema["properties"]["maxResults"]["default"] == 10
-    assert schema["properties"]["format"]["enum"] == ["json", "csv", "markdown"]
+    expected_2 = ["json", "csv", "markdown"]
+    assert schema["properties"]["format"]["enum"] == expected_2
 
 
 def test_output_schema_includes_required() -> None:
@@ -39,7 +41,8 @@ def test_output_schema_includes_required() -> None:
     assert schema["properties"]["title"]["type"] == "string"
     assert schema["properties"]["price"]["minimum"] == 0
     assert schema["properties"]["inStock"]["default"] is True
-    assert schema["required"] == ["title"]
+    expected = ["title"]
+    assert schema["required"] == expected
 
 
 def test_array_and_object_fields() -> None:
@@ -59,14 +62,16 @@ def test_array_and_object_fields() -> None:
     assert schema["properties"]["urls"]["minItems"] == 1
     assert schema["properties"]["urls"]["items"]["type"] == "string"
     assert schema["properties"]["proxy"]["type"] == "object"
-    assert schema["properties"]["proxy"]["required"] == ["host"]
+    expected = ["host"]
+    assert schema["properties"]["proxy"]["required"] == expected
 
 
 def test_nullable_field() -> None:
     schema = (
         ApifySchemaBuilder().add_string("optional", "Optional", nullable=True).build_input_schema()
     )
-    assert schema["properties"]["optional"]["type"] == ["string", "null"]
+    expected = ["string", "null"]
+    assert schema["properties"]["optional"]["type"] == expected
 
 
 def test_prefab() -> None:

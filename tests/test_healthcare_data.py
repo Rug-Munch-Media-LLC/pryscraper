@@ -205,7 +205,8 @@ async def test_search_trials_success() -> None:
     assert record["title"] == "Individual Intervention of Cognitive Stimulation"
     assert record["status"] == "Recruiting"
     assert record["phase"] == "Phase 1 | Phase 2"
-    assert record["conditions"] == ["Cognitive Dysfunction"]
+    expected = ["Cognitive Dysfunction"]
+    assert record["conditions"] == expected
     assert record["sponsor"] == "Escola Superior de Enfermagem de Coimbra"
     assert record["start_date"] == "2021-12-27"
     assert record["locations"][0]["facility"] == "The Health Sciences Research Unit: Nursing"
@@ -264,7 +265,8 @@ async def test_get_trial_success() -> None:
     record = await clinical_trials.get_trial("NCT05966207")
     assert record["nct_id"] == "NCT05966207"
     assert record["status"] == "Recruiting"
-    assert record["conditions"] == ["Cognitive Dysfunction"]
+    expected = ["Cognitive Dysfunction"]
+    assert record["conditions"] == expected
 
 
 @respx.mock
@@ -416,7 +418,8 @@ async def test_get_insurance_quotes_gated_returns_available_false() -> None:
     assert result["coverage_type"] == "auto"
     assert result["quotes"] == []
     assert "captcha" in result["reason"]
-    assert result["sources_checked"] == ["progressive", "geico", "statefarm"]
+    expected = ["progressive", "geico", "statefarm"]
+    assert result["sources_checked"] == expected
 
 
 @respx.mock
@@ -452,9 +455,10 @@ async def test_get_insurance_quotes_parseable_provider_returns_quotes() -> None:
     result = await insurance.get_insurance_quotes({"coverage_type": "auto", "zip": "90210"})
     assert result["available"] is True
     assert result["coverage_type"] == "auto"
-    assert result["quotes"] == [
+    expected = [
         {"provider": "geico", "premium": 129.99, "deductible": None, "url": _AUTO_PROVIDERS[1]}
     ]
+    assert result["quotes"] == expected
 
 
 @respx.mock
@@ -520,9 +524,11 @@ async def test_get_insurance_rate_table_abbr_does_not_substring_match() -> None:
 </table></body></html>"""
     respx.get(_III_AUTO).mock(return_value=httpx.Response(200, text=html))
     rows = await insurance.get_insurance_rate_table(state="CA")
-    assert [row["state"] for row in rows] == ["California"]
+    expected = ["California"]
+    assert [row["state"] for row in rows] == expected
     rows = await insurance.get_insurance_rate_table(state="AL")
-    assert [row["state"] for row in rows] == ["Alabama"]  # not Alaska
+    expected_2 = ["Alabama"]
+    assert [row["state"] for row in rows] == expected_2  # not Alaska
 
 
 @respx.mock
@@ -644,7 +650,8 @@ def test_router_insurance_quotes_success(
     assert body["success"] is True
     assert body["coverage_type"] == "home"
     assert body["data"]["available"] is False
-    assert captured["profile"] == {"coverage_type": "home", "zip": "90210"}
+    expected = {"coverage_type": "home", "zip": "90210"}
+    assert captured["profile"] == expected
 
 
 def test_router_502_when_module_absent(

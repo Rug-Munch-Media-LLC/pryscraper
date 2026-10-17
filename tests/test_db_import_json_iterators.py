@@ -64,7 +64,8 @@ def test_iter_jsonl_skips_empty_lines_and_raises_on_invalid_ones(temp_data_dir):
     )
 
     records = list(_iter_jsonl(path))
-    assert [r["id"] for r in records] == ["a", "b"]
+    expected = ["a", "b"]
+    assert [r["id"] for r in records] == expected
 
 
 # ── _iter_json_files helper ──────────────────────────────────────
@@ -83,7 +84,8 @@ def test_iter_json_files_single_file_with_list(temp_data_dir):
     _write_json(path, [{"id": "a"}, {"id": "b"}])
 
     records = list(_iter_json_files(path))
-    assert [r["id"] for r in records] == ["a", "b"]
+    expected = ["a", "b"]
+    assert [r["id"] for r in records] == expected
 
 
 def test_iter_json_files_single_file_with_dict(temp_data_dir):
@@ -93,7 +95,8 @@ def test_iter_json_files_single_file_with_dict(temp_data_dir):
     _write_json(path, {"id": "a"})
 
     records = list(_iter_json_files(path))
-    assert [r["id"] for r in records] == ["a"]
+    expected = ["a"]
+    assert [r["id"] for r in records] == expected
 
 
 def test_iter_json_files_directory_globs_json(temp_data_dir):
@@ -106,7 +109,8 @@ def test_iter_json_files_directory_globs_json(temp_data_dir):
     (d / "ignore.txt").write_text("not json", encoding="utf-8")
 
     records = list(_iter_json_files(d))
-    assert sorted(r["id"] for r in records) == ["a", "b"]
+    expected = ["a", "b"]
+    assert sorted(r["id"] for r in records) == expected
 
 
 def test_iter_json_files_skips_non_dict_list_entries(temp_data_dir):
@@ -116,7 +120,8 @@ def test_iter_json_files_skips_non_dict_list_entries(temp_data_dir):
     _write_json(path, [{"id": "a"}, "not-a-dict", 42, None])
 
     records = list(_iter_json_files(path))
-    assert [r["id"] for r in records] == ["a"]
+    expected = ["a"]
+    assert [r["id"] for r in records] == expected
 
 
 # ── _iter_jsonl / _iter_json_files: swallowed-read failures raise ──────

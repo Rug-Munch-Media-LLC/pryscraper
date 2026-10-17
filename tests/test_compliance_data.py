@@ -342,10 +342,11 @@ async def test_search_ftc_parses_listing_and_filters() -> None:
 async def test_search_ftc_no_query_returns_all() -> None:
     respx.get(_FTC_LIST).mock(return_value=httpx.Response(200, text=_ftc_listing_html()))
     records = await enforcement.search_enforcement(agency="ftc")
-    assert {record["id"] for record in records} == {
+    expected = {
         "ftc:acme-holdings-matter",
         "ftc:globex-corp-matter",
     }
+    assert {record["id"] for record in records} == expected
 
 
 @respx.mock
@@ -372,7 +373,8 @@ async def test_search_sec_admin_listing() -> None:
     respx.get(_SEC_ADMIN).mock(return_value=httpx.Response(200, text=_sec_admin_html()))
     records = await enforcement.search_enforcement(agency="sec")
     by_id = {record["id"]: record for record in records}
-    assert set(by_id) == {"sec:34-106135", "sec:34-105834"}
+    expected = {"sec:34-106135", "sec:34-105834"}
+    assert set(by_id) == expected
     assert by_id["sec:34-106135"]["type"] == "Admin Proceeding"
     assert by_id["sec:34-105834"]["type"] == "AAER"
     assert by_id["sec:34-106135"]["date"] == "2026-08-14"
@@ -408,7 +410,8 @@ async def test_search_all_merges_sources() -> None:
     respx.get(_DOJ).mock(return_value=httpx.Response(200, json=_doj_payload()))
     records = await enforcement.search_enforcement(agency="all")
     agencies = {record["agency"] for record in records}
-    assert agencies == {"fda", "ftc", "cfpb", "sec", "epa", "osha", "doj"}
+    expected = {"fda", "ftc", "cfpb", "sec", "epa", "osha", "doj"}
+    assert agencies == expected
     # Newest first: SEC 2026-08-14 … DOJ 2022-03-01.
     assert records[0]["agency"] == "sec"
     assert records[-1]["agency"] == "doj"
@@ -527,8 +530,10 @@ async def test_get_action_fda() -> None:
     assert action["id"] == "fda:D-1234"
     assert action["title"] == "Crunchy peanut butter"
     assert action["summary"] == "Product may contain undeclared allergen."
-    assert action["defendants"] == ["Example Foods Inc."]
-    assert action["penalties"] == [{"type": "Class II", "amount": None}]
+    expected = ["Example Foods Inc."]
+    assert action["defendants"] == expected
+    expected_2 = [{"type": "Class II", "amount": None}]
+    assert action["penalties"] == expected_2
     assert action["url"]
 
 
@@ -542,7 +547,8 @@ async def test_get_action_ftc() -> None:
     assert action["id"] == "ftc:acme-holdings-matter"
     assert action["title"] == "Acme Holdings, In the Matter of"
     assert "deceptive practices" in action["summary"]
-    assert action["defendants"] == ["Acme Holdings"]
+    expected = ["Acme Holdings"]
+    assert action["defendants"] == expected
     assert action["penalties"] == []
 
 
@@ -553,7 +559,8 @@ async def test_get_action_cfpb() -> None:
     assert action["agency"] == "cfpb"
     assert action["id"] == "cfpb:12935666"
     assert action["summary"] == "I was charged twice."
-    assert action["defendants"] == ["CAPITAL ONE FINANCIAL CORPORATION"]
+    expected = ["CAPITAL ONE FINANCIAL CORPORATION"]
+    assert action["defendants"] == expected
     assert action["penalties"] == []
 
 
@@ -579,7 +586,8 @@ async def test_get_action_sec_falls_back_to_admin_listing() -> None:
     assert action["agency"] == "sec"
     assert action["id"] == "sec:34-105834"
     assert action["title"] == "Steven W. Hurd, CPA"
-    assert action["defendants"] == ["Steven W. Hurd, CPA"]
+    expected = ["Steven W. Hurd, CPA"]
+    assert action["defendants"] == expected
 
 
 @respx.mock
@@ -614,8 +622,10 @@ async def test_get_action_epa() -> None:
     assert action["agency"] == "epa"
     assert action["id"] == "epa:2023-EPA-0001"
     assert action["title"] == "Enforcement case against Example Chemical Co."
-    assert action["defendants"] == ["Example Chemical Co."]
-    assert action["penalties"] == [{"type": "settlement", "amount": "$1,250,000"}]
+    expected = ["Example Chemical Co."]
+    assert action["defendants"] == expected
+    expected_2 = [{"type": "settlement", "amount": "$1,250,000"}]
+    assert action["penalties"] == expected_2
 
 
 @respx.mock
@@ -630,7 +640,8 @@ async def test_get_action_osha() -> None:
     assert action["agency"] == "osha"
     assert action["id"] == "osha:1731253.015"
     assert action["title"].startswith("Establishment Detail")
-    assert action["defendants"] == ["ACME MFG CO"]
+    expected = ["ACME MFG CO"]
+    assert action["defendants"] == expected
     assert action["penalties"] == []
 
 
@@ -680,7 +691,8 @@ async def test_watch_company_merges_agencies() -> None:
     _mock_fda(_fda_payload(recall_number="R-99", firm="GlennCap Foods"))
     respx.get(_CFPB).mock(return_value=httpx.Response(200, json=_cfpb_payload()))
     records = await enforcement.watch_company("GlennCap", agencies="fda,cfpb")
-    assert {record["agency"] for record in records} == {"fda", "cfpb"}
+    expected = {"fda", "cfpb"}
+    assert {record["agency"] for record in records} == expected
 
 
 @respx.mock
@@ -690,7 +702,8 @@ async def test_watch_company_includes_new_agencies() -> None:
     )
     respx.get(_OSHA_EST).mock(return_value=httpx.Response(200, text=_osha_html()))
     records = await enforcement.watch_company("ACME", agencies="epa,osha")
-    assert {record["agency"] for record in records} == {"epa", "osha"}
+    expected = {"epa", "osha"}
+    assert {record["agency"] for record in records} == expected
     assert any(record["id"] == "epa:2023-EPA-0001" for record in records)
     assert any(record["id"] == "osha:1731253.015" for record in records)
 

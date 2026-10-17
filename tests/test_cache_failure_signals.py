@@ -114,6 +114,7 @@ async def test_undecodable_redis_entry_is_reported_not_hidden_as_miss(
     assert result is None
     # ... but the poisoned record is surfaced AND evicted, never silently missed.
     assert "response_cache_redis_entry_undecodable" in caplog.text
-    assert redis.deleted == [c._redis_key(c._key("https://poisoned.example.com"))]
+    expected = [c._redis_key(c._key("https://poisoned.example.com"))]
+    assert redis.deleted == expected
     # A miss must not poison L1.
     assert c.get("https://poisoned.example.com") is None

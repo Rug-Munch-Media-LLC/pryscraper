@@ -74,7 +74,8 @@ def test_rank_tiers_never_returns_empty_when_all_are_skipped() -> None:
     ordered = tier_score.rank_tiers(LADDER, chronic, now=NOW)
     # fetch is genuinely dropped; the unrecorded rungs keep their static order
     assert "fetch" not in ordered
-    assert ordered == ["js_render", "flaresolverr", "browser"]
+    expected = ["js_render", "flaresolverr", "browser"]
+    assert ordered == expected
 
 
 def test_rank_tiers_falls_back_to_the_static_ladder_when_all_are_chronic() -> None:

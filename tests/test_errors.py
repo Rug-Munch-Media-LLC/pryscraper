@@ -46,7 +46,8 @@ def test_pry_error_defaults():
 def test_pry_error_custom_message():
     e = PryError("Custom error message", details={"field": "value"})
     assert e.message == "Custom error message"
-    assert e.details == {"field": "value"}
+    expected = {"field": "value"}
+    assert e.details == expected
 
 
 def test_pry_error_to_dict():
@@ -64,7 +65,8 @@ def test_pry_error_to_dict():
 def test_pry_error_to_dict_with_details():
     e = PryError("Validation failed", details={"field": "email", "reason": "invalid"})
     d = e.to_dict()
-    assert d["errors"] == {"field": "email", "reason": "invalid"}
+    expected = {"field": "email", "reason": "invalid"}
+    assert d["errors"] == expected
     assert "code" in d
 
 
@@ -190,7 +192,8 @@ class TestErrorHandlers:
         assert r.status_code == 429
         data = r.json()
         assert data["code"] == "rate_limit_exceeded"
-        assert data["errors"] == {"retry_after": 30}
+        expected = {"retry_after": 30}
+        assert data["errors"] == expected
 
     def test_scrape_error_response(self):
         c = TestClient(self._make_app())

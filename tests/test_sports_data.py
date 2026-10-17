@@ -246,7 +246,8 @@ async def test_get_odds_odds_api_success(monkeypatch: pytest.MonkeyPatch) -> Non
     )
     results = await odds.get_odds(sport="nba", limit=10)
     assert len(results) == 2  # one record per bookmaker
-    assert {record["bookmaker"] for record in results} == {"DraftKings", "FanDuel"}
+    expected = {"DraftKings", "FanDuel"}
+    assert {record["bookmaker"] for record in results} == expected
     by_bookmaker = {record["bookmaker"]: record for record in results}
     record = by_bookmaker["DraftKings"]
     assert record["sport"] == "nba"
@@ -428,7 +429,8 @@ async def test_get_player_stats_success() -> None:
     assert result["team"] == "Los Angeles Lakers"
     assert result["position"] == "F"
     assert result["season"] == "2025-26"
-    assert result["stats"] == {"Games Played": "60", "Points Per Game": "20.9"}
+    expected = {"Games Played": "60", "Points Per Game": "20.9"}
+    assert result["stats"] == expected
     assert result["source"] == "espn"
 
 
@@ -478,7 +480,8 @@ async def test_get_player_stats_simple_payload_shape() -> None:
     result = await stats.get_player_stats("LeBron James", sport="nba")
     assert result["team"] == "Los Angeles Lakers"
     assert result["season"] == str(stats._CURRENT_YEAR)
-    assert result["stats"] == {"Games Played": "71", "Points Per Game": "25.7"}
+    expected = {"Games Played": "71", "Points Per Game": "25.7"}
+    assert result["stats"] == expected
 
 
 @respx.mock

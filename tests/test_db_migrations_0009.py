@@ -91,7 +91,8 @@ def test_0009_tables_and_columns(migrated):
 def test_0009_unique_index_is_composite(migrated):
     unique = _indexes(migrated, PAYMENT)[UX_PAYMENT_TX]
     assert unique["unique"] == 1
-    assert unique["column_names"] == ["payment_id", "tx_hash"]
+    expected = ["payment_id", "tx_hash"]
+    assert unique["column_names"] == expected
 
 
 def test_0009_hosting_schema_matches_models(migrated):
@@ -99,9 +100,11 @@ def test_0009_hosting_schema_matches_models(migrated):
     assert _columns(migrated, "hosted_instances") == INSTANCE_COLUMNS
     fks = inspect(migrated).get_foreign_keys("hosted_instances")
     assert len(fks) == 1
-    assert fks[0]["constrained_columns"] == ["user_id"]
+    expected = ["user_id"]
+    assert fks[0]["constrained_columns"] == expected
     assert fks[0]["referred_table"] == "users"
-    assert fks[0]["referred_columns"] == ["user_id"]
+    expected_2 = ["user_id"]
+    assert fks[0]["referred_columns"] == expected_2
 
 
 def test_0009_duplicate_payment_tx_rejected(migrated):
@@ -179,7 +182,8 @@ def test_0009_backfills_and_dedupes_before_unique_index(temp_data_dir, monkeypat
                 "GROUP BY payment_id, tx_hash ORDER BY payment_id, tx_hash"
             )
         ).all()
-    assert rows == [("p", "", 1), ("p", "0x1", 1), ("q", "", 1)]
+    expected = [("p", "", 1), ("p", "0x1", 1), ("q", "", 1)]
+    assert rows == expected
 
 
 def test_0009_tolerates_hosting_tables_precreated_by_auto_create(temp_data_dir, monkeypatch):

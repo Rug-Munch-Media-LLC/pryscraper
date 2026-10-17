@@ -57,7 +57,8 @@ def test_selfhost_overlay_uses_only_supported_yaml_tags() -> None:
     """
     text = SELFHOST_COMPOSE.read_text(encoding="utf-8")
     tags = set(re.findall(r"!(reset|override)\b", text))
-    assert tags == {"reset", "override"}, f"unexpected compose tags: {tags}"
+    expected = {"reset", "override"}
+    assert tags == expected, f"unexpected compose tags: {tags}"
 
 
 def test_base_compose_is_valid_yaml() -> None:

@@ -124,7 +124,8 @@ async def test_save_load_round_trip(sessions_dir: Path) -> None:
     await sessions.save_session("session_abcdef012345", [{"name": "x", "value": "y"}])
     data = await sessions.load_session("session_abcdef012345")
     assert data is not None
-    assert data["cookies"] == [{"name": "x", "value": "y"}]
+    expected = [{"name": "x", "value": "y"}]
+    assert data["cookies"] == expected
 
 
 # --- Defence in depth: containment check independent of the id rule ----------

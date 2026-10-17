@@ -286,7 +286,7 @@ def _tiktok_render_json(sold_count: int = 1200, price: int = 2999) -> dict[str, 
 
 
 def test_marketplace_package_exports() -> None:
-    assert set(_marketplace_pkg.__all__) == {
+    expected = {
         "amazon_get_product",
         "amazon_search_products",
         "walmart_get_product",
@@ -294,6 +294,7 @@ def test_marketplace_package_exports() -> None:
         "tiktok_get_product",
         "tiktok_get_trending",
     }
+    assert set(_marketplace_pkg.__all__) == expected
     # Per-module names stay importable (the MCP wiring layer uses these).
     assert callable(amazon.get_product)
     assert callable(amazon.search_products)
@@ -325,7 +326,8 @@ async def test_amazon_get_product_normalization() -> None:
     assert result["category"] == "Cell Phones & Accessories"
     assert result["offers"] == 14
     assert result["url"] == AMAZON_PRODUCT_URL
-    assert result["_badges"] == ["Amazon's Choice"]
+    expected = ["Amazon's Choice"]
+    assert result["_badges"] == expected
 
 
 async def test_amazon_get_product_invalid_asin() -> None:

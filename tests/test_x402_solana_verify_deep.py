@@ -91,7 +91,8 @@ async def _verify_with_payload(payload: dict[str, Any], **kwargs: Any) -> dict[s
 class TestParseAmount:
     def test_token_amount_path(self) -> None:
         info = {"tokenAmount": {"amount": "1500000", "decimals": 6}}
-        assert _parse_amount(info) == (1_500_000, 6)
+        expected = (1_500_000, 6)
+        assert _parse_amount(info) == expected
 
     def test_token_amount_bad_int_is_none(self) -> None:
         info = {"tokenAmount": {"amount": "abc", "decimals": 6}}
@@ -99,7 +100,8 @@ class TestParseAmount:
 
     def test_legacy_amount_path(self) -> None:
         info = {"amount": "250000", "decimals": 6}
-        assert _parse_amount(info) == (250_000, 6)
+        expected = (250_000, 6)
+        assert _parse_amount(info) == expected
 
     def test_legacy_bad_int_is_none(self) -> None:
         assert _parse_amount({"amount": "x.y"}) is None
@@ -108,7 +110,8 @@ class TestParseAmount:
         assert _parse_amount({}) is None
 
     def test_decimals_default_six(self) -> None:
-        assert _parse_amount({"tokenAmount": {"amount": "1"}}) == (1, 6)
+        expected = (1, 6)
+        assert _parse_amount({"tokenAmount": {"amount": "1"}}) == expected
 
 
 class TestIterSplInstructions:
@@ -137,10 +140,15 @@ class TestIterSplInstructions:
         inst = _transfer_checked()
         inst["program"] = "system"
         assert _iter_spl_instructions(_rpc_result([inst])) == []
+        # Positive control: the same instruction under splToken IS found.
+        inst["program"] = "splToken"
+        assert len(_iter_spl_instructions(_rpc_result([inst]))) == 1
 
     def test_wrong_program_id_skipped(self) -> None:
         inst = _transfer_checked(program_id="SpoofedProgramId11111111111111111111111111")
         assert _iter_spl_instructions(_rpc_result([inst])) == []
+        inst = _transfer_checked()
+        assert len(_iter_spl_instructions(_rpc_result([inst]))) == 1
 
     def test_non_transfer_type_skipped(self) -> None:
         inst = {
@@ -149,6 +157,8 @@ class TestIterSplInstructions:
             "parsed": {"type": "mintTo", "info": {}},
         }
         assert _iter_spl_instructions(_rpc_result([inst])) == []
+        inst["parsed"]["type"] = "transferChecked"
+        assert len(_iter_spl_instructions(_rpc_result([inst]))) == 1
 
     def test_malformed_entries_skipped_not_crash(self) -> None:
         result = _rpc_result(["nope", 42, {"program": "splToken"}, _transfer_checked()])
@@ -163,9 +173,11 @@ class TestConfirmedAt:
 
     def test_missing_block_time_empty(self) -> None:
         assert _confirmed_at({}) == ""
+        assert _confirmed_at({"blockTime": 1756166400}) == "2025-08-26T00:00:00+00:00"
 
     def test_garbage_block_time_empty(self) -> None:
         assert _confirmed_at({"blockTime": "not-a-number"}) == ""
+        assert _confirmed_at({"blockTime": 0}) == "1970-01-01T00:00:00+00:00"
 
 
 # ── verify_solana_payment: argument guards ───────────────────────────────────

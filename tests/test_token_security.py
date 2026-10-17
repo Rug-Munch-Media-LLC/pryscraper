@@ -154,7 +154,7 @@ async def test_scan_token_solana_heuristic_path() -> None:
     assert result["risk_score"] == 50
     assert result["verdict"] == "caution"
     assert "chain not supported by security provider" in result["flags"]
-    assert result["checks"] == {
+    expected = {
         "honeypot": False,
         "mint_authority": False,
         "lp_locked": False,
@@ -163,6 +163,7 @@ async def test_scan_token_solana_heuristic_path() -> None:
         "proxy_contract": False,
         "source_code_verified": False,
     }
+    assert result["checks"] == expected
 
 
 async def test_scan_token_invalid_address_heuristic_high_risk() -> None:

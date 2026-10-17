@@ -41,13 +41,14 @@ REQUIRED_KEYS = {"name", "referral_url", "commission", "description", "tier"}
 
 
 def test_catalog_has_expected_providers() -> None:
-    assert set(PROVIDER_REFERRALS.keys()) == {
+    expected = {
         "brightdata",
         "oxylabs",
         "smartproxy",
         "iproyal",
         "webshare",
     }
+    assert set(PROVIDER_REFERRALS.keys()) == expected
 
 
 def test_every_entry_has_required_keys() -> None:

@@ -79,8 +79,10 @@ class TestReconciliation:
     def test_every_vertical_matches_alias_equivalent_records(self, vertical: str) -> None:
         assert set(VERTICAL_CASES) == set(VERTICAL_SCHEMAS)
         entities = match_entities(VERTICAL_CASES[vertical], vertical)
-        assert sorted(entity["record_count"] for entity in entities) == [1, 2]
-        assert {source for entity in entities for source in entity["sources"]} == {"a", "b", "c"}
+        expected = [1, 2]
+        assert sorted(entity["record_count"] for entity in entities) == expected
+        expected_2 = {"a", "b", "c"}
+        assert {source for entity in entities for source in entity["sources"]} == expected_2
         assert all(0.0 <= entity["confidence"] <= 1.0 for entity in entities)
 
     @pytest.mark.parametrize(("vertical", "raw", "expected"), NORMALIZATION_CASES)
@@ -145,8 +147,10 @@ class TestReconciliation:
         assert [(e["entity_id"], e["records"][0]["name"]) for e in first] == [
             (e["entity_id"], e["records"][0]["name"]) for e in second
         ]
-        assert [e["records"][0]["name"] for e in first] == ["B", "A", "Same"]
-        assert [e["confidence"] for e in first] == [1.0, 0.5, 1.0]
+        expected = ["B", "A", "Same"]
+        assert [e["records"][0]["name"] for e in first] == expected
+        expected_2 = [1.0, 0.5, 1.0]
+        assert [e["confidence"] for e in first] == expected_2
 
     def test_report_rates_counts_confidence_and_sources(self) -> None:
         entities = [
@@ -155,14 +159,18 @@ class TestReconciliation:
             {"record_count": 1, "confidence": 0.4, "sources": []},
         ]
         report = build_reconciliation_report(entities, "product")
-        assert (report["total_records"], report["total_entities"], report["match_rate"]) == (
+        expected = (
             4,
             3,
             33.3,
         )
-        assert (report["matched_entities"], report["unmatched_records"]) == (1, 2)
-        assert (report["high_confidence"], report["low_confidence"]) == (1, 1)
-        assert set(report["unique_sources"]) == {"a", "b", "c"}
+        assert (report["total_records"], report["total_entities"], report["match_rate"]) == expected
+        expected_2 = (1, 2)
+        assert (report["matched_entities"], report["unmatched_records"]) == expected_2
+        expected_3 = (1, 1)
+        assert (report["high_confidence"], report["low_confidence"]) == expected_3
+        expected_4 = {"a", "b", "c"}
+        assert set(report["unique_sources"]) == expected_4
 
     def test_malformed_entities_are_contained(self) -> None:
         records: list[dict[str, object]] = [

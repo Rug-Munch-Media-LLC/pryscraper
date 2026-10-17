@@ -754,11 +754,13 @@ async def test_get_prop_markets_success(monkeypatch: pytest.MonkeyPatch) -> None
     assert points["label"] == "Player Points"
     assert points["player_count"] == 2  # LeBron + Tatum
     assert points["book"] == "DraftKings"
-    assert points["books"] == ["DraftKings", "FanDuel"]
+    expected = ["DraftKings", "FanDuel"]
+    assert points["books"] == expected
     assert points["event"] == "Boston Celtics @ Los Angeles Lakers"
     rebounds = by_market["player_rebounds"]
     assert rebounds["player_count"] == 1
-    assert rebounds["books"] == ["DraftKings"]
+    expected_2 = ["DraftKings"]
+    assert rebounds["books"] == expected_2
 
 
 @respx.mock

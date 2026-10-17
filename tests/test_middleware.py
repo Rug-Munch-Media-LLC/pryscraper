@@ -284,12 +284,16 @@ def test_get_header_case_insensitive():
 
 
 def test_get_header_missing():
+    present = {"headers": [(b"x-present", b"value")]}
+    assert PryHttpMiddleware._get_header(present, b"x-present") == "value"
     assert PryHttpMiddleware._get_header({}, b"x-missing") == ""
 
 
 def test_get_header_empty_headers():
     scope = {"headers": []}
     assert PryHttpMiddleware._get_header(scope, b"anything") == ""
+    scope = {"headers": [(b"anything", b"x")]}
+    assert PryHttpMiddleware._get_header(scope, b"anything") == "x"
 
 
 # ---------------------------------------------------------------------------

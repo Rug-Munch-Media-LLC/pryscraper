@@ -89,7 +89,8 @@ class TestSchemaAdherenceList:
         )
         assert result["total_checks"] == 4
         assert result["type_mismatches"] == 2
-        assert result["field_issues"] == {"a": 1, "b": 1}
+        expected = {"a": 1, "b": 1}
+        assert result["field_issues"] == expected
         assert result["score"] == 50.0
 
     def test_missing_field_is_not_counted_as_mismatch(self) -> None:
@@ -128,7 +129,8 @@ class TestDetectAnomaliesEdgeCases:
         # previous_data={} is falsy but not None, so the empty_result branch
         # does not fire; instead every current key is a "new_field".
         result = detect_anomalies({"a": 1}, {})
-        assert [a["type"] for a in result] == ["new_field"]
+        expected = ["new_field"]
+        assert [a["type"] for a in result] == expected
         assert result[0]["field"] == "a"
         assert result[0]["severity"] == "info"
 
@@ -223,7 +225,7 @@ class TestRunQualityCheck:
     async def test_full_check_returns_contracted_shape(self) -> None:
         data = {"name": "Alice", "age": 30, "email": "alice@example.com"}
         result = await run_quality_check("https://example.com", data)
-        assert set(result.keys()) == {
+        expected = {
             "url",
             "quality_score",
             "completeness",
@@ -236,6 +238,7 @@ class TestRunQualityCheck:
             "has_previous_data",
             "checked_at",
         }
+        assert set(result.keys()) == expected
         assert result["url"] == "https://example.com"
         assert result["quality_score"] == 100.0
         assert result["completeness"]["score"] == 100.0
@@ -265,7 +268,8 @@ class TestRunQualityCheck:
             "https://example.com/schema", data, expected_types={"price": int, "name": str}
         )
         assert result["schema_adherence"]["type_mismatches"] == 1
-        assert result["schema_adherence"]["field_issues"] == {"price": 1}
+        expected = {"price": 1}
+        assert result["schema_adherence"]["field_issues"] == expected
 
     async def test_corrupt_history_file_is_tolerated(self, tmp_path) -> None:
         # Write a corrupt JSON history file for a known URL, then run the
@@ -285,7 +289,8 @@ class TestRunQualityCheck:
         assert history_file.exists()
         payload = json.loads(history_file.read_text())
         assert payload["url"] == url
-        assert payload["data"] == {"a": 1}
+        expected = {"a": 1}
+        assert payload["data"] == expected
         assert "checked_at" in payload
 
     async def test_list_data_raises_in_compute_freshness(self) -> None:

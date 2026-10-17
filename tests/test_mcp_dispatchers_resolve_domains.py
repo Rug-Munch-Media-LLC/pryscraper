@@ -81,9 +81,8 @@ class TestDispatchersUseTheResolver:
         """
         line = "            from travel.flights import cheapest_date_grid"
 
-        assert _bare_domain_imports_from_lines([line]) == [
-            (1, "from travel.flights import cheapest_date_grid")
-        ]
+        expected = [(1, "from travel.flights import cheapest_date_grid")]
+        assert _bare_domain_imports_from_lines([line]) == expected
 
     def test_scanner_ignores_genuine_top_level_packages(self) -> None:
         """``actor_factory``/``crypto_market``/``pry.*`` are really top-level.

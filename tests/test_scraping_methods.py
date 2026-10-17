@@ -283,7 +283,8 @@ async def test_session_warmup_then_cookie_reuse() -> None:
     ) as session:
         resp = await session.fetch("https://example.com/api/products")
     assert resp is not None
-    assert resp.json() == {"ok": True}
+    expected = {"ok": True}
+    assert resp.json() == expected
     assert session.is_warmed
     # Warm-up hit the homepage first.
     assert seen[0].url.scheme == "https"
@@ -348,7 +349,8 @@ async def test_session_warmup_failure_still_fetches() -> None:
         assert not session.is_warmed
         resp = await session.fetch("https://example.com/api/products")
         assert resp is not None
-        assert resp.json() == {"ok": True}
+        expected = {"ok": True}
+        assert resp.json() == expected
     finally:
         await session.close()
 
@@ -484,20 +486,22 @@ def test_parse_rss_feed() -> None:
     with patch("pry.engine.methods._common._sync_get", return_value=fake):
         entries = parse_feed("https://example.com/feed.xml")
     assert len(entries) == 3
-    assert entries[0] == {
+    expected = {
         "title": "First post",
         "link": "https://example.com/posts/1",
         "summary": "Summary one",
         "published": "Mon, 17 Aug 2026 10:00:00 GMT",
     }
+    assert entries[0] == expected
     assert entries[1]["title"] == "Second post"
     # Fields absent from an item stay empty strings.
-    assert entries[2] == {
+    expected_2 = {
         "title": "No extras",
         "link": "https://example.com/posts/3",
         "summary": "",
         "published": "",
     }
+    assert entries[2] == expected_2
 
 
 def test_parse_atom_feed() -> None:
@@ -505,12 +509,13 @@ def test_parse_atom_feed() -> None:
     with patch("pry.engine.methods._common._sync_get", return_value=fake):
         entries = parse_feed("https://example.com/atom.xml")
     assert len(entries) == 2
-    assert entries[0] == {
+    expected = {
         "title": "Atom entry one",
         "link": "https://example.com/entries/1",
         "summary": "Atom summary one",
         "published": "2026-08-17T10:00:00Z",
     }
+    assert entries[0] == expected
     # <content> falls back to summary; <updated> falls back to published.
     assert entries[1]["summary"] == "<p>Content two</p>"
     assert entries[1]["published"] == "2026-08-18T11:30:00Z"
@@ -569,11 +574,12 @@ def test_parse_sitemap_urlset() -> None:
     fake = httpx.Response(200, text=SITEMAP_URLSET_FIXTURE)
     with patch("pry.engine.methods._common._sync_get", return_value=fake) as mock_get:
         urls = parse_sitemap("https://example.com/sitemap.xml")
-    assert urls == [
+    expected = [
         "https://example.com/",
         "https://example.com/about",
         "https://example.com/posts/1",
     ]
+    assert urls == expected
     assert mock_get.call_count == 1
 
 
@@ -627,7 +633,8 @@ def test_discover_sitemap_via_robots() -> None:
         found = discover_sitemap("https://example.com")
     assert found == "https://example.com/sitemap.xml"
     assert mock_get.call_count == 1
-    assert mock_get.call_args.args == ("https://example.com/robots.txt",)
+    expected = ("https://example.com/robots.txt",)
+    assert mock_get.call_args.args == expected
 
 
 def test_discover_sitemap_robots_without_sitemap_line_falls_back() -> None:
@@ -675,19 +682,23 @@ def test_query_graphql_posts_query() -> None:
     fake = httpx.Response(200, json={"data": {"__typename": "Query"}})
     with patch("pry.engine.methods._common._sync_post", return_value=fake) as mock_post:
         result = query_graphql("https://example.com/graphql", "{ __typename }", {"v": 1})
-    assert result == {"data": {"__typename": "Query"}}
-    assert mock_post.call_args.args == ("https://example.com/graphql",)
-    assert mock_post.call_args.kwargs["json_body"] == {
+    expected = {"data": {"__typename": "Query"}}
+    assert result == expected
+    expected_2 = ("https://example.com/graphql",)
+    assert mock_post.call_args.args == expected_2
+    expected_3 = {
         "query": "{ __typename }",
         "variables": {"v": 1},
     }
+    assert mock_post.call_args.kwargs["json_body"] == expected_3
 
 
 def test_query_graphql_default_variables() -> None:
     fake = httpx.Response(200, json={"data": None})
     with patch("pry.engine.methods._common._sync_post", return_value=fake) as mock_post:
         result = query_graphql("https://example.com/graphql", "query Q { ping }")
-    assert result == {"data": None}
+    expected = {"data": None}
+    assert result == expected
     assert mock_post.call_args.kwargs["json_body"]["variables"] == {}
 
 
@@ -725,11 +736,13 @@ def test_paginated_fetch_collects_until_empty() -> None:
             max_pages=5,
             per_page_delay=0,
         )
-    assert results == [{"id": 1}, {"id": 2}, {"id": 3}]
+    expected = [{"id": 1}, {"id": 2}, {"id": 3}]
+    assert results == expected
     # Stopped on the empty page 3 — never requested pages 4-5.
     assert mock_get.call_count == 3
     pages = [call.kwargs.get("params") for call in mock_get.call_args_list]
-    assert pages == [{"offset_page": 1}, {"offset_page": 2}, {"offset_page": 3}]
+    expected_2 = [{"offset_page": 1}, {"offset_page": 2}, {"offset_page": 3}]
+    assert pages == expected_2
 
 
 def test_paginated_fetch_unwraps_dict_payloads() -> None:
@@ -738,14 +751,16 @@ def test_paginated_fetch_unwraps_dict_payloads() -> None:
     page3 = httpx.Response(200, json={"items": []})
     with patch("pry.engine.methods._common._sync_get", side_effect=[page1, page2, page3]):
         results = paginated_fetch("https://example.com/api/items", per_page_delay=0)
-    assert results == [{"id": "a"}, {"id": "b"}]
+    expected = [{"id": "a"}, {"id": "b"}]
+    assert results == expected
 
 
 def test_paginated_fetch_respects_max_pages() -> None:
     page = httpx.Response(200, json=[{"id": 1}])
     with patch("pry.engine.methods._common._sync_get", return_value=page) as mock_get:
         results = paginated_fetch("https://example.com/api/items", max_pages=2, per_page_delay=0)
-    assert results == [{"id": 1}, {"id": 1}]
+    expected = [{"id": 1}, {"id": 1}]
+    assert results == expected
     assert mock_get.call_count == 2
 
 
@@ -754,7 +769,8 @@ def test_paginated_fetch_bad_json_page_stops() -> None:
     page2 = httpx.Response(200, text="<html>oops</html>")
     with patch("pry.engine.methods._common._sync_get", side_effect=[page1, page2]) as mock_get:
         results = paginated_fetch("https://example.com/api/items", per_page_delay=0)
-    assert results == [{"id": 1}]
+    expected = [{"id": 1}]
+    assert results == expected
     assert mock_get.call_count == 2
 
 
@@ -772,7 +788,7 @@ def test_paginated_fetch_invalid_input_no_network() -> None:
 
 
 def test_methods_registry() -> None:
-    assert set(METHODS) == {
+    expected = {
         "feed_parsing",
         "graphql_discovery",
         "hidden_api_discovery",
@@ -781,6 +797,7 @@ def test_methods_registry() -> None:
         "render_wait",
         "sitemap_discovery",
     }
+    assert set(METHODS) == expected
     for key, meta in METHODS.items():
         assert meta["name"], key
         assert meta["when"], key

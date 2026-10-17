@@ -180,7 +180,8 @@ async def test_track_clv_records_per_book_side(mock_clv_feeds: dict[str, Any]) -
     records = await clv.track_clv("eid123")
     assert len(records) == 2
     by_side = {record["side"]: record for record in records}
-    assert set(by_side) == {"home", "away"}
+    expected = {"home", "away"}
+    assert set(by_side) == expected
     assert by_side["home"]["book"] == "DraftKings"
     assert by_side["home"]["bet_odds"] == pytest.approx(2.05)
     assert by_side["home"]["closing_odds"] == pytest.approx(2.00)
@@ -394,7 +395,8 @@ async def test_export_json(mock_export_odds: dict[str, Any]) -> None:
     assert result["rows"] == 2
     rows = json.loads(result["payload_or_path"])
     assert len(rows) == 2
-    assert {row["book"] for row in rows} == {"Pinnacle", "DraftKings"}
+    expected = {"Pinnacle", "DraftKings"}
+    assert {row["book"] for row in rows} == expected
     assert "implied_away" in rows[0]
     assert "ev_away_pct" in rows[0]
 

@@ -30,10 +30,13 @@ import httpx
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+# NOTE: 4df49d2a imported ``search_web`` from ``pry.core.deps``, which never exported
+# ``search_web`` — the app could not be imported at all. Restored the real
+# source of truth; re-export from ``deps.py`` before switching back.
 from pry.api.routers.scraping import scraping as _legacy_scraping
-from pry.core.deps import search_web
 from pry.core.errors import ScrapeError
 from pry.engine.url_guard import safe_get, validate_url_async
+from pry.engine.web_search import search_web
 
 logger = logging.getLogger(__name__)
 
@@ -110,9 +113,22 @@ async def _sitemap_links(client: httpx.AsyncClient, url: str) -> list[str]:
         return []
 
 
-@router.post("/v1/map", summary="Discover URLs on a site")
+@router.post(
+    "/v1/map",
+    summary="Discover URLs on a site (legacy success/data.links deprecated)",
+    response_description=(
+        "Canonical shape: {url, links: [{url}], count}. "
+        "Deprecated aliases (removed after one release): success, data.links (list of URL strings)."
+    ),
+)
 async def map_site(request: MapRequest) -> dict[str, Any]:
-    """Map a site: sitemap first, then the scraper's same-origin link crawl."""
+    """Map a site: sitemap first, then the scraper's same-origin link crawl.
+
+    The canonical response is ``{url, links: [{url}], count}``. ``success`` and
+    ``data.links`` (bare URL strings) are **deprecated aliases** kept for one
+    release so clients of the old ``scraping.py`` handler keep parsing; new
+    clients must read ``links[].url`` and ``count``.
+    """
     url = await validate_url_async(request.url)
     headers = {"User-Agent": _USER_AGENT, "Accept": "application/xml,text/html,*/*"}
     async with httpx.AsyncClient(
@@ -135,11 +151,12 @@ async def map_site(request: MapRequest) -> dict[str, Any]:
 
     links = links[: request.limit]
     return {
+        # Canonical contract — stable.
         "url": url,
         "links": [{"url": link} for link in links],
         "count": len(links),
-        # Additive compatibility with the previous /v1/map response shape so
-        # existing clients (and the scraping-router contract tests) keep working.
+        # DEPRECATED (one release): aliases of the removed legacy handler.
+        # Do not add new fields here; delete both keys after the sunset window.
         "success": True,
         "data": {"links": links},
     }

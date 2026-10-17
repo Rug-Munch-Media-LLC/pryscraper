@@ -139,7 +139,8 @@ class TestSortedSpecs:
 
     def test_only_filter(self) -> None:
         specs = sorted_specs(only=["pry-cve-advisory-watch", "pry-recipe-miner"])
-        assert [s.name for s in specs] == ["pry-cve-advisory-watch", "pry-recipe-miner"]
+        expected = ["pry-cve-advisory-watch", "pry-recipe-miner"]
+        assert [s.name for s in specs] == expected
 
     def test_unknown_preset_raises(self) -> None:
         with pytest.raises(KeyError, match="no-such-actor"):
@@ -165,7 +166,8 @@ class TestPushActor:
         assert detail == "pushed"
         argv, _kwargs = calls[0]
         assert argv[0].endswith("npx")
-        assert argv[1:5] == ["--yes", "apify-cli", "push", "--force"]
+        expected = ["--yes", "apify-cli", "push", "--force"]
+        assert argv[1:5] == expected
         assert "--dir" in argv
         assert str(tmp_path) in argv
 
@@ -234,7 +236,8 @@ class TestRunBatch:
         results = list(
             run_batch(REPO, tmp_path, only=["pry-recipe-miner"], dry_run=True, delay_seconds=0)
         )
-        assert [r.ok for r in results] == [True]
+        expected = [True]
+        assert [r.ok for r in results] == expected
         assert results[0].detail == "dry-run"
         assert not load_results(tmp_path)  # dry-run never records pushes
 
@@ -291,7 +294,8 @@ class TestRunBatch:
                 delay_seconds=0,
             )
         )
-        assert pushed_with == ["pry-recipe-miner"]  # cve skipped via results.json
+        expected = ["pry-recipe-miner"]
+        assert pushed_with == expected  # cve skipped via results.json
         assert len(out) == 1
 
     def test_failed_push_is_recorded_for_retry(self, tmp_path: Path) -> None:

@@ -124,13 +124,15 @@ def test_import_valid_json_creates_rows_with_field_values(temp_data_dir):
         assert q.url == "https://example.com"
         assert q.completeness == 0.9
         assert q.risk_level == "low"
-        assert q.issues == ["slow"]
+        expected = ["slow"]
+        assert q.issues == expected
 
         i = s.execute(
             select(db.IntelSnapshot).where(db.IntelSnapshot.competitor_id == "acme")
         ).scalar_one()
         assert i.competitor_name == "Acme Corp"
-        assert i.fields == {"price": 99.99}
+        expected_2 = {"price": 99.99}
+        assert i.fields == expected_2
 
         m = s.execute(select(db.Monitor).where(db.Monitor.monitor_id == "m1")).scalar_one()
         # 'name' from JSON is renamed to 'monitor_name' in SQL.
@@ -143,7 +145,8 @@ def test_import_valid_json_creates_rows_with_field_values(temp_data_dir):
         assert a.name == "Scraper"
         assert a.price_per_run == 0.5
         assert a.visibility == "public"
-        assert a.tags == ["scrape"]
+        expected_3 = ["scrape"]
+        assert a.tags == expected_3
         assert a.run_count == 3
         assert a.revenue_usd == 1.5
 

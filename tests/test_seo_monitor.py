@@ -37,7 +37,8 @@ def test_get_headings() -> None:
         "<html><body><h1>Main Title</h1><h2>Sub One</h2><h2>Sub Two</h2></body></html>"
     )
     h1s = _get_headings(tree, "h1")
-    assert h1s == ["Main Title"]
+    expected = ["Main Title"]
+    assert h1s == expected
     h2s = _get_headings(tree, "h2")
     assert len(h2s) == 2
 

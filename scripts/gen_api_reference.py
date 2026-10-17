@@ -41,6 +41,7 @@ AUTH = (
 # Mirrors PAID_ENDPOINTS in src/pry/payments/x402_middleware/config.py.
 PAID = (
     "/v1/scrape",
+    "/v1/search",
     "/v1/crawl",
     "/v1/extract/css",
     "/v1/extract/llm",
@@ -132,14 +133,15 @@ def header_lines(spec: dict, ops: list, tags: dict, documented: int) -> list[str
     ]
 
 
-def coverage_lines(index: dict) -> list[str]:
+def coverage_lines(index: dict, documented: int = 0, total: int = 0) -> list[str]:
     lines = [
         "",
         "## 402 coverage",
         "",
-        "The audit found **0 of 371** operations declaring `402 Payment Required`, although the "
-        "x402 middleware gates the paid routes below. Clients must treat an undocumented 402 as a "
-        "normal payment challenge, not a failure. The next five routes to annotate:",
+        f"The audit found **{documented} of {total}** operations declaring "
+        "`402 Payment Required`, although the x402 middleware gates the paid routes below. "
+        "Clients must treat an undocumented 402 as a normal payment challenge, not a failure. "
+        "The next five routes to annotate:",
         "",
         "| # | Method | Path | Summary |",
         "|--:|--------|------|---------|",
@@ -188,7 +190,7 @@ def main() -> None:
     index = {(p, m): op for p, m, op in ops}
     lines = [
         *header_lines(spec, ops, tags, documented),
-        *coverage_lines(index),
+        *coverage_lines(index, documented, len(ops)),
         *tag_index(tags),
         *tag_sections(tags),
     ]

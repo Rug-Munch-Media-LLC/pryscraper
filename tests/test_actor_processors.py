@@ -77,7 +77,8 @@ class TestSeoProcessor:
         assert seo["canonical"] == "https://shop.example/shoes"
         assert len(seo["headings"]["h2"]) == 2
         # no og tags in this fixture -> flagged by the new social-card audit
-        assert set(seo["issues"]) == {"missing_og_title", "missing_og_image"}
+        expected = {"missing_og_title", "missing_og_image"}
+        assert set(seo["issues"]) == expected
 
     def test_missing_signals_flagged_as_issues(self) -> None:
         item = process_seo("http://e.com/bare", _ok_result("<p>no head</p>"), {}, {})
@@ -240,7 +241,8 @@ class TestBacklinksProcessor:
             '<a href="https://third.io/">t</a>'
         )
         item = process_backlinks("http://mysite.com/x", {"status": "ok", "raw_html": html}, {}, {})
-        assert item["outbound_domains"] == ["other.com", "third.io"]
+        expected = ["other.com", "third.io"]
+        assert item["outbound_domains"] == expected
 
 
 class TestAuditProcessor:

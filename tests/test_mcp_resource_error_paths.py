@@ -141,7 +141,8 @@ def test_failed_template_completion_is_logged(
             sys.modules.pop("pry.commerce.template_engine", None)
 
     # Values stay empty (correct — we have nothing to offer) ...
-    assert result == {"values": []}
+    expected = {"values": []}
+    assert result == expected
     # ... but the failure is no longer indistinguishable from "no match".
     assert any(r.levelno >= logging.WARNING for r in caplog.records), "failure was not logged"
     assert "template_id" in caplog.text

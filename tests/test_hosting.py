@@ -129,7 +129,8 @@ def _clean_hosting_state(tmp_path, monkeypatch):
 # ── Plans ───────────────────────────────────────────────────────────────────
 def test_plan_catalog_matches_tiers() -> None:
     plans = {p["tier"]: p for p in list_plans()}
-    assert set(plans) == {"pro", "team", "enterprise"}
+    expected = {"pro", "team", "enterprise"}
+    assert set(plans) == expected
     assert plans["pro"]["price_usd_monthly"] == 49.0
     assert plans["pro"]["max_concurrent_scrapes"] == 100
     assert plans["pro"]["max_pages_month"] == 100_000
@@ -253,7 +254,8 @@ def test_get_and_list_instances(db, monkeypatch) -> None:
     assert detail["plan_tier"] == "team"
 
     listed = list_instances(instance["user_id"])
-    assert [i["instance_id"] for i in listed] == [instance["instance_id"]]
+    expected = [instance["instance_id"]]
+    assert [i["instance_id"] for i in listed] == expected
 
     with pytest.raises(InstanceNotFound):
         get_instance("inst_doesnotexist")
@@ -382,7 +384,8 @@ def test_route_full_signup_flow(client: TestClient, db, monkeypatch) -> None:
     headers = {"Authorization": f"Bearer {data['api_key']}"}
     listed = client.get("/v1/hosting/instances", headers=headers)
     assert listed.status_code == 200
-    assert [i["instance_id"] for i in listed.json()["data"]["instances"]] == [instance_id]
+    expected = [instance_id]
+    assert [i["instance_id"] for i in listed.json()["data"]["instances"]] == expected
 
     detail = client.get(f"/v1/hosting/instances/{instance_id}", headers=headers)
     assert detail.status_code == 200

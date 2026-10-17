@@ -99,14 +99,18 @@ class TestDerivativePricing:
             adjustment=6,
         )
         lines = result["adjusted_lines"]
-        assert [(leg["index"], leg["selection"]) for leg in lines] == [(0, "A"), (2, "B")]
-        assert (lines[0]["type"], lines[0]["adjustable"]) == ("spread", True)
-        assert (lines[1]["type"], lines[1]["adjustable"]) == ("h2h", False)
+        expected = [(0, "A"), (2, "B")]
+        assert [(leg["index"], leg["selection"]) for leg in lines] == expected
+        expected_2 = ("spread", True)
+        assert (lines[0]["type"], lines[0]["adjustable"]) == expected_2
+        expected_3 = ("h2h", False)
+        assert (lines[1]["type"], lines[1]["adjustable"]) == expected_3
 
     def test_teaser_and_pleaser_move_adjustable_lines_opposite_ways(self) -> None:
         teaser = public.price_teaser(SPREADS, 6, "teaser")
         pleaser = public.price_teaser(SPREADS, 6, "pleaser")
-        assert (teaser["direction"], pleaser["direction"]) == ("teaser", "pleaser")
+        expected = ("teaser", "pleaser")
+        assert (teaser["direction"], pleaser["direction"]) == expected
         assert teaser["combined_odds"]["decimal"] < pleaser["combined_odds"]["decimal"]
         assert teaser["adjusted_lines"][0]["adjusted_line"] < -3.5
         assert pleaser["adjusted_lines"][0]["adjusted_line"] > -3.5
@@ -115,21 +119,28 @@ class TestDerivativePricing:
     def test_if_bet_scenarios_and_effective_price(self) -> None:
         result = public.price_if_bet(SIMPLE, 100)
         assert len(result["scenarios"]) == 8
-        assert (result["max_win"], result["max_loss"]) == (600.0, -100.0)
-        assert result["effective_odds"] == {"decimal": 7.0, "american": 600}
+        expected = (600.0, -100.0)
+        assert (result["max_win"], result["max_loss"]) == expected
+        expected_2 = {"decimal": 7.0, "american": 600}
+        assert result["effective_odds"] == expected_2
 
     def test_reverse_bet_builds_both_directions(self) -> None:
         result = public.price_reverse_bet(SIMPLE[:2], 100)
         assert result["total_risk"] == 200.0
-        assert [chain["direction"] for chain in result["chains"]] == ["A → B", "B → A"]
-        assert (result["max_win"], result["max_loss"]) == (600.0, -200.0)
+        expected = ["A → B", "B → A"]
+        assert [chain["direction"] for chain in result["chains"]] == expected
+        expected_2 = (600.0, -200.0)
+        assert (result["max_win"], result["max_loss"]) == expected_2
 
     def test_round_robin_splits_budget_across_all_combinations(self) -> None:
         result = public.price_round_robin(SIMPLE, 2, 120)
-        assert (result["num_parlays"], result["total_risk"]) == (3, 120.0)
+        expected = (3, 120.0)
+        assert (result["num_parlays"], result["total_risk"]) == expected
         assert result["stake_per_parlay"] == 40.0
-        assert [item["profit"] for item in result["all_combinations"]] == [200.0, 280.0, 440.0]
-        assert (result["max_win"], result["min_win"]) == (920.0, 200.0)
+        expected_2 = [200.0, 280.0, 440.0]
+        assert [item["profit"] for item in result["all_combinations"]] == expected_2
+        expected_3 = (920.0, 200.0)
+        assert (result["max_win"], result["min_win"]) == expected_3
 
     @pytest.mark.parametrize(
         "call",
@@ -170,7 +181,8 @@ class TestMCPDispatch:
         ]
         for bet_type, legs, options, expected_call in cases:
             envelope = call_sports_derivatives_tool({"bet_type": bet_type, "legs": legs, **options})
-            assert envelope == {"success": True, "data": expected_call(), "bet_type": bet_type}
+            expected = {"success": True, "data": expected_call(), "bet_type": bet_type}
+            assert envelope == expected
 
     @pytest.mark.parametrize(
         "arguments",
@@ -185,7 +197,8 @@ class TestMCPDispatch:
     )
     def test_invalid_arguments_return_error_envelopes(self, arguments: dict) -> None:
         envelope = call_sports_derivatives_tool(arguments)
-        assert (envelope["success"], isinstance(envelope["error"], str)) == (False, True)
+        expected = (False, True)
+        assert (envelope["success"], isinstance(envelope["error"], str)) == expected
 
     @pytest.mark.parametrize(
         "arguments",
@@ -197,4 +210,5 @@ class TestMCPDispatch:
     )
     def test_non_finite_arguments_never_raise(self, arguments: dict) -> None:
         envelope = call_sports_derivatives_tool(arguments)
-        assert (isinstance(envelope, dict), isinstance(envelope["success"], bool)) == (True, True)
+        expected = (True, True)
+        assert (isinstance(envelope, dict), isinstance(envelope["success"], bool)) == expected

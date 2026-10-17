@@ -145,14 +145,16 @@ class TestHealthEndpoints:
     def test_live_returns_200(self, client: TestClient) -> None:
         resp = client.get("/live")
         assert resp.status_code == 200
-        assert resp.json() == {"status": "alive"}
+        expected = {"status": "alive"}
+        assert resp.json() == expected
 
     @pytest.mark.integration
     @pytest.mark.skipif(not _has_postgres(), reason="requires running Postgres + Redis")
     def test_ready_returns_200(self, client: TestClient) -> None:
         resp = client.get("/ready")
         assert resp.status_code == 200
-        assert resp.json() == {"status": "ready"}
+        expected = {"status": "ready"}
+        assert resp.json() == expected
 
 
 # ── OpenAPI / Docs ───────────────────────────────────────────────

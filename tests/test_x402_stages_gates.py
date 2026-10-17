@@ -30,7 +30,8 @@ class TestBypassGate:
         recorder = _Recorder()
         scope = {"type": "lifespan"}
         assert await stages._bypass_gate(mw, scope, None, recorder) is True
-        assert mw.app.calls == [{"type": "lifespan"}]
+        expected = [{"type": "lifespan"}]
+        assert mw.app.calls == expected
 
     async def test_options_preflight_is_served(self):
         mw = _FakeMW()

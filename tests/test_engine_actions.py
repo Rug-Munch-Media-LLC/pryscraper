@@ -68,7 +68,8 @@ async def test_type_requires_selector_and_text() -> None:
     assert await execute_action(page, {"type": "type", "text": "hi"}) is False
     assert await execute_action(page, {"type": "type", "selector": "#f", "text": "hi"}) is True
     assert page.calls[0][0] == "fill"
-    assert page.calls[0][1] == ("#f", "hi")
+    expected = ("#f", "hi")
+    assert page.calls[0][1] == expected
 
 
 @pytest.mark.asyncio

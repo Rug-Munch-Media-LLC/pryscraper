@@ -63,7 +63,8 @@ class TestPricingInfos:
         infos = build_pricing_infos(spec)
         assert infos["pricingModel"] == "PAY_PER_EVENT"
         events = infos["pricingPerEvent"]["actorChargeEvents"]
-        assert set(events) == {"page-scraped"}
+        expected = {"page-scraped"}
+        assert set(events) == expected
         ev = events["page-scraped"]
         assert ev["eventPriceUsd"] == 0.003
         assert ev["eventTitle"] == "Page scraped"
@@ -75,7 +76,8 @@ class TestPricingInfos:
         events = build_pricing_infos(spec)["pricingPerEvent"]["actorChargeEvents"]
         primaries = [n for n, e in events.items() if e.get("isPrimaryEvent")]
         assert len(events) == 2
-        assert primaries == ["page-checked"]
+        expected = ["page-checked"]
+        assert primaries == expected
 
     def test_prices_match_spec_exactly(self) -> None:
         for name in ("pry-serp-scraper", "pry-token-safety-scanner", "pry-rss-feed-monitor"):

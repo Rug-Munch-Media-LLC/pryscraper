@@ -73,7 +73,8 @@ class TestPassthrough:
 
     def test_extra_fields_pass_through(self) -> None:
         result = validate_tool_args("pry_scrape", {"url": "https://x.com", "extra": {"a": 1}})
-        assert result["extra"] == {"a": 1}
+        expected = {"a": 1}
+        assert result["extra"] == expected
 
     def test_no_required_fields_tool_accepts_empty(self) -> None:
         assert validate_tool_args("pry_x402_pricing", {}) == {}
@@ -141,13 +142,15 @@ class TestDispatchSafely:
             return {"ok": True, "args": args}
 
         result = await dispatch_safely(fn, "pry_scrape", {"url": "https://x.com"})
-        assert result == {"ok": True, "args": {"url": "https://x.com"}}
+        expected = {"ok": True, "args": {"url": "https://x.com"}}
+        assert result == expected
 
     async def test_sync_fn_supported(self) -> None:
         def fn(name: str, args: dict[str, Any]) -> dict[str, Any]:
             return {"sync": True}
 
-        assert await dispatch_safely(fn, "pry_scrape", {"url": "https://x.com"}) == {"sync": True}
+        expected = {"sync": True}
+        assert await dispatch_safely(fn, "pry_scrape", {"url": "https://x.com"}) == expected
 
     async def test_base_exception_not_swallowed(self) -> None:
         async def fn(name: str, args: dict[str, Any]) -> dict[str, Any]:

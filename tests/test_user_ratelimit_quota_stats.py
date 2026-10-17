@@ -66,7 +66,8 @@ def test_stats_for_existing_key(limiter: UserRateLimiter):
 
 def test_stats_for_missing_key(limiter: UserRateLimiter):
     stats = limiter.get_stats("nonexistent")
-    assert stats == {"error": "not_found"}
+    expected = {"error": "not_found"}
+    assert stats == expected
 
 
 def test_stats_global(limiter: UserRateLimiter):

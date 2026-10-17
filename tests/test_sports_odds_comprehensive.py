@@ -259,8 +259,10 @@ def test_supported_coverage_lists_all_sports_books_markets() -> None:
         "betonline",
     }
     assert required_books <= set(coverage["books"])
-    assert set(coverage["markets"]) == {"h2h", "spreads", "totals", "outrights"}
-    assert coverage["sources"] == ["the_odds_api", "espn"]
+    expected = {"h2h", "spreads", "totals", "outrights"}
+    assert set(coverage["markets"]) == expected
+    expected_2 = ["the_odds_api", "espn"]
+    assert coverage["sources"] == expected_2
     assert coverage["cache_ttl_seconds"] == 10.0
     assert coverage["api_key_configured"] is False
     # legacy aliases are reported so bots can use short slugs too
@@ -272,13 +274,16 @@ def test_supported_coverage_sport_details() -> None:
     coverage = odds.supported_coverage()
     nba = coverage["sports"]["basketball_nba"]
     assert nba["odds_api_key"] == "basketball_nba"
-    assert nba["espn"] == {"sport": "basketball", "league": "nba"}
-    assert set(nba["markets"]) == {"h2h", "spreads", "totals", "outrights"}
+    expected = {"sport": "basketball", "league": "nba"}
+    assert nba["espn"] == expected
+    expected_2 = {"h2h", "spreads", "totals", "outrights"}
+    assert set(nba["markets"]) == expected_2
     # sports without an ESPN feed advertise None so bots can skip them
     assert coverage["sports"]["boxing"]["espn"] is None
     assert coverage["sports"]["esports_csgo"]["espn"] is None
     assert coverage["sports"]["cricket_international_t20"]["espn"] is None
-    assert coverage["sports"]["formula_1"]["espn"] == {"sport": "racing", "league": "f1"}
+    expected_3 = {"sport": "racing", "league": "f1"}
+    assert coverage["sports"]["formula_1"]["espn"] == expected_3
 
 
 # ── Sport resolution ──────────────────────────────────────────────────
@@ -286,13 +291,17 @@ def test_supported_coverage_sport_details() -> None:
 
 def test_resolve_sports_all_canonical_keys() -> None:
     for key in odds._CANONICAL_SPORTS:
-        assert odds._resolve_sports(key) == [key]
+        expected = [key]
+        assert odds._resolve_sports(key) == expected
 
 
 def test_resolve_sports_legacy_aliases_and_defaults() -> None:
-    assert odds._resolve_sports("nba") == ["nba"]
-    assert odds._resolve_sports("ufc") == ["ufc"]
-    assert odds._resolve_sports("basketball_nba") == ["basketball_nba"]
+    expected = ["nba"]
+    assert odds._resolve_sports("nba") == expected
+    expected_2 = ["ufc"]
+    assert odds._resolve_sports("ufc") == expected_2
+    expected_3 = ["basketball_nba"]
+    assert odds._resolve_sports("basketball_nba") == expected_3
     assert odds._resolve_sports("all") == list(odds._DEFAULT_SPORTS)
     assert odds._resolve_sports("") == list(odds._DEFAULT_SPORTS)
     assert odds._resolve_sports("quidditch") == []
@@ -324,7 +333,7 @@ async def test_all_12_books_normalized(monkeypatch: pytest.MonkeyPatch) -> None:
     results = await odds.get_odds(sport="nba", limit=50)
     assert len(results) == 12
     books = {record["book"] for record in results}
-    assert books == {
+    expected = {
         "pinnacle",
         "draftkings",
         "fanduel",
@@ -338,6 +347,7 @@ async def test_all_12_books_normalized(monkeypatch: pytest.MonkeyPatch) -> None:
         "bovada",
         "betonline",
     }
+    assert books == expected
     # each record keeps the upstream title for display (backward compat)
     by_book = {record["book"]: record for record in results}
     assert by_book["draftkings"]["bookmaker"] == "DraftKings"
@@ -416,7 +426,7 @@ async def test_schema_contract_all_keys_present(monkeypatch: pytest.MonkeyPatch)
         return_value=httpx.Response(200, json=[_book_payload([("draftkings", "DraftKings")])])
     )
     record = (await odds.get_odds(sport="nba", limit=10))[0]
-    assert set(record) == {
+    expected = {
         "sport",
         "event",
         "event_id",
@@ -433,6 +443,7 @@ async def test_schema_contract_all_keys_present(monkeypatch: pytest.MonkeyPatch)
         "last_update",
         "source",
     }
+    assert set(record) == expected
     assert record["book"] == "draftkings"
     assert record["bookmaker"] == "DraftKings"
     assert record["home"] == "Los Angeles Lakers"
@@ -502,7 +513,8 @@ async def test_market_outrights_mapping(monkeypatch: pytest.MonkeyPatch) -> None
     results = await odds.get_odds(sport="nba", limit=50, market="outrights")
     assert len(results) == 3  # one record per contender
     by_name = {record["home"]: record for record in results}
-    assert set(by_name) == {"Los Angeles Lakers", "Boston Celtics", "Miami Heat"}
+    expected = {"Los Angeles Lakers", "Boston Celtics", "Miami Heat"}
+    assert set(by_name) == expected
     assert by_name["Los Angeles Lakers"]["home_odds"] == 4.5
     assert by_name["Miami Heat"]["home_odds"] == 12.0
     assert all(record["market"] == "outrights" for record in results)
@@ -517,11 +529,13 @@ async def test_market_comma_and_pipe_combos(monkeypatch: pytest.MonkeyPatch) -> 
     )
     results = await odds.get_odds(sport="nba", limit=50, market="h2h,spreads")
     markets = {record["market"] for record in results}
-    assert markets == {"h2h", "spreads"}
+    expected = {"h2h", "spreads"}
+    assert markets == expected
     assert respx.calls[0].request.url.params["markets"] == "h2h,spreads"
     results = await odds.get_odds(sport="nba", limit=50, market="h2h|totals|outrights")
     markets = {record["market"] for record in results}
-    assert markets == {"h2h", "totals", "outrights"}
+    expected_2 = {"h2h", "totals", "outrights"}
+    assert markets == expected_2
 
 
 @respx.mock
@@ -531,7 +545,8 @@ async def test_market_all_and_aliases(monkeypatch: pytest.MonkeyPatch) -> None:
         return_value=httpx.Response(200, json=[_multi_market_event()])
     )
     results = await odds.get_odds(sport="nba", limit=50, market="all")
-    assert {record["market"] for record in results} == {"h2h", "spreads", "totals", "outrights"}
+    expected = {"h2h", "spreads", "totals", "outrights"}
+    assert {record["market"] for record in results} == expected
     await odds.get_odds(sport="nba", limit=50, market="moneyline")
     assert respx.calls[1].request.url.params["markets"] == "h2h"
     await odds.get_odds(sport="nba", limit=50, market="futures")
@@ -566,7 +581,8 @@ async def test_espn_fallback_spreads_and_totals() -> None:
     )
     results = await odds.get_odds(sport="nba", limit=10, market="spreads,totals")
     markets = {record["market"] for record in results}
-    assert markets == {"spreads", "totals"}
+    expected = {"spreads", "totals"}
+    assert markets == expected
     spreads = next(r for r in results if r["market"] == "spreads")
     assert spreads["spread"] == -5.5
     assert spreads["home_odds"] == 1.91  # -110 american -> decimal
@@ -645,11 +661,13 @@ async def test_get_event_odds_market_filter(monkeypatch: pytest.MonkeyPatch) -> 
     )
     result = await odds.get_event_odds("nba:eid-multi", market="spreads,totals")
     market_keys = [m["key"] for m in result["bookmakers"][0]["markets"]]
-    assert market_keys == ["spreads", "totals"]
+    expected = ["spreads", "totals"]
+    assert market_keys == expected
     assert respx.calls[0].request.url.params["markets"] == "spreads,totals"
     # a filtered-out market is dropped
     result = await odds.get_event_odds("nba:eid-multi", market="h2h")
-    assert [m["key"] for m in result["bookmakers"][0]["markets"]] == ["h2h"]
+    expected_2 = ["h2h"]
+    assert [m["key"] for m in result["bookmakers"][0]["markets"]] == expected_2
 
 
 @respx.mock

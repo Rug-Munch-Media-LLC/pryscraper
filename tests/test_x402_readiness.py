@@ -300,12 +300,14 @@ async def test_health_self_hosted_ready(monkeypatch, tmp_path) -> None:
         monkeypatch.setattr("pry.payments.x402.scheme.probe_oracle", fake_probe)
         body = await x402_health()
         assert body["status"] == "ok"
-        assert body["facilitator"] == {
+        expected = {
             "mode": "self_hosted",
             "ready": True,
             "wallet_configured": True,
         }
-        assert body["oracle"] == {"reachable": True, "source": "coingecko"}
+        assert body["facilitator"] == expected
+        expected_2 = {"reachable": True, "source": "coingecko"}
+        assert body["oracle"] == expected_2
         assert "eip155:8453" in body["supported_networks"]
         assert "solana:mainnet" in body["supported_networks"]
         assert body["supported_assets_count"] == sum(len(a) for a in SUPPORTED_ASSETS.values())
@@ -334,7 +336,8 @@ async def test_health_external_mode_and_wallet_not_configured(monkeypatch) -> No
         assert body["facilitator"]["mode"] == "external"
         assert body["facilitator"]["wallet_configured"] is False
         assert body["facilitator"]["ready"] is False
-        assert body["oracle"] == {"reachable": False, "source": "static-default"}
+        expected = {"reachable": False, "source": "static-default"}
+        assert body["oracle"] == expected
 
         # Configured wallet → external mode ready (default facilitators exist).
         monkeypatch.setattr("pry.payments.x402.facilitator.X402_WALLET", PAY_TO)

@@ -197,4 +197,5 @@ def test_the_premium_proxy_rung_keeps_its_early_position(
 ) -> None:
     """The late-append fix must not disturb the premium-proxy placement."""
     names = _build(_StubChain(), tmp_path, monkeypatch, proxy_url="http://proxy:1")
-    assert names[:2] == ["direct", "premium_proxy"]
+    expected = ["direct", "premium_proxy"]
+    assert names[:2] == expected

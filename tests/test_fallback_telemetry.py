@@ -68,8 +68,10 @@ class TestRecordAndDomainStats:
         assert stats["tier_stats"]["cloudscraper"]["success_rate"] == 1.0
         assert stats["tier_stats"]["cloudscraper"]["avg_duration_ms"] == 900.0
 
-        assert stats["most_common_failure_reason"] == {"reason": "timeout", "count": 2}
-        assert stats["winning_tiers"] == {"cloudscraper": 1}
+        expected = {"reason": "timeout", "count": 2}
+        assert stats["most_common_failure_reason"] == expected
+        expected_2 = {"cloudscraper": 1}
+        assert stats["winning_tiers"] == expected_2
 
     def test_domain_stats_for_failed_journey(self) -> None:
         fallback_telemetry.record_fallback(
@@ -89,7 +91,8 @@ class TestRecordAndDomainStats:
         assert stats["records"] == 1
         assert stats["successes"] == 0
         assert stats["success_rate"] == 0.0
-        assert stats["most_common_failure_reason"] == {"reason": "403", "count": 1}
+        expected = {"reason": "403", "count": 1}
+        assert stats["most_common_failure_reason"] == expected
         assert stats["winning_tiers"] == {}
 
     def test_unknown_domain_returns_empty_stats(self) -> None:
@@ -135,12 +138,14 @@ class TestGlobalStats:
         assert stats["failures"] == 1
         assert stats["overall_success_rate"] == 0.5
         assert stats["avg_tiers_per_success"] == 3.0
-        assert stats["top_winning_tiers"] == [{"tier": "cloudscraper", "wins": 1}]
+        expected = [{"tier": "cloudscraper", "wins": 1}]
+        assert stats["top_winning_tiers"] == expected
         # The successful journey also left 2 "timeout" failures behind.
-        assert stats["top_failure_reasons"] == [
+        expected_2 = [
             {"reason": "blocked", "count": 3},
             {"reason": "timeout", "count": 2},
         ]
+        assert stats["top_failure_reasons"] == expected_2
 
     def test_global_stats_empty(self) -> None:
         stats = fallback_telemetry.get_global_stats()
@@ -190,7 +195,7 @@ class TestSnapshotShape:
 
         snap = fallback_telemetry.snapshot()
         assert snap["enabled"] is False  # JSONL disabled by the test fixture
-        assert set(snap) == {
+        expected = {
             "enabled",
             "jsonl_path_override",
             "ring",
@@ -198,16 +203,16 @@ class TestSnapshotShape:
             "domain_summary",
             "recent_records",
         }
+        assert set(snap) == expected
 
         assert snap["global"]["records"] == 1
-        assert snap["domain_summary"] == {
-            "example.com": {"records": 1, "successes": 1, "success_rate": 1.0}
-        }
+        expected_2 = {"example.com": {"records": 1, "successes": 1, "success_rate": 1.0}}
+        assert snap["domain_summary"] == expected_2
 
         assert isinstance(snap["recent_records"], list)
         assert len(snap["recent_records"]) == 1
         record = snap["recent_records"][0]
-        assert set(record) == {
+        expected_3 = {
             "domain",
             "tier_order",
             "attempts",
@@ -217,6 +222,7 @@ class TestSnapshotShape:
             "error",
             "timestamp",
         }
+        assert set(record) == expected_3
         assert record["final_tier"] == "cloudscraper"
         assert record["success"] is True
 
@@ -281,7 +287,8 @@ class TestDiagnosticsRouter:
             for route in diagnostics_router.routes
         }
         assert "/v1/diagnostics" in paths
-        assert paths["/v1/diagnostics"] == {"GET"}
+        expected = {"GET"}
+        assert paths["/v1/diagnostics"] == expected
 
     def test_router_module_imports_cleanly(self) -> None:
         # Importing the router must not raise (guards api.py wiring).

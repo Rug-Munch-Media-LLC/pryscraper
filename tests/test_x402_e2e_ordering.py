@@ -81,7 +81,8 @@ class TestOrderingAndExactlyOnce:
             mw, sig, "scrape", CALLER, PAID_PATH, scope, None, recorder
         )
         assert served is True
-        assert ordered == ["verify", "settle"]
+        expected = ["verify", "settle"]
+        assert ordered == expected
         assert _status(recorder) == 200
 
     async def test_failed_verify_never_settles_and_denies(self, monkeypatch, mw):
@@ -92,7 +93,8 @@ class TestOrderingAndExactlyOnce:
         await payment._handle_presented_payment(
             mw, sig, "scrape", CALLER, PAID_PATH, scope, None, recorder
         )
-        assert mw.handler.calls == ["verify"], "settle must not run after failed verify"
+        expected = ["verify"]
+        assert mw.handler.calls == expected, "settle must not run after failed verify"
         assert mw.app.calls == [], "no access granted after a failed verify"
 
     async def test_failed_settle_denies_access(self, monkeypatch, mw):
@@ -105,7 +107,8 @@ class TestOrderingAndExactlyOnce:
             mw, sig, "scrape", CALLER, PAID_PATH, scope, None, recorder
         )
         assert served is True
-        assert mw.handler.calls == ["verify", "settle"]
+        expected = ["verify", "settle"]
+        assert mw.handler.calls == expected
         assert mw.app.calls == [], "a failed settle must never reach the app"
         assert _status(recorder) == 402
 

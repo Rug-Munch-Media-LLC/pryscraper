@@ -77,7 +77,8 @@ def test_dedup_records_by_address():
     ]
     out = _dedup_records(recs)
     assert len(out) == 2
-    assert [r["address"] for r in out] == ["AAA", "bbb"]
+    expected = ["AAA", "bbb"]
+    assert [r["address"] for r in out] == expected
 
 
 def test_collect_rsc_chunks_empties_on_malformed():

@@ -302,6 +302,8 @@ class TestSettlementTrackers:
     def test_settlement_id_empty_when_no_nonce(self, tmp_path: Any) -> None:
         fac = _facilitator(tmp_path)
         assert fac._settlement_id({"authorization": {}}) == ""
+        # payment_id always wins over the nonce fallback.
+        assert fac._settlement_id({"payment_id": "p", "authorization": {}}) == "p"
 
     def test_pending_lifecycle(self, tmp_path: Any) -> None:
         fac = _facilitator(tmp_path)

@@ -101,7 +101,8 @@ def test_valid_spl_amount_still_parses() -> None:
     from pry.payments.x402.solana_parse import _parse_amount
 
     info = {"tokenAmount": {"amount": "1000", "decimals": 6}}
-    assert _parse_amount(info) == (1000, 6)
+    expected = (1000, 6)
+    assert _parse_amount(info) == expected
 
 
 # ── tron_verifier: an undecodable data word is skipped, not a 0 event ───────

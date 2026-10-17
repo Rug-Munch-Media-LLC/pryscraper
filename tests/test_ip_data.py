@@ -199,12 +199,14 @@ async def test_search_patents_multiple_clusters_flattened_and_limited() -> None:
 async def test_search_patents_never_raises_on_http_error() -> None:
     respx.get(url__startswith=GP_QUERY).mock(return_value=httpx.Response(500, text="boom"))
     assert await search_patents("solar") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
 async def test_search_patents_never_raises_on_timeout() -> None:
     respx.get(url__startswith=GP_QUERY).mock(side_effect=httpx.ReadTimeout("read timed out"))
     assert await search_patents("solar") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
@@ -213,11 +215,13 @@ async def test_search_patents_never_raises_on_bad_json() -> None:
         return_value=httpx.Response(200, content=b"<html>not json</html>")
     )
     assert await search_patents("solar") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
 async def test_search_patents_empty_query_returns_empty() -> None:
     assert await search_patents("   ") == []
+    assert respx.calls.call_count == 0
 
 
 @respx.mock
@@ -267,16 +271,19 @@ async def test_get_patent_not_found_returns_empty_dict() -> None:
         return_value=httpx.Response(200, json=_gp_payload(_gp_doc(patent_id="US9999999B2")))
     )
     assert await patents.get_patent("US1111111B2") == {}
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
 async def test_get_patent_never_raises_on_network_error() -> None:
     respx.get(url__startswith=GP_QUERY).mock(side_effect=httpx.ConnectError("connection refused"))
     assert await patents.get_patent("US9012345B2") == {}
+    assert respx.calls.call_count == 1
 
 
 async def test_get_patent_empty_id_returns_empty_dict() -> None:
     assert await patents.get_patent("") == {}
+    assert respx.calls.call_count == 0
 
 
 # ── trademarks.search_trademarks ────────────────────────────────────────
@@ -298,7 +305,8 @@ async def test_search_trademarks_normalizes_solr_docs() -> None:
     assert entry["mark"] == "RUGMUNCH"
     assert entry["owner"] == "Rug Munch Media LLC"
     assert entry["status"] == "Live/Registered"
-    assert entry["classes"] == ["36"]
+    expected = ["36"]
+    assert entry["classes"] == expected
     assert entry["registration_date"] == "2024-03-01"
     assert "97774270" in entry["url"]
 
@@ -319,23 +327,27 @@ async def test_search_trademarks_parses_variant_field_shapes() -> None:
     assert entry["serial_no"] == "12345"
     assert entry["mark"] == "ACME"
     assert entry["owner"] == "ACME Corp"
-    assert entry["classes"] == ["9", "42"]
+    expected = ["9", "42"]
+    assert entry["classes"] == expected
 
 
 @respx.mock
 async def test_search_trademarks_never_raises_on_error() -> None:
     respx.post(TM_SEARCH).mock(side_effect=httpx.ConnectError("connection refused"))
     assert await trademarks.search_trademarks("rugmunch") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
 async def test_search_trademarks_never_raises_on_bad_json() -> None:
     respx.post(TM_SEARCH).mock(return_value=httpx.Response(200, content=b"<html></html>"))
     assert await trademarks.search_trademarks("rugmunch") == []
+    assert respx.calls.call_count == 1
 
 
 async def test_search_trademarks_empty_query_returns_empty() -> None:
     assert await trademarks.search_trademarks("") == []
+    assert respx.calls.call_count == 0
 
 
 @respx.mock
@@ -378,7 +390,8 @@ async def test_get_trademark_parses_tsdr_payload() -> None:
     assert result["filing_date"] == "2022-01-01"
     assert result["registration_date"] == "2024-03-01"
     assert result["goods_services"] == "Financial services"
-    assert result["classes"] == ["36"]
+    expected = ["36"]
+    assert result["classes"] == expected
 
 
 @respx.mock
@@ -405,6 +418,7 @@ async def test_get_trademark_non_json_notice_degrades_to_empty(
         )
     )
     assert await trademarks.get_trademark(serial) == {}
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
@@ -412,10 +426,12 @@ async def test_get_trademark_never_raises_on_http_error() -> None:
     serial = "97774270"
     respx.get(TSDR.format(serial=serial)).mock(return_value=httpx.Response(403, text="denied"))
     assert await trademarks.get_trademark(serial) == {}
+    assert respx.calls.call_count == 1
 
 
 async def test_get_trademark_empty_serial_returns_empty() -> None:
     assert await trademarks.get_trademark("") == {}
+    assert respx.calls.call_count == 0
 
 
 # ── company_registry.search_companies ───────────────────────────────────
@@ -456,6 +472,7 @@ async def test_search_companies_unsupported_state_returns_empty(
 ) -> None:
     monkeypatch.setattr(company_registry, "DEFAULT_STATE", "ZZ")
     assert await company_registry.search_companies("tesla") == []
+    assert respx.calls.call_count == 0
 
 
 @respx.mock
@@ -463,6 +480,7 @@ async def test_search_companies_never_raises_on_error(monkeypatch: pytest.Monkey
     monkeypatch.setattr(company_registry, "DEFAULT_STATE", "NV")
     respx.get(NV_SEARCH).mock(return_value=httpx.Response(500, text="boom"))
     assert await company_registry.search_companies("tesla") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
@@ -470,10 +488,12 @@ async def test_search_companies_never_raises_on_bad_json(monkeypatch: pytest.Mon
     monkeypatch.setattr(company_registry, "DEFAULT_STATE", "NV")
     respx.get(NV_SEARCH).mock(return_value=httpx.Response(200, content=b"not json"))
     assert await company_registry.search_companies("tesla") == []
+    assert respx.calls.call_count == 1
 
 
 async def test_search_companies_empty_name_returns_empty() -> None:
     assert await company_registry.search_companies("  ") == []
+    assert respx.calls.call_count == 0
 
 
 # ── company_registry.get_company ────────────────────────────────────────
@@ -512,6 +532,7 @@ async def test_get_company_unsupported_state_returns_empty(monkeypatch: pytest.M
     monkeypatch.setattr(company_registry, "DEFAULT_STATE", "NV")
     respx.get(NV_SEARCH).mock(return_value=httpx.Response(200, json={"rows": []}))
     assert await company_registry.get_company("tesla", state="XX") == {}
+    assert respx.calls.call_count == 0
 
 
 @respx.mock
@@ -519,6 +540,7 @@ async def test_get_company_no_results_returns_empty(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(company_registry, "DEFAULT_STATE", "NV")
     respx.get(NV_SEARCH).mock(return_value=httpx.Response(200, json={"rows": []}))
     assert await company_registry.get_company("nonexistent") == {}
+    assert respx.calls.call_count == 1
 
 
 # ── Router tests ────────────────────────────────────────────────────────

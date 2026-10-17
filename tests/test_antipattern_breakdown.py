@@ -154,7 +154,8 @@ def test_flag_does_not_change_verdict_or_exit_code(frozen_repo):
     assert plain.returncode == 1
     assert with_flag.returncode == plain.returncode
     assert _failing_rules(with_flag.stdout) == _failing_rules(plain.stdout)
-    assert _failing_rules(plain.stdout) == ["bare-except", "monkeypatch"]
+    expected = ["bare-except", "monkeypatch"]
+    assert _failing_rules(plain.stdout) == expected
 
 
 def test_flag_does_not_touch_the_baseline_file(frozen_repo):

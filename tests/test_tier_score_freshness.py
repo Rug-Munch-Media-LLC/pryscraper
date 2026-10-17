@@ -134,7 +134,8 @@ def test_best_tier_refuses_a_stale_tier_even_when_it_is_the_only_candidate() -> 
     rec = memory.data["example.com"].setdefault("browser", TierRecord())
     rec.successes = 100
     rec.last_success_at = time.time() - 3 * DAY
-    assert memory.reorder_for_domain("example.com", ["browser"]) == ["browser"]
+    expected = ["browser"]
+    assert memory.reorder_for_domain("example.com", ["browser"]) == expected
     assert memory.best_tier("example.com", ["browser"]) is None
 
 

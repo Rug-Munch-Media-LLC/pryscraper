@@ -56,7 +56,8 @@ async def test_create_single_op():
 @pytest.mark.asyncio
 async def test_create_multiple_ops():
     result = await create_batch_payment(["scrape", "monitor"])
-    assert [op["operation"] for op in result["operations"]] == ["scrape", "monitor"]
+    expected = ["scrape", "monitor"]
+    assert [op["operation"] for op in result["operations"]] == expected
     assert result["total_usd"] == pytest.approx(0.021)
 
 
@@ -72,7 +73,7 @@ async def test_create_all_ops():
             "bulk_crawl",
         ]
     )
-    assert [op["operation"] for op in result["operations"]] == [
+    expected = [
         "scrape",
         "crawl",
         "extract",
@@ -80,6 +81,7 @@ async def test_create_all_ops():
         "llm_call",
         "bulk_crawl",
     ]
+    assert [op["operation"] for op in result["operations"]] == expected
     assert result["total_usd"] == pytest.approx(sum(op["price_usd"] for op in result["operations"]))
 
 
@@ -101,10 +103,11 @@ async def test_create_empty():
 @pytest.mark.asyncio
 async def test_create_has_pricing():
     ops = (await create_batch_payment(["scrape", "monitor"]))["operations"]
-    assert {op["operation"]: op["price_usd"] for op in ops} == {
+    expected = {
         "scrape": 0.001,
         "monitor": 0.02,
     }
+    assert {op["operation"]: op["price_usd"] for op in ops} == expected
 
 
 @pytest.mark.asyncio

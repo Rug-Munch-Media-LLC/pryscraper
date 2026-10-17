@@ -393,10 +393,11 @@ def test_normalize_price_history_skips_bad_entries() -> None:
         {"price": "junk"},
     ]
     out = listings._normalize_price_history(raw)
-    assert out == [
+    expected = [
         {"date": "2024-01-15", "price": 425000, "event": "Sold"},
         {"date": "", "price": None, "event": ""},
     ]
+    assert out == expected
 
 
 # ── get_listing async tests (mocked HTTP) ─────────────────────────────
@@ -410,10 +411,11 @@ async def test_get_listing_zillow_success(respx_mock) -> None:
     result = await listings.get_listing("2064710495")
     assert result["address"] == "123 Main St, Austin, TX 78701"
     assert result["price"] == 450000
-    assert result["price_history"] == [
+    expected = [
         {"date": "2024-01-15", "price": 425000, "event": "Sold"},
         {"date": "2025-05-01", "price": 450000, "event": "Listing removed"},
     ]
+    assert result["price_history"] == expected
     assert result["zestimate"] == 460123
     assert result["bed"] == 3
     assert result["bath"] == 2.5
@@ -726,7 +728,7 @@ async def test_get_property_wake_nc_success(respx_mock) -> None:
     assert result["tax"] is None
     assert result["county"] == "Wake County, North Carolina"
     assert result["source"] == "arcgis"
-    assert result["sale_history"] == [
+    expected = [
         {
             "price": 795000,
             "sale_date": "2024-12-16T00:00:00+00:00",
@@ -735,6 +737,7 @@ async def test_get_property_wake_nc_success(respx_mock) -> None:
             "source": "county_assessor",
         }
     ]
+    assert result["sale_history"] == expected
     assert result["details"]["site_address"] == "123 Main St"
     assert result["details"]["year_built"] == 2005
 
@@ -840,7 +843,8 @@ def test_router_importable() -> None:
     import datasets.real_estate as re_pkg
     import pry.api.routers.data.real_estate as re_router
 
-    assert re_pkg.__all__ == ["get_listing", "get_property", "search_listings"]
+    expected = ["get_listing", "get_property", "search_listings"]
+    assert re_pkg.__all__ == expected
     assert hasattr(re_router, "router")
 
 

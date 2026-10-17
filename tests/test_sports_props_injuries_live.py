@@ -395,7 +395,8 @@ async def test_get_player_props_odds_api_all_markets(monkeypatch: pytest.MonkeyP
         return_value=httpx.Response(200, json=_props_events_payload())
     )
     results = await props.get_player_props("LeBron James", sport="nba")
-    assert {record["market"] for record in results} == {"player_points", "player_rebounds"}
+    expected = {"player_points", "player_rebounds"}
+    assert {record["market"] for record in results} == expected
 
 
 @respx.mock
@@ -620,10 +621,11 @@ async def test_get_injury_report_success() -> None:
     )
     results = await injuries.get_injury_report("nba:401765432")
     assert len(results) == 3  # both teams' injuries
-    assert {record["team"] for record in results} == {
+    expected = {
         "Los Angeles Lakers",
         "Boston Celtics",
     }
+    assert {record["team"] for record in results} == expected
 
 
 @respx.mock

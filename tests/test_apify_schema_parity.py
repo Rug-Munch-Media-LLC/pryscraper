@@ -63,7 +63,8 @@ class TestSchemaShape:
         schema = _standalone()
         assert schema.get("type") == "object"
         assert schema.get("schemaVersion") == 1
-        assert schema.get("required") == ["urls"]
+        expected = ["urls"]
+        assert schema.get("required") == expected
 
     def test_embedded_equals_standalone(self) -> None:
         """Apify auto-detects the standalone file; the two must not drift."""
@@ -88,7 +89,8 @@ class TestSchemaMatchesPythonModel:
             name for name, field in ApifyActorInput.model_fields.items() if field.is_required()
         }
         assert set(schema["required"]) == model_required
-        assert schema["required"] == ["urls"]
+        expected = ["urls"]
+        assert schema["required"] == expected
 
     def test_defaults_match(self) -> None:
         schema = _standalone()
@@ -114,7 +116,8 @@ class TestSchemaMatchesPythonModel:
         # allowed set as an Apify select enum.
         assert prop.get("pattern") == r"^(markdown|html|text|json)$"
         schema_enum = set(_standalone()["properties"]["output_format"]["enum"])
-        assert schema_enum == {"markdown", "html", "text", "json"}
+        expected = {"markdown", "html", "text", "json"}
+        assert schema_enum == expected
 
 
 class TestProxyConfigParity:

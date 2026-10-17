@@ -30,7 +30,8 @@ class TestSelfhostMerge:
 
     def test_only_pry_and_flaresolverr_survive(self) -> None:
         model = render_compose()
-        assert sorted(model["services"]) == ["flaresolverr-pry", "pry"]
+        expected = ["flaresolverr-pry", "pry"]
+        assert sorted(model["services"]) == expected
 
     def test_operator_only_services_are_reset(self) -> None:
         services = render_compose()["services"]
@@ -41,12 +42,14 @@ class TestSelfhostMerge:
         """Regression: the base's 8005 publish must NOT survive the merge."""
         ports = render_compose()["services"]["pry"]["ports"]
         published = {str(p["published"]) for p in ports}
-        assert published == {"8002"}, f"expected only 8002, got {published}"
+        expected = {"8002"}
+        assert published == expected, f"expected only 8002, got {published}"
         assert all(p["target"] == 8002 for p in ports)
 
     def test_host_port_is_overridable(self) -> None:
         ports = render_compose("PRY_SELFHOST_PORT=9002")["services"]["pry"]["ports"]
-        assert {str(p["published"]) for p in ports} == {"9002"}
+        expected = {"9002"}
+        assert {str(p["published"]) for p in ports} == expected
 
     def test_no_fleet_secrets_file_is_inherited(self) -> None:
         """Regression: `!reset []` on env_file did not clear the base value."""
@@ -57,7 +60,8 @@ class TestSelfhostMerge:
         assert "ports" not in flaresolverr
 
     def test_only_data_volumes_are_declared(self) -> None:
-        assert sorted(render_compose()["volumes"]) == ["pry-data", "pry-sessions"]
+        expected = ["pry-data", "pry-sessions"]
+        assert sorted(render_compose()["volumes"]) == expected
 
 
 class TestContainerPrefix:

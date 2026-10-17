@@ -134,7 +134,8 @@ class TestDetectBlockStatusBranches:
         signal = detect_block("<html><body>just a moment</body></html>", 429, {})
         assert signal.kind == "rate_limited"
         assert signal.confidence == 0.97
-        assert signal.evidence == ["http status 429"]
+        expected = ["http status 429"]
+        assert signal.evidence == expected
 
     def test_403_with_cf_ray_beats_access_denied_copy(self) -> None:
         signal = detect_block("<html><body>access denied</body></html>", 403, {"cf-ray": "x"})

@@ -80,7 +80,7 @@ class TestPlanShape:
         _record(DOMAIN, "direct", 3)
 
         plan = _plan()
-        assert set(plan) == {
+        expected = {
             "domain",
             "tiers",
             "top_pick",
@@ -88,6 +88,7 @@ class TestPlanShape:
             "cold_start",
             "generated_at",
         }
+        assert set(plan) == expected
         assert plan["domain"] == DOMAIN
         assert plan["cold_start"] is False
         assert isinstance(plan["generated_at"], float)
@@ -120,7 +121,8 @@ class TestPlanShape:
         _record(DOMAIN, "playwright", 3)
 
         ranks = [entry["rank"] for entry in _plan()["tiers"]]
-        assert ranks == [1, 2, 3]
+        expected = [1, 2, 3]
+        assert ranks == expected
 
     def test_best_proven_tier_is_the_top_pick(self) -> None:
         _record(DOMAIN, "direct", 1, 9)
@@ -181,5 +183,6 @@ class TestColdStart:
 
         plan = _plan()
         assert plan["cold_start"] is False
-        assert {entry["tier"] for entry in plan["tiers"]} == {"direct", "tor"}
+        expected = {"direct", "tor"}
+        assert {entry["tier"] for entry in plan["tiers"]} == expected
         assert all(entry["success_rate"] == 0.0 for entry in plan["tiers"])

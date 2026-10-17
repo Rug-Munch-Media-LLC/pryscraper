@@ -165,7 +165,8 @@ def test_extract_paa_legacy_strategy() -> None:
     root = serp._to_root(_paa_legacy_html())
     assert root is not None
     paa = serp._extract_paa(root)
-    assert paa == ["What is Bitcoin?", "Who created Bitcoin?"]
+    expected = ["What is Bitcoin?", "Who created Bitcoin?"]
+    assert paa == expected
 
 
 def test_extract_paa_label_strategy() -> None:
@@ -321,16 +322,18 @@ async def test_trend_interest_success() -> None:
     result = await trends.trend_interest("bitcoin", timeframe="today 12-m")
     assert result["keyword"] == "bitcoin"
     assert result["timeframe"] == "today 12-m"
-    assert result["timeline"] == [
+    expected = [
         {"date": "2025-08-01", "value": 100},
         {"date": "2025-09-01", "value": 80},
         {"date": "junk", "value": 0},
     ]
-    assert result["related"] == [
+    assert result["timeline"] == expected
+    expected_2 = [
         {"query": "btc price", "value": 100},
         {"query": "bitcoin news", "value": 90},
         {"query": "bitcoin halving", "value": "Breakout"},
     ]
+    assert result["related"] == expected_2
     assert "error" not in result
 
 
@@ -387,13 +390,15 @@ def test_parse_entries_embedded_json() -> None:
     entries = ad_intel._parse_entries(_ad_library_html())
     assert len(entries) == 2
     ids = {e.get("adArchiveID") for e in entries}
-    assert ids == {"111222333", "444555666"}
+    expected = {"111222333", "444555666"}
+    assert ids == expected
 
 
 def test_parse_entries_regex_fallback() -> None:
     html = '<html><body><div data-snapshot="x">"adArchiveID":"123456789"</div></body></html>'
     entries = ad_intel._parse_entries(html)
-    assert entries == [{"adArchiveID": "123456789"}]
+    expected = [{"adArchiveID": "123456789"}]
+    assert entries == expected
 
 
 def test_parse_entries_empty_html() -> None:
@@ -414,7 +419,7 @@ def test_normalize_shape() -> None:
         }
     ]
     ads = ad_intel._normalize(raw)
-    assert ads == [
+    expected = [
         {
             "ad_id": "111222333",
             "page": "Example Brand",
@@ -424,6 +429,7 @@ def test_normalize_shape() -> None:
             "platforms": ["facebook", "instagram"],
         }
     ]
+    assert ads == expected
 
 
 def test_normalize_dedupes() -> None:
@@ -433,7 +439,8 @@ def test_normalize_dedupes() -> None:
         {"adArchiveID": "2", "pageName": "A", "adCreative": {"body": {"text": "second"}}},
     ]
     ads = ad_intel._normalize(raw)
-    assert [a["ad_id"] for a in ads] == ["1", "2"]
+    expected = ["1", "2"]
+    assert [a["ad_id"] for a in ads] == expected
 
 
 # ── Ad intel async tests (mocked HTTP) ─────────────────────────────────
@@ -451,7 +458,8 @@ async def test_search_ads_success_mocked_fetch(monkeypatch: pytest.MonkeyPatch) 
     assert ads[0]["ad_id"] == "111222333"
     assert ads[0]["page"] == "Example Brand"
     assert ads[0]["creative_text"] == "Buy our new product today!"
-    assert ads[0]["platforms"] == ["facebook", "instagram"]
+    expected = ["facebook", "instagram"]
+    assert ads[0]["platforms"] == expected
 
 
 async def test_search_ads_limit(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -543,7 +551,8 @@ def test_router_trends_success(attention_app: FastAPI, monkeypatch: pytest.Monke
     )
     assert resp.status_code == 200
     assert resp.json()["data"]["timeframe"] == "now 7-d"
-    assert resp.json()["data"]["timeline"] == [{"date": "d", "value": 1}]
+    expected = [{"date": "d", "value": 1}]
+    assert resp.json()["data"]["timeline"] == expected
 
 
 def test_router_ads_success(attention_app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> None:

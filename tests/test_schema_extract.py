@@ -19,7 +19,8 @@ from pry.engine import schema_extract as se
 
 class TestNormalizeSchema:
     def test_flat_form(self) -> None:
-        assert se._normalize_schema({"price": "the price"}) == {"price": "the price"}
+        expected = {"price": "the price"}
+        assert se._normalize_schema({"price": "the price"}) == expected
 
     def test_structured_fields_form(self) -> None:
         schema = {
@@ -28,18 +29,21 @@ class TestNormalizeSchema:
                 {"name": "title"},
             ]
         }
-        assert se._normalize_schema(schema) == {"price": "the price", "title": "title"}
+        expected = {"price": "the price", "title": "title"}
+        assert se._normalize_schema(schema) == expected
 
     def test_structured_skips_nameless(self) -> None:
         schema = {"fields": [{"description": "no name"}, {"name": "ok"}]}
-        assert se._normalize_schema(schema) == {"ok": "ok"}
+        expected = {"ok": "ok"}
+        assert se._normalize_schema(schema) == expected
 
     def test_non_dict_returns_empty(self) -> None:
         assert se._normalize_schema(None) == {}
         assert se._normalize_schema("nope") == {}  # type: ignore[arg-type]
 
     def test_flat_form_excludes_fields_key(self) -> None:
-        assert se._normalize_schema({"a": "1", "fields": "notalist"}) == {"a": "1"}
+        expected = {"a": "1"}
+        assert se._normalize_schema({"a": "1", "fields": "notalist"}) == expected
 
 
 class TestJsonLdLookup:
@@ -79,11 +83,13 @@ class TestJsonLdLookup:
 class TestMetaTags:
     def test_name_and_property(self) -> None:
         html = '<meta name="description" content="Desc"><meta property="og:title" content="OG">'
-        assert se._meta_tags(html) == {"description": "Desc", "og:title": "OG"}
+        expected = {"description": "Desc", "og:title": "OG"}
+        assert se._meta_tags(html) == expected
 
     def test_keys_lowercased(self) -> None:
         html = '<meta name="Description" content="D">'
-        assert se._meta_tags(html) == {"description": "D"}
+        expected = {"description": "D"}
+        assert se._meta_tags(html) == expected
 
     def test_empty_content_skipped(self) -> None:
         html = '<meta name="x" content="">'
@@ -91,7 +97,8 @@ class TestMetaTags:
 
     def test_first_key_wins(self) -> None:
         html = '<meta name="x" content="first"><meta name="x" content="second">'
-        assert se._meta_tags(html) == {"x": "first"}
+        expected = {"x": "first"}
+        assert se._meta_tags(html) == expected
 
     def test_no_meta_returns_empty(self) -> None:
         assert se._meta_tags("<p>none</p>") == {}
@@ -123,11 +130,16 @@ class TestInferSchemaFromExample:
             {"name": "W", "price": 9.99, "active": True, "tags": ["a"], "meta": {"x": 1}}
         )
         props = result["properties"]
-        assert props["name"] == {"type": "string"}
-        assert props["price"] == {"type": "number"}
-        assert props["active"] == {"type": "boolean"}
-        assert props["tags"] == {"type": "array"}
-        assert props["meta"] == {"type": "object"}
+        expected = {"type": "string"}
+        assert props["name"] == expected
+        expected_2 = {"type": "number"}
+        assert props["price"] == expected_2
+        expected_3 = {"type": "boolean"}
+        assert props["active"] == expected_3
+        expected_4 = {"type": "array"}
+        assert props["tags"] == expected_4
+        expected_5 = {"type": "object"}
+        assert props["meta"] == expected_5
 
     def test_description_underscores_to_spaces(self) -> None:
         result = se.infer_schema_from_example({"product_name": "W"})
@@ -137,11 +149,12 @@ class TestInferSchemaFromExample:
         assert se.infer_schema_from_example("nope") == {}  # type: ignore[arg-type]
 
     def test_empty_dict(self) -> None:
-        assert se.infer_schema_from_example({}) == {
+        expected = {
             "type": "object",
             "properties": {},
             "fields": [],
         }
+        assert se.infer_schema_from_example({}) == expected
 
 
 class TestExtractBySchema:
@@ -157,7 +170,8 @@ class TestExtractBySchema:
             se, "_fetch_page", new=AsyncMock(return_value={"html": "", "content": "", "method": ""})
         ):
             result = await se.extract_by_schema("http://x", {"title": "t"})
-        assert result == {"url": "http://x", "data": {}, "method": "none", "confidence": 0.0}
+        expected = {"url": "http://x", "data": {}, "method": "none", "confidence": 0.0}
+        assert result == expected
 
     @pytest.mark.asyncio
     async def test_meta_tag_extraction(self) -> None:
@@ -168,7 +182,8 @@ class TestExtractBySchema:
             new=AsyncMock(return_value={"html": html, "content": "", "method": "http"}),
         ):
             result = await se.extract_by_schema("http://x", {"title": "t"}, use_ai=False)
-        assert result["data"] == {"title": "From Meta"}
+        expected = {"title": "From Meta"}
+        assert result["data"] == expected
         assert result["method"] == "pattern"
         assert result["confidence"] == 1.0
 
@@ -188,7 +203,8 @@ class TestExtractBySchema:
             result = await se.extract_by_schema(
                 "http://x", {"title": "t", "price": "p"}, use_ai=True
             )
-        assert result["data"] == {"title": "From Meta", "price": "9.99"}
+        expected = {"title": "From Meta", "price": "9.99"}
+        assert result["data"] == expected
         assert result["method"] == "hybrid"
         assert result["confidence"] == 1.0
 
@@ -205,7 +221,8 @@ class TestExtractBySchema:
         ):
             extractor_cls.return_value.extract = ai
             result = await se.extract_by_schema("http://x", {"price": "p"}, use_ai=True)
-        assert result["data"] == {"price": "9.99"}
+        expected = {"price": "9.99"}
+        assert result["data"] == expected
         assert result["method"] == "ai"
         assert result["confidence"] == 0.85
 
@@ -237,7 +254,8 @@ class TestExtractBatchBySchema:
 
         with patch.object(se, "extract_by_schema", side_effect=fake):
             results = await se.extract_batch_by_schema(["a", "b", "c"], {"x": "y"})
-        assert [r["url"] for r in results] == ["a", "b", "c"]
+        expected = ["a", "b", "c"]
+        assert [r["url"] for r in results] == expected
 
 
 class TestExtractWithPrompt:
@@ -252,7 +270,8 @@ class TestExtractWithPrompt:
             se, "_fetch_page", new=AsyncMock(return_value={"html": "", "content": "", "method": ""})
         ):
             result = await se.extract_with_prompt("http://x", "get price")
-        assert result == {"url": "http://x", "data": {}, "method": "none", "confidence": 0.0}
+        expected = {"url": "http://x", "data": {}, "method": "none", "confidence": 0.0}
+        assert result == expected
 
     @pytest.mark.asyncio
     async def test_llm_result_filtered(self) -> None:
@@ -267,7 +286,8 @@ class TestExtractWithPrompt:
         ):
             extractor_cls.return_value.extract = ai
             result = await se.extract_with_prompt("http://x", "get price", {"price": "p"})
-        assert result["data"] == {"price": "9.99"}
+        expected = {"price": "9.99"}
+        assert result["data"] == expected
         assert result["method"] == "ai"
 
     @pytest.mark.asyncio
@@ -309,7 +329,8 @@ class TestExtractTable:
             new=AsyncMock(return_value={"html": html, "content": "", "method": "http"}),
         ):
             rows = await se.extract_table("http://x")
-        assert rows == [{"Name": "Widget", "Price": "9.99"}]
+        expected = [{"Name": "Widget", "Price": "9.99"}]
+        assert rows == expected
 
     @pytest.mark.asyncio
     async def test_no_table_returns_empty(self) -> None:
@@ -331,4 +352,5 @@ class TestExtractTable:
             new=AsyncMock(return_value={"html": html, "content": "", "method": "http"}),
         ):
             rows = await se.extract_table("http://x")
-        assert rows == [{"A": "1", "col_1": "2"}]
+        expected = [{"A": "1", "col_1": "2"}]
+        assert rows == expected

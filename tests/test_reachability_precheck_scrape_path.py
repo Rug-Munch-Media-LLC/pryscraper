@@ -93,7 +93,8 @@ async def test_a_raising_precheck_still_produces_a_normal_failure(monkeypatch) -
     assert result["blame_tier"] is False
     # The pre-existing failure payload is untouched.
     assert result["error"] == "direct_failed"
-    assert result["tiers_failed"] == ["direct_failed"]
+    expected = ["direct_failed"]
+    assert result["tiers_failed"] == expected
 
 
 async def test_failure_result_reports_the_reachability_fact(monkeypatch) -> None:
@@ -114,7 +115,8 @@ async def test_failure_result_reports_the_reachability_fact(monkeypatch) -> None
     # Everything the caller already relied on is unchanged.
     assert result["error"] == "direct_failed"
     assert result["verdict"] == "exhausted"
-    assert result["tiers_attempted"] == ["direct"]
+    expected = ["direct"]
+    assert result["tiers_attempted"] == expected
 
 
 # ── Degradation is a fact about US, never about the target ───────────────
@@ -123,18 +125,20 @@ async def test_failure_result_reports_the_reachability_fact(monkeypatch) -> None
 async def test_a_missing_classifier_degrades_to_unknown(monkeypatch) -> None:
     """Not shipped / not found on disk is a fact about US, not the target."""
     monkeypatch.setattr(rp, "_load_classifier", lambda: None)
-    assert await rp.reachability_verdict(_URL) == {
+    expected = {
         "reachability": Reachability.UNKNOWN,
         "blame_tier": False,
     }
+    assert await rp.reachability_verdict(_URL) == expected
 
 
 async def test_an_empty_host_degrades_to_unknown(monkeypatch) -> None:
     _install(monkeypatch, _stub(TargetProbe(dns_ok=False, dns_error="no such host")))
-    assert await rp.reachability_verdict("not-a-url") == {
+    expected = {
         "reachability": Reachability.UNKNOWN,
         "blame_tier": False,
     }
+    assert await rp.reachability_verdict("not-a-url") == expected
 
 
 async def test_a_hanging_probe_is_bounded_not_waited_on(monkeypatch) -> None:
@@ -145,10 +149,11 @@ async def test_a_hanging_probe_is_bounded_not_waited_on(monkeypatch) -> None:
         await asyncio.sleep(30)
 
     monkeypatch.setattr(rp.asyncio, "to_thread", lambda *a, **kw: _hang())
-    assert await rp.reachability_verdict(_URL, budget_s=0.01) == {
+    expected = {
         "reachability": Reachability.UNKNOWN,
         "blame_tier": False,
     }
+    assert await rp.reachability_verdict(_URL, budget_s=0.01) == expected
 
 
 # ── The loader is the lane's load-bearing seam ───────────────────────────

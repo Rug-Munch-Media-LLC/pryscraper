@@ -248,24 +248,30 @@ async def test_ebay_search_no_key_returns_empty(monkeypatch: pytest.MonkeyPatch)
 
 
 @respx.mock
-async def test_ebay_search_http_error_returns_empty() -> None:
+async def test_ebay_search_http_error_returns_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(marketplaces, "_api_key", lambda: "test-key")
     respx.get(url__startswith=_EBAY_FIND_URL).mock(return_value=httpx.Response(500))
     assert await marketplaces.search_product("widget", marketplace="ebay") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
-async def test_ebay_search_malformed_xml_returns_empty() -> None:
+async def test_ebay_search_malformed_xml_returns_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(marketplaces, "_api_key", lambda: "test-key")
     respx.get(url__startswith=_EBAY_FIND_URL).mock(
         return_value=httpx.Response(200, text="<not-valid-xml")
     )
     assert await marketplaces.search_product("widget", marketplace="ebay") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
-async def test_ebay_search_ack_failure_returns_empty() -> None:
+async def test_ebay_search_ack_failure_returns_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(marketplaces, "_api_key", lambda: "test-key")
     body = _ebay_search_xml().replace("<ack>Success</ack>", "<ack>Failure</ack>")
     respx.get(url__startswith=_EBAY_FIND_URL).mock(return_value=httpx.Response(200, text=body))
     assert await marketplaces.search_product("widget", marketplace="ebay") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
@@ -282,10 +288,12 @@ async def test_ebay_get_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @respx.mock
-async def test_ebay_get_not_found_returns_empty() -> None:
+async def test_ebay_get_not_found_returns_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(marketplaces, "_api_key", lambda: "test-key")
     body = _ebay_item_xml().replace("<Ack>Success</Ack>", "<Ack>Failure</Ack>")
     respx.get(url__startswith=_EBAY_ITEM_URL).mock(return_value=httpx.Response(200, text=body))
     assert await marketplaces.get_product("999", marketplace="ebay") == {}
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
@@ -332,6 +340,7 @@ async def test_shopify_search_invalid_store_returns_empty() -> None:
 async def test_shopify_search_http_error_returns_empty() -> None:
     respx.get(url__startswith=_SHOPIFY_URL).mock(return_value=httpx.Response(404))
     assert await marketplaces.search_product("example-store", marketplace="shopify") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
@@ -359,6 +368,7 @@ async def test_shopify_get_not_found_returns_empty() -> None:
         return_value=httpx.Response(200, json=_shopify_json())
     )
     assert await marketplaces.get_product("example-store:999", marketplace="shopify") == {}
+    assert respx.calls.call_count == 1
 
 
 async def test_shopify_get_missing_store_returns_empty() -> None:
@@ -387,6 +397,7 @@ async def test_etsy_search_success() -> None:
 async def test_etsy_search_http_error_returns_empty() -> None:
     respx.get(url__startswith=_ETSY_SEARCH_URL).mock(return_value=httpx.Response(403))
     assert await marketplaces.search_product("mug", marketplace="etsy") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
@@ -394,6 +405,7 @@ async def test_etsy_search_no_listings_returns_empty() -> None:
     html = _etsy_search_html().replace("listing_id", "other_key")
     respx.get(url__startswith=_ETSY_SEARCH_URL).mock(return_value=httpx.Response(200, text=html))
     assert await marketplaces.search_product("mug", marketplace="etsy") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
@@ -413,6 +425,7 @@ async def test_etsy_get_success() -> None:
 async def test_etsy_get_http_error_returns_empty() -> None:
     respx.get(url__startswith=_ETSY_LISTING_URL).mock(return_value=httpx.Response(403))
     assert await marketplaces.get_product("555", marketplace="etsy") == {}
+    assert respx.calls.call_count == 1
 
 
 # ── AliExpress ─────────────────────────────────────────────────────────

@@ -35,6 +35,11 @@ class TestConstructorAndLoad:
         handler = X402Handler(payments_file=payments_file)
         handler._ensure_loaded()
         assert handler.payments == []
+        # The corrupt line is skipped, not fatal: a later good line still loads.
+        payments_file.write_text('{"payment_id": "good", "verified": true}\n')
+        reloaded = X402Handler(payments_file=payments_file)
+        reloaded._ensure_loaded()
+        assert [p["payment_id"] for p in reloaded.payments] == ["good"]
 
     def test_load_payments_empty_file(self, tmp_path: Path) -> None:
         payments_file = tmp_path / "payments.jsonl"
@@ -42,6 +47,10 @@ class TestConstructorAndLoad:
         handler = X402Handler(payments_file=payments_file)
         handler._ensure_loaded()
         assert handler.payments == []
+        payments_file.write_text('{"payment_id": "g2", "verified": false}\n')
+        handler = X402Handler(payments_file=payments_file)
+        handler._ensure_loaded()
+        assert [(p["payment_id"], p["verified"]) for p in handler.payments] == [("g2", False)]
 
     def test_load_payments_valid_entries(self, tmp_path: Path) -> None:
         payments_file = tmp_path / "payments.jsonl"

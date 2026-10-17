@@ -11,12 +11,15 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Response
 
 from pry.commerce.pipeline import HOOK_POINTS, get_pipeline, run_pipeline
 from pry.core.errors import InvalidRequestError
 
 logger = logging.getLogger(__name__)
+
+# One release of overlap for the singular path; canonical is /v1/pipelines/run.
+SUNSET_PIPELINE_RUN = "Sun, 18 Apr 2027 00:00:00 GMT"
 
 router = APIRouter(tags=["Pipeline"])
 
@@ -59,13 +62,33 @@ async def list_pipeline_hooks() -> dict[str, Any]:
     }
 
 
-@router.post("/v1/pipeline/run", tags=["Pipeline"], summary="Run pipeline hooks for testing")
+@router.post(
+    "/v1/pipeline/run",
+    tags=["Pipeline"],
+    summary="Run pipeline hooks for testing (deprecated; sunset 2027-04-18)",
+    deprecated=True,
+    responses={
+        200: {"description": "Deprecated singular path; returns Deprecation/Sunset headers"}
+    },
+)
 async def run_pipeline_test(
+    response: Response,
     hook_point: str = Body(...),
     url: str = Body(""),
     html: str = Body(""),
 ) -> dict[str, Any]:
-    """Run hooks at a given pipeline point for testing."""
+    """DEPRECATED: singular path retired in favour of the ``/v1/pipelines/*`` family.
+
+    Removal date: **2027-04-18** (one release of overlap).
+
+    The body (``hook_point``) is NOT the canonical pipeline-definition body, so
+    this stays a behaviour-preserving alias for one release; it is deleted at
+    sunset. Announced with ``Deprecation``/``Sunset`` headers.
+    """
+    response.headers["Deprecation"] = "true"
+    response.headers["Sunset"] = SUNSET_PIPELINE_RUN
+    response.headers["Link"] = '</v1/pipelines/run>; rel="successor-version"'
+
     if hook_point not in HOOK_POINTS:
         raise InvalidRequestError(f"Unknown hook point: {hook_point}")
 

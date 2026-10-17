@@ -243,7 +243,8 @@ async def test_contexts_do_not_share_cookies(pool: BrowserPool) -> None:
     # Distinct contexts from the same browser.
     assert context_a is not context_b
     # Cookie jars are independent — a cookie set in A is absent in B.
-    assert context_a.cookies() == {"session": "A"}
+    expected = {"session": "A"}
+    assert context_a.cookies() == expected
     assert context_b.cookies() == {}
     # Both contexts came from the single shared browser (launched once).
     ap.return_value.start.assert_awaited_once()

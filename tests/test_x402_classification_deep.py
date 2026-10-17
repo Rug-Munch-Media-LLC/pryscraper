@@ -103,11 +103,14 @@ class TestRouteAudit:
     def test_fully_classified_app_audits_clean(self) -> None:
         app = self._App(["/health", "/v1/scrape", "/mcp/messages/x"])
         assert audit_route_classification(app) == []
+        # Positive control: the audit does report a genuinely unknown path.
+        assert audit_route_classification(self._App(["/v9/ghost"])) == ["/v9/ghost"]
 
     def test_unclassified_route_reported_sorted_unique(self) -> None:
         app = self._App(["/health", "/ghost/route", "/ghost/route", "/another/ghost"])
         out = audit_route_classification(app)
-        assert out == ["/another/ghost", "/ghost/route"]
+        expected = ["/another/ghost", "/ghost/route"]
+        assert out == expected
 
     def test_included_router_recursed(self) -> None:
         class IncludedRouter:
@@ -131,7 +134,8 @@ class TestPricingTableIntegrity:
             entry = _pricing_config.X402_PRICING.get(op)
             assert entry is not None, f"{op} unpriced"
             price = entry["price_usd"] if isinstance(entry, dict) else entry
-            assert float(price) > 0, f"{op} priced non-positive"
+            # Every paid op must sit inside the sane USD band (0, 5].
+            assert 0 < float(price) <= 5.0, f"{op} priced out of band: {price}"
 
     def test_no_duplicate_operation_for_distinct_prefixes_without_intent(
         self,

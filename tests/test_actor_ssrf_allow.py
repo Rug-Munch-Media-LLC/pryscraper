@@ -72,7 +72,8 @@ def test_seo_analyze_returns_parsed_elements() -> None:
     data = r.json()["data"]
     assert r.json()["success"] is True
     assert data["title"] == "Example Domain"
-    assert data["h1"] == ["Example"]
+    expected = ["Example"]
+    assert data["h1"] == expected
     assert data["meta_description"] == "An example page"
 
 

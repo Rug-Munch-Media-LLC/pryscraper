@@ -62,7 +62,8 @@ def test_enrich_fetches_and_analyses_a_public_page() -> None:
     assert "wordpress" in data["tech_stack"]["detected"]
     assert "shopify" in data["tech_stack"]["detected"]
     assert "google_analytics" in data["tech_stack"]["detected"]
-    assert data["tech_stack"]["categories"]["cms"] == ["wordpress", "shopify"]
+    expected = ["wordpress", "shopify"]
+    assert data["tech_stack"]["categories"]["cms"] == expected
     assert "twitter" in data["social_profiles"]["platforms_found"]
     assert "sales@acme.example" in data["company_info"]["emails"]
     assert data["company_info"]["founded_year"] == "2011"

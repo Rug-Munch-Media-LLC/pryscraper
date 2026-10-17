@@ -295,7 +295,8 @@ async def test_apple_details_maps_record() -> None:
     assert result["seller_name"] == "Meta Platforms, Inc."
     assert result["min_os"] == "16.0"
     assert result["size_bytes"] == 123456789
-    assert result["screenshots"] == ["https://is1-ssl.mzstatic.com/image/1.png"]
+    expected = ["https://is1-ssl.mzstatic.com/image/1.png"]
+    assert result["screenshots"] == expected
     assert result["currency"] == "USD"
 
 

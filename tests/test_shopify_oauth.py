@@ -43,11 +43,15 @@ def test_install_url_builds_authorize_url() -> None:
     assert parsed.path == "/admin/oauth/authorize"
 
     params = parse_qs(parsed.query)
-    assert params["client_id"] == [API_KEY]
-    assert params["redirect_uri"] == [REDIRECT_URI]
+    expected = [API_KEY]
+    assert params["client_id"] == expected
+    expected_2 = [REDIRECT_URI]
+    assert params["redirect_uri"] == expected_2
     # Default scopes joined by comma
-    assert params["scope"] == [",".join(shopify_oauth.DEFAULT_SCOPES)]
-    assert params["grant_options[]"] == ["per-user"]
+    expected_3 = [",".join(shopify_oauth.DEFAULT_SCOPES)]
+    assert params["scope"] == expected_3
+    expected_4 = ["per-user"]
+    assert params["grant_options[]"] == expected_4
     # state is a non-empty random nonce
     assert len(params["state"][0]) > 0
 
@@ -57,7 +61,8 @@ def test_install_url_uses_custom_scopes() -> None:
         SHOP, REDIRECT_URI, scopes=["read_orders", "write_orders"], api_key=API_KEY
     )
     params = parse_qs(urlparse(url).query)
-    assert params["scope"] == ["read_orders,write_orders"]
+    expected = ["read_orders,write_orders"]
+    assert params["scope"] == expected
 
 
 def test_install_url_state_is_random_per_call() -> None:

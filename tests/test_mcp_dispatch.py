@@ -55,7 +55,8 @@ class TestToolDispatch:
         target = PRY_TOOLS[0]["name"]
         result = await server.call_tool(target, {"url": "https://example.com"})
         assert seen["name"] == target
-        assert seen["args"] == {"url": "https://example.com"}
+        expected = {"url": "https://example.com"}
+        assert seen["args"] == expected
         assert result  # non-empty content list
 
     @pytest.mark.asyncio
@@ -75,7 +76,8 @@ class TestToolDispatch:
         target = PRY_TOOLS[0]["name"]
         result = await server.call_tool(target, None)  # type: ignore[arg-type]
         payload = json.loads(result["content"][0]["text"])
-        assert payload == {"ok": True, "tool": target, "args": None}
+        expected = {"ok": True, "tool": target, "args": None}
+        assert payload == expected
         assert result["isError"] is False
 
 

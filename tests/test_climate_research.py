@@ -328,12 +328,14 @@ async def test_forecast_bad_location_returns_empty() -> None:
 async def test_forecast_http_error_returns_empty() -> None:
     respx.get(url__startswith=_POINTS).mock(return_value=httpx.Response(500, text="boom"))
     assert await weather.get_forecast("38.9072,-77.0369") == {}
+    assert respx.calls.call_count == 2
 
 
 @respx.mock
 async def test_forecast_malformed_payload_returns_empty() -> None:
     respx.get(url__startswith=_POINTS).mock(return_value=httpx.Response(200, json={"nope": True}))
     assert await weather.get_forecast("38.9072,-77.0369") == {}
+    assert respx.calls.call_count == 1
 
 
 # ── weather: NOAA NWS alerts ───────────────────────────────────────────
@@ -373,6 +375,7 @@ async def test_alerts_http_error_returns_empty() -> None:
     respx.get(url__startswith=_ALERTS).mock(return_value=httpx.Response(503, text="down"))
     assert await weather.get_alerts("DCZ001") == []
     assert await weather.get_alerts("") == []
+    assert respx.calls.call_count == 2
 
 
 # ── agri: USDA NASS crop prices ────────────────────────────────────────
@@ -413,6 +416,7 @@ async def test_crop_prices_http_error_returns_empty(monkeypatch: pytest.MonkeyPa
     monkeypatch.setenv("PRY_NASS_API_KEY", "test-key")
     respx.get(url__startswith=_NASS).mock(return_value=httpx.Response(500, text="boom"))
     assert await agri.get_crop_prices("corn") == []
+    assert respx.calls.call_count == 2
 
 
 async def test_crop_prices_blank_commodity_returns_empty(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -433,7 +437,8 @@ async def test_search_papers_openalex_success() -> None:
     paper = papers[0]
     assert paper["id"] == "https://openalex.org/W2741809807"
     assert paper["title"] == "Attention Is All You Need"
-    assert paper["authors"] == ["Ashish Vaswani", "Noam Shazeer"]
+    expected = ["Ashish Vaswani", "Noam Shazeer"]
+    assert paper["authors"] == expected
     assert paper["year"] == 2017
     assert paper["citations"] == 62342
     assert paper["doi"] == "10.48550/arXiv.1706.03762"
@@ -451,7 +456,8 @@ async def test_search_papers_crossref_fallback() -> None:
     assert len(papers) == 1
     assert papers[0]["source"] == "crossref"
     assert papers[0]["title"] == "Attention Is All You Need"
-    assert papers[0]["authors"] == ["Ashish Vaswani", "Noam Shazeer"]
+    expected = ["Ashish Vaswani", "Noam Shazeer"]
+    assert papers[0]["authors"] == expected
     assert papers[0]["year"] == 2017
     assert papers[0]["doi"] == "10.48550/arXiv.1706.03762"
 
@@ -461,6 +467,7 @@ async def test_search_papers_both_fail_returns_empty() -> None:
     respx.get(url__startswith=f"{_OPENALEX}/works?").mock(return_value=httpx.Response(500))
     respx.get(url__startswith=f"{_CROSSREF}/works?").mock(return_value=httpx.Response(503))
     assert await academic.search_papers("anything") == []
+    assert respx.calls.call_count == 4
 
 
 @respx.mock
@@ -486,6 +493,7 @@ async def test_get_paper_unknown_returns_empty() -> None:
     respx.get(url__startswith=f"{_OPENALEX}/works/").mock(return_value=httpx.Response(404))
     assert await academic.get_paper("W9999999999") == {}
     assert await academic.get_paper("") == {}
+    assert respx.calls.call_count == 2
 
 
 # ── domain: RDAP whois ─────────────────────────────────────────────────
@@ -499,8 +507,10 @@ async def test_whois_lookup_success() -> None:
     assert record["registrar"] == "RESERVED-Internet Assigned Numbers Authority"
     assert record["created"] == "1992-01-01T00:00:00Z"
     assert record["expires"] == "2027-01-01T00:00:00Z"
-    assert record["status"] == ["client delete prohibited", "client transfer prohibited"]
-    assert record["nameservers"] == ["a.iana-servers.net", "b.iana-servers.net"]
+    expected = ["client delete prohibited", "client transfer prohibited"]
+    assert record["status"] == expected
+    expected_2 = ["a.iana-servers.net", "b.iana-servers.net"]
+    assert record["nameservers"] == expected_2
     assert record["source"] == "rdap"
 
 
@@ -554,6 +564,7 @@ async def test_cert_transparency_http_error_returns_empty() -> None:
     respx.get(url__startswith=_CRTSH).mock(return_value=httpx.Response(500))
     assert await domain.cert_transparency("example.com") == []
     assert await domain.cert_transparency("") == []
+    assert respx.calls.call_count == 2
 
 
 # ── routers ────────────────────────────────────────────────────────────

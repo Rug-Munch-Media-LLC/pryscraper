@@ -244,7 +244,8 @@ def test_date_range_bounded() -> None:
     from datasets.travel.flights import _date_range
 
     days = _date_range("2026-09-01", "2026-09-03")
-    assert days == ["2026-09-01", "2026-09-02", "2026-09-03"]
+    expected = ["2026-09-01", "2026-09-02", "2026-09-03"]
+    assert days == expected
     # Reversed range -> empty
     assert _date_range("2026-09-03", "2026-09-01") == []
     # Invalid -> empty
@@ -275,7 +276,8 @@ def test_extract_af_callbacks_skips_malformed() -> None:
         "<script>AF_initDataCallback({key: 'ds:2', data: [1,2]});</script>"
     )
     callbacks = _extract_af_callbacks(html)
-    assert [c["key"] for c in callbacks] == ["ds:2"]
+    expected = ["ds:2"]
+    assert [c["key"] for c in callbacks] == expected
 
 
 # ── flight option finder ───────────────────────────────────────────────
@@ -299,7 +301,8 @@ def test_find_flight_options_single_dict() -> None:
         },
     ]
     options = _find_flight_options(data)
-    assert [o["price"] for o in options] == [540, 612]  # sorted ascending
+    expected = [540, 612]
+    assert [o["price"] for o in options] == expected  # sorted ascending
     assert options[0]["airline"] == "Air France"
     assert options[1]["duration"] == 445
 
@@ -313,7 +316,8 @@ def test_find_flight_options_parent_child_merge() -> None:
         }
     ]
     options = _find_flight_options(data)
-    assert options == [{"price": 799, "airline": "United", "duration": 380, "stops": 0}]
+    expected = [{"price": 799, "airline": "United", "duration": 380, "stops": 0}]
+    assert options == expected
 
 
 def test_find_flight_options_dedupes_and_skips_partial() -> None:
@@ -325,7 +329,8 @@ def test_find_flight_options_dedupes_and_skips_partial() -> None:
         {"airline": "Delta", "duration": 400},  # no price -> skipped
     ]
     options = _find_flight_options(data)
-    assert options == [{"price": 612, "airline": "Delta", "duration": 445, "stops": 0}]
+    expected = [{"price": 612, "airline": "Delta", "duration": 445, "stops": 0}]
+    assert options == expected
 
 
 def test_find_flight_options_empty() -> None:
@@ -361,13 +366,14 @@ async def test_search_flights_success() -> None:
         )
         results = await flights.search_flights("JFK", "CDG", "2026-09-15", limit=20)
     assert len(results) == 2
-    assert results[0] == {
+    expected = {
         "date": "2026-09-15",
         "price": 540,
         "airline": "Air France",
         "duration": 470,
         "stops": 1,
     }
+    assert results[0] == expected
     assert results[1]["airline"] == "Delta"
     assert all(r["date"] == "2026-09-15" for r in results)
 
@@ -378,13 +384,14 @@ async def test_search_flights_parent_child_page() -> None:
             return_value=httpx.Response(200, text=_flights_html_parent_child())
         )
         results = await flights.search_flights("JFK", "CDG", "2026-09-15")
-    assert results[0] == {
+    expected = {
         "date": "2026-09-15",
         "price": 799,
         "airline": "United",
         "duration": 380,
         "stops": 0,
     }
+    assert results[0] == expected
 
 
 async def test_search_flights_limit_applied() -> None:
@@ -408,12 +415,14 @@ async def test_search_flights_invalid_inputs_never_raise() -> None:
 async def test_search_flights_http_500_never_raises() -> None:
     respx.get(url__startswith=_FLIGHTS_URL).mock(return_value=httpx.Response(500))
     assert await flights.search_flights("JFK", "CDG", "2026-09-15") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
 async def test_search_flights_rate_limited_never_raises() -> None:
     respx.get(url__startswith=_FLIGHTS_URL).mock(return_value=httpx.Response(429))
     assert await flights.search_flights("JFK", "CDG", "2026-09-15") == []
+    assert respx.calls.call_count == 3
 
 
 @respx.mock
@@ -422,6 +431,7 @@ async def test_search_flights_bad_html_never_raises() -> None:
         return_value=httpx.Response(200, text="<html><body>no flights</body></html>")
     )
     assert await flights.search_flights("JFK", "CDG", "2026-09-15") == []
+    assert respx.calls.call_count == 1
 
 
 async def test_cheapest_date_grid_success(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -430,7 +440,8 @@ async def test_cheapest_date_grid_success(monkeypatch: pytest.MonkeyPatch) -> No
 
     monkeypatch.setattr(flights, "search_flights", fake_search)
     grid = await flights.cheapest_date_grid("JFK", "CDG", "2026-09-01", "2026-09-03")
-    assert [g["date"] for g in grid] == ["2026-09-01", "2026-09-02", "2026-09-03"]
+    expected = ["2026-09-01", "2026-09-02", "2026-09-03"]
+    assert [g["date"] for g in grid] == expected
     assert all(g["price"] == 100 for g in grid)
 
 
@@ -445,9 +456,10 @@ async def test_cheapest_date_grid_takes_cheapest_per_day(
 
     monkeypatch.setattr(flights, "search_flights", fake_search)
     grid = await flights.cheapest_date_grid("JFK", "CDG", "2026-09-01", "2026-09-01")
-    assert grid == [
+    expected = [
         {"date": "2026-09-01", "price": 200, "airline": "Cheap", "duration": 400, "stops": 1}
     ]
+    assert grid == expected
 
 
 async def test_cheapest_date_grid_skips_failed_days(
@@ -460,7 +472,8 @@ async def test_cheapest_date_grid_skips_failed_days(
 
     monkeypatch.setattr(flights, "search_flights", fake_search)
     grid = await flights.cheapest_date_grid("JFK", "CDG", "2026-09-01", "2026-09-03")
-    assert [g["date"] for g in grid] == ["2026-09-01", "2026-09-03"]
+    expected = ["2026-09-01", "2026-09-03"]
+    assert [g["date"] for g in grid] == expected
 
 
 async def test_cheapest_date_grid_invalid_inputs() -> None:
@@ -474,7 +487,7 @@ async def test_cheapest_date_grid_invalid_inputs() -> None:
 
 def test_find_booking_rates_capla_json() -> None:
     rates = hotels._find_booking_rates(_booking_html())
-    assert rates == [
+    expected = [
         {
             "hotel": "The Ritz London",
             "price_per_night": 420,
@@ -482,6 +495,7 @@ def test_find_booking_rates_capla_json() -> None:
             "total": 840,
         }
     ]
+    assert rates == expected
 
 
 def test_find_booking_rates_regex_fallback() -> None:
@@ -519,10 +533,11 @@ def test_extract_embedded_object_missing() -> None:
 def test_find_kayak_rates() -> None:
     data = hotels._extract_embedded_object(_kayak_html(), "window.__INITIAL_STATE__")
     rates = hotels._find_kayak_rates(data)
-    assert rates == [
+    expected = [
         {"hotel": "The Chelsea Hotel", "price_per_night": 245, "currency": "USD", "total": None},
         {"hotel": "The Bowery Hotel", "price_per_night": 312, "currency": "USD", "total": None},
     ]
+    assert rates == expected
 
 
 def test_find_kayak_rates_empty_and_garbage() -> None:
@@ -543,14 +558,16 @@ def test_extract_json_ld_skips_malformed() -> None:
         '<script type="application/ld+json">{"name": "OK"}</script>'
     )
     blocks = hotels._extract_json_ld(html)
-    assert [b["name"] for b in blocks] == ["OK"]
+    expected = ["OK"]
+    assert [b["name"] for b in blocks] == expected
 
 
 def test_find_expedia_rates_json_ld() -> None:
     rates = hotels._find_expedia_rates(_expedia_html())
-    assert rates == [
+    expected = [
         {"hotel": "Grand Hyatt New York", "price_per_night": 289, "currency": "USD", "total": None}
     ]
+    assert rates == expected
 
 
 def test_find_expedia_rates_empty() -> None:
@@ -568,9 +585,8 @@ async def test_get_hotel_rates_google_success() -> None:
         result = await hotels.get_hotel_rates("Marriott New York", "2026-09-01", "2026-09-03")
     assert result["hotel"] == "Marriott New York"
     assert result["availability"] == "available"
-    assert result["rates"] == [
-        {"site": "google", "price_per_night": 172, "currency": "USD", "total": 344}
-    ]
+    expected = [{"site": "google", "price_per_night": 172, "currency": "USD", "total": 344}]
+    assert result["rates"] == expected
 
 
 async def test_get_hotel_rates_booking_fallback() -> None:
@@ -583,9 +599,8 @@ async def test_get_hotel_rates_booking_fallback() -> None:
         )
         result = await hotels.get_hotel_rates("Ritz London", "2026-09-01", "2026-09-03")
     assert result["availability"] == "available"
-    assert result["rates"] == [
-        {"site": "booking", "price_per_night": 420, "currency": "GBP", "total": 840}
-    ]
+    expected = [{"site": "booking", "price_per_night": 420, "currency": "GBP", "total": 840}]
+    assert result["rates"] == expected
 
 
 async def test_get_hotel_rates_google_empty_booking_empty_unavailable() -> None:
@@ -640,9 +655,8 @@ async def test_get_hotel_rates_kayak_fallback() -> None:
         )
         result = await hotels.get_hotel_rates("Chelsea Hotel", "2026-09-01", "2026-09-03")
     assert result["availability"] == "available"
-    assert result["rates"] == [
-        {"site": "kayak", "price_per_night": 245, "currency": "USD", "total": None}
-    ]
+    expected = [{"site": "kayak", "price_per_night": 245, "currency": "USD", "total": None}]
+    assert result["rates"] == expected
 
 
 async def test_get_hotel_rates_expedia_fallback_last() -> None:
@@ -661,9 +675,8 @@ async def test_get_hotel_rates_expedia_fallback_last() -> None:
         )
         result = await hotels.get_hotel_rates("Grand Hyatt", "2026-09-01", "2026-09-03")
     assert result["availability"] == "available"
-    assert result["rates"] == [
-        {"site": "expedia", "price_per_night": 289, "currency": "USD", "total": None}
-    ]
+    expected = [{"site": "expedia", "price_per_night": 289, "currency": "USD", "total": None}]
+    assert result["rates"] == expected
 
 
 # ── router tests ───────────────────────────────────────────────────────

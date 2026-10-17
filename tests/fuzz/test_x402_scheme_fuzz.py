@@ -109,9 +109,11 @@ def test_every_supported_asset_entry_resolves_case_insensitively() -> None:
     """Every canonical (network, asset) pair resolves, with any asset case."""
     for network_id, assets in SUPPORTED_ASSETS.items():
         for asset in assets:
-            assert resolve_asset_entry(network_id, asset) is not None
-            assert resolve_asset_entry(network_id, asset.lower()) is not None
-            assert resolve_asset_entry(network_id, asset.upper()) is not None
+            entry = resolve_asset_entry(network_id, asset)
+            assert entry is not None
+            # Case must not change the resolved entry (same mint/address).
+            assert entry == resolve_asset_entry(network_id, asset.lower())
+            assert entry == resolve_asset_entry(network_id, asset.upper())
 
 
 def test_unknown_pair_returns_none() -> None:

@@ -133,7 +133,7 @@ def test_tools_have_input_schema() -> None:
 def test_tools_have_output_schema() -> None:
     """Best practice: tools should declare output schemas."""
     tools_with_output = [t for t in PRY_TOOLS if "outputSchema" in t]
-    assert len(tools_with_output) >= 3
+    assert len(tools_with_output) == len(PRY_TOOLS) == 99
 
 
 def test_resources_have_required_fields() -> None:
@@ -261,6 +261,8 @@ def test_prompt_get_returns_messages() -> None:
 def test_ping() -> None:
     server = make_fallback_server()
     response = asyncio.run(server.handle_request({"jsonrpc": "2.0", "id": 1, "method": "ping"}))
+    assert response["id"] == 1
+    assert "error" not in response
     assert response["result"] == {}
 
 
@@ -280,7 +282,9 @@ def test_x402_atomic_units() -> None:
     """Prices must be in atomic units (6 decimals for USDC)."""
     for op, info in X402_PRICING.items():
         amount_atomic = int(info["price_usd"] * 1_000_000)
-        assert amount_atomic > 0, f"Operation {op} has zero price"
+        # Atomic amount must stay inside the sane band: $0.0001 .. $5.00.
+        assert 100 <= amount_atomic <= 5_000_000, f"{op} atomic out of band: {amount_atomic}"
+    assert int(X402_PRICING["scrape"]["price_usd"] * 1_000_000) == 1000
 
 
 def test_x402_accepts_array_format() -> None:
@@ -443,7 +447,7 @@ def test_x402_stats_includes_standards() -> None:
 
 def test_supported_assets_covers_business_networks() -> None:
     """The canonical table must cover the 7 CAIP-2 networks the business wants."""
-    assert set(SUPPORTED_ASSETS.keys()) == {
+    expected = {
         "eip155:8453",  # Base
         "eip155:1",  # Ethereum
         "eip155:42161",  # Arbitrum
@@ -452,6 +456,7 @@ def test_supported_assets_covers_business_networks() -> None:
         "solana:mainnet",
         "tron:mainnet",
     }
+    assert set(SUPPORTED_ASSETS.keys()) == expected
     assert len(SUPPORTED_NETWORKS) > 0  # non-empty metadata list
     assert len(SUPPORTED_NETWORKS) == 7
 

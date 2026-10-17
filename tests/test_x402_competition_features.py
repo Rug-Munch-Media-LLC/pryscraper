@@ -116,20 +116,24 @@ async def test_handler_authorize_capture_void(handler: X402Handler):
         asset="USDC",
         amount_usd=1.0,
     )
-    assert auth == {"authorized": True, "payment_id": "p1", "captured": False}
+    expected = {"authorized": True, "payment_id": "p1", "captured": False}
+    assert auth == expected
 
     capture = handler.capture_payment("p1")
-    assert capture == {"success": True, "payment_id": "p1", "captured": True}
+    expected_2 = {"success": True, "payment_id": "p1", "captured": True}
+    assert capture == expected_2
 
     # Re-authorize then void
     await handler.authorize_payment(payment_id="p2", tx_hash="0xdef", network="base", asset="USDC")
     void = handler.void_payment("p2")
-    assert void == {"success": True, "payment_id": "p2", "voided": True}
+    expected_3 = {"success": True, "payment_id": "p2", "voided": True}
+    assert void == expected_3
     # Voided payment cannot be captured
-    assert handler.capture_payment("p2") == {
+    expected_4 = {
         "success": False,
         "error": "no authorization found",
     }
+    assert handler.capture_payment("p2") == expected_4
 
 
 # ---------------------------------------------------------------------------
@@ -408,7 +412,8 @@ def test_usage_tracker_by_endpoint():
     tracker.record("tok", endpoint="/crawl")
 
     stats = tracker.get_stats("tok")
-    assert stats["by_endpoint"] == {"/scrape": 2, "/crawl": 1}
+    expected = {"/scrape": 2, "/crawl": 1}
+    assert stats["by_endpoint"] == expected
 
 
 def test_usage_tracker_empty():
@@ -418,6 +423,11 @@ def test_usage_tracker_empty():
     tracker = UsageTracker()
     assert tracker.get_stats() == {}
     assert tracker.get_stats("unknown") == {}
+    # Recording one event must move the aggregate off empty by exactly one.
+    tracker.record("tok", amount_usd=1.5, response_ms=40)
+    stats = tracker.get_stats("tok")
+    assert stats["total_requests"] == 1
+    assert stats["total_settlement_volume"] == pytest.approx(1.5)
 
 
 def test_usage_tracker_specific_token():

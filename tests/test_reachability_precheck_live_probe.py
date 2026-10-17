@@ -93,7 +93,8 @@ async def test_the_timeout_argument_is_never_mistaken_for_a_port(monkeypatch) ->
     )
     await rp.reachability_verdict("https://site.example/p", budget_s=1.5)
     # No port in the URL, so the https default is dialled.
-    assert seen == {"host": "site.example", "port": 443, "timeout": 1.5}
+    expected = {"host": "site.example", "port": 443, "timeout": 1.5}
+    assert seen == expected
 
 
 async def test_the_probe_dials_the_port_the_scrape_requests(monkeypatch) -> None:
@@ -122,7 +123,8 @@ async def test_the_probe_dials_the_port_the_scrape_requests(monkeypatch) -> None
         )(),
     )
     await rp.reachability_verdict("https://site.example:8443/p", budget_s=1.5)
-    assert seen == {"host": "site.example", "port": 8443, "timeout": 1.5}
+    expected = {"host": "site.example", "port": 8443, "timeout": 1.5}
+    assert seen == expected
 
 
 # ── 3. UNKNOWN stays distinct from UNREACHABLE ────────────────────────────

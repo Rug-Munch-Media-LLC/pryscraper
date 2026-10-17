@@ -80,7 +80,8 @@ class TestSendEmailSync:
             ok = notif._send_email_sync("a@b.com", "Subj", "Body")
         assert ok is True
         run.assert_called_once()
-        assert run.call_args.args[0] == ["/usr/sbin/sendmail", "-t", "-oi"]
+        expected = ["/usr/sbin/sendmail", "-t", "-oi"]
+        assert run.call_args.args[0] == expected
 
     def test_smtp_exception_falls_back_to_sendmail(self) -> None:
         settings = MagicMock(smtp_host="smtp.example.com")
@@ -244,7 +245,8 @@ class TestNotificationManager:
             ]
         )
         batch = mgr.batch_notifications("u1")
-        assert [n["notification_type"] for n in batch] == ["a", "b"]
+        expected = ["a", "b"]
+        assert [n["notification_type"] for n in batch] == expected
 
     def test_clear_batch_removes_and_counts(self) -> None:
         mgr = notif.NotificationManager()
@@ -257,7 +259,8 @@ class TestNotificationManager:
         )
         removed = mgr.clear_batch("u1")
         assert removed == 2
-        assert [n["user_id"] for n in notif._pending] == ["u2"]
+        expected = ["u2"]
+        assert [n["user_id"] for n in notif._pending] == expected
 
     def test_clear_batch_unknown_user_returns_zero(self) -> None:
         mgr = notif.NotificationManager()

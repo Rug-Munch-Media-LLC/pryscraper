@@ -32,8 +32,10 @@ class TestVerifyAndSettleOrdering:
         mw = _FakeMW(handler=handler)
         parsed = ("p1", "0xabc", "base", "USDC", 0.01)
         settlement = await payment._verify_and_settle(mw, parsed, "scrape", "caller", None)
-        assert handler.calls == ["verify", "settle"]
-        assert settlement == {"success": True}
+        expected = ["verify", "settle"]
+        assert handler.calls == expected
+        expected_2 = {"success": True}
+        assert settlement == expected_2
 
     async def test_failed_verify_stops_before_settle(self):
         handler = _FakeHandler(verified=False)
@@ -41,7 +43,8 @@ class TestVerifyAndSettleOrdering:
         parsed = ("p1", "0xabc", "base", "USDC", 0.01)
         settlement = await payment._verify_and_settle(mw, parsed, "scrape", "caller", None)
         assert settlement is None
-        assert handler.calls == ["verify"], "settle must not run after a failed verify"
+        expected = ["verify"]
+        assert handler.calls == expected, "settle must not run after a failed verify"
 
     async def test_attested_atomic_is_passed_to_verify(self):
         handler = _FakeHandler()
@@ -98,7 +101,8 @@ class TestHandlePresentedPayment:
             mw, sig, "scrape", "caller", "/v1/scrape", {}, None, recorder
         )
         assert served is True
-        assert handler.calls == ["verify", "settle"]
+        expected = ["verify", "settle"]
+        assert handler.calls == expected
         assert _decoded(recorder.frames)["status"] == 200
 
     async def test_rejected_attestation_sends_402_and_stops(self, monkeypatch):
@@ -116,7 +120,8 @@ class TestHandlePresentedPayment:
             mw, sig, "scrape", "caller", "/v1/scrape", {}, None, recorder
         )
         assert served is True
-        assert sent == [("scrape", "/v1/scrape")]
+        expected = [("scrape", "/v1/scrape")]
+        assert sent == expected
         assert handler.calls == [], "no verify/settle after a rejected attestation"
 
     async def test_price_unbound_sends_402_and_stops(self, monkeypatch):
@@ -136,7 +141,8 @@ class TestHandlePresentedPayment:
             mw, sig, "scrape", "caller", "/v1/scrape", {}, None, recorder
         )
         assert served is True
-        assert sent == [("scrape", "/v1/scrape")]
+        expected = [("scrape", "/v1/scrape")]
+        assert sent == expected
         assert handler.calls == [], "no verify/settle after an unbound price"
 
     async def test_settle_failure_sends_402_and_stops(self, monkeypatch):
@@ -157,6 +163,8 @@ class TestHandlePresentedPayment:
             mw, sig, "scrape", "caller", "/v1/scrape", {}, None, recorder
         )
         assert served is True
-        assert sent == [("scrape", "/v1/scrape")]
-        assert handler.calls == ["verify", "settle"]
+        expected = [("scrape", "/v1/scrape")]
+        assert sent == expected
+        expected_2 = ["verify", "settle"]
+        assert handler.calls == expected_2
         assert mw.app.calls == [], "a failed settle must never reach the app"

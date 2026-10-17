@@ -79,7 +79,8 @@ class TestProcessRetryQueueSuccess:
 
         stats = await db.process_retry_queue()
 
-        assert stats == {"processed": 1, "succeeded": 1, "failed": 0, "remaining": 0}
+        expected = {"processed": 1, "succeeded": 1, "failed": 0, "remaining": 0}
+        assert stats == expected
         assert not queue_file.exists()
         assert not bridge.DEAD_LETTER_PATH.exists()
         deliver.assert_awaited_once()
@@ -96,7 +97,8 @@ class TestProcessRetryQueueSuccess:
 
         stats = await db.process_retry_queue()
 
-        assert stats == {"processed": 1, "succeeded": 0, "failed": 0, "remaining": 1}
+        expected = {"processed": 1, "succeeded": 0, "failed": 0, "remaining": 1}
+        assert stats == expected
         assert queue_file.exists()
         requeued = _read_queue_file(queue_file)
         assert requeued["payload"] == _PAYLOAD
@@ -119,7 +121,8 @@ class TestProcessRetryQueueCap:
 
         stats = await db.process_retry_queue()
 
-        assert stats == {"processed": 1, "succeeded": 0, "failed": 1, "remaining": 0}
+        expected = {"processed": 1, "succeeded": 0, "failed": 1, "remaining": 0}
+        assert stats == expected
         assert not queue_file.exists()
         deliver.assert_not_awaited()
         records = _dead_letter_records(bridge.DEAD_LETTER_PATH)
@@ -148,7 +151,8 @@ class TestProcessRetryQueueCap:
 
         # Second pass: cap reached -> dead-lettered, no more delivery attempts.
         stats2 = await db.process_retry_queue()
-        assert stats2 == {"processed": 1, "succeeded": 0, "failed": 1, "remaining": 0}
+        expected = {"processed": 1, "succeeded": 0, "failed": 1, "remaining": 0}
+        assert stats2 == expected
         assert not queue_file.exists()
         records = _dead_letter_records(bridge.DEAD_LETTER_PATH)
         assert len(records) == 1
@@ -174,7 +178,8 @@ class TestProcessRetryQueueCap:
         stats = await db.process_retry_queue()
 
         # Payload is retained in the retry queue, never dropped.
-        assert stats == {"processed": 1, "succeeded": 0, "failed": 0, "remaining": 1}
+        expected = {"processed": 1, "succeeded": 0, "failed": 0, "remaining": 1}
+        assert stats == expected
         assert queue_file.exists()
         assert _read_queue_file(queue_file)["retry_count"] == 1
         deliver.assert_not_awaited()
@@ -194,14 +199,16 @@ class TestProcessRetryQueueEdgeCases:
 
         stats = await db.process_retry_queue()
 
-        assert stats == {"processed": 1, "succeeded": 0, "failed": 1, "remaining": 1}
+        expected = {"processed": 1, "succeeded": 0, "failed": 1, "remaining": 1}
+        assert stats == expected
         assert queue_file.exists()
         deliver.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_empty_queue_returns_zero_stats(self, bridge) -> None:
         stats = await db.process_retry_queue()
-        assert stats == {"processed": 0, "succeeded": 0, "failed": 0, "remaining": 0}
+        expected = {"processed": 0, "succeeded": 0, "failed": 0, "remaining": 0}
+        assert stats == expected
 
 
 class TestDeliverWithRetry:

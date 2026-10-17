@@ -113,7 +113,8 @@ class TestBilling:
         after_use = billing.drawdown("u1", 3.25, reference="key_x")
         assert after_use["balance_usd"] == 9.25
         entries = billing.ledger("u1")
-        assert [e["reason"] for e in entries] == ["usage", "grant", "deposit"]
+        expected = ["usage", "grant", "deposit"]
+        assert [e["reason"] for e in entries] == expected
         assert entries[-1]["balance_after"] == 10.0
 
     def test_insufficient_balance_raises(self, db) -> None:

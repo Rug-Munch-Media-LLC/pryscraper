@@ -267,7 +267,8 @@ def test_list_sessions_returns_all_valid(tmp_path: Path, monkeypatch: pytest.Mon
     (tmp_path / "broken.json").write_text("garbage")
 
     sessions = CookieWarmer().list_sessions()
-    assert {s["session_id"] for s in sessions} == {"s1", "s2"}
+    expected = {"s1", "s2"}
+    assert {s["session_id"] for s in sessions} == expected
     assert all(s["cookie_count"] == 1 for s in sessions)
 
 

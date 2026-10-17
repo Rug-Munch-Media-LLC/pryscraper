@@ -105,7 +105,8 @@ def _clean_pack_state(monkeypatch):
 # ── Catalog ─────────────────────────────────────────────────────────────────
 def test_list_packs_server_authoritative() -> None:
     packs_list = {p["id"]: p for p in list_packs()}
-    assert set(packs_list) == {"starter", "growth", "bulk"}
+    expected = {"starter", "growth", "bulk"}
+    assert set(packs_list) == expected
     starter = packs_list["starter"]
     assert starter["price_usd"] == 5.0
     assert starter["credits"] == 5000

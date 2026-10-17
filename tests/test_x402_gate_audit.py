@@ -71,7 +71,8 @@ class TestPaidEndpointConfig:
         assert not missing, f"PAID_ENDPOINTS ops missing from X402_PRICING: {sorted(missing)}"
 
     def test_paid_endpoints_nonempty(self) -> None:
-        assert len(PAID_ENDPOINTS) >= 50
+        # Exact size: a dropped paid prefix silently un-gates revenue paths.
+        assert len(PAID_ENDPOINTS) == 54
 
     def test_default_free_paths_include_payment_flow(self) -> None:
         """The x402 payment endpoints themselves must never be gated."""
@@ -130,7 +131,8 @@ class TestRuntimeGate:
         with TestClient(_make_app(), raise_server_exceptions=False) as client:
             r = client.get("/health")
             assert r.status_code == 200
-            assert r.json() == {"ok": True}
+            expected = {"ok": True}
+            assert r.json() == expected
 
     def test_paid_route_without_payment_is_402(self) -> None:
         with TestClient(_make_app(), raise_server_exceptions=False) as client:
@@ -143,7 +145,8 @@ class TestRuntimeGate:
         with TestClient(_make_app(), raise_server_exceptions=False) as client:
             r = client.get("/mcp/messages/session-123")
             assert r.status_code == 200
-            assert r.json() == {"ok": True}
+            expected = {"ok": True}
+            assert r.json() == expected
 
     def test_missing_pricing_fails_closed_500(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """THE money-leak regression test: paid prefix + missing pricing entry
@@ -171,6 +174,8 @@ class TestStartupAudit:
         """Every route on the production app must be explicitly free or paid."""
         from pry.api.api import app as real_app
 
+        # Positive control: 392 routes really are being walked.
+        assert len(list(iter_app_route_paths(real_app))) == 392
         unclassified = audit_route_classification(real_app)
         assert unclassified == [], (
             f"Unclassified routes (add to DEFAULT_FREE_PATHS or PAID_ENDPOINTS): "
@@ -184,7 +189,8 @@ class TestStartupAudit:
         async def oops() -> dict[str, bool]:
             return {"ok": True}
 
-        assert audit_route_classification(a) == ["/v9/oops"]
+        expected = ["/v9/oops"]
+        assert audit_route_classification(a) == expected
 
     def test_iter_app_route_paths_enumerates_included_routers(self) -> None:
         """FastAPI's lazy _IncludedRouter wrappers must not hide routes."""
@@ -224,7 +230,8 @@ class TestConstruction:
     def test_explicit_overrides_respected(self) -> None:
         mw = X402Middleware(app=Any, free_paths=["/only"], free_prefixes=["/pre/"])
         assert mw.free_paths == frozenset({"/only"})
-        assert mw.free_prefixes == ("/pre/",)
+        expected = ("/pre/",)
+        assert mw.free_prefixes == expected
 
 
 class TestPrefixOrderingInvariant:

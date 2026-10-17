@@ -7,14 +7,14 @@
 
 Source: `openapi.json` (PryScraper API v3.0.0, OpenAPI 3.1.0).
 
-- Paths: **365** · Operations: **371** · Tags: **84**
-- `402` responses documented in the spec: **0 of 371**
+- Paths: **373** · Operations: **380** · Tags: **85**
+- `402` responses documented in the spec: **0 of 380**
 - Auth column is inferred from router guards (`require_sensitive_config_auth`, hosting/admin gates), not from the spec — the spec declares no per-operation `security`.
 - Error shapes (RFC 7807, FastAPI 422, legacy `success:false`, x402 402): see [`docs/ERRORS.md`](../ERRORS.md).
 
 ## 402 coverage
 
-The audit found **0 of 371** operations declaring `402 Payment Required`, although the x402 middleware gates the paid routes below. Clients must treat an undocumented 402 as a normal payment challenge, not a failure. The next five routes to annotate:
+The audit found **0 of 380** operations declaring `402 Payment Required`, although the x402 middleware gates the paid routes below. Clients must treat an undocumented 402 as a normal payment challenge, not a failure. The next five routes to annotate:
 
 | # | Method | Path | Summary |
 |--:|--------|------|---------|
@@ -36,6 +36,7 @@ The audit found **0 of 371** operations declaring `402 Payment Required`, althou
 - [`Analytics`](#analytics) — 5 operations
 - [`API Keys`](#api-keys) — 6 operations
 - [`App Store Data`](#app-store-data) — 4 operations
+- [`App UI`](#app-ui) — 4 operations
 - [`Attention`](#attention) — 3 operations
 - [`Auth`](#auth) — 8 operations
 - [`Automation`](#automation) — 2 operations
@@ -68,7 +69,7 @@ The audit found **0 of 371** operations declaring `402 Payment Required`, althou
 - [`Food Data`](#food-data) — 2 operations
 - [`Freight Data`](#freight-data) — 2 operations
 - [`Freshness`](#freshness) — 3 operations
-- [`GDPR`](#gdpr) — 8 operations
+- [`GDPR`](#gdpr) — 9 operations
 - [`Government Data`](#government-data) — 3 operations
 - [`Health`](#health) — 6 operations
 - [`Healthcare Data`](#healthcare-data) — 4 operations
@@ -94,7 +95,7 @@ The audit found **0 of 371** operations declaring `402 Payment Required`, althou
 - [`Reports`](#reports) — 3 operations
 - [`Research Data`](#research-data) — 2 operations
 - [`Review`](#review) — 6 operations
-- [`Scraping`](#scraping) — 9 operations
+- [`Scraping`](#scraping) — 13 operations
 - [`SEO`](#seo) — 3 operations
 - [`Sessions`](#sessions) — 5 operations
 - [`Share`](#share) — 2 operations
@@ -242,6 +243,15 @@ The audit found **0 of 371** operations declaring `402 Payment Required`, althou
 | GET | `/v1/appstore/apple/{app_id}/reviews` | Most recent Apple App Store customer reviews | — | yes |
 | GET | `/v1/appstore/play/{package}` | Google Play app details by Android package id | — | yes |
 | GET | `/v1/appstore/search` | Search apps on the Apple App Store and Google Play | — | yes |
+
+## App UI
+
+| Method | Path | Summary | Auth | 402 possible |
+|--------|------|---------|------|--------------|
+| GET | `/app` | App: keys and key status | — | — |
+| POST | `/app/keys` | App: create a key (shown once) | — | — |
+| POST | `/app/keys/{key_id}/revoke` | App: revoke a key | — | — |
+| GET | `/app/usage` | App: usage this month | — | — |
 
 ## Attention
 
@@ -513,6 +523,7 @@ The audit found **0 of 371** operations declaring `402 Payment Required`, althou
 | GET | `/v1/gdpr/consent/{user_id}` | Check user consent status | Bearer | — |
 | POST | `/v1/gdpr/deletion/execute` | Execute data deletion request | Bearer | — |
 | POST | `/v1/gdpr/deletion/request` | Request data deletion (right to erasure) | Bearer | — |
+| POST | `/v1/gdpr/domain/purge` | Purge all stored data for a domain (dry-run by default) | Bearer | — |
 | GET | `/v1/gdpr/retention` | Get data retention policy | Bearer | — |
 | POST | `/v1/gdpr/retention/apply` | Apply retention policy to remove expired data | Bearer | — |
 
@@ -659,7 +670,7 @@ The audit found **0 of 371** operations declaring `402 Payment Required`, althou
 |--------|------|---------|------|--------------|
 | POST | `/v1/pipeline/hook` | Register a hook function | — | — |
 | GET | `/v1/pipeline/hooks` | List all registered hooks | — | — |
-| POST | `/v1/pipeline/run` | Run pipeline hooks for testing | — | — |
+| POST | `/v1/pipeline/run` | Run pipeline hooks for testing (deprecated; sunset 2027-04-18) | — | — |
 
 ## Pipelines
 
@@ -763,9 +774,13 @@ The audit found **0 of 371** operations declaring `402 Payment Required`, althou
 | POST | `/v1/capture/network` | Extract API calls and network patterns from a page | — | yes |
 | POST | `/v1/crawl` | Crawl multiple pages from a URL | — | yes |
 | POST | `/v1/crawl/adaptive` | Crawl with adaptive stopping based on content relevance | — | yes |
+| DELETE | `/v1/crawl/{job_id}` | Cancel an async crawl job | — | yes |
+| GET | `/v1/crawl/{job_id}` | Get async crawl job status | — | yes |
+| GET | `/v1/crawl/{job_id}/errors` | List per-URL crawl failures | — | yes |
 | POST | `/v1/detect-block` | Detect if a site is blocking the scraper | — | — |
-| POST | `/v1/map` | Discover URLs on a site | — | yes |
+| POST | `/v1/map` | Discover URLs on a site (legacy success/data.links deprecated) | — | yes |
 | POST | `/v1/scrape` | Scrape a single URL | — | yes |
+| POST | `/v1/search` | Search the web | — | yes |
 | POST | `/v1/ultimate-scrape` | Scrape with 10-tier anti-bot fallback system | — | yes |
 
 ## SEO
@@ -824,7 +839,7 @@ The audit found **0 of 371** operations declaring `402 Payment Required`, althou
 
 | Method | Path | Summary | Auth | 402 possible |
 |--------|------|---------|------|--------------|
-| GET | `/v0/stats` | Get cache, rate limiter, and session stats | — | — |
+| GET | `/v0/stats` | Get cache, rate limiter, and session stats (deprecated; sunset 2027-04-18) | — | — |
 
 ## Structure
 

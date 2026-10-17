@@ -328,13 +328,14 @@ def test_book_status_shape_and_unknown() -> None:
     entry = status["bookmaker"]
     assert entry["name"] == "bookmaker"  # slug key
     assert entry["title"] == "BookMaker"  # display title
-    assert set(entry["availability"]) == {
+    expected = {
         "reachable",
         "blocked",
         "last_checked",
         "latency_ms",
         "error",
     }
+    assert set(entry["availability"]) == expected
     assert offshore.book_status("bogus") == {}
     assert european.book_status("bogus") == {}
 

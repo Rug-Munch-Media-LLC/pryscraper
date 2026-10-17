@@ -64,7 +64,8 @@ def test_duplicate_urls_collapse_and_keep_richest_payload() -> None:
 
 def test_non_http_rows_are_discarded() -> None:
     grouped = {"searxng": [_row("ftp://bad"), _row("https://ok.com")]}
-    assert [r["url"] for r in ms._merge(grouped, "q")] == ["https://ok.com"]
+    expected = ["https://ok.com"]
+    assert [r["url"] for r in ms._merge(grouped, "q")] == expected
 
 
 @pytest.mark.asyncio
@@ -79,8 +80,10 @@ async def test_mega_search_reports_failed_legs() -> None:
         return {"searxng": ok, "yahoo": boom}.get(name)
 
     out = await ms.mega_search("q", 5, engines=("searxng", "yahoo"), resolve=resolve)
-    assert out["engines_ok"] == ["searxng"]
-    assert out["engines_failed"] == ["yahoo"]
+    expected = ["searxng"]
+    assert out["engines_ok"] == expected
+    expected_2 = ["yahoo"]
+    assert out["engines_failed"] == expected_2
     assert out["results"][0]["url"] == "https://ok.com"
 
 

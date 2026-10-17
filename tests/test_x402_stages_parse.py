@@ -39,7 +39,8 @@ class TestParsePaymentSignature:
             ),
             "base",
         )
-        assert parsed == ("p1", "0xabc", "base", "USDC", 0.01)
+        expected = ("p1", "0xabc", "base", "USDC", 0.01)
+        assert parsed == expected
 
     def test_defaults_network_when_absent(self):
         parsed = checks._parse_payment_signature(_sig({"payment_id": "p"}), "base")

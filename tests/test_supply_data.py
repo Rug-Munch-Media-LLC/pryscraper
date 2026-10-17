@@ -234,7 +234,8 @@ async def test_get_company_firmographics_success(monkeypatch: pytest.MonkeyPatch
     record = await firmographics.get_company_firmographics("Acme Trading Co")
     assert record["name"] == "Acme Trading Co"
     assert record["website"] == "https://acme-trading-co.com"
-    assert set(record["tech_stack"]) == {"WordPress", "Stripe", "Google Analytics"}
+    expected = {"WordPress", "Stripe", "Google Analytics"}
+    assert set(record["tech_stack"]) == expected
     assert record["linkedin_url"] == "https://www.linkedin.com/company/acme-trading-co"
     assert record["industry"] == "Logistics & Supply Chain"
     assert record["hiring_openings"] == 2
@@ -254,7 +255,8 @@ async def test_firmographics_website_fallback_tld(monkeypatch: pytest.MonkeyPatc
     respx.get(_ASHBY.format(slug="acme-trading-co")).mock(return_value=httpx.Response(404))
     record = await firmographics.get_company_firmographics("Acme Trading Co")
     assert record["website"] == "https://acme-trading-co.io"
-    assert set(record["tech_stack"]) == {"WordPress", "Stripe", "Google Analytics"}
+    expected = {"WordPress", "Stripe", "Google Analytics"}
+    assert set(record["tech_stack"]) == expected
     assert record["industry"] == "Logistics & Supply Chain"
 
 

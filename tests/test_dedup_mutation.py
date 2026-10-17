@@ -86,13 +86,15 @@ class TestThresholdBoundaries:
         d = Deduplicator(threshold=1.0)
         d.add("doc", "identical words here")
         hits = d.find_duplicates("identical words here")
-        assert [h["doc_id"] for h in hits] == ["doc"]
+        expected = ["doc"]
+        assert [h["doc_id"] for h in hits] == expected
         assert hits[0]["similarity"] == 1.0
 
     def test_cluster_merges_exact_threshold_match(self) -> None:
         d = Deduplicator(threshold=1.0)
         clusters = d.cluster({"a": "same text", "b": "same text"})
-        assert list(clusters.values()) == [["a", "b"]]
+        expected = [["a", "b"]]
+        assert list(clusters.values()) == expected
 
     def test_diff_changed_false_at_exact_threshold(self) -> None:
         d = Deduplicator(threshold=1.0)
@@ -106,12 +108,13 @@ class TestOutputContracts:
     def test_diff_has_exactly_the_contracted_keys(self) -> None:
         d = Deduplicator()
         result = d.diff("alpha beta", "alpha gamma")
-        assert set(result.keys()) == {
+        expected = {
             "similarity",
             "hamming_distance",
             "changed",
             "change_severity",
         }
+        assert set(result.keys()) == expected
 
     def test_find_duplicates_similarity_rounded_to_three_decimals(self) -> None:
         d = Deduplicator(threshold=0.9)
@@ -145,7 +148,8 @@ class TestClusterContract:
         # threshold=0.0 merges everything into one cluster (contract check).
         d2 = Deduplicator(threshold=2.0)  # nothing merges -> singleton clusters
         clusters = d2.cluster({"a": "x", "b": "y", "c": "z"})
-        assert list(clusters.keys()) == ["cluster_0", "cluster_1", "cluster_2"]
+        expected = ["cluster_0", "cluster_1", "cluster_2"]
+        assert list(clusters.keys()) == expected
 
     def test_identical_pair_forms_single_cluster_no_duplicates(self) -> None:
         # Kills visited.add(None): the second doc must be marked visited so it
@@ -153,7 +157,8 @@ class TestClusterContract:
         d = Deduplicator(threshold=1.0)
         clusters = d.cluster({"a": "twin", "b": "twin"})
         assert len(clusters) == 1
-        assert sorted(clusters["cluster_0"]) == ["a", "b"]
+        expected = ["a", "b"]
+        assert sorted(clusters["cluster_0"]) == expected
 
     def test_default_threshold_is_085(self) -> None:
         assert Deduplicator().threshold == 0.85

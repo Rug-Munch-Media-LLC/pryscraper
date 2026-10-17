@@ -25,44 +25,55 @@ from pry.commerce.pipelines_engine import (
 
 class TestResolveTemplates:
     def test_substitutes_known_variable(self) -> None:
-        assert _resolve_templates({"a": "{{x}}"}, {"x": 5}) == {"a": "5"}
+        expected = {"a": "5"}
+        assert _resolve_templates({"a": "{{x}}"}, {"x": 5}) == expected
 
     def test_leaves_unknown_placeholder_untouched(self) -> None:
-        assert _resolve_templates({"a": "{{missing}}"}, {}) == {"a": "{{missing}}"}
+        expected = {"a": "{{missing}}"}
+        assert _resolve_templates({"a": "{{missing}}"}, {}) == expected
 
     def test_resolves_dotted_key_as_flat_lookup(self) -> None:
         # Dotted names match a literal context key, not nested traversal.
         ctx = {"user.name": "ada"}
-        assert _resolve_templates({"a": "{{user.name}}"}, ctx) == {"a": "ada"}
+        expected = {"a": "ada"}
+        assert _resolve_templates({"a": "{{user.name}}"}, ctx) == expected
 
     def test_recurses_into_dicts(self) -> None:
-        assert _resolve_templates({"n": {"k": "{{x}}"}}, {"x": 1}) == {"n": {"k": "1"}}
+        expected = {"n": {"k": "1"}}
+        assert _resolve_templates({"n": {"k": "{{x}}"}}, {"x": 1}) == expected
 
     def test_recurses_into_lists_of_dicts(self) -> None:
         result = _resolve_templates({"l": [{"k": "{{x}}"}, "plain"]}, {"x": 2})
-        assert result == {"l": [{"k": "2"}, "plain"]}
+        expected = {"l": [{"k": "2"}, "plain"]}
+        assert result == expected
 
     def test_passes_through_non_string_values(self) -> None:
-        assert _resolve_templates({"z": 7}, {}) == {"z": 7}
+        expected = {"z": 7}
+        assert _resolve_templates({"z": 7}, {}) == expected
 
 
 class TestApplyTransform:
     DATA: dict[str, Any] = {"a": {"b": [10, 20, 30]}}  # noqa: RUF012 - test fixture, not a typed class contract
 
     def test_jsonpath_extracts_nested_value(self) -> None:
-        assert _apply_transform(self.DATA, {"v": "$.a.b.1"}) == {"v": 20}
+        expected = {"v": 20}
+        assert _apply_transform(self.DATA, {"v": "$.a.b.1"}) == expected
 
     def test_bare_dollar_returns_whole_document(self) -> None:
-        assert _apply_transform(self.DATA, {"all": "$"}) == {"all": self.DATA}
+        expected = {"all": self.DATA}
+        assert _apply_transform(self.DATA, {"all": "$"}) == expected
 
     def test_literal_rule_is_copied(self) -> None:
-        assert _apply_transform(self.DATA, {"lit": "const"}) == {"lit": "const"}
+        expected = {"lit": "const"}
+        assert _apply_transform(self.DATA, {"lit": "const"}) == expected
 
     def test_missing_path_yields_none(self) -> None:
-        assert _apply_transform(self.DATA, {"m": "$.a.nope"}) == {"m": None}
+        expected = {"m": None}
+        assert _apply_transform(self.DATA, {"m": "$.a.nope"}) == expected
 
     def test_out_of_range_index_yields_none(self) -> None:
-        assert _apply_transform(self.DATA, {"o": "$.a.b.99"}) == {"o": None}
+        expected = {"o": None}
+        assert _apply_transform(self.DATA, {"o": "$.a.b.99"}) == expected
 
     def test_non_dict_transform_returns_input_unchanged(self) -> None:
         assert _apply_transform(self.DATA, "not-a-dict") == self.DATA

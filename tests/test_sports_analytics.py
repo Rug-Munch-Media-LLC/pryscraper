@@ -112,8 +112,10 @@ def test_detect_2way_arb_dict_shape() -> None:
         {"book": "DraftKings", "odds": 2.10}, {"book": "FanDuel", "odds": 2.10}
     )
     assert result is not None
-    assert result["books"]["home"] == {"book": "DraftKings", "odds": 2.10}
-    assert result["books"]["away"] == {"book": "FanDuel", "odds": 2.10}
+    expected = {"book": "DraftKings", "odds": 2.10}
+    assert result["books"]["home"] == expected
+    expected_2 = {"book": "FanDuel", "odds": 2.10}
+    assert result["books"]["away"] == expected_2
 
 
 def test_detect_2way_arb_no_arb() -> None:
@@ -185,8 +187,10 @@ async def test_find_arbitrage_detects_and_sorts(monkeypatch: pytest.MonkeyPatch)
     assert top["event"] == "Celtics @ Lakers"
     assert top["sport"] == "nba"
     assert top["market"] == "h2h"
-    assert top["books"]["home"] == {"book": "DraftKings", "odds": 2.10}
-    assert top["books"]["away"] == {"book": "FanDuel", "odds": 2.10}
+    expected = {"book": "DraftKings", "odds": 2.10}
+    assert top["books"]["home"] == expected
+    expected_2 = {"book": "FanDuel", "odds": 2.10}
+    assert top["books"]["away"] == expected_2
     assert top["arb_yield_pct"] == pytest.approx(5.0, abs=0.1)
 
 

@@ -22,7 +22,8 @@ if TYPE_CHECKING:
 
 # ── Tier table ─────────────────────────────────────────────────────
 def test_tier_table_has_expected_tiers() -> None:
-    assert set(TIERS) == {"free", "pro", "team", "enterprise"}
+    expected = {"free", "pro", "team", "enterprise"}
+    assert set(TIERS) == expected
 
 
 def test_tier_pricing_and_quotas() -> None:

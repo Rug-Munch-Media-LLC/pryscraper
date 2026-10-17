@@ -183,17 +183,18 @@ async def test_fbx_rates_route_filters() -> None:
     respx.get(url__startswith=_FBX_PAGE).mock(
         return_value=httpx.Response(200, text=_fbx_page_html())
     )
-    assert [r["route"] for r in await rates.get_container_rates(route="china-us-west-coast")] == [
-        "china-us-west-coast"
-    ]
-    assert [r["route"] for r in await rates.get_container_rates(route="FBX01")] == [
-        "china-us-west-coast"
-    ]
+    expected = ["china-us-west-coast"]
+    assert [
+        r["route"] for r in await rates.get_container_rates(route="china-us-west-coast")
+    ] == expected
+    expected_2 = ["china-us-west-coast"]
+    assert [r["route"] for r in await rates.get_container_rates(route="FBX01")] == expected_2
     transpacific = await rates.get_container_rates(route="transpacific")
-    assert sorted(r["route"] for r in transpacific) == [
+    expected_3 = [
         "china-us-east-coast",
         "china-us-west-coast",
     ]
+    assert sorted(r["route"] for r in transpacific) == expected_3
 
 
 @respx.mock
@@ -300,9 +301,11 @@ async def test_fmc_contracts_historical_status() -> None:
 async def test_fmc_contracts_query_matches_id_and_lane() -> None:
     respx.get(url__startswith=_FMC_INDEX).mock(return_value=httpx.Response(200, text=_fmc_html()))
     by_id = await rates.get_fmc_contracts("201353")
-    assert [c["id"] for c in by_id] == ["201353-003"]
+    expected = ["201353-003"]
+    assert [c["id"] for c in by_id] == expected
     by_lane = await rates.get_fmc_contracts("US East Coast")
-    assert [c["id"] for c in by_lane] == ["201464-001"]
+    expected_2 = ["201464-001"]
+    assert [c["id"] for c in by_lane] == expected_2
 
 
 @respx.mock

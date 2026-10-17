@@ -91,22 +91,24 @@ class _Engine:
 
 def test_db_health_reports_healthy_sqlite() -> None:
     with _health_env(_Conn((1,), ("3.45.0",)), "sqlite:///p.db"):
-        assert migrations.db_health() == {
+        expected = {
             "available": True,
             "url": "sqlite:///p.db",
             "sqlite_version": "3.45.0",
         }
+        assert migrations.db_health() == expected
 
 
 def test_db_health_non_sqlite_backend_is_available_without_version() -> None:
     """Documented degradation: a healthy Postgres has no sqlite_version()."""
     conn = _Conn((1,), _op_err("no such function: sqlite_version"))
     with _health_env(conn, "postgresql://u:p@h:5432/pry"):
-        assert migrations.db_health() == {
+        expected = {
             "available": True,
             "url": "h:5432/pry",
             "sqlite_version": None,
         }
+        assert migrations.db_health() == expected
 
 
 def test_db_health_reports_dead_connection_as_unavailable() -> None:

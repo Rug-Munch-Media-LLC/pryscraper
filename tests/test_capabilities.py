@@ -254,5 +254,6 @@ def test_capabilities_router_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     ):
         assert key in data
     for key in ("browsers", "anti_bot", "tor", "proxies", "captcha", "llm", "storage"):
-        assert set(data[key]) == {"available", "detail"}
+        expected = {"available", "detail"}
+        assert set(data[key]) == expected
     assert isinstance(data["recommendations"], list)

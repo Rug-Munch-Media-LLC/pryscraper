@@ -42,7 +42,8 @@ def test_extract_table():
 
 
 def test_router_tags():
-    assert router.tags == ["Extraction"]
+    expected = ["Extraction"]
+    assert router.tags == expected
 
 
 def test_router_routes():

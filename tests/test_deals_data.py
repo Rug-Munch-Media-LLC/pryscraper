@@ -168,7 +168,7 @@ async def test_search_deals_jsonld_success() -> None:
     assert len(slick) == 2
     assert len(rmn) == 2
     first = slick[0]
-    assert set(first) == {
+    expected = {
         "id",
         "title",
         "store",
@@ -179,6 +179,7 @@ async def test_search_deals_jsonld_success() -> None:
         "expires",
         "source",
     }
+    assert set(first) == expected
     assert first["title"] == "Anker 20W USB-C Charger"
     assert first["store"] == "Amazon"
     assert first["price"] == 12.99
@@ -279,7 +280,8 @@ async def test_search_deals_antibot_block_returns_empty_and_flags() -> None:
     results = await coupons.search_deals("ps5")
 
     assert results == []
-    assert coupons.blocked_sources() == ["slickdeals"]
+    expected = ["slickdeals"]
+    assert coupons.blocked_sources() == expected
 
 
 @respx.mock
@@ -363,7 +365,8 @@ async def test_get_store_deals_success() -> None:
     results = await coupons.get_store_deals("Amazon", limit=10)
 
     assert len(results) == 4
-    assert {r["source"] for r in results} == {"slickdeals", "retailmenot"}
+    expected = {"slickdeals", "retailmenot"}
+    assert {r["source"] for r in results} == expected
 
 
 @respx.mock
@@ -389,7 +392,8 @@ async def test_set_drop_alert_created() -> None:
 
 
 async def test_set_drop_alert_blank_product_error() -> None:
-    assert await drops.set_drop_alert("   ") == {"alert_id": "", "status": "error"}
+    expected = {"alert_id": "", "status": "error"}
+    assert await drops.set_drop_alert("   ") == expected
 
 
 async def test_check_drop_alerts_triggered(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -453,8 +457,10 @@ async def test_check_drop_alerts_no_alerts() -> None:
 async def test_clear_alert() -> None:
     created = await drops.set_drop_alert("B0ANAKER20W")
     alert_id = created["alert_id"]
-    assert await drops.clear_alert(alert_id) == {"alert_id": alert_id, "status": "cleared"}
-    assert await drops.clear_alert(alert_id) == {"alert_id": alert_id, "status": "not_found"}
+    expected = {"alert_id": alert_id, "status": "cleared"}
+    assert await drops.clear_alert(alert_id) == expected
+    expected_2 = {"alert_id": alert_id, "status": "not_found"}
+    assert await drops.clear_alert(alert_id) == expected_2
     assert await drops.list_alerts() == []
 
 

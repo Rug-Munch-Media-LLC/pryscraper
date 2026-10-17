@@ -79,7 +79,8 @@ def test_extract_table_returns_parsed_tables() -> None:
     assert r.status_code == 200, r.text
     data = r.json()["data"]
     assert data["total_tables"] == 2
-    assert data["rows"] == [{"Region": "EMEA", "Revenue": 10}]
+    expected = [{"Region": "EMEA", "Revenue": 10}]
+    assert data["rows"] == expected
     assert data["table_index"] == 0
 
 
@@ -96,7 +97,8 @@ def test_extract_table_index_selects_the_requested_table() -> None:
     r = client.post("/v1/extract-table?table_index=1", json="https://example.com/table")
 
     assert r.status_code == 200, r.text
-    assert r.json()["data"]["rows"] == [{"Region": "APAC", "Revenue": 20}]
+    expected = [{"Region": "APAC", "Revenue": 20}]
+    assert r.json()["data"]["rows"] == expected
 
 
 @respx.mock

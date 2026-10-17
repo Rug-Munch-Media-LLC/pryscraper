@@ -49,7 +49,8 @@ class TestHostAndPortCollapse:
             memory_domain("https://www.example.com/blog"),
             memory_domain("https://example.com:8443/blog"),
         }
-        assert keys == {"example.com"}
+        expected = {"example.com"}
+        assert keys == expected
 
 
 class TestRegistrableReduction:
@@ -129,7 +130,8 @@ class TestScopeMerge:
         memory = DomainTierMemory()
         for url in ("https://example.com/blog", "https://www.example.com:8443/shop"):
             memory.record(memory_domain(url), "playwright", False, latency=2.0)
-        assert set(memory.data) == {"example.com"}
+        expected = {"example.com"}
+        assert set(memory.data) == expected
         assert memory.data["example.com"]["playwright"].failures == 2
 
 

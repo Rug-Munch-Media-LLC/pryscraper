@@ -214,7 +214,8 @@ class TestSplitChunks:
         assert _split_chunks("", 100, 10) == []
 
     def test_single_short_paragraph(self) -> None:
-        assert _split_chunks("hello", 100, 10) == ["hello"]
+        expected = ["hello"]
+        assert _split_chunks("hello", 100, 10) == expected
 
     def test_splits_on_paragraph_boundary(self) -> None:
         text = "A" * 60 + "\n\n" + "B" * 60
@@ -231,20 +232,22 @@ class TestSplitChunks:
     def test_oversized_paragraph_kept_whole(self) -> None:
         text = "X" * 250
         chunks = _split_chunks(text, 100, 0)
-        assert chunks == ["X" * 250]
+        expected = ["X" * 250]
+        assert chunks == expected
 
 
 class TestFilterAndChunk:
     def test_pipeline_shape(self) -> None:
         html = "<article><h1>Title</h1><p>" + ("word " * 50) + "</p></article>"
         result = filter_and_chunk(html, chunk_size=100, chunk_overlap=10)
-        assert set(result) == {
+        expected = {
             "markdown",
             "chunks",
             "total_tokens",
             "chunks_count",
             "reduction_pct",
         }
+        assert set(result) == expected
         assert result["chunks_count"] == len(result["chunks"])
         assert result["total_tokens"] == estimate_tokens(result["markdown"])
 

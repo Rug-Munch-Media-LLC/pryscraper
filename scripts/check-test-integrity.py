@@ -265,3 +265,7 @@ def main() -> int:
     if args.update_baseline:
         return _write_baseline(root / args.baseline, findings)
     _report(findings, args.json, args.top)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

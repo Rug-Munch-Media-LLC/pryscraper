@@ -385,7 +385,8 @@ def test_account_usage(db, client: TestClient) -> None:
     assert resp.status_code == 200
     data = resp.json()["data"]
     assert data["calls_this_month"] == 3
-    assert data["calls_by_endpoint"] == {"scrape": 2, "crawl": 1}
+    expected = {"scrape": 2, "crawl": 1}
+    assert data["calls_by_endpoint"] == expected
     assert data["tier"] == "FREE"
     assert data["quota_limit"] == 10_000
     assert data["quota_remaining"] == 10_000 - 3
@@ -507,4 +508,6 @@ def test_x402_payment_record_has_user_id(db) -> None:
 
 def test_journey_smoke_timestamps() -> None:
     """The journey runs against a live clock; assert UTC now is sane."""
-    assert datetime.now(UTC).year >= 2026
+    now = datetime.now(UTC)
+    assert now.tzinfo is UTC
+    assert now.year >= 2026

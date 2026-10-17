@@ -41,7 +41,8 @@ def test_seed_from_catalog_creates_records() -> None:
     )
     assert applied == 1
     rec = memory.data["a.com"]["fetch"]
-    assert (rec.successes, rec.failures) == (8, 2)
+    expected = (8, 2)
+    assert (rec.successes, rec.failures) == expected
     assert rec.cost_usd == pytest.approx(0.01)
     # total_latency is seconds*successes so tier_score's mean is the p50.
     assert rec.total_latency == pytest.approx(0.12 * 8)
@@ -74,7 +75,8 @@ def test_warm_domain_from_db_survives_a_broken_store() -> None:
 
     memory = DomainTierMemory()
     assert warm_domain_from_db(memory, Broken(), "a.com") == 0  # type: ignore[arg-type]
-    assert memory.reorder_for_domain("a.com", ["fetch"]) == ["fetch"]
+    expected = ["fetch"]
+    assert memory.reorder_for_domain("a.com", ["fetch"]) == expected
 
 
 def test_seeded_memory_drives_ranking() -> None:
@@ -91,8 +93,10 @@ def test_seeded_memory_drives_ranking() -> None:
         ],
     )
     # 1/10 is a chronic failure, so the ladder skips it entirely.
-    assert memory.reorder_for_domain("a.com", ["cheap", "browser"]) == ["cheap"]
-    assert tier_score.rank_tiers(["cheap", "browser"], memory.data["a.com"]) == ["cheap"]
+    expected = ["cheap"]
+    assert memory.reorder_for_domain("a.com", ["cheap", "browser"]) == expected
+    expected_2 = ["cheap"]
+    assert tier_score.rank_tiers(["cheap", "browser"], memory.data["a.com"]) == expected_2
     assert memory.best_tier("a.com", ["cheap", "browser"]) == "cheap"
 
 
@@ -142,7 +146,7 @@ def test_scrape_entry_point_reaches_the_store(monkeypatch: pytest.MonkeyPatch) -
         0.42,
         block_kind="cloudflare",
     )
-    assert seen == [
+    expected = [
         (
             "example.com",
             "premium_proxy",
@@ -154,6 +158,7 @@ def test_scrape_entry_point_reaches_the_store(monkeypatch: pytest.MonkeyPatch) -
             },
         )
     ]
+    assert seen == expected
     memory.store.stop(drain=False)
 
 

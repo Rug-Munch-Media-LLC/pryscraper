@@ -109,6 +109,10 @@ def test_dead_letter_store_and_retrieve(wh: WebhookDelivery):
 
 def test_dead_letter_empty(wh: WebhookDelivery):
     assert wh.get_dead_letter() == []
+    wh._dead_letter({"k": "v"}, "http://x.com", "r")
+    dead = wh.get_dead_letter()
+    assert dead[0]["payload"] == {"k": "v"}
+    assert dead[0]["reason"] == "r"
 
 
 def test_dead_letter_multiple(wh: WebhookDelivery):

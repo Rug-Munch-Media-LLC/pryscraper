@@ -190,9 +190,8 @@ def test_has_errors_and_errors_only() -> None:
     assert has_errors([f"{ERROR_PREFIX} boom"]) is True
     assert has_errors([f"{WARNING_PREFIX} meh"]) is False
     assert has_errors([]) is False
-    assert config_validation.errors_only([f"{ERROR_PREFIX} a", f"{WARNING_PREFIX} b"]) == [
-        f"{ERROR_PREFIX} a"
-    ]
+    expected = [f"{ERROR_PREFIX} a"]
+    assert config_validation.errors_only([f"{ERROR_PREFIX} a", f"{WARNING_PREFIX} b"]) == expected
 
 
 def test_validate_config_strict_raises_on_error() -> None:

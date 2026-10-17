@@ -172,7 +172,8 @@ async def test_get_lmp_region_all_fetches_keyless_sources() -> None:
     respx.get(url__startswith=_CAISO).mock(return_value=httpx.Response(200, content=_caiso_zip()))
     results = await lmp.get_lmp(region="all", date="2026-08-15")
     regions = {r["region"] for r in results}
-    assert regions == {"nyiso", "ercot", "caiso"}
+    expected = {"nyiso", "ercot", "caiso"}
+    assert regions == expected
     assert len([r for r in results if r["region"] == "nyiso"]) == 3
     assert len([r for r in results if r["region"] == "ercot"]) == 2
     assert len([r for r in results if r["region"] == "caiso"]) == 2
@@ -339,7 +340,8 @@ async def test_get_fuel_prices_all_areas(monkeypatch: pytest.MonkeyPatch) -> Non
     assert len(results) == 18
     assert respx.calls.call_count == 6
     regions = {r["region"] for r in results}
-    assert regions == {"us", "padd1", "padd2", "padd3", "padd4", "padd5"}
+    expected = {"us", "padd1", "padd2", "padd3", "padd4", "padd5"}
+    assert regions == expected
 
 
 @respx.mock

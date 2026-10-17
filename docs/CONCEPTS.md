@@ -40,6 +40,23 @@ A page is one URL fetched once. The response is `data.markdown` plus `data.metad
 
 `metadata.method` is the tier that served it. `offset` and `limit` page through the Markdown; `total` is its full length. Pass `jsonSchema` to add `data.json`; pass `formats` to ask for other representations (`ScrapeRequest`, `scraping_models.py`).
 
+`metadata.markdown_quality` is a 0-100 score of that Markdown, with the per-check detail in `metadata.markdown_checks`. Seven weighted checks run: relative links, fenced-code languages, heading structure, stray HTML tables, images, boilerplate noise, and duplicate blocks (`src/pry/engine/markdown_quality.py`). A low score means the page yielded little readable content, so escalate the tier or switch to extraction.
+
+## Search and map
+
+Two routes answer questions that are not "fetch this page":
+
+- `POST /v1/search` returns ranked web results. Send `{"query": "...", "limit": 5}`; read `data.results[]` with `url`, `title`, and `description`. SearXNG is the first engine, DuckDuckGo the fallback. Limit is 1-20.
+- `POST /v1/map` returns same-origin URLs for a site. Send `{"url": "...", "limit": 50}`; read `data.links`. It reads `sitemap.xml` when `ignoreSitemap` is false and falls back to link extraction. Limit is 1-500.
+
+Both validate every URL through the SSRF guard and both carry an x402 price (`search_map.py`).
+
+## Async jobs
+
+`POST /v1/crawl` is synchronous unless the body carries a `webhook`. With one, the call returns `{"success": true, "data": {"id": "<job_id>", "status": "pending"}}` and the crawl continues in the background.
+
+Poll `GET /v1/crawl/{id}` for the job record, or let the webhook deliver it. `DELETE /v1/crawl/{id}` cancels a queued or running job and returns the final status; repeating it is idempotent. `GET /v1/crawl/{id}/errors` lists per-URL failures (`crawl_jobs.py`).
+
 ## Tiers
 
 A tier is one way to fetch a page. The engine starts cheap and escalates only on failure. There are 15, defined as `_tier_*` methods:

@@ -34,6 +34,11 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/metrics",
         "/version",
         "/dashboard",
+        # Server-rendered operator UI (admin-gated + CSRF; never paywalled)
+        "/app",
+        "/app/keys",
+        "/app/keys/{key_id}/revoke",
+        "/app/usage",
         "/v0/stats",
         # MCP sub-app mount + SSE transport
         "/mcp",
@@ -149,6 +154,7 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/gdpr/deletion/request",
         "/v1/gdpr/retention",
         "/v1/gdpr/retention/apply",
+        "/v1/gdpr/domain/purge",
         # Webhooks management
         "/v1/webhooks/dead-letter",
         "/v1/webhooks/test",

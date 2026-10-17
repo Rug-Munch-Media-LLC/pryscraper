@@ -127,11 +127,13 @@ class TestSelectorSynthesis:
 
 class TestAutoRelocate:
     def test_keeps_selector_that_still_matches(self) -> None:
-        assert auto_relocate(_PAGE, _PAGE, {"title": "h1.title"}) == {"title": "h1.title"}
+        expected = {"title": "h1.title"}
+        assert auto_relocate(_PAGE, _PAGE, {"title": "h1.title"}) == expected
 
     def test_synthesizes_new_selector_after_redesign(self) -> None:
         updated = auto_relocate(_PAGE, _REDESIGNED, {"title": "h1.title"})
-        assert updated == {"title": "h1.hero"}
+        expected = {"title": "h1.hero"}
+        assert updated == expected
 
     def test_drops_selector_that_never_matched(self) -> None:
         assert auto_relocate("<p>x</p>", "<p>x</p>", {"k": "p.missing"}) == {}

@@ -248,7 +248,8 @@ async def test_jobqueue_complete_updates_redis(redis_client) -> None:
         assert raw is not None
         job = json.loads(raw)
         assert job["status"] == "completed"
-        assert job["result"] == {"ok": True}
+        expected = {"ok": True}
+        assert job["result"] == expected
     finally:
         await redis.delete(f"pry:job:{job_id}")
         await redis.aclose()

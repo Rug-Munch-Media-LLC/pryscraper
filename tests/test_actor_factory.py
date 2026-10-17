@@ -226,7 +226,8 @@ class TestPPERuntime:
     async def test_charges_primary_event_per_item(self) -> None:
         actor = FakeActor()
         stats = await self._runner(actor, ["http://e.com/1", "http://e.com/2"]).run()
-        assert actor.charge_calls == ["page-scraped", "page-scraped"]
+        expected = ["page-scraped", "page-scraped"]
+        assert actor.charge_calls == expected
         assert stats.pushed_ok == 2
         assert stats.limit_reached is False
 
@@ -258,7 +259,8 @@ class TestPPERuntime:
         assert len(actor.pushes) == 1
         assert actor.pushes[0]["status"] == "error"
         assert "processing_failed" in actor.pushes[0]["error"]
-        assert actor.charge_calls == ["page-scraped"]  # billed for work done
+        expected = ["page-scraped"]
+        assert actor.charge_calls == expected  # billed for work done
         assert stats.pushed_error == 1
 
     @pytest.mark.asyncio
@@ -276,7 +278,8 @@ class TestPPERuntime:
 
         runner.process_url = fake_process  # type: ignore[method-assign]
         await runner.run()
-        assert [p["url"] for p in actor.pushes] == ["http://e.com/a"]
+        expected = ["http://e.com/a"]
+        assert [p["url"] for p in actor.pushes] == expected
 
     def test_aborting_handler_flushes_pending(self) -> None:
         runner = PPEScraperRunner(

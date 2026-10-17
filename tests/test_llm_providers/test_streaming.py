@@ -20,7 +20,8 @@ from tests.test_llm_providers.conftest import FakeProvider, _http_error
 
 def test_provider_order_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PRY_LLM_PROVIDER_ORDER", " openrouter, OpenAi ,ollama ")
-    assert _provider_order_from_env() == ["openrouter", "openai", "ollama"]
+    expected = ["openrouter", "openai", "ollama"]
+    assert _provider_order_from_env() == expected
     monkeypatch.delenv("PRY_LLM_PROVIDER_ORDER", raising=False)
     assert _provider_order_from_env() == []
 
@@ -32,7 +33,8 @@ async def test_get_registry_respects_env_order(monkeypatch: pytest.MonkeyPatch) 
         from pry.intelligence.llm.registry import get_registry
 
         reg = get_registry()
-    assert reg.fallback_chain == ["ollama"]
+    expected = ["ollama"]
+    assert reg.fallback_chain == expected
 
 
 class FakeStreamResponse:
@@ -100,7 +102,8 @@ async def test_stream_openai_compatible_parses_sse() -> None:
                 retry_attempts=0,
             )
         ]
-    assert chunks == ["Hello", " world"]
+    expected = ["Hello", " world"]
+    assert chunks == expected
 
 
 async def test_stream_openai_compatible_retries_on_transient() -> None:
@@ -119,7 +122,8 @@ async def test_stream_openai_compatible_retries_on_transient() -> None:
                 backoff_base=0.001,
             )
         ]
-    assert chunks == ["Hello", " world"]
+    expected = ["Hello", " world"]
+    assert chunks == expected
 
 
 async def test_stream_openai_compatible_raises_on_non_transient() -> None:
@@ -152,7 +156,8 @@ async def test_registry_stream_chat_falls_through_providers() -> None:
     backup = FakeProvider(name="b", outcomes=[LLMResponse(text="chunked", model="m", provider="b")])
     reg.register(backup)
     chunks = [c async for c in reg.stream_chat("hi")]
-    assert chunks == ["chunked"]
+    expected = ["chunked"]
+    assert chunks == expected
 
 
 async def test_provider_stream_json_buffers_and_parses() -> None:
@@ -168,4 +173,5 @@ async def test_provider_stream_json_buffers_and_parses() -> None:
             "prompt", schema={"risk_level": "green|yellow|red|unknown"}
         )
     ]
-    assert results == [{"risk_level": "red"}]
+    expected = [{"risk_level": "red"}]
+    assert results == expected

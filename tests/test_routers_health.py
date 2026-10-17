@@ -159,7 +159,8 @@ def test_ready_ignores_optional_deps(mock_get_client):
 
         r = client.get("/ready")
     assert r.status_code == 200
-    assert r.json() == {"status": "ready"}
+    expected = {"status": "ready"}
+    assert r.json() == expected
 
 
 def test_healthz_is_pure_liveness():

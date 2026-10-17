@@ -171,7 +171,8 @@ class TestEndpoints:
         body = r.json()
         assert body["success"] is True
         assert body["pong"] is True
-        assert body["echo"] == {"hello": "world"}
+        expected = {"hello": "world"}
+        assert body["echo"] == expected
 
     def test_config_reports_state(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
@@ -191,7 +192,8 @@ class TestEndpoints:
         assert body["success"] is True
         assert body["status"] == "healthy"
         assert isinstance(body["uptime_seconds"], float)
-        assert set(body["cache"]) == {"hit_rate", "size", "hits"}
+        expected = {"hit_rate", "size", "hits"}
+        assert set(body["cache"]) == expected
         assert "version" in body
 
     def test_profits_math_with_payment_fixture(

@@ -1118,6 +1118,24 @@
         "title": "Body_proxy_configure_v1_proxy_configure_post",
         "type": "object"
       },
+      "Body_purge_domain_endpoint_v1_gdpr_domain_purge_post": {
+        "properties": {
+          "domain": {
+            "title": "Domain",
+            "type": "string"
+          },
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "title": "Body_purge_domain_endpoint_v1_gdpr_domain_purge_post",
+        "type": "object"
+      },
       "Body_quality_check_v1_quality_check_post": {
         "properties": {
           "data": {
@@ -2578,43 +2596,18 @@
         "type": "object"
       },
       "MapRequest": {
+        "description": "Body for ``POST /v1/map``.",
         "properties": {
-          "ignoreSitemap": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": true,
-            "title": "Ignoresitemap"
-          },
           "limit": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "default": 50,
-            "title": "Limit"
-          },
-          "search": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Search"
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
           },
           "url": {
+            "maxLength": 2048,
+            "minLength": 1,
             "title": "Url",
             "type": "string"
           }
@@ -2786,6 +2779,29 @@
           "url"
         ],
         "title": "ScrapeRequest",
+        "type": "object"
+      },
+      "SearchRequest": {
+        "description": "Body for ``POST /v1/search``.",
+        "properties": {
+          "limit": {
+            "default": 5,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "query": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "SearchRequest",
         "type": "object"
       },
       "SubscriptionCancelRequest": {
@@ -2998,20 +3014,6 @@
         "title": "SignupRequest",
         "type": "object"
       }
-    },
-    "securitySchemes": {
-      "BearerAuth": {
-        "bearerFormat": "API key",
-        "description": "API key as `Authorization: Bearer <key>`. Optional on free routes; required by keyed, hosting, billing, GDPR and admin routes.",
-        "scheme": "bearer",
-        "type": "http"
-      },
-      "X402": {
-        "description": "x402 payment proof (payment_id + tx_hash) returned by the 402 challenge. An alternative to PAYMENT-SIGNATURE is the pre-verified `X-Payment-Id` header.",
-        "in": "header",
-        "name": "PAYMENT-SIGNATURE",
-        "type": "apiKey"
-      }
     }
   },
   "info": {
@@ -3020,7 +3022,7 @@
       "name": "Rug Munch Media LLC",
       "url": "https://pryscraper.com/"
     },
-    "description": "PryScraper API — scrape, crawl, extract and automate any site, with x402 pay-per-call pricing.\n\n- Errors: every failure shape (RFC 7807 problem+json, FastAPI 422, legacy success:false, x402 402) is catalogued in docs/ERRORS.md.\n- Reference and SDK: docs/ops/API-REFERENCE.md and src/pry/api/pry_sdk.py (Python client, Bearer auth).\n- Auth: optional Bearer API key for keyed/paid tiers; paid operations also accept x402 payment headers.\n- Paid operations answer 402 with a payment challenge until a valid PAYMENT-SIGNATURE is presented; see docs/ops/API-REFERENCE.md.",
+    "description": "PryScraper is a self-hosted web scraping + browser automation platform. Scrape, crawl, parse and extract structured data from any website with a 10-tier anti-bot fallback system, then monetize paid operations with x402 micropayments (pay-per-scrape over HTTP 402). Free endpoints are always public; paid endpoints are gated behind on-chain x402 payments.",
     "license": {
       "name": "MIT",
       "url": "https://opensource.org/licenses/MIT"
@@ -3120,6 +3122,109 @@
         "summary": "X402 Manifest",
         "tags": [
           "Discovery"
+        ]
+      }
+    },
+    "/app": {
+      "get": {
+        "operationId": "app_home_app_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "App: keys and key status",
+        "tags": [
+          "App UI"
+        ]
+      }
+    },
+    "/app/keys": {
+      "post": {
+        "operationId": "app_create_key_app_keys_post",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "App: create a key (shown once)",
+        "tags": [
+          "App UI"
+        ]
+      }
+    },
+    "/app/keys/{key_id}/revoke": {
+      "post": {
+        "operationId": "app_revoke_key_app_keys__key_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "title": "Key Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "App: revoke a key",
+        "tags": [
+          "App UI"
+        ]
+      }
+    },
+    "/app/usage": {
+      "get": {
+        "operationId": "app_usage_app_usage_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "App: usage this month",
+        "tags": [
+          "App UI"
         ]
       }
     },
@@ -4374,6 +4479,8 @@
     },
     "/v0/stats": {
       "get": {
+        "deprecated": true,
+        "description": "DEPRECATED pre-v1 stats aggregate — removed on **2027-04-18** (``SUNSET_STATS``).\n\nMigration: read infrastructure counters from ``/metrics`` (Prometheus\nexposition) and per-key usage from ``GET /v1/account/api-keys/stats``.",
         "operationId": "stats_v0_stats_get",
         "responses": {
           "200": {
@@ -4389,7 +4496,7 @@
             "description": "Successful Response"
           }
         },
-        "summary": "Get cache, rate limiter, and session stats",
+        "summary": "Get cache, rate limiter, and session stats (deprecated; sunset 2027-04-18)",
         "tags": [
           "Stats",
           "Stats"
@@ -4620,7 +4727,7 @@
     },
     "/v1/actors/{actor_id}/run": {
       "post": {
-        "description": "Run an actor with the provided inputs.",
+        "description": "Run an actor (a stored actor or any ``ALL_PRESETS`` id).\n\nPreset ids resolve read-only when the store has no match. A failed or\nempty execution is an HTTP error, never ``success: true, data: {}``.",
         "operationId": "run_actor_v1_actors__actor_id__run_post",
         "parameters": [
           {
@@ -6056,7 +6163,7 @@
     },
     "/v1/batch": {
       "post": {
-        "description": "Scrape multiple URLs in parallel. Firecrawl charges extra for batch.",
+        "description": "Scrape multiple URLs in parallel (max 50 per batch).",
         "operationId": "batch_scrape_v1_batch_post",
         "parameters": [
           {
@@ -6983,7 +7090,7 @@
     },
     "/v1/camoufox/fetch": {
       "post": {
-        "description": "Fetch a URL using Camoufox (Firefox anti-detection browser).\n\nCamoufox patches Firefox at the source level for maximum stealth.\nThis is more effective than Playwright for sites with advanced\nfingerprinting (DataDome, PerimeterX, advanced Cloudflare).",
+        "description": "Fetch a URL using Camoufox (Firefox anti-detection browser).\nCamoufox patches Firefox at the source level for maximum stealth.\nThis is more effective than Playwright for sites with advanced\nfingerprinting (DataDome, PerimeterX, advanced Cloudflare).",
         "operationId": "camoufox_fetch_v1_camoufox_fetch_post",
         "requestBody": {
           "content": {
@@ -7052,7 +7159,7 @@
     },
     "/v1/capture/lazy": {
       "post": {
-        "description": "Detect lazy loading and infinite scroll patterns on a page.\n\nOptionally generate JS to auto-scroll and load all content.",
+        "description": "Detect lazy loading and optionally generate auto-scroll JS.",
         "operationId": "detect_lazy_content_v1_capture_lazy_post",
         "requestBody": {
           "content": {
@@ -8330,6 +8437,139 @@
         ]
       }
     },
+    "/v1/crawl/{job_id}": {
+      "delete": {
+        "description": "Cancel a queued/running crawl job (best-effort) and return final status.\n\nTerminal jobs are left untouched, so a repeated DELETE is idempotent. The\nin-flight task is not force-killed; ``cancelled_at`` makes the status\nsticky so a later completion write cannot resurrect the job.",
+        "operationId": "cancel_crawl_job_v1_crawl__job_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cancel Crawl Job V1 Crawl  Job Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel an async crawl job",
+        "tags": [
+          "Scraping"
+        ]
+      },
+      "get": {
+        "description": "Return job status plus completed pages. Idempotent — read-only.",
+        "operationId": "get_crawl_job_v1_crawl__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Crawl Job V1 Crawl  Job Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get async crawl job status",
+        "tags": [
+          "Scraping"
+        ]
+      }
+    },
+    "/v1/crawl/{job_id}/errors": {
+      "get": {
+        "description": "Return the per-URL failures recorded by a crawl job.",
+        "operationId": "crawl_job_errors_v1_crawl__job_id__errors_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Crawl Job Errors V1 Crawl  Job Id  Errors Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List per-URL crawl failures",
+        "tags": [
+          "Scraping"
+        ]
+      }
+    },
     "/v1/crm/platforms": {
       "get": {
         "description": "List supported CRM platforms and their credential requirements.",
@@ -8956,7 +9196,7 @@
     },
     "/v1/detect-block": {
       "post": {
-        "description": "Detect what kind of anti-bot protection a site is using.\n\nReturns detection tier, vendor (Cloudflare/DataDome/etc.), and confidence.\nUseful for debugging scraping issues.",
+        "description": "Detect anti-bot protection (tier, vendor, confidence).",
         "operationId": "detect_block_v1_detect_block_post",
         "requestBody": {
           "content": {
@@ -10393,7 +10633,6 @@
     },
     "/v1/gdpr/audit": {
       "get": {
-        "description": "Get the compliance audit log for the specified period.",
         "operationId": "get_audit_log_endpoint_v1_gdpr_audit_get",
         "parameters": [
           {
@@ -10440,7 +10679,7 @@
     },
     "/v1/gdpr/consent": {
       "post": {
-        "description": "Record a user's consent for data processing (GDPR Art. 7).\n\nStores: user hash, purpose, timestamp, IP, user agent.\nConsent expires after 365 days.",
+        "description": "Record consent (GDPR Art. 7); consent expires after 365 days.",
         "operationId": "record_consent_endpoint_v1_gdpr_consent_post",
         "requestBody": {
           "content": {
@@ -10485,7 +10724,6 @@
     },
     "/v1/gdpr/consent/revoke": {
       "post": {
-        "description": "Revoke a user's consent for a processing purpose (GDPR Art. 7(3)).",
         "operationId": "revoke_consent_endpoint_v1_gdpr_consent_revoke_post",
         "requestBody": {
           "content": {
@@ -10530,7 +10768,6 @@
     },
     "/v1/gdpr/consent/{user_id}": {
       "get": {
-        "description": "Check if a user has given valid consent for data processing.",
         "operationId": "check_consent_endpoint_v1_gdpr_consent__user_id__get",
         "parameters": [
           {
@@ -10586,7 +10823,6 @@
     },
     "/v1/gdpr/deletion/execute": {
       "post": {
-        "description": "Execute a pending deletion request, removing all user data.",
         "operationId": "execute_deletion_endpoint_v1_gdpr_deletion_execute_post",
         "requestBody": {
           "content": {
@@ -10632,7 +10868,6 @@
     },
     "/v1/gdpr/deletion/request": {
       "post": {
-        "description": "Request deletion of all data associated with a user (GDPR Art. 17).\n\nCreates a deletion request that can be executed immediately or\nafter a holding period.",
         "operationId": "request_deletion_endpoint_v1_gdpr_deletion_request_post",
         "requestBody": {
           "content": {
@@ -10675,9 +10910,52 @@
         ]
       }
     },
+    "/v1/gdpr/domain/purge": {
+      "post": {
+        "operationId": "purge_domain_endpoint_v1_gdpr_domain_purge_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_purge_domain_endpoint_v1_gdpr_domain_purge_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Purge Domain Endpoint V1 Gdpr Domain Purge Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Purge all stored data for a domain (dry-run by default)",
+        "tags": [
+          "GDPR",
+          "GDPR"
+        ]
+      }
+    },
     "/v1/gdpr/retention": {
       "get": {
-        "description": "Get the current data retention policy.",
         "operationId": "get_retention_policy_endpoint_v1_gdpr_retention_get",
         "responses": {
           "200": {
@@ -10702,7 +10980,6 @@
     },
     "/v1/gdpr/retention/apply": {
       "post": {
-        "description": "Apply the retention policy, removing all expired data.",
         "operationId": "apply_retention_v1_gdpr_retention_apply_post",
         "responses": {
           "200": {
@@ -13398,8 +13675,8 @@
     },
     "/v1/map": {
       "post": {
-        "description": "Discover URLs on a site.",
-        "operationId": "map_pages_v1_map_post",
+        "description": "Map a site: sitemap first, then the scraper's same-origin link crawl.\n\nThe canonical response is ``{url, links: [{url}], count}``. ``success`` and\n``data.links`` (bare URL strings) are **deprecated aliases** kept for one\nrelease so clients of the old ``scraping.py`` handler keep parsing; new\nclients must read ``links[].url`` and ``count``.",
+        "operationId": "map_site_v1_map_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -13416,12 +13693,12 @@
               "application/json": {
                 "schema": {
                   "additionalProperties": true,
-                  "title": "Response Map Pages V1 Map Post",
+                  "title": "Response Map Site V1 Map Post",
                   "type": "object"
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Canonical shape: {url, links: [{url}], count}. Deprecated aliases (removed after one release): success, data.links (list of URL strings)."
           },
           "422": {
             "content": {
@@ -13434,7 +13711,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Discover URLs on a site",
+        "summary": "Discover URLs on a site (legacy success/data.links deprecated)",
         "tags": [
           "Scraping"
         ]
@@ -13738,7 +14015,7 @@
     },
     "/v1/monitor/check": {
       "post": {
-        "description": "Check all monitors and run any that are due based on their cron schedule.",
+        "description": "Run due monitors with bounded concurrency, a per-monitor timeout and\nper-monitor failure reporting (never a serial sweep of up to 500).",
         "operationId": "run_due_monitors_v1_monitor_check_post",
         "responses": {
           "200": {
@@ -14514,7 +14791,8 @@
     },
     "/v1/pipeline/run": {
       "post": {
-        "description": "Run hooks at a given pipeline point for testing.",
+        "deprecated": true,
+        "description": "DEPRECATED: singular path retired in favour of the ``/v1/pipelines/*`` family.\n\nRemoval date: **2027-04-18** (one release of overlap).\n\nThe body (``hook_point``) is NOT the canonical pipeline-definition body, so\nthis stays a behaviour-preserving alias for one release; it is deleted at\nsunset. Announced with ``Deprecation``/``Sunset`` headers.",
         "operationId": "run_pipeline_test_v1_pipeline_run_post",
         "requestBody": {
           "content": {
@@ -14537,7 +14815,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Deprecated singular path; returns Deprecation/Sunset headers"
           },
           "422": {
             "content": {
@@ -14550,7 +14828,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Run pipeline hooks for testing",
+        "summary": "Run pipeline hooks for testing (deprecated; sunset 2027-04-18)",
         "tags": [
           "Pipeline",
           "Pipeline"
@@ -16742,6 +17020,50 @@
         ]
       }
     },
+    "/v1/search": {
+      "post": {
+        "description": "Search the web and return titles, URLs and descriptions.",
+        "operationId": "search_v1_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Search V1 Search Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search the web",
+        "tags": [
+          "Scraping"
+        ]
+      }
+    },
     "/v1/seo": {
       "post": {
         "description": "SEO analysis of a page: title, description, headings, images, keywords, readability.\nFirecrawl has zero SEO features.",
@@ -17413,7 +17735,7 @@
     },
     "/v1/sports/arbitrage": {
       "get": {
-        "description": "Scan sportsbook lines for arbitrage candidates (before fees, slippage and stake limits).",
+        "description": "Scan sportsbook lines for arbitrage opportunities across books.",
         "operationId": "sports_arbitrage_v1_sports_arbitrage_get",
         "parameters": [
           {
@@ -20158,12 +20480,6 @@
       }
     }
   },
-  "security": [
-    {
-      "BearerAuth": []
-    },
-    {}
-  ],
   "servers": [
     {
       "description": "Local development server",

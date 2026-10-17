@@ -77,7 +77,8 @@ def test_router_validator_is_the_pinned_implementation(
     monkeypatch.setattr("pry.api.webhook_delivery._validate_url", _fake)
 
     assert _validate_webhook_url("https://hook.example.com") == "sentinel rejection"
-    assert seen == ["https://hook.example.com"], "the router did not delegate"
+    expected = ["https://hook.example.com"]
+    assert seen == expected, "the router did not delegate"
 
 
 def test_pinned_validator_pins_the_resolved_address(

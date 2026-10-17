@@ -147,7 +147,8 @@ def test_readiness_counts_facilitators(router: FacilitatorRouter):
 
 def test_submit_and_check_auth(router: FacilitatorRouter):
     router.submit_authorization("pay_123", {"sig": "0xabc"})
-    assert router._pending_auths["pay_123"] == {"sig": "0xabc"}
+    expected = {"sig": "0xabc"}
+    assert router._pending_auths["pay_123"] == expected
 
 
 def test_check_auth_nonexistent(router: FacilitatorRouter):
@@ -272,7 +273,9 @@ def test_mark_failure_affects_health(router: FacilitatorRouter):
     fac = router.facilitators[0]
     key = router._health_key(fac)
     router._mark_failure(fac)
-    assert router._failures.get(key, (0, 0))[0] >= 1
+    assert router._failures.get(key, (0, 0))[0] == 1
+    router._mark_failure(fac)
+    assert router._failures[key][0] == 2
 
 
 def test_mark_success_clears_failures(router: FacilitatorRouter):
@@ -476,7 +479,8 @@ def test_build_payment_with_auth(router: FacilitatorRouter):
     assert payment["network"] == "base"
     assert payment["asset"] == "USDC"
     assert payment["amount_usd"] == 1.0
-    assert payment["authorization"] == {"sig": "0xsig"}
+    expected = {"sig": "0xsig"}
+    assert payment["authorization"] == expected
 
 
 def test_build_payment_no_auth(router: FacilitatorRouter):

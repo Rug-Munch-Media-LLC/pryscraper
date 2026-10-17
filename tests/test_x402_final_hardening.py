@@ -244,7 +244,8 @@ def test_x402_gate_rate_limits_per_ip() -> None:
         statuses.append(sent[0]["status"])
 
     asyncio.run(drive())
-    assert statuses == [402, 429]
+    expected = [402, 429]
+    assert statuses == expected
 
 
 def test_x402_gate_buckets_by_xff_behind_trusted_proxy(monkeypatch) -> None:

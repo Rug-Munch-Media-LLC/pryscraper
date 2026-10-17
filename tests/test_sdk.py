@@ -41,7 +41,8 @@ async def test_prycrawl_health_returns_dict() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"status": "ok"})
 
-    assert await _client(handler).health() == {"status": "ok"}
+    expected = {"status": "ok"}
+    assert await _client(handler).health() == expected
 
 
 # --- 402 / x402 flow -------------------------------------------------------
@@ -82,7 +83,8 @@ async def test_402_challenge_parsed_and_retried_with_x_payment() -> None:
         return "signed-payment"
 
     result = await _client(handler).scrape("https://example.com", pay=pay)
-    assert result == {"success": True, "url": "https://example.com"}
+    expected = {"success": True, "url": "https://example.com"}
+    assert result == expected
     assert len(seen) == 2
     assert seen[1].headers["X-PAYMENT"] == "signed-payment"
     assert seen[1].headers["PAYMENT-SIGNATURE"] == "signed-payment"
@@ -179,4 +181,5 @@ async def test_iter_pages_follows_cursor() -> None:
         return httpx.Response(200, json={"data": [1, 2], "next_cursor": "c2"})
 
     pages = [item async for item in _client(handler).iter_pages("/v1/templates")]
-    assert pages == [1, 2, 3]
+    expected = [1, 2, 3]
+    assert pages == expected

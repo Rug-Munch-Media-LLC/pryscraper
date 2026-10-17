@@ -226,7 +226,8 @@ def test_detect_signup_form_classifies_fields() -> None:
     assert form.full_name_field.name == "full_name"
     assert form.submit_button is not None
     assert form.submit_button.name == "commit"
-    assert [f.name for f in form.hidden_fields()] == ["csrf"]
+    expected = ["csrf"]
+    assert [f.name for f in form.hidden_fields()] == expected
     assert form.score() >= 8
 
 
@@ -489,7 +490,8 @@ async def test_register_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result["submitted"] is True
     assert result["email"] == "jane@example.com"
     assert result["confirmed"] is True
-    assert result["session_cookies"] == {"session": "abc123"}
+    expected = {"session": "abc123"}
+    assert result["session_cookies"] == expected
     assert len(result["generated_password"]) >= 8
     assert result["verification"]["method"] == "imap"
 

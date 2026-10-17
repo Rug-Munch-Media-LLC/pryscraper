@@ -181,7 +181,8 @@ def _yelp_html_cards() -> str:
 
 
 def test_local_data_package_exports() -> None:
-    assert set(_local_data_pkg.__all__) == {"get_place", "get_reviews", "search_places"}
+    expected = {"get_place", "get_reviews", "search_places"}
+    assert set(_local_data_pkg.__all__) == expected
     assert callable(_local_data_pkg.search_places)
     assert callable(_local_data_pkg.get_place)
     assert callable(_local_data_pkg.get_reviews)
@@ -195,9 +196,12 @@ def test_router_import_safe() -> None:
 
 def test_router_routes_present() -> None:
     routes = {route.path: route.methods for route in _router_module.router.routes}
-    assert routes["/v1/local/places/search"] == {"GET"}
-    assert routes["/v1/local/places/{place_id}"] == {"GET"}
-    assert routes["/v1/local/reviews/{place_id}"] == {"GET"}
+    expected = {"GET"}
+    assert routes["/v1/local/places/search"] == expected
+    expected_2 = {"GET"}
+    assert routes["/v1/local/places/{place_id}"] == expected_2
+    expected_3 = {"GET"}
+    assert routes["/v1/local/reviews/{place_id}"] == expected_3
 
 
 # ── places.search_places ────────────────────────────────────────────────

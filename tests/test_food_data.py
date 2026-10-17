@@ -460,12 +460,13 @@ async def test_restaurant_html_fallback() -> None:
     respx.get(_MENU_URL).mock(return_value=httpx.Response(200, text=_HTML_MENU_PAGE))
     result = await restaurants.get_restaurant_menu("Joe's Diner")
     assert result["restaurant"] == "Joe's Diner"
-    assert result["menu"][0] == {
+    expected = {
         "item": "Classic Burger",
         "price": 12.99,
         "description": None,
         "category": "Burgers",
     }
+    assert result["menu"][0] == expected
     assert any(
         item["item"] == "Milkshake" and item["category"] == "Drinks" for item in result["menu"]
     )

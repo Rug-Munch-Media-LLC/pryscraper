@@ -102,7 +102,8 @@ def test_flush_batches_all_outcomes_into_one_row(sqlite_db: Any) -> None:
     with Session(sqlite_db) as s:
         row = s.get(DomainMethodStat, ("example.com", "fetch"))
     assert row is not None
-    assert (row.attempts, row.wins) == (4, 3)
+    expected = (4, 3)
+    assert (row.attempts, row.wins) == expected
     assert row.cost_usd_total == pytest.approx(0.004)
     assert row.last_block_kind == "captcha"
     assert row.latency_p50_ms > 0
@@ -127,7 +128,8 @@ def test_repeated_flush_accumulates_rather_than_resets(sqlite_db: Any) -> None:
     with Session(sqlite_db) as s:
         row = s.get(DomainMethodStat, ("a.com", "m"))
     assert row is not None
-    assert (row.attempts, row.wins) == (2, 1)
+    expected = (2, 1)
+    assert (row.attempts, row.wins) == expected
     assert row.cost_usd_total == pytest.approx(1.0)
     store.stop(drain=False)
 
@@ -152,7 +154,8 @@ def test_load_domain_orders_by_wins(sqlite_db: Any) -> None:
     store.flush()
 
     rows = store.load_domain("a.com")
-    assert [r["method"] for r in rows] == ["browser", "cheap"]
+    expected = ["browser", "cheap"]
+    assert [r["method"] for r in rows] == expected
     assert rows[0]["wins"] == 5
     store.stop(drain=False)
 

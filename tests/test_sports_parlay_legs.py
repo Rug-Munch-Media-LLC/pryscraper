@@ -32,10 +32,11 @@ def _edge(
 
 class TestExtraction:
     def test_team_name_fallback_prefers_event_then_h2h_outcomes(self) -> None:
-        assert legs._comparison_team_names({"event": "Celtics @ Lakers"}) == (
+        expected = (
             "Lakers",
             "Celtics",
         )
+        assert legs._comparison_team_names({"event": "Celtics @ Lakers"}) == expected
         fallback = {
             "event": "",
             "bookmakers": [
@@ -49,7 +50,8 @@ class TestExtraction:
                 }
             ],
         }
-        assert legs._comparison_team_names(fallback) == ("Lakers", "Celtics")
+        expected_2 = ("Lakers", "Celtics")
+        assert legs._comparison_team_names(fallback) == expected_2
 
     def test_extracts_h2h_spread_total_and_prop_classes(self) -> None:
         h2h = legs._market_legs_from_outcomes(
@@ -93,11 +95,16 @@ class TestExtraction:
             ],
             "sharp",
         )
-        assert [leg["market"] for leg in h2h] == ["h2h", "h2h"]
-        assert [leg["side"] for leg in spread] == ["home", "away"]
-        assert [(leg["side"], leg["line"]) for leg in total] == [("over", 224.5), ("under", 224.5)]
-        assert [(leg["side"], leg["fair_prob"]) for leg in props] == [("over", 0.5), ("under", 0.5)]
-        assert [leg["implied_prob"] for leg in h2h] == [0.52356, 0.52356]
+        expected = ["h2h", "h2h"]
+        assert [leg["market"] for leg in h2h] == expected
+        expected_2 = ["home", "away"]
+        assert [leg["side"] for leg in spread] == expected_2
+        expected_3 = [("over", 224.5), ("under", 224.5)]
+        assert [(leg["side"], leg["line"]) for leg in total] == expected_3
+        expected_4 = [("over", 0.5), ("under", 0.5)]
+        assert [(leg["side"], leg["fair_prob"]) for leg in props] == expected_4
+        expected_5 = [0.52356, 0.52356]
+        assert [leg["implied_prob"] for leg in h2h] == expected_5
 
     def test_best_pool_anchors_team_markets_on_sharpest_book(self) -> None:
         grouped = {
@@ -110,9 +117,12 @@ class TestExtraction:
         }
         pool = legs._best_leg_pool(grouped)
         assert len(pool) == 2
-        assert {leg["book"] for leg in pool} == {"sharp"}
-        assert {leg["odds"] for leg in pool} == {1.9}
-        assert {leg["fair_prob"] for leg in pool} == {0.5}
+        expected = {"sharp"}
+        assert {leg["book"] for leg in pool} == expected
+        expected_2 = {1.9}
+        assert {leg["odds"] for leg in pool} == expected_2
+        expected_3 = {0.5}
+        assert {leg["fair_prob"] for leg in pool} == expected_3
 
 
 class TestScanAndPricing:
@@ -126,12 +136,16 @@ class TestScanAndPricing:
             pool, event_id="nba:1", event="Away @ Home", sport="nba", threshold=-1
         )
         assert len(edges) == 3
-        assert [edge["ev_pct"] for edge in edges] == [68.0, 68.0, 44.0]
-        assert {(edge["legs"][0]["market"], edge["legs"][1]["market"]) for edge in edges} == {
+        expected = [68.0, 68.0, 44.0]
+        assert [edge["ev_pct"] for edge in edges] == expected
+        expected_2 = {
             ("player_rebounds", "total"),
             ("player_rebounds", "h2h"),
             ("total", "h2h"),
         }
+        assert {
+            (edge["legs"][0]["market"], edge["legs"][1]["market"]) for edge in edges
+        } == expected_2
 
     def test_caps_pool_and_pair_enumeration(self) -> None:
         same_class = [_edge("h2h", f"team-{i}") for i in range(legs._MAX_POOL_LEGS)]

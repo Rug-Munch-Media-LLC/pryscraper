@@ -301,7 +301,7 @@ class TestRegistry:
     )
 
     def test_eleven_books_registered(self) -> None:
-        assert set(us.US_BOOKS) == {
+        expected = {
             "draftkings",
             "fanduel",
             "betmgm",
@@ -314,6 +314,7 @@ class TestRegistry:
             "hardrock",
             "espnbet",
         }
+        assert set(us.US_BOOKS) == expected
 
     def test_every_book_has_contract_fields(self) -> None:
         for book_id, entry in us.US_BOOKS.items():
@@ -332,13 +333,14 @@ class TestRegistry:
         first = status["draftkings"]
         assert first["name"] == "DraftKings"
         assert first["category"] == "us"
-        assert set(first["availability"]) == {
+        expected = {
             "reachable",
             "blocked",
             "last_checked",
             "latency_ms",
             "error",
         }
+        assert set(first["availability"]) == expected
 
 
 # ── Parser fixtures ─────────────────────────────────────────────────────
@@ -353,7 +355,8 @@ class TestDraftKingsParser:
         )
         assert len(records) == 3
         by_market = {record["market"]: record for record in records}
-        assert set(by_market) == {"h2h", "spreads", "totals"}
+        expected = {"h2h", "spreads", "totals"}
+        assert set(by_market) == expected
 
         h2h = by_market["h2h"]
         assert h2h["home"] == "Lakers"
@@ -379,7 +382,8 @@ class TestDraftKingsParser:
             _dk_main_array_payload(), "basketball_nba", "draftkings", "DraftKings"
         )
         by_market = {record["market"]: record for record in records}
-        assert set(by_market) == {"h2h", "spreads"}
+        expected = {"h2h", "spreads"}
+        assert set(by_market) == expected
         assert by_market["h2h"]["home"] == "Knicks"
         assert by_market["h2h"]["home_odds"] == 1.4  # Knicks -250 -> 1.4
         assert by_market["h2h"]["away_odds"] == 3.0  # Heat +200 -> 3.0
@@ -400,7 +404,8 @@ class TestFanDuelParser:
         )
         assert len(records) == 3
         by_market = {record["market"]: record for record in records}
-        assert set(by_market) == {"h2h", "spreads", "totals"}
+        expected = {"h2h", "spreads", "totals"}
+        assert set(by_market) == expected
 
         h2h = by_market["h2h"]
         assert h2h["home"] == "Lakers"
@@ -530,7 +535,8 @@ class TestTransport:
             payload = await us._fetch_json_via_proxy(
                 "https://x.test/odds", referer="https://x.test/"
             )
-        assert payload == {"ok": 1}
+        expected = {"ok": 1}
+        assert payload == expected
 
     @pytest.mark.anyio
     async def test_geo_block_403_degrades_to_none(self) -> None:
@@ -617,7 +623,8 @@ class TestFetchers:
         with self._patch_transport(_dk_eventgroup_payload()):
             records = await us.fetch_draftkings("nba")
         assert len(records) == 3
-        assert {record["market"] for record in records} == {"h2h", "spreads", "totals"}
+        expected = {"h2h", "spreads", "totals"}
+        assert {record["market"] for record in records} == expected
         assert all(record["source"] == "us_draftkings" for record in records)
         # Alias and canonical sport both resolve.
         with self._patch_transport(_dk_eventgroup_payload()):
@@ -628,14 +635,16 @@ class TestFetchers:
         with self._patch_transport(_fanduel_eventgroup_payload()):
             records = await us.fetch_fanduel("nba")
         assert len(records) == 3
-        assert {record["book"] for record in records} == {"fanduel"}
+        expected = {"fanduel"}
+        assert {record["book"] for record in records} == expected
 
     @pytest.mark.anyio
     async def test_fetch_pointsbet_returns_normalized_records(self) -> None:
         with self._patch_transport(_pointsbet_payload()):
             records = await us.fetch_pointsbet("nba")
         assert len(records) == 2
-        assert {record["book"] for record in records} == {"pointsbet"}
+        expected = {"pointsbet"}
+        assert {record["book"] for record in records} == expected
 
     @pytest.mark.anyio
     async def test_fetch_betmgm_returns_empty_without_token(self) -> None:

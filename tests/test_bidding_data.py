@@ -234,12 +234,13 @@ async def test_search_contracts_merges_sources_and_sorts(
     results = await contracts.search_contracts("aircraft", limit=10)
     assert len(results) == 4
     # sorted by due date ascending; fedconnect (no due date) sorts last
-    assert [r["id"] for r in results] == [
+    expected = [
         "sam:3488234",
         "ny:42",
         "ted:123456-2026",
         "fedconnect:FA1234",
     ]
+    assert [r["id"] for r in results] == expected
     sam = results[0]
     assert sam["title"] == "Z--TEST Presolicitation for aircraft maintenance"
     assert sam["agency"] == "DEPT OF THE AIR FORCE"
@@ -264,7 +265,8 @@ async def test_search_contracts_truncates_to_limit(monkeypatch: pytest.MonkeyPat
         return_value=httpx.Response(200, text=_fedconnect_html())
     )
     results = await contracts.search_contracts("aircraft", limit=2)
-    assert [r["id"] for r in results] == ["sam:3488234", "ny:42"]
+    expected = ["sam:3488234", "ny:42"]
+    assert [r["id"] for r in results] == expected
 
 
 @respx.mock
@@ -310,7 +312,8 @@ async def test_search_contracts_no_sam_key_skips_sam() -> None:
         return_value=httpx.Response(200, text="<html></html>")
     )
     results = await contracts.search_contracts("it services")
-    assert [r["id"] for r in results] == ["ted:123456-2026"]
+    expected = ["ted:123456-2026"]
+    assert [r["id"] for r in results] == expected
 
 
 @respx.mock
@@ -385,7 +388,8 @@ async def test_get_contract_ted() -> None:
     assert record["id"] == "ted:123456-2026"
     assert record["agency"] == "City of Paris"
     assert record["description"] == "Long description."
-    assert record["attachments"] == [{"title": "Tender docs", "url": "https://ted.europa.eu/doc"}]
+    expected = [{"title": "Tender docs", "url": "https://ted.europa.eu/doc"}]
+    assert record["attachments"] == expected
 
 
 @respx.mock
@@ -408,12 +412,14 @@ async def test_get_contract_ny() -> None:
     record = await contracts.get_contract("ny:42")
     assert record["id"] == "ny:42"
     assert record["description"] == "Rehabilitate the Smith St bridge."
-    assert record["contacts"] == {
+    expected = {
         "name": "Jane Doe",
         "email": "jane@dot.ny.gov",
         "phone": None,
     }
-    assert record["attachments"] == [{"title": "Specs", "url": "https://nycr.ny.gov/specs.pdf"}]
+    assert record["contacts"] == expected
+    expected_2 = [{"title": "Specs", "url": "https://nycr.ny.gov/specs.pdf"}]
+    assert record["attachments"] == expected_2
 
 
 @respx.mock
@@ -503,14 +509,14 @@ async def test_get_grant_success() -> None:
     assert record["title"] == "Community Development Block Grant"
     assert record["description"] == "Funds community development projects."
     assert record["eligible"] == "State and local governments"
-    assert record["contacts"] == {
+    expected = {
         "name": "Ada Lovelace",
         "email": "ada@example.gov",
         "phone": "555-0100",
     }
-    assert record["attachments"] == [
-        {"title": "NOFO", "url": "https://www.grants.gov/files/nofo.pdf"}
-    ]
+    assert record["contacts"] == expected
+    expected_2 = [{"title": "NOFO", "url": "https://www.grants.gov/files/nofo.pdf"}]
+    assert record["attachments"] == expected_2
     assert record["amount"] == "750000"
 
 

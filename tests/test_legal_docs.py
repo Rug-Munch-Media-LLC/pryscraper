@@ -261,10 +261,12 @@ async def test_dockets_search_never_raises_on_401() -> None:
     respx.get(url__startswith=f"{_JUSTIA}/search").mock(return_value=httpx.Response(403))
     respx.post(_NY_ECOURTS).mock(return_value=httpx.Response(403))
     assert await dockets.search_dockets("bitcoin") == []
+    assert respx.calls.call_count == 8
 
 
 async def test_dockets_search_blank_query() -> None:
     assert await dockets.search_dockets("   ") == []
+    assert respx.calls.call_count == 0
 
 
 @respx.mock
@@ -286,10 +288,12 @@ async def test_dockets_get_never_raises_on_404() -> None:
     )
     respx.post(_PACER_FETCH).mock(return_value=httpx.Response(404, json={}))
     assert await dockets.get_docket(999) == {}
+    assert respx.calls.call_count == 4
 
 
 async def test_dockets_get_invalid_id() -> None:
     assert await dockets.get_docket("") == {}
+    assert respx.calls.call_count == 0
 
 
 @respx.mock
@@ -300,6 +304,7 @@ async def test_dockets_get_invalid_slug_degrades() -> None:
     respx.get(url__startswith=f"{_JUSTIA}/docket/").mock(return_value=httpx.Response(404))
     respx.post(_NY_ECOURTS).mock(return_value=httpx.Response(404))
     assert await dockets.get_docket("not-an-int") == {}
+    assert respx.calls.call_count == 4
 
 
 # ── RECAP search source ────────────────────────────────────────────────
@@ -354,6 +359,7 @@ async def test_dockets_search_recap_never_raises_on_error() -> None:
     respx.get(url__startswith=f"{_JUSTIA}/search").mock(return_value=httpx.Response(500))
     respx.post(_NY_ECOURTS).mock(return_value=httpx.Response(500))
     assert await dockets.search_dockets("bankruptcy") == []
+    assert respx.calls.call_count == 7
 
 
 # ── Justia scrape source ───────────────────────────────────────────────
@@ -410,6 +416,7 @@ async def test_dockets_search_justia_scrape_never_raises() -> None:
     respx.get(url__startswith=f"{_JUSTIA}/search").mock(return_value=httpx.Response(403))
     respx.post(_NY_ECOURTS).mock(return_value=httpx.Response(403))
     assert await dockets.search_dockets("example") == []
+    assert respx.calls.call_count == 6
 
 
 @respx.mock
@@ -479,6 +486,7 @@ async def test_dockets_get_pacer_never_raises() -> None:
     )
     respx.post(_PACER_FETCH).mock(return_value=httpx.Response(401, json={}))
     assert await dockets.get_docket(42) == {}
+    assert respx.calls.call_count == 4
 
 
 # ── NY eCourts (state civil) source ────────────────────────────────────
@@ -537,6 +545,7 @@ async def test_dockets_search_state_never_raises() -> None:
     )
     respx.post(_NY_ECOURTS).mock(return_value=httpx.Response(500))
     assert await dockets.search_dockets("example") == []
+    assert respx.calls.call_count == 5
 
 
 @respx.mock
@@ -579,6 +588,7 @@ async def test_sec_search_success() -> None:
 async def test_sec_search_unknown_ticker() -> None:
     respx.get(url=_TICKERS).mock(return_value=httpx.Response(200, json=_tickers_payload()))
     assert await sec_filings.search_filings("NOPE") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
@@ -586,10 +596,12 @@ async def test_sec_search_never_raises_network_error() -> None:
     respx.get(url=_TICKERS).mock(return_value=httpx.Response(500))
     respx.get(url__startswith=_FTS).mock(return_value=httpx.Response(500))
     assert await sec_filings.search_filings("aapl") == []
+    assert respx.calls.call_count == 4
 
 
 async def test_sec_search_blank_ticker() -> None:
     assert await sec_filings.search_filings("  ") == []
+    assert respx.calls.call_count == 0
 
 
 @respx.mock
@@ -598,7 +610,8 @@ async def test_get_filing_success() -> None:
     respx.get(url__startswith=_INDEX).mock(return_value=httpx.Response(200, json=_index_payload()))
     out = await sec_filings.get_filing("0000320193-24-000005")
     assert out["accession_number"] == "0000320193-24-000005"
-    assert out["files"] == ["aapl-20240201.htm", "FilingSummary.xml"]
+    expected = ["aapl-20240201.htm", "FilingSummary.xml"]
+    assert out["files"] == expected
     assert out["filing_index"] == _INDEX + "index.json"
 
 
@@ -608,12 +621,14 @@ async def test_get_filing_unknown_accession() -> None:
         return_value=httpx.Response(200, json={"hits": {"hits": []}})
     )
     assert await sec_filings.get_filing("0000320193-24-999999") == {}
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
 async def test_get_filing_never_raises() -> None:
     respx.get(url__startswith=_FTS).mock(return_value=httpx.Response(500))
     assert await sec_filings.get_filing("0000320193-24-000005") == {}
+    assert respx.calls.call_count == 2
 
 
 @respx.mock
@@ -658,6 +673,7 @@ async def test_insider_trades_success() -> None:
 async def test_insider_trades_never_raises_network_error() -> None:
     respx.get(url=_TICKERS).mock(return_value=httpx.Response(500))
     assert await sec_filings.insider_trades("aapl") == []
+    assert respx.calls.call_count == 2
 
 
 @respx.mock
@@ -667,6 +683,7 @@ async def test_insider_trades_no_form4_filings() -> None:
     payload["filings"]["recent"]["form"] = ["10-Q", "8-K", "10-K"]
     respx.get(url=_SUBMISSIONS).mock(return_value=httpx.Response(200, json=payload))
     assert await sec_filings.insider_trades("aapl") == []
+    assert respx.calls.call_count == 2
 
 
 # ── OFAC SDN sanctions ────────────────────────────────────────────────
@@ -682,8 +699,10 @@ async def test_screen_name_json_source() -> None:
     assert out[0]["uid"] == "12345"
     assert out[0]["name"] == "JOHN SMITH"
     assert out[0]["sdn_type"] == "Individual"
-    assert out[0]["programs"] == ["SDGT"]
-    assert out[0]["matched_fields"] == ["primary"]
+    expected = ["SDGT"]
+    assert out[0]["programs"] == expected
+    expected_2 = ["primary"]
+    assert out[0]["matched_fields"] == expected_2
     assert out[0]["source"] == "ofac_sdn"
 
 
@@ -694,8 +713,10 @@ async def test_screen_name_xml_fallback() -> None:
     out = await sanctions.screen_name("aerocaribbean")
     assert len(out) == 1
     assert out[0]["uid"] == "36"
-    assert out[0]["programs"] == ["CUBA"]
-    assert out[0]["akas"] == ["AERO-CARIBBEAN"]
+    expected = ["CUBA"]
+    assert out[0]["programs"] == expected
+    expected_2 = ["AERO-CARIBBEAN"]
+    assert out[0]["akas"] == expected_2
 
 
 @respx.mock
@@ -707,7 +728,8 @@ async def test_screen_name_csv_fallback() -> None:
     out = await sanctions.screen_name("aerocaribbean")
     assert len(out) == 1
     assert out[0]["uid"] == "36"
-    assert out[0]["programs"] == ["CUBA"]
+    expected = ["CUBA"]
+    assert out[0]["programs"] == expected
 
 
 @respx.mock
@@ -716,6 +738,7 @@ async def test_screen_name_no_match() -> None:
         return_value=httpx.Response(200, json=_sdn_json_payload())
     )
     assert await sanctions.screen_name("nobody here") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
@@ -723,10 +746,12 @@ async def test_screen_name_never_raises() -> None:
     for url in (_OFAC_JSON, _OFAC_XML, _OFAC_CSV):
         respx.get(url__startswith=url).mock(return_value=httpx.Response(500))
     assert await sanctions.screen_name("john smith") == []
+    assert respx.calls.call_count == 6
 
 
 async def test_screen_name_blank_name() -> None:
     assert await sanctions.screen_name("   ") == []
+    assert respx.calls.call_count == 0
 
 
 @respx.mock

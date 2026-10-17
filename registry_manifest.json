@@ -1,8 +1,8 @@
 {
 	"name": "pry-scraper",
 	"displayName": "Pry Scraping API",
-	"description": "Professional web scraping with x402 crypto payments. 15-tier anti-detection fallback, AI extraction, auto-signup, CAPTCHA solving. 99 MCP tools across web scraping, data extraction, monitoring, sports betting, legal intelligence, real estate, jobs, and more.",
-	"longDescription": "Pry is a self-hosted web scraping and browser automation platform with native x402 micropayments. It routes each request through an adaptive 15-tier fallback chain \u2014 direct HTTP, TLS fingerprint impersonation, cloudscraper, FlareSolverr, undetected-chromedriver, Camoufox, Playwright stealth, Googlebot UA, Tor, premium proxies, Archive.org, Google Cache, AI visual scraping, mobile app API, and GraphQL discovery \u2014 escalating only as far as the target requires, then remembering what worked per domain.",
+	"description": "Professional web scraping and web search with x402 crypto payments. 15-tier anti-detection fallback, AI extraction, site maps, auto-signup, CAPTCHA solving. 99 MCP tools across web scraping, data extraction, monitoring, sports betting, legal intelligence, real estate, jobs, and more.",
+	"longDescription": "Pry is a self-hosted web scraping and browser automation platform with native x402 micropayments. It routes each request through an adaptive 15-tier fallback chain \u2014 direct HTTP, TLS fingerprint impersonation, cloudscraper, FlareSolverr, undetected-chromedriver, Camoufox, Playwright stealth, Googlebot UA, Tor, premium proxies, Archive.org, Google Cache, AI visual scraping, mobile app API, and GraphQL discovery \u2014 escalating only as far as the target requires, then remembering what worked per domain. It also answers the two questions before a scrape: `POST /v1/search` returns ranked web results, and `POST /v1/map` lists a site's same-origin URLs. Every scrape reports `metadata.markdown_quality`, a 0-100 score of the extracted Markdown.",
 	"version": "3.0.0",
 	"updatedAt": "2026-08-29",
 	"author": {
@@ -21,7 +21,8 @@
 		"authNote": "No account or API key required to discover the server; each operation is pay-per-request gated via x402 (multi-chain USDC). Supply an x402 payment signature, or an API key for the paid tier, to execute paid prefixes."
 	},
 	"tools": {
-		"count": 76,
+		"count": 99,
+		"itemsNote": "The 76 items below are the featured subset; the server publishes all 99 at /mcp/ tools/list.",
 		"items": [
 			{
 				"name": "pry_scrape",
@@ -5957,6 +5958,7 @@
 		"Automated signup",
 		"CAPTCHA solving",
 		"AI visual scraping",
+		"Web search and site maps (/v1/search, /v1/map)",
 		"GraphQL API discovery",
 		"Mobile app API scraping",
 		"Self-hosted or cloud"

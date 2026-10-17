@@ -173,7 +173,7 @@ async def test_search_events_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert first["min_price"] == 25.0
     assert first["max_price"] == 500.0
     assert first["url"] == "https://www.ticketmaster.com/test-concert"
-    assert set(first) == {
+    expected = {
         "id",
         "name",
         "venue",
@@ -183,6 +183,7 @@ async def test_search_events_success(monkeypatch: pytest.MonkeyPatch) -> None:
         "max_price",
         "url",
     }
+    assert set(first) == expected
 
 
 @respx.mock
@@ -264,10 +265,11 @@ async def test_get_event_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert detail["name"] == "Test Concert"
     assert detail["ticket_status"] == "onsale"
     assert detail["on_sale"] is True
-    assert detail["price_ranges"] == [
+    expected = [
         {"type": "standard", "min": 25.0, "max": 150.0, "currency": "USD"},
         {"type": "premium", "min": 300.0, "max": 500.0, "currency": "USD"},
     ]
+    assert detail["price_ranges"] == expected
     assert detail["url"] == "https://www.ticketmaster.com/test-concert"
 
 
@@ -337,9 +339,11 @@ async def test_get_resale_prices_success(monkeypatch: pytest.MonkeyPatch) -> Non
     # 2 listings x 2 marketplaces = 4 unique (dedupe key includes marketplace)
     assert len(listings) == 4
     marketplaces = {listing["marketplace"] for listing in listings}
-    assert marketplaces == {"stubhub", "seatgeek"}
+    expected = {"stubhub", "seatgeek"}
+    assert marketplaces == expected
     prices = {listing["listing_price"] for listing in listings}
-    assert prices == {85.5, 220.0}
+    expected_2 = {85.5, 220.0}
+    assert prices == expected_2
     rowed = [listing for listing in listings if listing["row"]]
     assert len(rowed) == 2
     assert rowed[0]["row"] == "A"

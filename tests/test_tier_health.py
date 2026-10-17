@@ -87,19 +87,22 @@ def test_no_evidence_is_reported_differently_from_insufficient(tmp_path: Path) -
     path.write_text(json.dumps({"direct": {"attempts": 1, "wins": 1, "cost_ms_total": 10}}))
     unknown = should_skip("camoufox", path=path)
     thin = should_skip("direct", path=path)
-    assert unknown == (False, "no_evidence")
+    expected = (False, "no_evidence")
+    assert unknown == expected
     assert thin[0] is False
     assert thin[1] != unknown[1]
 
 
 def test_a_missing_file_is_no_evidence_not_a_crash(tmp_path: Path) -> None:
-    assert should_skip("direct", path=tmp_path / "nope" / "absent.json") == (False, "no_evidence")
+    expected = (False, "no_evidence")
+    assert should_skip("direct", path=tmp_path / "nope" / "absent.json") == expected
 
 
 def test_a_corrupt_file_is_no_evidence(tmp_path: Path) -> None:
     path = tmp_path / "h.json"
     path.write_text("{not json")
-    assert should_skip("direct", path=path) == (False, "no_evidence")
+    expected = (False, "no_evidence")
+    assert should_skip("direct", path=path) == expected
 
 
 def test_skip_is_disabled_by_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -107,7 +110,8 @@ def test_skip_is_disabled_by_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     _blind(path, "premium_proxy", attempts=9, cost_ms_each=2_000)
     assert should_skip("premium_proxy", path=path)[0] is True
     monkeypatch.setenv(_SKIP_ENV, "0")
-    assert should_skip("premium_proxy", path=path) == (False, "skip_disabled")
+    expected = (False, "skip_disabled")
+    assert should_skip("premium_proxy", path=path) == expected
 
 
 def test_the_threshold_is_a_setting_not_a_literal(
@@ -118,7 +122,8 @@ def test_the_threshold_is_a_setting_not_a_literal(
     _blind(path, "graphql", attempts=5, cost_ms_each=1_000)
     assert should_skip("graphql", path=path)[0] is True
     monkeypatch.setattr(tier_health, "MIN_EVIDENCE_ATTEMPTS", 9, raising=True)
-    assert should_skip("graphql", path=path) == (False, "insufficient_evidence(5<9)")
+    expected = (False, "insufficient_evidence(5<9)")
+    assert should_skip("graphql", path=path) == expected
 
 
 def test_the_threshold_constant_is_read_from_its_env_var() -> None:
@@ -136,7 +141,8 @@ def test_a_failed_write_leaves_the_health_file_usable(tmp_path: Path) -> None:
     blocker = tmp_path / "blocker"
     blocker.write_text("not a directory")
     tier_health.record("direct", won=True, cost_ms=5, path=blocker / "nested" / "h.json")
-    assert should_skip("direct", path=blocker / "nested" / "h.json") == (False, "no_evidence")
+    expected = (False, "no_evidence")
+    assert should_skip("direct", path=blocker / "nested" / "h.json") == expected
 
 
 def test_record_writes_a_file_the_filter_can_read(tmp_path: Path) -> None:

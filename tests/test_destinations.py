@@ -29,7 +29,8 @@ async def test_dispatch_slack(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = AsyncMock(return_value={"sent": True, "channel": "general"})
     monkeypatch.setitem(DESTINATIONS, "slack", fake)
     result = await dispatch("slack", {"text": "hello"}, {"webhook_url": "http://hook"})
-    assert result == {"sent": True, "channel": "general"}
+    expected = {"sent": True, "channel": "general"}
+    assert result == expected
     fake.assert_awaited_once()
     assert fake.await_args.kwargs["webhook_url"] == "http://hook"
 
@@ -48,7 +49,8 @@ async def test_dispatch_email(monkeypatch: pytest.MonkeyPatch) -> None:
     fake = AsyncMock(return_value={"sent": True})
     monkeypatch.setitem(DESTINATIONS, "email", fake)
     result = await dispatch("email", {"to": "a@b.com", "subject": "test", "body": "hello"}, {})
-    assert result == {"sent": True}
+    expected = {"sent": True}
+    assert result == expected
     fake.assert_awaited_once()
 
 
@@ -59,7 +61,8 @@ async def test_dispatch_airtable(monkeypatch: pytest.MonkeyPatch) -> None:
     result = await dispatch(
         "airtable", {"records": [{"fields": {"a": 1}}], "base_id": "abc", "table": "xyz"}, {}
     )
-    assert result == {"created": 1}
+    expected = {"created": 1}
+    assert result == expected
     fake.assert_awaited_once()
 
 
@@ -70,7 +73,8 @@ async def test_dispatch_googlesheets(monkeypatch: pytest.MonkeyPatch) -> None:
     result = await dispatch(
         "googlesheets", {"data": [["a", "b"]], "sheet_id": "abc", "range": "A1"}, {}
     )
-    assert result == {"updated": True}
+    expected = {"updated": True}
+    assert result == expected
     fake.assert_awaited_once()
 
 

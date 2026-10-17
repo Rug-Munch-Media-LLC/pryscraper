@@ -233,7 +233,8 @@ async def test_list_jobs_greenhouse_normalizes_schema() -> None:
     items = await ats.list_jobs("stripe", board="greenhouse")
     assert len(items) == 2
     first = items[0]
-    assert set(first) == {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    expected = {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    assert set(first) == expected
     assert first["id"] == "123"
     assert first["company"] == "stripe"
     assert first["remote"] is True
@@ -257,7 +258,8 @@ async def test_list_jobs_lever_normalizes_schema() -> None:
     items = await ats.list_jobs("leverdemo", board="lever")
     assert len(items) == 1
     first = items[0]
-    assert set(first) == {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    expected = {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    assert set(first) == expected
     assert first["id"] == "abc-123"
     assert first["title"] == "Fullstack Engineer"
     assert first["remote"] is True
@@ -297,7 +299,8 @@ async def test_list_jobs_workable_normalizes_schema() -> None:
     items = await ats.list_jobs("acme", board="workable")
     assert len(items) == 2
     first = items[0]
-    assert set(first) == {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    expected = {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    assert set(first) == expected
     assert first["id"] == "wb-1"
     assert first["title"] == "Platform Engineer"
     assert first["location"] == "Denver, CO, USA"
@@ -310,6 +313,7 @@ async def test_list_jobs_workable_normalizes_schema() -> None:
 async def test_list_jobs_workable_empty_payload_returns_empty() -> None:
     respx.get(WORKABLE_URL).mock(return_value=httpx.Response(200, json={"jobs": []}))
     assert await ats.list_jobs("acme", board="workable") == []
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
@@ -318,7 +322,8 @@ async def test_list_jobs_breezy_normalizes_schema() -> None:
     items = await ats.list_jobs("acme", board="breezy")
     assert len(items) == 2
     first = items[0]
-    assert set(first) == {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    expected = {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    assert set(first) == expected
     assert first["id"] == "bz-1"
     assert first["title"] == "Support Specialist"
     assert first["location"] == "Remote, US"
@@ -341,6 +346,7 @@ async def test_list_jobs_breezy_dict_payload_uses_postings() -> None:
 async def test_list_jobs_breezy_http_error_returns_empty() -> None:
     respx.get(BREEZY_URL).mock(return_value=httpx.Response(500))
     assert await ats.list_jobs("acme", board="breezy") == []
+    assert respx.calls.call_count == 3
 
 
 # ── get_job: Workable / Breezy HR ─────────────────────────────────────
@@ -372,7 +378,8 @@ async def test_list_jobs_smartrecruiters_normalizes_schema() -> None:
     items = await ats.list_jobs("acme", board="smartrecruiters")
     assert len(items) == 2
     first = items[0]
-    assert set(first) == {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    expected = {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    assert set(first) == expected
     assert first["id"] == "sr-1"
     assert first["title"] == "DevOps Engineer"
     assert first["company"] == "acme"
@@ -389,7 +396,8 @@ async def test_list_jobs_recruitee_normalizes_schema() -> None:
     items = await ats.list_jobs("acme", board="recruitee")
     assert len(items) == 2
     first = items[0]
-    assert set(first) == {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    expected = {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    assert set(first) == expected
     assert first["id"] == "7001"
     assert first["title"] == "QA Engineer"
     assert first["location"] == "Austin, TX"
@@ -404,7 +412,8 @@ async def test_list_jobs_jobvite_normalizes_schema() -> None:
     items = await ats.list_jobs("acme", board="jobvite")
     assert len(items) == 1
     first = items[0]
-    assert set(first) == {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    expected = {"id", "title", "company", "location", "remote", "url", "posted_at"}
+    assert set(first) == expected
     assert first["id"] == "jv-1"
     assert first["title"] == "Site Reliability Engineer"
     assert first["location"] == "Remote, US"
@@ -417,12 +426,14 @@ async def test_list_jobs_jobvite_normalizes_schema() -> None:
 async def test_list_jobs_smartrecruiters_http_error_returns_empty() -> None:
     respx.get(SMARTRECRUITERS_URL).mock(return_value=httpx.Response(500))
     assert await ats.list_jobs("acme", board="smartrecruiters") == []
+    assert respx.calls.call_count == 3
 
 
 @respx.mock
 async def test_list_jobs_recruitee_bad_json_returns_empty() -> None:
     respx.get(RECRUITEE_URL).mock(return_value=httpx.Response(200, text="<html>nope</html>"))
     assert await ats.list_jobs("acme", board="recruitee") == []
+    assert respx.calls.call_count == 3
 
 
 # ── get_job: SmartRecruiters / Recruitee / Jobvite ────────────────────
@@ -459,6 +470,7 @@ async def test_get_job_smartrecruiters_detail() -> None:
 async def test_get_job_smartrecruiters_detail_error_returns_empty() -> None:
     respx.get(SMARTRECRUITERS_JOB_URL).mock(return_value=httpx.Response(404))
     assert await ats.get_job("sr-1", board="smartrecruiters", company="acme") == {}
+    assert respx.calls.call_count == 3
 
 
 @respx.mock
@@ -492,6 +504,7 @@ async def test_get_job_recruitee_detail() -> None:
 async def test_get_job_recruitee_detail_missing_offer_returns_empty() -> None:
     respx.get(RECRUITEE_JOB_URL).mock(return_value=httpx.Response(200, json={"offer": {}}))
     assert await ats.get_job("7001", board="recruitee", company="acme") == {}
+    assert respx.calls.call_count == 1
 
 
 @respx.mock
@@ -509,23 +522,27 @@ async def test_get_job_jobvite_detail() -> None:
 @respx.mock
 async def test_list_jobs_unknown_board_returns_empty() -> None:
     assert await ats.list_jobs("stripe", board="nope") == []
+    assert respx.calls.call_count == 0
 
 
 @respx.mock
 async def test_list_jobs_blank_company_returns_empty() -> None:
     assert await ats.list_jobs("   ", board="greenhouse") == []
+    assert respx.calls.call_count == 0
 
 
 @respx.mock
 async def test_list_jobs_http_error_returns_empty() -> None:
     respx.get(GREENHOUSE_URL).mock(return_value=httpx.Response(503))
     assert await ats.list_jobs("stripe", board="greenhouse") == []
+    assert respx.calls.call_count == 3
 
 
 @respx.mock
 async def test_list_jobs_bad_json_returns_empty() -> None:
     respx.get(GREENHOUSE_URL).mock(return_value=httpx.Response(200, text="<html>nope</html>"))
     assert await ats.list_jobs("stripe", board="greenhouse") == []
+    assert respx.calls.call_count == 3
 
 
 # ── search_jobs ────────────────────────────────────────────────────────
@@ -541,6 +558,7 @@ async def test_search_jobs_filters_by_keyword(monkeypatch: pytest.MonkeyPatch) -
 @respx.mock
 async def test_search_jobs_blank_query_returns_empty() -> None:
     assert await ats.search_jobs("  ") == []
+    assert respx.calls.call_count == 0
 
 
 # ── get_job ────────────────────────────────────────────────────────────
@@ -574,11 +592,13 @@ async def test_get_job_lever_detail() -> None:
 @respx.mock
 async def test_get_job_missing_company_returns_empty() -> None:
     assert await ats.get_job("123", board="greenhouse") == {}
+    assert respx.calls.call_count == 0
 
 
 @respx.mock
 async def test_get_job_unknown_board_returns_empty() -> None:
     assert await ats.get_job("123", board="nope", company="stripe") == {}
+    assert respx.calls.call_count == 0
 
 
 # ── salary ─────────────────────────────────────────────────────────────
@@ -589,13 +609,14 @@ async def test_get_salary_parses_levels_page() -> None:
     assert result["company"] == "Google"
     assert result["role"] == "Software Engineer"
     assert len(result["levels"]) == 2
-    assert result["levels"][0] == {
+    expected = {
         "level": "L3",
         "total_comp": 202529.0,
         "base_salary": 161233.0,
         "stock": 31878.0,
         "bonus": 9418.0,
     }
+    assert result["levels"][0] == expected
     assert result["samples"] == 313
 
 
@@ -612,11 +633,13 @@ async def test_get_salary_404_returns_empty() -> None:
     respx.get(LEVELS_URL).mock(return_value=httpx.Response(404))
     respx.get(LEVELS_HOME).mock(return_value=httpx.Response(404))
     assert await salary.get_salary("google") == {}
+    assert respx.calls.call_count == 6
 
 
 @respx.mock
 async def test_get_salary_blank_company_returns_empty() -> None:
     assert await salary.get_salary("") == {}
+    assert respx.calls.call_count == 0
 
 
 @respx.mock

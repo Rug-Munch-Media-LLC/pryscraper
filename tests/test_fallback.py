@@ -65,7 +65,8 @@ async def test_sync_and_async_fetchers_mix() -> None:
         return [1, 2, 3]
 
     result = await fetch_with_fallback([_empty, _second])
-    assert result == [1, 2, 3]
+    expected = [1, 2, 3]
+    assert result == expected
 
 
 async def test_first_fetcher_raises_second_returns() -> None:
@@ -118,7 +119,8 @@ async def test_success_short_circuits() -> None:
 
     result = await fetch_with_fallback([_first, _second])
     assert result == "data"
-    assert calls == ["first"], "second fetcher must not run after a success"
+    expected = ["first"]
+    assert calls == expected, "second fetcher must not run after a success"
 
 
 async def test_empty_fetcher_list_returns_none() -> None:
@@ -143,8 +145,10 @@ async def test_args_kwargs_forwarded_to_each_fetcher() -> None:
 
     result = await fetch_with_fallback([_first, _second], "x", query="btc")
     assert result == "btc"
-    assert seen[0] == (("x",), {"query": "btc"})
-    assert seen[1] == (("x",), {"query": "btc"})
+    expected = (("x",), {"query": "btc"})
+    assert seen[0] == expected
+    expected_2 = (("x",), {"query": "btc"})
+    assert seen[1] == expected_2
 
 
 # ── with_fallback composition ──────────────────────────────────────────

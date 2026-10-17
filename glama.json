@@ -2,7 +2,7 @@
 	"$schema": "https://glama.ai/mcp/schema.json",
 	"name": "io.rugmunch/pry",
 	"title": "Pry — Web Scraping, Browser Automation & Data Intelligence MCP",
-	"description": "Self-hosted web intelligence platform: scrape, crawl, extract, automate, and parse any website, plus ten data domains (crypto, marketplace, legal, real estate, jobs, travel, attention, local, gov, ip) monetized via x402 pay-per-call. Exposed as a Model Context Protocol server.",
+	"description": "Self-hosted web intelligence platform: scrape, search, crawl, map, extract, automate, and parse any website, plus ten data domains (crypto, marketplace, legal, real estate, jobs, travel, attention, local, gov, ip) monetized via x402 pay-per-call. Exposed as a Model Context Protocol server.",
 	"version": "3.0.0",
 	"license": "MIT + BSL-1.1",
 	"author": {
@@ -440,7 +440,8 @@
 		"ip",
 		"x402",
 		"self-hosted",
-		"mcp"
+		"mcp",
+		"web-search"
 	],
 	"_license": "MIT + BSL-1.1",
 	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"

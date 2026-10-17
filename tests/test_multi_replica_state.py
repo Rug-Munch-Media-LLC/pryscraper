@@ -105,7 +105,8 @@ async def test_concurrent_cold_scrapes_run_the_loader_once() -> None:
     results = await asyncio.gather(
         *(cache.fetch_or_load(URL, {"tenant": "t1"}, loader) for _ in range(5))
     )
-    assert calls == [1], f"loader ran {len(calls)} times for one cold key"
+    expected = [1]
+    assert calls == expected, f"loader ran {len(calls)} times for one cold key"
     assert all(r["data"]["markdown"] == "# hi" for r in results)
     assert cache.get(URL, {"tenant": "t1"}) is not None
 
@@ -194,4 +195,5 @@ async def test_expired_session_is_not_returned() -> None:
     await store.add("new-session")
     assert await store.exists("old-session") is False
     assert await store.exists("new-session") is True
-    assert await store.list_sessions() == ["new-session"]
+    expected = ["new-session"]
+    assert await store.list_sessions() == expected
