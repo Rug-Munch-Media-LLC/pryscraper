@@ -111,7 +111,6 @@ PAID_ENDPOINTS = {
     "/v1/bidding/": "bidding_contracts",
 }
 
-# Price tiers for the crypto-market operations. The canonical pricing table
 # lives in x402/scheme.py; these are merged defensively here (setdefault) so
 # the /v1/crypto/* gates above are never silently skipped (the middleware
 # skips gating when the operation is missing from X402_PRICING). Safe to keep
