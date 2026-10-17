@@ -71,7 +71,7 @@ def test_vision_endpoint_allowlist_env_override(monkeypatch):
 def wh(tmp_path: Path) -> WebhookDelivery:
     with (
         patch("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks"),
-        patch("pry.api.webhook_delivery.settings.webhook_secret", "test-secret"),
+        patch("pry.api.webhook_support.settings.webhook_secret", "test-secret"),
         patch("pry.api.webhook_delivery._validate_url", side_effect=lambda url: (url, None)),
     ):
         yield WebhookDelivery(signing_secret="test-key")

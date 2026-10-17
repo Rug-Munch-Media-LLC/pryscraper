@@ -7,197 +7,49 @@ Cron-based monitors that diff content and judge meaningful changes."""
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 import asyncio
-import difflib
-import json
 import logging
-import re
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from pry.core.db import Monitor, MonitorRun, session_scope
-from pry.core.scheduler import (
+from pry.actors.change_judger import ChangeJudger, _compute_diff
+from pry.actors.scheduler import (
     claim_monitor,
     record_run,
     release_monitor,
     scrape_with_retry,
 )
+from pry.core.db import Monitor, MonitorRun, session_scope
 
 logger = logging.getLogger(__name__)
 
 
-def _compute_diff(previous: str, current: str) -> str:
-    differ = difflib.Differ()
-    diff = list(differ.compare(previous.splitlines(), current.splitlines()))
-    added = sum(1 for line in diff if line.startswith("+ "))
-    removed = sum(1 for line in diff if line.startswith("- "))
-    return f"{added} lines added, {removed} lines removed"
+def _default(value: Any, fallback: Any) -> Any:
+    return value if value is not None else fallback
+
+
+def _iso(value: Any) -> str:
+    return value.isoformat() if value else ""
 
 
 def _monitor_to_dict(m: Monitor, last_run_status: str | None = None) -> dict[str, Any]:
-    status = ("error" if last_run_status == "error" else "inactive") if not m.active else "active"
+    status = "active" if m.active else ("error" if last_run_status == "error" else "inactive")
     return {
         "id": m.monitor_id,
         "name": m.monitor_name,
         "target_url": m.url,
         "schedule_cron": m.schedule_cron,
-        "goal": m.goal or "",
-        "webhook_url": m.webhook_url or "",
-        "use_llm_judge": m.use_llm_judge or False,
+        "goal": _default(m.goal, ""),
+        "webhook_url": _default(m.webhook_url, ""),
+        "use_llm_judge": bool(m.use_llm_judge),
         "status": status,
-        "created_at": m.created_at.isoformat() if m.created_at else "",
-        "last_run_at": m.last_run_at.isoformat() if m.last_run_at else None,
-        "current_version": m.current_version or 0,
-        "last_content": m.last_content or "",
-        "total_checks": m.total_checks or 0,
-        "total_changes": m.total_changes or 0,
+        "created_at": _iso(m.created_at),
+        "last_run_at": _iso(m.last_run_at) or None,
+        "current_version": _default(m.current_version, 0),
+        "last_content": _default(m.last_content, ""),
+        "total_checks": _default(m.total_checks, 0),
+        "total_changes": _default(m.total_changes, 0),
     }
-
-
-class ChangeJudger:
-    """Judge whether a content change is meaningful using LLM or heuristics."""
-
-    def __init__(self, use_llm: bool = False) -> None:
-        self.use_llm = use_llm
-
-    async def judge(self, previous: str, current: str, goal: str = "") -> dict[str, Any]:
-        """Judge if a change is meaningful.
-
-        Returns:
-            meaningful: bool
-            confidence: str (high/medium/low)
-            reason: str
-            meaningful_changes: list[dict]
-        """
-        if previous == current:
-            return {
-                "meaningful": False,
-                "confidence": "high",
-                "reason": "No change detected",
-                "meaningful_changes": [],
-            }
-        if not goal:
-            return {
-                "meaningful": True,
-                "confidence": "high",
-                "reason": "Content changed",
-                "meaningful_changes": [{"type": "changed", "description": "Content was modified"}],
-            }
-        if self.use_llm:
-            return await self._llm_judge(previous, current, goal)
-        return self._heuristic_judge(previous, current, goal)
-
-    def _heuristic_judge(self, previous: str, current: str, goal: str) -> dict[str, Any]:
-        goal_keywords = goal.lower().split()
-        prev_text_lower = previous.lower()
-        curr_text_lower = current.lower()
-
-        prev_keywords = set(prev_text_lower.split())
-        curr_keywords = set(curr_text_lower.split())
-        added = curr_keywords - prev_keywords
-
-        goal_in_current = any(gk in curr_text_lower for gk in goal_keywords)
-
-        def _keyword_match(tokens: set[str]) -> list[str]:
-            matched: list[str] = []
-            for gk in goal_keywords:
-                for t in tokens:
-                    if gk in t or t in gk:
-                        matched.append(gk)
-                        break
-            return matched
-
-        goal_added = _keyword_match(added)
-
-        if goal_added:
-            return {
-                "meaningful": True,
-                "confidence": "medium",
-                "reason": f"Goal-related keywords appeared: {', '.join(sorted(goal_added))}",
-                "meaningful_changes": [
-                    {
-                        "type": "added",
-                        "description": f"Relevant keywords appeared: {', '.join(sorted(goal_added))}",
-                    }
-                ],
-            }
-
-        if goal_in_current and len(previous) > 0:
-            change_ratio = abs(len(current) - len(previous)) / len(previous)
-            if change_ratio > 0.01:
-                return {
-                    "meaningful": True,
-                    "confidence": "medium",
-                    "reason": "Goal-relevant content was updated",
-                    "meaningful_changes": [
-                        {
-                            "type": "changed",
-                            "description": f"Content size changed by {change_ratio:.1%}",
-                        }
-                    ],
-                }
-
-        if len(previous) > 0:
-            change_ratio = abs(len(current) - len(previous)) / len(previous)
-            if change_ratio > 0.1:
-                return {
-                    "meaningful": True,
-                    "confidence": "low",
-                    "reason": f"Content changed by {change_ratio:.1%}",
-                    "meaningful_changes": [
-                        {
-                            "type": "changed",
-                            "description": f"Content size changed by {change_ratio:.1%}",
-                        }
-                    ],
-                }
-
-        return {
-            "meaningful": False,
-            "confidence": "low",
-            "reason": "Minor or irrelevant change",
-            "meaningful_changes": [],
-        }
-
-    async def _llm_judge(self, previous: str, current: str, goal: str) -> dict[str, Any]:
-        try:
-            from pry.api.client import get_client
-            from pry.core.settings import settings
-
-            diff = _compute_diff(previous, current)
-            prompt = f"""Goal: {goal}
-
-Previous content:
-{previous[:1000]}
-
-Current content:
-{current[:1000]}
-
-Diff:
-{diff[:500]}
-
-Is this change meaningful given the goal? Respond with JSON:
-{{"meaningful": bool, "confidence": "high/medium/low", "reason": "string", "meaningful_changes": [{{"type": "changed/added/removed", "description": "string"}}]}}
-"""
-            client = await get_client()
-            resp = await client.post(
-                f"{settings.ollama_url}/api/generate",
-                json={
-                    "model": "qwen2.5-coder:3b",
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {"num_ctx": 4096, "temperature": 0.1},
-                },
-                timeout=30,
-            )
-            response_text = resp.json().get("response", "")
-            json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
-            if json_match:
-                return json.loads(json_match.group(0))
-        except (json.JSONDecodeError, ValueError):
-            logger.warning("llm_judge_failed, falling back to heuristic")
-
-        return self._heuristic_judge(previous, current, goal)
 
 
 async def create_monitor(
@@ -206,8 +58,9 @@ async def create_monitor(
     schedule_cron: str = "0 */6 * * *",
     goal: str = "",
     webhook_url: str = "",
-    use_llm_judge: bool = False,
+    **flags: Any,
 ) -> dict[str, Any]:
+    use_llm_judge = bool(flags.get("use_llm_judge", False))
     monitor_id = uuid.uuid4().hex[:12]
     now = datetime.now(UTC)
     monitor = Monitor(

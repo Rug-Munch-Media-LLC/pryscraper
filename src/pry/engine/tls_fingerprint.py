@@ -4,7 +4,6 @@ Akamai, DataDome, and PerimeterX use TLS fingerprinting (JA3/JA4) to detect bots
 curl_cffi can impersonate real browser TLS handshakes, bypassing these checks."""
 
 # SPDX-License-Identifier: BSL-1.1
-# Licensed under Business Source License 1.1 — see LICENSE-BSL-STEALTH.
 # Change Date: 2029-01-01 (converts to MIT).
 
 import asyncio

@@ -17,6 +17,13 @@ from pry.engine.extraction import JsonCssExtractionStrategy
 
 logger = logging.getLogger(__name__)
 
+
+def _now_iso() -> str:
+    from datetime import UTC, datetime
+
+    return datetime.now(UTC).isoformat()
+
+
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -74,88 +81,52 @@ async def execute_template(template_id: str, url: str, **options: Any) -> dict[s
         }
 
 
+async def _fetch_html(url: str, schema: dict[str, Any]) -> tuple[str, str]:
+    from pry.engine.scraper import PryScraper
+
+    scraper = PryScraper()
+
+    def _html(r: dict[str, Any]) -> str:
+        return next((r[k] for k in ("raw_html", "html", "content") if r.get(k)), "")
+
+    res = await scraper.scrape(url, {"bypass_cloudflare": True})
+    if res.get("status") == "ok":
+        html, err = _html(res), ""
+    else:
+        html, err = "", res.get("error", "")
+    if not html or (len(html) > 500 and not JsonCssExtractionStrategy(schema).extract(html)):
+        js = await scraper.scrape(url, {"bypass_cloudflare": True, "js_render": True})
+        if js.get("status") == "ok" and len(_html(js)) > len(html):
+            html = _html(js)
+        elif not html and not err:
+            err = js.get("error", "Scrape failed")
+    return html, err
+
+
+def _result(
+    template_id: str, template: dict[str, Any], url: str, items: list[Any]
+) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "template_id": template_id,
+        "template_name": template.get("name", ""),
+        "url": url,
+        "items": items,
+        "count": len(items),
+        "extracted_at": _now_iso(),
+    }
+    if not items:
+        data["warning"] = "No items matched the CSS selectors. The page structure may have changed."
+    return {"success": True, "data": data}
+
+
 async def _execute_template(template_id: str, url: str, **options: Any) -> dict[str, Any]:
     template = get_template(template_id)
     if not template:
         return {"success": False, "error": f"Template not found: {template_id}"}
-
     schema = template.get("schema", {})
     if not schema:
         return {"success": False, "error": "Template has no extraction schema"}
-
-    # Scrape the URL with progressive fallback
-    from pry.engine.scraper import PryScraper
-
-    scraper = PryScraper()
-    html = ""
-    scrape_error = ""
-
-    # Helper: get raw HTML from scraper result
-    def _get_html(r):
-        for key in ("raw_html", "html", "content"):
-            val = r.get(key)
-            if val:
-                return val
-        return ""
-
-    # Tier 1: Try with Cloudflare bypass
-    result = await scraper.scrape(url, {"bypass_cloudflare": True})
-    if result.get("status") == "ok":
-        html = _get_html(result)
-    else:
-        scrape_error = result.get("error", "")
-
-    # Quick extraction test — if no items found and JS render available, retry
-    if html:
-        strategy = JsonCssExtractionStrategy(schema)
-        items = strategy.extract(html)
-        if not items and len(html) > 500:
-            result_js = await scraper.scrape(url, {"bypass_cloudflare": True, "js_render": True})
-            if result_js.get("status") == "ok":
-                html_js = _get_html(result_js)
-                if html_js and len(html_js) > len(html):
-                    html = html_js
-    else:
-        # Tier 2: Try with JS rendering
-        result_js = await scraper.scrape(url, {"bypass_cloudflare": True, "js_render": True})
-        if result_js.get("status") == "ok":
-            html = _get_html(result_js)
-        elif not scrape_error:
-            scrape_error = result_js.get("error", "Scrape failed")
-
+    html, err = await _fetch_html(url, schema)
     if not html:
-        return {"success": False, "error": scrape_error or "No HTML content scraped"}
-
-    # Extract using the schema
-    strategy = JsonCssExtractionStrategy(schema)
-    items = strategy.extract(html)
-
-    if not items:
-        return {
-            "success": True,
-            "data": {
-                "template_id": template_id,
-                "template_name": template.get("name", ""),
-                "url": url,
-                "items": [],
-                "count": 0,
-                "warning": "No items matched the CSS selectors. The page structure may have changed.",
-                "extracted_at": __import__("datetime")
-                .datetime.now(__import__("datetime").timezone.utc)
-                .isoformat(),
-            },
-        }
-
-    return {
-        "success": True,
-        "data": {
-            "template_id": template_id,
-            "template_name": template.get("name", ""),
-            "url": url,
-            "items": items,
-            "count": len(items),
-            "extracted_at": __import__("datetime")
-            .datetime.now(__import__("datetime").timezone.utc)
-            .isoformat(),
-        },
-    }
+        return {"success": False, "error": err or "No HTML content scraped"}
+    return _result(template_id, template, url, JsonCssExtractionStrategy(schema).extract(html))

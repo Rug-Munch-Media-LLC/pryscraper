@@ -54,8 +54,6 @@ class ResponseCache(RedisBackendMixin):
         self._hits = 0
         self._misses = 0
         self._total_bytes = 0
-        # Guards the LRU, the byte counter and the hit/miss counters. An
-        # RLock because aget() -> get() re-enters on the same thread.
         self._lock = threading.RLock()
 
         # Redis backend state (lazy connect + failure cooldown). Mirrors the

@@ -38,7 +38,7 @@ def _runs(monitor_id: str) -> list[MonitorRun]:
 
 
 def test_import_does_not_start_the_loop():
-    from pry.core import scheduler
+    from pry.actors import scheduler
 
     assert scheduler._scheduler_task is None
 
@@ -82,7 +82,7 @@ async def test_scrape_failure_retries_then_errors(temp_db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_scheduler_tick_runs_due_monitor_without_http(temp_db):
-    from pry.core.scheduler import tick
+    from pry.actors.scheduler import tick
 
     monitor = await create_monitor("due", "https://example.com/feed", schedule_cron="* * * * *")
     with session_scope() as s:

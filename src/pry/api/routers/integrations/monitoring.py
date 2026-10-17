@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def _monitor_lifespan(_app: Any):
     """Start the in-process monitor scheduler with the app; stop on shutdown."""
-    from pry.core.scheduler import start_scheduler, stop_scheduler
+    from pry.actors.scheduler import start_scheduler, stop_scheduler
 
     await start_scheduler()
     try:
