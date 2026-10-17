@@ -138,8 +138,8 @@ class PryCrawl:
         json_body: dict[str, Any] | None = None,
         params: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
-        idempotent: bool = False,
     ) -> httpx.Response:
+        idempotent = method.upper() == "GET"
         """One request; idempotent calls retry 429/5xx with exponential backoff."""
         merged = {**self._headers, **(headers or {})}
         async with httpx.AsyncClient(
@@ -212,7 +212,7 @@ class PryCrawl:
         return await self._post("/v1/screenshot", {"url": url})
 
     async def health(self) -> dict[str, Any]:
-        resp = await self._send("GET", "/health", idempotent=True)
+        resp = await self._send("GET", "/health")
         if resp.status_code >= 400:
             raise _problem(resp)
         return dict(resp.json())
@@ -229,22 +229,27 @@ class PryCrawl:
         cursor: Any = None
         for _ in range(max_pages):
             query = {**(params or {}), "limit": limit, **({"cursor": cursor} if cursor else {})}
-            resp = await self._send("GET", path, params=query, idempotent=True)
+            resp = await self._send("GET", path, params=query)
             if resp.status_code >= 400:
                 raise _problem(resp)
             body = resp.json()
-            items = (
-                body
-                if isinstance(body, list)
-                else next((body[k] for k in _ITEM_KEYS if isinstance(body.get(k), list)), [])
-            )
-            for item in items:
+            for item in _body_items(body):
                 yield item
             if isinstance(body, list):
                 return
-            cursor = next((body[k] for k in _CURSOR_KEYS if body.get(k)), None)
+            cursor = _body_cursor(body)
             if not cursor:
                 return
+
+
+def _body_items(body: Any) -> list[Any]:
+    if isinstance(body, list):
+        return body
+    return next((body[k] for k in _ITEM_KEYS if isinstance(body.get(k), list)), [])
+
+
+def _body_cursor(body: dict[str, Any]) -> Any:
+    return next((body[k] for k in _CURSOR_KEYS if body.get(k)), None)
 
 
 class PryCrawlSync:
