@@ -123,3 +123,6 @@ mutants/
 .coverage
 mutants/
 .methodology-patterns
+
+# local secret mount (never commit)
+/.config/
