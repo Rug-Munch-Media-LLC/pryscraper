@@ -5,7 +5,6 @@
 # Licensed under MIT. See LICENSE.
 """Tests for routers/admin.py — loopback-gated self-hosted admin backend.
 
-Covers:
 - The loopback-only security gate (_check_admin_access) for every access mode
 - Every endpoint's happy-path response shape
 - Profit computation from payments.jsonl + costing data
@@ -28,8 +27,7 @@ from pry.api.routers.core.admin import ADMIN_PREFIX, router as admin_router
 if TYPE_CHECKING:
     from pathlib import Path
 
-LOOPBACK = ("127.0.0.1", 51234)
-REMOTE = ("203.0.113.7", 51234)
+LOOPBACK, REMOTE = ("127.0.0.1", 51234), ("203.0.113.7", 51234)
 
 
 @pytest.fixture

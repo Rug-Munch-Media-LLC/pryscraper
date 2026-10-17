@@ -6,23 +6,13 @@ budget — is readable without the connection lifecycle mixed in. Mixed in as
 these as a method and no call site changes.
 
 Redis is optional by design: absent, unreachable or broken and the cache
-degrades to its in-process L1. The one thing it must never do is fail
-*silently into a plausible story*. A settings error that resolved to an empty
-URL would look exactly like "Redis is not configured" and would pin the
-process to memory-only for its whole lifetime.
+degrades to its in-process L1. A *settings* failure is not handled that way —
+it raises, because an empty URL would pin the process to memory-only forever.
 
-**Required Redis eviction policy: ``noeviction`` or a ``volatile-*`` policy
-(``volatile-lru`` / ``volatile-ttl`` / ``volatile-random``). NEVER
-``allkeys-lru`` / ``allkeys-random`` / ``allkeys-lfu``.**
-
-This instance is shared by cache entries, x402 replay/nonce keys
-(``pry:x402:internal:seen:*``), billing counters (``pry:billing:*``) and MCP
-sessions (``pry:mcp:sess:*``). Replay keys must survive until their own TTL
-expires — evicting one silently reopens a replay window; evicting a billing
-counter under-counts a quota. Every one of those keys carries a TTL, so a
-``volatile-*`` policy only reaps keys that were going to expire anyway, and
-``noeviction`` is always safe. Cache data keys are disposable; the security
-and quota keys are not.
+**Required Redis eviction policy: ``noeviction`` or a ``volatile-*`` policy.
+NEVER ``allkeys-lru`` / ``allkeys-random`` / ``allkeys-lfu``.** This instance is
+shared with x402 replay/nonce keys, billing counters and MCP sessions; evicting
+one silently reopens a replay window or under-counts a quota.
 """
 
 # SPDX-License-Identifier: MIT
@@ -37,41 +27,25 @@ import contextlib
 import hashlib
 import json
 import logging
-import threading
 import time
-import uuid
 from typing import Any
 
 _REDIS_KEY_PREFIX = "pry:cache:"
 _REDIS_RETRY_SECONDS = 30.0
-# Bumped when the key recipe changes, so entries written under an older
-# (narrower) recipe can never be served back. v1 hashed url + caller options
-# only, which allowed a hit to cross tenants and extraction schemas.
+# v1 hashed url + caller options only, letting a hit cross tenants and schemas.
 _KEY_VERSION = "v2"
-# Option keys that identify the caller. Any one of them separates cache
-# namespaces; absent, the key is scoped to the shared public namespace.
+# Any one of these pins a separate tenant namespace; absent -> shared public.
 _TENANT_KEYS = ("tenant", "tenant_id", "api_key", "apikey", "caller_id", "caller", "auth")
-# Option keys that carry the extraction schema. An extracted ``data.json``
-# payload may only be cached when one of them is present AND in the key.
+# An extracted ``data.json`` payload caches only when one of these is in the key.
 _SCHEMA_KEYS = ("json_schema", "jsonSchema", "schema", "extraction_schema", "extract_schema")
-# Cross-replica load lock: separate namespace, short PX TTL so a crashed
-# holder can never wedge the key — the guard expires and the next caller loads.
-_LOCK_PREFIX = f"{_REDIS_KEY_PREFIX}lock:"
-_LOCK_TTL_MS = 5_000
-_POLL_SECONDS = 0.05
-# Per-key asyncio locks (one per event loop; process-local is the point).
-_FLIGHT_LOCKS: dict[str, list[Any]] = {}
-_FLIGHT_GUARD = threading.Lock()
 logger = logging.getLogger(__name__)
 
 
 class RedisBackendMixin:
     """Connection lifecycle and key naming for the optional Redis tier.
 
-    A connection failure is expected and handled: it drops to the in-process
-    L1 after logging. A *configuration* failure is not handled the same way —
-    it raises, because a misconfigured cache should be visible immediately
-    rather than silently degrading forever.
+    A connection failure drops to the in-process L1 after logging. A
+    *configuration* failure raises, so a broken cache is visible immediately.
     """
 
     _redis_backend: Any
@@ -80,11 +54,7 @@ class RedisBackendMixin:
     backend: str
 
     def _redis_url(self) -> str:
-        """Redis URL, or ``""`` only when Redis is genuinely not configured.
-
-        A settings-resolution failure is not that: returning ``""`` would pin
-        the process to memory-only, so those raise.
-        """
+        """Redis URL, or ``""`` only when Redis is genuinely not configured."""
         if self._redis_backend is not None:
             return str(self._redis_backend)
         try:
@@ -135,8 +105,6 @@ class RedisBackendMixin:
         """Full Redis key for a cache key (md5 hash)."""
         return f"{_REDIS_KEY_PREFIX}{key}"
 
-    # ── Key recipe ───────────────────────────────────────────────────────────
-
     def _tenant(self, options: dict[str, Any] | None, tenant: str | None = None) -> str:
         """Caller namespace: explicit argument, else an option, else ``public``."""
         if tenant:
@@ -166,109 +134,20 @@ class RedisBackendMixin:
         logger.debug("cache_skip_extraction_without_schema_in_key")
         return False
 
-    # ── Single-flight loads ──────────────────────────────────────────────────
+    # ── Single-flight loads (machinery lives in ``core.singleflight``) ───────
 
-    def _flight_lock(self, key: str) -> tuple[asyncio.Lock, list[Any]]:
-        """Per-key asyncio lock, reference-counted so the map cannot grow."""
-        with _FLIGHT_GUARD:
-            entry = _FLIGHT_LOCKS.get(key)
-            if entry is None:
-                entry = [asyncio.Lock(), 0]
-                _FLIGHT_LOCKS[key] = entry
-            entry[1] += 1
-            return entry[0], entry
+    async def fetch_or_load(self, url, options, loader, ttl=300):
+        """One loader run per cold key, process- and cluster-wide."""
+        from pry.core.singleflight import fetch_or_load as _f
 
-    def _release_flight_lock(self, key: str, entry: list[Any]) -> None:
-        """Drop a waiter; the entry goes once nobody holds or waits on it."""
-        with _FLIGHT_GUARD:
-            entry[1] -= 1
-            if entry[1] <= 0 and not entry[0].locked() and _FLIGHT_LOCKS.get(key) is entry:
-                _FLIGHT_LOCKS.pop(key, None)
+        return await _f(self, url, options, loader, ttl)
 
-    async def _acquire_cross_replica(self, key: str) -> tuple[Any, str, str] | None:
-        """Redis ``SET NX PX`` guard: (client, lock_key, token) or None."""
-        client = await self._get_redis()
-        if client is None:
-            return None
-        lock_key, token = f"{_LOCK_PREFIX}{key}", uuid.uuid4().hex
+    def _schedule(self, coro: Any) -> None:
+        """Run a best-effort Redis task when a loop is running (else L1 only)."""
         try:
-            if await client.set(lock_key, token, nx=True, px=_LOCK_TTL_MS):
-                return client, lock_key, token
-        except Exception as e:  # noqa: BLE001 — the guard is best-effort
-            self._drop_redis(e)
-            return None
-        return client, lock_key, ""
-
-    async def _release_cross_replica(self, client: Any, lock_key: str, token: str) -> None:
-        """Release the guard only if we still own it (best-effort)."""
-        if not token:
-            return
-        try:
-            if await client.get(lock_key) == token:
-                await client.delete(lock_key)
-        except Exception as e:  # noqa: BLE001 — an expiring PX guard is harmless
-            logger.debug("response_cache_lock_release_failed", extra={"error": str(e)[:120]})
-
-    async def fetch_or_load(
-        self,
-        url: str,
-        options: dict[str, Any] | None,
-        loader: Any,
-        ttl: int = 300,
-    ) -> dict[str, Any]:
-        """Cold-key coalescing: one loader run per key, process- and cluster-wide.
-
-        ``loader`` is an async callable returning the payload. Concurrent cold
-        callers in this process queue on a per-key ``asyncio.Lock`` and re-check
-        the cache inside it; across replicas a Redis ``SET NX PX`` guard keeps
-        one loader running while the others poll for its write. If the guard's
-        PX TTL lapses (holder crashed) a waiter loads rather than blocking
-        forever, so the worst case is a duplicate load, never a wedge.
-        """
-        hit = await self.aget(url, options)
-        if hit is not None:
-            return hit
-        key = self._key(url, options)
-        lock, entry = self._flight_lock(key)
-        try:
-            async with lock:
-                hit = await self.aget(url, options)
-                if hit is not None:
-                    return hit
-                client, lock_key, token = (None, "", "")
-                acquired = await self._acquire_cross_replica(key)
-                if acquired is not None:
-                    client, lock_key, token = acquired
-                if client is not None and not token:
-                    # Another replica is loading: wait for its write, then load
-                    # ourselves only if the PX guard lapsed first.
-                    deadline = time.monotonic() + _LOCK_TTL_MS / 1000
-                    while time.monotonic() < deadline:
-                        await asyncio.sleep(_POLL_SECONDS)
-                        hit = await self.aget(url, options)
-                        if hit is not None:
-                            return hit
-                        if not await client.exists(lock_key):
-                            break
-                try:
-                    data = await loader()
-                    await self.aset(url, data, options, ttl=ttl)
-                    return data
-                finally:
-                    if client is not None and token:
-                        await self._release_cross_replica(client, lock_key, token)
-        finally:
-            self._release_flight_lock(key, entry)
-
-    # ── L2 writes from the synchronous path ──────────────────────────────────
-
-    def _schedule_l2_write(self, key: str, data: dict[str, Any], ttl: int) -> None:
-        """Best-effort Redis write from a sync call (no loop -> L1 only)."""
-        try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop().create_task(coro)
         except RuntimeError:
-            return
-        loop.create_task(self._l2_write(key, data, ttl))
+            coro.close()
 
     async def _l2_write(self, key: str, data: dict[str, Any], ttl: int) -> None:
         """Write one entry to Redis, degrading to memory on any failure."""
@@ -280,13 +159,13 @@ class RedisBackendMixin:
         except Exception as e:  # noqa: BLE001 — a cache write must never raise
             self._drop_redis(e)
 
+    def _schedule_l2_write(self, key: str, data: dict[str, Any], ttl: int) -> None:
+        """Best-effort Redis write from a sync call."""
+        self._schedule(self._l2_write(key, data, ttl))
+
     def _schedule_l2_purge(self, url: str) -> None:
         """Best-effort Redis purge for a URL from a sync call."""
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            return
-        loop.create_task(self._l2_purge_url(url))
+        self._schedule(self._l2_purge_url(url))
 
     async def _l2_purge_url(self, url: str) -> int:
         """Delete every ``pry:cache:*`` entry whose payload is for ``url`` (SCAN)."""

@@ -2998,6 +2998,20 @@
         "title": "SignupRequest",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "bearerFormat": "API key",
+        "description": "API key as `Authorization: Bearer <key>`. Optional on free routes; required by keyed, hosting, billing, GDPR and admin routes.",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "X402": {
+        "description": "x402 payment proof (payment_id + tx_hash) returned by the 402 challenge. An alternative to PAYMENT-SIGNATURE is the pre-verified `X-Payment-Id` header.",
+        "in": "header",
+        "name": "PAYMENT-SIGNATURE",
+        "type": "apiKey"
+      }
     }
   },
   "info": {
@@ -3006,7 +3020,7 @@
       "name": "Rug Munch Media LLC",
       "url": "https://pryscraper.com/"
     },
-    "description": "PryScraper is a self-hosted web scraping + browser automation platform. Scrape, crawl, parse and extract structured data from any website with a 10-tier anti-bot fallback system, then monetize paid operations with x402 micropayments (pay-per-scrape over HTTP 402). Free endpoints are always public; paid endpoints are gated behind on-chain x402 payments.",
+    "description": "PryScraper API — scrape, crawl, extract and automate any site, with x402 pay-per-call pricing.\n\n- Errors: every failure shape (RFC 7807 problem+json, FastAPI 422, legacy success:false, x402 402) is catalogued in docs/ERRORS.md.\n- Reference and SDK: docs/ops/API-REFERENCE.md and src/pry/api/pry_sdk.py (Python client, Bearer auth).\n- Auth: optional Bearer API key for keyed/paid tiers; paid operations also accept x402 payment headers.\n- Paid operations answer 402 with a payment challenge until a valid PAYMENT-SIGNATURE is presented; see docs/ops/API-REFERENCE.md.",
     "license": {
       "name": "MIT",
       "url": "https://opensource.org/licenses/MIT"
@@ -20144,6 +20158,12 @@
       }
     }
   },
+  "security": [
+    {
+      "BearerAuth": []
+    },
+    {}
+  ],
   "servers": [
     {
       "description": "Local development server",

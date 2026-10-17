@@ -1,0 +1,7 @@
+# Pry — security contact (RFC 9116)
+# [CONFIRM] canonical host and mailbox before publication.
+Contact: mailto:security@rugmunch.io
+Expires: 2027-10-18T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://pry.rugmunch.io/.well-known/security.txt
+Policy: https://git.rugmunch.io/RugMunchMedia/pryscraper/src/branch/main/SECURITY.md

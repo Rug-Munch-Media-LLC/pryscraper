@@ -1,27 +1,14 @@
 """Pry — subscription enforcement (monthly quotas + per-minute rate limits).
 
-Self-contained: no FastAPI, no Stripe, no crypto. The API middleware can
-construct a :class:`BillingEnforcer` and call :meth:`BillingEnforcer.check_request`
-once per request; tier resolution for a key comes from :meth:`BillingEnforcer.resolve_tier`.
+Self-contained: no FastAPI, no Stripe, no crypto. Middleware calls ``check_request``.
 
 Scope decisions
 ---------------
-- Payment reconciliation (charging Stripe / validating x402 receipts) is
-  deliberately OUT of scope here. The enforcer only maps API keys to tiers
-  and enforces usage limits; wiring a payment provider is a documented TODO
-  for the lead integrator (see the ``# TODO(billing): payment reconciliation``
-  markers below).
-- Active concurrency limiting (``Tier.concurrent_limit``) is exposed on the
-  tier and surfaced in :meth:`usage_stats`, but NOT enforced here — the
-  middleware owns request lifecycle tracking.
-- Quota + rate counters live in Redis when ``PRY_REDIS_URL`` (or an injected
-  client) is available: windowed ``INCR`` for the month plus a fixed 60s
-  ``INCR`` bucket, so N replicas enforce ONE quota instead of N. Absent,
-  unreachable or erroring Redis degrades to the in-process counters below.
-- The in-process counters (thread-safe, ``MAX_TRACKED_KEYS`` FIFO) are the
-  FALLBACK only. JSON persistence survives restarts; with Redis holding the
-  truth its per-request whole-file write is throttled (it was last-writer-wins
-  churn across replicas) and stays per-request without Redis.
+- Payment reconciliation (Stripe / x402 receipts) is OUT of scope (see the
+  ``# TODO(billing)`` marker); this module only maps keys to tiers and limits.
+- ``Tier.concurrent_limit`` is surfaced by :meth:`usage_stats` but NOT enforced;
+  the middleware owns request lifecycle tracking.
+- Shared quota lives in Redis (:class:`RedisQuotaMixin`) with local fallback.
 """
 
 # SPDX-License-Identifier: MIT
@@ -31,7 +18,6 @@ Scope decisions
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
@@ -39,10 +25,15 @@ import threading
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
-from datetime import date
 from pathlib import Path
 from typing import Any, Final
 
+from pry.commerce.billing.quota_redis import (
+    ANON_KEY as _ANON_KEY,
+    RATE_WINDOW_SECONDS,
+    RedisQuotaMixin,
+    _current_month,
+)
 from pry.commerce.billing.tiers import DEFAULT_TIER, TIERS, Tier, get_tier
 
 logger = logging.getLogger(__name__)
@@ -53,23 +44,8 @@ ENV_KEYS: Final[str] = "PRY_BILLING_KEYS"
 ENV_KEYS_FILE: Final[str] = "PRY_BILLING_KEYS_FILE"
 #: Max distinct API keys tracked in memory (bounded, FIFO eviction).
 MAX_TRACKED_KEYS: Final[int] = 10_000
-#: Rate-limit window length in seconds (fixed 60s window per key).
-RATE_WINDOW_SECONDS: Final[int] = 60
 #: Persistence file format version.
 _PERSIST_VERSION: Final[int] = 1
-#: Counter slot used when no API key is supplied.
-_ANON_KEY: Final[str] = "<anon>"
-#: Redis namespace for shared counters (hashed key scope, never the raw key).
-_REDIS_PREFIX: Final[str] = "pry:billing:"
-#: Cooldown before re-dialling a Redis that just failed.
-REDIS_RETRY_SECONDS: Final[float] = 30.0
-#: Minimum seconds between best-effort persistence writes on the request path.
-SAVE_INTERVAL_SECONDS: Final[float] = 5.0
-
-
-def _current_month() -> str:
-    """Return the current calendar month as ``YYYY-MM``."""
-    return date.today().strftime("%Y-%m")
 
 
 @dataclass
@@ -82,21 +58,17 @@ class _KeyCounter:
     window_requests: int
 
 
-class BillingEnforcer:
+class BillingEnforcer(RedisQuotaMixin):
     """Quota + rate-limit enforcement with thread-safe in-memory counters.
 
     Args:
-        keys_config: Key→tier mapping. Accepts a dict, a path to a JSON
-            file, a JSON string, or ``None`` to read ``PRY_BILLING_KEYS``
-            (inline JSON) / ``PRY_BILLING_KEYS_FILE`` (JSON file path).
-            Keys absent from the resolved config map to FREE. Unknown tier
-            names in the config log a warning and fall back to FREE.
-        persist_path: Optional JSON file for durable monthly counters.
-            When set, counters are loaded at construction and written back
-            atomically on every :meth:`check_request`. When unset (default),
-            accounting is in-memory only and resets on restart. For
-            high-throughput deployments prefer a periodic :meth:`save`
-            instead of per-request writes.
+        keys_config: Key→tier mapping: dict, JSON file path, JSON string, or
+            ``None`` to read ``PRY_BILLING_KEYS`` / ``PRY_BILLING_KEYS_FILE``.
+            Absent keys map to FREE; unknown tier names log and fall back.
+        persist_path: Optional JSON file for durable monthly counters; unset
+            (default) keeps accounting in memory only, resetting on restart.
+        redis_url: Redis URL override; defaults to ``PRY_REDIS_URL``.
+        redis_client: Injected client (tests); disables URL resolution.
     """
 
     def __init__(
@@ -111,8 +83,7 @@ class BillingEnforcer:
         self._tier_by_key: dict[str, str] = self._load_keys(keys_config)
         self._persist_path = Path(persist_path) if persist_path else None
         # Shared quota state; ``redis_client`` is the injection seam. The URL
-        # resolves from the argument, then PRY_REDIS_URL. Absent/unreachable
-        # -> in-process counters only.
+        # resolves from the argument, then PRY_REDIS_URL.
         self._redis_url = (
             None
             if redis_client is not None
@@ -138,21 +109,14 @@ class BillingEnforcer:
     def check_request(self, api_key: str | None, tier: Tier | None = None) -> bool:
         """Record one request and return True if it is allowed.
 
-        Applies the tier's monthly quota and per-minute rate limit; tiers
-        with ``None`` quota (FREE / ENTERPRISE) or ``None`` rpm skip the
-        respective check. Thread-safe: callers may invoke this from many
-        worker threads without lost updates.
-
-        When *tier* is omitted it is resolved from *api_key* via
-        :meth:`resolve_tier`, so middleware can also pass an already
-        resolved tier to avoid a second lookup.
+        Applies the monthly quota and per-minute rate limit; a ``None`` quota
+        (FREE / ENTERPRISE) or ``None`` rpm skips that check. Thread-safe. When
+        *tier* is omitted it is resolved via :meth:`resolve_tier`.
         """
         resolved = tier if tier is not None else self.resolve_tier(api_key)
-        client = self._redis_client()
-        if client is not None:
-            shared = self._redis_admit(client, api_key, resolved)
-            if shared is not None:
-                return shared
+        shared = self._check_redis(api_key, resolved)
+        if shared is not None:
+            return shared
         now = time.monotonic()
         with self._lock:
             counter = self._counter_for(api_key, now)
@@ -172,11 +136,9 @@ class BillingEnforcer:
     def usage_stats(self, api_key: str | None) -> dict[str, Any]:
         """Return usage vs quota for *api_key*.
 
-        Keys with no recorded traffic get a zeroed counter. Fields
-        ``request_quota_monthly`` / ``rate_limit_rpm`` / ``quota_remaining``
-        / ``rpm_remaining`` are ``None`` when the tier has no cap;
-        ``quota_exceeded`` is True when the next request would be rejected
-        on the monthly quota alone.
+        Keys with no traffic get a zeroed counter. ``request_quota_monthly`` /
+        ``rate_limit_rpm`` / ``quota_remaining`` / ``rpm_remaining`` are ``None``
+        when uncapped; ``quota_exceeded`` means the next request is rejected.
         """
         tier = self.resolve_tier(api_key)
         now = time.monotonic()
@@ -210,9 +172,7 @@ class BillingEnforcer:
     def save(self) -> None:
         """Atomically persist counters to ``persist_path`` (if configured).
 
-        Best-effort: I/O errors are logged, never raised. Writes go to a
-        temp file then ``replace()`` so a crash mid-write cannot corrupt
-        the previous snapshot.
+        Best-effort: errors are logged, never raised. Temp file then ``replace()``.
         """
         if self._persist_path is None:
             return
@@ -242,140 +202,12 @@ class BillingEnforcer:
         with self._lock:
             self._counters.clear()
 
-    # ── Shared (Redis) counters ────────────────────────────────────
-    def _redis_client(self) -> Any:
-        """Pinged Redis client for shared counters, or None (with cooldown).
-
-        Never raises — the in-process counters are the fallback.
-        """
-        if self._redis is not None:
-            return self._redis
-        if not self._redis_url:
-            return None
-        now = time.monotonic()
-        if now - self._redis_failed_at < REDIS_RETRY_SECONDS:
-            return None
-        try:
-            import redis
-
-            client = redis.Redis.from_url(
-                self._redis_url,
-                socket_connect_timeout=0.25,
-                socket_timeout=0.25,
-                decode_responses=True,
-            )
-            client.ping()
-        except Exception as e:  # noqa: BLE001 — degrade, never raise
-            self._redis_failed_at = now
-            logger.warning(
-                "billing_quota_redis_unavailable_falling_back_to_memory",
-                extra={"error": str(e)[:160]},
-            )
-            return None
-        self._redis = client
-        return client
-
-    def _drop_redis(self, error: Exception) -> None:
-        """Forget the client and start the cooldown."""
-        self._redis = None
-        self._redis_failed_at = time.monotonic()
-        logger.warning(
-            "billing_quota_redis_error_falling_back_to_memory",
-            extra={"error": str(error)[:160]},
-        )
-
-    @staticmethod
-    def _scope(api_key: str | None) -> str:
-        """Opaque per-key scope — the raw credential never enters a key name."""
-        material = api_key if api_key is not None else _ANON_KEY
-        return hashlib.sha256(material.encode()).hexdigest()[:32]
-
-    @staticmethod
-    def _month_ttl_seconds() -> int:
-        """Seconds until the month rolls over, plus slack."""
-        today = date.today()
-        next_month = date(today.year + (today.month == 12), today.month % 12 + 1, 1)
-        return int((next_month - today).total_seconds()) + 86_400
-
-    def _redis_keys(self, api_key: str | None) -> tuple[str, str]:
-        """(monthly-quota key, fixed-60s rate-window key) for one API key."""
-        scope = self._scope(api_key)
-        month = _current_month()
-        window = int(time.time()) // RATE_WINDOW_SECONDS
-        return (
-            f"{_REDIS_PREFIX}q:{scope}:{month}",
-            f"{_REDIS_PREFIX}r:{scope}:{window}",
-        )
-
-    def _redis_admit(self, client: Any, api_key: str | None, tier: Tier) -> bool | None:
-        """Reserve one request in Redis; None means "fall back to local".
-
-        ``INCR``-then-compare (not read-then-write) so replicas cannot each
-        read a count one below the limit; an over-limit increment is rolled
-        back so a denied request consumes nothing. Boundary over-admission is
-        bounded by the number of concurrent replicas, not by N whole quotas.
-        """
-        quota_key, rate_key = self._redis_keys(api_key)
-        quota_used = 0
-        try:
-            if tier.request_quota_monthly is not None:
-                quota_used = int(client.incr(quota_key))
-                if quota_used == 1:
-                    client.expire(quota_key, self._month_ttl_seconds())
-                if quota_used > tier.request_quota_monthly:
-                    client.decr(quota_key)
-                    return False
-            if tier.rate_limit_rpm is not None:
-                rate_used = int(client.incr(rate_key))
-                if rate_used == 1:
-                    client.expire(rate_key, RATE_WINDOW_SECONDS * 2)
-                if rate_used > tier.rate_limit_rpm:
-                    client.decr(rate_key)
-                    if quota_used:
-                        client.decr(quota_key)
-                    return False
-        except Exception as e:  # noqa: BLE001 — fall back to in-process
-            self._drop_redis(e)
-            return None
-        return True
-
-    def _redis_usage(self, api_key: str | None) -> tuple[str, int, int] | None:
-        """(month, month_requests, window_requests) from Redis, or None."""
-        client = self._redis_client()
-        if client is None:
-            return None
-        quota_key, rate_key = self._redis_keys(api_key)
-        try:
-            month_requests = int(client.get(quota_key) or 0)
-            window_requests = int(client.get(rate_key) or 0)
-        except Exception as e:  # noqa: BLE001 — stats degrade to local
-            self._drop_redis(e)
-            return None
-        return _current_month(), month_requests, window_requests
-
-    def _maybe_save(self) -> None:
-        """Persist counters; throttled only when Redis holds the truth.
-
-        With a shared store the file is a redundant snapshot, so per-request
-        writes were pure last-writer-wins churn. Without Redis it is the only
-        durable record — legacy per-request behaviour is preserved.
-        """
-        if self._persist_path is None:
-            return
-        if self._redis is None:
-            self.save()
-            return
-        if time.monotonic() - self._last_save < SAVE_INTERVAL_SECONDS:
-            return
-        self.save()
-
     # ── Internals ──────────────────────────────────────────────────
     def _counter_for(self, api_key: str | None, now: float) -> _KeyCounter:
         """Return the live counter for *api_key*, rotating month/window.
 
-        Callers must hold ``self._lock``. New counters are created lazily;
-        when the tracked-key budget is exhausted the least-recently-used
-        key is evicted (FIFO via ``move_to_end``).
+        Callers hold ``self._lock``. Counters are created lazily; at the key
+        budget the least-recently-used key is evicted.
         """
         key = api_key if api_key is not None else _ANON_KEY
         counter = self._counters.get(key)
@@ -459,6 +291,21 @@ class BillingEnforcer:
             return {}
         return cls._parse_json(text, str(path))
 
+    @staticmethod
+    def _parse_counter(item: Any) -> _KeyCounter | None:
+        """Build a counter from one persisted slot; None when malformed."""
+        if not isinstance(item, dict):
+            return None
+        try:
+            return _KeyCounter(
+                month=str(item["month"]),
+                month_requests=int(item["month_requests"]),
+                window_start=float(item["window_start"]),
+                window_requests=int(item["window_requests"]),
+            )
+        except (KeyError, TypeError, ValueError):
+            return None
+
     def _load_persisted(self) -> None:
         """Load counters from ``persist_path`` at construction (if any)."""
         if self._persist_path is None or not self._persist_path.exists():
@@ -476,20 +323,14 @@ class BillingEnforcer:
             logger.warning("Ignoring incompatible billing persistence file %s", self._persist_path)
             return
         raw = payload.get("counters")
-        if not isinstance(raw, dict):
-            return
+        self._merge_counters(raw if isinstance(raw, dict) else {})
+
+    def _merge_counters(self, counters: dict[str, Any]) -> None:
+        """Copy parsed counters into the bounded in-memory map."""
         with self._lock:
-            for key, item in raw.items():
-                if not isinstance(item, dict) or len(self._counters) >= MAX_TRACKED_KEYS:
-                    continue
-                try:
-                    counter = _KeyCounter(
-                        month=str(item["month"]),
-                        month_requests=int(item["month_requests"]),
-                        window_start=float(item["window_start"]),
-                        window_requests=int(item["window_requests"]),
-                    )
-                except (KeyError, TypeError, ValueError):
+            for key, item in counters.items():
+                counter = self._parse_counter(item)
+                if counter is None or len(self._counters) >= MAX_TRACKED_KEYS:
                     continue
                 self._counters[key] = counter
 

@@ -32,6 +32,7 @@ from pry.api.app_metadata import (
 )
 from pry.api.app_wiring import wire_app
 from pry.api.lifecycle import lifespan
+from pry.api.routers.core.app_ui import router as app_ui_router
 from pry.core.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,8 @@ app = FastAPI(
 )
 
 wire_app(app)
+
+app.include_router(app_ui_router)
 
 
 # ── x402 V2 spec endpoints ──

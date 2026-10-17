@@ -135,13 +135,14 @@ class PryCrawl:
         method: str,
         path: str,
         *,
-        json_body: dict[str, Any] | None = None,
-        params: dict[str, Any] | None = None,
-        headers: dict[str, str] | None = None,
+        body: dict[str, Any] | None = None,
+        request: dict[str, Any] | None = None,
     ) -> httpx.Response:
-        idempotent = method.upper() == "GET"
         """One request; idempotent calls retry 429/5xx with exponential backoff."""
-        merged = {**self._headers, **(headers or {})}
+        options = request or {}
+        idempotent = method.upper() == "GET"
+        merged = _merged_headers(self._headers, options.get("headers"))
+        params = options.get("params")
         async with httpx.AsyncClient(
             timeout=self.timeout, headers=merged, transport=self._transport
         ) as client:
@@ -149,7 +150,7 @@ class PryCrawl:
                 last = attempt == self.max_retries
                 try:
                     resp = await client.request(
-                        method, f"{self.base_url}{path}", json=json_body, params=params
+                        method, f"{self.base_url}{path}", json=body, params=params
                     )
                 except httpx.TransportError:
                     if not idempotent or last:
@@ -164,7 +165,7 @@ class PryCrawl:
         self, path: str, data: dict[str, Any], pay: PayCallback | None = None
     ) -> dict[str, Any]:
         """POST; a 402 buys exactly one paid retry through ``pay``."""
-        resp = await self._send("POST", path, json_body=data)
+        resp = await self._send("POST", path, body=data)
         if resp.status_code == 402:
             challenge = parse_challenge(resp)
             self._guard_price(challenge)
@@ -180,8 +181,8 @@ class PryCrawl:
             resp = await self._send(
                 "POST",
                 path,
-                json_body=data,
-                headers={"X-PAYMENT": value, "PAYMENT-SIGNATURE": value},
+                body=data,
+                request={"headers": {"X-PAYMENT": value, "PAYMENT-SIGNATURE": value}},
             )
         if resp.status_code >= 400:
             raise _problem(resp)
@@ -229,7 +230,7 @@ class PryCrawl:
         cursor: Any = None
         for _ in range(max_pages):
             query = {**(params or {}), "limit": limit, **({"cursor": cursor} if cursor else {})}
-            resp = await self._send("GET", path, params=query)
+            resp = await self._send("GET", path, request={"params": query})
             if resp.status_code >= 400:
                 raise _problem(resp)
             body = resp.json()
@@ -267,3 +268,8 @@ class PryCrawlSync:
             return _get_or_create_loop().run_until_complete(coro)
 
         return call
+
+
+def _merged_headers(base: dict[str, str], extra: dict[str, str] | None) -> dict[str, str]:
+    """Base headers overlaid with per-request overrides."""
+    return {**base, **(extra or {})}

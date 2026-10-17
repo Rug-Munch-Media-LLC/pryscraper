@@ -1,0 +1,136 @@
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+body {
+	font-family: -apple-system, system-ui, sans-serif;
+	background: #070b13;
+	color: #e2e8f0;
+	padding: 2rem;
+	font-size: 15px;
+}
+a {
+	color: #38bdf8;
+	text-decoration: none;
+}
+a:hover {
+	text-decoration: underline;
+}
+h1 {
+	font-size: 1.4rem;
+	color: #c8f04b;
+	letter-spacing: 0.02em;
+}
+.sub {
+	color: #64748b;
+	font-size: 0.82rem;
+	margin: 0.25rem 0 1.75rem;
+}
+.muted {
+	color: #64748b;
+}
+.lime {
+	color: #c8f04b;
+}
+.cyan {
+	color: #38bdf8;
+}
+.grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 1rem;
+	margin-bottom: 1.5rem;
+}
+.card {
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(200, 240, 75, 0.12);
+	border-radius: 14px;
+	padding: 1.15rem;
+}
+.card h3 {
+	font-size: 0.68rem;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: #64748b;
+	margin-bottom: 0.4rem;
+}
+.card .v {
+	font-size: 1.6rem;
+	font-weight: 700;
+	color: #f8fafc;
+}
+.panel {
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(56, 189, 248, 0.12);
+	border-radius: 14px;
+	padding: 1rem;
+	overflow-x: auto;
+	margin-bottom: 1.5rem;
+}
+table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.82rem;
+}
+th,
+td {
+	padding: 0.5rem 0.6rem;
+	text-align: left;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+th {
+	color: #64748b;
+	font-size: 0.65rem;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+input,
+select {
+	background: #0d1420;
+	border: 1px solid rgba(56, 189, 248, 0.25);
+	color: #e2e8f0;
+	border-radius: 8px;
+	padding: 0.5rem 0.7rem;
+	font: inherit;
+}
+button {
+	background: #c8f04b;
+	color: #070b13;
+	border: 0;
+	border-radius: 8px;
+	padding: 0.55rem 1rem;
+	font-weight: 700;
+	cursor: pointer;
+}
+button.danger {
+	background: rgba(248, 113, 113, 0.15);
+	color: #f87171;
+	padding: 0.35rem 0.7rem;
+	font-size: 0.75rem;
+}
+code {
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 0.82rem;
+	color: #c8f04b;
+	word-break: break-all;
+}
+.form {
+	display: flex;
+	gap: 0.6rem;
+	flex-wrap: wrap;
+	align-items: center;
+	margin-bottom: 1rem;
+}
+.keybox {
+	border: 1px dashed rgba(200, 240, 75, 0.5);
+	border-radius: 12px;
+	padding: 1rem;
+	margin: 1rem 0;
+	background: rgba(200, 240, 75, 0.05);
+}
+.note {
+	color: #fbbf24;
+	font-size: 0.82rem;
+	margin-top: 0.5rem;
+}
