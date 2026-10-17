@@ -94,6 +94,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
+# pg_dump for the entrypoint's pre-migration backup guard. The runtime base is
+# Debian bookworm, whose stock postgresql-client is v15 — pg_dump REFUSES to
+# dump a newer server, and the compose database is postgres:16. Install the
+# matching v16 client from the PGDG repository instead of shipping a backup
+# step that always fails. `docker-entrypoint.sh` treats a missing/failed
+# pg_dump as a warning unless PRY_REQUIRE_PRE_MIGRATION_BACKUP=1.
+RUN install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+       -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+       > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client-16 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Playwright browsers are copied to a shared, read-only location and pointed
 # at via PLAYWRIGHT_BROWSERS_PATH. This keeps them out of $HOME (which is
 # read-only under `read_only: true`) and works for the non-root `pry` user.
@@ -129,8 +144,9 @@ USER pry
 EXPOSE 8002
 
 # docker-compose healthcheck uses the same probe. /health returns 200 only
-# when the process is up (and FlareSolverr is reachable); the start_period
-# absorbs the migration + warmup window.
+# when BOTH critical deps (Redis + database) answer; FlareSolverr is reported
+# but does not gate. The self-host overlay (no Redis) overrides this probe with
+# /healthz. start_period absorbs the migration + warmup window.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
     CMD ["curl", "-fsS", "http://localhost:8002/health"]
 

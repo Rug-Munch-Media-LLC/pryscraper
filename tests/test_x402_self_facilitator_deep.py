@@ -207,6 +207,7 @@ class TestSignatureParsing:
     def test_bytes_form(self) -> None:
         sig = _parse_signature({"signature": self._sig_65()})
         assert sig is not None
+        assert sig.vrs == (0, int("11" * 32, 16), int("22" * 32, 16))
 
     def test_wrong_length_rejected(self) -> None:
         assert _parse_signature({"signature": "0x" + "11" * 64}) is None
@@ -225,6 +226,7 @@ class TestSignatureParsing:
     def test_vrs_int_form(self) -> None:
         sig = _parse_signature({"r": int("11" * 32, 16), "s": int("22" * 32, 16), "v": 27})
         assert sig is not None
+        assert sig.vrs == (0, int("11" * 32, 16), int("22" * 32, 16))
 
     def test_vrs_missing_s_rejected(self) -> None:
         assert _parse_signature({"r": "0x" + "11" * 32}) is None

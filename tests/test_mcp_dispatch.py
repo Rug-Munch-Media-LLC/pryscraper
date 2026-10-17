@@ -74,7 +74,9 @@ class TestToolDispatch:
         _register_all(server)
         target = PRY_TOOLS[0]["name"]
         result = await server.call_tool(target, None)  # type: ignore[arg-type]
-        assert result
+        payload = json.loads(result["content"][0]["text"])
+        assert payload == {"ok": True, "tool": target, "args": None}
+        assert result["isError"] is False
 
 
 class TestRegistrationSurface:

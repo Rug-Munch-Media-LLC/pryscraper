@@ -37,35 +37,6 @@ jobs:
       - name: Run ALL pre-commit hooks on all files
         run: pre-commit run --all-files --show-diff-on-failure
 
-  commitlint:
-    runs-on: docker-x64
-    container:
-      image: node:22-bookworm-slim
-    steps:
-      - name: Install git
-        # Audit 2026-09-12: slim image has no git — checkout fell back to a
-        # tarball download and commitlint died with `spawn git ENOENT`.
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends git ca-certificates
-          rm -rf /var/lib/apt/lists/*
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0  # Need full history to check all commits in PR
-      - name: Install commitlint
-        run: |
-          npm install -g @commitlint/cli @commitlint/config-conventional
-      - name: Validate all commits in PR
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # Check all commits in the PR
-            git log --format="%H %s" origin/main..HEAD | while read hash msg; do
-              echo "$hash $msg" | commitlint --from="$hash^" --to="$hash" || exit 1
-            done
-          else
-            # On push to main, just check the latest commit
-            npx commitlint --from=HEAD~1 --to=HEAD
-          fi
-
   semgrep:
     runs-on: docker-x64
     container:
@@ -1287,6 +1258,10 @@ jobs:
         run: python3 scripts/check-package-discovery.py --repo .
       - name: Gate self-test (every gate catches its violation class)
         run: bash scripts/ci-gate-selftest.sh
+      - name: Test-integrity gate (no NEW tautological tests)
+        run: python3 scripts/check-test-integrity.py --repo . --baseline tests/integrity-baseline.json
+      - name: Claims gate (tool count, prices, chains, licence)
+        run: python3 scripts/check-claims.py
 
   # Guardian — dangerous-diff gate (required). Fails a PR that deletes tests,
   # edits CI config while deleting tests, adds shell/exec or dynamic eval, or

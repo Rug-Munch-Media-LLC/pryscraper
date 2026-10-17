@@ -523,8 +523,22 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 76  # measured 76.4% under scoped --cov=pry (was 73 under --cov=.)
+# Whole-package floor, measured 2026-10-18: 76.08% under `--cov=pry`
+# (7,768 passed; the 83 local failures are pre-existing route-classification
+# / env errors, see CI). RATCHET ONLY UP — never lower this to make CI green.
+fail_under = 76
 precision = 1
+# CRITICAL-MODULE FLOORS (must never drop; measured same run). Enforced per
+# module by the "Coverage floor per critical module" CI step, which reads
+# coverage.json — coverage.py itself has only one global fail_under.
+#   src/pry/payments/x402/handler_settle.py          88.2%
+#   src/pry/payments/x402/ledger_store.py            73.1%
+#   src/pry/payments/x402/facilitator_dispatch.py    90.9%
+#   src/pry/payments/x402/batch/payments.py         100.0%
+#   src/pry/core/api_keys_service.py                 93.5%
+#   src/pry/core/middleware_auth.py                  83.2%
+#   src/pry/compliance/deletion_logic.py            100.0%
+#   src/pry/commerce/actor_marketplace.py            90.0%
 show_missing = true
 exclude_lines = [
     "pragma: no cover",

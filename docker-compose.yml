@@ -18,6 +18,11 @@
 #     Talos deployment is unaffected by the variable existing at all.
 services:
   pry:
+    # NEVER deploy `latest` implicitly: production pins a release tag or digest,
+    # e.g. PRY_IMAGE_TAG=v1.4.2 (or PRY_IMAGE_TAG=sha256:...). `latest` is only
+    # the local-build convenience default; `build:` is used when the tag is
+    # absent from the local image store. Set PRY_IMAGE_REPO for a registry.
+    image: ${PRY_IMAGE_REPO:-pryscraper}:${PRY_IMAGE_TAG:-latest}
     build: .
     container_name: ${PRY_CONTAINER_PREFIX-}pry
     restart: unless-stopped
@@ -41,7 +46,13 @@ services:
     # Secrets live OUTSIDE the public repo tree (fleet convention, see
     # /srv/rmi-infra/.env.secrets). Contains only PRY_API_KEY, PRY_X402_*
     # and OPENROUTER_API_KEY — no fleet keys (2026-08-20 audit, P0-1/P0-2).
-    env_file: /srv/rmi-infra/.env.pry
+    # Long form with required:false so a clean install on a box WITHOUT the
+    # fleet secrets file still renders (compose >= 2.24). With the file
+    # present its values load normally; without it, every value must come from
+    # `.env` / the shell. Self-host overrides this to `[]`.
+    env_file:
+      - path: /srv/rmi-infra/.env.pry
+        required: false
     environment:
       # 2026-08-29 — point Pry at the Webshare secret this host ACTUALLY has.
       # Its engine already supports Webshare (src/pry/engine/webshare_proxy.py)
@@ -106,9 +117,9 @@ services:
       # Async consumers convert to +asyncpg themselves (_resolve_async_database_url).
       - PRY_DATABASE_URL=postgresql://pry:${POSTGRES_PASSWORD}@postgres:5432/pry
       - PRY_REDIS_URL=redis://redis:6379/0
-      # Entrypoint migrations RE-ENABLED: they only crashed because env.py
-      # got the asyncpg URL above. With the sync URL alembic connects fine;
-      # schema is stamped at head so first run is a no-op. See audit P0-1.
+      # Entrypoint runs REAL migrations: alembic upgrade head (never `stamp`).
+      # The URL above is a sync psycopg2 URL; alembic/env.py also normalises an
+      # async driver, which is what used to crash migrations. See docs/ops/DEPLOY.md.
       - PRY_SKIP_MIGRATIONS=0
     healthcheck:
       # HTTP /health probe — matches the Dockerfile HEALTHCHECK. A TCP probe
@@ -143,6 +154,14 @@ services:
       # which is flaresolverr-pry. It was flaresolverr — the shared instance
       # degenfeed saturates — so Pry waited on the health of a service it
       # never called. Fixing one without the other is how the split happened.
+      # The app needs its database and queue before the entrypoint migrates;
+      # without these the first boot races Postgres and exits on connect.
+      # docker-compose.selfhost.yml replaces this whole map (`!override`) with
+      # flaresolverr-pry only, because it removes postgres/redis entirely.
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
       flaresolverr-pry:
         condition: service_healthy
 
@@ -390,6 +409,10 @@ services:
         limits:
           memory: 128M
           cpus: "0.5"
+    # No healthcheck: this helper is profile-gated (`--profile tor`) and
+    # nothing depends_on it, so a probe would only colour `docker compose ps`.
+    # The image exposes no guaranteed probe tool (no curl/wget contract);
+    # verify Tor by using it: `curl --socks5 localhost:9050 https://check.torproject.org`.
     profiles:
       - tor
 
@@ -405,6 +428,14 @@ services:
         limits:
           memory: 128M
           cpus: "0.25"
+    healthcheck:
+      # postgres_exporter serves /metrics on 9187; the image is alpine-based
+      # (busybox wget), so no extra tooling is required.
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9187/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       postgres:
         condition: service_healthy
@@ -421,6 +452,12 @@ services:
         limits:
           memory: 64M
           cpus: "0.1"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9121/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       redis:
         condition: service_healthy
@@ -434,6 +471,12 @@ services:
       - ./prometheus/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
     command:
       - '--config.file=/etc/blackbox_exporter/config.yml'
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9115/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     deploy:
       resources:
         limits:
@@ -459,9 +502,12 @@ services:
     ports:
       - "127.0.0.1:4317:4317"  # OTLP gRPC
       - "127.0.0.1:4318:4318"  # OTLP HTTP
+    # No healthcheck: the collector image is scratch-based (no shell, no
+    # wget/curl) and otel/otel-collector-config.yaml does not enable the
+    # health_check extension. Configure that extension before adding a probe.
     depends_on:
       jaeger:
-        condition: service_started
+        condition: service_healthy
     deploy:
       resources:
         limits:
@@ -481,6 +527,15 @@ services:
       - "127.0.0.1:14250:14250"  # OTLP gRPC (collector -> jaeger)
     environment:
       - COLLECTOR_OTLP_ENABLED=true
+    healthcheck:
+      # Jaeger all-in-one serves its UI/API on 16686; the image is alpine-based
+      # (busybox wget). [REVIEW] verify `docker compose ps` shows healthy after
+      # the first pull — if the base ever moves to distroless, drop this probe.
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:16686/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     deploy:
       resources:
         limits:

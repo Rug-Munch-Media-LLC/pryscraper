@@ -80,7 +80,10 @@ class TestSessionLifecycle:
 
     def test_new_session_id_is_long_enough(self) -> None:
         sid = _new_session_id()
-        assert len(sid) >= 16
+        # secrets.token_urlsafe(16) => 16 bytes => 22 base64url chars, no padding.
+        assert len(sid) == 22
+        assert all(c.isalnum() or c in "-_" for c in sid)
+        assert _new_session_id() != sid
 
     def test_get_or_create_queue_creates_new(self) -> None:
         q = _get_or_create_queue("new_session")

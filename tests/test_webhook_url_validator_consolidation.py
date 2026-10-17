@@ -36,26 +36,27 @@ def test_router_validator_rejects_private_targets() -> None:
     """Kills: the consolidation dropping the private-range check entirely (e.g.
     a delegate that swallows the rejection reason).
     """
-    for url in (
-        "http://169.254.169.254/latest/",
-        "https://127.0.0.1/hook",
-        "https://10.0.0.5/hook",
-    ):
-        assert _validate_webhook_url(url) is not None, url
+    expected = {
+        "http://169.254.169.254/latest/": "http only allowed for localhost",
+        "https://127.0.0.1/hook": "host resolves to private/loopback IP: 127.0.0.1",
+        "https://10.0.0.5/hook": "host resolves to private/loopback IP: 10.0.0.5",
+    }
+    for url, reason in expected.items():
+        assert _validate_webhook_url(url) == reason, url
 
 
 def test_router_validator_rejects_non_http_schemes() -> None:
     """Kills: a delegate that only checks the resolved address — a ``file://``
     URL never resolves, so an address-only check has nothing to reject it on.
     """
-    assert _validate_webhook_url("file:///etc/passwd") is not None
+    assert _validate_webhook_url("file://evil.example.com/etc/passwd") == "unsupported scheme: file"
 
 
 def test_router_validator_rejects_missing_host() -> None:
     """Kills: a delegate that loses the "no hostname" arm (e.g. only forwarding
     when a hostname parses), which would let a relative URL reach the client.
     """
-    assert _validate_webhook_url("https:///nohost") is not None
+    assert _validate_webhook_url("https:///nohost") == "missing hostname"
 
 
 def test_router_validator_is_the_pinned_implementation(

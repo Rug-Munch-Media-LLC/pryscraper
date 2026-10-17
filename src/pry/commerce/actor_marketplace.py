@@ -189,10 +189,11 @@ class ActorMarketplace:
         return {"success": False, "code": result.get("code") or code, "error": error}
 
     async def _run_scrape(self, url: str) -> dict[str, Any]:
-        from pry.engine.scraper import PryScraper
 
         try:
-            result = await PryScraper().scrape(url, {"bypass_cloudflare": True})
+            from pry.core.deps import scraper as _scraper
+
+            result = await _scraper.scrape(url, {"bypass_cloudflare": True})
         except Exception as e:
             logger.exception("actor_scrape_failed", extra={"url": url})
             return {"success": False, "code": "scrape_failed", "error": f"Scrape failed: {e}"}

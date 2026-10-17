@@ -23,7 +23,7 @@ def owner_key() -> str:
     if key:
         return key
     try:
-        from pry.core.config import settings  # app-level config
+        from pry.core.settings import settings  # app-level config
     except (ImportError, AttributeError) as exc:
         logger.warning(
             "payments_exception_swallowed",

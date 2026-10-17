@@ -1,75 +1,77 @@
-# Pry Scraping API
+# Pry
 
-**Pay-per-request HTTP for the multi-chain economy**
+**Scrape any URL. Pay per call. Or self-host it.**
 
-Pry is a self-hosted web scraping and browser automation platform with native x402 micropayments. It routes each request through an adaptive **15-tier fallback chain** — direct HTTP, TLS fingerprinting, cloudscraper, FlareSolverr, undetected-chromedriver, Camoufox, Playwright, Googlebot emulation, Tor, premium proxies, cached copies, AI visual scraping, mobile app API, and GraphQL discovery.
+Pry turns a URL into Markdown, structured JSON, or a screenshot. It escalates through 15 anti-bot tiers only as far as a site needs, then remembers which tier worked for that domain.
 
-## Quick Start
+## Quick start
 
-### As an MCP Client (AI Agents)
+### MCP client
 
 ```json
 {
   "mcpServers": {
     "pry": {
-      "url": "http://localhost:8005/sse"
+      "url": "https://api.pryscraper.com/mcp/"
     }
   }
 }
 ```
 
-Bearer auth: free on loopback; set `PRY_API_KEY` for remote access. 99 tools immediately available.
+Discovery is keyless. A paid `tools/call` needs an x402 payment or an API key. 99 tools are available immediately.
 
-### Self-hosted (Docker)
+### Self-hosted
 
 ```bash
 git clone https://codeberg.org/RugMunchMedia/pryscraper.git
 cd pryscraper
-docker compose up -d
+cp .env.selfhost.example .env.selfhost
+./scripts/selfhost-init.sh
+PRY_SELFHOST_PORT=8005 docker compose -f docker-compose.yml -f docker-compose.selfhost.yml \
+  --env-file .env.selfhost up -d
 ```
+
+API `http://localhost:8005` · MCP `http://localhost:8005/mcp/` · health `http://localhost:8005/health`.
 
 ### CLI
 
 ```bash
 pip install pryscraper-mcp
-pry serve          # API on :8005
+PRY_X402_ENABLED=false PRY_API_KEY=devkey pry serve
 pry open https://example.com
 pry crawl https://docs.com --max-pages 20
 ```
 
-## Why Pry?
-
-| Feature | Pry | Firecrawl | Scrapling | Apify |
-|---------|:---:|:---------:|:---------:|:-----:|
-| Anti-detection tiers | **15** | 2 | 3 | 1 |
-| MCP tools | **99** | 5 | 8 | 0 |
-| x402 payments | ✅ | ❌ | ❌ | ❌ |
-| Self-hosted | ✅ | ❌ | ✅ | ✅ |
-| Templates | **110+** | 0 | 0 | 1000+ |
-| Price | Pay-per-use | $49-$499/mo | Free | $49+/mo |
-
-## Architecture
+## The shape of a request
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Pry Platform                          │
-├─────────────────────────────────────────────────────────────┤
-│  MCP Layer (99 tools)  │  REST API  │  x402 Payments        │
-├─────────────────────────────────────────────────────────────┤
-│  15-Tier Scraping Engine                                    │
-│  ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐  │
-│  │Direct│TLS  │Cloud│Flare│Undet│Camou│Play │Google│Tor  │  │
-│  │HTTP  │FP   │scrap│Solv │Chrom│fox  │wright│bot  │     │  │
-│  └─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘  │
-│  ┌─────┬─────┬─────┬─────┬─────┐                           │
-│  │Prem │Arch │Cache│AI   │Mobile│                          │
-│  │Proxy│ive  │     │Vis  │API   │                          │
-│  └─────┴─────┴─────┴─────┴─────┘                           │
-├─────────────────────────────────────────────────────────────┤
-│  Data: 110 templates · 20+ domains · 7 blockchain networks │
-└─────────────────────────────────────────────────────────────┘
+client ──POST /v1/scrape──▶ auth + x402 gate
+                                  │ unpaid → 402 with price and payee
+                                  ▼ paid
+                            tier chain 1 → 15
+                                  ▼
+                         markdown / JSON response
 ```
 
-## License
+## What you get
 
-MIT — see [LICENSE](https://codeberg.org/RugMunchMedia/pryscraper/blob/main/LICENSE).
+- **REST**: `/v1/scrape`, `/v1/crawl`, `/v1/map`, `/v1/extract`, `/v1/templates/execute`.
+- **MCP**: 99 tools in 33 categories at `/mcp/` (Streamable HTTP) and `/mcp/sse` (SSE), plus stdio via `pry-mcp`.
+- **Payments**: x402 on seven networks — Base, Ethereum, Arbitrum, Optimism, Polygon, Solana, TRON.
+- **Library**: 110 scraper templates and 112 Apify actors.
+
+## Prices
+
+| Operation | USD per call |
+|---|---:|
+| Scrape one URL | $0.001 |
+| Crawl up to 10 pages | $0.010 |
+| Structured extraction | $0.005 |
+
+Source: `X402_PRICING`, `src/pry/payments/x402/scheme/pricing/catalog.py`.
+
+## Licence
+
+MIT for the core engine. BSL-1.1 for the stealth/anti-detection module. See [LICENSE](https://codeberg.org/RugMunchMedia/pryscraper/blob/main/LICENSE) and [LICENSE-BSL-STEALTH](https://codeberg.org/RugMunchMedia/pryscraper/blob/main/LICENSE-BSL-STEALTH).
+
+Next: [Quickstart](quickstart) · [Configuration](configuration) · [API reference](api/scrape) · [x402](x402/overview).

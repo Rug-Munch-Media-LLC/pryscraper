@@ -92,8 +92,6 @@ services:
       # No Redis container in this profile: the rate limiter degrades to a
       # per-process token bucket, which is correct for a single-replica box.
       - PRY_REDIS_URL=
-      # SQLite needs no alembic round-trip; init_db() creates the schema.
-      - PRY_SKIP_MIGRATIONS=1
       # Scraper defaults (no proxy / no Tor sidecar in this profile).
       # The base file enables Tor and points at the `tor` service; this
       # profile resets that service, so the vars MUST be neutralized here or
@@ -109,7 +107,29 @@ services:
       - MIN_QUALITY=20
       - RATE_LIMIT_RPM=120
       - PRY_FLARESOLVERR_URL=http://flaresolverr-pry:8191/v1
+      # Which peers may set X-Forwarded-For. Docker's bridge range
+      # (172.16.0.0/12) plus loopback means a reverse proxy on the same host or
+      # in a compose network is trusted, and per-IP rate limits bucket REAL
+      # clients instead of one proxy IP. If you expose this directly to the
+      # internet, remove 172.16.0.0/12 unless something in front sanitizes the
+      # header — otherwise a client can spoof its own IP.
       - PRY_TRUSTED_PROXIES=172.16.0.0/12,127.0.0.1,::1
+      # SQLite on a single box: schema is created by init_db(), so alembic is
+      # skipped. See docs/ops/DEPLOY.md for when this becomes a manual step
+      # (moving to Postgres).
+      - PRY_SKIP_MIGRATIONS=1
+      - PRY_BACKUP_BEFORE_MIGRATE=0
+    # LIVENESS probe, not readiness. `/health` gates on redis + database, and
+    # this profile deliberately has NO Redis (PRY_REDIS_URL is empty and the
+    # limiter degrades in-process), so `/health` answers 503 here by design.
+    # `/healthz` is "process is serving" and is the correct container probe.
+    # Use `/health` only after you add Postgres + Redis (see docs/ops/DEPLOY.md).
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8002/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     # The base file's own flaresolverr is not part of this profile.
     depends_on: !override
       flaresolverr-pry:

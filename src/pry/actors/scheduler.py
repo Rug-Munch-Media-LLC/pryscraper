@@ -216,14 +216,15 @@ def mark_exhausted(monitor_id: str) -> None:
 
 async def scrape_with_retry(monitor_id: str, url: str) -> tuple[str | None, str | None]:
     """Scrape with exponential backoff. Returns (content, error)."""
-    from pry.engine.scraper import PryScraper
 
     attempts = max(1, int(_env_float("PRY_MONITOR_MAX_ATTEMPTS", 3, 1)))
     backoff = _env_float("PRY_MONITOR_RETRY_BACKOFF_S", 0.5)
     last = "unknown error"
     for attempt in range(1, attempts + 1):
         try:
-            result = await PryScraper().scrape(url)
+            from pry.core.deps import scraper as _scraper
+
+            result = await _scraper.scrape(url)
             return str(result.get("content", "")), None
         except Exception as exc:  # noqa: BLE001 — backends raise anything
             last = str(exc) or exc.__class__.__name__

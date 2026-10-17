@@ -88,9 +88,13 @@ def test_router_sorted_by_priority(router: FacilitatorRouter):
 def test_router_empty_allowed():
     """Passing an empty list should result in no facilitators."""
     r = FacilitatorRouter(facilitators=[])
-    # Note: __init__ uses `facilitators or DEFAULT_FACILITATORS`, and [] is falsy,
-    # so this test documents current behavior — empty list falls back to defaults.
-    assert len(r.facilitators) >= 0
+    # __init__ uses `facilitators or DEFAULT_FACILITATORS`, and [] is falsy:
+    # the empty list must fall back to the *exact* usable default set.
+    expected = sorted(
+        [f for f in DEFAULT_FACILITATORS if f.enabled and f.verify_url],
+        key=lambda f: f.priority,
+    )
+    assert r.facilitators == expected
 
 
 def test_router_accepts_empty_self_hosted():
@@ -309,9 +313,10 @@ def test_register_facilitator_global():
     import pry.payments.x402.facilitator as fac
 
     fac._facilitator_router = None
-    register_facilitator("solana", MagicMock())
+    impl = MagicMock()
+    register_facilitator("solana", impl)
     r = get_facilitator_router()
-    assert r._impl_for("solana") is not None
+    assert r._impl_for("solana") is impl
 
 
 # ---------------------------------------------------------------------------
