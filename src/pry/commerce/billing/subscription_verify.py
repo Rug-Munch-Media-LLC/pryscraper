@@ -189,6 +189,13 @@ def settle_subscription_payment(invoice_id: str) -> dict[str, Any]:
     )
     if settle_tx is None:
         return {"settled": False, "tx_hash": None, "reason": "settlement failed"}
+    # Persist the instant funds moved. Revenue attribution must use this time,
+    # not the time of whichever query happens to run next.
+    settled_at = _utc_iso(_facade._now())
+    with _lock:
+        invoice["settled_at"] = settled_at
+        invoice["settlement_tx_hash"] = str(settle_tx)
+        _save_state_locked()
     return {"settled": True, "tx_hash": str(settle_tx), "reason": ""}
 
 
@@ -229,6 +236,8 @@ def _verify_btcpay(invoice: dict[str, Any], *, expired: bool) -> dict[str, Any]:
     with _lock:
         if settled:
             invoice["status"] = "paid"
+            # setdefault keeps the first observed settlement time (idempotent).
+            invoice.setdefault("settled_at", _utc_iso(_facade._now()))
         if isinstance(data, dict):
             invoice.setdefault("btcpay", {})["upstream_status"] = status
         _save_state_locked()

@@ -9,7 +9,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query  # noqa: F401 - APIRouter re-exported
 
 from pry.api.routers.core.admin_router import router
-from pry.api.routers.core.admin_shared import _earnings_source, _get_x402_payments, _parse_ts
+from pry.api.routers.core.admin_shared import _earnings_source, _get_x402_payments, _payment_ts
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +60,9 @@ async def admin_treasury() -> dict[str, Any]:
 async def admin_payments_recent() -> dict[str, Any]:
     """Most recent payments, newest first."""
     payments = _get_x402_payments(days=30)
-    payments.sort(
-        key=lambda p: _parse_ts(p.get("ts", "")) or datetime.min.replace(tzinfo=UTC), reverse=True
-    )
-    return {"success": True, "count": len(payments[:50]), "payments": payments[:50]}
+    payments.sort(key=lambda p: _payment_ts(p) or datetime.min.replace(tzinfo=UTC), reverse=True)
+    total = len(payments)
+    return {"success": True, "count": total, "payments": payments[:50]}
 
 
 @router.get(
@@ -74,7 +73,5 @@ async def admin_payments_failed() -> dict[str, Any]:
     """Payments whose verification did not succeed, with failure reasons."""
     payments = _get_x402_payments(days=30)
     failed = [p for p in payments if not p.get("verified")]
-    failed.sort(
-        key=lambda p: _parse_ts(p.get("ts", "")) or datetime.min.replace(tzinfo=UTC), reverse=True
-    )
+    failed.sort(key=lambda p: _payment_ts(p) or datetime.min.replace(tzinfo=UTC), reverse=True)
     return {"success": True, "count": len(failed), "payments": failed[:50]}

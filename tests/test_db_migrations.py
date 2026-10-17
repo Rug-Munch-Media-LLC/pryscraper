@@ -61,7 +61,7 @@ def test_domain_method_stats_up_and_down_round_trip(temp_data_dir, monkeypatch):
     cfg = Config(str(REPO_ROOT / "alembic.ini"))
     cfg.set_main_option("script_location", str(REPO_ROOT / "alembic"))
     cfg.set_main_option("sqlalchemy.url", db.get_engine().url.render_as_string(hide_password=False))
-    command.downgrade(cfg, "-1")
+    command.downgrade(cfg, "0007")  # 0009 is now head; -1 would only reach 0008
     assert "domain_method_stats" not in set(inspect(db.get_engine()).get_table_names())
 
     command.upgrade(cfg, "head")

@@ -1,7 +1,6 @@
 """Pry — fail-closed auth policy for the ASGI middleware and config routers.
 
-Split out of the former monolithic middleware.py. Shared by
-``PryHttpMiddleware`` and the sensitive configuration routers
+Shared by ``PryHttpMiddleware`` and the sensitive configuration routers
 (routers/proxy.py, routers/config.py) so every egress-mutating endpoint
 enforces the same rule as the middleware.
 """
@@ -13,7 +12,9 @@ enforces the same rule as the middleware.
 # Licensed under MIT. See LICENSE.
 
 import hmac
-from collections.abc import MutableMapping
+import ipaddress
+import os
+from collections.abc import Mapping, MutableMapping
 from typing import Any
 
 from pry.core.jwt_auth import is_jwt, validate_rmi_jwt
@@ -30,13 +31,8 @@ _AUTH_PUBLIC_PATHS: set[str] = {
     "/metrics",
     "/docs",
     "/openapi.json",
-    # MCP sub-app is public (AI agents must discover tools without API key).
-    # SECURITY: /mcp/messages and /mcp/sse are public at the middleware layer
-    # because the SSE transport requires unauthenticated reachability for
-    # discovery.  tools/call (the dangerous operation) is auth-gated INSIDE
-    # both mcp_post_message (mcp_sse.py) and the Streamable HTTP handler
-    # (pry_mcp/app.py) — an unauthenticated caller gets a JSON-RPC -32001
-    # Unauthorized error, not tool execution.
+    # MCP discovery is public; tools/call is auth-gated inside both the SSE
+    # handler (mcp_sse.py) and the Streamable HTTP handler (pry_mcp/app.py).
     "/mcp",
     "/mcp/health",
     "/mcp/sse",
@@ -47,42 +43,91 @@ _AUTH_PUBLIC_PATHS: set[str] = {
     "/.well-known/x402.json",
     "/.well-known/x402-bazaar.json",
     "/llms.txt",
-    # x402 discovery: agents must be able to price calls without a key
-    # (the 402 challenge itself is the auth for paid calls).
+    # x402 discovery: agents price calls without a key (the 402 is the auth).
     "/v1/x402/pricing",
     "/v1/x402/catalog",
-    # Human checkout + customer portal (pre-auth surfaces: the human IS
-    # the payer — the checkout page renders the 402 manifest; the portal
-    # authenticates via a signed magic-link token carried in the query
-    # string, verified inside the endpoint — 401 without a valid token).
-    # POST /v1/hosting/portal/request is the rate-limited magic-link
-    # request flow (public by design; the rate limit is the protection).
+    # Human rail: the payer has no key yet; the payment IS the auth. The
+    # portal verifies a signed magic-link token inside the endpoint.
     "/v1/hosting/checkout",
     "/v1/hosting/portal",
-    # Email verification link target (humans click it from mail clients —
-    # no API key exists yet; the code in the link IS the proof).
+    # Email verification link target — the code in the link IS the proof.
     "/v1/hosting/verify",
-    # Hosting signup + tx confirm — the FIRST steps of the human rail.
-    # A prospective customer has no API key yet (the payment IS the auth,
-    # same doctrine as the x402 402-challenge). Prefix match also covers
-    # POST /v1/hosting/signup/{invoice_id}/confirm. Keyless requests stay
-    # under the IP-based rate limiter, bounding invoice spam.
+    # Signup + tx confirm (prefix covers /signup/{invoice_id}/confirm).
+    # Keyless requests stay under the IP rate limiter, bounding spam.
     "/v1/hosting/signup",
 }
 
 # ── Fail-closed auth policy ──
-#
-#   * PRY_API_KEY configured -> a valid Bearer credential (API key or rmi JWT)
-#     is required from EVERY source, loopback included.
-#   * PRY_API_KEY unset      -> only loopback clients are allowed; every other
-#     source is rejected with 401. This keeps a keyless instance from being
-#     exposed to the internet (e.g. when the Docker port mapping is public).
-#
-# "testclient" is the peer host Starlette's TestClient reports; tests run from
-# localhost without a key and must keep passing.
+# Key configured -> valid Bearer (API key or rmi JWT) from EVERY source.
+# Key unset -> keyless loopback only, while the dev allowance is on.
+# Peer trust: the socket peer is the only identity the connection proves.
+# X-Forwarded-For is honoured ONLY when the peer is listed in
+# PRY_TRUSTED_PROXIES (comma/space separated IPs or CIDRs; empty = trust
+# none). The client is the rightmost hop that is not itself a trusted proxy.
+# A malformed chain, or XFF from an untrusted peer, is a spoofing attempt and
+# makes the request unauthorised.
 _LOOPBACK_OR_TEST_HOSTS: frozenset[str] = frozenset(
     {"127.0.0.1", "::1", "::ffff:127.0.0.1", "testclient"}
 )
+
+
+def _parse_trusted_proxy(value: str) -> ipaddress.IPv4Network | ipaddress.IPv6Network | None:
+    """Parse one trusted-proxy entry (IP or CIDR); None when invalid."""
+    try:
+        return ipaddress.ip_network(value, strict=False)
+    except ValueError:
+        logger.warning("pry_trusted_proxy_invalid", extra={"value": value})
+        return None
+
+
+_TRUSTED_PROXY_NETWORKS = tuple(
+    net
+    for part in os.getenv("PRY_TRUSTED_PROXIES", "").replace(",", " ").split()
+    if part.strip() and (net := _parse_trusted_proxy(part.strip())) is not None
+)
+
+
+def _is_trusted_proxy(ip: str) -> bool:
+    """Return True when *ip* is in the configured PRY_TRUSTED_PROXIES set."""
+    if not ip or ip == "unknown":
+        return False
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return any(addr in net for net in _TRUSTED_PROXY_NETWORKS)
+
+
+def resolve_client_ip(scope: Mapping[str, Any]) -> str | None:
+    """Trusted client IP, or None when the forwarding chain is spoofable."""
+    client = scope.get("client")
+    peer = str(client[0]) if isinstance(client, (list, tuple)) and client else ""
+    if not peer or peer == "unknown":
+        return None
+    xff = _get_header(scope, b"x-forwarded-for")
+    if not xff:
+        return peer
+    if not _is_trusted_proxy(peer):
+        return None
+    hops = [hop.strip() for hop in xff.split(",")]
+    if not hops or any(not hop for hop in hops):
+        return None
+    for hop in reversed(hops):
+        try:
+            ipaddress.ip_address(hop)
+        except ValueError:
+            return None
+        if not _is_trusted_proxy(hop):
+            return hop
+    return hops[0]
+
+
+def keyless_loopback_allowed() -> bool:
+    """Dev-only loopback allowance: on outside prod, OFF in prod by default."""
+    raw = os.getenv("PRY_ALLOW_KEYLESS_LOOPBACK", "").strip().lower()
+    if not raw:
+        return settings.environment != "prod"
+    return raw in ("1", "true", "yes", "on")
 
 
 def is_loopback_client(ip: str) -> bool:
@@ -97,19 +142,15 @@ def is_loopback_client(ip: str) -> bool:
 def request_authorized(scope: MutableMapping[str, Any]) -> bool:
     """Apply the fail-closed auth policy to an ASGI request scope.
 
-    * key configured -> valid Bearer PRY_API_KEY or rmi JWT required
-    * no key         -> loopback client only
-
-    Auth always binds to the socket peer (never X-Forwarded-For): spoofed
-    forwarding headers must not let a remote client impersonate loopback.
+    Key configured -> valid Bearer PRY_API_KEY or rmi JWT required. No key ->
+    keyless loopback only. A forwarding header from an untrusted peer is
+    rejected rather than ignored.
     """
     api_key = settings.api_key
     auth = _get_header(scope, b"authorization")
     token = auth[7:] if auth.startswith("Bearer ") else ""
 
-    # x402 payment-verified requests: the PAYMENT is the credential. The
-    # outer X402Middleware verified on-chain settlement and marked the
-    # scope; bind a metering identity so usage/billing still record.
+    # x402: the PAYMENT is the credential (settlement verified upstream).
     if scope.get("x402_verified"):
         xv = scope["x402_verified"]
         scope["pry_api_key"] = {
@@ -121,9 +162,7 @@ def request_authorized(scope: MutableMapping[str, Any]) -> bool:
         }
         return True
 
-    # DB-issued keys (pry_...) authenticate against the api_keys table.
-    # They are valid in BOTH modes (key configured or keyless loopback) and
-    # carry their own identity for rate limiting + metering + billing.
+    # DB-issued keys (pry_...) are valid in both modes and carry identity.
     if token.startswith("pry_"):
         try:
             from pry.core.api_keys_service import authenticate as authenticate_db_key
@@ -134,25 +173,16 @@ def request_authorized(scope: MutableMapping[str, Any]) -> bool:
             record = None
         if record is None:
             return False
-        # Bind the authenticated key identity INTO the live scope so
-        # downstream metering/billing (scope["pry_api_key"]) sees it.
-        # ASGI scope is a mutable dict; a local copy here would be discarded
-        # and usage would never be recorded (regression from src-layout move).
+        # Bind into the live scope: a local copy is discarded and usage is lost.
         scope["pry_api_key"] = record
         return True
 
     if api_key:
-        # Legacy global key, or a JWT issued by rmi-backend.
-        # Timing-safe compare (constant-time) for the legacy global key.
-        # A plain == comparison leaks the key length/prefix through
-        # per-byte timing, letting a remote attacker binary-search the key.
+        # Timing-safe compare: == leaks length/prefix through per-byte timing.
         if hmac.compare_digest(token.encode("utf-8"), api_key.encode("utf-8")):
-            # The operator's master key is the bootstrap admin credential:
-            # bind a full-scope identity so admin endpoints (/v1/keys
-            # issuance) work before any DB key exists. Without this, key
-            # issuance deadlocks — remote callers need an admin-scoped key,
-            # and the loopback bypass never fires through Docker's published
-            # port (ASGI peer is the bridge gateway, e.g. 172.25.0.1).
+            # Master key is the bootstrap admin credential (key issuance would
+            # otherwise deadlock; the loopback bypass never fires through
+            # Docker's published port — the peer is the bridge gateway).
             scope["pry_api_key"] = {
                 "key_id": "legacy-master",
                 "user_id": "operator",
@@ -162,6 +192,9 @@ def request_authorized(scope: MutableMapping[str, Any]) -> bool:
             }
             return True
         return bool(is_jwt(token) and validate_rmi_jwt(token))
-    client = scope.get("client")
-    first_hop = client[0] if isinstance(client, (list, tuple)) and client else ""
-    return is_loopback_client(str(first_hop))
+
+    # Keyless mode: loopback only, and only while the dev allowance is on.
+    if not keyless_loopback_allowed():
+        return False
+    client_ip = resolve_client_ip(scope)
+    return client_ip is not None and is_loopback_client(client_ip)

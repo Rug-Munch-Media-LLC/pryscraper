@@ -1,3 +1,18 @@
+# SPDX-License-Identifier: MIT
+# Repo-local lefthook overrides for pryscraper.
+#
+# WHY THE EXTRA SYMLINK: lefthook 2.x merges `lefthook-local.yml`, not the
+# dot-separated `.lefthook.local.yml` (verified on 2.1.11 with `lefthook run`
+# and `lefthook dump`: the dot name is silently ignored). `lefthook-local.yml`
+# is a symlink to THIS file so these overrides actually load. Keep the
+# overrides here — one source of truth.
+#
+# HOOK-SYNC REMEDIATION (one line, run once per clone):
+#   rm -f .git/hooks/pre-commit.old
+# Symptom: `sync hooks: x can't rename pre-commit to pre-commit.old -
+# file already exists` on every commit. Lefthook moves the existing hook
+# aside before installing its own; a stale backup from an interrupted sync
+# blocks the rename. The file is a lefthook-managed backup, safe to delete.
 commit-msg:
   commands:
     methodology-leak-msg:
@@ -5,3 +20,24 @@ commit-msg:
       skip:
       - merge
       - rebase
+
+pre-push:
+  commands:
+    # Override the canonical `import-boundaries` command (standards/lefthook.yml).
+    # The canonical script only runs when `lint-imports` is on PATH; when a
+    # global install exists it can resolve to an interpreter that cannot see
+    # the editable `pry` package ("Could not find package 'pry' in your Python
+    # path"). Pin the repo venv explicitly and fail closed.
+    import-boundaries:
+      glob: "*.py"
+      run: |
+        if [ -x ".venv/bin/lint-imports" ]; then
+          .venv/bin/lint-imports
+        else
+          # `python -m importlinter` has no __main__ entry point; call the
+          # click command directly. PYTHONPATH=src locates the package tree.
+          PYTHONPATH=src python3 -c "from importlinter.cli import lint_imports_command; lint_imports_command()"
+        fi || {
+          echo "IMPORT-LINTER: architecture boundary violated (see above)."
+          exit 1
+        }

@@ -203,9 +203,12 @@ class TestEndpoints:
         _write_payments(
             data_dir,
             [
-                {"amount_usd": 1.00},
-                {"amount_usd": 0.50},
-                {"amount_usd": "not-a-number"},  # corrupt row: counts as 0, never 500s
+                {"amount_usd": 1.00, "verified": True},
+                {"amount_usd": 0.50, "verified": True},
+                {
+                    "amount_usd": "not-a-number",
+                    "verified": True,
+                },  # corrupt row: counts as 0, never 500s
             ],
         )
         monkeypatch.setattr(
@@ -236,8 +239,8 @@ class TestEndpoints:
         _write_payments(
             data_dir,
             [
-                {"amount_usd": 99.00, "ts": old_ts},
-                {"amount_usd": 1.00, "ts": new_ts},
+                {"amount_usd": 99.00, "ts": old_ts, "verified": True},
+                {"amount_usd": 1.00, "ts": new_ts, "verified": True},
             ],
         )
         monkeypatch.setattr(
@@ -252,7 +255,7 @@ class TestEndpoints:
     def test_dashboard_aggregates_everything(
         self, client: TestClient, data_dir: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        _write_payments(data_dir, [{"amount_usd": 2.00}])
+        _write_payments(data_dir, [{"amount_usd": 2.00, "verified": True}])
         monkeypatch.setattr(
             "pry.commerce.costing.get_cost_dashboard", lambda: {"total_cost": 0}, raising=False
         )
@@ -377,7 +380,7 @@ class TestPaymentEndpoints:
         r = client.get(f"{ADMIN_PREFIX}/v1/admin/payments/recent")
         assert r.status_code == 200
         body = r.json()
-        assert body["count"] == 50
+        assert body["count"] == 60
         assert len(body["payments"]) == 50
         # newest first: first row is the most recent (i=0)
         assert body["payments"][0]["amount_usd"] == 0.0

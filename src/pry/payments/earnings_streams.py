@@ -102,23 +102,33 @@ class StreamMixin:
             for inv in invoices:
                 if str(inv.get("status", "")) != "paid":
                     continue
-                # Best-effort settlement date: no explicit settled_at is stored
-                # on the invoice today, so fall back to "now" (revenue is
-                # counted in the current window). [REVIEW]
+                # settle_subscription_payment (x402) and the btcpay verifier
+                # persist settled_at. Fall back to the recorded confirmation or
+                # the invoice creation time; an invoice with no date at all is
+                # skipped rather than re-dated to now, which would inflate
+                # every current window forever.
                 date = str(
-                    inv.get("settled_at") or (inv.get("payment") or {}).get("confirmed_at") or ""
+                    inv.get("settled_at")
+                    or (inv.get("payment") or {}).get("confirmed_at")
+                    or inv.get("created_at")
+                    or ""
                 )[:10]
                 if not date:
-                    date = datetime.now(UTC).date().isoformat()
+                    logger.warning(
+                        "subscription_invoice_undated",
+                        extra={"invoice_id": str(inv.get("invoice_id", ""))},
+                    )
+                    continue
                 try:
-                    when = datetime.fromisoformat(date)
-                    if _ensure_aware(when) < cutoff:
+                    when = _ensure_aware(datetime.fromisoformat(date))
+                    if when < cutoff:
                         continue
                 except ValueError as exc:
                     logger.warning(
                         "payments_exception_swallowed",
                         extra={"error": str(exc), "handler": "StreamMixin._subscription_stream"},
                     )
+                    continue
                 out.append(
                     {
                         "amount_usd": float(inv.get("amount_usd", 0) or 0),

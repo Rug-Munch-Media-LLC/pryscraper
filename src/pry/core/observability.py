@@ -45,11 +45,14 @@ try:
         OTLPSpanExporter,
     )
     from opentelemetry.sdk.trace.export.batch import BatchSpanProcessor  # noqa: F401
-
-    _has_otlp = True
 except ImportError:
-    logger.warning("observability_exception_handler", exc_info=True)
+    # Optional OTLP extra is not installed: tracing still works through the
+    # console exporter. This is an expected deployment state, not an error —
+    # log at debug so importing Pry never emits a traceback.
+    logger.debug("otlp_exporter_unavailable")
     _has_otlp = False
+else:
+    _has_otlp = True
 
 
 # Metrics

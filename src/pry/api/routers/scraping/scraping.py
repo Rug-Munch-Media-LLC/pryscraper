@@ -1,16 +1,5 @@
 """Pry — Scraping router (scrape, crawl, map, batch, detect).
 
-Split from api.py on the api-router-split refactor. Replaces inline
-Scraping-tagged endpoints from api.py. Behavior is identical.
-
-Endpoints (6):
-  POST /v1/scrape          — Scrape a single URL
-  POST /v1/detect-block    — Detect anti-bot protection
-  POST /v1/capture/lazy    — Detect lazy-loaded content
-  POST /v1/crawl           — Crawl multiple pages
-  POST /v1/map             — Discover URLs on a site
-  POST /v1/batch           — Scrape multiple URLs in parallel
-
 Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 """
 
@@ -24,13 +13,16 @@ from __future__ import annotations
 import asyncio
 import copy
 import logging
+import random
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, HTTPException, Request
 
 from pry.api.client import get_client
 from pry.api.routers.scraping.scraping_models import CrawlRequest, MapRequest, ScrapeRequest
+from pry.core.audit import audit_event
 from pry.core.deps import cache, extractor, queue, scraper
 from pry.core.errors import ExternalServiceError, InvalidRequestError, PryError, ScrapeError
 from pry.core.observability import track_scrape
@@ -42,23 +34,41 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Scraping"])
 
-# Re-exported so `from ...scraping import ScrapeRequest` keeps working and the
-# OpenAPI component names stay ScrapeRequest/CrawlRequest/MapRequest; the model
-# definitions now live in scraping_models.py.
 __all__ = ["CrawlRequest", "MapRequest", "ScrapeRequest", "router"]
 
 
-# ── Internal helpers ──
+def _audit_http(http_request: Request, operation: str, url: str, outcome: str) -> None:
+    """Record an audit row. Host only — never the full URL or query string.
+
+    Successes are sampled 1:100; denials and errors are always recorded.
+    """
+    if outcome == "success" and random.random() >= 0.01:  # noqa: S311 - sampling
+        return
+    record = http_request.scope.get("pry_api_key") or {}
+    audit_event(
+        "scrape_request",
+        actor=str(record.get("key_id") or "")[:8],
+        path=http_request.url.path,
+        host=urlsplit(url).hostname or "",
+        operation=operation,
+        outcome=outcome,
+    )
+
+
+def _deny_if_blocked(http_request: Request, operation: str, url: str) -> None:
+    """451 before any fetch when the host is on the compliance block list."""
+    from pry.api.routers.integrations.gdpr import is_domain_blocked
+
+    host = urlsplit(url).hostname or ""
+    if host and is_domain_blocked(host):
+        _audit_http(http_request, operation, url, "denied")
+        raise HTTPException(status_code=451, detail="Domain blocked for compliance reasons")
 
 
 async def _run_crawl_job(job_id: str, request: CrawlRequest) -> None:
     try:
         pages = await scraper.crawl(
-            request.url,
-            {
-                "max_pages": request.maxPages,
-                "max_depth": request.maxDepth,
-            },
+            request.url, {"max_pages": request.maxPages, "max_depth": request.maxDepth}
         )
         await queue.complete_job(job_id, {"pages": pages})
     except Exception as e:
@@ -67,19 +77,15 @@ async def _run_crawl_job(job_id: str, request: CrawlRequest) -> None:
 
 
 def _log_crawl_job_failure(task: asyncio.Task[Any]) -> None:
-    """Log unhandled exceptions from crawl job tasks."""
     exc = task.exception()
     if exc:
         logger.error("crawl_task_unhandled_error", extra={"error": str(exc)})
 
 
-# ── Scrape ──
-
-
 @router.post("/v1/scrape", summary="Scrape a single URL")
-async def scrape(request: ScrapeRequest) -> dict[str, Any]:
+async def scrape(request: ScrapeRequest, http_request: Request) -> dict[str, Any]:
     """Scrape a URL. Auto-bypasses Cloudflare. Returns markdown or JSON."""
-    # Check cache
+    _deny_if_blocked(http_request, "scrape", request.url)
     cache_opts = {"bypass_cloudflare": request.bypassCloudflare, "js_render": request.jsRender}
     cached = cache.get(request.url, cache_opts)
     if cached:
@@ -89,8 +95,8 @@ async def scrape(request: ScrapeRequest) -> dict[str, Any]:
         out["data"]["metadata"]["offset"] = request.offset
         out["data"]["metadata"]["total"] = len(md)
         out["_cached"] = True
+        _audit_http(http_request, "scrape", request.url, "success")
         return out
-
     try:
         with track_scrape(method="direct"):
             result = await scraper.scrape(
@@ -109,7 +115,6 @@ async def scrape(request: ScrapeRequest) -> dict[str, Any]:
                 tiers_attempted=result.get("tiers_attempted"),
                 tiers_failed=result.get("tiers_failed"),
             )
-
         content = result.get("content", "")
         response: dict[str, Any] = {
             "success": True,
@@ -123,39 +128,29 @@ async def scrape(request: ScrapeRequest) -> dict[str, Any]:
                 },
             },
         }
-
-        # JSON schema extraction if requested (always over the full content)
         if request.jsonSchema:
-            extracted = await extractor.extract(content, request.jsonSchema)
-            response["data"]["json"] = extracted
-
+            response["data"]["json"] = await extractor.extract(content, request.jsonSchema)
         cache.set(request.url, response, cache_opts)
-
-        # Window the markdown for this request without mutating the cached copy.
         out = copy.deepcopy(response)
         out["data"]["markdown"] = content[request.offset : request.offset + request.limit]
         out["data"]["metadata"]["offset"] = request.offset
         out["data"]["metadata"]["total"] = len(content)
+        _audit_http(http_request, "scrape", request.url, "success")
         return out
     except PryError:
+        _audit_http(http_request, "scrape", request.url, "error")
         raise
     except Exception as e:
+        _audit_http(http_request, "scrape", request.url, "error")
         raise ExternalServiceError(str(e)) from e
 
 
 @router.post("/v1/detect-block", summary="Detect if a site is blocking the scraper")
 async def detect_block(url: str = Body(...)) -> dict[str, Any]:
-    """Detect what kind of anti-bot protection a site is using.
-
-    Returns detection tier, vendor (Cloudflare/DataDome/etc.), and confidence.
-    Useful for debugging scraping issues.
-    """
-    # SSRF gate: reject private/loopback/metadata targets before any probe.
+    """Detect anti-bot protection (tier, vendor, confidence)."""
     validate_url(url)
     detector = BlockDetector()
     results = []
-
-    # Test direct
     try:
         client = await get_client()
         resp = await safe_get(
@@ -170,13 +165,16 @@ async def detect_block(url: str = Body(...)) -> dict[str, Any]:
                 )
             },
         )
-        detection = detector.detect(resp.text, resp.status_code, dict(resp.headers))
-        results.append({"method": "direct", "status": resp.status_code, **detection})
+        results.append(
+            {
+                "method": "direct",
+                "status": resp.status_code,
+                **detector.detect(resp.text, resp.status_code, dict(resp.headers)),
+            }
+        )
     except (httpx.HTTPError, httpx.RequestError) as e:
         logger.warning("scraping_exception_handler", exc_info=True)
         results.append({"method": "direct", "error": str(e)})
-
-    # Test FlareSolverr
     try:
         async with httpx.AsyncClient(timeout=30) as fs_client:
             fs_resp = await fs_client.post(
@@ -187,28 +185,26 @@ async def detect_block(url: str = Body(...)) -> dict[str, Any]:
                 fs_data = fs_resp.json()
                 fs_html = fs_data.get("solution", {}).get("response", "")
                 fs_status = fs_data.get("solution", {}).get("status", 0)
-                detection = detector.detect(fs_html, fs_status)
-                results.append({"method": "flaresolverr", "status": fs_status, **detection})
+                results.append(
+                    {
+                        "method": "flaresolverr",
+                        "status": fs_status,
+                        **detector.detect(fs_html, fs_status),
+                    }
+                )
             else:
                 results.append({"method": "flaresolverr", "error": f"HTTP {fs_resp.status_code}"})
     except (httpx.HTTPError, httpx.RequestError) as e:
         logger.warning("scraping_exception_handler", exc_info=True)
         results.append({"method": "flaresolverr", "error": str(e)})
-
     return {"success": True, "data": {"url": url, "results": results}}
 
 
 @router.post("/v1/capture/lazy", summary="Detect and handle lazy-loaded content")
 async def detect_lazy_content(
-    url: str = Body(...),
-    auto_scroll: bool = Body(True),
-    max_scrolls: int = Body(5),
+    url: str = Body(...), auto_scroll: bool = Body(True), max_scrolls: int = Body(5)
 ) -> dict[str, Any]:
-    """Detect lazy loading and infinite scroll patterns on a page.
-
-    Optionally generate JS to auto-scroll and load all content.
-    """
-    # SSRF gate: the fallback raw-HTML fetch below also uses this URL.
+    """Detect lazy loading and optionally generate auto-scroll JS."""
     validate_url(url)
     from pry.engine.lazy_load import (
         detect_lazy_loading,
@@ -220,7 +216,6 @@ async def detect_lazy_content(
         result = await scraper.scrape(url, {"bypass_cloudflare": True})
     if result.get("status") != "ok":
         raise ScrapeError(result.get("error") or "Scrape failed")
-
     html = result.get("raw_html", "")
     if not html:
         client = await get_client()
@@ -229,78 +224,71 @@ async def detect_lazy_content(
             html = resp.text
         except (httpx.HTTPError, httpx.RequestError):
             raise ScrapeError("Could not fetch raw HTML") from None
-
     detection = detect_lazy_loading(html)
-    scroll_script = generate_scroll_script(max_scrolls=max_scrolls) if auto_scroll else ""
-    load_more_script = generate_load_more_script() if auto_scroll else ""
-
     return {
         "success": True,
         "data": {
             "url": url,
             "detection": detection,
             "has_lazy_content": any(detection.values()),
-            "scroll_script": scroll_script,
-            "load_more_script": load_more_script,
+            "scroll_script": generate_scroll_script(max_scrolls=max_scrolls) if auto_scroll else "",
+            "load_more_script": generate_load_more_script() if auto_scroll else "",
         },
     }
 
 
-# ── Crawl ──
-
-
 @router.post("/v1/crawl", summary="Crawl multiple pages from a URL")
-async def crawl(request: CrawlRequest) -> dict[str, Any]:
+async def crawl(request: CrawlRequest, http_request: Request) -> dict[str, Any]:
     """Crawl multiple pages from a URL. Supports async webhooks."""
+    _deny_if_blocked(http_request, "crawl", request.url)
     if request.webhook:
         job_id = await queue.create_job("crawl", request.model_dump(), webhook=request.webhook)
         task = asyncio.create_task(_run_crawl_job(job_id, request))
         task.add_done_callback(_log_crawl_job_failure)
+        _audit_http(http_request, "crawl", request.url, "success")
         return {"success": True, "data": {"id": job_id, "status": "pending"}}
-
-    with track_scrape(method="crawl"):
-        pages = await scraper.crawl(
-            request.url,
-            {
-                "max_pages": request.maxPages,
-                "max_depth": request.maxDepth,
-                "timeout": request.scrapeOptions.get("timeout", 60)
-                if request.scrapeOptions
-                else 60,
-            },
-        )
+    try:
+        with track_scrape(method="crawl"):
+            pages = await scraper.crawl(
+                request.url,
+                {
+                    "max_pages": request.maxPages,
+                    "max_depth": request.maxDepth,
+                    "timeout": request.scrapeOptions.get("timeout", 60)
+                    if request.scrapeOptions
+                    else 60,
+                },
+            )
+    except Exception:
+        _audit_http(http_request, "crawl", request.url, "error")
+        raise
+    _audit_http(http_request, "crawl", request.url, "success")
     return {"success": True, "data": {"id": "sync", "url": request.url, "pages": pages}}
-
-
-# ── Map ──
 
 
 @router.post("/v1/map", summary="Discover URLs on a site")
 async def map_pages(request: MapRequest) -> dict[str, Any]:
     """Discover URLs on a site."""
-    # SSRF gate: map_urls -> _extract_links fetches the target directly.
     validate_url(request.url)
     try:
         with track_scrape(method="map"):
             urls = await scraper.map_urls(request.url, {"limit": request.limit})
     except RuntimeError as e:
-        # map_urls raises (naming both transport errors) rather than returning an
-        # empty list that is indistinguishable from "this site has no links".
         raise ScrapeError(str(e)) from e
     return {"success": True, "data": {"links": urls}}
 
 
-# ── Batch ──
-
-
 @router.post("/v1/batch", summary="Scrape multiple URLs in parallel")
 async def batch_scrape(
+    http_request: Request,
     urls: list[str] = Body(...),
     timeout: int = 30,  # noqa: ASYNC109 - FastAPI endpoint param, API contract
 ) -> dict[str, Any]:
-    """Scrape multiple URLs in parallel. Firecrawl charges extra for batch."""
+    """Scrape multiple URLs in parallel (max 50 per batch)."""
     if len(urls) > 50:
         raise InvalidRequestError("Max 50 URLs per batch")
+    for url in urls:
+        _deny_if_blocked(http_request, "batch", url)
     with track_scrape(method="batch"):
         tasks = [scraper.scrape(u, {"timeout": timeout, "bypass_cloudflare": True}) for u in urls]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -316,4 +304,6 @@ async def batch_scrape(
                     "method": r.get("method", "unknown"),
                 }
             )
+    outcome = "error" if any(isinstance(r, BaseException) for r in results) else "success"
+    _audit_http(http_request, "batch", urls[0], outcome)
     return {"success": True, "data": {"pages": pages, "total": len(pages)}}

@@ -26,6 +26,9 @@ import os
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from pry.core.middleware_auth import is_loopback_client, resolve_client_ip
+from pry.core.settings import settings
+
 # ── Admin security: env-configurable prefix + loopback-only ──
 # STABLE dev default (NOT a secret): keeps docs/spec generation
 # deterministic when no secret is configured. Production MUST override:
@@ -34,6 +37,17 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 _DEV_ADMIN_PATH = "pry-admin-dev"
 _ADMIN_SECRET = os.getenv("PRY_ADMIN_PATH") or os.getenv("PRY_ADMIN_PATH_SECRET") or _DEV_ADMIN_PATH
 ADMIN_PREFIX = f"/{_ADMIN_SECRET}"
+
+
+def _refuse_dev_prefix_in_prod() -> None:
+    """Refuse to boot prod on the non-secret dev admin prefix."""
+    if settings.environment == "prod" and _ADMIN_SECRET == _DEV_ADMIN_PATH:
+        raise RuntimeError(
+            "PRY_ADMIN_PATH must be set to a non-default secret when PRY_ENVIRONMENT=prod"
+        )
+
+
+_refuse_dev_prefix_in_prod()
 
 # Loopback-only: returns 403 for non-local clients even with valid API key.
 ADMIN_LOOPBACK_ONLY = os.getenv("PRY_ADMIN_LOOPBACK_ONLY", "true").lower() in ("true", "1", "yes")
@@ -64,8 +78,18 @@ def _check_admin_access(request: Request) -> None:
     ANY valid API key is NOT enough. Fail closed on every failure path.
     """
     loopback_only = _loopback_only()
-    client_host = request.client.host if request.client else ""
-    is_loopback = client_host in ("127.0.0.1", "::1", "localhost", "0.0.0.0")  # nosec B104 — loopback membership check, not a bind
+    # Trusted-proxy aware: a same-host proxy makes every peer look like
+    # 127.0.0.1, which used to hand the loopback bypass to the internet.
+    client_host = resolve_client_ip(request.scope)
+    if client_host is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Ambiguous client identity (untrusted forwarding headers)",
+        )
+    is_loopback = is_loopback_client(client_host) or client_host in (
+        "localhost",
+        "0.0.0.0",  # nosec B104 — membership check, not a bind
+    )
     if is_loopback and loopback_only:
         return
     if loopback_only:

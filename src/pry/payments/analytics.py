@@ -12,6 +12,171 @@ if TYPE_CHECKING:
     from pry.payments.earnings import EarningsTracker
 logger = logging.getLogger(__name__)
 
+#: Canonical payment timestamp precedence. Rows written by different eras use
+#: different keys; reading only one of them silently empties short windows.
+TIMESTAMP_KEYS = ("verified_at", "ts", "created_at")
+
+#: Postgres view definition for ledger <-> settlement reconciliation.
+#: No migration ships with this change: apply the view manually (or fold it
+#: into a later Alembic revision) once the ledger is the only writer.
+REVENUE_RECONCILIATION_SQL = """
+CREATE OR REPLACE VIEW revenue_reconciliation AS
+SELECT
+    p.payment_id,
+    p.tx_hash,
+    p.network,
+    p.asset,
+    p.amount_usd,
+    p.verified,
+    COALESCE(p.verified_at, p.created_at) AS booked_at,
+    s.settled_at,
+    s.amount_usd AS settled_usd,
+    CASE
+        WHEN p.verified AND s.settled_at IS NOT NULL THEN $$settled$$
+        WHEN p.verified THEN $$verified_unsettled$$
+        ELSE $$unverified$$
+    END AS reconciliation_state
+FROM x402_payment_records AS p
+LEFT JOIN x402_settlement_records AS s
+       ON s.payment_id = p.payment_id
+      AND s.tx_hash = p.tx_hash;
+"""
+
+#: The three operator queries the reconciliation view exists to answer.
+REVENUE_RECONCILIATION_QUERIES = {
+    # 1. Verified revenue by day (never trust an unverified row as income).
+    "revenue_by_day": """
+SELECT date_trunc($$day$$, COALESCE(verified_at, created_at)) AS day,
+       COUNT(*) AS payments,
+       ROUND(SUM(amount_usd)::numeric, 6) AS revenue_usd
+FROM x402_payment_records
+WHERE verified
+GROUP BY 1
+ORDER BY 1 DESC;
+""",
+    # 2. Verified but unsettled after 24h = money that never moved.
+    "verified_but_unsettled": """
+SELECT p.payment_id, p.tx_hash, p.amount_usd, p.verified_at
+FROM x402_payment_records AS p
+LEFT JOIN x402_settlement_records AS s
+       ON s.payment_id = p.payment_id
+      AND s.tx_hash = p.tx_hash
+WHERE p.verified
+  AND s.settled_at IS NULL
+  AND COALESCE(p.verified_at, p.created_at) < now() - interval $$24 hours$$
+ORDER BY p.verified_at NULLS LAST;
+""",
+    # 3. Payment amount vs settled amount drift (should be exact).
+    "amount_mismatches": """
+SELECT p.payment_id, p.tx_hash, p.amount_usd, s.amount_usd AS settled_usd
+FROM x402_payment_records AS p
+JOIN x402_settlement_records AS s
+  ON s.payment_id = p.payment_id
+ AND s.tx_hash = p.tx_hash
+WHERE p.verified
+  AND ABS(COALESCE(p.amount_usd, 0) - COALESCE(s.amount_usd, 0)) > 0.000001;
+""",
+}
+
+
+def parse_payment_ts(value: Any) -> datetime | None:
+    """Parse a timestamp to an aware UTC datetime; naive values are UTC."""
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str) and value.strip():
+        try:
+            parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+    return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
+
+
+def payment_ts(record: dict[str, Any]) -> datetime | None:
+    """Canonical payment time: verified_at -> ts -> created_at (aware UTC)."""
+    for key in TIMESTAMP_KEYS:
+        parsed = parse_payment_ts(record.get(key))
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _amount_usd(record: dict[str, Any]) -> float:
+    """Coerce a row amount to float; corrupt rows count as 0, never raise."""
+    try:
+        return float(record.get("amount_usd", 0) or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _payment_identity(record: dict[str, Any]) -> tuple[str, str] | None:
+    tx_hash = str(record.get("tx_hash") or "")
+    if tx_hash:
+        return ("tx", tx_hash)
+    payment_id = str(record.get("payment_id") or "")
+    if payment_id:
+        return ("pid", payment_id)
+    return None
+
+
+def dedupe_payment_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Drop duplicate rows, keeping the first (ledger-first) occurrence."""
+    seen: set[tuple[str, str]] = set()
+    unique: list[dict[str, Any]] = []
+    for record in records:
+        identity = _payment_identity(record)
+        if identity is not None:
+            if identity in seen:
+                continue
+            seen.add(identity)
+        unique.append(record)
+    return unique
+
+
+def _load_jsonl_records(path: str) -> list[dict[str, Any]]:
+    import json
+    import os
+
+    if not path or not os.path.exists(path):
+        return []
+    records: list[dict[str, Any]] = []
+    try:
+        with open(path) as handle:
+            for line in handle:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(row, dict):
+                    records.append(row)
+    except OSError as exc:
+        logger.warning("analytics_load_failed", extra={"error": str(exc)[:160]})
+    return records
+
+
+def load_payment_records(fallback_path: str = "") -> list[dict[str, Any]]:
+    """Load payments with Postgres as the source of truth.
+
+    x402_payment_records is authoritative; the JSONL log is the fallback.
+    Ledger rows come first so they win on identity, but JSONL rows the ledger
+    has not ingested yet are appended so history is never silently dropped.
+    Deduped by tx_hash, then payment_id.
+    """
+    records: list[dict[str, Any]] = []
+    try:
+        from pry.payments.x402 import ledger_store
+
+        if ledger_store.available():
+            records.extend(ledger_store.get_payments())
+    except Exception as exc:  # noqa: BLE001 - any ledger failure degrades to JSONL
+        logger.warning("payment_ledger_unavailable", extra={"error": str(exc)[:160]})
+    records.extend(_load_jsonl_records(fallback_path))
+    return dedupe_payment_records(records)
+
 
 class PaymentAnalytics:
     """Payment analytics engine for tracking revenue and conversion."""
@@ -28,10 +193,11 @@ class PaymentAnalytics:
         payments = self._load_payments(days)
         settlements = self._load_settlements(days)
 
-        total_revenue = sum(p.get("amount_usd", 0) for p in payments)
-        total_settled = sum(s.get("amount_usd", 0) for s in settlements)
-        successful_payments = len([p for p in payments if p.get("verified")])
-        failed_payments = len([p for p in payments if not p.get("verified")])
+        verified = [p for p in payments if p.get("verified")]
+        total_revenue = sum(_amount_usd(p) for p in verified)
+        total_settled = sum(_amount_usd(s) for s in settlements)
+        successful_payments = len(verified)
+        failed_payments = len(payments) - successful_payments
 
         return {
             "period_days": days,
@@ -49,8 +215,10 @@ class PaymentAnalytics:
         payments = self._load_payments(30)
         payer_totals: dict[str, float] = {}
         for p in payments:
+            if not p.get("verified"):
+                continue
             payer = p.get("signer", "anonymous")
-            payer_totals[payer] = payer_totals.get(payer, 0) + p.get("amount_usd", 0)
+            payer_totals[payer] = payer_totals.get(payer, 0) + _amount_usd(p)
         sorted_payers = sorted(payer_totals.items(), key=lambda x: x[1], reverse=True)
         return [{"payer": p, "total_usd": round(a, 6)} for p, a in sorted_payers[:limit]]
 
@@ -91,9 +259,13 @@ class PaymentAnalytics:
         payments = self._load_payments(days)
         daily: dict[str, float] = {}
         for p in payments:
-            day = p.get("verified_at", "")[:10]  # YYYY-MM-DD
-            if day:
-                daily[day] = daily.get(day, 0) + p.get("amount_usd", 0)
+            if not p.get("verified"):
+                continue
+            parsed = payment_ts(p)
+            if parsed is None:
+                continue
+            day = parsed.date().isoformat()
+            daily[day] = daily.get(day, 0) + _amount_usd(p)
 
         return [{"date": d, "revenue_usd": round(a, 6)} for d, a in sorted(daily.items())]
 
@@ -143,36 +315,18 @@ class PaymentAnalytics:
         return EarningsTracker(analytics=self)
 
     def _load_payments(self, days: int) -> list[dict[str, Any]]:
-        """Load payments from JSONL file."""
-        import json
-        import os
+        """Load payments in the window from the ledger or the JSONL fallback.
 
-        if not os.path.exists(self.payments_file):
-            return []
-
+        x402_payment_records is the declared source of truth; JSONL is a
+        compatibility fallback. The window uses the canonical timestamp helper
+        (verified_at -> ts -> created_at) so short windows are not empty.
+        """
         cutoff = datetime.now(UTC) - timedelta(days=days)
-        payments = []
-        try:
-            with open(self.payments_file) as f:
-                for line in f:
-                    if line.strip():
-                        p = json.loads(line)
-                        try:
-                            verified_at = datetime.fromisoformat(p.get("verified_at", ""))
-                            if verified_at >= cutoff:
-                                payments.append(p)
-                        except (ValueError, TypeError) as exc:
-                            logger.warning(
-                                "payments_exception_swallowed",
-                                extra={
-                                    "error": str(exc),
-                                    "handler": "PaymentAnalytics._load_payments",
-                                },
-                            )
-                            continue
-        except OSError as e:
-            logger.warning("analytics_load_failed", extra={"error": str(e)[:160]})
-        return payments
+        return [
+            record
+            for record in load_payment_records(self.payments_file)
+            if (timestamp := payment_ts(record)) is not None and timestamp >= cutoff
+        ]
 
     def _load_settlements(self, days: int) -> list[dict[str, Any]]:
         """Load settlements from JSONL file."""

@@ -63,14 +63,29 @@ def _load_jsonl(path: str) -> list[dict[str, Any]]:
 
 
 def _parse_ts(raw: Any) -> datetime | None:
-    """Parse an ISO-8601-ish timestamp; None when absent/malformed."""
-    if not raw or not isinstance(raw, str):
+    """Parse an ISO-8601-ish timestamp to an aware UTC datetime.
+
+    Naive values are treated as UTC rather than raising; absent or malformed
+    values return None so callers can decide the fallback.
+    """
+    if isinstance(raw, datetime):
+        parsed = raw
+    elif isinstance(raw, str) and raw.strip():
+        try:
+            parsed = datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
+        except ValueError:
+            logger.warning("admin_shared_exception_handler", exc_info=True)
+            return None
+    else:
         return None
-    try:
-        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
-    except ValueError:
-        logger.warning("admin_shared_exception_handler", exc_info=True)
-        return None
+    return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
+
+
+def _payment_ts(p: dict[str, Any]) -> datetime | None:
+    """Canonical payment time: verified_at -> ts -> created_at (aware UTC)."""
+    from pry.payments.analytics import payment_ts
+
+    return payment_ts(p)
 
 
 def _payment_amount(p: dict[str, Any]) -> float:
@@ -83,21 +98,30 @@ def _payment_amount(p: dict[str, Any]) -> float:
 
 
 def _get_x402_payments(days: int = 30) -> list[dict[str, Any]]:
-    """Load x402 payments from the payments log within the lookback window."""
+    """Load x402 payments inside the lookback window.
+
+    Postgres x402_payment_records is the declared source of truth; the JSONL
+    log is the fallback. Each returned row carries a normalized ts taken from
+    verified_at -> ts -> created_at (aware UTC), so short windows are not
+    empty and every caller sorts on the real event time.
+    """
+    from pry.payments.analytics import load_payment_records
+
     payments_file = os.path.join(_data_dir(), "x402", "payments.jsonl")
-    all_payments = _load_jsonl(payments_file)
     cutoff = datetime.now(UTC) - timedelta(days=days)
     filtered: list[dict[str, Any]] = []
-    for p in all_payments:
-        ts = _parse_ts(p.get("ts", ""))
-        # Rows without a parseable timestamp are kept only for the default
-        # full-window query so legacy logs still count toward totals.
+    for p in load_payment_records(payments_file):
+        ts = _payment_ts(p)
         if ts is None:
+            # Rows without a parseable timestamp are kept only for the default
+            # full-window query so legacy logs still count toward totals.
             if days >= 30:
-                filtered.append(p)
+                filtered.append(dict(p))
             continue
         if ts >= cutoff:
-            filtered.append(p)
+            normalized = dict(p)
+            normalized["ts"] = ts.isoformat()
+            filtered.append(normalized)
     return filtered
 
 
@@ -116,7 +140,9 @@ def _get_usage_costs(days: int = 30) -> dict[str, Any]:
 def _compute_profits(days: int = 30) -> dict[str, Any]:
     """Compute profits from x402 payments minus operating costs."""
     payments = _get_x402_payments(days)
-    x402_revenue = sum(_payment_amount(p) for p in payments)
+    # Revenue is verified-only: an unverified row is a failed attempt, not income.
+    verified = [p for p in payments if p.get("verified")]
+    x402_revenue = sum(_payment_amount(p) for p in verified)
     x402_count = len(payments)
 
     costs = _get_usage_costs(days)

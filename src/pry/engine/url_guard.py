@@ -90,7 +90,7 @@ def _validate_host(
         error_cls: Exception class to raise on a rejected host.
 
     Returns:
-        The list of resolved IP addresses (empty when DNS is skipped/fails).
+        The list of resolved IP addresses (empty when DNS is skipped).
 
     Raises:
         error_cls: If the host is a private/reserved IP, an internal hostname,
@@ -117,8 +117,10 @@ def _validate_host(
         try:
             addrs = socket.getaddrinfo(hostname, None)
         except OSError as e:
-            logger.debug("dns_lookup_failed", extra={"hostname": hostname, "error": str(e)})
-            return resolved
+            # Fail closed: an unresolvable host must never proceed to a
+            # connect, where a rebinding resolver could return any IP.
+            logger.warning("dns_lookup_failed", extra={"hostname": hostname, "error": str(e)})
+            raise error_cls(f"DNS resolution failed for {hostname}") from e
         for _family, _type, _proto, _canonname, sockaddr in addrs:
             addr = str(sockaddr[0])
             try:
@@ -130,6 +132,8 @@ def _validate_host(
                 if ip in ipaddress.ip_network(net):
                     raise error_cls(f"URL resolves to private IP {addr} ({net})")
             resolved.append(addr)
+        if not resolved:
+            raise error_cls(f"DNS returned no usable addresses for {hostname}")
     return resolved
 
 
@@ -235,6 +239,10 @@ def validate_redirect_url(url: str) -> str:
     return validate_url(url, resolve_dns=True)
 
 
+# Pinning: the validated IP is the CONNECT target, so httpx cannot re-resolve
+# the name (TOCTOU / DNS rebinding). Requires httpx >= 0.27 (httpcore >= 1.0),
+# where request extensions carry ``sni_hostname``: TLS still verifies the
+# original hostname and Host preserves virtual-host routing.
 async def safe_get(
     client: httpx.AsyncClient,
     url: str,
@@ -242,33 +250,24 @@ async def safe_get(
     max_redirects: int = 10,
     **kwargs: Any,
 ) -> httpx.Response:
-    """Perform an HTTP GET with SSRF-safe redirect re-validation.
+    """GET with SSRF-safe redirect re-validation and pinned-IP connects.
 
-    Redirects are followed manually so every Location target is re-validated
-    (including DNS resolution) before the next hop. A redirect to a private,
-    loopback, link-local, or metadata IP raises ``InvalidRequestError`` and
-    aborts the chain. Callers must pass a client constructed without
-    ``follow_redirects=True`` (the httpx default is False).
-
-    Args:
-        client: httpx AsyncClient used for the request.
-        url: Initial URL (validated here before the first request).
-        max_redirects: Hard cap on redirect hops (default 10).
-        **kwargs: Extra kwargs forwarded to every ``client.get()`` call.
-
-    Returns:
-        The final (non-redirect) httpx.Response.
+    Every redirect hop is re-validated (including DNS) before the request;
+    private/loopback/link-local targets abort the chain. Pinning needs
+    httpx >= 0.27 and a client with follow_redirects=False (default).
     """
-    validate_url(url)
-    response = await client.get(url, **kwargs)
+    from pry.engine.url_pinning import pinned_get
+
+    current = url
+    response = await pinned_get(client, current, dict(kwargs))
     redirects = 0
     while response.is_redirect and redirects < max_redirects:
         location = response.headers.get("location")
         if not location:
             break
-        target = urljoin(str(response.url), location)
-        validate_redirect_url(target)
-        response = await client.get(target, **kwargs)
+        # Join on the logical URL, not the pinned-IP request URL.
+        current = urljoin(current, location)
+        response = await pinned_get(client, current, dict(kwargs))
         redirects += 1
     return response
 

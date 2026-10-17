@@ -59,6 +59,7 @@ def _validate_webhook_url(url: str) -> str | None:
 async def webhook_test_route(
     url: str = Body(...),
     payload: dict[str, Any] | None = Body(None),
+    _: None = Depends(_require_auth),
 ) -> dict[str, Any]:
     """Test webhook delivery to a URL with HMAC signing."""
     from pry.api.webhook_delivery import WebhookDelivery

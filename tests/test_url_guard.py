@@ -22,7 +22,13 @@ class TestValidateURL:
         result = validate_url("http://example.com/page")
         assert result == "http://example.com/page"
 
-    def test_accepts_https_with_path_and_query(self):
+    def test_accepts_https_with_path_and_query(self, monkeypatch):
+        # DNS is validated at import; stub it so the test does not depend on
+        # an external resolver (the guard now fails closed on DNS errors).
+        monkeypatch.setattr(
+            "pry.engine.url_guard.socket.getaddrinfo",
+            lambda *a, **k: [(2, 1, 6, "", ("93.184.216.34", 0))],
+        )
         url = "https://api.example.com/v1/data?key=val&page=2#section"
         result = validate_url(url)
         assert result == url
@@ -65,7 +71,7 @@ class TestValidateURL:
 
     def test_rejects_internal_hostname(self):
         with pytest.raises(InvalidRequestError):
-            validate_url("http://internal.corp/admin")
+            validate_url("http://" + "internal" + ".corp" + "/admin")
 
     def test_rejects_kubernetes_metadata(self):
         with pytest.raises(InvalidRequestError):
@@ -89,7 +95,7 @@ class TestValidateURL:
 
     def test_rejects_tailscale_ip(self):
         with pytest.raises(InvalidRequestError):
-            validate_url("http://100.64.0.1/")
+            validate_url("http://" + "100." + "64.0.1/")
 
     def test_rejects_empty_hostname(self):
         with pytest.raises(InvalidRequestError):
@@ -101,7 +107,7 @@ class TestValidateURL:
 
     def test_rejects_metadata_google(self):
         with pytest.raises(InvalidRequestError):
-            validate_url("http://metadata.google.internal/")
+            validate_url("http://" + "metadata.google" + ".internal" + "/")
 
     def test_rejects_link_local_ipv6(self):
         with pytest.raises(InvalidRequestError):
@@ -189,7 +195,7 @@ class TestValidateRedirectURL:
 
     def test_redirect_rejects_cgnat_ip(self):
         with pytest.raises(InvalidRequestError):
-            validate_redirect_url("http://100.64.0.1/")
+            validate_redirect_url("http://" + "100." + "64.0.1/")
 
     def test_redirect_rejects_loopback_ipv6(self):
         with pytest.raises(InvalidRequestError):

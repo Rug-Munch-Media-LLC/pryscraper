@@ -61,7 +61,7 @@ class TestPaymentAnalytics:
         payments_file, settlements_file = self._create_test_files()
         analytics = PaymentAnalytics(payments_file, settlements_file)
         summary = analytics.get_revenue_summary(30)
-        assert summary["total_revenue_usd"] == 3.5
+        assert summary["total_revenue_usd"] == 3.0
         assert summary["successful_payments"] == 2
         assert summary["failed_payments"] == 1
 
@@ -69,7 +69,7 @@ class TestPaymentAnalytics:
         payments_file, settlements_file = self._create_test_files()
         analytics = PaymentAnalytics(payments_file, settlements_file)
         top = analytics.get_top_payers(10)
-        assert len(top) == 2
+        assert len(top) == 1  # unverified payer excluded
         assert top[0]["payer"] == "0xabc"
         assert top[0]["total_usd"] == 3.0
 
@@ -94,7 +94,7 @@ class TestPaymentAnalytics:
         analytics = PaymentAnalytics(payments_file, settlements_file)
         daily = analytics.get_daily_revenue(30)
         assert len(daily) == 1
-        assert daily[0]["revenue_usd"] == 3.5
+        assert daily[0]["revenue_usd"] == 3.0
 
     def test_empty_files(self) -> None:
         tmpdir = tempfile.mkdtemp()
