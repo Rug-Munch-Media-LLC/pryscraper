@@ -9,7 +9,7 @@
 [![CI](https://img.shields.io/badge/CI-passing-brightgreen)](https://codeberg.org/RugMunchMedia/pryscraper/actions)
 [![Tests](https://img.shields.io/badge/tests-440%2B_files-brightgreen)](https://codeberg.org/RugMunchMedia/pryscraper)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT%20%2B%20BSL--1.1-green)](LICENSE)
 [![x402](https://img.shields.io/badge/payments-x402%20%2F%20USDC%20%2F%20SOL%20%2F%20TRX-blueviolet)](https://docs.x402.org/)
 [![MCP](https://img.shields.io/badge/MCP-99_tools-purple)](https://modelcontextprotocol.io/)
 
@@ -63,11 +63,11 @@ curl -X POST https://api.pryscraper.com/v1/scrape \
 
 ### What makes Pry different
 
-- **More MCP tools than any competitor** — 99 tools (Firecrawl: ~6, Crawl4AI: ~4, ScrapeGraphAI: ~3)
-- **15-tier anti-bot bypass** — competitors typically have 1–3 tiers
-- **x402 native pay-per-call** — no competitor has this
+- **99 MCP tools** — scraping, extraction, browser automation, and ten data domains behind one interface
+- **15-tier anti-bot bypass** — escalating from a direct request to a stealth browser
+- **x402 native pay-per-call** — HTTP 402 pricing settled on-chain, no account needed
 - **109 actors** — the largest actor fleet on Apify
-- **Sports betting intelligence** — no competitor offers this
+- **Sports betting intelligence** — odds, arbitrage candidates, and +EV filters
 
 ### Feature Highlights
 
@@ -180,15 +180,19 @@ docker compose -f docker-compose.yml -f docker-compose.selfhost.yml \
   --env-file .env.selfhost up -d
 ```
 
-API: `http://localhost:8002` · MCP: `http://localhost:8002/mcp/` ·
-Health: `http://localhost:8002/health`
+API: `http://localhost:8005` · MCP: `http://localhost:8005/mcp/` ·
+Health: `http://localhost:8005/health`
 
-**Port of record: `8002`.** The container listens on 8002 and the self-host
-profile publishes `127.0.0.1:8002`. The bare `docker-compose.yml` (the
-operator/production stack) publishes **8005** on the host instead, because that
-deployment already owns 8002 behind its own proxy. If you are self-hosting,
-8002 is the number you want; if you are running the full production stack,
-8005 is correct and changing it will fight whatever is already bound.
+**Host port: `8005`.** The container always listens on 8002 internally; the
+host port is a Compose mapping. The production `docker-compose.yml` publishes
+`127.0.0.1:8005:8002`, matching the `pry serve` CLI default (8005). The
+self-host overlay defaults to 8002, so set the port explicitly to keep every
+example in this README copy-pasteable:
+
+```bash
+PRY_SELFHOST_PORT=8005 docker compose -f docker-compose.yml \
+  -f docker-compose.selfhost.yml --env-file .env.selfhost up -d
+```
 
 `docker-compose.yml` on its own ships the full stack — Pry plus FlareSolverr,
 Postgres, Redis, Prometheus, Grafana, and Tor (`tor` behind a profile). It is
@@ -198,7 +202,7 @@ Single service only:
 
 ```bash
 docker build -t pry .
-docker run --rm -p 8002:8002 -e PRY_API_KEY=$(openssl rand -hex 24) pry
+docker run --rm -p 8005:8002 -e PRY_API_KEY=$(openssl rand -hex 24) pry
 ```
 
 There is also `Dockerfile.apify` for the Apify Actor platform (no Playwright —
@@ -231,11 +235,11 @@ First scrape in under 5 minutes:
 # 1. Install (pick one — see Installation above)
 pip install pryscraper-mcp
 
-# 2. Run the API server (or skip and use the hosted api.pryscraper.com)
+# 2. Run the API server (or skip and use the hosted https://api.pryscraper.com)
 pry serve                 # API on 127.0.0.1:8005 (CLI default)
 
-# 3. Scrape — first call returns HTTP 402 with x402 payment terms,
-#    subsequent calls are gated by payment signature
+# 3. Scrape — the first call returns HTTP 402 with x402 payment terms;
+#    the SDK below pays it and retries once with the payment header
 pry open https://example.com
 ```
 
@@ -264,18 +268,48 @@ docker compose -f docker-compose.yml -f docker-compose.selfhost.yml \
   --env-file .env.selfhost up -d
 ```
 
-API: `http://localhost:8002` · MCP: `http://localhost:8002/mcp/`
+API: `http://localhost:8005` · MCP: `http://localhost:8005/mcp/`
 
 Self-hosted calls are **not** x402-gated — see [Who pays?](#who-pays) below.
 Scrape a page:
 
 ```bash
 KEY=$(grep '^PRY_API_KEY=' .env.selfhost | cut -d= -f2)
-curl -s http://localhost:8002/v1/scrape \
+curl -s http://localhost:8005/v1/scrape \
   -H "Authorization: Bearer $KEY" \
   -H 'Content-Type: application/json' \
   -d '{"url": "https://example.com"}'
 ```
+
+### Python SDK
+
+`PryCrawl` speaks x402 natively: a 402 is parsed, handed to your `pay` callback,
+and retried once with the payment header. Errors raise `PryError` with the
+RFC-7807 `code`/`detail`.
+
+```python
+import asyncio
+from pry.api.pry_sdk import PryCrawl, PaymentRequired
+
+
+async def main():
+    client = PryCrawl(
+        "http://localhost:8005", api_key="pry_..."
+    )  # hosted: https://api.pryscraper.com
+    try:
+        page = await client.scrape("https://example.com")
+    except PaymentRequired as exc:  # 402: challenge in exc.challenge
+        page = await client.scrape("https://example.com", pay=lambda c: sign(c))
+    print(page["data"]["markdown"][:200])
+
+
+asyncio.run(main())
+```
+
+`sign(challenge)` returns the x402 payment header value (a base64 payment
+payload or an already-encoded string). Set `max_price_usd=` to refuse any
+challenge above your budget, `max_retries=` to tune 429/5xx retries for GETs,
+and `PryCrawlSync` for the synchronous equivalent.
 
 ### CLI
 
@@ -542,7 +576,7 @@ Solana/TRON slot.
 |-----------|-------|
 | Single scrape | $0.001 |
 | Crawl (per page) | $0.001 |
-| AI extraction | $0.003 |
+| AI extraction | $0.005 |
 | Signup automation | $0.01 |
 | CAPTCHA solving | $0.005 |
 
@@ -636,7 +670,7 @@ GET /llms.txt                     → AI agent discovery (llms.txt standard)
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Copyright (c) 2026 Rug Munch Media LLC.
+MIT + BSL-1.1 — MIT for the core engine; BSL-1.1 for the stealth/anti-detection module. See [LICENSE](LICENSE) and [LICENSE-BSL-STEALTH](LICENSE-BSL-STEALTH). Copyright (c) 2026 Rug Munch Media LLC.
 
 ---
 

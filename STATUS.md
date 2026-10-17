@@ -14,7 +14,7 @@ product surface, x402 payments at production hardening, scraping engine at a
   TLS impersonation → cloudscraper → FlareSolverr → stealth browsers → Tor →
   proxies → Archive.org → AI visual → mobile API → GraphQL), per-domain
   adaptive tier memory + circuit breakers.
-- **MCP server** — 76 tools across 33 categories; 110 pre-built templates;
+- **MCP server** — 99 tools across 33 categories; 110 pre-built templates;
   combined tool executor (actor + 21 domain dispatchers); Redis-backed session
   store for horizontal scaling (in-memory fallback preserved).
 - **x402 payments** — HTTP 402 pay-per-call, server-authoritative pricing (64

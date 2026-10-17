@@ -67,6 +67,46 @@ def _loopback_only() -> bool:
     return bool(_admin.ADMIN_LOOPBACK_ONLY)
 
 
+def _is_loopback_host(client_host: str) -> bool:
+    """True for loopback clients (including ASGI test-client hosts)."""
+    return is_loopback_client(client_host) or client_host in (
+        "localhost",
+        "0.0.0.0",  # nosec B104 — membership check, not a bind
+    )
+
+
+def _require_admin_user(user_id: str) -> None:
+    """Raise 403 unless *user_id* maps to a user with the ADMIN role."""
+    from pry.core.db import models as _db_models
+    from pry.core.db.session import get_session
+
+    with get_session() as session:
+        urow = session.query(_db_models.User).filter_by(user_id=user_id).first()
+    role = str(urow.role or "") if urow is not None else ""
+    if role.upper() != "ADMIN":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin access requires a user with the ADMIN role",
+        )
+
+
+def _require_remote_admin(request: Request) -> None:
+    """Remote mode: require the caller's key to belong to an ADMIN-role user."""
+    from pry.core import api_keys_service
+
+    auth = request.headers.get("authorization", "")
+    bearer = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+    if not bearer:
+        raise HTTPException(status_code=403, detail="Admin (remote) requires an API key")
+    record = api_keys_service.authenticate(bearer)
+    if record is None:
+        raise HTTPException(status_code=403, detail="Invalid API key for admin access")
+    user_id = str(record.get("user_id") or "")
+    if not user_id:
+        raise HTTPException(status_code=403, detail="Key is not bound to a user")
+    _require_admin_user(user_id)
+
+
 def _check_admin_access(request: Request) -> None:
     """Enforce loopback-only admin access + admin-role RBAC in remote mode.
 
@@ -86,40 +126,14 @@ def _check_admin_access(request: Request) -> None:
             status_code=403,
             detail="Ambiguous client identity (untrusted forwarding headers)",
         )
-    is_loopback = is_loopback_client(client_host) or client_host in (
-        "localhost",
-        "0.0.0.0",  # nosec B104 — membership check, not a bind
-    )
-    if is_loopback and loopback_only:
+    if _is_loopback_host(client_host) and loopback_only:
         return
     if loopback_only:
         raise HTTPException(
             status_code=403,
             detail="Admin is loopback-only. Set PRY_ADMIN_LOOPBACK_ONLY=false to expose remotely.",
         )
-    # Remote mode: require the caller's key to belong to an ADMIN-role user.
-    from pry.core import api_keys_service
-    from pry.core.db.session import get_session
-
-    auth = request.headers.get("authorization", "")
-    bearer = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
-    if not bearer:
-        raise HTTPException(status_code=403, detail="Admin (remote) requires an API key")
-    record = api_keys_service.authenticate(bearer)
-    if record is None:
-        raise HTTPException(status_code=403, detail="Invalid API key for admin access")
-    user_id = str(record.get("user_id") or "")
-    if not user_id:
-        raise HTTPException(status_code=403, detail="Key is not bound to a user")
-    from pry.core.db import models as _db_models
-
-    with get_session() as session:
-        urow = session.query(_db_models.User).filter_by(user_id=user_id).first()
-    if urow is None or str(urow.role or "").upper() != "ADMIN":
-        raise HTTPException(
-            status_code=403,
-            detail="Admin access requires a user with the ADMIN role",
-        )
+    _require_remote_admin(request)
 
 
 router = APIRouter(prefix=ADMIN_PREFIX, tags=["Admin"], dependencies=[Depends(_check_admin_access)])

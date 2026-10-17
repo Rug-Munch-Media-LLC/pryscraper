@@ -184,7 +184,7 @@
 		},
 		{
 			"name": "pry_arbitrage",
-			"description": "Scan sportsbook lines for guaranteed-profit arbitrage opportunities: the same event quoted at different books where the combined implied probabilities total under 100%. Use to find risk-free bets, e.g. 'show me NFL arbitrage opportunities with at least 0.8% yield' or call with sport='all' to sweep every tracked league."
+			"description": "Scan sportsbook lines for arbitrage candidates (before fees, slippage and stake limits): the same event quoted at different books where the combined implied probabilities total under 100%. Use to find arbitrage candidates (before fees, slippage and stake limits), e.g. 'show me NFL arbitrage opportunities with at least 0.8% yield' or call with sport='all' to sweep every tracked league."
 		},
 		{
 			"name": "pry_plus_ev",

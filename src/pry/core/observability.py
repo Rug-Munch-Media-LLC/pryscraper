@@ -21,8 +21,7 @@ from opentelemetry.sdk.trace.export import (
     SpanExporter,
 )
 
-# Prometheus + OpenTelemetry are hard runtime dependencies
-# (see ACTOR_RUNTIME_PACKAGES in actor_factory.publish).
+# Prometheus + OpenTelemetry are hard runtime dependencies (see ACTOR_RUNTIME_PACKAGES).
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
     Counter,
@@ -47,16 +46,14 @@ try:
     from opentelemetry.sdk.trace.export.batch import BatchSpanProcessor  # noqa: F401
 except ImportError:
     # Optional OTLP extra is not installed: tracing still works through the
-    # console exporter. This is an expected deployment state, not an error —
-    # log at debug so importing Pry never emits a traceback.
+    # console exporter — an expected state, not an error.
     logger.debug("otlp_exporter_unavailable")
     _has_otlp = False
 else:
     _has_otlp = True
 
 
-# Metrics
-# At runtime each name is a Counter/Histogram/Gauge, or None when
+# Metrics: each name is a Counter/Histogram/Gauge, or None when
 # prometheus_client is unavailable (the else-branch below).
 if _has_prometheus:
     REQUEST_COUNT = Counter(

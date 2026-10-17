@@ -180,7 +180,7 @@
 						"type": "prometheus",
 						"uid": "PBFA97CFB590B2093"
 					},
-					"expr": "pry_request_duration_seconds",
+					"expr": "histogram_quantile(0.95, sum by (le) (rate(pry_request_duration_seconds_bucket[5m])))",
 					"legendFormat": "{{endpoint}}",
 					"refId": "A"
 				}
@@ -265,7 +265,7 @@
 						"type": "prometheus",
 						"uid": "PBFA97CFB590B2093"
 					},
-					"expr": "rate(pry_errors_total[5m])",
+					"expr": "rate(pry_request_errors_total[5m])",
 					"legendFormat": "{{error_type}}",
 					"refId": "A"
 				}
@@ -350,7 +350,7 @@
 						"type": "prometheus",
 						"uid": "PBFA97CFB590B2093"
 					},
-					"expr": "pry_active_users",
+					"expr": "sum(pry_active_sessions)",
 					"legendFormat": "active users",
 					"refId": "A"
 				}
@@ -435,7 +435,7 @@
 						"type": "prometheus",
 						"uid": "PBFA97CFB590B2093"
 					},
-					"expr": "rate(pry_llm_tokens_total[5m])",
+					"expr": "rate(pry_llm_calls_total[5m])",
 					"legendFormat": "{{provider}} {{type}}",
 					"refId": "A"
 				}
@@ -520,7 +520,7 @@
 						"type": "prometheus",
 						"uid": "PBFA97CFB590B2093"
 					},
-					"expr": "pry_llm_cost_usd_total",
+					"expr": "sum(rate(pry_llm_cost_usd_total[5m]))",
 					"legendFormat": "{{provider}}",
 					"refId": "A"
 				}

@@ -10,174 +10,18 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pry.payments.earnings import EarningsTracker
+from pry.payments.payment_records import (
+    _amount_usd,
+    load_payment_records,
+    payment_ts,
+)
+
 logger = logging.getLogger(__name__)
 
-#: Canonical payment timestamp precedence. Rows written by different eras use
-#: different keys; reading only one of them silently empties short windows.
-TIMESTAMP_KEYS = ("verified_at", "ts", "created_at")
 
 #: Postgres view definition for ledger <-> settlement reconciliation.
 #: No migration ships with this change: apply the view manually (or fold it
 #: into a later Alembic revision) once the ledger is the only writer.
-REVENUE_RECONCILIATION_SQL = """
-CREATE OR REPLACE VIEW revenue_reconciliation AS
-SELECT
-    p.payment_id,
-    p.tx_hash,
-    p.network,
-    p.asset,
-    p.amount_usd,
-    p.verified,
-    COALESCE(p.verified_at, p.created_at) AS booked_at,
-    s.settled_at,
-    s.amount_usd AS settled_usd,
-    CASE
-        WHEN p.verified AND s.settled_at IS NOT NULL THEN $$settled$$
-        WHEN p.verified THEN $$verified_unsettled$$
-        ELSE $$unverified$$
-    END AS reconciliation_state
-FROM x402_payment_records AS p
-LEFT JOIN x402_settlement_records AS s
-       ON s.payment_id = p.payment_id
-      AND s.tx_hash = p.tx_hash;
-"""
-
-#: The three operator queries the reconciliation view exists to answer.
-REVENUE_RECONCILIATION_QUERIES = {
-    # 1. Verified revenue by day (never trust an unverified row as income).
-    "revenue_by_day": """
-SELECT date_trunc($$day$$, COALESCE(verified_at, created_at)) AS day,
-       COUNT(*) AS payments,
-       ROUND(SUM(amount_usd)::numeric, 6) AS revenue_usd
-FROM x402_payment_records
-WHERE verified
-GROUP BY 1
-ORDER BY 1 DESC;
-""",
-    # 2. Verified but unsettled after 24h = money that never moved.
-    "verified_but_unsettled": """
-SELECT p.payment_id, p.tx_hash, p.amount_usd, p.verified_at
-FROM x402_payment_records AS p
-LEFT JOIN x402_settlement_records AS s
-       ON s.payment_id = p.payment_id
-      AND s.tx_hash = p.tx_hash
-WHERE p.verified
-  AND s.settled_at IS NULL
-  AND COALESCE(p.verified_at, p.created_at) < now() - interval $$24 hours$$
-ORDER BY p.verified_at NULLS LAST;
-""",
-    # 3. Payment amount vs settled amount drift (should be exact).
-    "amount_mismatches": """
-SELECT p.payment_id, p.tx_hash, p.amount_usd, s.amount_usd AS settled_usd
-FROM x402_payment_records AS p
-JOIN x402_settlement_records AS s
-  ON s.payment_id = p.payment_id
- AND s.tx_hash = p.tx_hash
-WHERE p.verified
-  AND ABS(COALESCE(p.amount_usd, 0) - COALESCE(s.amount_usd, 0)) > 0.000001;
-""",
-}
-
-
-def parse_payment_ts(value: Any) -> datetime | None:
-    """Parse a timestamp to an aware UTC datetime; naive values are UTC."""
-    if isinstance(value, datetime):
-        parsed = value
-    elif isinstance(value, str) and value.strip():
-        try:
-            parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
-        except ValueError:
-            return None
-    else:
-        return None
-    return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
-
-
-def payment_ts(record: dict[str, Any]) -> datetime | None:
-    """Canonical payment time: verified_at -> ts -> created_at (aware UTC)."""
-    for key in TIMESTAMP_KEYS:
-        parsed = parse_payment_ts(record.get(key))
-        if parsed is not None:
-            return parsed
-    return None
-
-
-def _amount_usd(record: dict[str, Any]) -> float:
-    """Coerce a row amount to float; corrupt rows count as 0, never raise."""
-    try:
-        return float(record.get("amount_usd", 0) or 0)
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def _payment_identity(record: dict[str, Any]) -> tuple[str, str] | None:
-    tx_hash = str(record.get("tx_hash") or "")
-    if tx_hash:
-        return ("tx", tx_hash)
-    payment_id = str(record.get("payment_id") or "")
-    if payment_id:
-        return ("pid", payment_id)
-    return None
-
-
-def dedupe_payment_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Drop duplicate rows, keeping the first (ledger-first) occurrence."""
-    seen: set[tuple[str, str]] = set()
-    unique: list[dict[str, Any]] = []
-    for record in records:
-        identity = _payment_identity(record)
-        if identity is not None:
-            if identity in seen:
-                continue
-            seen.add(identity)
-        unique.append(record)
-    return unique
-
-
-def _load_jsonl_records(path: str) -> list[dict[str, Any]]:
-    import json
-    import os
-
-    if not path or not os.path.exists(path):
-        return []
-    records: list[dict[str, Any]] = []
-    try:
-        with open(path) as handle:
-            for line in handle:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    row = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if isinstance(row, dict):
-                    records.append(row)
-    except OSError as exc:
-        logger.warning("analytics_load_failed", extra={"error": str(exc)[:160]})
-    return records
-
-
-def load_payment_records(fallback_path: str = "") -> list[dict[str, Any]]:
-    """Load payments with Postgres as the source of truth.
-
-    x402_payment_records is authoritative; the JSONL log is the fallback.
-    Ledger rows come first so they win on identity, but JSONL rows the ledger
-    has not ingested yet are appended so history is never silently dropped.
-    Deduped by tx_hash, then payment_id.
-    """
-    records: list[dict[str, Any]] = []
-    try:
-        from pry.payments.x402 import ledger_store
-
-        if ledger_store.available():
-            records.extend(ledger_store.get_payments())
-    except Exception as exc:  # noqa: BLE001 - any ledger failure degrades to JSONL
-        logger.warning("payment_ledger_unavailable", extra={"error": str(exc)[:160]})
-    records.extend(_load_jsonl_records(fallback_path))
-    return dedupe_payment_records(records)
-
-
 class PaymentAnalytics:
     """Payment analytics engine for tracking revenue and conversion."""
 

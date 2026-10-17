@@ -109,7 +109,7 @@ Pry is a **self-hosted MCP server** for web scraping and browser automation. It 
 - **pry_odds** — *Use when* you need live betting odds across bookmakers (DraftKings, FanDuel, BetMGM, …).
   Example: `pry_odds(sport="nba", limit=20)` → event odds with bookmaker, market, decimal price.
 
-- **pry_arbitrage** — *Use when* hunting guaranteed-profit arbitrage across books.
+- **pry_arbitrage** — *Use when* hunting arbitrage candidates (before fees, slippage and stake limits) across books.
   Example: `pry_arbitrage(sport="nba", min_yield_pct=1.0)` → opportunities where implied probabilities total under 100%.
 
 - **pry_plus_ev** — *Use when* you want +EV bets where market odds beat the sharp book's fair line.
@@ -174,6 +174,6 @@ uvx pryscraper-mcp            # or: pipx install pryscraper && pry-mcp
 - Run `pry_compliance` before scraping a site you are unsure about.
 - For marketplace intel, `pry_amazon_search` first to find ASINs, then `pry_amazon_product` for a single listing; `pry_tiktok_trending` for viral-commerce research.
 - For crypto tokens, prefer `pry_token_security` before any engagement; pair `pry_token_launches` + `pry_cex_listings` for market-timing research.
-- For sports, sweep `pry_arbitrage` for guaranteed profit, then `pry_plus_ev` for edge; use `pry_alerts` to stop polling.
+- For sports, sweep `pry_arbitrage` for arbitrage candidates (before fees, slippage and stake limits), then `pry_plus_ev` for edge; use `pry_alerts` to stop polling.
 - For research pipelines, enrich jobs with `pry_weather` / `pry_agri` context and ground claims with `pry_papers`.
 - All tools are self-hosted — data never leaves your deployment unless you call a remote HTTP endpoint.

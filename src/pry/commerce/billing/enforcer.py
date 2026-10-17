@@ -14,10 +14,14 @@ Scope decisions
 - Active concurrency limiting (``Tier.concurrent_limit``) is exposed on the
   tier and surfaced in :meth:`usage_stats`, but NOT enforced here — the
   middleware owns request lifecycle tracking.
-- Counters are in-memory and thread-safe, bounded to ``MAX_TRACKED_KEYS``
-  distinct keys (FIFO eviction). Optional JSON persistence makes monthly
-  counters survive restarts; it is best-effort and never blocks the request
-  path.
+- Quota + rate counters live in Redis when ``PRY_REDIS_URL`` (or an injected
+  client) is available: windowed ``INCR`` for the month plus a fixed 60s
+  ``INCR`` bucket, so N replicas enforce ONE quota instead of N. Absent,
+  unreachable or erroring Redis degrades to the in-process counters below.
+- The in-process counters (thread-safe, ``MAX_TRACKED_KEYS`` FIFO) are the
+  FALLBACK only. JSON persistence survives restarts; with Redis holding the
+  truth its per-request whole-file write is throttled (it was last-writer-wins
+  churn across replicas) and stays per-request without Redis.
 """
 
 # SPDX-License-Identifier: MIT
@@ -27,6 +31,7 @@ Scope decisions
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -54,6 +59,12 @@ RATE_WINDOW_SECONDS: Final[int] = 60
 _PERSIST_VERSION: Final[int] = 1
 #: Counter slot used when no API key is supplied.
 _ANON_KEY: Final[str] = "<anon>"
+#: Redis namespace for shared counters (hashed key scope, never the raw key).
+_REDIS_PREFIX: Final[str] = "pry:billing:"
+#: Cooldown before re-dialling a Redis that just failed.
+REDIS_RETRY_SECONDS: Final[float] = 30.0
+#: Minimum seconds between best-effort persistence writes on the request path.
+SAVE_INTERVAL_SECONDS: Final[float] = 5.0
 
 
 def _current_month() -> str:
@@ -92,11 +103,24 @@ class BillingEnforcer:
         self,
         keys_config: dict[str, str] | str | Path | None = None,
         persist_path: str | Path | None = None,
+        redis_url: str | None = None,
+        redis_client: Any = None,
     ) -> None:
         self._lock = threading.RLock()
         self._counters: OrderedDict[str, _KeyCounter] = OrderedDict()
         self._tier_by_key: dict[str, str] = self._load_keys(keys_config)
         self._persist_path = Path(persist_path) if persist_path else None
+        # Shared quota state; ``redis_client`` is the injection seam. The URL
+        # resolves from the argument, then PRY_REDIS_URL. Absent/unreachable
+        # -> in-process counters only.
+        self._redis_url = (
+            None
+            if redis_client is not None
+            else (redis_url if redis_url is not None else os.environ.get("PRY_REDIS_URL", ""))
+        )
+        self._redis: Any = redis_client
+        self._redis_failed_at = 0.0
+        self._last_save = 0.0
         if self._persist_path is not None:
             self._load_persisted()
 
@@ -124,6 +148,11 @@ class BillingEnforcer:
         resolved tier to avoid a second lookup.
         """
         resolved = tier if tier is not None else self.resolve_tier(api_key)
+        client = self._redis_client()
+        if client is not None:
+            shared = self._redis_admit(client, api_key, resolved)
+            if shared is not None:
+                return shared
         now = time.monotonic()
         with self._lock:
             counter = self._counter_for(api_key, now)
@@ -137,8 +166,7 @@ class BillingEnforcer:
                 return False
             counter.month_requests += 1
             counter.window_requests += 1
-        if self._persist_path is not None:
-            self.save()
+        self._maybe_save()
         return True
 
     def usage_stats(self, api_key: str | None) -> dict[str, Any]:
@@ -152,11 +180,14 @@ class BillingEnforcer:
         """
         tier = self.resolve_tier(api_key)
         now = time.monotonic()
+        shared = self._redis_usage(api_key)
         with self._lock:
             counter = self._counter_for(api_key, now)
             month = counter.month
             month_requests = counter.month_requests
             window_requests = counter.window_requests
+        if shared is not None:
+            month, month_requests, window_requests = shared
         quota = tier.request_quota_monthly
         rpm = tier.rate_limit_rpm
         return {
@@ -198,6 +229,7 @@ class BillingEnforcer:
                     for key, counter in self._counters.items()
                 },
             }
+        self._last_save = time.monotonic()
         tmp_path = self._persist_path.with_name(f"{self._persist_path.name}.tmp")
         try:
             tmp_path.write_text(json.dumps(payload), encoding="utf-8")
@@ -209,6 +241,133 @@ class BillingEnforcer:
         """Clear all in-memory usage counters (e.g. for tests)."""
         with self._lock:
             self._counters.clear()
+
+    # ── Shared (Redis) counters ────────────────────────────────────
+    def _redis_client(self) -> Any:
+        """Pinged Redis client for shared counters, or None (with cooldown).
+
+        Never raises — the in-process counters are the fallback.
+        """
+        if self._redis is not None:
+            return self._redis
+        if not self._redis_url:
+            return None
+        now = time.monotonic()
+        if now - self._redis_failed_at < REDIS_RETRY_SECONDS:
+            return None
+        try:
+            import redis
+
+            client = redis.Redis.from_url(
+                self._redis_url,
+                socket_connect_timeout=0.25,
+                socket_timeout=0.25,
+                decode_responses=True,
+            )
+            client.ping()
+        except Exception as e:  # noqa: BLE001 — degrade, never raise
+            self._redis_failed_at = now
+            logger.warning(
+                "billing_quota_redis_unavailable_falling_back_to_memory",
+                extra={"error": str(e)[:160]},
+            )
+            return None
+        self._redis = client
+        return client
+
+    def _drop_redis(self, error: Exception) -> None:
+        """Forget the client and start the cooldown."""
+        self._redis = None
+        self._redis_failed_at = time.monotonic()
+        logger.warning(
+            "billing_quota_redis_error_falling_back_to_memory",
+            extra={"error": str(error)[:160]},
+        )
+
+    @staticmethod
+    def _scope(api_key: str | None) -> str:
+        """Opaque per-key scope — the raw credential never enters a key name."""
+        material = api_key if api_key is not None else _ANON_KEY
+        return hashlib.sha256(material.encode()).hexdigest()[:32]
+
+    @staticmethod
+    def _month_ttl_seconds() -> int:
+        """Seconds until the month rolls over, plus slack."""
+        today = date.today()
+        next_month = date(today.year + (today.month == 12), today.month % 12 + 1, 1)
+        return int((next_month - today).total_seconds()) + 86_400
+
+    def _redis_keys(self, api_key: str | None) -> tuple[str, str]:
+        """(monthly-quota key, fixed-60s rate-window key) for one API key."""
+        scope = self._scope(api_key)
+        month = _current_month()
+        window = int(time.time()) // RATE_WINDOW_SECONDS
+        return (
+            f"{_REDIS_PREFIX}q:{scope}:{month}",
+            f"{_REDIS_PREFIX}r:{scope}:{window}",
+        )
+
+    def _redis_admit(self, client: Any, api_key: str | None, tier: Tier) -> bool | None:
+        """Reserve one request in Redis; None means "fall back to local".
+
+        ``INCR``-then-compare (not read-then-write) so replicas cannot each
+        read a count one below the limit; an over-limit increment is rolled
+        back so a denied request consumes nothing. Boundary over-admission is
+        bounded by the number of concurrent replicas, not by N whole quotas.
+        """
+        quota_key, rate_key = self._redis_keys(api_key)
+        quota_used = 0
+        try:
+            if tier.request_quota_monthly is not None:
+                quota_used = int(client.incr(quota_key))
+                if quota_used == 1:
+                    client.expire(quota_key, self._month_ttl_seconds())
+                if quota_used > tier.request_quota_monthly:
+                    client.decr(quota_key)
+                    return False
+            if tier.rate_limit_rpm is not None:
+                rate_used = int(client.incr(rate_key))
+                if rate_used == 1:
+                    client.expire(rate_key, RATE_WINDOW_SECONDS * 2)
+                if rate_used > tier.rate_limit_rpm:
+                    client.decr(rate_key)
+                    if quota_used:
+                        client.decr(quota_key)
+                    return False
+        except Exception as e:  # noqa: BLE001 — fall back to in-process
+            self._drop_redis(e)
+            return None
+        return True
+
+    def _redis_usage(self, api_key: str | None) -> tuple[str, int, int] | None:
+        """(month, month_requests, window_requests) from Redis, or None."""
+        client = self._redis_client()
+        if client is None:
+            return None
+        quota_key, rate_key = self._redis_keys(api_key)
+        try:
+            month_requests = int(client.get(quota_key) or 0)
+            window_requests = int(client.get(rate_key) or 0)
+        except Exception as e:  # noqa: BLE001 — stats degrade to local
+            self._drop_redis(e)
+            return None
+        return _current_month(), month_requests, window_requests
+
+    def _maybe_save(self) -> None:
+        """Persist counters; throttled only when Redis holds the truth.
+
+        With a shared store the file is a redundant snapshot, so per-request
+        writes were pure last-writer-wins churn. Without Redis it is the only
+        durable record — legacy per-request behaviour is preserved.
+        """
+        if self._persist_path is None:
+            return
+        if self._redis is None:
+            self.save()
+            return
+        if time.monotonic() - self._last_save < SAVE_INTERVAL_SECONDS:
+            return
+        self.save()
 
     # ── Internals ──────────────────────────────────────────────────
     def _counter_for(self, api_key: str | None, now: float) -> _KeyCounter:

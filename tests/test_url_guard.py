@@ -13,6 +13,14 @@ from pry.engine import url_guard
 from pry.engine.url_guard import safe_get, validate_redirect_url, validate_url
 
 
+def _stub_dns(monkeypatch: pytest.MonkeyPatch, ip: str) -> None:
+    monkeypatch.setattr(
+        url_guard.socket,
+        "getaddrinfo",
+        lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 80))],
+    )
+
+
 class TestValidateURL:
     def test_accepts_normal_https(self):
         result = validate_url("https://example.com/page")
@@ -147,22 +155,12 @@ class TestValidateURL:
         """resolve_dns=True is the default: a public hostname that resolves to a
         private IP (DNS rebinding / metadata attack) must be rejected."""
 
-        def fake_getaddrinfo(host, port):
-            return [
-                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", 80)),
-            ]
-
-        monkeypatch.setattr(url_guard.socket, "getaddrinfo", fake_getaddrinfo)
+        _stub_dns(monkeypatch, "10.0.0.5")
         with pytest.raises(InvalidRequestError):
             validate_url("http://public.example.com/")
 
     def test_dns_resolution_blocks_metadata_ip_by_default(self, monkeypatch):
-        def fake_getaddrinfo(host, port):
-            return [
-                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 80)),
-            ]
-
-        monkeypatch.setattr(url_guard.socket, "getaddrinfo", fake_getaddrinfo)
+        _stub_dns(monkeypatch, "169.254.169.254")
         with pytest.raises(InvalidRequestError):
             validate_url("http://public.example.com/")
 
@@ -170,12 +168,7 @@ class TestValidateURL:
         """resolve_dns=False remains available for callers that already vetted
         the address."""
 
-        def fake_getaddrinfo(host, port):
-            return [
-                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", 80)),
-            ]
-
-        monkeypatch.setattr(url_guard.socket, "getaddrinfo", fake_getaddrinfo)
+        _stub_dns(monkeypatch, "10.0.0.5")
         result = validate_url("http://public.example.com/", resolve_dns=False)
         assert result == "http://public.example.com/"
 

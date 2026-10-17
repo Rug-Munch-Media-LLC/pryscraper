@@ -1,172 +1,177 @@
-# Pry — Prometheus alert rules (SLO burn-rate + service health).
-#
-# SLOs (initial targets, tune after a month of data):
-#   * Availability: 99.5% of non-4xx requests succeed (2xx/3xx/404-exempt)
-#   * Scrape success: >= 90% of completed scrapes return status=success
-#   * Latency: p95 request duration < 5s (scraping is inherently slow;
-#     the budget is on the API envelope, not the target fetch)
-#
-# Burn-rate alerts follow the multi-window pattern (fast + slow window)
-# so pages fire on real budget consumption, not blips.
-
+# Pry — SLO rules. Fast window 1h, slow 6h. Every metric cited (file:line):
+# pry_requests_total{method,endpoint,status} obs:63 / middleware_http.py:184
+# pry_request_duration_seconds obs:65 / middleware_http.py:187
+# pry_scrapes_total{method,status} obs:67/:233 · pry_scrape_duration_seconds obs:68/:234
+# x402_challenges_sent_total metrics.py:48/:119 handler_response.py:64 · x402_settle_total :63/:137 handler_settle.py:253
+# x402_settle_success_total :68/:141 · x402_settlement_volume_usd_total :83/:145 · x402_verify_* :53/:58
+# pry_x402_gate_misconfigured_total config.py:21 / enforcement_stages.py:65
+# pry_monitor_runs_total{status} scheduler.py:34/:47 (success|changed|error|retry|timeout)
+# pry_monitor_last_success_timestamp{monitor} :35-37/:49 · pry_scheduler_heartbeat :38/:269
+# SLOs: availability 99.5% · scrape p95<10s (1%) · conversion>=20% · settle fail<=2%
+# · monitor success>=95%. 14.4x/6x burn applies where budget is small; latency and
+# conversion use explicit dual-window thresholds (burn multiple would exceed 100%).
 groups:
   - name: pry-slo-availability
     interval: 30s
     rules:
-      - record: pry:slo_availability_5m
+      - alert: PryAvailabilityBurnFast
         expr: |
-          sum(rate(pry_requests_total{status!~"4.."}[5m]))
-          /
-          sum(rate(pry_requests_total[5m]))
-      - alert: PryAvailabilityErrorBudgetBurnFast
+          (sum(rate(pry_requests_total{status=~"5.."}[1h])) / clamp_min(sum(rate(pry_requests_total[1h])), .001) > 14.4 * .005)
+          and (sum(rate(pry_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(pry_requests_total[5m])), .001) > 14.4 * .005)
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "5xx burning availability budget >14.4x (1h+5m)", description: "99.5% SLO, >7.2% 5xx. RUNBOOK-SLO.md#pryavailabilityburnfast"}
+      - alert: PryAvailabilityBurnSlow
         expr: |
-          (1 - pry:slo_availability_5m) > 14 * 0.005
-          and (1 - (sum(rate(pry_requests_total{status!~"4.."}[1h])) / sum(rate(pry_requests_total[1h])))) > 14 * 0.005
+          (sum(rate(pry_requests_total{status=~"5.."}[6h])) / clamp_min(sum(rate(pry_requests_total[6h])), .001) > 6 * .005)
+          and (sum(rate(pry_requests_total{status=~"5.."}[30m])) / clamp_min(sum(rate(pry_requests_total[30m])), .001) > 6 * .005)
+        for: 15m
+        labels: {severity: warning}
+        annotations: {summary: "5xx burning availability budget >6x (6h+30m)", description: "Sustained >3% 5xx."}
+  - name: pry-slo-scrape-latency
+    interval: 60s
+    rules:
+      - alert: PryScrapeLatencyBurnFast
+        expr: |
+          (histogram_quantile(.95, sum by (le) (rate(pry_scrape_duration_seconds_bucket[1h]))) > 10)
+          and (histogram_quantile(.95, sum by (le) (rate(pry_scrape_duration_seconds_bucket[5m]))) > 10)
         for: 5m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Pry availability burning error budget >14x (fast window)"
-          description: "5m and 1h availability both below 93% — page immediately."
-
-      - alert: PryAvailabilityErrorBudgetBurnSlow
+        labels: {severity: critical}
+        annotations: {summary: "Scrape p95 above 10s SLO (1h+5m)", description: "Proxy/browser tiers saturated."}
+      - alert: PryScrapeLatencyBurnSlow
         expr: |
-          (1 - (sum(rate(pry_requests_total{status!~"4.."}[6h])) / sum(rate(pry_requests_total[6h])))) > 6 * 0.005
+          (histogram_quantile(.95, sum by (le) (rate(pry_scrape_duration_seconds_bucket[6h]))) > 10)
+          and (histogram_quantile(.95, sum by (le) (rate(pry_scrape_duration_seconds_bucket[30m]))) > 10)
         for: 30m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Pry availability burning error budget >6x (slow window)"
-
+        labels: {severity: warning}
+        annotations: {summary: "Scrape p95 above 10s SLO (6h+30m)", description: "Latency drift; compare by method."}
+  - name: pry-slo-checkout-conversion
+    interval: 60s
+    rules:
+      - alert: PryCheckoutConversionLowFast
+        expr: |
+          (sum(rate(x402_settle_success_total[1h])) / clamp_min(sum(rate(x402_challenges_sent_total[1h])), .001) < .10)
+          and (sum(rate(x402_settle_success_total[5m])) / clamp_min(sum(rate(x402_challenges_sent_total[5m])), .001) < .10)
+        for: 15m
+        labels: {severity: critical}
+        annotations: {summary: "402->settle conversion below half the 20% objective (1h+5m)", description: "Payment path losing conversions."}
+      - alert: PryCheckoutConversionLowSlow
+        expr: |
+          (sum(rate(x402_settle_success_total[6h])) / clamp_min(sum(rate(x402_challenges_sent_total[6h])), .001) < .15)
+          and (sum(rate(x402_settle_success_total[30m])) / clamp_min(sum(rate(x402_challenges_sent_total[30m])), .001) < .15)
+        for: 30m
+        labels: {severity: warning}
+        annotations: {summary: "402->settle conversion below 15% (6h+30m)", description: "Slow erosion — client mix/pricing/chain support."}
+  - name: pry-slo-settlement
+    interval: 60s
+    rules:
+      - alert: PrySettlementFailureBurnFast
+        expr: |
+          ((sum(rate(x402_settle_total[1h])) - sum(rate(x402_settle_success_total[1h]))) / clamp_min(sum(rate(x402_settle_total[1h])), .001) > 14.4 * .02)
+          and ((sum(rate(x402_settle_total[5m])) - sum(rate(x402_settle_success_total[5m]))) / clamp_min(sum(rate(x402_settle_total[5m])), .001) > 14.4 * .02)
+        for: 5m
+        labels: {severity: critical}
+        annotations: {summary: "Settlement failure >28.8% (1h+5m), 2% SLO", description: "Facilitator/RPC failing or replay rejections."}
+      - alert: PrySettlementFailureBurnSlow
+        expr: |
+          ((sum(rate(x402_settle_total[6h])) - sum(rate(x402_settle_success_total[6h]))) / clamp_min(sum(rate(x402_settle_total[6h])), .001) > 6 * .02)
+          and ((sum(rate(x402_settle_total[30m])) - sum(rate(x402_settle_success_total[30m]))) / clamp_min(sum(rate(x402_settle_total[30m])), .001) > 6 * .02)
+        for: 30m
+        labels: {severity: warning}
+        annotations: {summary: "Settlement failure >12% (6h+30m), 2% SLO", description: "Confirm chain RPC latency and facilitator balance."}
+  - name: pry-slo-monitor-liveness
+    interval: 30s
+    rules:
+      - alert: PrySchedulerHeartbeatStale
+        expr: |
+          (time() - pry_scheduler_heartbeat > 90)
+          or on() (absent(pry_scheduler_heartbeat) and (count(up{job="pry"} == 1) > 0))
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "Scheduler heartbeat older than 3x interval (90s)", description: "Loop stalled or PRY_SCHEDULER_ENABLED=0."}
+      - alert: PryMonitorRunErrorRateHighFast
+        expr: |
+          (sum(rate(pry_monitor_runs_total{status=~"error|timeout"}[1h])) / clamp_min(sum(rate(pry_monitor_runs_total[1h])), .001) > .30)
+          and (sum(rate(pry_monitor_runs_total{status=~"error|timeout"}[5m])) / clamp_min(sum(rate(pry_monitor_runs_total[5m])), .001) > .30)
+        for: 10m
+        labels: {severity: critical}
+        annotations: {summary: "Monitor runs failing >30% (1h+5m)", description: "Target down or concurrency too low."}
+      - alert: PryMonitorRunErrorRateHighSlow
+        expr: |
+          (sum(rate(pry_monitor_runs_total{status=~"error|timeout"}[6h])) / clamp_min(sum(rate(pry_monitor_runs_total[6h])), .001) > .15)
+          and (sum(rate(pry_monitor_runs_total{status=~"error|timeout"}[30m])) / clamp_min(sum(rate(pry_monitor_runs_total[30m])), .001) > .15)
+        for: 30m
+        labels: {severity: warning}
+        annotations: {summary: "Monitor runs failing >15% (6h+30m)", description: "Chronic monitor failures."}
+      # Global, not per-series: schedules are DB-only (scheduler.py:255), so a
+      # per-monitor threshold would false-page daily crons.
+      - alert: PryMonitorNoSuccess12h
+        expr: |
+          (time() - max(pry_monitor_last_success_timestamp) > 43200)
+          and on() (sum(increase(pry_monitor_runs_total[6h])) > 0)
+        for: 15m
+        labels: {severity: warning}
+        annotations: {summary: "No monitor succeeded in 12h while runs continue", description: "All runs failing, or success gauge not set."}
+      # No `tier` label exists (obs:67); `method` is the exposed routing tier.
+      - alert: PryScrapeMethodSuccessDegraded
+        expr: |
+          (sum by (method) (rate(pry_scrapes_total{status="success"}[15m])) / clamp_min(sum by (method) (rate(pry_scrapes_total[15m])), .001)) < .70
+          and on(method) (sum by (method) (rate(pry_scrapes_total[15m])) > .01)
+        for: 15m
+        labels: {severity: warning}
+        annotations: {summary: "Scrape method {{ $labels.method }} success below 70%", description: "One tier degraded while others run."}
   - name: pry-scrape-success
     interval: 60s
     rules:
-      # ── Scraper health: two DISTINCT failure modes, never one expression ──
-      # 1. scrapes running but mostly failing  -> PryScrapeSuccessRateLow
-      # 2. no scrapes running at all          -> PryScraperIdle
-      # A success *ratio* cannot tell them apart. sum(rate(success)) /
-      # clamp_min(sum(rate(all)), 0.001) evaluates to 0/0.001 == 0 when idle,
-      # so an idle scraper pages "0% success" forever — a false failure that
-      # trains operators to ignore the alert. Hence the `unless` guard: idle is
-      # excluded from the ratio, and PryScraperIdle owns that signal instead.
-      #
-      # 2026-09-27: this rule lived in fleet-infra's alert_rules.yml, where it
-      # was deployed, green and STRUCTURALLY INERT — rmi-prometheus has no
-      # job="pry" target and therefore zero pry_scrapes_total series. It was
-      # moved here because this is the ONLY Prometheus that scrapes pry:8002
-      # (verified: pry network is pryscraper_default, rmi-prometheus is on
-      # rmi_network, and pry's API is published to 127.0.0.1:8005 only —
-      # rmi-prometheus reaches neither). A rule can only observe data the
-      # local Prometheus actually scrapes.
       - alert: PryScrapeSuccessRateLow
         expr: |
-          (
-            sum(rate(pry_scrapes_total{status="success"}[15m]))
-            /
-            clamp_min(sum(rate(pry_scrapes_total[15m])), 0.001)
-          ) < 0.90
+          (sum(rate(pry_scrapes_total{status="success"}[15m])) / clamp_min(sum(rate(pry_scrapes_total[15m])), .001)) < .90
           unless sum(rate(pry_scrapes_total[15m])) == 0
         for: 15m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Scrape success rate below 90% for 15m"
-          description: "Check upstream block rates / proxy pool health via /v1/admin/dashboard. Scrapes ARE running — if the scraper is idle entirely that is PryScraperIdle, not this alert."
-
-      # The real "scraper is broken" signal. Idle is a DIFFERENT fault from low
-      # success rate: nothing is being collected at all, so the success ratio
-      # is meaningless. Guarded on the scrape target being up so a dead Pry
-      # container does not also page as idle (target-down already covers that).
-      # `and on()` (empty label set) against a count(), NOT `and on(job)`:
-      # sum() returns a label-less series, so an on(job) join can never match
-      # and the alert would silently NEVER fire — a guard that guards nothing.
-      # count() is also single-series, which `and` requires.
+        labels: {severity: warning}
+        annotations: {summary: "Scrape success below 90% for 15m", description: "Scrapes running; see per-method degradation."}
       - alert: PryScraperIdle
         expr: |
           (sum(rate(pry_scrapes_total[15m])) == 0)
           and on() (count(up{job="pry"} == 1) > 0)
         for: 2h
-        labels:
-          severity: warning
-        annotations:
-          summary: "Pry scraper idle — no scrapes for 2h (target up)"
-          description: "pry_scrapes_total rate is 0 for 15m windows across 2h while the pry target is still up. Scraping is stalled or the scheduler is off — not a success-rate problem."
-
-  - name: pry-latency
-    interval: 60s
-    rules:
-      - alert: PryP95LatencyHigh
-        expr: |
-          histogram_quantile(0.95, sum by (le) (rate(pry_request_duration_seconds_bucket[10m]))) > 5
-        for: 20m
-        labels:
-          severity: warning
-        annotations:
-          summary: "p95 request latency above 5s for 20m"
-
-  - name: pry-payment-gate
-    interval: 60s
-    rules:
-      # Any occurrence means a paid route lost its pricing entry — revenue
-      # leak risk caught by the fail-closed gate before it leaked.
-      - alert: PryPaymentGateMisconfigured
-        expr: increase(pry_x402_gate_misconfigured_total[5m]) > 0
-        for: 0m
-        labels:
-          severity: critical
-        annotations:
-          summary: "x402 gate misconfiguration detected"
-          description: "A PAID_ENDPOINTS prefix is missing its X402_PRICING entry. Requests are being refused (fail-closed). Add pricing or fix the prefix."
-
-  # ── Basic service-health alerts (2026-08-31 audit remediation) ──
+        labels: {severity: warning}
+        annotations: {summary: "Pry scraper idle 2h (target up)", description: "Nothing collected while API is up."}
   - name: pry-service-health
     interval: 30s
     rules:
-      # API container down (scrape of pry:8002 failing)
+      - alert: PryRequestP95LatencyHigh
+        expr: histogram_quantile(.95, sum by (le) (rate(pry_request_duration_seconds_bucket[10m]))) > 5
+        for: 20m
+        labels: {severity: warning}
+        annotations: {summary: "API p95 request latency above 5s for 20m"}
+      - alert: PryPaymentGateMisconfigured
+        expr: increase(pry_x402_gate_misconfigured_total[5m]) > 0
+        for: 0m
+        labels: {severity: critical}
+        annotations: {summary: "x402 gate misconfiguration detected", description: "Paid prefix without X402_PRICING; fails closed 500."}
       - alert: pry_container_down
         expr: up{job="pry"} == 0
         for: 2m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Pry API container down for 2m"
-          description: "Prometheus cannot scrape pry:8002 — container crashed or network issue."
-
-      # 5xx error ratio > 10% over 5m (pry exposes pry_requests_total{status})
+        labels: {severity: critical}
+        annotations: {summary: "Pry API container down for 2m"}
       - alert: pry_high_error_rate
-        expr: |
-          sum(rate(pry_requests_total{status=~"5.."}[5m]))
-          /
-          clamp_min(sum(rate(pry_requests_total[5m])), 0.001) > 0.10
+        expr: sum(rate(pry_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(pry_requests_total[5m])), .001) > .10
         for: 5m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Pry 5xx error rate above 10% for 5m"
-
-      # Postgres exporter unreachable
+        labels: {severity: critical}
+        annotations: {summary: "Pry 5xx error rate above 10% for 5m"}
       - alert: pry_pg_down
         expr: up{job="postgres"} == 0
         for: 2m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Pry postgres exporter down for 2m"
-
-      # Redis exporter unreachable
+        labels: {severity: critical}
+        annotations: {summary: "Pry postgres exporter down for 2m"}
       - alert: pry_redis_down
         expr: up{job="redis"} == 0
         for: 2m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Pry redis exporter down for 2m"
-
-      # Public API unreachable from outside (CF/nginx/upstream failure)
+        labels: {severity: critical}
+        annotations: {summary: "Pry redis exporter down for 2m"}
       - alert: pry_public_api_down
         expr: probe_success{job="public-api"} == 0
         for: 2m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Public API https://api.pryscraper.com/health failing"
+        labels: {severity: critical}
+        annotations: {summary: "Public API https://api.pryscraper.com/health failing"}

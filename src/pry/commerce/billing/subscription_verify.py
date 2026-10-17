@@ -1,26 +1,17 @@
 """Pry — subscription payment verification + settlement.
-Checks the payment status of subscription invoices and settles verified
-x402 payments on-chain:
-- **x402**: verifies the recorded tx via the self-facilitator
-  (``SelfFacilitator.verify``); settlement broadcasts the EIP-3009
-  authorization via ``SelfFacilitator.settle`` — verify alone only
-  ecrecovers the authorization, funds do not move until settle.
+
+Checks invoice payment status and settles verified x402 payments on-chain:
+- **x402**: ``SelfFacilitator.verify`` ecrecovers the recorded tx; only
+  ``SelfFacilitator.settle`` broadcasts it and moves the funds.
 - **btcpay**: polls ``GET {url}/api/v1/stores/{store}/invoices/{id}``;
   ``paid`` is True when upstream status is ``Settled``.
-
-Expired invoices fail closed (``paid=False``, ``reason="expired"``)
-regardless of backend, unless the backend reports settlement.
-
+Expired invoices fail closed (``paid=False``, ``reason="expired"``) unless the
+backend reports settlement.
 NOTES / REVIEW flags
---------------------
-- ``verify_subscription_payment`` is a SYNC function (per the module
-  contract) that runs the async :class:`SelfFacilitator.verify` via
-  ``asyncio.run``. Call it from sync contexts (CLI, plain routes, tests).
-  Calling it from inside a running event loop will raise ``RuntimeError`` —
-  use the async core helpers directly there instead.
-- The ``_get_self_facilitator`` hook lives on the
-  :mod:`pry.commerce.billing.subscription` facade so tests can monkeypatch
-  it (along with ``_now``) there.
+- ``verify_subscription_payment`` is SYNC and runs the async verify via
+  ``asyncio.run``; from inside a running event loop it raises ``RuntimeError``.
+- ``_get_self_facilitator`` lives on the :mod:`…subscription` facade so tests
+  can monkeypatch it (with ``_now``) there.
 """
 
 # SPDX-License-Identifier: MIT
@@ -157,14 +148,9 @@ async def _settle_x402_payment_async(payment: dict[str, Any]) -> str | None:
 def settle_subscription_payment(invoice_id: str) -> dict[str, Any]:
     """Settle a verified x402 subscription payment on-chain.
 
-    Verify alone only ecrecovers the EIP-3009 authorization — funds do not
-    move until the self-facilitator broadcasts the settlement
-    (``SelfFacilitator.settle``). Call this AFTER
-    :func:`verify_subscription_payment` reports ``paid=True`` and BEFORE
-    :func:`activate_subscription`; activate only when ``settled`` is True.
-
-    Returns ``{settled: bool, tx_hash: str | None, reason: str}``. Idempotent:
-    re-settling an already-settled payment returns the existing tx hash.
+    Verify only ecrecovers the EIP-3009 authorization; funds move only when
+    ``SelfFacilitator.settle`` broadcasts. Activate only when ``settled`` is
+    True. Returns ``{settled, tx_hash, reason}``; idempotent.
     """
     _ensure_loaded()
     with _lock:
@@ -189,14 +175,25 @@ def settle_subscription_payment(invoice_id: str) -> dict[str, Any]:
     )
     if settle_tx is None:
         return {"settled": False, "tx_hash": None, "reason": "settlement failed"}
-    # Persist the instant funds moved. Revenue attribution must use this time,
-    # not the time of whichever query happens to run next.
+    # Persist the instant funds moved; revenue attribution must use this time.
     settled_at = _utc_iso(_facade._now())
     with _lock:
         invoice["settled_at"] = settled_at
         invoice["settlement_tx_hash"] = str(settle_tx)
         _save_state_locked()
     return {"settled": True, "tx_hash": str(settle_tx), "reason": ""}
+
+
+def _btcpay_outcome(settled: bool, expired: bool, status: str, tx_hash: str) -> dict[str, Any]:
+    """Build the verifier result for a polled BTCPay invoice."""
+    state = "paid" if settled else ("expired" if expired else status)
+    return {
+        "paid": settled,
+        "tx_hash": tx_hash or None,
+        "confirmed_at": _utc_iso(_facade._now()) if settled else None,
+        "reason": "" if settled else ("expired" if expired else f"btcpay status {status}"),
+        "status": state,
+    }
 
 
 def _verify_btcpay(invoice: dict[str, Any], *, expired: bool) -> dict[str, Any]:
@@ -241,10 +238,4 @@ def _verify_btcpay(invoice: dict[str, Any], *, expired: bool) -> dict[str, Any]:
         if isinstance(data, dict):
             invoice.setdefault("btcpay", {})["upstream_status"] = status
         _save_state_locked()
-    return {
-        "paid": settled,
-        "tx_hash": tx_hash or None,
-        "confirmed_at": _utc_iso(_facade._now()) if settled else None,
-        "reason": "" if settled else ("expired" if expired else f"btcpay status {status}"),
-        "status": "paid" if settled else ("expired" if expired else status),
-    }
+    return _btcpay_outcome(settled, expired, status, tx_hash)

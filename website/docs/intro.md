@@ -12,7 +12,7 @@ Pry is a self-hosted web scraping and browser automation platform with native x4
 {
   "mcpServers": {
     "pry": {
-      "url": "http://localhost:8002/sse"
+      "url": "http://localhost:8005/sse"
     }
   }
 }
@@ -32,7 +32,7 @@ docker compose up -d
 
 ```bash
 pip install pryscraper-mcp
-pry serve          # API on :8002
+pry serve          # API on :8005
 pry open https://example.com
 pry crawl https://docs.com --max-pages 20
 ```

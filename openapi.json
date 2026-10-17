@@ -3043,7 +3043,7 @@
     },
     "/.well-known/server.json": {
       "get": {
-        "description": "Return the MCP registry server.json (server discovery manifest).\n\nServes the canonical registry manifest shipped at the repository root\n(``server.json``): 76 tools, 6 resources, 7 prompts, version 3.0.0,\nCodeberg repository URL. Falls back to a minimal generated manifest when\nthe file is not present in the deployment layout.",
+        "description": "Return the MCP registry server.json (server discovery manifest).\n\nServes the canonical registry manifest shipped at the repository root\n(``server.json``): 99 tools, 6 resources, 7 prompts, version 3.0.0,\nCodeberg repository URL. Falls back to a minimal generated manifest when\nthe file is not present in the deployment layout.",
         "operationId": "mcp_server_manifest__well_known_server_json_get",
         "responses": {
           "200": {
@@ -17399,7 +17399,7 @@
     },
     "/v1/sports/arbitrage": {
       "get": {
-        "description": "Scan sportsbook lines for guaranteed-profit arbitrage opportunities.",
+        "description": "Scan sportsbook lines for arbitrage candidates (before fees, slippage and stake limits).",
         "operationId": "sports_arbitrage_v1_sports_arbitrage_get",
         "parameters": [
           {

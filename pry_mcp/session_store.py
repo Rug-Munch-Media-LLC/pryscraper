@@ -5,8 +5,11 @@ Streamable HTTP session ids were previously held in a process-local set
 answered 404 for sessions created on the first. This module moves session
 state behind a small store interface:
 
-* :class:`RedisSessionStore` — a Redis SET with a TTL, shared by all
-  replicas (enabled when ``PRY_REDIS_URL`` is set and reachable).
+* :class:`RedisSessionStore` — one Redis key per session
+  (``pry:mcp:sess:<id>``) with its OWN TTL, plus the ``pry:mcp:sessions``
+  index used for listing. Per-key TTLs are the fix for the old single-SET
+  shape: ``EXPIRE`` re-armed the whole set on every ``add``, so a session
+  created three days ago never died while new sessions kept arriving.
 * :class:`InMemorySessionStore` — the previous behavior, used for
   single-process self-hosted deployments and as a per-request fallback
   when Redis is unavailable.
@@ -30,8 +33,16 @@ from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
 
+#: Index set of live session ids (listing only — liveness is the per-key TTL).
 SESSION_KEY = "pry:mcp:sessions"
+#: One key per session; this key's TTL is that session's lifetime.
+SESSION_KEY_PREFIX = "pry:mcp:sess:"
 DEFAULT_SESSION_TTL_SECONDS = 3600
+
+
+def session_key(session_id: str) -> str:
+    """Redis key holding one session (its TTL is the session lifetime)."""
+    return f"{SESSION_KEY_PREFIX}{session_id}"
 
 
 def _session_ttl() -> int:
@@ -56,6 +67,7 @@ class SessionStore(Protocol):
     async def exists(self, session_id: str) -> bool: ...
     async def remove(self, session_id: str) -> None: ...
     async def clear(self) -> None: ...
+    async def list_sessions(self) -> list[str]: ...
 
 
 class InMemorySessionStore:
@@ -90,6 +102,11 @@ class InMemorySessionStore:
 
     async def clear(self) -> None:
         self._sessions.clear()
+
+    async def list_sessions(self) -> list[str]:
+        """Live session ids (expired entries pruned first)."""
+        self._prune()
+        return list(self._sessions)
 
 
 class RedisSessionStore:
@@ -128,9 +145,18 @@ class RedisSessionStore:
             return False
 
     async def add(self, session_id: str) -> None:
+        """Create/refresh ONE session key; its TTL is that session's lifetime.
+
+        The index TTL is refreshed too (listing only), but it can never extend
+        another session's life: each session key expires on its own clock.
+        """
         if await self._ping_ok():
             try:
                 pipe = self._client.pipeline()
+                # A 1-member SET keeps the sadd/sismember contract; the point
+                # is the per-key EXPIRE, not the container type.
+                pipe.sadd(session_key(session_id), session_id)
+                pipe.expire(session_key(session_id), self._ttl)
                 pipe.sadd(SESSION_KEY, session_id)
                 pipe.expire(SESSION_KEY, self._ttl)
                 await pipe.execute()
@@ -140,16 +166,38 @@ class RedisSessionStore:
         await self._fallback.add(session_id)
 
     async def exists(self, session_id: str) -> bool:
+        """True only while THAT session's own key is alive."""
         if await self._ping_ok():
             try:
-                return bool(await self._client.sismember(SESSION_KEY, session_id))
+                return bool(await self._client.sismember(session_key(session_id), session_id))
             except Exception:  # noqa: BLE001 — Redis down → fallback
                 logger.warning("mcp_session_redis_unavailable")
         return await self._fallback.exists(session_id)
 
+    async def list_sessions(self) -> list[str]:
+        """Live session ids; expired index entries are pruned on read."""
+        if not await self._ping_ok():
+            return await self._fallback.list_sessions()
+        try:
+            members = await self._client.smembers(SESSION_KEY)
+            live: list[str] = []
+            for sid in members or []:
+                if await self._client.sismember(session_key(sid), sid):
+                    live.append(str(sid))
+                else:
+                    await self._client.srem(SESSION_KEY, sid)
+            return live
+        except Exception:  # noqa: BLE001 — Redis down → fallback
+            logger.warning("mcp_session_redis_unavailable")
+            return await self._fallback.list_sessions()
+
     async def remove(self, session_id: str) -> None:
         if await self._ping_ok():
             try:
+                # Two commands, not a pipeline: the per-session key is what
+                # governs liveness, so a partial failure still expires the
+                # session on its own TTL (the index entry is pruned on read).
+                await self._client.delete(session_key(session_id))
                 await self._client.srem(SESSION_KEY, session_id)
                 return
             except Exception:  # noqa: BLE001 — Redis down → fallback
@@ -157,9 +205,12 @@ class RedisSessionStore:
         await self._fallback.remove(session_id)
 
     async def clear(self) -> None:
+        """Drop the index and this store's session keys (SCAN, never KEYS)."""
         if await self._ping_ok():
             try:
                 await self._client.delete(SESSION_KEY)
+                async for key in self._client.scan_iter(match=f"{SESSION_KEY_PREFIX}*", count=500):
+                    await self._client.delete(key)
                 return
             except Exception:  # noqa: BLE001 — Redis down → fallback
                 logger.warning("mcp_session_redis_unavailable")

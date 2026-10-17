@@ -60,11 +60,11 @@ All configuration is via environment variables:
 
 ```bash
 # Health check
-curl http://localhost:8002/healthz
+curl http://localhost:8005/healthz
 
 # MCP health
-curl http://localhost:8002/mcp/health
+curl http://localhost:8005/mcp/health
 
 # x402 health
-curl http://localhost:8002/v1/x402/health
+curl http://localhost:8005/v1/x402/health
 ```

@@ -25,7 +25,7 @@
 			"name": "Website Crawling",
 			"description": "Crawl entire websites with BFS discovery",
 			"price": {
-				"amount": "0.005",
+				"amount": "0.01",
 				"currency": "USD"
 			},
 			"network": "eip155:8453",
@@ -37,7 +37,7 @@
 			"name": "AI Extraction",
 			"description": "LLM-powered structured data extraction",
 			"price": {
-				"amount": "0.003",
+				"amount": "0.005",
 				"currency": "USD"
 			},
 			"network": "eip155:8453",

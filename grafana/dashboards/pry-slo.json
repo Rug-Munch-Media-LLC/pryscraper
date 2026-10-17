@@ -1,0 +1,260 @@
+{
+	"uid": "pry-slo",
+	"title": "Pry — SLO / Reliability",
+	"schemaVersion": 39,
+	"version": 1,
+	"tags": ["pry", "slo"],
+	"time": { "from": "now-6h", "to": "now" },
+	"refresh": "30s",
+	"panels": [
+		{
+			"id": 1,
+			"type": "timeseries",
+			"title": "Request rate",
+			"gridPos": { "h": 7, "w": 12, "x": 0, "y": 0 },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum(rate(pry_requests_total[5m]))",
+					"legendFormat": "all"
+				}
+			]
+		},
+		{
+			"id": 2,
+			"type": "stat",
+			"title": "5xx ratio (1h)",
+			"gridPos": { "h": 7, "w": 6, "x": 12, "y": 0 },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum(rate(pry_requests_total{status=~\"5..\"}[1h])) / clamp_min(sum(rate(pry_requests_total[1h])), 0.001)",
+					"legendFormat": "5xx"
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "percentunit",
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{ "color": "green", "value": null },
+							{ "color": "orange", "value": 0.005 },
+							{ "color": "red", "value": 0.072 }
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": 3,
+			"type": "stat",
+			"title": "Request rate by status",
+			"gridPos": { "h": 7, "w": 6, "x": 18, "y": 0 },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (status) (rate(pry_requests_total[5m]))",
+					"legendFormat": "{{status}}"
+				}
+			]
+		},
+		{
+			"id": 4,
+			"type": "timeseries",
+			"title": "Scrape latency p95 by method",
+			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "histogram_quantile(0.95, sum by (le, method) (rate(pry_scrape_duration_seconds_bucket[5m])))",
+					"legendFormat": "{{method}}"
+				}
+			],
+			"fieldConfig": { "defaults": { "unit": "s" } }
+		},
+		{
+			"id": 5,
+			"type": "timeseries",
+			"title": "Scrape success rate by method",
+			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (method) (rate(pry_scrapes_total{status=\"success\"}[15m])) / clamp_min(sum by (method) (rate(pry_scrapes_total[15m])), 0.001)",
+					"legendFormat": "{{method}}"
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "percentunit",
+					"min": 0,
+					"max": 1,
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{ "color": "red", "value": null },
+							{ "color": "orange", "value": 0.7 },
+							{ "color": "green", "value": 0.9 }
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": 6,
+			"type": "timeseries",
+			"title": "x402 funnel (challenges -> settle)",
+			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum(rate(x402_challenges_sent_total[5m]))",
+					"legendFormat": "challenges"
+				},
+				{
+					"refId": "B",
+					"expr": "sum(rate(x402_verify_success_total[5m]))",
+					"legendFormat": "verify ok"
+				},
+				{
+					"refId": "C",
+					"expr": "sum(rate(x402_verify_failure_total[5m]))",
+					"legendFormat": "verify fail"
+				},
+				{
+					"refId": "D",
+					"expr": "sum(rate(x402_settle_success_total[5m]))",
+					"legendFormat": "settle ok"
+				},
+				{
+					"refId": "E",
+					"expr": "sum(rate(x402_settle_total[5m]))",
+					"legendFormat": "settle attempts"
+				}
+			]
+		},
+		{
+			"id": 7,
+			"type": "timeseries",
+			"title": "Settlement outcomes / failure ratio",
+			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum(rate(x402_settle_total[5m])) - sum(rate(x402_settle_success_total[5m]))",
+					"legendFormat": "failed"
+				},
+				{
+					"refId": "B",
+					"expr": "(sum(rate(x402_settle_total[1h])) - sum(rate(x402_settle_success_total[1h]))) / clamp_min(sum(rate(x402_settle_total[1h])), 0.001)",
+					"legendFormat": "failure ratio 1h"
+				}
+			],
+			"fieldConfig": { "defaults": { "unit": "short" } }
+		},
+		{
+			"id": 8,
+			"type": "timeseries",
+			"title": "Monitor runs by status",
+			"gridPos": { "h": 8, "w": 8, "x": 0, "y": 23 },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (status) (rate(pry_monitor_runs_total[5m]))",
+					"legendFormat": "{{status}}"
+				}
+			]
+		},
+		{
+			"id": 9,
+			"type": "stat",
+			"title": "Monitor error ratio (1h)",
+			"gridPos": { "h": 8, "w": 8, "x": 8, "y": 23 },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum(rate(pry_monitor_runs_total{status=~\"error|timeout\"}[1h])) / clamp_min(sum(rate(pry_monitor_runs_total[1h])), 0.001)",
+					"legendFormat": "errors"
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "percentunit",
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{ "color": "green", "value": null },
+							{ "color": "orange", "value": 0.15 },
+							{ "color": "red", "value": 0.3 }
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": 10,
+			"type": "stat",
+			"title": "Scheduler heartbeat age",
+			"gridPos": { "h": 8, "w": 4, "x": 16, "y": 23 },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "time() - pry_scheduler_heartbeat",
+					"legendFormat": "age"
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "s",
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{ "color": "green", "value": null },
+							{ "color": "red", "value": 90 }
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": 11,
+			"type": "stat",
+			"title": "No-success age (max across monitors)",
+			"gridPos": { "h": 8, "w": 4, "x": 20, "y": 23 },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "time() - max(pry_monitor_last_success_timestamp)",
+					"legendFormat": "age"
+				}
+			],
+			"fieldConfig": {
+				"defaults": {
+					"unit": "s",
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{ "color": "green", "value": null },
+							{ "color": "orange", "value": 21600 },
+							{ "color": "red", "value": 43200 }
+						]
+					}
+				}
+			}
+		},
+		{
+			"id": 12,
+			"type": "timeseries",
+			"title": "Settled volume USD / min",
+			"gridPos": { "h": 7, "w": 24, "x": 0, "y": 31 },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (network) (rate(x402_settlement_volume_usd_total[5m])) * 60",
+					"legendFormat": "{{network}}"
+				}
+			]
+		}
+	]
+}

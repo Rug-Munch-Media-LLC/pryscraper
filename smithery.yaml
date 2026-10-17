@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 # Part of Pry — https://codeberg.org/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
+# Licensed under MIT + BSL-1.1. MIT for the core engine; BSL-1.1 for the stealth/anti-detection module. See LICENSE.
 # Smithery configuration for Pry MCP server
 # https://smithery.ai/docs/config
 #

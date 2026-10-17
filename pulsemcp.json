@@ -4,7 +4,7 @@
 	"display_name": "Pry — Web Scraping, Browser Automation & Data Intelligence",
 	"description": "Scrape, crawl, extract, and automate any website, plus ten data domains (crypto, marketplace, legal, real estate, jobs, travel, attention, local, gov, ip) monetized via x402 pay-per-call. Self-hosted, MCP-compatible.",
 	"version": "3.0.0",
-	"license": "MIT",
+	"license": "MIT + BSL-1.1",
 	"author": "Rug Munch Media LLC",
 	"homepage": "https://pryscraper.com",
 	"repository": "https://codeberg.org/cryptorugmunch/pryscraper",
@@ -150,6 +150,6 @@
 		"x402",
 		"self-hosted"
 	],
-	"_license": "MIT",
+	"_license": "MIT + BSL-1.1",
 	"_copyright": "Copyright (c) 2026 Rug Munch Media LLC"
 }

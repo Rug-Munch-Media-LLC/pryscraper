@@ -98,17 +98,8 @@ def _is_trusted_proxy(ip: str) -> bool:
     return any(addr in net for net in _TRUSTED_PROXY_NETWORKS)
 
 
-def resolve_client_ip(scope: Mapping[str, Any]) -> str | None:
-    """Trusted client IP, or None when the forwarding chain is spoofable."""
-    client = scope.get("client")
-    peer = str(client[0]) if isinstance(client, (list, tuple)) and client else ""
-    if not peer or peer == "unknown":
-        return None
-    xff = _get_header(scope, b"x-forwarded-for")
-    if not xff:
-        return peer
-    if not _is_trusted_proxy(peer):
-        return None
+def _xff_hops(xff: str) -> str | None:
+    """Resolve the client IP from an X-Forwarded-For chain (None if spoofable)."""
     hops = [hop.strip() for hop in xff.split(",")]
     if not hops or any(not hop for hop in hops):
         return None
@@ -120,6 +111,20 @@ def resolve_client_ip(scope: Mapping[str, Any]) -> str | None:
         if not _is_trusted_proxy(hop):
             return hop
     return hops[0]
+
+
+def resolve_client_ip(scope: Mapping[str, Any]) -> str | None:
+    """Trusted client IP, or None when the forwarding chain is spoofable."""
+    client = scope.get("client")
+    peer = str(client[0]) if isinstance(client, (list, tuple)) and client else ""
+    if not peer or peer == "unknown":
+        return None
+    xff = _get_header(scope, b"x-forwarded-for")
+    if not xff:
+        return peer
+    if not _is_trusted_proxy(peer):
+        return None
+    return _xff_hops(xff)
 
 
 def keyless_loopback_allowed() -> bool:
@@ -139,6 +144,30 @@ def is_loopback_client(ip: str) -> bool:
     )
 
 
+def _apply_x402_identity(scope: MutableMapping[str, Any]) -> bool:
+    """Bind the x402 payer identity (the payment is the credential)."""
+    xv = scope["x402_verified"]
+    scope["pry_api_key"] = {
+        "key_id": f"x402:{xv.get('payment_id') or xv.get('batch_id', '')}",
+        "user_id": f"x402:{xv.get('caller', 'unknown')}",
+        "name": "x402-paid",
+        "scopes": ["scrape", "crawl", "extract", "monitor"],
+        "tier": "X402",
+    }
+    return True
+
+
+def _authenticate_db_key(token: str) -> Mapping[str, Any] | None:
+    """Authenticate a DB-issued key, treating an auth-store outage as no key."""
+    try:
+        from pry.core.api_keys_service import authenticate as authenticate_db_key
+
+        return authenticate_db_key(token)
+    except Exception:  # noqa: BLE001 - auth store outage must not 500
+        logger.warning("api_key_store_unavailable")
+        return None
+
+
 def request_authorized(scope: MutableMapping[str, Any]) -> bool:
     """Apply the fail-closed auth policy to an ASGI request scope.
 
@@ -152,25 +181,11 @@ def request_authorized(scope: MutableMapping[str, Any]) -> bool:
 
     # x402: the PAYMENT is the credential (settlement verified upstream).
     if scope.get("x402_verified"):
-        xv = scope["x402_verified"]
-        scope["pry_api_key"] = {
-            "key_id": f"x402:{xv.get('payment_id') or xv.get('batch_id', '')}",
-            "user_id": f"x402:{xv.get('caller', 'unknown')}",
-            "name": "x402-paid",
-            "scopes": ["scrape", "crawl", "extract", "monitor"],
-            "tier": "X402",
-        }
-        return True
+        return _apply_x402_identity(scope)
 
     # DB-issued keys (pry_...) are valid in both modes and carry identity.
     if token.startswith("pry_"):
-        try:
-            from pry.core.api_keys_service import authenticate as authenticate_db_key
-
-            record = authenticate_db_key(token)
-        except Exception:  # noqa: BLE001 - auth store outage must not 500
-            logger.warning("api_key_store_unavailable")
-            record = None
+        record = _authenticate_db_key(token)
         if record is None:
             return False
         # Bind into the live scope: a local copy is discarded and usage is lost.

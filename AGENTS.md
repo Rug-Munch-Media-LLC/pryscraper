@@ -47,10 +47,10 @@ Multi-source crypto intelligence crawler (pryscraper). Scraper, extractor, parse
 
 ## Competitive Position
 - 99 MCP tools (Firecrawl: ~6, Crawl4AI: ~4, ScrapeGraphAI: ~3)
-- 15-tier anti-bot bypass (competitors: 1-3 tiers)
+- 15-tier anti-bot bypass (direct request through to a stealth browser)
 - 109 actors (largest fleet on Apify)
-- x402 native pay-per-call (no competitor has this)
-- Sports betting intelligence (no competitor offers this)
+- x402 native pay-per-call
+- Sports betting intelligence (odds, arbitrage candidates, +EV filters)
 
 ## 🚨 GIT POLICY — NON-NEGOTIABLE
 

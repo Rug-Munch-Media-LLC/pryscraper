@@ -24,7 +24,7 @@
 			"gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
 			"targets": [
 				{
-					"expr": "sum(rate(x402_verify_success_total[5m])) / sum(rate(x402_verify_total[5m])) * 100",
+					"expr": "sum(rate(x402_verify_success_total[5m])) / (sum(rate(x402_verify_success_total[5m])) + sum(rate(x402_verify_failure_total[5m]))) * 100",
 					"refId": "A"
 				}
 			],
@@ -180,7 +180,7 @@
 					"refId": "A"
 				},
 				{
-					"expr": "rate(x402_verify_total[5m]) * 300",
+					"expr": "(rate(x402_verify_success_total[5m]) + rate(x402_verify_failure_total[5m])) * 300",
 					"legendFormat": "verified",
 					"refId": "B"
 				},

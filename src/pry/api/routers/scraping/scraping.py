@@ -57,7 +57,7 @@ def _audit_http(http_request: Request, operation: str, url: str, outcome: str) -
 
 def _deny_if_blocked(http_request: Request, operation: str, url: str) -> None:
     """451 before any fetch when the host is on the compliance block list."""
-    from pry.api.routers.integrations.gdpr import is_domain_blocked
+    from pry.core.domain_blocks import is_domain_blocked
 
     host = urlsplit(url).hostname or ""
     if host and is_domain_blocked(host):

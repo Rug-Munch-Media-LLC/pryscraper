@@ -71,30 +71,35 @@ _TRAVERSAL_RE = re.compile(
 )
 
 
+def _check_resolved_ip(addr: str, error_cls: type[Exception]) -> bool:
+    """Return True for a usable IP; raise ``error_cls`` on a private range."""
+    try:
+        ip = ipaddress.ip_address(addr)
+    except ValueError:
+        logger.warning("silent_exception_swallowed", exc_info=True)
+        return False
+    for net in _PRIVATE_NETS:
+        if ip in ipaddress.ip_network(net):
+            raise error_cls(f"URL resolves to private IP {addr} ({net})")
+    return True
+
+
 def _validate_host(
     hostname: str,
     *,
     resolve_dns: bool = True,
     error_cls: type[Exception] = ValueError,
 ) -> list[str]:
-    """Validate a hostname for SSRF safety.
+    """Validate a hostname for SSRF safety and return its resolved IPs.
 
     Shared by :func:`validate_url` and ``websocket_scraper.validate_websocket_url``.
     Checks the raw IP literal, internal-hostname patterns, and (optionally) DNS
-    resolution against private/reserved ranges. Returns the resolved IPs (empty
-    when DNS is skipped or fails) or raises ``error_cls`` on a hit.
+    resolution against private/reserved ranges; raises ``error_cls`` on a hit.
 
     Args:
         hostname: The host portion of a URL (no port, no brackets).
         resolve_dns: If True, resolve the hostname and reject any private IP.
         error_cls: Exception class to raise on a rejected host.
-
-    Returns:
-        The list of resolved IP addresses (empty when DNS is skipped).
-
-    Raises:
-        error_cls: If the host is a private/reserved IP, an internal hostname,
-            or resolves to a private IP.
     """
     # Raw IP literal: reject private/reserved ranges (loopback, link-local,
     # metadata, CGNAT, ULA, IPv4-mapped IPv6, ...).
@@ -123,14 +128,8 @@ def _validate_host(
             raise error_cls(f"DNS resolution failed for {hostname}") from e
         for _family, _type, _proto, _canonname, sockaddr in addrs:
             addr = str(sockaddr[0])
-            try:
-                ip = ipaddress.ip_address(addr)
-            except ValueError:
-                logger.warning("silent_exception_swallowed", exc_info=True)
+            if not _check_resolved_ip(addr, error_cls):
                 continue
-            for net in _PRIVATE_NETS:
-                if ip in ipaddress.ip_network(net):
-                    raise error_cls(f"URL resolves to private IP {addr} ({net})")
             resolved.append(addr)
         if not resolved:
             raise error_cls(f"DNS returned no usable addresses for {hostname}")

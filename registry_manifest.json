@@ -1,7 +1,7 @@
 {
 	"name": "pry-scraper",
 	"displayName": "Pry Scraping API",
-	"description": "Professional web scraping with x402 crypto payments. 15-tier anti-detection fallback, AI extraction, auto-signup, CAPTCHA solving. 76 MCP tools across web scraping, data extraction, monitoring, sports betting, legal intelligence, real estate, jobs, and more.",
+	"description": "Professional web scraping with x402 crypto payments. 15-tier anti-detection fallback, AI extraction, auto-signup, CAPTCHA solving. 99 MCP tools across web scraping, data extraction, monitoring, sports betting, legal intelligence, real estate, jobs, and more.",
 	"longDescription": "Pry is a self-hosted web scraping and browser automation platform with native x402 micropayments. It routes each request through an adaptive 15-tier fallback chain \u2014 direct HTTP, TLS fingerprint impersonation, cloudscraper, FlareSolverr, undetected-chromedriver, Camoufox, Playwright stealth, Googlebot UA, Tor, premium proxies, Archive.org, Google Cache, AI visual scraping, mobile app API, and GraphQL discovery \u2014 escalating only as far as the target requires, then remembering what worked per domain.",
 	"version": "3.0.0",
 	"updatedAt": "2026-08-29",
@@ -9,7 +9,7 @@
 		"name": "Rug Munch Media LLC",
 		"email": "admin@pryscraper.com"
 	},
-	"license": "MIT",
+	"license": "MIT + BSL-1.1",
 	"website": "https://pryscraper.com",
 	"docs": "https://docs.pryscraper.com",
 	"source": "https://git.rugmunch.io/RugMunchMedia/pryscraper",
@@ -126,7 +126,7 @@
 				"use_cases": [
 					"Use when you need the text content of a page a plain HTTP request cannot fetch, e"
 				],
-				"longDescription": "Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 15-tier fallback chain (direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver). Use when you need the text content of a page a plain HTTP request cannot fetch, e.g. a Cloudflare-protected article or a JS-heavy blog post. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 15-tier fallback chain (direct -> cloudscraper -> FlareSolverr -> Playwright -> Googlebot -> Archive.org -> Google Cache -> Tor -> undetected-chromedriver). Use when you need the text content of a page a plain HTTP request cannot fetch, e.g. a Cloudflare-protected article or a JS-heavy blog post. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "web_scraping",
 				"capabilities": ["web_scraping"]
 			},
@@ -213,7 +213,7 @@
 				"use_cases": [
 					"Use to collect an entire docs site, blog, or directory \u2014 e"
 				],
-				"longDescription": "Crawl a website from a seed URL, discovering and scraping linked pages with BFS/DFS traversal up to max_pages. Use to collect an entire docs site, blog, or directory \u2014 e.g. call with url='https://example.com' and include_paths=['/docs/'] to harvest every page under /docs/, or crawl up to 50 blog posts with max_pages=50. Constrain with include_paths/exclude_paths to stay inside the section you want. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Crawl a website from a seed URL, discovering and scraping linked pages with BFS/DFS traversal up to max_pages. Use to collect an entire docs site, blog, or directory \u2014 e.g. call with url='https://example.com' and include_paths=['/docs/'] to harvest every page under /docs/, or crawl up to 50 blog posts with max_pages=50. Constrain with include_paths/exclude_paths to stay inside the section you want. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "web_scraping",
 				"capabilities": ["web_scraping"]
 			},
@@ -307,7 +307,7 @@
 				"use_cases": [
 					"Use when you need specific fields like {title, price, image, availability} from product listings or search results pages"
 				],
-				"longDescription": "Extract structured data from a URL using CSS selectors \u2014 10x cheaper than LLM extraction \u2014 and return JSON matching your schema. Use when you need specific fields like {title, price, image, availability} from product listings or search results pages. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Extract structured data from a URL using CSS selectors \u2014 10x cheaper than LLM extraction \u2014 and return JSON matching your schema. Use when you need specific fields like {title, price, image, availability} from product listings or search results pages. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "data_extraction",
 				"capabilities": ["web_scraping"]
 			},
@@ -369,7 +369,7 @@
 				"use_cases": [
 					"Use when scraping a known site that already has a template instead of hand-writing CSS selectors \u2014 e"
 				],
-				"longDescription": "Execute one of 110+ pre-built scraper templates (amazon-product, walmart-product, linkedin-profile, etc.) that return site-specific structured data. Use when scraping a known site that already has a template instead of hand-writing CSS selectors \u2014 e.g. 'amazon-product' for an Amazon product page. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Execute one of 110+ pre-built scraper templates (amazon-product, walmart-product, linkedin-profile, etc.) that return site-specific structured data. Use when scraping a known site that already has a template instead of hand-writing CSS selectors \u2014 e.g. 'amazon-product' for an Amazon product page. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "web_scraping",
 				"capabilities": ["templates"]
 			},
@@ -435,7 +435,7 @@
 				"category": "web_scraping",
 				"keywords": ["scrape", "search", "template", "templates"],
 				"use_cases": [],
-				"longDescription": "Search the 110+ pre-built scraper template catalog by keyword, category, or site name, returning matching template_ids, their categories, and descriptions. Use before pry_template to discover which template fits a target site \u2014 e.g. call with q='walmart' to find 'walmart-product', or q='jobs' with category='careers' to list every job-board template. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search the 110+ pre-built scraper template catalog by keyword, category, or site name, returning matching template_ids, their categories, and descriptions. Use before pry_template to discover which template fits a target site \u2014 e.g. call with q='walmart' to find 'walmart-product', or q='jobs' with category='careers' to list every job-board template. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "web_scraping",
 				"capabilities": ["search", "templates"]
 			},
@@ -516,7 +516,7 @@
 				"use_cases": [
 					"Use to track competitor pricing or product availability over time, e"
 				],
-				"longDescription": "Create a content-change monitor that notifies via webhook, Slack, or Discord when a page changes, using AI to judge whether changes are meaningful. Use to track competitor pricing or product availability over time, e.g. 'notify me when this price page changes'. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Create a content-change monitor that notifies via webhook, Slack, or Discord when a page changes, using AI to judge whether changes are meaningful. Use to track competitor pricing or product availability over time, e.g. 'notify me when this price page changes'. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "monitoring",
 				"capabilities": ["monitoring"]
 			},
@@ -628,7 +628,7 @@
 				"category": "compliance",
 				"keywords": ["ai", "api", "compliance", "search"],
 				"use_cases": [],
-				"longDescription": "Compliance intelligence in two modes: pass a URL to check whether scraping it is legally safe (robots.txt, ToS, GDPR/CCPA, PII exposure -> green/yellow/red risk score with recommendations), or pass query/agency to search regulatory compliance records \u2014 enforcement actions, fines, sanctions, and watchlist entries, e.g. query='Binance' for its regulatory history. Use before scraping an uncertain site or when screening a company for compliance exposure. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Compliance intelligence in two modes: pass a URL to check whether scraping it is legally safe (robots.txt, ToS, GDPR/CCPA, PII exposure -> green/yellow/red risk score with recommendations), or pass query/agency to search regulatory compliance records \u2014 enforcement actions, fines, sanctions, and watchlist entries, e.g. query='Binance' for its regulatory history. Use before scraping an uncertain site or when screening a company for compliance exposure. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "compliance",
 				"capabilities": ["utility"]
 			},
@@ -694,7 +694,7 @@
 				"use_cases": [
 					"Use to build a prospect profile from their website before outreach, e"
 				],
-				"longDescription": "Enrich a URL with company info, tech stack detection, social profiles, and competitive intelligence. Use to build a prospect profile from their website before outreach, e.g. discover what stack a startup runs and find their LinkedIn. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Enrich a URL with company info, tech stack detection, social profiles, and competitive intelligence. Use to build a prospect profile from their website before outreach, e.g. discover what stack a startup runs and find their LinkedIn. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "data_enrichment",
 				"capabilities": ["utility"]
 			},
@@ -754,7 +754,7 @@
 				"use_cases": [
 					"Use to pull content from a PDF spec, a scanned brochure, or a Word file, e"
 				],
-				"longDescription": "Parse a document (PDF, DOCX, image) and extract its text and tables using pdfplumber, Tesseract OCR, and python-docx. Use to pull content from a PDF spec, a scanned brochure, or a Word file, e.g. extract the pricing table from a vendor's PDF. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Parse a document (PDF, DOCX, image) and extract its text and tables using pdfplumber, Tesseract OCR, and python-docx. Use to pull content from a PDF spec, a scanned brochure, or a Word file, e.g. extract the pricing table from a vendor's PDF. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "document_processing",
 				"capabilities": ["utility"]
 			},
@@ -820,7 +820,7 @@
 				"category": "web_scraping",
 				"keywords": ["browser", "screenshot"],
 				"use_cases": [],
-				"longDescription": "Render a URL in a headless browser and return a screenshot as a base64-encoded PNG with width, height, and content type. Use for visual verification or design QA of a rendered page \u2014 e.g. screenshot https://example.com/checkout with full_page=true to capture the whole checkout flow before launch. JavaScript is executed before capture so SPAs render correctly. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Render a URL in a headless browser and return a screenshot as a base64-encoded PNG with width, height, and content type. Use for visual verification or design QA of a rendered page \u2014 e.g. screenshot https://example.com/checkout with full_page=true to capture the whole checkout flow before launch. JavaScript is executed before capture so SPAs render correctly. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "web_scraping",
 				"capabilities": ["utility"]
 			},
@@ -869,7 +869,7 @@
 				"category": "payments",
 				"keywords": ["ai", "pricing", "scrape", "x402"],
 				"use_cases": [],
-				"longDescription": "Get current x402 pay-per-call pricing for all Pry operations, showing the cost in USDC atomic units and supported networks for each tool. Use before a paid call to display the cost to the user, e.g. 'how much does a pry_scrape cost?'. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get current x402 pay-per-call pricing for all Pry operations, showing the cost in USDC atomic units and supported networks for each tool. Use before a paid call to display the cost to the user, e.g. 'how much does a pry_scrape cost?'. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "payments",
 				"capabilities": ["payments"]
 			},
@@ -936,7 +936,7 @@
 				"use_cases": [
 					"Use to find a revenue-share partner or pick a recommended provider, e"
 				],
-				"longDescription": "Get Pry's referral catalog \u2014 60+ providers across LLM, hosting, email, monitoring, proxies, and devtools \u2014 each link carrying our affiliate ID for revenue attribution. Use to find a revenue-share partner or pick a recommended provider, e.g. 'what proxy providers do you refer?'. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get Pry's referral catalog \u2014 60+ providers across LLM, hosting, email, monitoring, proxies, and devtools \u2014 each link carrying our affiliate ID for revenue attribution. Use to find a revenue-share partner or pick a recommended provider, e.g. 'what proxy providers do you refer?'. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "affiliate",
 				"capabilities": ["utility"]
 			},
@@ -1029,7 +1029,7 @@
 				"use_cases": [
 					"Use to find early-stage tokens before they hit mainstream trackers, e"
 				],
-				"longDescription": "Discover new crypto token launches, new liquidity pairs, and trending tokens across chains (Solana, Ethereum, Base, ...) with optional age filtering. Use to find early-stage tokens before they hit mainstream trackers, e.g. 'what new Solana tokens launched in the last hour?' or 'show me trending tokens on Base'. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Discover new crypto token launches, new liquidity pairs, and trending tokens across chains (Solana, Ethereum, Base, ...) with optional age filtering. Use to find early-stage tokens before they hit mainstream trackers, e.g. 'what new Solana tokens launched in the last hour?' or 'show me trending tokens on Base'. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "crypto",
 				"capabilities": ["utility"]
 			},
@@ -1112,7 +1112,7 @@
 				"use_cases": [
 					"Use to time research on tokens that just landed on a major exchange, e"
 				],
-				"longDescription": "Get recent centralized-exchange (CEX) listing and delisting signals \u2014 e.g. Binance, Coinbase, Kraken \u2014 aggregated over a configurable lookback window. Use to time research on tokens that just landed on a major exchange, e.g. 'what did Coinbase list in the last 24 hours?'. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get recent centralized-exchange (CEX) listing and delisting signals \u2014 e.g. Binance, Coinbase, Kraken \u2014 aggregated over a configurable lookback window. Use to time research on tokens that just landed on a major exchange, e.g. 'what did Coinbase list in the last 24 hours?'. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "crypto",
 				"capabilities": ["utility"]
 			},
@@ -1175,7 +1175,7 @@
 				"category": "utility",
 				"keywords": ["ai", "amazon", "product"],
 				"use_cases": ["Use to check a product's live price or stock, e"],
-				"longDescription": "Look up a single Amazon product by its ASIN (e.g. 'B08N5WRWNW') and return current price, title, availability, rating, and listing details from the marketplace intelligence provider. Use to check a product's live price or stock, e.g. 'what does B0BLVMHNF1 cost right now?'. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Look up a single Amazon product by its ASIN (e.g. 'B08N5WRWNW') and return current price, title, availability, rating, and listing details from the marketplace intelligence provider. Use to check a product's live price or stock, e.g. 'what does B0BLVMHNF1 cost right now?'. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "utility",
 				"capabilities": ["utility"]
 			},
@@ -1253,7 +1253,7 @@
 				"category": "utility",
 				"keywords": ["amazon", "search"],
 				"use_cases": ["Use to compare prices or discover products, e"],
-				"longDescription": "Search Amazon products by keyword and return matching listings \u2014 title, price, rating, and ASIN for each result (up to limit). Use to compare prices or discover products, e.g. 'search Amazon for wireless mechanical keyboards'. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search Amazon products by keyword and return matching listings \u2014 title, price, rating, and ASIN for each result (up to limit). Use to compare prices or discover products, e.g. 'search Amazon for wireless mechanical keyboards'. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "utility",
 				"capabilities": ["search"]
 			},
@@ -1318,7 +1318,7 @@
 				"use_cases": [
 					"Use to check a Walmart listing's live price or stock, e"
 				],
-				"longDescription": "Look up a single Walmart product by its product ID (e.g. '4JH7P89H7X5P') and return current price, title, availability, seller, and rating from the marketplace intelligence provider. Use to check a Walmart listing's live price or stock, e.g. 'what does Walmart product 4JH7P89H7X5P cost?'. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Look up a single Walmart product by its product ID (e.g. '4JH7P89H7X5P') and return current price, title, availability, seller, and rating from the marketplace intelligence provider. Use to check a Walmart listing's live price or stock, e.g. 'what does Walmart product 4JH7P89H7X5P cost?'. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "utility",
 				"capabilities": ["utility"]
 			},
@@ -1392,7 +1392,7 @@
 				"category": "utility",
 				"keywords": ["tiktok", "trending"],
 				"use_cases": ["Use to spot viral commerce opportunities, e"],
-				"longDescription": "Get currently trending products on TikTok Shop, ranked by engagement and sales velocity, with price, sales count, and shop info for each result (up to limit). Use to spot viral commerce opportunities, e.g. 'what's trending on TikTok Shop right now?'. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get currently trending products on TikTok Shop, ranked by engagement and sales velocity, with price, sales count, and shop info for each result (up to limit). Use to spot viral commerce opportunities, e.g. 'what's trending on TikTok Shop right now?'. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "utility",
 				"capabilities": ["utility"]
 			},
@@ -1464,7 +1464,7 @@
 				"category": "crypto",
 				"keywords": ["ai", "crypto", "security", "token"],
 				"use_cases": [],
-				"longDescription": "Run a security scan on a crypto token by chain and contract/mint address \u2014 checking for honeypots, hidden mints, ownership concentration, LP lock, and other rug-pull risk signals. Use before investing in or reporting on an unfamiliar token, e.g. 'scan So11111111111111111111111111111111111111112 on solana'. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Run a security scan on a crypto token by chain and contract/mint address \u2014 checking for honeypots, hidden mints, ownership concentration, LP lock, and other rug-pull risk signals. Use before investing in or reporting on an unfamiliar token, e.g. 'scan So11111111111111111111111111111111111111112 on solana'. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "crypto",
 				"capabilities": ["utility"]
 			},
@@ -1539,7 +1539,7 @@
 				"use_cases": [
 					"Use to monitor litigation against a company, person, or trademark before it hits the news, e"
 				],
-				"longDescription": "Search U.S. federal and state court dockets by full-text query using the free CourtListener REST API v4, returning docket titles, courts, and case numbers. Use to monitor litigation against a company, person, or trademark before it hits the news, e.g. 'what lawsuits involve OpenAI?' or 'show dockets mentioning this company name'. Results are best-effort: the free tier has no auth and degrades to an empty list on network or rate-limit failure. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search U.S. federal and state court dockets by full-text query using the free CourtListener REST API v4, returning docket titles, courts, and case numbers. Use to monitor litigation against a company, person, or trademark before it hits the news, e.g. 'what lawsuits involve OpenAI?' or 'show dockets mentioning this company name'. Results are best-effort: the free tier has no auth and degrades to an empty list on network or rate-limit failure. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "legal",
 				"capabilities": ["utility"]
 			},
@@ -1614,7 +1614,7 @@
 				"category": "legal",
 				"keywords": ["ai", "legal", "search", "sec"],
 				"use_cases": ["Use to track regulatory filings that move markets, e"],
-				"longDescription": "Search SEC EDGAR filings for a public company by ticker and form type, returning filing dates, form names, and EDGAR accession numbers. Use to track regulatory filings that move markets, e.g. 'recent 8-K filings for AAPL' or 'all 10-Q filings for TSLA this year'. Backed by the free EDGAR Full-Text Search and submissions feed; never raises and returns an empty list on failure. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search SEC EDGAR filings for a public company by ticker and form type, returning filing dates, form names, and EDGAR accession numbers. Use to track regulatory filings that move markets, e.g. 'recent 8-K filings for AAPL' or 'all 10-Q filings for TSLA this year'. Backed by the free EDGAR Full-Text Search and submissions feed; never raises and returns an empty list on failure. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "legal",
 				"capabilities": ["utility"]
 			},
@@ -1674,7 +1674,7 @@
 				"category": "legal",
 				"keywords": ["ai", "legal", "sanctions"],
 				"use_cases": [],
-				"longDescription": "Screen a person or entity name against the OFAC Specially Designated Nationals (SDN) sanctions list, returning any matching records with their sanctions program and remarks. Use for compliance due diligence before onboarding a counterparty, partner, or wallet-linked entity, e.g. 'is Vladimir Potanin sanctioned?'. Backed by the free OFAC SDN XML downloads, cached in-process; returns an empty list when the name is clean or the feed is unreachable. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Screen a person or entity name against the OFAC Specially Designated Nationals (SDN) sanctions list, returning any matching records with their sanctions program and remarks. Use for compliance due diligence before onboarding a counterparty, partner, or wallet-linked entity, e.g. 'is Vladimir Potanin sanctioned?'. Backed by the free OFAC SDN XML downloads, cached in-process; returns an empty list when the name is clean or the feed is unreachable. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "legal",
 				"capabilities": ["utility"]
 			},
@@ -1759,7 +1759,7 @@
 				"category": "real_estate",
 				"keywords": ["ai", "api", "realestate", "scrape", "search"],
 				"use_cases": [],
-				"longDescription": "Search real-estate listings by location and status (for_sale, for_rent, sold), returning address, price, beds/baths, square footage, and listing URLs. Use for market research, comps, or lead generation, e.g. 'what's for sale in Austin, TX under $500k?'. Scrapes Zillow search pages with a Redfin GIS API fallback (both free and keyless); never raises and returns an empty list when the source is unreachable. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search real-estate listings by location and status (for_sale, for_rent, sold), returning address, price, beds/baths, square footage, and listing URLs. Use for market research, comps, or lead generation, e.g. 'what's for sale in Austin, TX under $500k?'. Scrapes Zillow search pages with a Redfin GIS API fallback (both free and keyless); never raises and returns an empty list when the source is unreachable. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "real_estate",
 				"capabilities": ["search"]
 			},
@@ -1841,7 +1841,7 @@
 				"category": "jobs_careers",
 				"keywords": ["ai", "jobs", "json", "list"],
 				"use_cases": [],
-				"longDescription": "List current job postings for a company from its applicant-tracking system (Greenhouse, Lever, Ashby, or Workday), returning normalized titles, locations, remote flags, and application URLs. Use for talent-market intel or recruitment pipelines, e.g. 'what engineering roles is Stripe hiring for?'. Reads the free, public, keyless JSON boards; never raises and returns an empty list when the board is unreachable or the company slug is unknown. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "List current job postings for a company from its applicant-tracking system (Greenhouse, Lever, Ashby, or Workday), returning normalized titles, locations, remote flags, and application URLs. Use for talent-market intel or recruitment pipelines, e.g. 'what engineering roles is Stripe hiring for?'. Reads the free, public, keyless JSON boards; never raises and returns an empty list when the board is unreachable or the company slug is unknown. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "jobs_careers",
 				"capabilities": ["utility"]
 			},
@@ -1916,7 +1916,7 @@
 				"use_cases": [
 					"Use to benchmark compensation offers or market rates, e"
 				],
-				"longDescription": "Get per-level salary bands (total compensation, base, stock, bonus) for a company and role from Levels.fyi's public embedded data. Use to benchmark compensation offers or market rates, e.g. 'what does Google pay software engineers at L5?'. Scrapes the free Levels.fyi page with no auth; never raises and returns an empty object when the company or role is not found. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get per-level salary bands (total compensation, base, stock, bonus) for a company and role from Levels.fyi's public embedded data. Use to benchmark compensation offers or market rates, e.g. 'what does Google pay software engineers at L5?'. Scrapes the free Levels.fyi page with no auth; never raises and returns an empty object when the company or role is not found. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "jobs_careers",
 				"capabilities": ["utility"]
 			},
@@ -1990,7 +1990,7 @@
 				"category": "travel",
 				"keywords": ["ai", "flights", "grid", "json", "scrape"],
 				"use_cases": ["Use to find the cheapest day to fly on a trip, e"],
-				"longDescription": "Get the cheapest flight option per day between two dates for an origin and destination pair, using Google Flights' public tfs deep-link page. Use to find the cheapest day to fly on a trip, e.g. 'what's the cheapest day JFK\u2192CDG next month?'. Returns a per-day price grid; never raises and returns an empty grid when Google Flights blocks the scrape (embedded JSON drifts over time). Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get the cheapest flight option per day between two dates for an origin and destination pair, using Google Flights' public tfs deep-link page. Use to find the cheapest day to fly on a trip, e.g. 'what's the cheapest day JFK\u2192CDG next month?'. Returns a per-day price grid; never raises and returns an empty grid when Google Flights blocks the scrape (embedded JSON drifts over time). Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "travel",
 				"capabilities": ["utility"]
 			},
@@ -2062,7 +2062,7 @@
 				"use_cases": [
 					"Use to compare prices across sources for a specific property, e"
 				],
-				"longDescription": "Get per-night hotel rates for a stay window from Google Hotels with a Booking.com fallback, both free and keyless page scrapes. Use to compare prices across sources for a specific property, e.g. 'what does the Ritz Paris cost for September 10-14?'. Returns per-night rate breakdowns; never raises and returns an empty object when neither source is reachable. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get per-night hotel rates for a stay window from Google Hotels with a Booking.com fallback, both free and keyless page scrapes. Use to compare prices across sources for a specific property, e.g. 'what does the Ritz Paris cost for September 10-14?'. Returns per-night rate breakdowns; never raises and returns an empty object when neither source is reachable. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "travel",
 				"capabilities": ["utility"]
 			},
@@ -2140,7 +2140,7 @@
 				"category": "search",
 				"keywords": ["ai", "scrape", "search", "serp"],
 				"use_cases": [],
-				"longDescription": "Scrape a Google search results page for a query, returning organic results, the AI Overview text when present, and People Also Ask questions. Use for SEO rank tracking or competitor SERP analysis, e.g. 'who ranks for best wireless keyboard?'. Built on the free public Google results page; never raises and returns an error payload when Google serves a consent or CAPTCHA wall. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Scrape a Google search results page for a query, returning organic results, the AI Overview text when present, and People Also Ask questions. Use for SEO rank tracking or competitor SERP analysis, e.g. 'who ranks for best wireless keyboard?'. Built on the free public Google results page; never raises and returns an error payload when Google serves a consent or CAPTCHA wall. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "search",
 				"capabilities": ["search"]
 			},
@@ -2209,7 +2209,7 @@
 				"use_cases": [
 					"Use to validate demand for a product, content topic, or token narrative before committing resources, e"
 				],
-				"longDescription": "Measure Google Trends interest over time for a keyword, returning the daily interest timeline and related queries. Use to validate demand for a product, content topic, or token narrative before committing resources, e.g. 'is AI agents interest rising?'. Built on the free Trends public endpoint; never raises and returns an error payload when the endpoint is unreachable. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Measure Google Trends interest over time for a keyword, returning the daily interest timeline and related queries. Use to validate demand for a product, content topic, or token narrative before committing resources, e.g. 'is AI agents interest rising?'. Built on the free Trends public endpoint; never raises and returns an error payload when the endpoint is unreachable. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "search",
 				"capabilities": ["search"]
 			},
@@ -2289,7 +2289,7 @@
 				"category": "local",
 				"keywords": ["ai", "places", "search"],
 				"use_cases": ["Use to build prospect lists for outbound sales, e"],
-				"longDescription": "Search Google Maps for local businesses matching a query and location, returning name, rating, review count, address, and place IDs for lead generation. Use to build prospect lists for outbound sales, e.g. 'find coffee shops in Austin TX'. Backed by the free Google Maps public search page; never raises and returns an empty list when the page is unreachable or blocked. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search Google Maps for local businesses matching a query and location, returning name, rating, review count, address, and place IDs for lead generation. Use to build prospect lists for outbound sales, e.g. 'find coffee shops in Austin TX'. Backed by the free Google Maps public search page; never raises and returns an empty list when the page is unreachable or blocked. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "local",
 				"capabilities": ["search"]
 			},
@@ -2367,7 +2367,7 @@
 				"use_cases": [
 					"Use to analyze customer sentiment, common complaints, or reputation before outreach, e"
 				],
-				"longDescription": "Get the full review history for a local business place from Google Maps or Yelp, going beyond the 5-review API cap. Use to analyze customer sentiment, common complaints, or reputation before outreach, e.g. 'what do customers say about this restaurant?'. Accepts a Google place CID/slug or a Yelp biz slug; never raises and returns an empty list when the source is unreachable. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get the full review history for a local business place from Google Maps or Yelp, going beyond the 5-review API cap. Use to analyze customer sentiment, common complaints, or reputation before outreach, e.g. 'what do customers say about this restaurant?'. Accepts a Google place CID/slug or a Yelp biz slug; never raises and returns an empty list when the source is unreachable. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "social",
 				"capabilities": ["utility"]
 			},
@@ -2442,7 +2442,7 @@
 				"use_cases": [
 					"Use to find government business opportunities for a capability, e"
 				],
-				"longDescription": "Search U.S. federal procurement opportunities and contract awards from the public SAM.gov data feed, returning title, agency, notice type, and deadline. Use to find government business opportunities for a capability, e.g. 'what cybersecurity contracts are open?'. The gov_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search U.S. federal procurement opportunities and contract awards from the public SAM.gov data feed, returning title, agency, notice type, and deadline. Use to find government business opportunities for a capability, e.g. 'what cybersecurity contracts are open?'. The gov_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "government",
 				"capabilities": ["utility"]
 			},
@@ -2515,7 +2515,7 @@
 				"category": "safety",
 				"keywords": ["ai", "data", "monitor", "recalls", "search"],
 				"use_cases": [],
-				"longDescription": "Search recent product recalls from the U.S. CPSC public data feed, returning product name, hazard, recall date, and remedy. Use for consumer-safety monitoring or supply-chain due diligence, e.g. 'recent recalls for e-bike batteries'. The gov_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search recent product recalls from the U.S. CPSC public data feed, returning product name, hazard, recall date, and remedy. Use for consumer-safety monitoring or supply-chain due diligence, e.g. 'recent recalls for e-bike batteries'. The gov_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "safety",
 				"capabilities": ["utility"]
 			},
@@ -2585,7 +2585,7 @@
 				"category": "legal",
 				"keywords": ["ai", "api", "data", "patents", "search"],
 				"use_cases": [],
-				"longDescription": "Search U.S. patents by keyword using the USPTO public data feeds, returning patent number, title, assignee, and grant date. Use for IP landscaping or freedom-to-operate checks, e.g. 'patents for blockchain identity'. The ip_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search U.S. patents by keyword using the USPTO public data feeds, returning patent number, title, assignee, and grant date. Use for IP landscaping or freedom-to-operate checks, e.g. 'patents for blockchain identity'. The ip_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "legal",
 				"capabilities": ["utility"]
 			},
@@ -2655,7 +2655,7 @@
 				"category": "legal",
 				"keywords": ["ai", "data", "search", "trademarks"],
 				"use_cases": [],
-				"longDescription": "Search U.S. trademarks by keyword or owner using the USPTO public data feeds, returning serial number, mark text, owner, and status. Use for brand clearance before launching a product or token name, e.g. 'is RugMunch trademarked?'. The ip_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search U.S. trademarks by keyword or owner using the USPTO public data feeds, returning serial number, mark text, owner, and status. Use for brand clearance before launching a product or token name, e.g. 'is RugMunch trademarked?'. The ip_data module is built in parallel; until it lands this tool returns a readable not-available message instead of erroring. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "legal",
 				"capabilities": ["utility"]
 			},
@@ -2753,13 +2753,13 @@
 				"use_cases": [
 					"Use to compare lines before placing a bet or to power an odds aggregator, e"
 				],
-				"longDescription": "Get live betting odds across major bookmakers (DraftKings, FanDuel, BetMGM, ESPN BET, ...) for one or more sports, backed by The Odds API (free tier via PRY_ODDS_API_KEY) with an ESPN scoreboard fallback. Each record includes the event label, market, bookmaker, and decimal odds for home/away. Use to compare lines before placing a bet or to power an odds aggregator, e.g. 'what are the current NBA moneyline odds across books?' or call with sport='nfl' to see the full NFL slate. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get live betting odds across major bookmakers (DraftKings, FanDuel, BetMGM, ESPN BET, ...) for one or more sports, backed by The Odds API (free tier via PRY_ODDS_API_KEY) with an ESPN scoreboard fallback. Each record includes the event label, market, bookmaker, and decimal odds for home/away. Use to compare lines before placing a bet or to power an odds aggregator, e.g. 'what are the current NBA moneyline odds across books?' or call with sport='nfl' to see the full NFL slate. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "sports_betting",
 				"capabilities": ["utility"]
 			},
 			{
 				"name": "pry_arbitrage",
-				"description": "Scan sportsbook lines for guaranteed-profit arbitrage opportunities: the same event quoted at different books where the combined implied probabilities total under 100%. Use to find risk-free bets, e.g. 'show me NFL arbitrage opportunities with at least 0.8% yield' or call with sport='all' to sweep every tracked league.",
+				"description": "Scan sportsbook lines for arbitrage candidates (before fees, slippage and stake limits): the same event quoted at different books where the combined implied probabilities total under 100%. Use to find arbitrage candidates (before fees, slippage and stake limits), e.g. 'show me NFL arbitrage opportunities with at least 0.8% yield' or call with sport='all' to sweep every tracked league.",
 				"inputSchema": {
 					"type": "object",
 					"properties": {
@@ -2826,8 +2826,10 @@
 				},
 				"category": "sports_betting",
 				"keywords": ["arbitrage"],
-				"use_cases": ["Use to find risk-free bets, e"],
-				"longDescription": "Scan sportsbook lines for guaranteed-profit arbitrage opportunities: the same event quoted at different books where the combined implied probabilities total under 100%. Use to find risk-free bets, e.g. 'show me NFL arbitrage opportunities with at least 0.8% yield' or call with sport='all' to sweep every tracked league. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"use_cases": [
+					"Use to find arbitrage candidates (before fees, slippage and stake limits), e"
+				],
+				"longDescription": "Scan sportsbook lines for arbitrage candidates (before fees, slippage and stake limits): the same event quoted at different books where the combined implied probabilities total under 100%. Use to find arbitrage candidates (before fees, slippage and stake limits), e.g. 'show me NFL arbitrage opportunities with at least 0.8% yield' or call with sport='all' to sweep every tracked league. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "sports_betting",
 				"capabilities": ["utility"]
 			},
@@ -2906,7 +2908,7 @@
 				"use_cases": [
 					"Use to identify bets where the market price is better than the fair probability implies, e"
 				],
-				"longDescription": "Find positive expected-value (+EV) betting opportunities by comparing market odds against a sharp book's line or consensus price. Use to identify bets where the market price is better than the fair probability implies, e.g. 'what are the best +EV bets right now?' or call with sharp_book='pinnacle' and min_ev_pct=2.0 to only see edges above 2%. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Find positive expected-value (+EV) betting opportunities by comparing market odds against a sharp book's line or consensus price. Use to identify bets where the market price is better than the fair probability implies, e.g. 'what are the best +EV bets right now?' or call with sharp_book='pinnacle' and min_ev_pct=2.0 to only see edges above 2%. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "sports_betting",
 				"capabilities": ["utility"]
 			},
@@ -2989,7 +2991,7 @@
 				"use_cases": [
 					"Use to research player props before betting or building a props dashboard, e"
 				],
-				"longDescription": "Get player prop betting lines (points, rebounds, assists, yards, strikeouts, ...) for a player or sport, with the market and book prices. Use to research player props before betting or building a props dashboard, e.g. 'what are LeBron James points props tonight?' or call with sport='nfl' and market='passing_yards' to see QB yardage props. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get player prop betting lines (points, rebounds, assists, yards, strikeouts, ...) for a player or sport, with the market and book prices. Use to research player props before betting or building a props dashboard, e.g. 'what are LeBron James points props tonight?' or call with sport='nfl' and market='passing_yards' to see QB yardage props. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "sports_betting",
 				"capabilities": ["utility"]
 			},
@@ -3059,7 +3061,7 @@
 				"use_cases": [
 					"Use to adjust betting models or fantasy lineups before lock, e"
 				],
-				"longDescription": "Get the current injury report for a sport or team: player, team, injury detail, and status (out/questionable/active). Use to adjust betting models or fantasy lineups before lock, e.g. 'who is out for the Celtics tonight?' or call with sport='nfl' for the full league injury report. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get the current injury report for a sport or team: player, team, injury detail, and status (out/questionable/active). Use to adjust betting models or fantasy lineups before lock, e.g. 'who is out for the Celtics tonight?' or call with sport='nfl' for the full league injury report. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "sports_betting",
 				"capabilities": ["utility"]
 			},
@@ -3139,7 +3141,7 @@
 				"category": "sports_betting",
 				"keywords": ["live", "monitor", "odds", "search"],
 				"use_cases": [],
-				"longDescription": "Get live in-play odds that update during games (moneyline, spreads, totals as they move). Use for live-betting research or game-flow monitoring, e.g. 'what are the live odds for the Lakers game right now?' or call with sport='nba' and limit=50 for the current in-play slate. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get live in-play odds that update during games (moneyline, spreads, totals as they move). Use for live-betting research or game-flow monitoring, e.g. 'what are the live odds for the Lakers game right now?' or call with sport='nba' and limit=50 for the current in-play slate. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "sports_betting",
 				"capabilities": ["utility"]
 			},
@@ -3211,7 +3213,7 @@
 				"category": "sports_betting",
 				"keywords": ["scores"],
 				"use_cases": ["Use to check results or power a scores widget, e"],
-				"longDescription": "Get final or live scores for one or more sports on a given day from ESPN public scoreboards (free, no quota, high-frequency safe). Use to check results or power a scores widget, e.g. 'what were the NBA scores on 20260815?' or call with sport='mlb' and date='today' for today's baseball scores. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get final or live scores for one or more sports on a given day from ESPN public scoreboards (free, no quota, high-frequency safe). Use to check results or power a scores widget, e.g. 'what were the NBA scores on 20260815?' or call with sport='mlb' and date='today' for today's baseball scores. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "sports_betting",
 				"capabilities": ["utility"]
 			},
@@ -3298,7 +3300,7 @@
 				"use_cases": [
 					"Use to backtest betting models or audit how lines moved, e"
 				],
-				"longDescription": "Get historical betting odds for past events from The Odds API history feed: the closing lines, opening lines, and best available prices for moneyline, spreads, and totals on a given date. Use to backtest betting models or audit how lines moved, e.g. 'what were the closing NFL moneylines on 20260810?' or call with sport='nba' and date='2026-08-01' for that day's historical slate. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get historical betting odds for past events from The Odds API history feed: the closing lines, opening lines, and best available prices for moneyline, spreads, and totals on a given date. Use to backtest betting models or audit how lines moved, e.g. 'what were the closing NFL moneylines on 20260810?' or call with sport='nba' and date='2026-08-01' for that day's historical slate. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "sports_betting",
 				"capabilities": ["utility"]
 			},
@@ -3381,7 +3383,7 @@
 				"use_cases": [
 					"Use to spot sharp-side steam and contrarian plays where the public leans one way but the line is not moving"
 				],
-				"longDescription": "Get public betting percentages (the share of bets and the share of money on each side of a game) across bookmakers, e.g. 'how much of the money is on the Chiefs tonight?' or call with sport='nfl' to see the whole slate. Use to spot sharp-side steam and contrarian plays where the public leans one way but the line is not moving. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get public betting percentages (the share of bets and the share of money on each side of a game) across bookmakers, e.g. 'how much of the money is on the Chiefs tonight?' or call with sport='nfl' to see the whole slate. Use to spot sharp-side steam and contrarian plays where the public leans one way but the line is not moving. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "sports_betting",
 				"capabilities": ["utility"]
 			},
@@ -3462,7 +3464,7 @@
 				"category": "sports_betting",
 				"keywords": ["consensus", "sharp"],
 				"use_cases": ["Use to identify where professional money is, e"],
-				"longDescription": "Get the sharp consensus: the closing-line value and consensus price from sharp books (Pinnacle, Circa, BetOnline) for the biggest games. Use to identify where professional money is, e.g. 'what is the sharp consensus on the Packers game?' or call with sport='nba' for the sharpest lines across tonight's slate. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get the sharp consensus: the closing-line value and consensus price from sharp books (Pinnacle, Circa, BetOnline) for the biggest games. Use to identify where professional money is, e.g. 'what is the sharp consensus on the Packers game?' or call with sport='nba' for the sharpest lines across tonight's slate. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "sports_betting",
 				"capabilities": ["utility"]
 			},
@@ -3538,7 +3540,7 @@
 				"category": "alerts",
 				"keywords": ["alerts"],
 				"use_cases": ["Use to stay on top of the market without polling, e"],
-				"longDescription": "Get or manage money-printer alerts: significant line moves, sharp steam, limit-up CLV, and bettor-facing notifications you subscribe to. Use to stay on top of the market without polling, e.g. 'what alerts are active right now?' or call with alert_type='line_move' to list the biggest recent line moves across all sports. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get or manage money-printer alerts: significant line moves, sharp steam, limit-up CLV, and bettor-facing notifications you subscribe to. Use to stay on top of the market without polling, e.g. 'what alerts are active right now?' or call with alert_type='line_move' to list the biggest recent line moves across all sports. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "alerts",
 				"capabilities": ["utility"]
 			},
@@ -3632,7 +3634,7 @@
 				"category": "sports_betting",
 				"keywords": ["ai", "api", "books"],
 				"use_cases": ["Use to find the best price anywhere for a slate, e"],
-				"longDescription": "Aggregate live odds for one sport/market across all 112 sportsbooks in Pry's registry (US, offshore, EU, UK, and Asian books) by scraping each book directly through Pry's intelligent fallback chain \u2014 no paid odds API, no API keys. Use to find the best price anywhere for a slate, e.g. call with sport='nba' and market='h2h' to see every reachable book's moneyline for tonight's games, or pass market='spreads' to sweep the point-spread market across the whole registry. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Aggregate live odds for one sport/market across all 112 sportsbooks in Pry's registry (US, offshore, EU, UK, and Asian books) by scraping each book directly through Pry's intelligent fallback chain \u2014 no paid odds API, no API keys. Use to find the best price anywhere for a slate, e.g. call with sport='nba' and market='h2h' to see every reachable book's moneyline for tonight's games, or pass market='spreads' to sweep the point-spread market across the whole registry. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "sports_betting",
 				"capabilities": ["utility"]
 			},
@@ -3692,7 +3694,7 @@
 				"use_cases": [
 					"Use to verify the breadth of the no-paid-API odds network before relying on it, e"
 				],
-				"longDescription": "Get sportsbook coverage-registry statistics: how many of the 112 sportsbooks Pry scrapes directly, broken down by category (US, offshore, EU, UK, Asian), extraction method, and geo-requirement. Use to verify the breadth of the no-paid-API odds network before relying on it, e.g. 'how many US books do you cover?' or to confirm the 112-book total and the per-category split in one call. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get sportsbook coverage-registry statistics: how many of the 112 sportsbooks Pry scrapes directly, broken down by category (US, offshore, EU, UK, Asian), extraction method, and geo-requirement. Use to verify the breadth of the no-paid-API odds network before relying on it, e.g. 'how many US books do you cover?' or to confirm the 112-book total and the per-category split in one call. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "sports_betting",
 				"capabilities": ["utility"]
 			},
@@ -3746,7 +3748,7 @@
 				"use_cases": [
 					"Use to understand how each book in the 112-book registry is reached and which fallback tiers apply, e"
 				],
-				"longDescription": "List the extraction methods Pry uses to scrape sportsbook odds pages directly: JSON endpoints, __NEXT_DATA__ (Next.js), __NUXT__, __INITIAL_STATE__ / _dida_config_, HTML tables, and browser rendering. Use to understand how each book in the 112-book registry is reached and which fallback tiers apply, e.g. 'which books need a browser?' or to audit the no-paid-API scraping layer before building on it. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "List the extraction methods Pry uses to scrape sportsbook odds pages directly: JSON endpoints, __NEXT_DATA__ (Next.js), __NUXT__, __INITIAL_STATE__ / _dida_config_, HTML tables, and browser rendering. Use to understand how each book in the 112-book registry is reached and which fallback tiers apply, e.g. 'which books need a browser?' or to audit the no-paid-API scraping layer before building on it. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "web_scraping",
 				"capabilities": ["web_scraping"]
 			},
@@ -3841,7 +3843,7 @@
 				"use_cases": [
 					"Use to get the complete multi-source picture for a single event, e"
 				],
-				"longDescription": "Aggregate one event's odds from every reachable source at once: The Odds API (free tier), ESPN, OddsPortal, Bovada, BetOnline, and the 112-book sportsbook registry scraped directly via intelligent fallback \u2014 more sources than any other odds service, with no paid odds API. Use to get the complete multi-source picture for a single event, e.g. call with event_id='nba:bda33adc...' and sources='all' to compare every book and feed on one matchup; the merged result is deduped with the sharpest line winning conflicts. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Aggregate one event's odds from every reachable source at once: The Odds API (free tier), ESPN, OddsPortal, Bovada, BetOnline, and the 112-book sportsbook registry scraped directly via intelligent fallback \u2014 more sources than any other odds service, with no paid odds API. Use to get the complete multi-source picture for a single event, e.g. call with event_id='nba:bda33adc...' and sources='all' to compare every book and feed on one matchup; the merged result is deduped with the sharpest line winning conflicts. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "sports_betting",
 				"capabilities": ["utility"]
 			},
@@ -3918,7 +3920,7 @@
 				"use_cases": [
 					"Use to enrich scraping jobs or model outdoor conditions, e"
 				],
-				"longDescription": "Get current weather and short-range forecasts for a location, built for research pipelines that need environmental context (rain, wind, temperature, AQI) alongside other data. Use to enrich scraping jobs or model outdoor conditions, e.g. 'what is the weather in Austin, TX right now?' or call with latitude/longitude to avoid geocoding. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get current weather and short-range forecasts for a location, built for research pipelines that need environmental context (rain, wind, temperature, AQI) alongside other data. Use to enrich scraping jobs or model outdoor conditions, e.g. 'what is the weather in Austin, TX right now?' or call with latitude/longitude to avoid geocoding. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "data",
 				"capabilities": ["utility"]
 			},
@@ -3996,7 +3998,7 @@
 				"use_cases": [
 					"Use to model crop yield risk or monitor growing regions, e"
 				],
-				"longDescription": "Get agricultural data: crop conditions, growing-degree days, soil moisture, and commodity-relevant climate indices for a region. Use to model crop yield risk or monitor growing regions, e.g. 'what are the corn growing conditions in Iowa?' or call with region='us' and crop='corn' for the USDA-style condition report. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get agricultural data: crop conditions, growing-degree days, soil moisture, and commodity-relevant climate indices for a region. Use to model crop yield risk or monitor growing regions, e.g. 'what are the corn growing conditions in Iowa?' or call with region='us' and crop='corn' for the USDA-style condition report. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "agriculture",
 				"capabilities": ["utility"]
 			},
@@ -4077,7 +4079,7 @@
 				"category": "research",
 				"keywords": ["papers", "search"],
 				"use_cases": [],
-				"longDescription": "Search academic papers and preprints (arXiv, Semantic Scholar, PubMed) by keyword, author, or topic and return titles, abstracts, and citation counts. Use for research pipelines that need scholarly grounding, e.g. 'find recent papers on retrieval-augmented generation' or call with author='Smith' and limit=10 for recent works. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search academic papers and preprints (arXiv, Semantic Scholar, PubMed) by keyword, author, or topic and return titles, abstracts, and citation counts. Use for research pipelines that need scholarly grounding, e.g. 'find recent papers on retrieval-augmented generation' or call with author='Smith' and limit=10 for recent works. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "research",
 				"capabilities": ["utility"]
 			},
@@ -4150,7 +4152,7 @@
 				"use_cases": [
 					"Use to enrich leads, vet domains before scraping, or map a competitor's stack, e"
 				],
-				"longDescription": "Get a domain intelligence report: WHOIS registration, SSL/TLS details, hosting provider, and technology fingerprint for a website. Use to enrich leads, vet domains before scraping, or map a competitor's stack, e.g. 'what can you tell me about example.com?' or call with domain='rugmunch.io' for hosting and tech details. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get a domain intelligence report: WHOIS registration, SSL/TLS details, hosting provider, and technology fingerprint for a website. Use to enrich leads, vet domains before scraping, or map a competitor's stack, e.g. 'what can you tell me about example.com?' or call with domain='rugmunch.io' for hosting and tech details. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "data_enrichment",
 				"capabilities": ["utility"]
 			},
@@ -4228,7 +4230,7 @@
 				"category": "events",
 				"keywords": ["events", "search"],
 				"use_cases": ["Use to find upcoming events for an artist or venue, e"],
-				"longDescription": "Search live event listings (concerts, sports, theater) by keyword and optionally location or date, backed by Ticketmaster / SeatGeek class feeds. Use to find upcoming events for an artist or venue, e.g. 'what concerts are near Austin next month?' or call with query='Taylor Swift' and location='New York' for dated listings. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search live event listings (concerts, sports, theater) by keyword and optionally location or date, backed by Ticketmaster / SeatGeek class feeds. Use to find upcoming events for an artist or venue, e.g. 'what concerts are near Austin next month?' or call with query='Taylor Swift' and location='New York' for dated listings. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "events",
 				"capabilities": ["utility"]
 			},
@@ -4285,7 +4287,7 @@
 				"category": "retail",
 				"keywords": ["resale"],
 				"use_cases": [],
-				"longDescription": "Get resale ticket pricing for a specific event: asking prices, ticket counts, and section-level ranges across resale marketplaces. Use with an event_id from pry_events to size demand before buying, e.g. call with event_id from a sold-out concert to see floor and nosebleed asking ranges side by side. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get resale ticket pricing for a specific event: asking prices, ticket counts, and section-level ranges across resale marketplaces. Use with an event_id from pry_events to size demand before buying, e.g. call with event_id from a sold-out concert to see floor and nosebleed asking ranges side by side. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "retail",
 				"capabilities": ["utility"]
 			},
@@ -4360,7 +4362,7 @@
 				"category": "logistics",
 				"keywords": ["ai", "freight"],
 				"use_cases": ["Use to model shipping costs, e"],
-				"longDescription": "Get ocean container freight rates for a route: spot and contract rates per 40ft container across major trade lanes, plus FMC contract visibility where available. Use to model shipping costs, e.g. 'container rates from Shanghai to Los Angeles this week', or call with route='Far East to US West Coast' for the lane spread. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get ocean container freight rates for a route: spot and contract rates per 40ft container across major trade lanes, plus FMC contract visibility where available. Use to model shipping costs, e.g. 'container rates from Shanghai to Los Angeles this week', or call with route='Far East to US West Coast' for the lane spread. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "logistics",
 				"capabilities": ["utility"]
 			},
@@ -4424,7 +4426,7 @@
 				"category": "energy",
 				"keywords": ["ai", "energy", "lmp"],
 				"use_cases": ["Use to model energy costs or spot volatility, e"],
-				"longDescription": "Get electricity locational marginal prices (LMP) for an ISO region and date, with day-ahead / real-time splits where available. Use to model energy costs or spot volatility, e.g. 'LMP for ERCOT today', or call with region='PJM' and date='2026-08-16' for nodal pricing snapshots. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get electricity locational marginal prices (LMP) for an ISO region and date, with day-ahead / real-time splits where available. Use to model energy costs or spot volatility, e.g. 'LMP for ERCOT today', or call with region='PJM' and date='2026-08-16' for nodal pricing snapshots. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "energy",
 				"capabilities": ["utility"]
 			},
@@ -4498,7 +4500,7 @@
 				"category": "retail",
 				"keywords": ["grocery"],
 				"use_cases": ["Use to compare staple costs across markets, e"],
-				"longDescription": "Get grocery prices for a product or category, optionally filtered by ZIP code for local store pricing. Use to compare staple costs across markets, e.g. 'price of a dozen eggs in 10001', or call with query='milk' and zip='78701' to see regional averages and store-level ranges. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get grocery prices for a product or category, optionally filtered by ZIP code for local store pricing. Use to compare staple costs across markets, e.g. 'price of a dozen eggs in 10001', or call with query='milk' and zip='78701' to see regional averages and store-level ranges. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "retail",
 				"capabilities": ["utility"]
 			},
@@ -4566,7 +4568,7 @@
 				"use_cases": [
 					"Use to build cost-of-dining datasets or research competitors, e"
 				],
-				"longDescription": "Get a restaurant's menu with prices: items, sections, and per-dish pricing for a named restaurant. Use to build cost-of-dining datasets or research competitors, e.g. call with name=\"Katz's Delicatessen\" and location='New York' for the full menu with prices. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get a restaurant's menu with prices: items, sections, and per-dish pricing for a named restaurant. Use to build cost-of-dining datasets or research competitors, e.g. call with name=\"Katz's Delicatessen\" and location='New York' for the full menu with prices. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "retail",
 				"capabilities": ["utility"]
 			},
@@ -4638,7 +4640,7 @@
 				"use_cases": [
 					"Use to size a competitor's supply chain or vet suppliers, e"
 				],
-				"longDescription": "Get U.S. customs import records for a company: shipment dates, commodity descriptions, suppliers, and origin countries. Use to size a competitor's supply chain or vet suppliers, e.g. call with company='Tesla Inc' for recent bill-of-lading entries with quantities. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get U.S. customs import records for a company: shipment dates, commodity descriptions, suppliers, and origin countries. Use to size a competitor's supply chain or vet suppliers, e.g. call with company='Tesla Inc' for recent bill-of-lading entries with quantities. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "trade",
 				"capabilities": ["utility"]
 			},
@@ -4698,7 +4700,7 @@
 				"category": "business",
 				"keywords": ["data", "firmographics"],
 				"use_cases": ["Use to segment leads or enrich CRM records, e"],
-				"longDescription": "Get firmographic data for a company: employee count band, revenue range, founding year, headquarters, industry, and company type. Use to segment leads or enrich CRM records, e.g. call with company='Rug Munch Media' for the standard firmographic profile with confidence scores. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get firmographic data for a company: employee count band, revenue range, founding year, headquarters, industry, and company type. Use to segment leads or enrich CRM records, e.g. call with company='Rug Munch Media' for the standard firmographic profile with confidence scores. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "business",
 				"capabilities": ["utility"]
 			},
@@ -4789,7 +4791,7 @@
 				"use_cases": [
 					"Use to find apps by feature, compare pricing across categories, or feed app-market research, e"
 				],
-				"longDescription": "Search the Apple App Store by keyword and return matching apps \u2014 name, bundle id, price, rating, category, and store URL. Use to find apps by feature, compare pricing across categories, or feed app-market research, e.g. search query='crypto wallet' to list every mobile wallet on the store. Backed by the free public iTunes Search API; never raises and returns an empty list when the feed is unreachable. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search the Apple App Store by keyword and return matching apps \u2014 name, bundle id, price, rating, category, and store URL. Use to find apps by feature, compare pricing across categories, or feed app-market research, e.g. search query='crypto wallet' to list every mobile wallet on the store. Backed by the free public iTunes Search API; never raises and returns an empty list when the feed is unreachable. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "app_store",
 				"capabilities": ["search"]
 			},
@@ -4869,7 +4871,7 @@
 				"use_cases": [
 					"Use to gauge app sentiment, triage support complaints, or feed product-research pipelines, e"
 				],
-				"longDescription": "Get recent user reviews for an app by its store identifier \u2014 the numeric App Store id or bundle id, e.g. 'com.coinbase.app' \u2014 returning rating, title, body, author, and review date for each. Use to gauge app sentiment, triage support complaints, or feed product-research pipelines, e.g. reviews for '284910350' (Coinbase). Reads the free public App Store customer reviews feed; never raises and returns an empty list when the feed is unreachable. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Get recent user reviews for an app by its store identifier \u2014 the numeric App Store id or bundle id, e.g. 'com.coinbase.app' \u2014 returning rating, title, body, author, and review date for each. Use to gauge app sentiment, triage support complaints, or feed product-research pipelines, e.g. reviews for '284910350' (Coinbase). Reads the free public App Store customer reviews feed; never raises and returns an empty list when the feed is unreachable. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "social",
 				"capabilities": ["utility"]
 			},
@@ -4948,7 +4950,7 @@
 				"use_cases": [
 					"Use to monitor a brand, topic, or competitor in the press, e"
 				],
-				"longDescription": "Search news articles by keyword across public news feeds and aggregators, returning title, source, published date, and URL for each result. Use to monitor a brand, topic, or competitor in the press, e.g. query='crypto regulation' for the latest regulatory coverage. Best-effort over free public feeds; never raises and returns an empty list when a feed is unreachable or rate-limited. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search news articles by keyword across public news feeds and aggregators, returning title, source, published date, and URL for each result. Use to monitor a brand, topic, or competitor in the press, e.g. query='crypto regulation' for the latest regulatory coverage. Best-effort over free public feeds; never raises and returns an empty list when a feed is unreachable or rate-limited. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "news_intelligence",
 				"capabilities": ["utility"]
 			},
@@ -5016,7 +5018,7 @@
 				"category": "social",
 				"keywords": ["ai", "sentiment"],
 				"use_cases": ["Use to gauge market or brand mood, e"],
-				"longDescription": "Score the sentiment of recent news about a keyword \u2014 positive / neutral / negative with a confidence score \u2014 using lightweight text analysis over the same public news feeds as pry_news. Use to gauge market or brand mood, e.g. query='Bitcoin ETF' before a trade or campaign. Degrades to a neutral score when no articles are found; never raises on feed failures. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Score the sentiment of recent news about a keyword \u2014 positive / neutral / negative with a confidence score \u2014 using lightweight text analysis over the same public news feeds as pry_news. Use to gauge market or brand mood, e.g. query='Bitcoin ETF' before a trade or campaign. Degrades to a neutral score when no articles are found; never raises on feed failures. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "social",
 				"capabilities": ["utility"]
 			},
@@ -5091,7 +5093,7 @@
 				"category": "business",
 				"keywords": ["ai", "company", "data", "monitor", "watch"],
 				"use_cases": [],
-				"longDescription": "Return the regulatory watch record for a company \u2014 recent enforcement actions, fines, sanctions, and compliance filings \u2014 e.g. company='OpenAI' for its compliance exposure. Use for due diligence, vendor screening, or competitor risk monitoring before partnering or trading. Backed by free public regulatory feeds; degrades to an empty record when no data is found. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Return the regulatory watch record for a company \u2014 recent enforcement actions, fines, sanctions, and compliance filings \u2014 e.g. company='OpenAI' for its compliance exposure. Use for due diligence, vendor screening, or competitor risk monitoring before partnering or trading. Backed by free public regulatory feeds; degrades to an empty record when no data is found. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "business",
 				"capabilities": ["utility"]
 			},
@@ -5174,7 +5176,7 @@
 				"use_cases": [
 					"Use to build deal trackers, power shopping comparisons, or feed coupon content, e"
 				],
-				"longDescription": "Search deals, discounts, and promotions by keyword across public deal feeds, returning merchant, product, price, discount percentage, and expiry for each result. Use to build deal trackers, power shopping comparisons, or feed coupon content, e.g. query='PS5' for current console offers. Best-effort over free public sources; never raises and returns an empty list on failure. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search deals, discounts, and promotions by keyword across public deal feeds, returning merchant, product, price, discount percentage, and expiry for each result. Use to build deal trackers, power shopping comparisons, or feed coupon content, e.g. query='PS5' for current console offers. Best-effort over free public sources; never raises and returns an empty list on failure. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "retail",
 				"capabilities": ["utility"]
 			},
@@ -5257,7 +5259,7 @@
 				"use_cases": [
 					"Use to power restock-notification bots, supply monitoring, or scalper-resistant buying queues"
 				],
-				"longDescription": "Check for drop alerts / limited product restock or flash-sale signals for a product, returning availability windows, price drops, and the merchant for each signal, e.g. product='RTX 5090' to track GPU drops. Use to power restock-notification bots, supply monitoring, or scalper-resistant buying queues. Best-effort over public feeds; degrades to an empty list when no drop signal is found. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Check for drop alerts / limited product restock or flash-sale signals for a product, returning availability windows, price drops, and the merchant for each signal, e.g. product='RTX 5090' to track GPU drops. Use to power restock-notification bots, supply monitoring, or scalper-resistant buying queues. Best-effort over public feeds; degrades to an empty list when no drop signal is found. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "alerts",
 				"capabilities": ["utility"]
 			},
@@ -5347,7 +5349,7 @@
 				"use_cases": [
 					"Use to monitor public-sector RFPs and awarded contracts, e"
 				],
-				"longDescription": "Search government contract opportunities and awards by keyword across public procurement feeds, returning agency, solicitation number, award value, status, and deadline for each result. Use to monitor public-sector RFPs and awarded contracts, e.g. query='cybersecurity' for current federal bidding data. Best-effort over free public sources; never raises and returns an empty list on failure. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search government contract opportunities and awards by keyword across public procurement feeds, returning agency, solicitation number, award value, status, and deadline for each result. Use to monitor public-sector RFPs and awarded contracts, e.g. query='cybersecurity' for current federal bidding data. Best-effort over free public sources; never raises and returns an empty list on failure. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "government",
 				"capabilities": ["utility"]
 			},
@@ -5437,7 +5439,7 @@
 				"use_cases": [
 					"Use to find open funding programs for research, nonprofits, or businesses, e"
 				],
-				"longDescription": "Search government grant opportunities by keyword across public grant feeds, returning agency, opportunity number, funding amount, eligibility, and deadline for each result. Use to find open funding programs for research, nonprofits, or businesses, e.g. query='small business innovation research'. Best-effort over free public sources; never raises and returns an empty list on failure. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Search government grant opportunities by keyword across public grant feeds, returning agency, opportunity number, funding amount, eligibility, and deadline for each result. Use to find open funding programs for research, nonprofits, or businesses, e.g. query='small business innovation research'. Best-effort over free public sources; never raises and returns an empty list on failure. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "government",
 				"capabilities": ["utility"]
 			},
@@ -5501,7 +5503,7 @@
 				"category": "actors",
 				"keywords": ["actor", "ai", "api", "catalog", "crypto", "monitor"],
 				"use_cases": [],
-				"longDescription": "List every Pry Apify Store actor (94) with description, pricing events and per-event USD price. Store parity surface: anything runnable on Apify is discoverable here. Filter by optional 'domain' substring (e.g. 'monitor', 'crypto', 'seo'). Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "List every Pry Apify Store actor (94) with description, pricing events and per-event USD price. Store parity surface: anything runnable on Apify is discoverable here. Filter by optional 'domain' substring (e.g. 'monitor', 'crypto', 'seo'). Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "actors",
 				"capabilities": ["actors"]
 			},
@@ -5559,7 +5561,7 @@
 				"category": "actors",
 				"keywords": ["actor", "api", "data", "monitor", "run", "scrape"],
 				"use_cases": [],
-				"longDescription": "Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors. Use after pry_actor_catalog: pass the actor name plus target urls; results are the same dataset items the Apify run would produce. Examples: actor='news-feed-monitor', actor='universal-scraper', actor='token-safety-scanner'. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors. Use after pry_actor_catalog: pass the actor name plus target urls; results are the same dataset items the Apify run would produce. Examples: actor='news-feed-monitor', actor='universal-scraper', actor='token-safety-scanner'. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "actors",
 				"capabilities": ["actors"]
 			},
@@ -5616,7 +5618,7 @@
 				"category": "payments",
 				"keywords": ["ai", "api", "balance", "crypto", "scrape"],
 				"use_cases": [],
-				"longDescription": "Read the prepaid balance of a Pry account (bulk scrape credits purchased via crypto). Pass your pry API key (e.g. api_key='pry_abc123_deadbeef...') or a user_id to see the USD balance + low-balance flag. Use before buying a pack to confirm you can afford an operation, or after a purchase to confirm the credit landed (e.g. after a 5000-credit starter pack you should see ~5.00 USD). This is a free read of your own account \u2014 it does not spend credits. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Read the prepaid balance of a Pry account (bulk scrape credits purchased via crypto). Pass your pry API key (e.g. api_key='pry_abc123_deadbeef...') or a user_id to see the USD balance + low-balance flag. Use before buying a pack to confirm you can afford an operation, or after a purchase to confirm the credit landed (e.g. after a 5000-credit starter pack you should see ~5.00 USD). This is a free read of your own account \u2014 it does not spend credits. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "payments",
 				"capabilities": ["utility"]
 			},
@@ -5715,7 +5717,7 @@
 					"x402"
 				],
 				"use_cases": [],
-				"longDescription": "Initiate a crypto purchase of a bulk scrape-credit pack. Pass a pack id (e.g. pack_id='starter' for $5/5,000 credits) and it returns a spec-compliant x402 PaymentRequired manifest with the real receiving wallet as payToAddress and the server-authoritative price in atomic units. The agent/partner pays USDC on-chain (or the quoted asset, defaults to the configured network), then calls the confirm endpoint with the tx hash to credit the balance \u2014 and on first purchase an API key is minted. An empty payToAddress in the response means the operator hasn't configured a receiving wallet; never pay a placeholder address. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Initiate a crypto purchase of a bulk scrape-credit pack. Pass a pack id (e.g. pack_id='starter' for $5/5,000 credits) and it returns a spec-compliant x402 PaymentRequired manifest with the real receiving wallet as payToAddress and the server-authoritative price in atomic units. The agent/partner pays USDC on-chain (or the quoted asset, defaults to the configured network), then calls the confirm endpoint with the tx hash to credit the balance \u2014 and on first purchase an API key is minted. An empty payToAddress in the response means the operator hasn't configured a receiving wallet; never pay a placeholder address. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "payments",
 				"capabilities": ["utility"]
 			},
@@ -5824,7 +5826,7 @@
 					"scrape"
 				],
 				"use_cases": ["Use to grow a KOL watchlist, e"],
-				"longDescription": "Scrape KOL / crypto-influencer leaderboards for usernames (handles), wallets, followers and P&L / win-loss stats. Reads public trader leaderboards (kolscan.io Solana trader board; gmgn.ai and dexscreener smart-money boards are registered but Cloudflare/JS-gated and flagged [REVIEW]). Use to grow a KOL watchlist, e.g. 'pull the top KOL wallets from the kolscan leaderboard' or 'find new crypto influencer handles + wallets'. Part of the Pry scraping platform \u2014 76 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
+				"longDescription": "Scrape KOL / crypto-influencer leaderboards for usernames (handles), wallets, followers and P&L / win-loss stats. Reads public trader leaderboards (kolscan.io Solana trader board; gmgn.ai and dexscreener smart-money boards are registered but Cloudflare/JS-gated and flagged [REVIEW]). Use to grow a KOL watchlist, e.g. 'pull the top KOL wallets from the kolscan leaderboard' or 'find new crypto influencer handles + wallets'. Part of the Pry scraping platform \u2014 99 tools, 15-tier anti-detection, x402 crypto payments, self-hosted or cloud.",
 				"group": "crypto",
 				"capabilities": ["utility"]
 			}
@@ -5950,7 +5952,7 @@
 	"features": [
 		"15-tier anti-detection fallback",
 		"x402 crypto payments (7 networks)",
-		"76 MCP tools",
+		"99 MCP tools",
 		"110+ scraping templates",
 		"Automated signup",
 		"CAPTCHA solving",

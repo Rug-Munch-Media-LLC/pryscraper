@@ -36,6 +36,27 @@ from pry.payments.earnings_shared import _ensure_aware
 logger = logging.getLogger(__name__)
 
 
+def _invoice_date(inv: dict[str, Any]) -> str:
+    """Settlement date (YYYY-MM-DD), or "" when the invoice has no usable date."""
+    return str(
+        inv.get("settled_at")
+        or (inv.get("payment") or {}).get("confirmed_at")
+        or inv.get("created_at")
+        or ""
+    )[:10]
+
+
+def _invoice_row(inv: dict[str, Any], date: str) -> dict[str, Any]:
+    """Map a settled invoice to its revenue-stream row."""
+    return {
+        "amount_usd": float(inv.get("amount_usd", 0) or 0),
+        "date": date,
+        "tier": str(inv.get("tier", "")),
+        "chain": str(inv.get("chain", "unknown")),
+        "payer": str(inv.get("api_key", "")),
+    }
+
+
 class StreamMixin:
     """Stream loaders (each returns list of {amount_usd, date, ...})."""
 
@@ -107,12 +128,7 @@ class StreamMixin:
                 # the invoice creation time; an invoice with no date at all is
                 # skipped rather than re-dated to now, which would inflate
                 # every current window forever.
-                date = str(
-                    inv.get("settled_at")
-                    or (inv.get("payment") or {}).get("confirmed_at")
-                    or inv.get("created_at")
-                    or ""
-                )[:10]
+                date = _invoice_date(inv)
                 if not date:
                     logger.warning(
                         "subscription_invoice_undated",
@@ -129,15 +145,7 @@ class StreamMixin:
                         extra={"error": str(exc), "handler": "StreamMixin._subscription_stream"},
                     )
                     continue
-                out.append(
-                    {
-                        "amount_usd": float(inv.get("amount_usd", 0) or 0),
-                        "date": date,
-                        "tier": str(inv.get("tier", "")),
-                        "chain": str(inv.get("chain", "unknown")),
-                        "payer": str(inv.get("api_key", "")),
-                    }
-                )
+                out.append(_invoice_row(inv, date))
         except (ImportError, OSError, ValueError, TypeError, KeyError) as exc:
             logger.warning("EarningsTracker: subscription stream unavailable: %s", exc)
         return out

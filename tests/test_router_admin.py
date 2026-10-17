@@ -58,8 +58,7 @@ def _write_payments(data_dir: Path, rows: list[dict[str, Any]]) -> None:
     pdir = data_dir / "x402"
     pdir.mkdir(parents=True, exist_ok=True)
     with open(pdir / "payments.jsonl", "w") as f:
-        for r in rows:
-            f.write(json.dumps(r) + "\n")
+        f.writelines(f"{json.dumps(r)}\n" for r in rows)
 
 
 # ── Security gate ────────────────────────────────────────────────────────────

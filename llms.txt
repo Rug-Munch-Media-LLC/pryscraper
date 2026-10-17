@@ -12,7 +12,7 @@
 
 - URL: https://api.pryscraper.com/mcp/
 - Transport: SSE, Streamable HTTP, stdio
-- Auth: x402 pay-per-call (no account/API key for discovery; paid prefixes require an x402 payment signature or a paid-tier API key)
+- Auth: discovery is keyless; tools/call requires a key (`Authorization: Bearer $PRY_API_KEY`) or an x402 payment (`X-PAYMENT` / `PAYMENT-SIGNATURE`). There is no anonymous tools/call.
 - Tools: 99
 - Categories: 33
 
@@ -110,7 +110,7 @@ Category: app_store
 
 ### pry_arbitrage
 
-Scan sportsbook lines for guaranteed-profit arbitrage opportunities: the same event quoted at different books where the combined implied probabilities total under 100%. Use to find risk-free bets, e.g
+Scan sportsbook lines for arbitrage candidates (before fees, slippage and stake limits): the same event quoted at different books where the combined implied probabilities total under 100%. Use to find arbitrage candidates (before fees, slippage and stake limits), e.g
 
 Category: sports_betting
 
