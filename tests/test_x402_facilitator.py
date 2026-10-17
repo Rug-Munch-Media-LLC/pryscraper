@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 #
-# Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 """Tests for x402/facilitator.py — FacilitatorRouter, multi-provider fallback."""
 
@@ -88,11 +87,8 @@ def test_router_sorted_by_priority(router: FacilitatorRouter):
 def test_router_empty_allowed():
     """Passing an empty list should result in no facilitators."""
     r = FacilitatorRouter(facilitators=[])
-    # __init__ uses `facilitators or DEFAULT_FACILITATORS`, and [] is falsy:
-    # the empty list must fall back to the *exact* usable default set.
     expected = sorted(
-        [f for f in DEFAULT_FACILITATORS if f.enabled and f.verify_url],
-        key=lambda f: f.priority,
+        [f for f in DEFAULT_FACILITATORS if f.enabled and f.verify_url], key=lambda f: f.priority
     )
     assert r.facilitators == expected
 
@@ -760,7 +756,6 @@ def test_eip7702_rpc_key_short_name_passthrough():
 
 def test_eip7702_rpc_key_caip2_resolves_to_short_name():
     """CAIP-2 IDs (what the verify flow actually receives) map to RPC keys.
-
     Regression: EIP7702_RPC is keyed by short names but the API/manifest
     surface speaks CAIP-2 — without this map the EIP-7702 on-chain fallback
     never ran for any EVM chain.

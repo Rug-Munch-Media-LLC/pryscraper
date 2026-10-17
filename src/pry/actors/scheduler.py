@@ -24,6 +24,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from pry.core.db import Monitor, session_scope
+from pry.core.deps import scraper as _scraper
 from pry.core.paths import subdir
 
 logger = logging.getLogger(__name__)
@@ -222,8 +223,6 @@ async def scrape_with_retry(monitor_id: str, url: str) -> tuple[str | None, str 
     last = "unknown error"
     for attempt in range(1, attempts + 1):
         try:
-            from pry.core.deps import scraper as _scraper
-
             result = await _scraper.scrape(url)
             return str(result.get("content", "")), None
         except Exception as exc:  # noqa: BLE001 — backends raise anything

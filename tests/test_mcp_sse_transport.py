@@ -34,7 +34,6 @@ from pry.api.mcp_sse import (
 @pytest.fixture(autouse=True)
 def _sse_observer_cleanup():
     """Drain SSE-global state after every test in this module.
-
     Guards against a leaked MCP notification observer (registered by
     `mcp_sse_endpoint` and only unregistered when the event-stream
     generator's finally block runs). A stale observer whose session has
@@ -80,10 +79,8 @@ class TestSessionLifecycle:
 
     def test_new_session_id_is_long_enough(self) -> None:
         sid = _new_session_id()
-        # secrets.token_urlsafe(16) => 16 bytes => 22 base64url chars, no padding.
         assert len(sid) == 22
-        assert all(c.isalnum() or c in "-_" for c in sid)
-        assert _new_session_id() != sid
+        assert all(c.isalnum() or c in "-_" for c in sid) and _new_session_id() != sid  # noqa: PT018
 
     def test_get_or_create_queue_creates_new(self) -> None:
         q = _get_or_create_queue("new_session")

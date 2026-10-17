@@ -28,7 +28,6 @@ store = batch_mod.store
 @pytest.fixture(autouse=True)
 def clear_batch_registry():
     """Clear the in-memory batch registry and tx-replay set before each test.
-
     Redis is forced off so tests exercise the deterministic in-memory fallback
     path (a live Redis on the dev box must not change test behavior).
     """
@@ -134,7 +133,6 @@ async def test_verify_already_paid():
     with _batch_lock:
         _batch_payments[bid]["paid"] = True
         _batch_payments[bid]["tx_hash"] = "0xpaid"
-
     r2 = await verify_batch_payment(bid, "0xpaid")
     assert r2["verified"] is True
     assert "already paid" in r2.get("note", "").lower()
@@ -146,7 +144,6 @@ async def test_verify_onchain_success():
     bid = r["batch_id"]
     mock = AsyncMock()
     mock.verify.return_value = {"verified": True, "reason": ""}
-
     with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         r2 = await verify_batch_payment(bid, "0xvalid")
         assert r2["verified"] is True
@@ -159,7 +156,6 @@ async def test_verify_onchain_failure():
     bid = r["batch_id"]
     mock = AsyncMock()
     mock.verify.return_value = {"verified": False, "reason": "insufficient"}
-
     with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         r2 = await verify_batch_payment(bid, "0xinvalid")
         assert r2["verified"] is False
@@ -232,7 +228,6 @@ async def test_verify_settles_after_verify():
     mock = AsyncMock()
     mock.verify.return_value = {"verified": True, "reason": ""}
     mock.settle.return_value = {"success": True}
-
     with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         r2 = await verify_batch_payment(bid, "0xvalid")
         assert r2["verified"] is True
@@ -247,7 +242,6 @@ async def test_verify_settle_failure_does_not_unverify():
     mock = AsyncMock()
     mock.verify.return_value = {"verified": True, "reason": ""}
     mock.settle.return_value = {"success": False, "reason": "rpc down"}
-
     with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         r2 = await verify_batch_payment(bid, "0xvalid")
         assert r2["verified"] is True
@@ -262,7 +256,6 @@ async def test_verify_settle_exception_surfaced():
     mock = AsyncMock()
     mock.verify.return_value = {"verified": True, "reason": ""}
     mock.settle.side_effect = RuntimeError("boom")
-
     with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         r2 = await verify_batch_payment(bid, "0xvalid")
         assert r2["verified"] is True
@@ -281,7 +274,6 @@ async def test_caller_binding_blocks_other_caller():
     mock = AsyncMock()
     mock.verify.return_value = {"verified": True, "reason": ""}
     mock.settle.return_value = {"success": True}
-
     with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         await verify_batch_payment(bid, "0xvalid", caller_key="1.2.3.4")
     assert is_batch_paid(bid, caller_key="1.2.3.4") is True
@@ -299,7 +291,6 @@ async def test_unbound_batch_legacy_contract():
     mock = AsyncMock()
     mock.verify.return_value = {"verified": True, "reason": ""}
     mock.settle.return_value = {"success": True}
-
     with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):
         await verify_batch_payment(bid, "0xvalid")
     assert is_batch_paid(bid) is True
@@ -315,7 +306,6 @@ async def test_tx_replay_second_batch_rejected():
     mock = AsyncMock()
     mock.verify.return_value = {"verified": True, "reason": ""}
     mock.settle.return_value = {"success": True}
-
     r1 = await create_batch_payment(["scrape"])
     r2 = await create_batch_payment(["monitor"])
     with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=mock):

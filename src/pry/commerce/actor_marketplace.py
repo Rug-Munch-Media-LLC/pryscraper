@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
+from pry.core.deps import scraper as _scraper
 from pry.core.paths import PRY_DATA_DIR
 
 logger = logging.getLogger(__name__)
@@ -191,8 +192,6 @@ class ActorMarketplace:
     async def _run_scrape(self, url: str) -> dict[str, Any]:
 
         try:
-            from pry.core.deps import scraper as _scraper
-
             result = await _scraper.scrape(url, {"bypass_cloudflare": True})
         except Exception as e:
             logger.exception("actor_scrape_failed", extra={"url": url})
