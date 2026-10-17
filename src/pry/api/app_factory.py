@@ -33,6 +33,7 @@ from pry.api.app_metadata import (
 from pry.api.app_wiring import wire_app
 from pry.api.lifecycle import lifespan
 from pry.api.routers.core.app_ui import router as app_ui_router
+from pry.api.routers.scraping.search_map import router as search_map_router
 from pry.core.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,10 @@ app = FastAPI(
     servers=SERVERS,
     lifespan=lifespan,
 )
+
+# Mounted before the shared registry so this Firecrawl-parity /v1/map wins the
+# path match against the legacy link-list route (first registered match wins).
+app.include_router(search_map_router)
 
 wire_app(app)
 

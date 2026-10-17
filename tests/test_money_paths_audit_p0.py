@@ -2,11 +2,10 @@
 # Copyright (c) 2026 Rug Munch Media LLC
 """Money-path regression tests for audit P0 classes.
 
-Each test names the invariant it protects. Two batch invariants are NOT yet
-enforced in ``src/pry/payments/x402/batch/payments.py`` (the batch is marked
-``paid`` even when settlement fails, and an individual payment never consults
-the batch tx-claim set). They are encoded as non-strict xfail so the gap is
-tracked rather than silently accepted; removing the marker is the fix signal.
+Each test names the invariant it protects. The two batch invariants are now
+enforced in ``src/pry/payments/x402/batch/payments.py``: the batch is marked
+``paid`` only when settlement succeeds, and one on-chain tx cannot back both a
+batch and an individual payment (single shared claim namespace).
 """
 
 from __future__ import annotations
@@ -27,6 +26,7 @@ from pry.payments.x402.batch import (
     create_batch_payment,
     is_batch_paid,
     state as batch_state,
+    store as batch_store,
     verify_batch_payment,
 )
 from pry.payments.x402_middleware import X402Middleware
@@ -64,11 +64,6 @@ def db(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    strict=False,
-    reason="audit P0: verify_batch_payment sets paid=True after a failed settle; "
-    "fix belongs in src/pry/payments/x402/batch/payments.py (out of scope here)",
-)
 async def test_settle_failure_must_not_grant_paid_access():
     from unittest.mock import AsyncMock, patch
 
@@ -83,6 +78,47 @@ async def test_settle_failure_must_not_grant_paid_access():
     assert result["verified"] is True
     assert result["settled"] is False
     assert is_batch_paid(bid) is False, "a failed settle must not unlock the batch"
+
+
+@pytest.mark.asyncio
+async def test_settle_failure_keeps_batch_unpaid():
+    from unittest.mock import AsyncMock, patch
+
+    created = await create_batch_payment(["scrape"])
+    bid = created["batch_id"]
+    router = AsyncMock()
+    router.verify.return_value = {"verified": True, "reason": ""}
+    router.settle.return_value = {"success": False, "reason": "rpc down"}
+    with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=router):
+        failed = await verify_batch_payment(bid, "0xretry")
+
+    stored = batch_store._load_batch(bid)
+    assert failed["settled"] is False
+    assert failed["error"] == "rpc down"
+    assert is_batch_paid(bid) is False
+    assert stored is not None
+    assert stored["paid"] is False
+    assert stored["last_error"] == "rpc down"
+
+
+@pytest.mark.asyncio
+async def test_settle_failure_retry_succeeds():
+    from unittest.mock import AsyncMock, patch
+
+    created = await create_batch_payment(["scrape"])
+    bid = created["batch_id"]
+    router = AsyncMock()
+    router.verify.return_value = {"verified": True, "reason": ""}
+    router.settle.return_value = {"success": False, "reason": "rpc down"}
+    with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=router):
+        await verify_batch_payment(bid, "0xretry")
+
+    # The claim was released: the SAME tx_hash can be retried and now settles.
+    router.settle.return_value = {"success": True}
+    with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=router):
+        retried = await verify_batch_payment(bid, "0xretry")
+    assert retried["settled"] is True
+    assert is_batch_paid(bid) is True
 
 
 @pytest.mark.asyncio
@@ -135,11 +171,6 @@ def test_revoked_key_cannot_authenticate_and_gate_answers_402(db):
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    strict=False,
-    reason="audit P0: individual verify does not consult the batch tx-claim set; "
-    "fix belongs in src/pry/payments/x402/handler_verify*.py (out of scope here)",
-)
 async def test_batch_tx_cannot_be_reused_individually(tmp_path):
     from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -162,6 +193,36 @@ async def test_batch_tx_cannot_be_reused_individually(tmp_path):
         )
     assert replay["verified"] is False
     assert replay["reason"] == "tx_hash already consumed"
+    assert replay["code"] == "tx_already_claimed"
+
+
+@pytest.mark.asyncio
+async def test_individual_tx_cannot_be_reused_as_batch(tmp_path):
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    individual = MagicMock()
+    individual.verify = AsyncMock(return_value={"verified": True, "reason": ""})
+    with patch("pry.payments.x402.handler.get_facilitator_router", return_value=individual):
+        handler = X402Handler(
+            payments_file=tmp_path / "payments.jsonl",
+            settlements_file=tmp_path / "settlements.jsonl",
+        )
+        first = await handler.verify_payment(
+            "p_first", "0xshared2", network="base", operation="scrape", amount_usd=0.001
+        )
+    assert first["verified"] is True
+
+    created = await create_batch_payment(["scrape"])
+    router = AsyncMock()
+    router.verify.return_value = {"verified": True, "reason": ""}
+    router.settle.return_value = {"success": True}
+    with patch("pry.payments.x402.batch.payments.get_facilitator_router", return_value=router):
+        replay = await verify_batch_payment(created["batch_id"], "0xshared2")
+
+    assert replay["verified"] is False
+    assert replay["code"] == "tx_already_claimed"
+    assert router.settle.await_count == 0, "a rejected replay must never settle"
+    assert is_batch_paid(created["batch_id"]) is False
 
 
 class _LedgerStub:

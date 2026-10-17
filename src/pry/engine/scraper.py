@@ -23,6 +23,7 @@ from trafilatura.settings import use_config
 from pry.core.errors import InvalidRequestError
 from pry.core.settings import settings
 from pry.engine.block_detector import BlockDetector
+from pry.engine.extraction import finalize_markdown
 from pry.engine.url_guard import safe_get, validate_url
 
 logger = logging.getLogger(__name__)
@@ -151,17 +152,17 @@ class PryScraper:
             favor_precision=opts.get("favor_precision", False),
             favor_recall=opts.get("favor_recall", True),
         )
+        include_images = bool(opts.get("include_images", False))
         if content:
             result["content"] = content
-            return result
+            return finalize_markdown(result, url, include_images)
 
         # Fallback: markdownify
         from markdownify import markdownify
 
         content = markdownify(raw_html, heading_arrows=False, strip=["script", "style"])  # type: ignore[call-arg]  # markdownify supports heading_arrows at runtime
-        content = re.sub(r"\n{3,}", "\n\n", content)[:5_000_000]  # windowed by API offset/limit
         result["content"] = content
-        return result
+        return finalize_markdown(result, url, include_images)
 
     async def _fetch_direct(self, url: str, headers: dict, timeout_s: int) -> str:
         proxy_url = settings.resolved_proxy_url

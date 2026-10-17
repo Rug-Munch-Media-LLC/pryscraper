@@ -29,6 +29,7 @@ except ImportError as exc:  # optional dependency
     X402_GATE_MISCONFIGURED = None
 
 PAID_ENDPOINTS = {
+    "/v1/search": "search",
     "/v1/scrape/methods": "scrape_methods",
     "/v1/scrape": "scrape",
     # Specific prefixes MUST precede their broad parents (first match wins).

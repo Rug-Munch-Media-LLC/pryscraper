@@ -10,11 +10,83 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from pry.payments.x402 import PAYMENT_VALIDITY_SECONDS, X402_DEFAULT_ASSET, X402_DEFAULT_NETWORK
-from pry.payments.x402.batch import store
+from pry.payments.x402.batch import state as batch_state, store
 from pry.payments.x402.facilitator import get_facilitator_router
+from pry.payments.x402.metrics import record_replay, record_settle
 from pry.payments.x402.scheme import X402_PRICING, _to_atomic, build_payment_required
 
 logger = logging.getLogger(__name__)
+
+# One shared tx-claim namespace for BOTH money paths. ``store`` owns the atomic
+# claim (Redis SETNX / in-memory set); the owner tag lets the individual path
+# tell a batch claim (must reject) from its own ledger-governed claim.
+CLAIM_BATCH = "batch"
+CLAIM_INDIVIDUAL = "individual"
+_claim_owners: dict[str, str] = {}
+
+
+def claim_key(tx_hash: str, network: str) -> str:
+    """Shared claim key for a tx_hash — identical for batch and individual."""
+    return f"{network or X402_DEFAULT_NETWORK}:{tx_hash}"
+
+
+def claim_tx(tx_hash: str, network: str, owner: str = CLAIM_BATCH) -> bool:
+    """Atomically claim ``tx_hash`` in the shared namespace. True on first claim."""
+    if not tx_hash:
+        return False
+    client = store._get_redis()
+    if client is not None:
+        try:
+            claimed = client.set(
+                store._tx_redis_key(network, tx_hash),
+                owner,
+                nx=True,
+                ex=batch_state._BATCH_TTL_SECONDS,
+            )
+            return bool(claimed)
+        except Exception as e:  # noqa: BLE001 — degrade to memory, never raise
+            logger.warning("x402_batch_redis_tx_claim_failed", extra={"error": str(e)[:160]})
+    key = claim_key(tx_hash, network)
+    with batch_state._batch_lock:
+        if key in batch_state._consumed_txs:
+            return False
+        batch_state._consumed_txs.add(key)
+        _claim_owners[key] = owner
+        return True
+
+
+def tx_claim_owner(tx_hash: str, network: str) -> str:
+    """Owner of an existing claim (``batch``/``individual``), '' when unclaimed."""
+    if not tx_hash:
+        return ""
+    client = store._get_redis()
+    if client is not None:
+        try:
+            return str(client.get(store._tx_redis_key(network, tx_hash)) or "")
+        except Exception as e:  # noqa: BLE001 — degrade to memory, never raise
+            logger.warning("x402_batch_redis_tx_read_failed", extra={"error": str(e)[:160]})
+    key = claim_key(tx_hash, network)
+    with batch_state._batch_lock:
+        if key not in batch_state._consumed_txs:
+            _claim_owners.pop(key, None)
+            return ""
+        return _claim_owners.get(key, CLAIM_BATCH)
+
+
+def release_tx(tx_hash: str, network: str) -> None:
+    """Release a claim after a failed settlement so the batch stays retryable."""
+    if not tx_hash:
+        return
+    client = store._get_redis()
+    if client is not None:
+        try:
+            client.delete(store._tx_redis_key(network, tx_hash))
+        except Exception as e:  # noqa: BLE001 — degrade to memory, never raise
+            logger.warning("x402_batch_redis_tx_release_failed", extra={"error": str(e)[:160]})
+    key = claim_key(tx_hash, network)
+    with batch_state._batch_lock:
+        batch_state._consumed_txs.discard(key)
+        _claim_owners.pop(key, None)
 
 
 async def create_batch_payment(operations: list[str]) -> dict[str, Any]:
@@ -88,10 +160,13 @@ async def verify_batch_payment(
     Hardening:
     - ``caller_key`` (IP/payer identity) is bound to the batch at verify time
       so ``is_batch_paid`` can reject replay from a different caller.
-    - The tx_hash is atomically claimed once (Redis SETNX / in-memory set) so
-      a single tx cannot back multiple batch payments or an individual one.
+    - The tx_hash is claimed once in the SHARED claim namespace (Redis SETNX /
+      in-memory set) so a single tx cannot back multiple batch payments or an
+      individual one.
     - After a successful verify the payment is settled via the facilitator
       router (verify-only was a security gap: funds were never collected).
+    - ``paid`` is set ONLY when settlement succeeds; a failed settle releases
+      the claim so the batch stays retryable and never unlocks the gate.
     """
     network = network or X402_DEFAULT_NETWORK
     asset = asset or X402_DEFAULT_ASSET
@@ -117,23 +192,25 @@ async def verify_batch_payment(
             "total_usd": batch["total_usd"],
         }
 
-    # Replay-hardening: claim the tx atomically before marking paid. A tx that
-    # already backed an individual payment (or another batch) is refused here.
-    if not store._consume_tx(tx_hash, network):
+    # Replay-hardening: claim the tx atomically before marking paid. The claim
+    # namespace is SHARED with the individual verify path, so a tx that already
+    # backed an individual payment (or another batch) is refused here.
+    if not claim_tx(tx_hash, network, CLAIM_BATCH):
         logger.warning(
             "x402_batch_tx_replay_rejected",
             extra={"batch_id": batch_id, "tx_hash": tx_hash},
         )
+        record_replay(network)
         return {
             "verified": False,
             "batch_id": batch_id,
             "reason": "tx_hash already consumed",
+            "code": "tx_already_claimed",
             "total_usd": batch["total_usd"],
         }
 
     # Settle (fix: verify-only batches never collected funds). A failed settle
-    # does not un-verify the batch — the settlement can be retried — but it is
-    # surfaced in the response so the caller knows funds are not yet collected.
+    # un-consumes the claim and leaves ``paid`` False so the caller can retry.
     settlement: dict[str, Any] = {}
     try:
         settlement = await router.settle(
@@ -143,9 +220,37 @@ async def verify_batch_payment(
             asset=asset,
             amount_usd=batch["total_usd"],
         )
-    except Exception as e:  # noqa: BLE001 — fail open on verify, surface settle error
+    except Exception as e:  # noqa: BLE001 — fail closed on paid, surface settle error
         logger.warning("x402_batch_settle_error", extra={"batch_id": batch_id, "error": str(e)})
         settlement = {"success": False, "reason": f"settle error: {e}"}
+
+    settled = bool(settlement.get("success"))
+    record_settle(network, settled, batch["total_usd"], asset)
+    if not settled:
+        # Never grant paid access on a failed settle, and release the claim so
+        # the batch remains retryable with the same tx_hash (do not consume it).
+        release_tx(tx_hash, network)
+        error = str(settlement.get("reason") or settlement.get("error") or "settlement failed")
+        batch["paid"] = False
+        batch["tx_hash"] = tx_hash
+        batch["network"] = network
+        batch["asset"] = asset
+        batch["last_error"] = error
+        batch["settlement"] = settlement
+        batch["settle_attempted_at"] = datetime.now(UTC).isoformat()
+        store._save_batch(batch)
+        logger.warning(
+            "x402_batch_settle_failed_not_paid",
+            extra={"batch_id": batch_id, "tx_hash": tx_hash, "error": error},
+        )
+        return {
+            "verified": True,
+            "batch_id": batch_id,
+            "reason": result.get("reason", ""),
+            "total_usd": batch["total_usd"],
+            "settled": False,
+            "error": error,
+        }
 
     batch["paid"] = True
     batch["tx_hash"] = tx_hash
@@ -154,13 +259,14 @@ async def verify_batch_payment(
     batch["caller_key"] = caller_key or ""
     batch["verified_at"] = datetime.now(UTC).isoformat()
     batch["settlement"] = settlement
+    batch.pop("last_error", None)
     store._save_batch(batch)
     return {
         "verified": True,
         "batch_id": batch_id,
         "reason": result.get("reason", ""),
         "total_usd": batch["total_usd"],
-        "settled": bool(settlement.get("success")),
+        "settled": True,
     }
 
 

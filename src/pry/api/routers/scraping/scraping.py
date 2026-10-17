@@ -125,6 +125,7 @@ async def scrape(request: ScrapeRequest, http_request: Request) -> dict[str, Any
                     "method": result.get("method", "unknown"),
                     "title": result.get("title", ""),
                     "description": result.get("description", ""),
+                    "markdown_quality": result.get("markdown_quality", 0),
                 },
             },
         }

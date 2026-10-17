@@ -246,7 +246,7 @@ async def test_verify_settle_failure_does_not_unverify():
         r2 = await verify_batch_payment(bid, "0xvalid")
         assert r2["verified"] is True
         assert r2["settled"] is False
-    assert is_batch_paid(bid) is True
+    assert is_batch_paid(bid) is False
 
 
 @pytest.mark.asyncio

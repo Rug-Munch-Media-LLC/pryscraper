@@ -139,6 +139,7 @@ def validate_client_amount(
 X402_PRICING: dict[str, dict[str, Any]] = {
     "scrape": {"price_usd": 0.001, "description": "Single URL scrape"},
     "crawl": {"price_usd": 0.01, "description": "Crawl up to 10 pages"},
+    "search": {"price_usd": 0.003, "description": "Web search (up to 20 results)"},
     "extract": {"price_usd": 0.005, "description": "Structured extraction"},
     "monitor": {"price_usd": 0.02, "description": "Create scheduled monitor"},
     "llm_call": {"price_usd": 0.01, "description": "LLM extraction call"},

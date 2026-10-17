@@ -41,3 +41,13 @@ __all__ = [
     "extract_with_chunking",
     "filter_chunks_by_query",
 ]
+
+# Markdown normalization + quality scoring (crawl4ai parity). Re-exported so the
+# stable ``pry.engine.extraction`` import path keeps working.
+from pry.engine.markdown_quality import (
+    finalize_markdown,
+    markdown_quality,
+    normalize_markdown,
+)
+
+__all__ += ["finalize_markdown", "markdown_quality", "normalize_markdown"]
