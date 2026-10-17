@@ -31,9 +31,9 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from pry.api.routers.scraping import scraping as _legacy_scraping
+from pry.core.deps import search_web
 from pry.core.errors import ScrapeError
 from pry.engine.url_guard import safe_get, validate_url_async
-from pry.engine.web_search import search_web
 
 logger = logging.getLogger(__name__)
 
