@@ -155,18 +155,10 @@ async def verify_batch_payment(
     asset: str = "",
     caller_key: str = "",
 ) -> dict[str, Any]:
-    """Verify a batch payment on-chain, settle it, and mark it paid if valid.
+    """Verify, settle, and mark paid — caller-bound and replay-safe.
 
-    Hardening:
-    - ``caller_key`` (IP/payer identity) is bound to the batch at verify time
-      so ``is_batch_paid`` can reject replay from a different caller.
-    - The tx_hash is claimed once in the SHARED claim namespace (Redis SETNX /
-      in-memory set) so a single tx cannot back multiple batch payments or an
-      individual one.
-    - After a successful verify the payment is settled via the facilitator
-      router (verify-only was a security gap: funds were never collected).
-    - ``paid`` is set ONLY when settlement succeeds; a failed settle releases
-      the claim so the batch stays retryable and never unlocks the gate.
+    ``paid`` is set only when settlement succeeds; a failed settle releases the
+    shared tx claim so the batch stays retryable. See batch hardening notes.
     """
     network = network or X402_DEFAULT_NETWORK
     asset = asset or X402_DEFAULT_ASSET
@@ -192,22 +184,9 @@ async def verify_batch_payment(
             "total_usd": batch["total_usd"],
         }
 
-    # Replay-hardening: claim the tx atomically before marking paid. The claim
-    # namespace is SHARED with the individual verify path, so a tx that already
-    # backed an individual payment (or another batch) is refused here.
-    if not claim_tx(tx_hash, network, CLAIM_BATCH):
-        logger.warning(
-            "x402_batch_tx_replay_rejected",
-            extra={"batch_id": batch_id, "tx_hash": tx_hash},
-        )
-        record_replay(network)
-        return {
-            "verified": False,
-            "batch_id": batch_id,
-            "reason": "tx_hash already consumed",
-            "code": "tx_already_claimed",
-            "total_usd": batch["total_usd"],
-        }
+    claimed = _claim_or_reject(tx_hash, network, batch_id, batch["total_usd"])
+    if claimed is not None:
+        return claimed
 
     # Settle (fix: verify-only batches never collected funds). A failed settle
     # un-consumes the claim and leaves ``paid`` False so the caller can retry.
@@ -252,19 +231,48 @@ async def verify_batch_payment(
             "error": error,
         }
 
-    batch["paid"] = True
-    batch["tx_hash"] = tx_hash
-    batch["network"] = network
-    batch["asset"] = asset
-    batch["caller_key"] = caller_key or ""
-    batch["verified_at"] = datetime.now(UTC).isoformat()
-    batch["settlement"] = settlement
+    meta = {"tx_hash": tx_hash, "network": network, "asset": asset, "caller_key": caller_key}
+    return _mark_batch_settled(batch, settlement, meta)
+
+
+def _claim_or_reject(
+    tx_hash: str, network: str, batch_id: str, total_usd: float
+) -> dict[str, Any] | None:
+    """Claim the tx in the shared namespace; return a rejection dict if taken."""
+    if claim_tx(tx_hash, network, CLAIM_BATCH):
+        return None
+    logger.warning(
+        "x402_batch_tx_replay_rejected", extra={"batch_id": batch_id, "tx_hash": tx_hash}
+    )
+    record_replay(network)
+    return {
+        "verified": False,
+        "batch_id": batch_id,
+        "reason": "tx_hash already consumed",
+        "code": "tx_already_claimed",
+        "total_usd": total_usd,
+    }
+
+
+def _mark_batch_settled(
+    batch: dict[str, Any], settlement: dict[str, Any], meta: dict[str, Any]
+) -> dict[str, Any]:
+    """Persist a successful settlement and return the verify response."""
+    batch.update(
+        paid=True,
+        tx_hash=meta.get("tx_hash", ""),
+        network=meta.get("network", ""),
+        asset=meta.get("asset", ""),
+        caller_key=meta.get("caller_key", ""),
+        verified_at=datetime.now(UTC).isoformat(),
+        settlement=settlement,
+    )
     batch.pop("last_error", None)
     store._save_batch(batch)
     return {
         "verified": True,
-        "batch_id": batch_id,
-        "reason": result.get("reason", ""),
+        "batch_id": batch.get("batch_id", ""),
+        "reason": settlement.get("reason", ""),
         "total_usd": batch["total_usd"],
         "settled": True,
     }

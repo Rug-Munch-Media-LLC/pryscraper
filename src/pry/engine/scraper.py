@@ -106,7 +106,6 @@ class PryScraper:
 
         opts = options or {}
 
-        # Use UltimateScraper for the 10-tier fetching
         if self._ultimate is None:
             from pry.engine.ultimate_scraper import UltimateScraper
 
