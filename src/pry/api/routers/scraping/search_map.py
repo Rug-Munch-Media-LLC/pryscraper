@@ -34,9 +34,10 @@ from pydantic import BaseModel, Field
 # ``search_web`` — the app could not be imported at all. Restored the real
 # source of truth; re-export from ``deps.py`` before switching back.
 from pry.api.routers.scraping import scraping as _legacy_scraping
-from pry.core.errors import ScrapeError
+from pry.core.errors import InvalidRequestError, ScrapeError
 from pry.engine.url_guard import safe_get, validate_url_async
 from pry.engine.web_search import search_web
+from pry.engine.web_search_pipeline import search_and_scrape
 
 logger = logging.getLogger(__name__)
 
@@ -52,28 +53,70 @@ _LOC_RE = re.compile(r"<loc>\s*([^<\s]+)\s*</loc>", re.IGNORECASE)
 
 
 class SearchRequest(BaseModel):
-    """Body for ``POST /v1/search``."""
+    """Body for ``POST /v1/search``.
+
+    ``sources`` is Firecrawl's source selector. Only ``"web"`` is implemented;
+    asking for ``news``/``images`` is rejected with 400 rather than silently
+    ignored, so a caller never believes it got a source we do not have.
+    ``scrapeOptions.formats`` may include ``"markdown"`` to return the full
+    scraped markdown of every hit (Firecrawl parity); other formats are
+    ignored because this route does not render them.
+    """
 
     query: str = Field(min_length=1, max_length=500)
     limit: int = Field(default=5, ge=1, le=SEARCH_MAX_LIMIT)
+    sources: list[str] | None = None
+    scrapeOptions: dict[str, Any] | None = None
 
 
 class MapRequest(BaseModel):
-    """Body for ``POST /v1/map``."""
+    """Body for ``POST /v1/map``.
+
+    ``search`` is a case-insensitive substring filter over discovered URLs.
+    ``ignoreSitemap`` skips ``/sitemap.xml`` (Firecrawl-compatible default:
+    read the sitemap). ``sitemapOnly`` disables the crawl fallback.
+    """
 
     url: str = Field(min_length=1, max_length=2048)
     limit: int = Field(default=50, ge=1, le=MAP_MAX_LIMIT)
+    search: str | None = None
+    ignoreSitemap: bool | None = False
+    sitemapOnly: bool | None = False
 
 
-@router.post("/v1/search", summary="Search the web")
+def _wants_markdown(scrape_options: dict[str, Any] | None) -> bool:
+    """True when ``scrapeOptions.formats`` asks for scraped markdown."""
+    formats = (scrape_options or {}).get("formats") or []
+    return any(str(fmt).strip().lower() == "markdown" for fmt in formats)
+
+
+@router.post("/v1/search", summary="Search the web (optionally scraped to markdown)")
 async def search(request: SearchRequest) -> dict[str, Any]:
-    """Search the web and return titles, URLs and descriptions."""
-    payload = await search_web(request.query, request.limit)
+    """Search the web and return titles, URLs and descriptions.
+
+    With ``scrapeOptions: {"formats": ["markdown"]}`` each hit also carries the
+    full page ``markdown`` (scraped through the anti-bot chain), matching
+    Firecrawl's ``/search`` + ``scrapeOptions`` contract. Plain search does not
+    scrape, so it stays fast.
+    """
+    unsupported = sorted({s for s in (request.sources or []) if s != "web"})
+    if unsupported:
+        raise InvalidRequestError(f"Unsupported source(s): {', '.join(unsupported)}; only 'web'")
+
+    if _wants_markdown(request.scrapeOptions):
+        payload = await search_and_scrape(request.query, request.limit, scrape=True)
+    else:
+        payload = await search_web(request.query, request.limit)
     results = [
         {
             "url": item.get("url", ""),
             "title": item.get("title", ""),
             "description": item.get("snippet", ""),
+            **(
+                {"markdown": item.get("markdown", "")}
+                if _wants_markdown(request.scrapeOptions)
+                else {}
+            ),
         }
         for item in payload.get("results", [])[: request.limit]
         if item.get("url")
@@ -130,17 +173,23 @@ async def map_site(request: MapRequest) -> dict[str, Any]:
     clients must read ``links[].url`` and ``count``.
     """
     url = await validate_url_async(request.url)
-    headers = {"User-Agent": _USER_AGENT, "Accept": "application/xml,text/html,*/*"}
-    async with httpx.AsyncClient(
-        timeout=httpx.Timeout(_SITEMAP_TIMEOUT_S + 5.0),
-        follow_redirects=False,
-        headers=headers,
-    ) as client:
-        links = _same_origin(url, await _sitemap_links(client, url))
+    links: list[str] = []
 
-    if not links:
-        # One request to the origin already happened; wait before the next.
-        await asyncio.sleep(_POLITENESS_DELAY_S)
+    # 1) Sitemap first unless the caller asks to ignore it (Firecrawl default).
+    if not request.ignoreSitemap:
+        headers = {"User-Agent": _USER_AGENT, "Accept": "application/xml,text/html,*/*"}
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(_SITEMAP_TIMEOUT_S + 5.0),
+            follow_redirects=False,
+            headers=headers,
+        ) as client:
+            links = _same_origin(url, await _sitemap_links(client, url))
+
+    # 2) Fall back to crawling the page — unless sitemapOnly was requested.
+    if not links and not request.sitemapOnly:
+        if not request.ignoreSitemap:
+            # One request to the origin already happened; wait before the next.
+            await asyncio.sleep(_POLITENESS_DELAY_S)
         try:
             # Resolved through the scraping router module on purpose: it is the
             # single existing scraper binding (and the seam tests patch).
@@ -149,6 +198,10 @@ async def map_site(request: MapRequest) -> dict[str, Any]:
             raise ScrapeError(str(exc)) from exc
         links = _same_origin(url, found)
 
+    # 3) Optional substring filter, then the requested limit.
+    needle = (request.search or "").strip().lower()
+    if needle:
+        links = [link for link in links if needle in link.lower()]
     links = links[: request.limit]
     return {
         # Canonical contract — stable.

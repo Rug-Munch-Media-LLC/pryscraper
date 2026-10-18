@@ -15,10 +15,11 @@ import copy
 import logging
 import random
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 from fastapi import APIRouter, Body, HTTPException, Request
+from lxml import html as lxml_html
 
 from pry.api.client import get_client
 from pry.api.routers.scraping.scraping_models import CrawlRequest, MapRequest, ScrapeRequest
@@ -65,6 +66,86 @@ def _deny_if_blocked(http_request: Request, operation: str, url: str) -> None:
         raise HTTPException(status_code=451, detail="Domain blocked for compliance reasons")
 
 
+# ── Response formats (Firecrawl-compatible subset) ──────────────────────
+# Supported: markdown (always returned for backwards compatibility), html,
+# rawHtml, links, images. Anything else in ``formats`` is ignored — we never
+# invent a capability (screenshot/audio/video/branding are not implemented).
+_FORMATS = frozenset({"markdown", "html", "rawHtml", "links", "images"})
+_FORMAT_ALIASES = {"rawhtml": "rawHtml", "raw_html": "rawHtml", "raw-html": "rawHtml"}
+_LINK_CAP = 1000
+
+
+def _requested_formats(formats: list[str] | None) -> set[str]:
+    """Normalise ``formats``; unknown values are dropped, markdown always on."""
+    requested = {"markdown"}
+    for raw in formats or []:
+        name = _FORMAT_ALIASES.get(str(raw).strip().lower(), str(raw).strip())
+        if name in _FORMATS:
+            requested.add(name)
+    return requested
+
+
+def _absolutise(values: list[str], base: str, *, allow_data: bool = False) -> list[str]:
+    """Resolve, de-duplicate and cap a list of URL attributes."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for value in values:
+        candidate = urljoin(base, value.strip())
+        if allow_data and candidate.startswith("data:"):
+            pass
+        elif not candidate.startswith(("http://", "https://")):
+            continue
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        out.append(candidate)
+        if len(out) >= _LINK_CAP:
+            break
+    return out
+
+
+def _cleaned_html(raw_html: str) -> str:
+    """Readability-cleaned article HTML, falling back to the page source."""
+    if not raw_html:
+        return ""
+    try:
+        from readability import Document
+
+        summary = Document(raw_html).summary()
+        if summary:
+            return summary
+    except Exception:
+        logger.debug("readability_failed", exc_info=True)
+    return raw_html
+
+
+def _format_extras(requested: set[str], raw_html: str, base: str) -> dict[str, Any]:
+    """Build the optional response keys for the requested formats.
+
+    Parses the HTML at most once; a parse failure degrades to the raw source
+    for ``html`` and empty lists for ``links``/``images`` — it never fails the
+    scrape that already succeeded.
+    """
+    extras: dict[str, Any] = {}
+    if "rawHtml" in requested:
+        extras["rawHtml"] = raw_html
+    tree = None
+    if raw_html and requested & {"html", "links", "images"}:
+        try:
+            tree = lxml_html.fromstring(raw_html)
+        except (ValueError, TypeError):
+            tree = None
+    if "html" in requested:
+        extras["html"] = _cleaned_html(raw_html)
+    if "links" in requested:
+        hrefs = tree.xpath("//a/@href") if tree is not None else []
+        extras["links"] = _absolutise(hrefs, base)
+    if "images" in requested:
+        srcs = tree.xpath("//img/@src") if tree is not None else []
+        extras["images"] = _absolutise(srcs, base, allow_data=True)
+    return extras
+
+
 async def _run_crawl_job(job_id: str, request: CrawlRequest) -> None:
     try:
         pages = await scraper.crawl(
@@ -86,7 +167,14 @@ def _log_crawl_job_failure(task: asyncio.Task[Any]) -> None:
 async def scrape(request: ScrapeRequest, http_request: Request) -> dict[str, Any]:
     """Scrape a URL. Auto-bypasses Cloudflare. Returns markdown or JSON."""
     _deny_if_blocked(http_request, "scrape", request.url)
-    cache_opts = {"bypass_cloudflare": request.bypassCloudflare, "js_render": request.jsRender}
+    requested = _requested_formats(request.formats)
+    # ``formats`` is part of the cache identity: a markdown-only entry must not
+    # be served to a caller that asked for html/links/rawHtml.
+    cache_opts = {
+        "bypass_cloudflare": request.bypassCloudflare,
+        "js_render": request.jsRender,
+        "formats": ",".join(sorted(requested)),
+    }
     cached = cache.get(request.url, cache_opts)
     if cached:
         out = copy.deepcopy(cached)
@@ -116,19 +204,19 @@ async def scrape(request: ScrapeRequest, http_request: Request) -> dict[str, Any
                 tiers_failed=result.get("tiers_failed"),
             )
         content = result.get("content", "")
-        response: dict[str, Any] = {
-            "success": True,
-            "data": {
-                "markdown": content,
-                "metadata": {
-                    "url": request.url,
-                    "method": result.get("method", "unknown"),
-                    "title": result.get("title", ""),
-                    "description": result.get("description", ""),
-                    "markdown_quality": result.get("markdown_quality", 0),
-                },
+        data: dict[str, Any] = {
+            "markdown": content,
+            "metadata": {
+                "url": request.url,
+                "method": result.get("method", "unknown"),
+                "title": result.get("title", ""),
+                "description": result.get("description", ""),
+                "markdown_quality": result.get("markdown_quality", 0),
+                "formats": sorted(requested),
             },
         }
+        data.update(_format_extras(requested, result.get("raw_html", ""), request.url))
+        response: dict[str, Any] = {"success": True, "data": data}
         if request.jsonSchema:
             response["data"]["json"] = await extractor.extract(content, request.jsonSchema)
         cache.set(request.url, response, cache_opts)

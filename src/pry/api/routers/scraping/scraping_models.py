@@ -67,6 +67,12 @@ class CrawlRequest(BaseModel):
 
 class MapRequest(BaseModel):
     url: str
+    # Case-insensitive substring filter over discovered URLs (Firecrawl: `search`).
     search: str | None = None
-    ignoreSitemap: bool | None = True
+    # Firecrawl-compatible default: consult /sitemap.xml first. The old default
+    # (True) was never implemented — the handler always read the sitemap — so
+    # this default matches the behaviour clients already observed.
+    ignoreSitemap: bool | None = False
+    # Discover from the sitemap only; never fall back to crawling the page.
+    sitemapOnly: bool | None = False
     limit: int | None = 50
