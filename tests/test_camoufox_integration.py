@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from pry.engine import camoufox_integration
+from pry.engine import camoufox_integration, camoufox_pool
 from pry.engine.camoufox_integration import CamoufoxBrowser
 
 # ── Profile catalog / launch-arg construction ───────────────────
@@ -27,13 +27,14 @@ from pry.engine.camoufox_integration import CamoufoxBrowser
 
 @pytest.fixture(autouse=True)
 def _reset_camoufox_pool() -> None:
-    """Reset the module-level pooled Camoufox browser between tests.
+    """Reset the process-level pooled Camoufox browser between tests.
 
-    The pool is a lazy singleton; without a reset a mocked browser cached by
-    one test would leak into the next and break isolation.
+    The pool is a lazy singleton owned by ``camoufox_pool`` (the integration
+    module only re-exports ``close_browsers``); without a reset a mocked
+    browser cached by one test leaks into the next and breaks isolation.
     """
-    camoufox_integration._pooled_camoufox = None
-    camoufox_integration._pooled_camoufox_config = None
+    camoufox_pool._pooled_camoufox = None
+    camoufox_pool._pooled_camoufox_config = None
 
 
 def test_default_configs_launch_args_shape() -> None:

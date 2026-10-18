@@ -156,6 +156,10 @@ class FakePage:
     def on(self, event: str, handler: Any) -> None:
         self.handlers[event] = handler
 
+    def route(self, *args: Any, **kwargs: Any) -> None:
+        """Record the SSRF route-guard registration (sync in Playwright)."""
+        self.routes = getattr(self, "routes", []) + [args]
+
     async def goto(self, url: str, **kwargs: Any) -> None:
         self.goto_url = url
         handler = self.handlers.get("response")
@@ -286,9 +290,10 @@ async def test_session_warmup_then_cookie_reuse() -> None:
     expected = {"ok": True}
     assert resp.json() == expected
     assert session.is_warmed
-    # Warm-up hit the homepage first.
+    # Warm-up hit the homepage first. The validated IP is the CONNECT target
+    # (DNS-rebinding pinning); the logical host survives in Host/SNI.
     assert seen[0].url.scheme == "https"
-    assert seen[0].url.host == "example.com"
+    assert seen[0].headers["host"] == "example.com"
     assert seen[0].url.path == "/"
     # Cookie collected during warm-up was sent on the API request.
     assert "sid=abc123" in (seen[-1].headers.get("cookie") or "")
