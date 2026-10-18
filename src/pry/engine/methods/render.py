@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from pry.core.chromium import CHROMIUM_CHANNEL
 from pry.core.errors import InvalidRequestError
 from pry.engine.methods import _common
 from pry.engine.methods._common import _DEFAULT_USER_AGENT, logger
@@ -42,7 +43,9 @@ async def _render_with_playwright(
     spec = RenderSpec(url, wait_ms, selector, collect_json, networkidle=True)
     try:
         async with _common.async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=True, args=_CHROMIUM_ARGS)
+            browser = await pw.chromium.launch(
+                headless=True, channel=CHROMIUM_CHANNEL, args=_CHROMIUM_ARGS
+            )
             async with closing_browser(browser):
                 context_kwargs: dict[str, Any] = {
                     "user_agent": _DEFAULT_USER_AGENT,

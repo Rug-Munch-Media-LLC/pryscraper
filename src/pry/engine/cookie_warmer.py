@@ -20,6 +20,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from pry.core.chromium import CHROMIUM_CHANNEL
 from pry.core.paths import PRY_DATA_DIR
 from pry.engine.route_guard import install_route_guard
 
@@ -102,7 +103,9 @@ class CookieWarmer:
 
         try:
             async with async_playwright() as pw:
-                browser = await pw.chromium.launch(headless=True, args=["--no-sandbox"])
+                browser = await pw.chromium.launch(
+                    headless=True, channel=CHROMIUM_CHANNEL, args=["--no-sandbox"]
+                )
                 try:
                     context = await browser.new_context(
                         viewport={"width": 1920, "height": 1080},

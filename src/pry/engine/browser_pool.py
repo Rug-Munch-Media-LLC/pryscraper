@@ -26,7 +26,10 @@ import contextlib
 import importlib.util
 import logging
 import threading
+from pathlib import Path
 from typing import Any
+
+from pry.core.chromium import CHROMIUM_CHANNEL
 
 _has_playwright = importlib.util.find_spec("playwright") is not None
 
@@ -35,6 +38,24 @@ if _has_playwright:
     from playwright.async_api import async_playwright
 
 logger = logging.getLogger(__name__)
+
+# The image ships Playwright's Chromium only (no distro ``chromium`` package).
+# undetected-chromedriver still needs a concrete binary, so point it at the
+# Playwright build instead of a hard-coded /usr/bin/chromium that no longer
+# exists. A distro path still wins when present (local/dev images).
+_PLAYWRIGHT_CHROMIUM = tuple(
+    str(p)
+    for pattern in ("chromium-*/chrome-linux64/chrome", "chromium-*/chrome-linux/chrome")
+    for p in sorted(Path("/ms-playwright").glob(pattern), reverse=True)
+)
+
+
+def _chromium_binary() -> str | None:
+    """Return the first usable Chromium executable, or None."""
+    for candidate in ("/usr/bin/chromium", "/usr/bin/chromium-browser", *_PLAYWRIGHT_CHROMIUM):
+        if Path(candidate).is_file():
+            return candidate
+    return None
 
 
 class BrowserPool:
@@ -68,6 +89,7 @@ class BrowserPool:
                         self._playwright = await async_playwright().start()
                         self._playwright_browser = await self._playwright.chromium.launch(
                             headless=True,
+                            channel=CHROMIUM_CHANNEL,
                             args=[
                                 "--disable-blink-features=AutomationControlled",
                                 "--no-sandbox",
@@ -103,7 +125,10 @@ class BrowserPool:
                 # Container-safe flags: /dev/shm is small unless shm_size is
                 # raised (chromium needs --disable-dev-shm-usage) and the
                 # sandbox is unavailable in most container runtimes.
+                binary = _chromium_binary()
                 opts = Options()
+                if binary is not None:
+                    opts.binary_location = binary
                 opts.add_argument("--no-sandbox")
                 opts.add_argument("--disable-dev-shm-usage")
                 opts.add_argument("--disable-gpu")
@@ -113,8 +138,8 @@ class BrowserPool:
                 # with SessionNotCreated when the system chromium lags.
                 version_main: int | None = None
                 try:
-                    out = subprocess.run(
-                        ["/usr/bin/chromium", "--version"],
+                    out = subprocess.run(  # noqa: S603 - operator-owned path
+                        [binary or _chromium_binary() or "", "--version"],
                         capture_output=True,
                         text=True,
                         timeout=10,

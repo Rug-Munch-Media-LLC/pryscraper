@@ -19,6 +19,7 @@ import re
 from typing import Any
 from urllib.parse import quote_plus
 
+from pry.core.chromium import CHROMIUM_CHANNEL
 from pry.engine.altcha import solve_altcha
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,7 @@ async def search_mojeek(query: str, num_results: int) -> list[dict[str, Any]]:
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(
                 headless=True,
+                channel=CHROMIUM_CHANNEL,
                 args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
             )
             try:

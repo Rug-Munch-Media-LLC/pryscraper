@@ -25,6 +25,7 @@ import os
 import urllib.parse
 from typing import Any
 
+from pry.core.chromium import CHROMIUM_CHANNEL
 from pry.engine.route_guard import install_route_guard
 
 logger = logging.getLogger(__name__)
@@ -109,7 +110,7 @@ class AIVisualScraper:
 
         try:
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
+                browser = await p.chromium.launch(headless=True, channel=CHROMIUM_CHANNEL)
                 # ``browser.new_viewport_size`` is not a Playwright API; the
                 # viewport is a page/context option.
                 page = await browser.new_page(viewport=viewport)

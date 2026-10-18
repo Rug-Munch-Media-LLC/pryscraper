@@ -23,6 +23,8 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
+from pry.core.chromium import CHROMIUM_CHANNEL
+
 logger = logging.getLogger(__name__)
 
 SESSIONS_DIR = "/app/sessions"
@@ -89,7 +91,7 @@ class PryAutomator:
                 return session
 
             pw = await self._ensure_playwright()
-            browser = await pw.chromium.launch(headless=headless)
+            browser = await pw.chromium.launch(headless=headless, channel=CHROMIUM_CHANNEL)
             context = await browser.new_context(
                 viewport=viewport or {"width": 1280, "height": 720},
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
