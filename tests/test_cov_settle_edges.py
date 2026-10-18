@@ -18,7 +18,8 @@ async def test_none_receipt_skips_extension_header() -> None:
 
     out = await host.settle_payment("pay_1", "0x2", network="base")
 
-    assert out is None
+    # A mute facilitator fails CLOSED: the caller sees an explicit failure.
+    assert out == {"success": False, "reason": "empty settlement response"}
     assert host.records[0]["payment_id"] == "pay_1"
     assert host._settled_txs == {}
 

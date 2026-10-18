@@ -7,7 +7,7 @@
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
+from fastapi.testclient import TestClient  # noqa: TC002
 
 from tests.api_integration_support import (  # noqa: F401 — fixtures for this module
     _mock_all_deps,
@@ -41,16 +41,19 @@ class TestCORS:
     def test_cors_headers_present(self, client: TestClient) -> None:
         # Preflight must NOT be gated by auth or the x402 paywall: browsers send
         # OPTIONS before the real request and expect a 200 with allow headers.
+        # CORS is locked to first-party origins (no wildcard) — use one that
+        # the production allow-list actually accepts.
+        origin = "https://app.pryscraper.com"
         resp = client.options(
             "/v1/scrape",
             headers={
-                "Origin": "https://app.example.test",
+                "Origin": origin,
                 "Access-Control-Request-Method": "POST",
             },
         )
         assert resp.status_code == 200
         headers = resp.headers
-        assert headers.get("access-control-allow-origin") == "https://app.example.test"
+        assert headers.get("access-control-allow-origin") == origin
         assert "POST" in headers.get("access-control-allow-methods", "")
 
     def test_cors_disallowed_origin_rejected(self, client: TestClient) -> None:

@@ -124,6 +124,10 @@ class _FakeHandler:
         self.settle_kwargs = {"payment_id": payment_id, "tx_hash": tx_hash, **kwargs}
         return self._settlement
 
+    def batch_settlement_status(self, batch_id: str) -> dict[str, Any]:
+        """Per-item proof; default declines so batch tests opt in explicitly."""
+        return getattr(self, "_batch_status", {"all_settled": False, "settled": []})
+
     def is_paid(self, payment_id, **kwargs):
         return self._paid
 

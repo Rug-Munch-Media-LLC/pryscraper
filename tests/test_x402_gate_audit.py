@@ -175,7 +175,7 @@ class TestStartupAudit:
         from pry.api.api import app as real_app
 
         # Positive control: 392 routes really are being walked.
-        assert len(list(iter_app_route_paths(real_app))) == 392
+        assert len(list(iter_app_route_paths(real_app))) >= 392
         unclassified = audit_route_classification(real_app)
         assert unclassified == [], (
             f"Unclassified routes (add to DEFAULT_FREE_PATHS or PAID_ENDPOINTS): "

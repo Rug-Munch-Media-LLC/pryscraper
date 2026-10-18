@@ -189,7 +189,7 @@
 	{
 		"name": "pry-sanctions-screener",
 		"title": "Pry Sanctions Screener",
-		"description": "Scrape screening pages only. No OFAC/EU watchlist snapshot is bundled; every item is marked status=unavailable.",
+		"description": "Scrape sanctions screening pages for entity matches only. No OFAC/EU watchlist snapshot is bundled; every item is marked status=unavailable.",
 		"version": "1.1",
 		"category": "SCRAPER",
 		"inputs": [

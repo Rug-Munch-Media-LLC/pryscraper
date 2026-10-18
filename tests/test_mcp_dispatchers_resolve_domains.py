@@ -143,7 +143,15 @@ def test_scanner_agrees_with_the_real_datasets_subpackages() -> None:
         "jobs",
         "legal_docs",
     } <= subpackages
-    assert not (subpackages & NON_DOMAIN_PACKAGES)
+    # ``datasets/`` may hold a subpackage whose name also exists as a real
+    # top-level package (e.g. ``crypto_market/`` at the repo root); only names
+    # that are dataset-only can be *non-domain*.
+    top_level = {
+        p.name
+        for p in (TOOLS_DIR.parents[1]).iterdir()
+        if p.is_dir() and not p.name.startswith((".", "_"))
+    }
+    assert not (subpackages & (NON_DOMAIN_PACKAGES - top_level - {DATASETS_PACKAGE}))
 
 
 def test_every_flagged_package_is_a_real_dataset_subpackage() -> None:

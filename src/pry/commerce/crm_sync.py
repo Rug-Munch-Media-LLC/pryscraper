@@ -39,6 +39,8 @@ async def sync_to_salesforce(
         return {
             "success": False,
             "created": 0,
+            "synced": 0,
+            "failed": len(objects),
             "results": [],
             "error": f"instance_url rejected: {exc}",
         }

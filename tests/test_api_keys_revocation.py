@@ -141,7 +141,15 @@ def test_remote_admin_requires_admin_role(tmp_path, monkeypatch):
     models.Base.metadata.create_all(engine)
 
     # Non-loopback client with NO key → 403
-    req = type("R", (), {"client": type("C", (), {"host": "10.1.2.3"})(), "headers": {}})()
+    req = type(
+        "R",
+        (),
+        {
+            "client": type("C", (), {"host": "10.1.2.3"})(),
+            "headers": {},
+            "scope": {"type": "http", "client": ("10.1.2.3", 1234), "headers": []},
+        },
+    )()
     with pytest.raises(HTTPException) as exc:
         _check_admin_access(req)  # type: ignore[arg-type]
     assert exc.value.status_code == 403
@@ -159,6 +167,7 @@ def test_remote_admin_requires_admin_role(tmp_path, monkeypatch):
         def __init__(self) -> None:
             self.client = type("C", (), {"host": "10.1.2.3"})()
             self.headers = {"authorization": f"Bearer {key}"}
+            self.scope = {"type": "http", "client": ("10.1.2.3", 1234), "headers": []}
 
     with pytest.raises(HTTPException) as exc2:
         _check_admin_access(_Req())

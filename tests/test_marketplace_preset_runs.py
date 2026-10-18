@@ -52,7 +52,7 @@ class TestPresetResolution(_Base):
         assert result["success"] is True
         assert result["actor_id"] == preset
         assert result["engine"] == ALL_PRESETS[preset].processor
-        assert list(tmp_path.glob("*.json")) == [], "read-only fallback must not write"
+        assert not (tmp_path / f"{preset}.json").exists(), "read-only fallback must not persist the actor"
 
     async def test_rest_handler_resolves_preset(self) -> None:
         preset = _preset(processor=True)

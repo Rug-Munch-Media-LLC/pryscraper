@@ -141,6 +141,13 @@ class TestPreverifiedBatch:
                 "expires_at": (datetime.now(UTC) + timedelta(seconds=600)).isoformat(),
             }
         )
+        self._batch_status["settled"] = list(operations)
+
+    @pytest.fixture(autouse=True)
+    def _settled_stub(self, mw):
+        """Every seeded batch reports its operations as settled."""
+        mw.handler._batch_status = {"all_settled": True, "settled": [], "unsettled": []}
+        self._batch_status = mw.handler._batch_status
 
     @pytest.fixture(autouse=True)
     def _clear(self):

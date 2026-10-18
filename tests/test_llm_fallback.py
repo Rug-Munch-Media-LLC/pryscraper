@@ -89,6 +89,12 @@ async def test_seo_llm_enhancement_fills_empty_critical_fields():
         }
     )
 
+    mock_resp = MagicMock()
+    mock_resp.is_success = True
+    mock_resp.text = "<html><body><h1>placeholder</h1></body></html>"
+    mock_resp.status_code = 200
+    mock_resp.headers = {"content-type": "text/html", "last-modified": ""}
+
     # Patch the regex helpers to return empty
     with (
         patch("pry.actors.seo_monitor._get_title", return_value=""),
@@ -102,16 +108,9 @@ async def test_seo_llm_enhancement_fills_empty_critical_fields():
         patch("pry.actors.seo_monitor._count_links", return_value=0),
         patch("pry.api.llm_features.llm_seo_analyze", fake_llm),
         patch("pry.api.client.get_client") as mock_get_client,
+        patch("pry.actors.seo_monitor.guard_get", AsyncMock(return_value=mock_resp)),
     ):
-        # Mock the HTTP client to return a fake HTML response
-        mock_resp = MagicMock()
-        mock_resp.is_success = True
-        mock_resp.text = "<html><body><h1>placeholder</h1></body></html>"
-        mock_resp.status_code = 200
-        mock_resp.headers = {"content-type": "text/html", "last-modified": ""}
-        mock_client = MagicMock()
-        mock_client.get = AsyncMock(return_value=mock_resp)
-        mock_get_client.return_value = mock_client
+        mock_get_client.return_value = MagicMock()
 
         result = await analyze_seo("https://example.com/")
 

@@ -12,6 +12,7 @@ handling. Uses a temp SQLite DB so the user's real data dir is never touched.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -55,17 +56,29 @@ def test_domain_method_stats_up_and_down_round_trip(temp_data_dir, monkeypatch):
     from alembic import command
 
     monkeypatch.chdir(REPO_ROOT)
-    db.run_migrations()
-    assert "domain_method_stats" in set(inspect(db.get_engine()).get_table_names())
-
-    cfg = Config(str(REPO_ROOT / "alembic.ini"))
-    cfg.set_main_option("script_location", str(REPO_ROOT / "alembic"))
-    cfg.set_main_option("sqlalchemy.url", db.get_engine().url.render_as_string(hide_password=False))
-    command.downgrade(cfg, "0007")  # 0009 is now head; -1 would only reach 0008
-    assert "domain_method_stats" not in set(inspect(db.get_engine()).get_table_names())
-
-    command.upgrade(cfg, "head")
-    assert "domain_method_stats" in set(inspect(db.get_engine()).get_table_names())
+    # A scratch DB is safe to downgrade across the destructive-change guards;
+    # the guards themselves are covered by their own tests.
+    guards = {"PRY_ALLOW_BILLING_DOWNGRADE": "1", "PRY_ALLOW_LOSSY_DOWNGRADE": "1"}
+    previous = {key: os.environ.get(key) for key in guards}
+    os.environ.update(guards)
+    try:
+        db.run_migrations()
+        assert "domain_method_stats" in set(inspect(db.get_engine()).get_table_names())
+        cfg = Config(str(REPO_ROOT / "alembic.ini"))
+        cfg.set_main_option("script_location", str(REPO_ROOT / "alembic"))
+        cfg.set_main_option(
+            "sqlalchemy.url", db.get_engine().url.render_as_string(hide_password=False)
+        )
+        command.downgrade(cfg, "0007")  # 0009 is now head; -1 would only reach 0008
+        assert "domain_method_stats" not in set(inspect(db.get_engine()).get_table_names())
+        command.upgrade(cfg, "head")
+        assert "domain_method_stats" in set(inspect(db.get_engine()).get_table_names())
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
 def test_run_migrations_is_idempotent(temp_data_dir, monkeypatch):
