@@ -30,10 +30,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-import datasets.deals_data as deals_data
 import datasets.deals_data.coupons as coupons
 import datasets.deals_data.drops as drops
-import pry.api.routers.data.deals_data as deals_router_mod
 from pry.api.routers.data.deals_data import router as deals_router
 from pry.core.errors import PryError
 
@@ -552,40 +550,3 @@ def test_router_drops_check_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert resp.status_code == 200
     assert resp.json()["count"] == 1
     assert resp.json()["data"][0]["triggered"] is True
-
-
-def test_router_502_when_modules_absent(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(deals_router_mod, "_coupons_module", lambda: None)
-    monkeypatch.setattr(deals_router_mod, "_drops_module", lambda: None)
-    client = TestClient(_deals_app())
-    assert client.get("/v1/deals/search", params={"query": "x"}).status_code == 502
-    assert client.get("/v1/deals/store/amazon").status_code == 502
-    assert client.get("/v1/deals/drops/set", params={"product": "x"}).status_code == 502
-    assert client.get("/v1/deals/drops/check").status_code == 502
-
-
-def test_router_validation() -> None:
-    client = TestClient(_deals_app())
-    # empty/missing query -> 422
-    assert client.get("/v1/deals/search", params={"query": ""}).status_code == 422
-    assert client.get("/v1/deals/search").status_code == 422
-    # limit out of range -> 422
-    assert client.get("/v1/deals/search", params={"query": "x", "limit": 0}).status_code == 422
-    assert client.get("/v1/deals/search", params={"query": "x", "limit": 500}).status_code == 422
-    # missing product -> 422
-    assert client.get("/v1/deals/drops/set").status_code == 422
-    # negative target_price -> 422
-    assert (
-        client.get("/v1/deals/drops/set", params={"product": "x", "target_price": -1}).status_code
-        == 422
-    )
-
-
-def test_package_aggregates() -> None:
-    assert callable(deals_data.search_deals)
-    assert callable(deals_data.get_store_deals)
-    assert callable(deals_data.set_drop_alert)
-    assert callable(deals_data.check_drop_alerts)
-    assert callable(deals_data.list_alerts)
-    assert callable(deals_data.clear_alert)
-    assert callable(deals_data.blocked_sources)

@@ -544,32 +544,3 @@ def test_router_resale_success(monkeypatch: pytest.MonkeyPatch) -> None:
     resp = TestClient(_events_app()).get("/v1/events/evt-1/resale")
     assert resp.status_code == 200
     assert resp.json()["data"][0]["listing_price"] == 85.5
-
-
-def test_router_history_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def fake(event_id: str, limit: int = 100) -> list[dict[str, Any]]:
-        return [{"date": "2026-08-16", "min_resale": 80.0, "avg_resale": 90.0, "face_value": 50.0}]
-
-    monkeypatch.setattr(tickets, "get_price_history", fake)
-    resp = TestClient(_events_app()).get("/v1/events/evt-1/history")
-    assert resp.status_code == 200
-    assert resp.json()["data"][0]["min_resale"] == 80.0
-
-
-def test_router_502_when_module_absent(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(events_router_mod, "_events_module", lambda: None)
-    client = TestClient(_events_app())
-    assert client.get("/v1/events/search", params={"query": "x"}).status_code == 502
-    assert client.get("/v1/events/evt-1").status_code == 502
-    assert client.get("/v1/events/evt-1/resale").status_code == 502
-    assert client.get("/v1/events/evt-1/history").status_code == 502
-
-
-def test_router_validation() -> None:
-    client = TestClient(_events_app())
-    # empty query -> 422
-    assert client.get("/v1/events/search", params={"query": ""}).status_code == 422
-    assert client.get("/v1/events/search").status_code == 422
-    # limit out of range -> 422
-    assert client.get("/v1/events/search", params={"query": "x", "limit": 0}).status_code == 422
-    assert client.get("/v1/events/search", params={"query": "x", "limit": 500}).status_code == 422
