@@ -36,7 +36,7 @@
             "match_sensitivity": {
                 "title": "Match sensitivity",
                 "type": "string",
-                "description": "Fuzzy-match strictness for name screening.",
+                "description": "Retained for compatibility; no watchlist data is bundled so matching is unavailable.",
                 "sectionCaption": "Screening settings",
                 "editor": "select",
                 "default": "fuzzy",

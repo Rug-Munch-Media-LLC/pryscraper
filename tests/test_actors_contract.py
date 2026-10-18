@@ -28,14 +28,7 @@ GENERIC_ACTORS = {"pry-universal-scraper"}
 
 # Known gap ratchet: specialised actors generated with processor=None.
 # MUST only ever shrink - never add a name to make CI green.
-KNOWN_UNIMPLEMENTED = {
-    "pry-screenshot-capture",
-    "pry-site-crawler",
-    "pry-document-parser",
-    "pry-ssl-cert-monitor",
-    "pry-token-safety-scanner",
-    "pry-sanctions-screener",
-}
+KNOWN_UNIMPLEMENTED: set[str] = set()
 
 BASE_KEYS = {"url", "status", "method", "scraped_at", "error", "content", "metadata"}
 
@@ -169,3 +162,46 @@ def test_no_new_unimplemented_processors(actor: Path) -> None:
         f"{actor.name} claims a capability but has no processor; "
         "implement one or add it to GENERIC_ACTORS with justification"
     )
+
+
+@pytest.mark.parametrize("actor", ACTORS, ids=[a.name for a in ACTORS])
+def test_generic_actors_declare_explicit_limitations(actor: Path) -> None:
+    """A processor-less actor may only ship if its README is explicit.
+
+    The generic runner cannot honour a specialised promise, so those actors
+    must state their limits in a ``## Limitations`` section with real bullets
+    rather than inheriting generic copy.
+    """
+    if _processor_name(actor) is not None:
+        return
+    readme = (actor / ".actor" / "README.md").read_text()
+    assert "## Limitations" in readme, f"{actor.name}: no Limitations section"
+    section = readme.split("## Limitations", 1)[1].split("\n## ", 1)[0]
+    bullets = [ln for ln in section.splitlines() if ln.strip().startswith("- ")]
+    assert len(bullets) >= 2, (
+        f"{actor.name}: generic actor must declare explicit limitations "
+        "(at least two concrete bullets)"
+    )
+
+
+def test_unimplementable_capabilities_return_explicit_unavailable() -> None:
+    """Token risk and sanctions actors must never fabricate a verdict."""
+    from actor_factory.processors_web import process_sanctions, process_tokensafety
+
+    token = process_tokensafety("https://etherscan.io", {"status": "ok"}, {}, {})
+    sanctions = process_sanctions("https://sanctionssearch.ofac.treas.gov", {"status": "ok"}, {}, {})
+    assert token["status"] == "unavailable"
+    assert token["unavailable"] == "token_risk_feed_not_configured"
+    assert token["signals"] == []
+    assert sanctions["status"] == "unavailable"
+    assert sanctions["unavailable"] == "sanctions_data_not_bundled"
+    assert sanctions["matches"] == []
+
+
+def test_ssl_probe_reports_failure_not_a_fake_certificate() -> None:
+    from actor_factory.processors_web import process_sslcert
+
+    item = process_sslcert("https://nonexistent.invalid", {"status": "ok"}, {"warn_days": 7}, {})
+    assert item["status"] == "error"
+    assert item["certificate"] == {}
+    assert item["error"].startswith("tls_error:")

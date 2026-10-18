@@ -30,6 +30,30 @@
             "metadata": {
                 "type": "object",
                 "title": "Metadata"
+            },
+            "document_type": {
+                "type": "string",
+                "title": "Document type"
+            },
+            "page_count": {
+                "type": "integer",
+                "title": "PDF page count"
+            },
+            "document_text": {
+                "type": "string",
+                "title": "Extracted text"
+            },
+            "parser_method": {
+                "type": "string",
+                "title": "Parser used"
+            },
+            "ocr_used": {
+                "type": "boolean",
+                "title": "OCR used"
+            },
+            "document": {
+                "type": "object",
+                "title": "Parsed document"
             }
         }
     },

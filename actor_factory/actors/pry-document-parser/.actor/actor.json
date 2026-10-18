@@ -36,7 +36,7 @@
             "ocr_fallback": {
                 "title": "OCR fallback",
                 "type": "boolean",
-                "description": "Use Tesseract for scanned documents.",
+                "description": "Accepted for schema compatibility; this build performs PDF text extraction only (no OCR).",
                 "editor": "checkbox",
                 "default": true,
                 "example": true

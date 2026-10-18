@@ -35,7 +35,11 @@
 				"prefill": null,
 				"default": "markdown",
 				"required": false,
-				"enum": ["markdown", "text", "html"],
+				"enum": [
+					"markdown",
+					"text",
+					"html"
+				],
 				"enum_titles": null,
 				"minimum": null,
 				"maximum": null,
@@ -76,7 +80,7 @@
 	{
 		"name": "pry-site-crawler",
 		"title": "Pry Site Crawler",
-		"description": "Crawl entire sites into LLM-ready markdown. Follows same-domain links with runaway caps and per-domain adaptive bypass memory.",
+		"description": "Expand seed URLs into same-domain pages (max_depth/max_pages) and return one item per page with its depth and discovered links.",
 		"version": "1.1",
 		"category": "SCRAPER",
 		"inputs": [
@@ -125,7 +129,11 @@
 				"prefill": null,
 				"default": "markdown",
 				"required": false,
-				"enum": ["markdown", "text", "html"],
+				"enum": [
+					"markdown",
+					"text",
+					"html"
+				],
 				"enum_titles": null,
 				"minimum": null,
 				"maximum": null,
@@ -161,12 +169,12 @@
 		"max_memory_mbytes": 8192,
 		"build_tag": "latest",
 		"uses_browser": true,
-		"processor": null
+		"processor": "crawl"
 	},
 	{
 		"name": "pry-screenshot-capture",
 		"title": "Pry Screenshot Capture",
-		"description": "Full-page screenshots of any URL, including sites behind anti-bot systems, via stealth browser tiers.",
+		"description": "Render one PNG per URL with Playwright/Chromium and return it as base64 with its byte size. No OCR, diffing or hosted image URL.",
 		"version": "1.1",
 		"category": "SCRAPER",
 		"inputs": [
@@ -235,7 +243,7 @@
 		"max_memory_mbytes": 4096,
 		"build_tag": "latest",
 		"uses_browser": true,
-		"processor": null
+		"processor": "screenshot"
 	},
 	{
 		"name": "pry-change-monitor",
@@ -320,7 +328,7 @@
 	{
 		"name": "pry-document-parser",
 		"title": "Pry Document Parser",
-		"description": "Parse PDFs, DOCX and images behind URLs into clean text/markdown with OCR fallback.",
+		"description": "Extract text and tables from PDF URLs via PDFTableExtractor. DOCX, images and OCR are not supported.",
 		"version": "1.1",
 		"category": "SCRAPER",
 		"inputs": [
@@ -373,7 +381,7 @@
 		"max_memory_mbytes": 4096,
 		"build_tag": "latest",
 		"uses_browser": true,
-		"processor": null
+		"processor": "pdfdoc"
 	},
 	{
 		"name": "pry-llm-corpus-builder",
@@ -977,7 +985,12 @@
 				"prefill": null,
 				"default": "auto",
 				"required": false,
-				"enum": ["auto", "greenhouse", "lever", "workday"],
+				"enum": [
+					"auto",
+					"greenhouse",
+					"lever",
+					"workday"
+				],
 				"enum_titles": null,
 				"minimum": null,
 				"maximum": null,

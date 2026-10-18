@@ -1,10 +1,14 @@
 # Pry Token Safety Scanner
 
-Screen token pages for rug-pull and honeypot risk signals using Pry's crypto security checks: contract flags, liquidity signals and risk scores compiled into one dataset per token.
+Scrape token pages only. No on-chain risk provider is bundled, so items are marked unavailable rather than scored.
 
 > Need **token safety scanner data** without infrastructure headaches? This actor scrapes, monitors and exports it on Apify's managed runtime - pay per result, no subscription.
 
 This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) with per-domain memory, block-signal detection and circuit breakers. Cheaper tiers are tried first; escalation happens only when a target actually fights back.
+
+## Scope and data sources
+
+This actor does exactly one thing, and says so above. It does not claim capabilities beyond the items listed under Limitations; anything unavailable is returned with an explicit `unavailable` or `error` field rather than fabricated data.
 
 ## What it does
 
@@ -104,9 +108,9 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 
 ## Limitations
 
-- Publicly accessible pages only - login-walled or paywalled content is not supported
-- Extremely aggressive anti-bot targets may still block some requests; failures are reported honestly per URL
-- Data quality mirrors the source: if a page hides its data behind images or canvas, extraction may be partial
+- No on-chain risk provider is bundled: every item returns `status=unavailable` with `unavailable=token_risk_feed_not_configured`
+- No honeypot simulation, liquidity math or contract-flag analysis is performed in this actor
+- The page is still scraped, but no risk score is invented from it
 
 ## Troubleshooting
 

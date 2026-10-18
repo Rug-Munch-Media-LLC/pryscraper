@@ -16,7 +16,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from actor_factory.runner import ActorRunConfig, PPEScraperRunner  # noqa: E402
+from actor_factory.runner import ActorRunConfig  # noqa: E402
+from actor_factory.runner_web import WebCapabilityRunner as PPEScraperRunner  # noqa: E402
 
 
 async def main() -> None:
@@ -24,7 +25,7 @@ async def main() -> None:
         config=ActorRunConfig(
             primary_event="document-parsed",
             default_output_format="markdown",
-            processor_name=None,
+            processor_name="pdfdoc",
         ),
         actor_module=None,  # resolved lazily so tests can inject a mock
     )

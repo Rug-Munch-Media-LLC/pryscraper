@@ -118,7 +118,10 @@ class BettingIntelRunner(PPEScraperRunner):
             "books_registry": (books_res or {}).get("data", []),
         }
 
-        if want or report_type == "sharp_only":
+        want_sharp = options.get("include_sharp_intel", True) and (
+            want or report_type == "sharp_only"
+        )
+        if want_sharp:
             arb_res, ev_res, pct_res, cons_res, alert_res = await asyncio.gather(
                 _guarded(sports_arbitrage(sport=sport, min_yield_pct=0.5)),
                 _guarded(sports_plus_ev(sharp_book="pinnacle", min_ev_pct=1.0)),
@@ -151,7 +154,10 @@ class BettingIntelRunner(PPEScraperRunner):
         else:
             item["live_state"] = {}
 
-        if want or report_type == "weather_only":
+        want_weather = options.get("include_weather", True) and (
+            want or report_type == "weather_only"
+        )
+        if want_weather:
             # Weather enrichment is best-effort: the weather module may not
             # have landed yet; degrade to an empty assessment.
             item["weather"] = {"available": False, "assessment": None}

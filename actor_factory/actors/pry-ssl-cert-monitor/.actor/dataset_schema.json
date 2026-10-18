@@ -30,6 +30,26 @@
             "metadata": {
                 "type": "object",
                 "title": "Metadata"
+            },
+            "host": {
+                "type": "string",
+                "title": "Host"
+            },
+            "warn_days": {
+                "type": "integer",
+                "title": "Warn window (days)"
+            },
+            "certificate": {
+                "type": "object",
+                "title": "Certificate details"
+            },
+            "days_left": {
+                "type": "integer",
+                "title": "Days until expiry"
+            },
+            "expiring_soon": {
+                "type": "boolean",
+                "title": "Expiring soon"
             }
         }
     },

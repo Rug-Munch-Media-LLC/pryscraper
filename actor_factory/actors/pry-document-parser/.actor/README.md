@@ -1,10 +1,14 @@
 # Pry Document Parser
 
-Parse PDFs, DOCX and images behind URLs into clean text/markdown with OCR fallback.
+Extract text and tables from PDF URLs. DOCX, images and OCR are out of scope.
 
 > Need **document parser data** without infrastructure headaches? This actor scrapes, monitors and exports it on Apify's managed runtime - pay per result, no subscription.
 
 This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) with per-domain memory, block-signal detection and circuit breakers. Cheaper tiers are tried first; escalation happens only when a target actually fights back.
+
+## Scope and data sources
+
+This actor does exactly one thing, and says so above. It does not claim capabilities beyond the items listed under Limitations; anything unavailable is returned with an explicit `unavailable` or `error` field rather than fabricated data.
 
 ## What it does
 
@@ -104,9 +108,9 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 
 ## Limitations
 
-- Publicly accessible pages only - login-walled or paywalled content is not supported
-- Extremely aggressive anti-bot targets may still block some requests; failures are reported honestly per URL
-- Data quality mirrors the source: if a page hides its data behind images or canvas, extraction may be partial
+- Only PDF extraction is implemented (`document_type=pdf` via Pry's PDFTableExtractor); DOCX and image OCR are **not** supported
+- `ocr_fallback` is accepted for schema compatibility but no Tesseract/OCR path exists - `ocr_used` stays false
+- Non-PDF URLs fall back to the generic HTML scrape and are labelled `document_type=html`
 
 ## Troubleshooting
 

@@ -30,6 +30,18 @@
             "metadata": {
                 "type": "object",
                 "title": "Metadata"
+            },
+            "depth": {
+                "type": "integer",
+                "title": "Crawl depth"
+            },
+            "links_found": {
+                "type": "integer",
+                "title": "Links discovered"
+            },
+            "discovered_links": {
+                "type": "array",
+                "title": "Discovered links"
             }
         }
     },

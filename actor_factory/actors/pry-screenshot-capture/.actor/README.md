@@ -1,10 +1,14 @@
 # Pry Screenshot Capture
 
-Full-page screenshots of any URL, including sites behind anti-bot systems, via stealth browser tiers.
+Render one PNG per URL with Playwright/Chromium, returned as base64 with its byte size.
 
 > Need **screenshot capture data** without infrastructure headaches? This actor scrapes, monitors and exports it on Apify's managed runtime - pay per result, no subscription.
 
 This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) with per-domain memory, block-signal detection and circuit breakers. Cheaper tiers are tried first; escalation happens only when a target actually fights back.
+
+## Scope and data sources
+
+This actor does exactly one thing, and says so above. It does not claim capabilities beyond the items listed under Limitations; anything unavailable is returned with an explicit `unavailable` or `error` field rather than fabricated data.
 
 ## What it does
 
@@ -105,9 +109,9 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 
 ## Limitations
 
-- Publicly accessible pages only - login-walled or paywalled content is not supported
-- Extremely aggressive anti-bot targets may still block some requests; failures are reported honestly per URL
-- Data quality mirrors the source: if a page hides its data behind images or canvas, extraction may be partial
+- Captures are rendered with Playwright/Chromium and returned as base64 PNG in `screenshot_base64`; no hosted image URL is produced
+- No OCR, visual diffing or archive comparison - the item is the image plus its size
+- If Playwright/Chromium is missing the item fails with `screenshot_unavailable` instead of an empty image
 
 ## Troubleshooting
 

@@ -32,7 +32,12 @@
 				"type": "array",
 				"description": "Flag items whose content matches any keyword (lists, delist, futures).",
 				"editor": "stringList",
-				"prefill": ["listing", "delist", "futures", "spot"],
+				"prefill": [
+					"listing",
+					"delist",
+					"futures",
+					"spot"
+				],
 				"default": null,
 				"required": false,
 				"enum": null,
@@ -60,7 +65,7 @@
 	{
 		"name": "pry-token-safety-scanner",
 		"title": "Pry Token Safety Scanner",
-		"description": "Screen token pages for rug-pull and honeypot risk signals using Pry's crypto security checks: contract flags, liquidity signals and risk scores compiled into one dataset per token.",
+		"description": "Scrape token pages only. No on-chain risk provider is bundled; every item is marked status=unavailable rather than scored.",
 		"version": "1.1",
 		"category": "SCRAPER",
 		"inputs": [
@@ -93,7 +98,11 @@
 				"prefill": null,
 				"default": "medium",
 				"required": false,
-				"enum": ["low", "medium", "high"],
+				"enum": [
+					"low",
+					"medium",
+					"high"
+				],
 				"enum_titles": null,
 				"minimum": null,
 				"maximum": null,
@@ -113,7 +122,7 @@
 		"max_memory_mbytes": 2048,
 		"build_tag": "latest",
 		"uses_browser": true,
-		"processor": null
+		"processor": "tokensafety"
 	},
 	{
 		"name": "pry-sec-filings-watch",
@@ -148,7 +157,11 @@
 				"type": "array",
 				"description": "Filter to specific filing forms.",
 				"editor": "stringList",
-				"prefill": ["10-K", "10-Q", "8-K"],
+				"prefill": [
+					"10-K",
+					"10-Q",
+					"8-K"
+				],
 				"default": null,
 				"required": false,
 				"enum": null,
@@ -176,7 +189,7 @@
 	{
 		"name": "pry-sanctions-screener",
 		"title": "Pry Sanctions Screener",
-		"description": "Screen entity names against public sanctions and watchlist lists sources (OFAC SDN, EU consolidated lists). Compliance-grade monitoring with match evidence in every dataset item.",
+		"description": "Scrape screening pages only. No OFAC/EU watchlist snapshot is bundled; every item is marked status=unavailable.",
 		"version": "1.1",
 		"category": "SCRAPER",
 		"inputs": [
@@ -209,7 +222,10 @@
 				"prefill": null,
 				"default": "fuzzy",
 				"required": false,
-				"enum": ["exact", "fuzzy"],
+				"enum": [
+					"exact",
+					"fuzzy"
+				],
 				"enum_titles": null,
 				"minimum": null,
 				"maximum": null,
@@ -229,7 +245,7 @@
 		"max_memory_mbytes": 2048,
 		"build_tag": "latest",
 		"uses_browser": true,
-		"processor": null
+		"processor": "sanctions"
 	},
 	{
 		"name": "pry-court-docket-monitor",
@@ -399,7 +415,11 @@
 				"prefill": null,
 				"default": "economy",
 				"required": false,
-				"enum": ["economy", "business", "first"],
+				"enum": [
+					"economy",
+					"business",
+					"first"
+				],
 				"enum_titles": null,
 				"minimum": null,
 				"maximum": null,
@@ -959,7 +979,13 @@
 				"prefill": null,
 				"default": "any",
 				"required": false,
-				"enum": ["any", "phase-1", "phase-2", "phase-3", "phase-4"],
+				"enum": [
+					"any",
+					"phase-1",
+					"phase-2",
+					"phase-3",
+					"phase-4"
+				],
 				"enum_titles": null,
 				"minimum": null,
 				"maximum": null,
@@ -1014,7 +1040,11 @@
 				"type": "array",
 				"description": "Flag tenders matching these keywords.",
 				"editor": "stringList",
-				"prefill": ["construction", "software", "consulting"],
+				"prefill": [
+					"construction",
+					"software",
+					"consulting"
+				],
 				"default": null,
 				"required": false,
 				"enum": null,

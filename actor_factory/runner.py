@@ -189,7 +189,23 @@ class PPEScraperRunner:
             guard = AbuseGuard(
                 skip_counts_as_failure=self.config.processor_name != "monitor",
             )
-            for url in urls[: self.config.max_items]:
+            # Same-domain link expansion (site crawler). Depth 0 = start URLs;
+            # every successful page contributes links one level deeper, capped
+            # by max_depth, max_pages and the factory's hard item limit.
+            max_depth = raw_input.get("max_depth")
+            crawl_enabled = (
+                self.config.processor_name == "crawl"
+                and isinstance(max_depth, int)
+                and max_depth > 0
+            )
+            page_cap = max_pages if isinstance(max_pages, int) and max_pages > 0 else None
+            queue: list[tuple[str, int]] = [(u, 0) for u in urls[: self.config.max_items]]
+            seen: set[str] = {u for u, _ in queue}
+            state["depths"] = {u: d for u, d in queue}
+            processed = 0
+            while queue and processed < self.config.max_items:
+                url, depth = queue.pop(0)
+                processed += 1
                 if guard.tripped:
                     if guard.should_abort:
                         honeypot = guard.honeypot_record()
@@ -215,6 +231,17 @@ class PPEScraperRunner:
                         "error": f"processing_failed: {str(e)[:120]}",
                         "scraped_at": datetime.now(UTC).isoformat(),
                     }
+                if crawl_enabled and depth < int(max_depth) and item.get("status") == "ok":
+                    discovered = [
+                        link
+                        for link in self._same_domain_links(item.get("content", ""), url)
+                        if link not in seen and (page_cap is None or len(seen) < page_cap)
+                    ]
+                    for link in discovered:
+                        seen.add(link)
+                        state["depths"][link] = depth + 1
+                        queue.append((link, depth + 1))
+                    item["discovered_links"] = discovered
                 guard.record(item.get("status", "error"), url)
                 keep_going = await self.push_and_charge(actor, item)
                 if not keep_going:
@@ -232,6 +259,24 @@ class PPEScraperRunner:
         from actor_factory.processors import PROCESSORS
 
         return PROCESSORS.get(self.config.processor_name)
+
+    @staticmethod
+    def _same_domain_links(content: str, base_url: str) -> list[str]:
+        """Extract same-domain http(s) links from markdown or HTML content."""
+        import re
+        from urllib.parse import urljoin, urlparse
+
+        base = urlparse(base_url)
+        found: list[str] = []
+        for raw in re.findall(r"\]\((https?://[^)\s]+)|href=[\"'](https?://[^\"']+)", content):
+            link = raw[0] or raw[1]
+            parsed = urlparse(urljoin(base_url, link))
+            if parsed.scheme not in ("http", "https") or parsed.netloc != base.netloc:
+                continue
+            clean = parsed._replace(fragment="").geturl().rstrip("/")
+            if clean and clean != base_url.rstrip("/") and clean not in found:
+                found.append(clean)
+        return found
 
     @staticmethod
     def _normalize_urls(raw_input: dict[str, Any]) -> list[str]:

@@ -30,6 +30,22 @@
             "metadata": {
                 "type": "object",
                 "title": "Metadata"
+            },
+            "unavailable": {
+                "type": "string",
+                "title": "Unavailable capability"
+            },
+            "reason": {
+                "type": "string",
+                "title": "Reason"
+            },
+            "matches": {
+                "type": "array",
+                "title": "Watchlist matches"
+            },
+            "invalid": {
+                "type": "boolean",
+                "title": "Invalid/unavailable item"
             }
         }
     },

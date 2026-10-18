@@ -1,10 +1,14 @@
 # Pry Site Crawler
 
-Crawl entire sites into LLM-ready markdown. Follows same-domain links with runaway caps and per-domain adaptive bypass memory.
+Crawl a site's same-domain pages into LLM-ready markdown, one item per page with depth and discovered links.
 
 > Need **site crawler data** without infrastructure headaches? This actor scrapes, monitors and exports it on Apify's managed runtime - pay per result, no subscription.
 
 This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) with per-domain memory, block-signal detection and circuit breakers. Cheaper tiers are tried first; escalation happens only when a target actually fights back.
+
+## Scope and data sources
+
+This actor does exactly one thing, and says so above. It does not claim capabilities beyond the items listed under Limitations; anything unavailable is returned with an explicit `unavailable` or `error` field rather than fabricated data.
 
 ## What it does
 
@@ -106,9 +110,9 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 
 ## Limitations
 
-- Publicly accessible pages only - login-walled or paywalled content is not supported
-- Extremely aggressive anti-bot targets may still block some requests; failures are reported honestly per URL
-- Data quality mirrors the source: if a page hides its data behind images or canvas, extraction may be partial
+- Follows same-domain links only, one dataset item per page; depth is capped by `max_depth` and total pages by `max_pages`/`max_items`
+- Link discovery reads markdown/HTML links in the fetched content; links rendered only by JavaScript may be missed
+- No sitemap.xml ingestion, robots.txt policy engine or cross-domain crawling
 
 ## Troubleshooting
 

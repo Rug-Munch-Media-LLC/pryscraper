@@ -1,10 +1,14 @@
 # Pry SSL Certificate Monitor
 
-Watch TLS certificate health across your domains: expiry countdowns, issuer changes and handshake failures - caught by connection-level probes before browsers scare your visitors.
+Probe TLS certificates per host: issuer, expiry date, days left and an expiring-soon flag from a live handshake.
 
 > Need **ssl certificate monitor data** without infrastructure headaches? This actor scrapes, monitors and exports it on Apify's managed runtime - pay per result, no subscription.
 
 This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) with per-domain memory, block-signal detection and circuit breakers. Cheaper tiers are tried first; escalation happens only when a target actually fights back.
+
+## Scope and data sources
+
+This actor does exactly one thing, and says so above. It does not claim capabilities beyond the items listed under Limitations; anything unavailable is returned with an explicit `unavailable` or `error` field rather than fabricated data.
 
 ## What it does
 
@@ -104,9 +108,9 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 
 ## Limitations
 
-- Publicly accessible pages only - login-walled or paywalled content is not supported
-- Extremely aggressive anti-bot targets may still block some requests; failures are reported honestly per URL
-- Data quality mirrors the source: if a page hides its data behind images or canvas, extraction may be partial
+- Performs one live TLS handshake per host on port 443 and reports issuer, expiry and `days_left`
+- No certificate transparency logs, chain validation report, or historical issuer tracking
+- Hosts that refuse TLS or time out return `status=error` with `tls_error` - never a fabricated certificate
 
 ## Troubleshooting
 

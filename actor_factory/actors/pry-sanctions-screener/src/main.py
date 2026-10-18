@@ -24,7 +24,7 @@ async def main() -> None:
         config=ActorRunConfig(
             primary_event="entity-screened",
             default_output_format="markdown",
-            processor_name=None,
+            processor_name="sanctions",
         ),
         actor_module=None,  # resolved lazily so tests can inject a mock
     )

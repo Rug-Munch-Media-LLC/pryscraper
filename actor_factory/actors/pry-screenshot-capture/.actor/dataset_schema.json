@@ -30,6 +30,26 @@
             "metadata": {
                 "type": "object",
                 "title": "Metadata"
+            },
+            "screenshot_base64": {
+                "type": "string",
+                "title": "Screenshot PNG (base64)"
+            },
+            "screenshot_bytes": {
+                "type": "integer",
+                "title": "Screenshot size (bytes)"
+            },
+            "screenshot_format": {
+                "type": "string",
+                "title": "Image format"
+            },
+            "full_page": {
+                "type": "boolean",
+                "title": "Full page capture"
+            },
+            "viewport_width": {
+                "type": "integer",
+                "title": "Viewport width (px)"
             }
         }
     },

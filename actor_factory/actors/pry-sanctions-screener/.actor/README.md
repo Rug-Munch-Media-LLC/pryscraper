@@ -1,10 +1,14 @@
 # Pry Sanctions Screener
 
-Screen entity names against public sanctions and watchlist lists sources (OFAC SDN, EU consolidated lists). Compliance-grade monitoring with match evidence in every dataset item.
+Scrape screening pages only. No OFAC/EU watchlist data is bundled, so items are marked unavailable rather than matched.
 
 > Need **sanctions screener data** without infrastructure headaches? This actor scrapes, monitors and exports it on Apify's managed runtime - pay per result, no subscription.
 
 This actor runs on the engine: a **12-tier adaptive anti-bot ladder** (Cloudflare, DataDome, Akamai) with per-domain memory, block-signal detection and circuit breakers. Cheaper tiers are tried first; escalation happens only when a target actually fights back.
+
+## Scope and data sources
+
+This actor does exactly one thing, and says so above. It does not claim capabilities beyond the items listed under Limitations; anything unavailable is returned with an explicit `unavailable` or `error` field rather than fabricated data.
 
 ## What it does
 
@@ -104,9 +108,9 @@ Integrations: Zapier, Make, n8n, Airbyte and webhooks are first-class on the Api
 
 ## Limitations
 
-- Publicly accessible pages only - login-walled or paywalled content is not supported
-- Extremely aggressive anti-bot targets may still block some requests; failures are reported honestly per URL
-- Data quality mirrors the source: if a page hides its data behind images or canvas, extraction may be partial
+- No OFAC/EU watchlist snapshot is shipped: every item returns `status=unavailable` with `unavailable=sanctions_data_not_bundled`
+- No fuzzy name matching is performed; `match_sensitivity` is accepted but cannot produce matches without a data source
+- The item never reports an unverified 'clear' result - absence of data is labelled, not interpreted as compliance
 
 ## Troubleshooting
 

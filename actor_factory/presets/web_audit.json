@@ -76,7 +76,7 @@
 	{
 		"name": "pry-ssl-cert-monitor",
 		"title": "Pry SSL Certificate Monitor",
-		"description": "Watch TLS certificate health across your domains: expiry countdowns, issuer changes and handshake failures - caught by connection-level probes before browsers scare your visitors.",
+		"description": "Probe each host's TLS certificate (issuer, expiry, days_left, expiring_soon) with a live handshake. No CT logs or chain report.",
 		"version": "1.1",
 		"category": "SCRAPER",
 		"inputs": [
@@ -129,7 +129,7 @@
 		"max_memory_mbytes": 1024,
 		"build_tag": "latest",
 		"uses_browser": false,
-		"processor": null
+		"processor": "sslcert"
 	},
 	{
 		"name": "pry-wayback-diff",
@@ -444,7 +444,11 @@
 				"type": "array",
 				"description": "Domains to skip (e.g. social widgets).",
 				"editor": "stringList",
-				"prefill": ["facebook.com", "twitter.com", "x.com"],
+				"prefill": [
+					"facebook.com",
+					"twitter.com",
+					"x.com"
+				],
 				"default": null,
 				"required": false,
 				"enum": null,
