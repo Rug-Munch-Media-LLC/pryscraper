@@ -17,6 +17,7 @@ on:
 
 jobs:
   compliance:
+    timeout-minutes: 30
     name: Fleet Compliance Check
     runs-on: docker-x64
     container:

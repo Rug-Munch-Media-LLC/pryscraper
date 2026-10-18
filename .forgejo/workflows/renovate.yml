@@ -11,6 +11,7 @@ on:
 
 jobs:
   renovate:
+    timeout-minutes: 30
     name: Renovate
     runs-on: ubuntu-latest
     steps:

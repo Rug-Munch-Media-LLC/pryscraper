@@ -35,6 +35,7 @@ permissions:
 
 jobs:
   heartbeat:
+    timeout-minutes: 30
     name: ci.yml ran within 24h?
     runs-on: docker-x64
     container:

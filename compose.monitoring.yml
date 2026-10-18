@@ -14,8 +14,6 @@
 #
 # Start: docker compose -f compose.yml -f compose.monitoring.yml up -d
 
-version: "3.8"
-
 services:
   prometheus:
     image: prom/prometheus:v2.55.5

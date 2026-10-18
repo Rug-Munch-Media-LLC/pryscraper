@@ -11,6 +11,7 @@ on:
 
 jobs:
   k6-load:
+    timeout-minutes: 30
     name: k6 Load Test (50 VUs, 30s)
     runs-on: docker-x64
     container:
@@ -49,6 +50,7 @@ jobs:
         continue-on-error: true
 
   k6-scrape:
+    timeout-minutes: 30
     name: k6 Scrape Endpoint (10 VUs, 30s)
     runs-on: docker-x64
     container:

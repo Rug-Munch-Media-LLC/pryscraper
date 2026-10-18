@@ -11,6 +11,7 @@ on:
 
 jobs:
   release-please:
+    timeout-minutes: 30
     if: false # disabled — see comment above
     runs-on: docker-x64
     steps:

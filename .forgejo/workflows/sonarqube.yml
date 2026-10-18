@@ -18,6 +18,7 @@ on:
 
 jobs:
   sonar:
+    timeout-minutes: 30
     name: SonarQube Scan
     if: false # disabled — see comment above
     runs-on: docker-x64

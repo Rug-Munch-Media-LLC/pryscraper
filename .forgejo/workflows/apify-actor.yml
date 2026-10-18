@@ -24,6 +24,7 @@ on:
 
 jobs:
   validate:
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,6 +76,7 @@ jobs:
           PY
 
   build:
+    timeout-minutes: 30
     needs: validate
     runs-on: ubuntu-latest
     steps:
@@ -83,6 +85,7 @@ jobs:
         run: docker build -f .actor/Dockerfile.apify -t pry-actor:ci .
 
   publish:
+    timeout-minutes: 30
     needs: build
     # PUBLISH LOCKED until org launch: manual dispatch ONLY - never fires on
     # push, even with the secret configured. To arm: run this workflow via

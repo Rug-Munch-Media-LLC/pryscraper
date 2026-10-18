@@ -94,19 +94,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
-# pg_dump for the entrypoint's pre-migration backup guard. The runtime base is
-# Debian bookworm, whose stock postgresql-client is v15 — pg_dump REFUSES to
-# dump a newer server, and the compose database is postgres:16. Install the
-# matching v16 client from the PGDG repository instead of shipping a backup
-# step that always fails. `docker-entrypoint.sh` treats a missing/failed
-# pg_dump as a warning unless PRY_REQUIRE_PRE_MIGRATION_BACKUP=1.
-RUN install -d /usr/share/postgresql-common/pgdg \
-    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
-       -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
-    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
-       > /etc/apt/sources.list.d/pgdg.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends postgresql-client-16 \
+# pg_dump for the entrypoint's pre-migration backup guard.
+#
+# HISTORY (2026-10-18): this used to add the PGDG `bookworm-pgdg` repo and
+# install postgresql-client-16. The pinned base digest is Debian 13 (trixie),
+# so that mixed a bookworm client into a trixie image; once PGDG published
+# libpq5 18.6-1.pgdg12+2 (which needs the bookworm-only libldap-2.5-0) the
+# whole image stopped building. Use the DISTRO client instead: trixie ships
+# postgresql-client 17, and a NEWER pg_dump can dump an OLDER server (the
+# compose database is postgres:16) — the restriction only runs the other way.
+# This also removes an external apt repo + key fetch from the build.
+# `docker-entrypoint.sh` still fails closed when PRY_REQUIRE_PRE_MIGRATION_BACKUP=1.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Playwright browsers are copied to a shared, read-only location and pointed
