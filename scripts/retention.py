@@ -75,8 +75,8 @@ def delete_sql(
     if batch_size < 1:
         raise ValueError(f"batch_size must be >= 1, got {batch_size}")
     # Identifiers come from the fixed DEFAULT_POLICIES tuple, never from input.
-    sql = (  # nosec B608
-        f"DELETE FROM {policy.table} WHERE ctid IN ("
+    sql = (
+        f"DELETE FROM {policy.table} WHERE ctid IN ("  # nosec B608
         f"SELECT ctid FROM {policy.table} "
         f"WHERE {policy.ts_column} < now() - interval %s "
         f"LIMIT %s)"
