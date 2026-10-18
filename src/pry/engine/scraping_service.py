@@ -124,6 +124,18 @@ async def render_media_for(scraper: Any, url: str, **kwargs: Any) -> dict[str, A
     return await hook(url, **kwargs)
 
 
+async def scrape_with_ultimate(url: str) -> dict[str, Any]:
+    """Run the 10-tier ``UltimateScraper`` ladder for the public scrape route.
+
+    Routers must not import ``pry.engine.ultimate_scraper`` directly
+    (import-linter contract 2); this accessor is the single engine seam.
+    Callers run the SSRF gate (``validate_url``) before calling.
+    """
+    from pry.engine.ultimate_scraper import UltimateScraper
+
+    return await UltimateScraper().scrape(url)
+
+
 async def detect_block(url: str, get_client: Any) -> dict[str, Any]:
     """Detect anti-bot protection (tier, vendor, confidence)."""
     validate_url(url)

@@ -55,7 +55,10 @@ ignore_imports =
     # Engine-internal composition (search pipeline calls the ladder); not a
     # router thinness edge. Router -> engine internals remain forbidden.
     pry.engine.web_search_pipeline -> pry.engine.ultimate_scraper
-    pry.api.routers.scraping.scraping_api -> pry.engine.ultimate_scraper
+    # The scraping service wraps the 10-tier ladder for the routers
+    # (scraping_api -> scraping_service); engine-internal composition, not a
+    # router thinness edge. Mirrors the pry.engine.scraper exemption above.
+    pry.engine.scraping_service -> pry.engine.ultimate_scraper
     pry.api.routers.core.signup -> pry.commerce.signup.engine
     # lifecycle.py (split from api.py) calls close_browsers() — shutdown-only,
     # not a router thinness problem. Remove when pry.services.shutdown exists.

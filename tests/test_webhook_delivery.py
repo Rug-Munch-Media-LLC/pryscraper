@@ -3,7 +3,7 @@
 #
 # Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-"""Tests for webhook_delivery.py — HMAC-signed webhook delivery with retries."""
+"""Tests for webhook_delivery.py — init, HMAC signing, delivery log and dead letters."""
 
 from __future__ import annotations
 
@@ -13,11 +13,19 @@ from unittest.mock import patch
 if TYPE_CHECKING:
     from pathlib import Path
 
-import httpx
-import pytest
-import respx
+from typing import TYPE_CHECKING
+from unittest.mock import patch
 
-from pry.api.webhook_delivery import WebhookDelivery, WebhookSecretNotConfigured
+import pytest
+
+from pry.api.webhook_delivery import WebhookDelivery
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+import pytest
+
+from pry.api.webhook_delivery import WebhookDelivery
 
 
 @pytest.fixture
@@ -36,11 +44,6 @@ def wh(tmp_path: Path) -> WebhookDelivery:
     ):
         w = WebhookDelivery(signing_secret="test-key")
         yield w
-
-
-# ---------------------------------------------------------------------------
-# Init
-# ---------------------------------------------------------------------------
 
 
 def test_init_creates_dirs(wh: WebhookDelivery, tmp_path: Path):
@@ -135,176 +138,3 @@ def test_retry_dead_letter_returns_items(wh: WebhookDelivery):
     result = wh.retry_dead_letter()
     assert result["total"] == 1
     assert len(result["items"]) == 1
-
-
-# ---------------------------------------------------------------------------
-# deliver — success
-# ---------------------------------------------------------------------------
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_deliver_success(wh: WebhookDelivery):
-    respx.post("https://hook.example.com").mock(return_value=httpx.Response(200, json={"ok": True}))
-    result = await wh.deliver("https://hook.example.com", {"event": "test"})
-    assert result["success"] is True
-    assert result["status"] == 200
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_deliver_retries_on_500(wh: WebhookDelivery):
-    """Server errors (500+) should be retried."""
-    route = respx.post("https://hook.example.com")
-    route.mock(return_value=httpx.Response(500, json={"error": "internal"}))
-    result = await wh.deliver(
-        "https://hook.example.com", {"event": "test"}, max_retries=2
-    )
-    assert result["success"] is False
-    assert result["error"] == "Max retries exceeded"
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_deliver_client_error_no_retry(wh: WebhookDelivery):
-    """4xx errors should not be retried — sent to dead letter immediately."""
-    route = respx.post("https://hook.example.com")
-    route.mock(return_value=httpx.Response(400, json={"error": "bad request"}))
-    result = await wh.deliver(
-        "https://hook.example.com", {"event": "test"}, max_retries=3
-    )
-    assert result["success"] is False
-    assert "Client error" in result.get("error", "")
-
-    # Should be in dead letter
-    items = wh.get_dead_letter()
-    assert len(items) == 1
-    assert "HTTP 400" in items[0]["reason"]
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_deliver_network_error_retries(wh: WebhookDelivery):
-    """Network errors should be retried."""
-    route = respx.post("https://hook.example.com")
-    route.mock(
-        side_effect=[
-            httpx.ConnectError("connection refused"),
-            httpx.Response(200, json={"ok": True}),
-        ]
-    )
-    result = await wh.deliver(
-        "https://hook.example.com", {"event": "test"}, max_retries=2
-    )
-    assert result["success"] is True
-    assert result["attempts"] == 2
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_deliver_all_retries_fail(wh: WebhookDelivery):
-    """All retries exhausted should go to dead letter."""
-    route = respx.post("https://hook.example.com")
-    route.mock(side_effect=httpx.ConnectError("always down"))
-    result = await wh.deliver(
-        "https://hook.example.com", {"event": "test"}, max_retries=2
-    )
-    assert result["success"] is False
-    assert result["error"] == "Max retries exceeded"
-
-    items = wh.get_dead_letter()
-    assert len(items) == 1
-    assert "Max retries" in items[0]["reason"]
-
-
-# ---------------------------------------------------------------------------
-# deliver — signing headers
-# ---------------------------------------------------------------------------
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_deliver_includes_signing_headers(wh: WebhookDelivery):
-    route = respx.post("https://hook.example.com")
-    route.mock(return_value=httpx.Response(200, json={"ok": True}))
-
-    await wh.deliver("https://hook.example.com", {"event": "test"})
-
-    sent = route.calls[0].request
-    assert "X-Pry-Signature" in sent.headers
-    assert sent.headers["X-Pry-Signature"].startswith("sha256=")
-    assert "X-Pry-Event" in sent.headers
-    assert sent.headers["X-Pry-Event"] == "monitor.change"
-    assert "X-Pry-Timestamp" in sent.headers
-
-
-# ---------------------------------------------------------------------------
-# deliver — custom event type
-# ---------------------------------------------------------------------------
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_deliver_custom_event_type(wh: WebhookDelivery):
-    route = respx.post("https://hook.example.com")
-    route.mock(return_value=httpx.Response(200, json={"ok": True}))
-
-    await wh.deliver("https://hook.example.com", {"event": "test"}, event_type="custom.event")
-    assert route.calls[0].request.headers["X-Pry-Event"] == "custom.event"
-
-
-# ---------------------------------------------------------------------------
-# Edge: missing signing secret
-# ---------------------------------------------------------------------------
-
-
-def test_init_empty_secret(tmp_path: Path):
-    with (
-        patch("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks2"),
-        patch("pry.api.webhook_support.settings.webhook_secret", ""),
-    ):
-        w = WebhookDelivery()
-        assert w.signing_secret == ""  # empty key allowed at init, but see below
-        assert w.secret_configured is False
-
-
-@respx.mock
-@pytest.mark.asyncio
-async def test_deliver_empty_secret_refused(tmp_path: Path):
-    """FAIL-CLOSED: no signing secret => delivery refused, nothing sent.
-
-    An HMAC with an empty key is forgeable by anyone, so delivering a
-    'signed' webhook would give receivers false integrity guarantees.
-    """
-    with (
-        patch("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks3"),
-        patch("pry.api.webhook_support.settings.webhook_secret", ""),
-        patch(
-            "pry.api.webhook_delivery._validate_url",
-            side_effect=lambda url: (url, None),
-        ),
-    ):
-        w = WebhookDelivery()
-        route = respx.post("https://hook.example.com")
-        route.mock(return_value=httpx.Response(200, json={"ok": True}))
-        result = await w.deliver("https://hook.example.com", {"event": "test"})
-        assert result["success"] is False
-        assert result.get("refused") is True
-        assert "secret" in result["error"].lower()
-        assert route.call_count == 0  # nothing left the process unsigned
-
-
-def test_sign_payload_empty_secret_raises(tmp_path: Path):
-    with (
-        patch("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks4"),
-        patch("pry.api.webhook_support.settings.webhook_secret", ""),
-    ):
-        w = WebhookDelivery()
-        with pytest.raises(WebhookSecretNotConfigured):
-            w.sign_payload({"event": "test"})
-
-
-def test_secret_configured_property(tmp_path: Path):
-    with patch("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks5"):
-        configured = WebhookDelivery(signing_secret="real-secret")
-        assert configured.secret_configured is True

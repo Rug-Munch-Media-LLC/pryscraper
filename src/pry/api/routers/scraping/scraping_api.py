@@ -18,6 +18,7 @@ from pry.api.client import get_client
 from pry.api.routers.scraping.crawl_adaptive import adaptive_crawl as adaptive_crawl
 from pry.core.deps import scraper
 from pry.core.errors import ScrapeError
+from pry.engine.scraping_service import scrape_with_ultimate
 from pry.engine.url_guard import safe_get, validate_url
 
 logger = logging.getLogger(__name__)
@@ -76,12 +77,9 @@ async def ultimate_scrape(
     operations (e.g. actor presets, domain data) are gated behind x402
     micropayments — see `GET /v1/x402/pricing` for the price list.
     """
-    from pry.engine.ultimate_scraper import UltimateScraper
-
     # SSRF gate before the 10-tier fetch chain.
     validate_url(url)
-    s = UltimateScraper()
-    result = await s.scrape(url)
+    result = await scrape_with_ultimate(url)
     if result.get("status") != "ok":
         raise ScrapeError(result.get("error", "All bypass methods failed"))
 
