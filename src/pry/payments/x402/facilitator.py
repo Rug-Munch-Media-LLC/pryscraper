@@ -250,6 +250,13 @@ class FacilitatorRouter(DispatchMixin, SettleReceiptMixin, FacilitatorHealthMixi
         if self.self_hosted or self._impl_for(network) is not None:
             return await self._settle_self_hosted(payment_id, tx_hash, network, asset, amount_usd)
 
+        payment = {
+            "payment_id": payment_id,
+            "tx_hash": tx_hash,
+            "network": network,
+            "asset": asset,
+            "amount_usd": amount_usd,
+        }
         payload = {
             "paymentId": payment_id,
             "transactionHash": tx_hash,
@@ -260,55 +267,12 @@ class FacilitatorRouter(DispatchMixin, SettleReceiptMixin, FacilitatorHealthMixi
             "scheme": X402Scheme.EXACT.value,
             "timestamp": datetime.now(UTC).isoformat(),
         }
-
-        last_error = "No facilitators available"
-        healthy = [f for f in self.facilitators if self._is_healthy(f) and f.settle_url]
-        facilitator = self._select_facilitator(healthy) if healthy else None
-        async with httpx.AsyncClient(timeout=X402_TIMEOUT_SECONDS) as client:
-            if facilitator is not None:
-                try:
-                    response = await client.post(facilitator.settle_url, json=payload)
-                    response.raise_for_status()
-                    data = response.json()
-                    self._mark_success(facilitator)
-                    return self._normalize_settlement(
-                        data, payment_id, tx_hash, network, facilitator.name
-                    )
-                except httpx.HTTPStatusError as e:
-                    logger.warning(
-                        "payments_exception_swallowed",
-                        extra={"error": str(e), "handler": "FacilitatorRouter.settle"},
-                    )
-                    last_error = f"{facilitator.name}: HTTP {e.response.status_code}"
-                    self._mark_failure(facilitator)
-                except httpx.RequestError as e:
-                    logger.warning(
-                        "payments_exception_swallowed",
-                        extra={"error": str(e), "handler": "FacilitatorRouter.settle"},
-                    )
-                    last_error = f"{facilitator.name}: {e}"
-                    self._mark_failure(facilitator)
-                except json.JSONDecodeError as e:
-                    logger.warning(
-                        "payments_exception_swallowed",
-                        extra={"error": str(e), "handler": "FacilitatorRouter.settle"},
-                    )
-                    last_error = f"{facilitator.name}: invalid JSON response - {e}"
-                    self._mark_failure(facilitator)
+        settlement, last_error = await self._settle_via_facilitator(payment, payload)
+        if settlement is not None:
+            return settlement
 
         if _eip7702_rpc_key(network) is not None:
-            # Fail closed: the EIP-7702 receipt is only valid once the SAME
-            # tx has been verified on-chain (payTo + amount). Never mint a
-            # success receipt from the fallback alone.
-            verification = await self._eip7702_verify(tx_hash, network, asset, amount_usd)
-            if verification.get("verified") is True:
-                return self._eip7702_settlement(payment_id, tx_hash, network)
-            return {
-                "success": False,
-                "payment_id": payment_id,
-                "reason": verification.get("reason") or "EIP-7702 settlement not verified",
-                "network": normalize_network_id(network),
-            }
+            return await self._settle_via_eip7702(payment)
 
         if network_family(network) in ("solana", "tron"):
             return {
@@ -324,6 +288,68 @@ class FacilitatorRouter(DispatchMixin, SettleReceiptMixin, FacilitatorHealthMixi
             "success": False,
             "payment_id": payment_id,
             "reason": last_error,
+        }
+
+    async def _settle_via_facilitator(
+        self, payment: dict[str, Any], payload: dict[str, Any]
+    ) -> tuple[dict[str, Any] | None, str]:
+        """POST to the best healthy facilitator; return (settlement, last_error)."""
+        last_error = "No facilitators available"
+        healthy = [f for f in self.facilitators if self._is_healthy(f) and f.settle_url]
+        facilitator = self._select_facilitator(healthy) if healthy else None
+        if facilitator is None:
+            return None, last_error
+        async with httpx.AsyncClient(timeout=X402_TIMEOUT_SECONDS) as client:
+            try:
+                response = await client.post(facilitator.settle_url, json=payload)
+                response.raise_for_status()
+                data = response.json()
+                self._mark_success(facilitator)
+                return (
+                    self._normalize_settlement(
+                        data,
+                        payment["payment_id"],
+                        payment["tx_hash"],
+                        payment["network"],
+                        facilitator.name,
+                    ),
+                    last_error,
+                )
+            except httpx.HTTPStatusError as e:
+                logger.warning(
+                    "payments_exception_swallowed",
+                    extra={"error": str(e), "handler": "FacilitatorRouter.settle"},
+                )
+                self._mark_failure(facilitator)
+                return None, f"{facilitator.name}: HTTP {e.response.status_code}"
+            except httpx.RequestError as e:
+                logger.warning(
+                    "payments_exception_swallowed",
+                    extra={"error": str(e), "handler": "FacilitatorRouter.settle"},
+                )
+                self._mark_failure(facilitator)
+                return None, f"{facilitator.name}: {e}"
+            except json.JSONDecodeError as e:
+                logger.warning(
+                    "payments_exception_swallowed",
+                    extra={"error": str(e), "handler": "FacilitatorRouter.settle"},
+                )
+                self._mark_failure(facilitator)
+                return None, f"{facilitator.name}: invalid JSON response - {e}"
+
+    async def _settle_via_eip7702(self, payment: dict[str, Any]) -> dict[str, Any]:
+        """EIP-7702 fallback: settle only once the SAME tx verified on-chain."""
+        network = payment["network"]
+        verification = await self._eip7702_verify(
+            payment["tx_hash"], network, payment["asset"], payment["amount_usd"]
+        )
+        if verification.get("verified") is True:
+            return self._eip7702_settlement(payment["payment_id"], payment["tx_hash"], network)
+        return {
+            "success": False,
+            "payment_id": payment["payment_id"],
+            "reason": verification.get("reason") or "EIP-7702 settlement not verified",
+            "network": normalize_network_id(network),
         }
 
 

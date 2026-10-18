@@ -67,6 +67,25 @@ def _implicit_bucket_id(api_key: str | None, x402_verified: Any) -> str:
     return middleware_ratelimit.implicit_bucket_id(api_key, x402_verified)
 
 
+def _is_public_path(path: str) -> bool:
+    """True for an exact public path or a public prefix (e.g. ``/mcp/*``)."""
+    return path in _AUTH_PUBLIC_PATHS or any(
+        path.startswith(p + "/") for p in _AUTH_PUBLIC_PATHS if p != "/"
+    )
+
+
+def _billing_reject(scope: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Return ``_reject_rate_limited`` kwargs when billing denies, else None."""
+    if _billing_allows(scope):
+        return None
+    record = scope.get("pry_api_key") or {}
+    return {
+        "api_key": str(record.get("key_id") or ""),
+        "stats": {"reason": "billing quota or rate limit exceeded", "retry_after": 60},
+        "rate_limit_headers": {},
+    }
+
+
 # Middleware: auth + rate limit + timing + request logging
 class PryHttpMiddleware:
     """Pure-ASGI middleware for auth, rate limiting, timing, and logging.
@@ -105,56 +124,36 @@ class PryHttpMiddleware:
         # patching pry.core.middleware.<name> take effect at call time.
         from pry.core import middleware as _facade
 
-        # CORS preflight: OPTIONS requests carry no credentials and must reach
-        # CORSMiddleware without auth/rate-limit gating so browsers can probe
-        # cross-origin access before sending the real request.
+        # CORS preflight: OPTIONS carries no credentials and must reach
+        # CORSMiddleware without auth/rate-limit gating.
         if scope.get("method") == "OPTIONS":
             await self.app(scope, receive, send)
             return
 
         start = time.time()
         request_id = self._get_header(scope, b"x-request-id") or uuid.uuid4().hex[:12]
-        # Bind request_id into structlog contextvars so EVERY log line emitted
-        # during this request (including downstream modules) carries it at the
-        # top level of the JSON record. Cleared at every exit path below.
+        # Bind request_id into structlog contextvars for downstream log lines.
         bind_request_id(request_id)
         path = scope.get("path", "")
         method = scope.get("method", "GET")
         ip = _facade._resolve_client_ip(scope)
-        response_status = 200
 
-        # Authentication check — fail closed.
-        # Runs BEFORE the unknown-path pass-through: a keyless instance must
-        # reject every non-loopback source (even for unknown paths) with 401,
-        # and a configured key must be presented from every source. The
-        # route-existence check below only decides whether an *authorized*
-        # request is passed to the router (which 404s unknown paths).
-        # Public paths support exact match or prefix match (e.g. /mcp/*).
-        is_public = path in _AUTH_PUBLIC_PATHS or any(
-            path.startswith(p + "/") for p in _AUTH_PUBLIC_PATHS if p != "/"
-        )
-        if not is_public and not _facade.request_authorized(scope):
+        # Authentication — fail closed, and BEFORE the unknown-path pass-through.
+        if not self._authorized(scope, path):
             await self._reject_unauthorized(scope, send, request_id, path, ip)
             return
 
-        # Check if route exists — pass through unknown paths to 404 handler
-        _app = getattr(self, "app", None)
-        if _app and not _facade._path_exists(path, _app):
+        # Unknown paths pass through to the router, which 404s them.
+        if self._route_missing(path):
             await self._passthrough_unmatched(scope, receive, send, method=method, start=start)
             return
 
         # Billing enforcement (post-auth): PRY_BILLING_KEYS tiers were neither
         # authenticated nor enforced before this check.
-        if not _billing_allows(scope):
-            key_record = scope.get("pry_api_key") or {}
+        billing = _billing_reject(scope)
+        if billing is not None:
             await self._reject_rate_limited(
-                send,
-                request_id=request_id,
-                path=path,
-                ip=ip,
-                api_key=str(key_record.get("key_id") or ""),
-                stats={"reason": "billing quota or rate limit exceeded", "retry_after": 60},
-                rate_limit_headers={},
+                send, request_id=request_id, path=path, ip=ip, **billing
             )
             return
 
@@ -171,72 +170,105 @@ class PryHttpMiddleware:
             )
             return
 
+        self._log_request_start(scope, request_id, ip)
+        wrapped_send, status = self._send_with_headers(send, request_id, rate_limit_headers)
+        await self.app(scope, receive, wrapped_send)
+
+        response_status = status[0]
+        elapsed = time.time() - start
+        set_span_attributes({"http.status_code": response_status})
+        endpoint = self._endpoint_label(scope, response_status, path)
+        self._record_request_metrics(scope, endpoint, response_status, elapsed)
+        self._log_request_end(scope, request_id, response_status, elapsed)
+        clear_request_id()
+
+    # ── Extracted blocks (audit P2) ─────────────────────────────────────────
+
+    def _log_request_start(self, scope: dict[str, Any], request_id: str, ip: str) -> None:
         logger.info(
             "request_start",
             extra={
                 "request_id": request_id,
                 "method": scope.get("method", "GET"),
-                "path": path,
+                "path": scope.get("path", ""),
                 "ip": ip,
             },
         )
 
-        ratelimit_limit = rate_limit_headers["x-ratelimit-limit"].encode()
-        ratelimit_remaining = rate_limit_headers["x-ratelimit-remaining"].encode()
-        ratelimit_reset = rate_limit_headers["x-ratelimit-reset"].encode()
-        request_id_bytes = request_id.encode()
+    def _send_with_headers(
+        self, send: Any, request_id: str, rate_limit_headers: dict[str, str]
+    ) -> tuple[Any, list[int]]:
+        """Wrap ``send`` to add security/rate-limit headers; returns (send, status)."""
+        status = [200]
 
-        async def wrapped_send(message: dict[str, Any]) -> None:
-            nonlocal response_status
+        async def wrapped(message: dict[str, Any]) -> None:
             if message["type"] == "http.response.start":
-                response_status = message.get("status", 200)
+                status[0] = message.get("status", 200)
                 headers = list(message.get("headers", []))
                 headers.extend(_SECURITY_HEADERS)
-                headers.append((b"x-ratelimit-limit", ratelimit_limit))
-                headers.append((b"x-ratelimit-remaining", ratelimit_remaining))
-                headers.append((b"x-ratelimit-reset", ratelimit_reset))
-                headers.append((b"x-request-id", request_id_bytes))
+                for name in ("x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset"):
+                    headers.append((name.encode(), rate_limit_headers[name].encode()))
+                headers.append((b"x-request-id", request_id.encode()))
                 message["headers"] = headers
             await send(message)
 
-        await self.app(scope, receive, wrapped_send)
+        return wrapped, status
 
-        elapsed = time.time() - start
-        set_span_attributes({"http.status_code": response_status})
-        # Route TEMPLATE as the label (e.g. /v1/job/{job_id}), never the
-        # raw path — raw paths give every unique URL its own Prometheus
-        # series and explode cardinality. Unmatched routes (404s from
-        # scanners hitting random paths) bucket under a fixed label.
+    def _endpoint_label(self, scope: dict[str, Any], status: int, path: str) -> str:
+        """Route TEMPLATE as the label (never the raw path — cardinality)."""
         route = scope.get("route")
-        endpoint: str = getattr(route, "path", "") or (
-            "unmatched" if response_status == 404 else path
+        return getattr(route, "path", "") or ("unmatched" if status == 404 else path)
+
+    def _log_request_end(
+        self, scope: dict[str, Any], request_id: str, status: int, elapsed: float
+    ) -> None:
+        logger.info(
+            "request_end",
+            extra={
+                "request_id": request_id,
+                "method": scope.get("method", "GET"),
+                "path": scope.get("path", ""),
+                "status": status,
+                "duration": f"{elapsed:.3f}s",
+            },
         )
+
+    def _authorized(self, scope: dict[str, Any], path: str) -> bool:
+        """Public path or an authorized request; fail closed otherwise."""
+        from pry.core import middleware as _facade
+
+        return _is_public_path(path) or _facade.request_authorized(scope)
+
+    def _route_missing(self, path: str) -> bool:
+        """True when no mounted route matches ``path`` (router 404s it)."""
+        from pry.core import middleware as _facade
+
+        app = getattr(self, "app", None)
+        return bool(app) and not _facade._path_exists(path, app)
+
+    def _record_request_metrics(
+        self,
+        scope: dict[str, Any],
+        endpoint: str,
+        status: int,
+        elapsed: float,
+    ) -> None:
+        """Emit Prometheus counters/latency and per-key usage for one request."""
+        from pry.core import middleware as _facade
+
         if REQUEST_COUNT and REQUEST_LATENCY:
             REQUEST_COUNT.labels(
-                method=method, endpoint=endpoint, status=str(response_status)
+                method=scope.get("method", "GET"), endpoint=endpoint, status=str(status)
             ).inc()
             REQUEST_LATENCY.labels(endpoint=endpoint).observe(elapsed)
         if scope.get("pry_api_key"):
             _record_usage(
                 scope["pry_api_key"],
                 operation=endpoint,
-                status="success" if response_status < 400 else "error",
+                status="success" if status < 400 else "error",
                 duration_ms=int(elapsed * 1000),
-                ip=ip,
+                ip=_facade._resolve_client_ip(scope),
             )
-        logger.info(
-            "request_end",
-            extra={
-                "request_id": request_id,
-                "method": method,
-                "path": path,
-                "status": response_status,
-                "duration": f"{elapsed:.3f}s",
-            },
-        )
-        clear_request_id()
-
-    # ── Extracted blocks (audit P2) ─────────────────────────────────────────
 
     async def _reject_unauthorized(
         self,

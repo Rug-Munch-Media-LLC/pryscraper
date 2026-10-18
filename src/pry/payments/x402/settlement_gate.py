@@ -16,9 +16,65 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
+
+
+def _is_receipt_for(record: Any, payment_id: str) -> bool:
+    """True when ``record`` is a successful receipt bound to ``payment_id``."""
+    return (
+        isinstance(record, dict)
+        and record.get("success") is True
+        and str(record.get("payment_id") or "").strip() == payment_id
+    )
+
+
+def _memory_has_receipt(handler: Any, payment_id: str) -> bool:
+    settled = getattr(handler, "_settled_txs", None)
+    if not isinstance(settled, dict):
+        return False
+    return any(_is_receipt_for(rec, payment_id) for rec in settled.values())
+
+
+def _jsonl_line_matches(line: str, payment_id: str) -> bool:
+    if not line.strip():
+        return False
+    try:
+        return _is_receipt_for(json.loads(line), payment_id)
+    except json.JSONDecodeError:
+        return False  # a torn audit line is not proof of settlement
+
+
+def _jsonl_has_receipt(path: Any, payment_id: str) -> bool:
+    if path is None:
+        return False
+    try:
+        lines = path.read_text().splitlines()
+    except FileNotFoundError:
+        return False
+    return any(_jsonl_line_matches(line, payment_id) for line in lines)
+
+
+def _db_has_receipt(payment_id: str) -> bool:
+    from pry.payments.x402.ledger_settlement import settlement_for_payment
+
+    return _is_receipt_for(settlement_for_payment(payment_id), payment_id)
+
+
+def _readers(handler: Any, payment_id: str) -> tuple[tuple[str, Callable[[], bool]], ...]:
+    """Source name → fail-closed receipt reader, in canonical read order."""
+    return (
+        ("memory", lambda: _memory_has_receipt(handler, payment_id)),
+        (
+            "jsonl",
+            lambda: _jsonl_has_receipt(getattr(handler, "settlements_file", None), payment_id),
+        ),
+        ("db", lambda: _db_has_receipt(payment_id)),
+    )
 
 
 def is_settled(handler: Any, payment_id: str) -> bool:
@@ -31,43 +87,7 @@ def is_settled(handler: Any, payment_id: str) -> bool:
     if not pid:
         return False
 
-    def _match(rec: Any) -> bool:
-        return (
-            isinstance(rec, dict)
-            and rec.get("success") is True
-            and str(rec.get("payment_id") or "").strip() == pid
-        )
-
-    def _from_memory() -> bool:
-        settled = getattr(handler, "_settled_txs", None)
-        if not isinstance(settled, dict):
-            return False
-        return any(_match(rec) for rec in settled.values())
-
-    def _from_jsonl() -> bool:
-        path = getattr(handler, "settlements_file", None)
-        if path is None:
-            return False
-        try:
-            lines = path.read_text().splitlines()
-        except FileNotFoundError:
-            return False
-        for line in lines:
-            if not line.strip():
-                continue
-            try:
-                if _match(json.loads(line)):
-                    return True
-            except json.JSONDecodeError:
-                continue  # a torn audit line is not proof of settlement
-        return False
-
-    def _from_db() -> bool:
-        from pry.payments.x402.ledger_settlement import settlement_for_payment
-
-        return _match(settlement_for_payment(pid))
-
-    for source, read in (("memory", _from_memory), ("jsonl", _from_jsonl), ("db", _from_db)):
+    for source, read in _readers(handler, pid):
         try:
             if read():
                 return True

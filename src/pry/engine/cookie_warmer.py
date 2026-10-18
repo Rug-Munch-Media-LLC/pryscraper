@@ -72,15 +72,7 @@ class CookieWarmer:
         min_delay: float = 2.0,
         max_delay: float = 8.0,
     ) -> dict[str, Any]:
-        """Warm cookies for a target domain by visiting legitimate pages first.
-
-        Args:
-            target_domain: Domain to warm cookies for (e.g., "amazon.com")
-            session_id: Session identifier (for storing warmed cookies)
-            pages_to_visit: Number of pages to visit to warm cookies
-            min_delay: Minimum delay between page visits (seconds)
-            max_delay: Maximum delay between page visits (seconds)
-        """
+        """Warm cookies for ``target_domain`` by visiting legitimate pages first."""
         from playwright.async_api import async_playwright
 
         if not session_id:
@@ -112,33 +104,8 @@ class CookieWarmer:
                 # Warming targets and any redirect hop are SSRF-validated.
                 install_route_guard(page)
 
-                for warming_url in pages:
-                    try:
-                        await page.goto(warming_url, wait_until="domcontentloaded", timeout=30000)
-                        # Human-like behavior: scroll, hover
-                        await page.evaluate("window.scrollTo(0, document.body.scrollHeight * 0.3)")
-                        await page.wait_for_timeout(_RNG.randint(500, 2000))
-                        await page.evaluate("window.scrollTo(0, 0)")
-                        await page.wait_for_timeout(_RNG.randint(500, 1500))
-                        delay = _RNG.uniform(min_delay, max_delay)
-                        await asyncio.sleep(delay)
-                    except Exception as e:  # noqa: BLE001
-                        logger.warning("warm_page_failed url=%s err=%s", warming_url, str(e)[:50])
-
-                # Collect cookies
-                storage_cookies = await context.cookies()
-                cookies = [
-                    {
-                        "name": str(c.get("name", "")),
-                        "value": str(c.get("value", "")),
-                        "domain": str(c.get("domain", "")),
-                        "path": str(c.get("path", "/")),
-                        "expires": c.get("expires", -1),
-                        "httpOnly": c.get("httpOnly", False),
-                        "secure": c.get("secure", False),
-                    }
-                    for c in storage_cookies
-                ]
+                await self._warm_pages(page, pages, min_delay, max_delay)
+                cookies = self._collect_cookies(await context.cookies())
 
                 await browser.close()
 
@@ -165,6 +132,38 @@ class CookieWarmer:
         except (json.JSONDecodeError, ValueError) as e:
             logger.warning("silent_exception_swallowed", exc_info=True)
             return {"success": False, "error": str(e)[:300]}
+
+    async def _warm_pages(
+        self, page: Any, pages: list[str], min_delay: float, max_delay: float
+    ) -> None:
+        """Visit warming pages with human-like scrolling and politeness delays."""
+        for warming_url in pages:
+            try:
+                await page.goto(warming_url, wait_until="domcontentloaded", timeout=30000)
+                # Human-like behavior: scroll, paused, scroll back.
+                await page.evaluate("window.scrollTo(0, document.body.scrollHeight * 0.3)")
+                await page.wait_for_timeout(_RNG.randint(500, 2000))
+                await page.evaluate("window.scrollTo(0, 0)")
+                await page.wait_for_timeout(_RNG.randint(500, 1500))
+                await asyncio.sleep(_RNG.uniform(min_delay, max_delay))
+            except Exception as e:  # noqa: BLE001
+                logger.warning("warm_page_failed url=%s err=%s", warming_url, str(e)[:50])
+
+    @staticmethod
+    def _collect_cookies(storage_cookies: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Keep only the cookie fields the warmer persists."""
+        return [
+            {
+                "name": str(c.get("name", "")),
+                "value": str(c.get("value", "")),
+                "domain": str(c.get("domain", "")),
+                "path": str(c.get("path", "/")),
+                "expires": c.get("expires", -1),
+                "httpOnly": c.get("httpOnly", False),
+                "secure": c.get("secure", False),
+            }
+            for c in storage_cookies
+        ]
 
     def get_warmed_cookies(self, session_id: str) -> dict[str, Any] | None:
         """Get warmed cookies for a session."""

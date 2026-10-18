@@ -279,11 +279,7 @@ async def x402_batch_verify(
     return {"success": result["verified"], "data": result}
 
 
-@router.post(
-    "/v1/x402/pay",
-    tags=["x402"],
-    summary="Process x402 payment and get access token",
-)
+@router.post("/v1/x402/pay", tags=["x402"], summary="Process x402 payment and get access token")
 async def x402_pay(
     request: Request,
     operation: str = Body(...),
@@ -293,73 +289,36 @@ async def x402_pay(
     asset: str = Body(""),
     amount_usd: float = Body(0.0),
 ) -> dict[str, Any]:
-    """Process an x402 payment and return an access token.
+    """Verify then settle a payment; return an access token (payment_id).
 
-    Flow:
-    1. User gets 402 from a paid endpoint
-    2. User sends USDC to the wallet in the 402 response
-    3. User calls this endpoint with the tx_hash
-    4. Pry verifies the transaction through the facilitator router
-    5. Returns access token (payment_id) to use in X-Payment-Hash header
-
-    Security: the client-supplied ``amount_usd`` is validated against the
-    SERVER-side price for ``operation`` before any verification, so a client
-    cannot underpay by claiming a lower amount. The returned payment_id is
-    bound to the caller IP and expires after PAYMENT_VALIDITY_SECONDS.
+    ``amount_usd`` is checked against the SERVER-side price first, and access
+    requires a successful settlement receipt for THIS payment_id.
     """
-    from pry.payments.x402 import X402Handler, resolve_price_usd, validate_client_amount
+    from pry.payments.x402 import validate_client_amount
 
-    # Never trust the client-supplied amount: reject underpayment up front.
-    # ``network`` lets the canonical SUPPORTED_ASSETS table quote non-1:1
-    # assets (ETH/ARB/SOL/TRX) with the right decimals + USD-per-unit.
+    payload = {
+        "payment_id": uuid.uuid4().hex[:12],
+        "tx_hash": tx_hash,
+        "network": network,
+        "asset": asset,
+        "amount_usd": amount_usd,
+        "operation": operation,
+        "payer_wallet": payer_wallet,
+        # Bind to the caller IP so the middleware replay check matches it.
+        "caller_key": request.client.host if request.client else "",
+    }
     ok, reason = validate_client_amount(operation, amount_usd, asset, network=network)
     if not ok:
         logger.warning(
             "x402_underpayment_rejected",
             extra={"operation": operation, "reason": reason},
         )
-        return {
-            "success": False,
-            "data": {
-                "payment_id": "",
-                "tx_hash": tx_hash,
-                "settled": False,
-                "verified": {"verified": False, "reason": reason, "settlement": None},
-                "settlement": None,
-                "payer_wallet": payer_wallet,
-                "required_amount_usd": resolve_price_usd(operation),
-            },
-        }
+        return _rejected_payment(payload, reason)
 
-    # Bind the payment to the caller IP so the middleware replay check (which
-    # also uses the socket peer IP) can match it within the TTL window.
-    caller_key = request.client.host if request.client else ""
-    h = X402Handler()
-    payment_id = uuid.uuid4().hex[:12]
-    # Use the server-side price for the operation.
-    verify_result = await h.verify_payment(
-        payment_id,
-        tx_hash,
-        network=network,
-        asset=asset,
-        amount_usd=amount_usd,
-        operation=operation,
-        caller_key=caller_key,
-    )
-    settlement = None
-    if verify_result.get("verified"):
-        settlement = await h.settle_payment(
-            payment_id,
-            tx_hash,
-            network=network,
-            asset=asset,
-            amount_usd=amount_usd,
-            operation=operation,
-        )
-    # Fail closed: verification alone buys nothing. Access is granted only
-    # when the settlement receipt is a success for THIS payment_id.
+    verify_result, settlement = await _verify_and_settle(payload)
     settled = bool(settlement and settlement.get("success") is True)
     success = bool(verify_result.get("verified")) and settled
+    payment_id = payload["payment_id"]
     return {
         "success": success,
         "data": {
@@ -374,6 +333,44 @@ async def x402_pay(
             ),
         },
     }
+
+
+def _rejected_payment(payload: dict[str, Any], reason: str) -> dict[str, Any]:
+    """Underpayment response body — same shape as a failed verification."""
+    from pry.payments.x402 import resolve_price_usd
+
+    return {
+        "success": False,
+        "data": {
+            "payment_id": "",
+            "tx_hash": payload["tx_hash"],
+            "settled": False,
+            "verified": {"verified": False, "reason": reason, "settlement": None},
+            "settlement": None,
+            "payer_wallet": payload["payer_wallet"],
+            "required_amount_usd": resolve_price_usd(payload["operation"]),
+        },
+    }
+
+
+async def _verify_and_settle(payload: dict[str, Any]) -> tuple[dict[str, Any], Any]:
+    """Verify then settle one payment; settlement proves access, verification does not."""
+    from pry.payments.x402 import X402Handler
+
+    handler = X402Handler()
+    common = {
+        "network": payload["network"],
+        "asset": payload["asset"],
+        "amount_usd": payload["amount_usd"],
+        "operation": payload["operation"],
+    }
+    verify_result = await handler.verify_payment(
+        payload["payment_id"], payload["tx_hash"], caller_key=payload["caller_key"], **common
+    )
+    if not verify_result.get("verified"):
+        return verify_result, None
+    settlement = await handler.settle_payment(payload["payment_id"], payload["tx_hash"], **common)
+    return verify_result, settlement
 
 
 # Re-exported so `from pry.api.routers.commerce.x402 import ENGINE_TOOLS` keeps

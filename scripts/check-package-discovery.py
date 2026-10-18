@@ -1,17 +1,10 @@
 #!/usr/bin/env python3
 """check-package-discovery.py — packaging-discovery drift gate (all roots).
 
-``[tool.setuptools.packages.find].include`` is an fnmatch glob list. setuptools
-drops a pattern that matches nothing WITHOUT an error, so a stale entry builds
-green and lies about what shipped. The inverse is worse: a real runtime package
-under any ``where`` root that no pattern matches is silently left out of the
-wheel — how seven root-level runtime packages went missing (P0, 2026-10-18).
-
-Fails when: (a) a runtime-imported top-level package is not selected, (b) an
-include pattern matches nothing under any root, (c) ``tests`` would ship,
-(d) any other real package is matched by no pattern.
-
-Resolution uses setuptools' own finders so the verdict matches the build.
+setuptools silently drops an ``include`` glob matching nothing (a stale entry
+builds green) and omits an unmatched real runtime package from the wheel — how
+seven root-level packages went missing (P0, 2026-10-18). Resolution uses
+setuptools' own finders so the verdict matches the build.
 
 Usage: python3 scripts/check-package-discovery.py [--repo .] [--json]
 """
@@ -28,9 +21,7 @@ from pathlib import Path
 
 EXIT_OK, EXIT_DRIFT, EXIT_UNMEASURABLE = 0, 1, 2
 FIND_KEY = ("tool", "setuptools", "packages", "find")
-# Runtime top-level packages the installed CLI/MCP entry points import. Explicit
-# so deleting every import cannot quietly drop a package; absent ones (fixtures)
-# are ignored.
+# Runtime top-level packages the CLI/MCP entry points import; absent fixtures ignored.
 REQUIRED_RUNTIME = (
     "pry",
     "pry_mcp",
@@ -47,10 +38,9 @@ SKIP_DIRS = {".git", ".venv", "venv", "build", "dist", "node_modules", "website"
 
 def load_find_config(root: Path) -> dict:
     """Return [tool.setuptools.packages.find] as a dict, or {} when absent."""
-    path = root / "pyproject.toml"
-    if not path.exists():
+    if not (root / "pyproject.toml").exists():
         return {}
-    node = tomllib.loads(path.read_text(encoding="utf-8"))
+    node = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     for key in FIND_KEY:
         node = node.get(key, {}) if isinstance(node, dict) else {}
     return node if isinstance(node, dict) else {}
@@ -59,17 +49,15 @@ def load_find_config(root: Path) -> dict:
 def discover(cfg: dict, root: Path) -> tuple[list[Path], list[str], list[str], set[str]]:
     """Return (where roots, namespace tree, selected packages, local top levels).
 
-    The namespace tree is the build's view of each root (``namespaces`` unset =
-    PEP 420), narrowed to packages whose top level is real local code — so root
-    dirs such as ``scripts`` or ``docs`` are not mistaken for runtime packages.
+    The tree is the build's view of each root (PEP 420), narrowed to packages
+    whose top level is real local code (not dirs like ``scripts``/``docs``).
     """
     from setuptools import find_namespace_packages, find_packages
 
     where = list(cfg.get("where") or ["."])
     include = list(cfg.get("include", [])) or ["*"]
     roots = [(root / w).resolve() for w in where]
-    regular: set[str] = set()
-    tree: set[str] = set()
+    regular, tree = set[str](), set[str]()
     for base in roots:
         if base.is_dir():
             regular.update(find_packages(where=str(base), include=["*"]))
@@ -86,26 +74,32 @@ def discover(cfg: dict, root: Path) -> tuple[list[Path], list[str], list[str], s
     return roots, tree, selected, local
 
 
+def _scan_root(base: Path, local: set[str]) -> set[str]:
+    found: set[str] = set()
+    for path in base.rglob("*.py"):
+        if any(part in SKIP_DIRS for part in path.parts):
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                names = [node.module]
+            else:
+                continue
+            found |= {n.split(".")[0] for n in names} & local
+    return found
+
+
 def scan_imports(root: Path, local: set[str]) -> set[str]:
     """Top-level local packages imported absolutely in src/ or a root package."""
+    bases = [root / "src"] + [root / n for n in sorted(local) if (root / n).is_dir()]
     found: set[str] = set()
-    bases = [root / "src"] + [root / name for name in sorted(local) if (root / name).is_dir()]
     for base in bases:
-        for path in base.rglob("*.py"):
-            if any(part in SKIP_DIRS for part in path.parts):
-                continue
-            try:
-                tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"))
-            except SyntaxError:
-                continue
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    names = [a.name for a in node.names]
-                elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-                    names = [node.module]
-                else:
-                    continue
-                found.update(n.split(".")[0] for n in names if n.split(".")[0] in local)
+        found |= _scan_root(base, local)
     return found
 
 
@@ -114,50 +108,47 @@ def classify(tree: list[str], patterns: list[str]) -> dict:
     buckets: dict[str, list[str]] = {"exact": [], "wildcard": [], "phantom": []}
     for pattern in patterns:
         hits = [p for p in tree if fnmatch(p, pattern)]
-        if not hits:
-            buckets["phantom"].append(pattern)
-        elif pattern in hits:
-            buckets["exact"].append(pattern)
-        else:
-            buckets["wildcard"].append(pattern)
+        key = "phantom" if not hits else ("exact" if pattern in hits else "wildcard")
+        buckets[key].append(pattern)
     return buckets
 
 
-def report_and_fail(
-    cfg: dict,
-    roots: list[Path],
-    tree: list[str],
-    selected: list[str],
-    imported: set[str],
-    local: set[str],
-) -> int:
+def _check(d: dict) -> tuple[dict, dict[str, list[str]]]:
+    selected = set(d["selected"])
+    top = {p.split(".")[0] for p in selected}
+    excluded = {p for p in d["tree"] if p.split(".")[0] in FORBIDDEN}
+    buckets = classify(d["tree"], list(d["cfg"].get("include", [])))
+    found = {
+        "phantom include pattern(s) — setuptools drops these silently": buckets["phantom"],
+        "runtime-imported top-level package(s) not selected": sorted(
+            ((set(REQUIRED_RUNTIME) | d["imported"]) & d["local"]) - top
+        ),
+        "tests would ship in the wheel": sorted(
+            p for p in selected if p.split(".")[0] in FORBIDDEN
+        ),
+        "real package(s) no include pattern matches": [
+            p for p in d["tree"] if p not in selected and p not in excluded
+        ],
+    }
+    return buckets, {label: items for label, items in found.items() if items}
+
+
+def report_and_fail(d: dict) -> int:
     """Print the verdict; return the exit code."""
-    selected_set = set(selected)
-    selected_top = {p.split(".")[0] for p in selected}
-    buckets = classify(tree, list(cfg.get("include", [])))
-    required = ((set(REQUIRED_RUNTIME) | imported) & local) - selected_top
-    shipped_tests = sorted(p for p in selected if p.split(".")[0] in FORBIDDEN)
-    excluded = {p for p in tree if p.split(".")[0] in FORBIDDEN}
-    omitted = [p for p in tree if p not in selected_set and p not in excluded]
+    buckets, failures = _check(d)
     print(
-        f"package-discovery gate: {len(tree)} discovered package(s) under "
-        f"{', '.join(str(r) for r in roots)}; {len(selected)} selected "
+        f"package-discovery gate: {len(d['tree'])} discovered package(s) under "
+        f"{', '.join(str(r) for r in d['roots'])}; {len(d['selected'])} selected "
         f"({len(buckets['exact'])} exact, {len(buckets['wildcard'])} wildcard, "
-        f"{len(buckets['phantom'])} phantom); {len(imported)} runtime-imported top-level"
+        f"{len(buckets['phantom'])} phantom); {len(d['imported'])} runtime-imported top-level"
     )
-    if not (buckets["phantom"] or omitted or required or shipped_tests):
+    if not failures:
         print("package-discovery gate: PASS")
         return EXIT_OK
-    for label, items in (
-        ("phantom include pattern(s) — setuptools drops these silently", buckets["phantom"]),
-        ("runtime-imported top-level package(s) not selected", sorted(required)),
-        ("tests would ship in the wheel", shipped_tests),
-        ("real package(s) no include pattern matches", omitted),
-    ):
-        if items:
-            print(f"\nFAIL ({label}):", file=sys.stderr)
-            for item in items:
-                print(f"  - {item}", file=sys.stderr)
+    for label, items in failures.items():
+        print(f"\nFAIL ({label}):", file=sys.stderr)
+        for item in items:
+            print(f"  - {item}", file=sys.stderr)
     return EXIT_DRIFT
 
 
@@ -171,8 +162,8 @@ def main() -> int:
     cfg = load_find_config(root)
     if not cfg:
         print(
-            f"package-discovery gate: FAIL (no [tool.setuptools.packages.find] "
-            f"in {root / 'pyproject.toml'})",
+            f"package-discovery gate: FAIL (no [tool.setuptools.packages.find] in "
+            f"{root / 'pyproject.toml'})",
             file=sys.stderr,
         )
         return EXIT_UNMEASURABLE
@@ -197,7 +188,16 @@ def main() -> int:
                 indent=2,
             )
         )
-    return report_and_fail(cfg, roots, tree, selected, imported, local)
+    return report_and_fail(
+        {
+            "cfg": cfg,
+            "roots": roots,
+            "tree": tree,
+            "selected": selected,
+            "imported": imported,
+            "local": local,
+        }
+    )
 
 
 if __name__ == "__main__":
