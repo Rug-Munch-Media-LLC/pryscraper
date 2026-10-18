@@ -49,6 +49,18 @@ def _pinned(resolved_dns: str, path: str) -> str:
     return f"https://{resolved_dns}{path}"
 
 
+def _assert_page_analysis(data: dict) -> None:
+    """All the content assertions, kept out of the test body for clarity."""
+    assert "wordpress" in data["tech_stack"]["detected"]
+    assert "shopify" in data["tech_stack"]["detected"]
+    assert "google_analytics" in data["tech_stack"]["detected"]
+    assert data["tech_stack"]["categories"]["cms"] == ["wordpress", "shopify"]
+    assert "twitter" in data["social_profiles"]["platforms_found"]
+    assert "sales@acme.example" in data["company_info"]["emails"]
+    assert data["company_info"]["founded_year"] == "2011"
+    assert "error" not in data, f"unexpected error field: {data.get('error')}"
+
+
 @respx.mock
 def test_enrich_fetches_and_analyses_a_public_page(resolved_dns: str) -> None:
     """Kills: a guard wired in so that it never actually fetches (a stub client,
@@ -62,17 +74,8 @@ def test_enrich_fetches_and_analyses_a_public_page(resolved_dns: str) -> None:
     r = client.post("/v1/enrich", json=enrich_body(PUBLIC_URL))
 
     assert r.status_code == 200, r.text[:300]
-    data = r.json()["data"]
     assert page.called, "enrichment never fetched the page"
-    assert "wordpress" in data["tech_stack"]["detected"]
-    assert "shopify" in data["tech_stack"]["detected"]
-    assert "google_analytics" in data["tech_stack"]["detected"]
-    expected = ["wordpress", "shopify"]
-    assert data["tech_stack"]["categories"]["cms"] == expected
-    assert "twitter" in data["social_profiles"]["platforms_found"]
-    assert "sales@acme.example" in data["company_info"]["emails"]
-    assert data["company_info"]["founded_year"] == "2011"
-    assert "error" not in data, f"unexpected error field: {data.get('error')}"
+    _assert_page_analysis(r.json()["data"])
 
 
 @respx.mock
