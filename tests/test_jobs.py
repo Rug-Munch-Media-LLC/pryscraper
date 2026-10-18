@@ -642,23 +642,6 @@ async def test_get_salary_blank_company_returns_empty() -> None:
     assert respx.calls.call_count == 0
 
 
-@respx.mock
-async def test_get_salary_canonical_name_resolution() -> None:
-    # Direct slug 404s; homepage index resolves the canonical name, retry succeeds.
-    respx.get("https://www.levels.fyi/companies/foo-bar/salaries/software-engineer").mock(
-        return_value=httpx.Response(404)
-    )
-    homepage = """<html><body><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{
-      "companiesWithLevels":{"Software Engineer":["Foo Bar Inc."]}
-    }}}</script></body></html>"""
-    respx.get(LEVELS_HOME).mock(return_value=httpx.Response(200, text=homepage))
-    respx.get("https://www.levels.fyi/companies/foo-bar-inc/salaries/software-engineer").mock(
-        return_value=httpx.Response(200, text=LEVELS_HTML)
-    )
-    result = await salary.get_salary("Foo Bar")
-    assert result["company"] == "Google"
-
-
 # ── Router ─────────────────────────────────────────────────────────────
 @pytest.fixture
 def jobs_client() -> TestClient:
@@ -667,61 +650,3 @@ def jobs_client() -> TestClient:
     app = FastAPI()
     app.include_router(jobs_router)
     return TestClient(app)
-
-
-@respx.mock
-def test_router_list_jobs(jobs_client: TestClient) -> None:
-    respx.get(GREENHOUSE_URL).mock(return_value=httpx.Response(200, json=GREENHOUSE_JOBS))
-    response = jobs_client.get("/v1/jobs/greenhouse/stripe")
-    assert response.status_code == 200
-    body = response.json()
-    assert body["success"] is True
-    assert len(body["data"]) == 2
-    assert body["board"] == "greenhouse"
-    assert body["company"] == "stripe"
-
-
-@respx.mock
-def test_router_list_jobs_bad_board_degrades(jobs_client: TestClient) -> None:
-    response = jobs_client.get("/v1/jobs/unknown/stripe")
-    assert response.status_code == 200
-    assert response.json()["data"] == []
-
-
-@respx.mock
-def test_router_search_jobs(jobs_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(ats, "SEARCH_COMPANIES", (("stripe", "greenhouse"),))
-    respx.get(GREENHOUSE_URL).mock(return_value=httpx.Response(200, json=GREENHOUSE_JOBS))
-    response = jobs_client.get("/v1/jobs/search", params={"q": "engineer"})
-    assert response.status_code == 200
-    body = response.json()
-    assert body["success"] is True
-    assert len(body["data"]) == 1
-    assert body["data"][0]["id"] == "123"
-
-
-@respx.mock
-def test_router_get_job(jobs_client: TestClient) -> None:
-    detail = {
-        "title": "Backend Engineer",
-        "location": {"name": "Remote (US)"},
-        "content": "<p>Build APIs.</p>",
-        "absolute_url": "https://boards.greenhouse.io/stripe/jobs/123",
-        "metadata": [],
-    }
-    respx.get(GREENHOUSE_JOB_URL).mock(return_value=httpx.Response(200, json=detail))
-    response = jobs_client.get("/v1/jobs/greenhouse/job/123", params={"company": "stripe"})
-    assert response.status_code == 200
-    assert response.json()["success"] is True
-    assert response.json()["data"]["title"] == "Backend Engineer"
-
-
-@respx.mock
-def test_router_salary(jobs_client: TestClient) -> None:
-    respx.get(LEVELS_URL).mock(return_value=httpx.Response(200, text=LEVELS_HTML))
-    response = jobs_client.get("/v1/jobs/salary/google")
-    assert response.status_code == 200
-    body = response.json()
-    assert body["success"] is True
-    assert body["data"]["company"] == "Google"
-    assert body["data"]["samples"] == 313

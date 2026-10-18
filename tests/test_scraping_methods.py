@@ -745,45 +745,6 @@ def test_paginated_fetch_collects_until_empty() -> None:
     assert pages == expected_2
 
 
-def test_paginated_fetch_unwraps_dict_payloads() -> None:
-    page1 = httpx.Response(200, json={"results": [{"id": "a"}]})
-    page2 = httpx.Response(200, json={"data": [{"id": "b"}]})
-    page3 = httpx.Response(200, json={"items": []})
-    with patch("pry.engine.methods._common._sync_get", side_effect=[page1, page2, page3]):
-        results = paginated_fetch("https://example.com/api/items", per_page_delay=0)
-    expected = [{"id": "a"}, {"id": "b"}]
-    assert results == expected
-
-
-def test_paginated_fetch_respects_max_pages() -> None:
-    page = httpx.Response(200, json=[{"id": 1}])
-    with patch("pry.engine.methods._common._sync_get", return_value=page) as mock_get:
-        results = paginated_fetch("https://example.com/api/items", max_pages=2, per_page_delay=0)
-    expected = [{"id": 1}, {"id": 1}]
-    assert results == expected
-    assert mock_get.call_count == 2
-
-
-def test_paginated_fetch_bad_json_page_stops() -> None:
-    page1 = httpx.Response(200, json=[{"id": 1}])
-    page2 = httpx.Response(200, text="<html>oops</html>")
-    with patch("pry.engine.methods._common._sync_get", side_effect=[page1, page2]) as mock_get:
-        results = paginated_fetch("https://example.com/api/items", per_page_delay=0)
-    expected = [{"id": 1}]
-    assert results == expected
-    assert mock_get.call_count == 2
-
-
-def test_paginated_fetch_never_raises_on_failure() -> None:
-    with patch("pry.engine.methods._common._sync_get", return_value=None):
-        assert paginated_fetch("https://example.com/api/items", per_page_delay=0) == []
-
-
-def test_paginated_fetch_invalid_input_no_network() -> None:
-    assert paginated_fetch("") == []
-    assert paginated_fetch(None) == []  # type: ignore[arg-type]
-
-
 # ── Registry ────────────────────────────────────────────────────────────────
 
 

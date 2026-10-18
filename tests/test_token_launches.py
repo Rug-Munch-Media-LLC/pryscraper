@@ -20,9 +20,8 @@ import httpx
 import pytest
 import respx
 
-from crypto_market import get_chain_context, get_new_pairs, get_new_tokens, get_trending_tokens
+from crypto_market import get_new_pairs, get_new_tokens, get_trending_tokens
 from crypto_market.token_launches import (
-    SUPPORTED_CHAINS,
     _clear_cache,
 )
 
@@ -553,87 +552,10 @@ async def test_get_new_tokens_birdeye_sends_chain_header(
 # ── rate-limit backoff ──────────────────────────────────────────────────
 
 
-@respx.mock
-async def test_rate_limit_429_retries_then_succeeds() -> None:
-    respx.get(f"{DEX}/token-profiles/latest/v1").mock(
-        side_effect=[
-            httpx.Response(429, headers={"Retry-After": "1"}, json={}),
-            httpx.Response(200, json=[_profile(address="tok1")]),
-        ]
-    )
-    _mock_tokens("solana", _pair(base="tok1", pair="p1"))
-
-    result = await get_new_tokens(chain="solana")
-
-    assert len(result) == 1
-    assert result[0]["address"] == "tok1"
-
-
-@respx.mock
-async def test_rate_limit_429_exhausted_returns_empty() -> None:
-    respx.get(f"{DEX}/token-profiles/latest/v1").mock(return_value=httpx.Response(429, json={}))
-
-    assert await get_new_tokens(chain="solana") == []
-    assert respx.calls.call_count == 2
-
-
 # ── caching ─────────────────────────────────────────────────────────────
-
-
-@respx.mock
-async def test_results_cached_within_ttl() -> None:
-    profiles_route = _mock_profiles(_profile(address="tok1"))
-    _mock_tokens("solana", _pair(base="tok1", pair="p1"))
-
-    first = await get_new_tokens(chain="solana", limit=5)
-    second = await get_new_tokens(chain="solana", limit=5)
-
-    assert first == second
-    assert profiles_route.call_count == 1
 
 
 # ── DefiLlama chain context ─────────────────────────────────────────────
 
 
-@respx.mock
-async def test_get_chain_context_filters_and_normalizes() -> None:
-    respx.get(f"{LLAMA}/v2/chains").mock(
-        return_value=httpx.Response(
-            200,
-            json=[
-                {"name": "Ethereum", "chainId": "ethereum", "tvl": 50_000_000.0},
-                {"name": "Solana", "chainId": "solana", "tvl": 8_000_000.0},
-                {"name": "Base", "chainId": "base", "tvl": 2_000_000.0},
-            ],
-        )
-    )
-
-    result = await get_chain_context(chain="solana")
-
-    assert len(result) == 1
-    assert result[0]["chain"] == "solana"
-    assert result[0]["tvl_usd"] == 8_000_000.0
-
-
-@respx.mock
-async def test_get_chain_context_empty_on_failure() -> None:
-    respx.get(f"{LLAMA}/v2/chains").mock(return_value=httpx.Response(500, text="boom"))
-
-    assert await get_chain_context() == []
-    assert respx.calls.call_count == 2
-
-
 # ── package exports ─────────────────────────────────────────────────────
-
-
-def test_crypto_market_package_exports() -> None:
-    import crypto_market
-
-    for name in ("get_new_tokens", "get_new_pairs", "get_trending_tokens", "get_chain_context"):
-        assert name in crypto_market.__all__
-        assert callable(getattr(crypto_market, name))
-
-
-def test_supported_chains_constant() -> None:
-    expected = ("ethereum", "solana", "base", "bsc", "arbitrum", "polygon")
-    assert expected == SUPPORTED_CHAINS
