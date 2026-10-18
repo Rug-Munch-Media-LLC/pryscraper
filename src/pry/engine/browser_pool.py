@@ -10,6 +10,9 @@ instances or worker threads exist.
 The pool launches each browser type ONCE on first use and reuses it across
 requests. Every request gets an isolated context (cookies / storage) that is
 closed after use — never the browser itself.
+
+Launch lives here; teardown lives in ``browser_pool_teardown`` and binary /
+Playwright discovery in ``browser_pool_config``.
 """
 
 # SPDX-License-Identifier: BSL-1.1
@@ -23,42 +26,20 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import importlib.util
 import logging
 import threading
-from pathlib import Path
 from typing import Any
 
 from pry.core.chromium import CHROMIUM_CHANNEL
-
-_has_playwright = importlib.util.find_spec("playwright") is not None
-
-async_playwright: Any = None
-if _has_playwright:
-    from playwright.async_api import async_playwright
+from pry.engine.browser_pool_config import async_playwright, chromium_binary
+from pry.engine.browser_pool_teardown import PoolTeardownMixin, close_browsers
 
 logger = logging.getLogger(__name__)
 
-# The image ships Playwright's Chromium only (no distro ``chromium`` package).
-# undetected-chromedriver still needs a concrete binary, so point it at the
-# Playwright build instead of a hard-coded /usr/bin/chromium that no longer
-# exists. A distro path still wins when present (local/dev images).
-_PLAYWRIGHT_CHROMIUM = tuple(
-    str(p)
-    for pattern in ("chromium-*/chrome-linux64/chrome", "chromium-*/chrome-linux/chrome")
-    for p in sorted(Path("/ms-playwright").glob(pattern), reverse=True)
-)
+__all__ = ["BrowserPool", "close_browsers", "get_browser_pool"]
 
 
-def _chromium_binary() -> str | None:
-    """Return the first usable Chromium executable, or None."""
-    for candidate in ("/usr/bin/chromium", "/usr/bin/chromium-browser", *_PLAYWRIGHT_CHROMIUM):
-        if Path(candidate).is_file():
-            return candidate
-    return None
-
-
-class BrowserPool:
+class BrowserPool(PoolTeardownMixin):
     """Lazy singleton browser pool for the browser-based fetch tiers.
 
     The performance audit found that ``_tier_playwright``, ``_tier_undetected``
@@ -117,79 +98,49 @@ class BrowserPool:
             raise RuntimeError("browser pool is closed")
         with self._uc_lock:
             if self._uc_driver is None:
-                import subprocess
-
-                import undetected_chromedriver as uc
-                from selenium.webdriver.chrome.options import Options
-
-                # Container-safe flags: /dev/shm is small unless shm_size is
-                # raised (chromium needs --disable-dev-shm-usage) and the
-                # sandbox is unavailable in most container runtimes.
-                binary = _chromium_binary()
-                opts = Options()
-                if binary is not None:
-                    opts.binary_location = binary
-                opts.add_argument("--no-sandbox")
-                opts.add_argument("--disable-dev-shm-usage")
-                opts.add_argument("--disable-gpu")
-
-                # Pin the driver to the installed chromium's major version:
-                # uc otherwise fetches the latest chromedriver, which fails
-                # with SessionNotCreated when the system chromium lags.
-                version_main: int | None = None
-                try:
-                    out = subprocess.run(  # noqa: S603 - operator-owned path
-                        [binary or _chromium_binary() or "", "--version"],
-                        capture_output=True,
-                        text=True,
-                        timeout=10,
-                    )
-                    version_main = int(out.stdout.split()[1].split(".")[0])
-                except Exception:
-                    logger.debug("uc_chrome_version_detect_failed", exc_info=True)
-
-                self._uc_driver = uc.Chrome(
-                    headless=True,
-                    use_subprocess=True,
-                    options=opts,
-                    **({"version_main": version_main} if version_main else {}),
-                )
+                self._uc_driver = _launch_uc_driver()
             return self._uc_driver
 
-    async def close(self) -> None:
-        """Close all pooled browsers (graceful shutdown)."""
-        if self._closed:
-            return
-        self._closed = True
-        if self._playwright_browser is not None:
-            try:
-                await self._playwright_browser.close()
-            except Exception:
-                logger.debug("pool_playwright_close_failed", exc_info=True)
-            self._playwright_browser = None
-        if self._playwright is not None:
-            try:
-                await self._playwright.stop()
-            except Exception:
-                logger.debug("pool_playwright_stop_failed", exc_info=True)
-            self._playwright = None
-        if self._uc_driver is not None:
-            try:
-                self._uc_driver.quit()
-            except Exception:
-                logger.debug("pool_uc_quit_failed", exc_info=True)
-            self._uc_driver = None
 
-    def reset(self) -> None:
-        """Drop all cached browser references without closing them.
+def _launch_uc_driver() -> Any:
+    """Build the undetected-chromedriver instance (caller holds the lock)."""
+    import subprocess
 
-        Used by tests to guarantee isolation between cases (a module-level
-        singleton would otherwise leak a mocked driver across tests).
-        """
-        self._playwright = None
-        self._playwright_browser = None
-        self._uc_driver = None
-        self._closed = False
+    import undetected_chromedriver as uc
+    from selenium.webdriver.chrome.options import Options
+
+    # Container-safe flags: /dev/shm is small unless shm_size is
+    # raised (chromium needs --disable-dev-shm-usage) and the
+    # sandbox is unavailable in most container runtimes.
+    binary = chromium_binary()
+    opts = Options()
+    if binary is not None:
+        opts.binary_location = binary
+    opts.add_argument("--no-sandbox")
+    opts.add_argument("--disable-dev-shm-usage")
+    opts.add_argument("--disable-gpu")
+
+    # Pin the driver to the installed chromium's major version:
+    # uc otherwise fetches the latest chromedriver, which fails
+    # with SessionNotCreated when the system chromium lags.
+    version_main: int | None = None
+    try:
+        out = subprocess.run(  # noqa: S603 - operator-owned path
+            [binary or chromium_binary() or "", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        version_main = int(out.stdout.split()[1].split(".")[0])
+    except Exception:
+        logger.debug("uc_chrome_version_detect_failed", exc_info=True)
+
+    return uc.Chrome(
+        headless=True,
+        use_subprocess=True,
+        options=opts,
+        **({"version_main": version_main} if version_main else {}),
+    )
 
 
 # Process-level singleton: ALL scraper instances (across workers / threads in
@@ -211,19 +162,3 @@ def get_browser_pool() -> BrowserPool:
             if _pool is None:
                 _pool = BrowserPool()
     return _pool
-
-
-async def close_browsers() -> None:
-    """Close all pooled browsers. Call during graceful shutdown.
-
-    Closes the process-level singleton pool (Playwright + undetected-chromedriver)
-    and delegates to Camoufox's own module-level pool inside the integration.
-    """
-    await get_browser_pool().close()
-    # Camoufox maintains its own module-level pool inside the integration.
-    try:
-        from pry.engine.camoufox_integration import close_browsers as _close_camoufox
-
-        await _close_camoufox()
-    except Exception:
-        logger.debug("camoufox_pool_close_failed", exc_info=True)
