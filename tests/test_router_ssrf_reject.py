@@ -110,7 +110,9 @@ def test_internal_first_hop_is_never_fetched(bad_url: str) -> None:
     ],
     ids=["to-metadata", "to-loopback", "to-file-scheme"],
 )
-def test_public_redirect_off_allowlist_is_rejected(location: str, target: str) -> None:
+def test_public_redirect_off_allowlist_is_rejected(
+    location: str, target: str, resolved_dns: str
+) -> None:
     """Kills: the "validate the first URL, then follow redirects" fix — the
     mistake that survives a first-hop-only guard.
 
@@ -121,7 +123,8 @@ def test_public_redirect_off_allowlist_is_rejected(location: str, target: str) -
     The first hop *is* expected to be fetched: proving the public URL was
     rejected for the wrong reason would hide the real bug.
     """
-    first_hop = respx.get("https://redirector.example.com/go").mock(
+    pinned = f"https://{resolved_dns}/go"
+    first_hop = respx.get(pinned).mock(
         return_value=httpx.Response(302, headers={"location": location})
     )
     off_allowlist = respx.route(host=httpx.URL(target).host or "").mock(

@@ -42,6 +42,11 @@ def _portal_env(tmp_path, monkeypatch):
 
     monkeypatch.setattr(db_pkg, "_engine", None, raising=False)
     monkeypatch.setattr(session_mod, "_engine", None, raising=False)
+    # get_engine() no longer creates the schema (Alembic owns it); the test
+    # must bootstrap the tables explicitly, as the app lifespan does.
+    from pry.core.db.session import init_db
+
+    init_db()
     monkeypatch.setenv("PRY_PORTAL_SIGNING_KEY", _SIGNING_KEY)
     monkeypatch.delenv("PRY_REDIS_URL", raising=False)
     reset_portal_rate_state()

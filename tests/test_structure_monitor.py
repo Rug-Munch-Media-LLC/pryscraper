@@ -99,10 +99,11 @@ def temp_db(monkeypatch, tmp_path):
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_check_selectors_empty():
+async def test_check_selectors_empty(resolved_dns: str):
     # Hermetic: never hit the live network. The empty selector list must
-    # short-circuit to all_matched=True regardless of page content.
-    respx.get("https://example.com").mock(
+    # short-circuit to all_matched=True regardless of page content. The guard
+    # dials the validated IP, so the route is keyed on the pinned URL.
+    respx.get(f"https://{resolved_dns}/").mock(
         return_value=httpx.Response(200, text="<html><body><p>x</p></body></html>")
     )
     result = await check_selectors("https://example.com", [])

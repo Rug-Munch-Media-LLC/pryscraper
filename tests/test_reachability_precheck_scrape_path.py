@@ -50,7 +50,7 @@ def _one_tier_scraper(monkeypatch: pytest.MonkeyPatch, scraper: UltimateScraper)
     ids=["raise", "timeout", "oserror"],
 )
 async def test_a_raising_precheck_leaves_a_successful_scrape_untouched(
-    monkeypatch, exc: BaseException
+    monkeypatch, exc: BaseException, resolved_dns: str
 ) -> None:
     """The strongest witness: success never consults the precheck at all.
 
@@ -61,8 +61,8 @@ async def test_a_raising_precheck_leaves_a_successful_scrape_untouched(
     _one_tier_scraper(monkeypatch, scraper)
     content = "<html><body>" + ("<p>real page content</p>" * 80) + "</body></html>"
 
-    async def _succeed(_tier: str, *_a: Any, **_kw: Any) -> tuple[Any, float]:
-        return content, 0.001
+    async def _succeed(_tier: str, *_a: Any, **_kw: Any) -> tuple[Any, float, bool]:
+        return content, 0.001, False
 
     monkeypatch.setattr(scraper, "_attempt_tier", _succeed)
     _install(monkeypatch, _stub_raising(exc))
@@ -75,12 +75,14 @@ async def test_a_raising_precheck_leaves_a_successful_scrape_untouched(
     assert "target_reachability" not in result
 
 
-async def test_a_raising_precheck_still_produces_a_normal_failure(monkeypatch) -> None:
+async def test_a_raising_precheck_still_produces_a_normal_failure(
+    monkeypatch, resolved_dns: str
+) -> None:
     scraper = UltimateScraper()
     _one_tier_scraper(monkeypatch, scraper)
 
-    async def _fail(_tier: str, *_a: Any, **_kw: Any) -> tuple[Any, float]:
-        return None, 0.001
+    async def _fail(_tier: str, *_a: Any, **_kw: Any) -> tuple[Any, float, bool]:
+        return None, 0.001, False
 
     monkeypatch.setattr(scraper, "_attempt_tier", _fail)
     _install(monkeypatch, _stub_raising(RuntimeError("probe exploded")))
@@ -97,13 +99,15 @@ async def test_a_raising_precheck_still_produces_a_normal_failure(monkeypatch) -
     assert result["tiers_failed"] == expected
 
 
-async def test_failure_result_reports_the_reachability_fact(monkeypatch) -> None:
+async def test_failure_result_reports_the_reachability_fact(
+    monkeypatch, resolved_dns: str
+) -> None:
     """The wired value is a fact about the TARGET, added to the failure."""
     scraper = UltimateScraper()
     _one_tier_scraper(monkeypatch, scraper)
 
-    async def _fail(_tier: str, *_a: Any, **_kw: Any) -> tuple[Any, float]:
-        return None, 0.001
+    async def _fail(_tier: str, *_a: Any, **_kw: Any) -> tuple[Any, float, bool]:
+        return None, 0.001, False
 
     monkeypatch.setattr(scraper, "_attempt_tier", _fail)
     _install(monkeypatch, _stub(TargetProbe(dns_ok=False, dns_error="no such host")))

@@ -53,7 +53,9 @@ def webhook_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     import pry.api.webhook_delivery as wd
 
     monkeypatch.setattr(wd, "WEBHOOK_DIR", tmp_path / "webhooks")
-    monkeypatch.setattr(wd.settings, "webhook_secret", "test-secret")
+    # The secret is resolved through webhook_support.resolve_secret, whose env
+    # branch (PRY_WEBHOOK_SECRET, set above) is the seam now — the removed
+    # ``webhook_delivery.settings`` re-export was only a stale patch target.
     # hooks.example.com is an RFC-2606 reserved name (NXDOMAIN) — respx
     # intercepts httpx but not socket.getaddrinfo, so the SSRF validator
     # would reject it as unresolvable. Bypass validation: these tests

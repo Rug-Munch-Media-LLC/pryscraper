@@ -44,13 +44,18 @@ BUSINESS_PAGE = (
 PUBLIC_URL = "https://acme.example.com/about"
 
 
+def _pinned(resolved_dns: str, path: str) -> str:
+    """The URL the guard actually dials: the validated IP, path preserved."""
+    return f"https://{resolved_dns}{path}"
+
+
 @respx.mock
-def test_enrich_fetches_and_analyses_a_public_page() -> None:
+def test_enrich_fetches_and_analyses_a_public_page(resolved_dns: str) -> None:
     """Kills: a guard wired in so that it never actually fetches (a stub client,
     an over-broad rejection, or a lost response body) — the fix must not trade a
     vulnerability for a dead feature.
     """
-    page = respx.get(PUBLIC_URL).mock(
+    page = respx.get(_pinned(resolved_dns, "/about")).mock(
         return_value=httpx.Response(200, text=BUSINESS_PAGE, headers={"content-type": "text/html"})
     )
 
@@ -71,11 +76,11 @@ def test_enrich_fetches_and_analyses_a_public_page() -> None:
 
 
 @respx.mock
-def test_enrich_tech_stack_route_still_works() -> None:
+def test_enrich_tech_stack_route_still_works(resolved_dns: str) -> None:
     """Kills: a guard applied to one enrichment route but not the sibling that
     shares ``enrich_url``.
     """
-    respx.get(PUBLIC_URL).mock(
+    respx.get(_pinned(resolved_dns, "/about")).mock(
         return_value=httpx.Response(200, text=BUSINESS_PAGE, headers={"content-type": "text/html"})
     )
 
@@ -86,11 +91,13 @@ def test_enrich_tech_stack_route_still_works() -> None:
 
 
 @respx.mock
-def test_enrich_still_short_circuits_when_html_is_supplied() -> None:
+def test_enrich_still_short_circuits_when_html_is_supplied(resolved_dns: str) -> None:
     """Kills: a guard that ignores caller-supplied HTML and fetches anyway — an
     unnecessary outbound request on every call.
     """
-    respx.get(PUBLIC_URL).mock(return_value=httpx.Response(200, text="<html>fetched</html>"))
+    respx.get(_pinned(resolved_dns, "/about")).mock(
+        return_value=httpx.Response(200, text="<html>fetched</html>")
+    )
     # ``enrich_url`` is also reachable with html pre-supplied (not via a route);
     # assert the short-circuit at the function so the route shape cannot hide it.
     import asyncio
@@ -104,11 +111,11 @@ def test_enrich_still_short_circuits_when_html_is_supplied() -> None:
 
 
 @respx.mock
-def test_parse_fetches_and_parses_a_public_document() -> None:
+def test_parse_fetches_and_parses_a_public_document(resolved_dns: str) -> None:
     """Kills: a guard wired into ``DocumentParser.parse`` that stops it fetching
     or breaks the hand-off of content/content-type to the format dispatch.
     """
-    doc = respx.get("https://files.example.com/report.json").mock(
+    doc = respx.get(_pinned(resolved_dns, "/report.json")).mock(
         return_value=httpx.Response(
             200,
             json={"revenue": 42, "region": "EMEA"},
@@ -126,15 +133,15 @@ def test_parse_fetches_and_parses_a_public_document() -> None:
 
 
 @respx.mock
-def test_enrich_public_redirect_is_followed() -> None:
+def test_enrich_public_redirect_is_followed(resolved_dns: str) -> None:
     """Kills: replacing httpx's redirect following with a manual loop that
     stops at the first 3xx. Enrichment of a public URL that redirects is
     ordinary web behaviour and must keep working.
     """
-    respx.get(PUBLIC_URL).mock(
-        return_value=httpx.Response(301, headers={"location": "https://www.acme.example.com/about"})
+    respx.get(_pinned(resolved_dns, "/about")).mock(
+        return_value=httpx.Response(301, headers={"location": "https://www.acme.example.com/final"})
     )
-    final = respx.get("https://www.acme.example.com/about").mock(
+    final = respx.get(_pinned(resolved_dns, "/final")).mock(
         return_value=httpx.Response(200, text=BUSINESS_PAGE, headers={"content-type": "text/html"})
     )
 
@@ -146,14 +153,14 @@ def test_enrich_public_redirect_is_followed() -> None:
 
 
 @respx.mock
-def test_parse_public_redirect_is_followed() -> None:
+def test_parse_public_redirect_is_followed(resolved_dns: str) -> None:
     """Kills: the same regression on the parser path, which is where the
     redirect behaviour moved off the client constructor.
     """
-    respx.get("https://files.example.com/doc").mock(
+    respx.get(_pinned(resolved_dns, "/doc")).mock(
         return_value=httpx.Response(302, headers={"location": "https://cdn.example.com/doc.txt"})
     )
-    final = respx.get("https://cdn.example.com/doc.txt").mock(
+    final = respx.get(_pinned(resolved_dns, "/doc.txt")).mock(
         return_value=httpx.Response(200, text="plain body", headers={"content-type": "text/plain"})
     )
 
@@ -165,13 +172,13 @@ def test_parse_public_redirect_is_followed() -> None:
 
 
 @respx.mock
-def test_enrich_reports_unreadable_source_as_4xx() -> None:
+def test_enrich_reports_unreadable_source_as_4xx(resolved_dns: str) -> None:
     """Kills: over-correcting the transport branch into a 5xx, and the mirror
     error of swallowing it into a 200 whose body is indistinguishable from a
     page with nothing on it. The route returns a fixed field set, so a dropped
     reason would be invisible — an unreadable source must be a visible 4xx.
     """
-    respx.get("https://down.example.com/").mock(side_effect=httpx.ConnectError("refused"))
+    respx.get(_pinned(resolved_dns, "/")).mock(side_effect=httpx.ConnectError("refused"))
 
     r = client.post("/v1/enrich", json=enrich_body("https://down.example.com/"))
 
@@ -180,11 +187,11 @@ def test_enrich_reports_unreadable_source_as_4xx() -> None:
 
 
 @respx.mock
-def test_enrich_reports_non_2xx_source_as_4xx() -> None:
+def test_enrich_reports_non_2xx_source_as_4xx(resolved_dns: str) -> None:
     """Kills: dropping a 404/500 response body and reporting empty enrichment as
     a success, which reads as "this site has no tech stack".
     """
-    respx.get("https://gone.example.com/").mock(return_value=httpx.Response(404, text="nope"))
+    respx.get(_pinned(resolved_dns, "/")).mock(return_value=httpx.Response(404, text="nope"))
 
     r = client.post("/v1/enrich", json=enrich_body("https://gone.example.com/"))
 

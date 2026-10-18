@@ -16,6 +16,7 @@ from pry.core import middleware_auth
 from pry.core.errors import InvalidRequestError
 from pry.engine import url_guard
 from pry.engine.url_guard import safe_get, validate_url
+from pry.engine.url_guard import socket as guard_socket
 
 
 def _scope(peer: str, xff: str | None = None) -> dict:
@@ -91,7 +92,7 @@ async def test_connect_target_is_the_validated_ip(monkeypatch):
         resolutions.append(host)
         return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))]
 
-    monkeypatch.setattr(url_guard.socket, "getaddrinfo", fake_getaddrinfo)
+    monkeypatch.setattr(guard_socket, "getaddrinfo", fake_getaddrinfo)
 
     captured: dict = {}
 
@@ -106,4 +107,8 @@ async def test_connect_target_is_the_validated_ip(monkeypatch):
     assert urlparse(captured["url"]).hostname == "93.184.216.34"
     assert captured["kwargs"]["headers"]["Host"] == "example.com"
     assert captured["kwargs"]["extensions"]["sni_hostname"] == "example.com"
-    assert len(resolutions) == 1  # one resolution, then connect to that exact IP
+    # Exactly two lookups: the explicit pre-flight ``validate_url`` and the
+    # connect-time re-validation inside ``pinned_get`` (the TOCTOU/rebinding
+    # guard). The request then dials the IP from the second lookup, so no
+    # later resolution can redirect the connect target.
+    assert resolutions == ["example.com", "example.com"]

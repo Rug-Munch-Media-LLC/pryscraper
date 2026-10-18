@@ -150,7 +150,9 @@ def test_file_scheme_is_rejected(route: str, body: object) -> None:
     ],
     ids=["enrich", "parse"],
 )
-def test_public_redirect_to_metadata_is_rejected(route: str, body: object, public: str) -> None:
+def test_public_redirect_to_metadata_is_rejected(
+    route: str, body: object, public: str, resolved_dns: str
+) -> None:
     """Kills: "validate the first URL, then follow redirects" — the mistake that
     survives a first-hop-only guard.
 
@@ -159,7 +161,8 @@ def test_public_redirect_to_metadata_is_rejected(route: str, body: object, publi
     nothing re-checking it. The first hop is expected to be fetched: proving the
     public URL was refused for the wrong reason would hide the real bug.
     """
-    first_hop = respx.get(public).mock(
+    pinned = f"https://{resolved_dns}/go"
+    first_hop = respx.get(pinned).mock(
         return_value=httpx.Response(302, headers={"location": METADATA})
     )
     metadata = respx.get(METADATA).mock(return_value=httpx.Response(200, text=LEAK_BODY))
