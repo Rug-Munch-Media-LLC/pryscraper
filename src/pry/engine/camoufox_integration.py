@@ -15,8 +15,6 @@ profiles, SSRF guarding, page mechanics and human-behaviour to sibling modules.
 
 from __future__ import annotations
 
-import asyncio
-import contextlib
 import logging
 from typing import Any, ClassVar
 
@@ -24,8 +22,10 @@ from pry.core.errors import InvalidRequestError  # noqa: F401 - re-export surfac
 from pry.engine.body_limits import cap_text
 from pry.engine.camoufox_config import DEFAULT_CONFIGS, resolve_config
 from pry.engine.camoufox_guard import guard_route
+from pry.engine.camoufox_pool import close_pooled, get_pooled
 from pry.engine.camoufox_page import FetchSpec, fetch_page
 from pry.engine.camoufox_stealth import apply_human_behavior
+from pry.engine.page_lifecycle import BROWSER_TIMEOUT_S, cap_document, open_page, run_bounded
 from pry.engine.url_guard import validate_url
 
 logger = logging.getLogger(__name__)
@@ -40,46 +40,16 @@ except ImportError:
     logger.warning("silent_exception_swallowed", exc_info=True)
     _has_camoufox = False
 
-# Module-level pooled Camoufox browser: launched once, reused across requests
-# (a fresh page is closed after each). No-proxy path only.
-_pooled_camoufox: Any = None
-_pooled_camoufox_config: dict[str, Any] | None = None
 _MISSING_ERROR = "camoufox not installed. Run: pip install camoufox && python -m camoufox fetch"
 
-#: Wall-clock ceiling for one browser fetch. camoufox's ``page.goto`` carries
-#: no timeout, so a hung navigation would otherwise pin the worker forever.
-_BROWSER_TIMEOUT_S = 90.0
-
-
-async def _get_pooled_camoufox(config: dict[str, Any]) -> Any:
-    """Return the shared Camoufox browser, launching it once and caching it.
-
-    A changed config closes the cached browser and relaunches with the new one.
-    """
-    global _pooled_camoufox, _pooled_camoufox_config
-    if _pooled_camoufox is not None and _pooled_camoufox_config == config:
-        return _pooled_camoufox
-    if _pooled_camoufox is not None:
-        try:
-            await _pooled_camoufox.__aexit__(None, None, None)
-        except Exception:
-            logger.debug("browser_cleanup_failed", exc_info=True)
-        _pooled_camoufox = None
-    _pooled_camoufox = await AsyncCamoufox(**config).__aenter__()
-    _pooled_camoufox_config = config
-    return _pooled_camoufox
+#: Per-fetch ceiling, re-exported from the shared lifecycle module (kept as a
+#: module attribute because callers/tests override it per instance).
+_BROWSER_TIMEOUT_S = BROWSER_TIMEOUT_S
 
 
 async def close_browsers() -> None:
     """Close the pooled Camoufox browser (graceful shutdown)."""
-    global _pooled_camoufox, _pooled_camoufox_config
-    if _pooled_camoufox is not None:
-        try:
-            await _pooled_camoufox.__aexit__(None, None, None)
-        except Exception:
-            logger.debug("browser_cleanup_failed", exc_info=True)
-        _pooled_camoufox = None
-        _pooled_camoufox_config = None
+    await close_pooled()
 
 
 class CamoufoxBrowser:
@@ -101,25 +71,14 @@ class CamoufoxBrowser:
 
     async def _run_on_browser(self, browser: Any, spec: FetchSpec) -> dict[str, Any]:
         """Acquire an isolated page, fetch, and close only the page."""
-        page = await browser.new_page()
-        try:
-            async with asyncio.timeout(_BROWSER_TIMEOUT_S):
-                result = await fetch_page(page, spec, self._guarded_route)
-        finally:
-            with contextlib.suppress(Exception):
-                await page.close()
+        async with open_page(browser) as page:
+            result = await run_bounded(
+                _BROWSER_TIMEOUT_S,
+                lambda: fetch_page(page, spec, self._guarded_route),
+            )
         # ``page.content()`` is unbounded: cap the returned document and tell
         # the caller it is partial instead of handing back a huge body.
-        truncated_one = False
-        for key in ("content", "raw_html"):
-            value = result.get(key)
-            if isinstance(value, str):
-                capped, dropped = cap_text(value, spec.url)
-                if dropped:
-                    result[key] = capped
-                    truncated_one = True
-        if truncated_one:
-            result["truncated"] = True
+        cap_document(result, spec.url)
         return result
 
     async def fetch(
@@ -156,9 +115,9 @@ class CamoufoxBrowser:
                 # Explicit pooled path: reuse the caller's shared browser.
                 return await self._run_on_browser(browser, spec)
             if not proxy:
-                # No proxy: reuse the module-level pooled browser (launched
+                # No proxy: reuse the process-level pooled browser (launched
                 # once) instead of launching a fresh Firefox per request.
-                pooled = await _get_pooled_camoufox(config)
+                pooled = await get_pooled(AsyncCamoufox, config)
                 return await self._run_on_browser(pooled, spec)
             async with AsyncCamoufox(**config) as fresh:
                 return await self._run_on_browser(fresh, spec)
