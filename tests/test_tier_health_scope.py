@@ -192,3 +192,47 @@ async def test_a_missing_dependency_does_not_count_as_a_loss(
     assert not pry_tier_health_isolation.exists() or (
         f"{memory_domain(_URL)}|tor" not in json.loads(pry_tier_health_isolation.read_text())
     )
+
+
+def test_circuit_breaker_open_state_survives_store_reload(tmp_path: Any) -> None:
+    """Breaker open/half-open state persists with the same TTL as tier health.
+
+    ``last_failure_at`` + ``recovery_seconds`` are serialized together, so a
+    restart does not resurrect a tripped service: the remaining cooldown is
+    identical to the one the previous process would have enforced.
+    """
+    from pry.engine.resilience import ResilienceRegistry
+    from pry.engine.resilience_circuit import CircuitState
+
+    path = tmp_path / "resilience_state.json"
+    before = ResilienceRegistry(persist_path=path, method_stats=False)
+    cb = before.breaker("openrouter")
+    cb.state = CircuitState.OPEN
+    cb.failures = 7
+    cb.last_failure_at = time.time()
+    cb.recovery_seconds = 120.0
+    assert before.save() is True
+
+    after = ResilienceRegistry(persist_path=path, method_stats=False)
+    restored = after.breaker("openrouter")
+    assert restored.state == CircuitState.OPEN
+    assert restored.failures == 7
+    assert restored.recovery_seconds == 120.0
+    # TTL is still in force: the cooldown did not reset on reload.
+    assert restored.is_allowed() is False
+
+
+def test_circuit_breaker_half_open_state_survives_reload(tmp_path: Any) -> None:
+    from pry.engine.resilience import ResilienceRegistry
+    from pry.engine.resilience_circuit import CircuitState
+
+    path = tmp_path / "resilience_state.json"
+    before = ResilienceRegistry(persist_path=path, method_stats=False)
+    cb = before.breaker("ollama")
+    cb.state = CircuitState.HALF_OPEN
+    cb.half_open_attempts = 1
+    assert before.save() is True
+
+    restored = ResilienceRegistry(persist_path=path, method_stats=False).breaker("ollama")
+    assert restored.state == CircuitState.HALF_OPEN
+    assert restored.half_open_attempts == 1

@@ -19,21 +19,45 @@ if click is not None:
     def cli() -> None:
         """Pry CLI (click entrypoint for subcommands)."""
 
-    @cli.group()
-    def mcp() -> None:
-        """Model Context Protocol (MCP) server for AI agent integration."""
+    def launch_mcp_stdio() -> None:
+        """Boot the MCP server over stdio (single launch path).
+
+        Shared by ``pry mcp --stdio``, ``pry mcp serve`` and the
+        ``pry-mcp`` / ``pryscraper-mcp`` console entry points so all three
+        boot exactly the same server.
+        """
+        import asyncio
+        import sys
+
+        sys.path.insert(0, ".")
+        from pry_mcp import main
+
+        asyncio.run(main())
+
+    @cli.group(invoke_without_command=True)
+    @click.option(
+        "--stdio",
+        is_flag=True,
+        help="Launch the MCP server over stdio (agent/Claude-Desktop style) and exit.",
+    )
+    @click.pass_context
+    def mcp(ctx: click.Context, stdio: bool) -> None:
+        """Model Context Protocol (MCP) server for AI agent integration.
+
+        \b
+        Examples:
+          pry mcp --stdio   Launch over stdio (what agent docs call)
+          pry mcp serve     Same server, explicit subcommand
+          pry mcp info      Print a client configuration snippet
+        """
+        if stdio:
+            launch_mcp_stdio()
+            ctx.exit(0)
 
     @mcp.command(name="serve")
     def mcp_serve() -> None:
         """Start the MCP server (stdio transport)."""
-        import sys
-
-        sys.path.insert(0, ".")
-        import asyncio
-
-        from pry_mcp import main
-
-        asyncio.run(main())
+        launch_mcp_stdio()
 
     @mcp.command(name="info")
     def mcp_info() -> None:

@@ -12,7 +12,6 @@ failures return codes, never upstream bodies.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 
@@ -22,19 +21,12 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 from pry.api.client import get_client
 from pry.api.routers.ai import vision_keys
+from pry.api.routers.ai.vision_flow import dispatch, resolve_image
 from pry.api.routers.ai.vision_keys import (
     VISION_MODELS_FALLBACK,  # noqa: F401 - re-exported for tests/callers
     charge_budget,
-    read_image_file,
-    resolve_models,
 )
-from pry.core.deps import automator
-from pry.core.errors import (
-    ExternalServiceError,
-    InvalidRequestError,
-    PryError,
-    ScrapeError,
-)
+from pry.core.errors import ExternalServiceError, PryError
 from pry.engine.resilience import registry
 
 logger = logging.getLogger(__name__)
@@ -68,66 +60,14 @@ async def vision(payload: VisionRequest, request: Request) -> dict[str, Any]:
     Provide ONE of: image (base64 or data URI), url (auto-screenshot), or
     file_path (inside ``PRY_VISION_UPLOAD_DIR``).
     """
-    models_to_try = resolve_models(payload.model, payload.no_fallback)
     if not registry.is_service_allowed("openrouter"):
         raise HTTPException(status_code=503, detail="vision_upstream_unavailable")
     try:
-        image_b64: str | None = None
-        if payload.url:
-            result = await automator.run_steps(
-                steps=[{"action": "navigate", "url": payload.url}, {"action": "screenshot"}],
-                session_id=payload.session_id,
-            )
-            image_b64 = next(
-                (
-                    s.get("screenshot")
-                    for s in result.get("steps", [])
-                    if s.get("action") == "screenshot"
-                ),
-                None,
-            )
-            if not image_b64:
-                raise ScrapeError("screenshot returned empty")
-        elif payload.file_path:
-            image_b64 = await asyncio.to_thread(read_image_file, payload.file_path)
-        elif payload.image:
-            image_b64 = (
-                payload.image.split(",", 1)[1]
-                if payload.image.startswith("data:")
-                else payload.image
-            )
-        else:
-            raise InvalidRequestError("must provide one of: image, url, file_path")
-        assert image_b64 is not None
+        image_b64 = await resolve_image(payload)
         charge_budget(
             request, len(image_b64) // 4 + len(payload.question) // 4 + payload.max_tokens
         )
-        attempts: list[dict[str, str]] = []
-        for model in models_to_try:
-            try:
-                text, used, err = await _call_vision_api(
-                    image_b64, payload.question, model, payload.max_tokens
-                )
-                if err:
-                    attempts.append({"model": model, "code": err})
-                    continue
-                return {
-                    "success": True,
-                    "data": {
-                        "answer": text,
-                        "model_used": used,
-                        "question": payload.question,
-                        "image_size_bytes": len(image_b64) * 3 // 4,
-                        "attempts": attempts,
-                    },
-                }
-            except httpx.HTTPStatusError as e:
-                logger.warning("vision_upstream_http", extra={"status": e.response.status_code})
-                attempts.append({"model": model, "code": f"http_{e.response.status_code}"})
-            except OSError:
-                logger.warning("vision_upstream_transport", exc_info=True)
-                attempts.append({"model": model, "code": "transport_error"})
-        raise ExternalServiceError("vision_upstream_unavailable", details={"attempts": attempts})
+        return await dispatch(payload, image_b64, _call_vision_api)
     except PryError:
         raise
     except OSError as e:

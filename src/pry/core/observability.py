@@ -8,18 +8,11 @@
 from __future__ import annotations
 
 import logging
-import os
 import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
-from opentelemetry.sdk.trace import SpanProcessor, TracerProvider
-from opentelemetry.sdk.trace.export import (
-    ConsoleSpanExporter,
-    SimpleSpanProcessor,
-    SpanExporter,
-)
 
 # Prometheus + OpenTelemetry are hard runtime dependencies (see ACTOR_RUNTIME_PACKAGES).
 from prometheus_client import (
@@ -88,35 +81,14 @@ else:
 
 
 def setup_tracing(service_name: str = "pry") -> None:
-    """Initialize OpenTelemetry tracing.
+    """Deprecated alias for :func:`pry.core.otel_setup.setup_telemetry`.
 
-    Uses OTLP HTTP exporter if ``OTEL_EXPORTER_OTLP_ENDPOINT`` is set
-    and the OTLP package is installed. Falls back to console export.
+    Kept so existing callers (lifespan, tests) keep working. Delegation means
+    tracing is a no-op unless ``OTEL_ENABLED`` or an OTLP endpoint is set.
     """
-    if not _has_otel:
-        return
-    try:
-        provider = TracerProvider()
-        otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
-        exporter: SpanExporter
-        processor: SpanProcessor
-        if otlp_endpoint and _has_otlp:
-            from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
-                OTLPSpanExporter,
-            )
-            from opentelemetry.sdk.trace.export.batch import BatchSpanProcessor
+    from pry.core.otel_setup import setup_telemetry
 
-            exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
-            processor = BatchSpanProcessor(exporter)
-            logger.info("tracing_otlp", extra={"endpoint": otlp_endpoint})
-        else:
-            exporter = ConsoleSpanExporter()
-            processor = SimpleSpanProcessor(exporter)
-            logger.info("tracing_console", extra={"service": service_name})
-        provider.add_span_processor(processor)
-        trace.set_tracer_provider(provider)
-    except Exception as e:  # noqa: BLE001
-        logger.warning("tracing_init_failed", extra={"error": str(e)[:80]})
+    setup_telemetry(service_name=service_name)
 
 
 _TRACER: Any = None

@@ -39,9 +39,11 @@ except ImportError:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Startup: validate deps. Shutdown: cleanup clients."""
     logger.info("pry_startup", version="3.0.0")
-    from pry.core.observability import setup_tracing
+    # Gated: no-op unless OTEL_ENABLED / OTEL_EXPORTER_OTLP_ENDPOINT is set.
+    # Batch export means an unreachable collector never blocks startup.
+    from pry.core.otel_setup import setup_telemetry
 
-    setup_tracing()
+    setup_telemetry(app)
 
     # Create database tables (moved from get_engine to avoid per-request DDL).
     try:
@@ -100,6 +102,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     yield
     logger.info("pry_shutdown")
+    with suppress(Exception):
+        from pry.core.otel_setup import shutdown_telemetry
+
+        shutdown_telemetry()
     await close_client()
     # Close pooled browsers (Playwright / undetected-chromedriver / Camoufox)
     # so they don't leak on process exit. Lazy import avoids engine→api

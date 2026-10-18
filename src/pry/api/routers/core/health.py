@@ -32,13 +32,15 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from pry.api.client import get_client
+from pry.api.routers.core.health_probes import bounded, queue_depth, uptime_seconds
 from pry.core.settings import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Health"])
 
-APP_VERSION = "3.0.0"
+APP_VERSION = settings.app_version
+
 
 
 async def _check_redis() -> bool:
@@ -108,14 +110,15 @@ async def healthz() -> dict[str, str]:
 async def health_check() -> JSONResponse:
     """Readiness-style health: 200 iff every CRITICAL dependency is up.
 
-    Optional dependencies are included in the payload as informational
-    flags so dashboards can see them without paging on them.
+    Reports database/redis reachability, redis degradation, queue depth,
+    version and uptime. Optional dependencies are informational and never
+    gate the verdict. Total probe time is capped at ~0.8s.
     """
     redis_ok, db_ok, flare_ok, ollama_ok = await asyncio.gather(
-        _check_redis(),
-        _check_database(),
-        _check_flaresolverr(),
-        _check_ollama(),
+        bounded(_check_redis()),
+        bounded(_check_database()),
+        bounded(_check_flaresolverr()),
+        bounded(_check_ollama()),
         return_exceptions=False,
     )
     deps = {
@@ -132,7 +135,13 @@ async def health_check() -> JSONResponse:
         content={
             "status": "ok" if healthy else "degraded",
             "version": APP_VERSION,
+            "uptime_seconds": uptime_seconds(),
+            "queue_depth": queue_depth(),
             "dependencies": deps,
+            "services": {
+                "database": "up" if db_ok else "down",
+                "redis": "up" if redis_ok else "degraded",
+            },
         },
     )
 
@@ -151,9 +160,16 @@ async def ready() -> JSONResponse | dict[str, str]:
     optional enhancement tiers; gating readiness on them caused the
     2026-08-21 four-day false-unhealthy incident.
     """
-    if await _check_redis() and await _check_database():
+    db_ok, redis_ok = await asyncio.gather(bounded(_check_database()), bounded(_check_redis()))
+    if db_ok and redis_ok:
         return {"status": "ready"}
-    return JSONResponse(status_code=503, content={"status": "not_ready"})
+    return JSONResponse(
+        status_code=503,
+        content={
+            "status": "not_ready",
+            "checks": {"database": db_ok, "redis": redis_ok},
+        },
+    )
 
 
 @router.get("/version", summary="Service version")
