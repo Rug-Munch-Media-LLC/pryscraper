@@ -47,6 +47,33 @@ MAX_TRACKED_KEYS: Final[int] = 10_000
 #: Persistence file format version.
 _PERSIST_VERSION: Final[int] = 1
 
+#: Process-wide enforcer (the request path must share ONE counter map; a
+#: fresh instance per call silently reset every quota and rate limit).
+_ENFORCER: BillingEnforcer | None = None
+_ENFORCER_LOCK = threading.Lock()
+
+
+def billing_enforcer() -> BillingEnforcer:
+    """Return the process-wide env-configured :class:`BillingEnforcer`.
+
+    Lazy singleton: the middleware, the auth layer and the portal must all
+    charge and observe the same counters. Construction reads
+    ``PRY_BILLING_KEYS`` / ``PRY_BILLING_KEYS_FILE``.
+    """
+    global _ENFORCER
+    if _ENFORCER is None:
+        with _ENFORCER_LOCK:
+            if _ENFORCER is None:
+                _ENFORCER = BillingEnforcer()
+    return _ENFORCER
+
+
+def reset_billing_enforcer() -> None:
+    """Drop the process-wide enforcer (test/ops helper)."""
+    global _ENFORCER
+    with _ENFORCER_LOCK:
+        _ENFORCER = None
+
 
 @dataclass
 class _KeyCounter:
@@ -104,6 +131,14 @@ class BillingEnforcer(RedisQuotaMixin):
         if tier_name is None:
             return DEFAULT_TIER
         return get_tier(tier_name)
+
+    def knows_key(self, api_key: str | None) -> bool:
+        """True when *api_key* is configured in ``PRY_BILLING_KEYS``."""
+        return bool(api_key) and api_key in self._tier_by_key
+
+    def tier_name_for(self, api_key: str) -> str | None:
+        """Configured tier name for *api_key* (None when not configured)."""
+        return self._tier_by_key.get(api_key)
 
     # ── Enforcement ────────────────────────────────────────────────
     def check_request(self, api_key: str | None, tier: Tier | None = None) -> bool:

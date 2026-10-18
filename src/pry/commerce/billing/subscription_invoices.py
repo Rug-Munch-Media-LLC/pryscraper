@@ -90,7 +90,13 @@ def _btcpay_env() -> tuple[str, str, str] | None:
 
 
 # ── Invoice creation ────────────────────────────────────────────────────────
-def create_subscription_invoice(tier: str, api_key: str, months: int = 1) -> dict[str, Any]:
+def create_subscription_invoice(
+    tier: str,
+    api_key: str,
+    months: int = 1,
+    *,
+    amount_override_usd: float | None = None,
+) -> dict[str, Any]:
     """Create a crypto payment invoice for *months* of *tier*.
 
     Returns a dict with ``invoice_id``, ``tier``, ``amount_usd``,
@@ -105,6 +111,11 @@ def create_subscription_invoice(tier: str, api_key: str, months: int = 1) -> dic
       ``PRY_BTCPAY_STORE`` are set, creates a BTCPay Server invoice via
       ``POST {url}/api/v1/stores/{store}/invoices``.
 
+    ``amount_override_usd`` quotes a caller-computed amount instead of the
+    list price (used for a prorated tier-change difference); it must be > 0.
+    The invoice still carries the target tier and month count so payment
+    confirmation activates exactly what was paid for.
+
     Raises ``ValueError`` for unknown tiers or tiers without a fixed monthly
     price (``free`` / ``enterprise``).
     """
@@ -115,7 +126,12 @@ def create_subscription_invoice(tier: str, api_key: str, months: int = 1) -> dic
             "cannot create a subscription invoice"
         )
     months = _validate_months(months)
-    amount_usd = round(resolved.price_usd_monthly * months, 2)
+    if amount_override_usd is None:
+        amount_usd = round(resolved.price_usd_monthly * months, 2)
+    else:
+        amount_usd = round(float(amount_override_usd), 2)
+        if amount_usd <= 0:
+            raise ValueError("amount_override_usd must be > 0")
 
     btcpay = _btcpay_env()
     if btcpay is not None:

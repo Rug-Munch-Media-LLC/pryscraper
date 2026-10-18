@@ -6,9 +6,10 @@
 """Signup provisioning: x402 body, invoice record, and verification email.
 
 Assembles and persists a hosting signup invoice, then sends the email
-verification code best-effort. The code is exposed in the API response ONLY
-when the mail backend is unconfigured (dev fallback) — a mail outage must
-never fail invoice creation.
+verification code best-effort. The SAME code is always persisted and returned
+by :func:`_send_verification_email`; the API response exposes it only when
+delivery did not happen (unconfigured or failed) — a mail outage must never
+fail invoice creation.
 """
 
 from __future__ import annotations
@@ -102,19 +103,23 @@ def _new_signup_invoice(
         # Email verification (audit item #4): 6-char URL-safe code proving
         # the signup email is controlled by the payer before provisioning.
         "verification_code": secrets.token_hex(3),  # 6 hex chars, URL-safe
+        "email_delivery": "unconfigured",  # sent | unconfigured | failed | skipped
         "email_verified": False,
     }
 
 
-def _send_verification_email(record: dict[str, Any]) -> str | None:
-    """Send the verification email best-effort; return the dev-fallback code.
+def _send_verification_email(record: dict[str, Any]) -> str:
+    """Send the verification email best-effort and return the SAME code.
 
-    Returns the code only when the mail backend is unconfigured. Delivery
-    failures are logged and swallowed — a mail outage must never fail
-    invoice creation.
+    The generated code is always returned so the caller persists exactly what
+    was (or would have been) emailed. Delivery outcome is stamped onto
+    ``record["email_delivery"]`` as ``sent`` / ``unconfigured`` / ``failed``;
+    a mail outage is logged and swallowed — it must never fail invoice
+    creation.
     """
     invoice_id = str(record["invoice_id"])
-    verification_code: str | None = None
+    code = str(record["verification_code"])
+    delivery = "unconfigured"
     try:
         from pry.commerce.hosting.checkout import (
             mail_configured,
@@ -125,17 +130,19 @@ def _send_verification_email(record: dict[str, Any]) -> str | None:
             send_hosting_verification_email(
                 to_email=str(record["user_email"]),
                 invoice_id=invoice_id,
-                code=str(record["verification_code"]),
+                code=code,
             )
+            delivery = "sent"
         else:
-            verification_code = str(record["verification_code"])
             logger.warning(
                 "hosting_verification_email_skipped_unconfigured",
                 extra={"invoice_id": invoice_id},
             )
     except Exception as e:  # noqa: BLE001 — verification mail is best-effort
+        delivery = "failed"
         logger.warning("hosting_verification_email_error", extra={"error": str(e)[:120]})
-    return verification_code
+    record["email_delivery"] = delivery
+    return code
 
 
 def _signup_result(quote: InvoiceQuote, record: dict[str, Any], user_id: str) -> dict[str, Any]:
@@ -154,7 +161,14 @@ def _signup_result(quote: InvoiceQuote, record: dict[str, Any], user_id: str) ->
         "payment_method": "x402",
         "payment_required": record["x402_body"],
         "email_verified": bool(record["email_verified"]),
-        "verification_code": record["verification_code"] or None,
+        # Only expose the code when it did not reach the mailbox: exposing a
+        # code that WAS emailed would let anyone holding the API response
+        # verify an address they do not control.
+        "verification_code": (
+            record["verification_code"] if record.get("email_delivery") != "sent" else None
+        )
+        or None,
+        "email_delivery": record.get("email_delivery", "unconfigured"),
     }
 
 
@@ -166,9 +180,9 @@ def _provision_signup_invoice(
 ) -> dict[str, Any]:
     """Create, persist and stamp a signup invoice; return the subscription payload.
 
-    The verification email is sent when *verification_email* is set, stamped
-    wholesale onto the record. When not set, ``email_verified`` is
-    pre-approved and ``verification_code`` is empty.
+    The verification email is sent when *verification_email* is set and the
+    generated code is persisted exactly as emailed (never overwritten with an
+    empty string). When not set, ``email_verified`` is pre-approved.
     """
     from pry.commerce.hosting.provisioning import _ensure_user_by_email
 
@@ -176,9 +190,13 @@ def _provision_signup_invoice(
     user_id = _ensure_user_by_email(email)
     record = _new_signup_invoice(quote, email, user_id, _build_signup_draft(quote))
     if verification_email:
-        record["verification_code"] = _send_verification_email(record) or ""
+        # Always persists the generated code — the helper returns the SAME
+        # code it emailed (the previous `or ""` made every mail-configured
+        # signup impossible to verify).
+        record["verification_code"] = _send_verification_email(record)
     else:
         record["verification_code"] = ""
+        record["email_delivery"] = "skipped"
         record["email_verified"] = True
     _save_invoice(record)
     logger.info(

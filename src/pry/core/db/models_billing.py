@@ -115,6 +115,8 @@ if Base is not None:
         # signup email before the payment confirm gates provisioning.
         verification_code = Column(String(16), default="", nullable=False)
         email_verified = Column(Boolean, default=False, nullable=False)
+        # Wrong-code attempts; MAX_VERIFICATION_ATTEMPTS locks the invoice.
+        verification_attempts = Column(Integer, default=0, nullable=False)
         created_at = Column(DateTime, default=_now, nullable=False)
         updated_at = Column(DateTime, default=_now, onupdate=_now, nullable=False)
         Index("ix_hosting_invoices_user_created", user_email, created_at.desc())

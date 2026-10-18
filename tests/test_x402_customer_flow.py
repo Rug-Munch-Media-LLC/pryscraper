@@ -304,6 +304,7 @@ def test_renew_subscription(db, client: TestClient, monkeypatch) -> None:
 
 
 def test_change_tier_upgrade(db, client: TestClient, monkeypatch) -> None:
+    """P0: an upgrade is invoiced, not granted for free."""
     issued = _signup(db, user_id="cust_upgrade")
     _activate_pro(client, issued["key_id"], monkeypatch)
 
@@ -311,17 +312,26 @@ def test_change_tier_upgrade(db, client: TestClient, monkeypatch) -> None:
         "/v1/billing/subscription/change-tier",
         json={"api_key": issued["key_id"], "new_tier": "team"},
     )
-    assert resp.status_code == 200
-    data = resp.json()["data"]
-    assert data["success"] is True
-    assert data["new_tier"] == "team"
-    # Pro ($49) → Team ($199): the prorated adjustment is strictly positive.
-    assert data["price_adjustment"] > 0
-    assert data["expires_at"]
+    assert resp.status_code == 402, resp.text
+    data = resp.json()  # 402 body IS the invoice
+    assert data["invoice_required"] is True
+    assert data["invoice_id"]
+    assert data["tier"] == "team"
+    # Pro ($49) -> Team ($199): the prorated charge is strictly positive.
+    assert data["amount_usd"] > 0
+    assert data["pay_to"]
 
+    # Nothing changed until the invoice is settled.
     status = subscription_status(issued["key_id"])
-    assert status["tier"] == "team"
-    assert status["active"] is True
+    assert status["tier"] == "pro"
+
+    # Repeating the call is idempotent: same pending invoice.
+    again = client.post(
+        "/v1/billing/subscription/change-tier",
+        json={"api_key": issued["key_id"], "new_tier": "team"},
+    )
+    assert again.status_code == 402
+    assert again.json()["invoice_id"] == data["invoice_id"]
 
 
 # ── 8. Password reset flow ────────────────────────────────────────────────

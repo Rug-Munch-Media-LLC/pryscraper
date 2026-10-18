@@ -42,6 +42,22 @@ from pry.core.observability import (
 )
 
 
+def _billing_allows(scope: Mapping[str, Any]) -> bool:
+    """Enforce the billing tier for identities that have no DB limit row.
+
+    DB-issued keys carry ``quota_monthly`` and are already enforced by the
+    user rate limiter; charging them here too would double-count. Only
+    identities bound from ``PRY_BILLING_KEYS`` (``billing_env``) go through
+    the process-wide enforcer.
+    """
+    from pry.core import middleware as _facade
+
+    record = scope.get("pry_api_key") or {}
+    if not record.get("billing_env") or "quota_monthly" in record:
+        return True
+    return _facade.billing_enforcer().check_request(record.get("key_id"))
+
+
 def _implicit_bucket_id(api_key: str | None, x402_verified: Any) -> str:
     """Bucket id used when the request carries no bound API-key record.
 
@@ -125,6 +141,21 @@ class PryHttpMiddleware:
         _app = getattr(self, "app", None)
         if _app and not _facade._path_exists(path, _app):
             await self._passthrough_unmatched(scope, receive, send, method=method, start=start)
+            return
+
+        # Billing enforcement (post-auth): PRY_BILLING_KEYS tiers were neither
+        # authenticated nor enforced before this check.
+        if not _billing_allows(scope):
+            key_record = scope.get("pry_api_key") or {}
+            await self._reject_rate_limited(
+                send,
+                request_id=request_id,
+                path=path,
+                ip=ip,
+                api_key=str(key_record.get("key_id") or ""),
+                stats={"reason": "billing quota or rate limit exceeded", "retry_after": 60},
+                rate_limit_headers={},
+            )
             return
 
         allowed, stats, rate_limit_headers, api_key = await self._resolve_rate_limit(scope, ip)

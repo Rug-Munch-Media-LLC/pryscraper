@@ -112,7 +112,9 @@ class TestSendVerificationEmail:
         monkeypatch.setattr(
             checkout, "send_hosting_verification_email", lambda **kw: sent.append(kw)
         )
-        assert provision._send_verification_email(self._record()) is None
+        # P0: the helper must return the code it emailed, so the caller
+        # persists the same value (returning None stored "").
+        assert provision._send_verification_email(self._record()) == "abc123"
         assert sent, "email should be sent when mail is configured"
         assert sent[0]["to_email"] == "a@b.com"
         assert sent[0]["code"] == "abc123"
@@ -125,7 +127,8 @@ class TestSendVerificationEmail:
 
         monkeypatch.setattr(checkout, "mail_configured", lambda: True)
         monkeypatch.setattr(checkout, "send_hosting_verification_email", _boom)
-        assert provision._send_verification_email(self._record()) is None
+        # A delivery failure must never lose the code the user was given.
+        assert provision._send_verification_email(self._record()) == "abc123"
 
 
 class TestSignupResult:

@@ -34,6 +34,7 @@ import os
 from collections.abc import Mapping
 from typing import Any
 
+from pry.commerce.billing.enforcer import billing_enforcer
 from pry.core.deps import ratelimiter, user_ratelimiter
 from pry.core.middleware_auth import (
     _AUTH_PUBLIC_PATHS,
@@ -142,6 +143,7 @@ __all__ = [
     "_resolve_client_ip",
     "_route_table_root",
     "_usage_queue",
+    "billing_enforcer",
     "bind_request_id",
     "clear_request_id",
     "is_loopback_client",

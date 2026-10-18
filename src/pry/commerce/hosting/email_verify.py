@@ -18,6 +18,8 @@ from pry.core.db.session import session_scope
 logger = logging.getLogger("pry.commerce.hosting")
 
 ENV_HOSTING_SKIP_EMAIL_VERIFY: str = "PRY_HOSTING_SKIP_EMAIL_VERIFY"
+#: Wrong-code attempts allowed before the invoice is locked for verification.
+MAX_VERIFICATION_ATTEMPTS: int = 5
 
 
 def _email_gate_enabled() -> bool:
@@ -44,8 +46,39 @@ def verify_hosting_email(invoice_id: str, code: str) -> dict[str, Any]:
             raise ValueError(f"unknown hosting invoice {invoice_id!r}")
         if row.email_verified:
             return {"verified": True, "invoice_id": invoice_id}
-        if not secrets.compare_digest(str(row.verification_code or ""), code.strip()):
-            return {"verified": False, "reason": "invalid verification code"}
+
+        stored = str(row.verification_code or "")
+        # Fail closed on an empty stored code: ``compare_digest("", "")`` is
+        # True, so an invoice with no persisted code would otherwise verify
+        # with an empty payload (the mail-configured signup bug).
+        if not stored:
+            logger.warning("hosting_email_no_stored_code", extra={"invoice_id": invoice_id})
+            return {"verified": False, "reason": "no verification code on record"}
+
+        attempts = int(row.verification_attempts or 0)
+        if attempts >= MAX_VERIFICATION_ATTEMPTS:
+            logger.warning("hosting_email_locked", extra={"invoice_id": invoice_id})
+            return {
+                "verified": False,
+                "reason": "too many invalid attempts — verification locked",
+                "locked": True,
+            }
+
+        if not secrets.compare_digest(stored, code.strip()):
+            attempts += 1
+            row.verification_attempts = attempts
+            if attempts >= MAX_VERIFICATION_ATTEMPTS:
+                logger.warning("hosting_email_locked", extra={"invoice_id": invoice_id})
+                return {
+                    "verified": False,
+                    "reason": "too many invalid attempts — verification locked",
+                    "locked": True,
+                }
+            return {
+                "verified": False,
+                "reason": "invalid verification code",
+                "attempts_remaining": MAX_VERIFICATION_ATTEMPTS - attempts,
+            }
         row.email_verified = True
     logger.info("hosting_email_verified", extra={"invoice_id": invoice_id})
     return {"verified": True, "invoice_id": invoice_id}

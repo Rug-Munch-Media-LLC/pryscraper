@@ -192,6 +192,30 @@ def request_authorized(scope: MutableMapping[str, Any]) -> bool:
         scope["pry_api_key"] = record
         return True
 
+    # Environment billing keys (PRY_BILLING_KEYS): authenticated here, with
+    # the tier's quota enforced by BillingEnforcer in middleware_http after
+    # auth. These keys have no DB row, so the identity is explicitly marked
+    # and carries no ``quota_monthly`` — the user rate limiter must not
+    # apply a mismatched default quota on top of the enforcer.
+    if token:
+        from pry.commerce.billing.enforcer import billing_enforcer
+
+        enforcer = billing_enforcer()
+        if enforcer.knows_key(token):
+            tier = enforcer.resolve_tier(token)
+            scope["pry_api_key"] = {
+                "key_id": token,
+                "user_id": f"billing:{token[:8]}",
+                "name": "billing-key",
+                "scopes": ["scrape", "crawl", "extract", "monitor"],
+                # The user rate limiter only needs a generous bucket: the
+                # paid tier's quota/rpm are enforced by the enforcer.
+                "tier": "ENTERPRISE",
+                "rate_limit_rpm": tier.rate_limit_rpm,
+                "billing_env": True,
+            }
+            return True
+
     if api_key:
         # Timing-safe compare: == leaks length/prefix through per-byte timing.
         if hmac.compare_digest(token.encode("utf-8"), api_key.encode("utf-8")):
