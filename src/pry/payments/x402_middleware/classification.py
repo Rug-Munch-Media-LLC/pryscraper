@@ -258,7 +258,6 @@ DEFAULT_FREE_PATHS: frozenset[str] = frozenset(
         "/v1/emails",
         "/v1/screenshot",
         "/v1/ocr/extract",
-        "/v1/vision",
         "/v1/vision/models",
         "/v1/camoufox/fetch",
         "/v1/tls/impersonate",
@@ -344,9 +343,10 @@ def _admin_prefix() -> str:
 def resolve_operation(path: str) -> str | None:
     """Return the x402 operation for a path, or None if no paid prefix matches.
 
-    First matching prefix wins; PAID_ENDPOINTS is ordered so more specific
-    prefixes (e.g. /v1/scrape/methods) precede broad ones (/v1/scrape).
+    More specific PAID_ENDPOINTS entries precede broad ones.
     """
+    if path == "/v1/vision":
+        return "llm_call"  # image analysis is an LLM call; /v1/vision/models stays free
     return next((op for ep, op in PAID_ENDPOINTS.items() if path.startswith(ep)), None)
 
 
