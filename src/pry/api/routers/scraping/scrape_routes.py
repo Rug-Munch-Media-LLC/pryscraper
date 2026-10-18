@@ -9,16 +9,18 @@ Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
 import copy
+from functools import partial
 from typing import Any
 
 from fastapi import APIRouter, Request
 
 from pry.api.routers.scraping.http_guards import audit_http, deny_if_blocked
+from pry.api.routers.scraping.media_formats import MEDIA_FORMATS, media_extras
 from pry.api.routers.scraping.scraping_models import ScrapeRequest  # noqa: TC001 - runtime
 from pry.api.routers.scraping.seams import bindings
 from pry.core.errors import ExternalServiceError, PryError, ScrapeError
 from pry.core.observability import track_scrape
-from pry.engine.scraping_service import format_extras, requested_formats
+from pry.engine.scraping_service import format_extras, render_media_for, requested_formats
 
 router = APIRouter()
 
@@ -56,6 +58,11 @@ async def _scrape_fresh(
         },
     }
     data.update(format_extras(requested, result.get("raw_html", ""), request.url))
+    data.update(
+        await media_extras(
+            requested, request.url, partial(render_media_for, scraper), request.timeout
+        )
+    )
     response: dict[str, Any] = {"success": True, "data": data}
     if request.jsonSchema:
         response["data"]["json"] = await extractor.extract(content, request.jsonSchema)
@@ -87,7 +94,10 @@ async def scrape(request: ScrapeRequest, http_request: Request) -> dict[str, Any
     requested = requested_formats(request.formats)
     ctx = bindings()
     opts = _cache_options(request, requested)
-    cached = ctx.cache.get(request.url, opts)
+    # Base64 screenshot/PDF payloads can be megabytes; never put them in the
+    # shared response cache.
+    media = bool(requested & MEDIA_FORMATS)
+    cached = None if media else ctx.cache.get(request.url, opts)
     if cached:
         out = _paginate(copy.deepcopy(cached), request.offset, request.limit)
         out["_cached"] = True
@@ -98,7 +108,8 @@ async def scrape(request: ScrapeRequest, http_request: Request) -> dict[str, Any
             response = await _scrape_fresh(
                 request, requested, scraper=ctx.scraper, extractor=ctx.extractor
             )
-        ctx.cache.set(request.url, response, opts)
+        if not media:
+            ctx.cache.set(request.url, response, opts)
         out = _paginate(copy.deepcopy(response), request.offset, request.limit)
         audit_http(http_request, "scrape", request.url, "success")
         return out

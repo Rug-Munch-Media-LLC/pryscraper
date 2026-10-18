@@ -28,7 +28,7 @@ from pry.engine.url_guard import safe_get, validate_url
 
 logger = logging.getLogger(__name__)
 
-FORMATS = frozenset({"markdown", "html", "rawHtml", "links", "images"})
+FORMATS = frozenset({"markdown", "html", "rawHtml", "links", "images", "screenshot", "pdf"})
 _FORMAT_ALIASES = {"rawhtml": "rawHtml", "raw_html": "rawHtml", "raw-html": "rawHtml"}
 _LINK_CAP = 1000
 _BROWSER_UA = (
@@ -101,6 +101,27 @@ def format_extras(requested: set[str], raw_html: str, base: str) -> dict[str, An
         srcs = tree.xpath("//img/@src") if tree is not None else []
         extras["images"] = _absolutise(srcs, base, allow_data=True)
     return extras
+
+
+_media_engine: Any = None
+
+
+async def render_media_for(scraper: Any, url: str, **kwargs: Any) -> dict[str, Any]:
+    """Render screenshot/PDF through the engine hook on ``scraper``.
+
+    ``PryScraper`` is a wrapper without the hook, so fall back to one lazy
+    ``UltimateScraper`` — the hook reuses the process-wide BrowserPool, so this
+    is still a single browser path and never a second implementation.
+    """
+    hook = getattr(scraper, "render_media", None)
+    if hook is None:
+        global _media_engine
+        if _media_engine is None:
+            from pry.engine.ultimate_scraper import UltimateScraper
+
+            _media_engine = UltimateScraper()
+        hook = _media_engine.render_media
+    return await hook(url, **kwargs)
 
 
 async def detect_block(url: str, get_client: Any) -> dict[str, Any]:

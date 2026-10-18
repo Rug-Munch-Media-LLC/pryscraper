@@ -20,6 +20,7 @@ and tier methods resolve them lazily through ``tiers_base._us_flag``.
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import json
 import logging
@@ -198,3 +199,36 @@ class UltimateScraper(ScrapeOrchestrator):
     async def scrape(self, url: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
         """Scrape, then normalise a JSON/GraphQL body into the HTML contract."""
         return normalize_json_payload(await super().scrape(url, options))
+
+    async def render_media(
+        self,
+        url: str,
+        *,
+        want_screenshot: bool = False,
+        want_pdf: bool = False,
+        timeout_s: int = 30,
+    ) -> dict[str, Any]:
+        """Render one page in the pooled Chromium for screenshot/PDF formats.
+
+        Shared engine hook behind ``formats: ["screenshot" | "pdf"]`` on
+        ``POST /v1/scrape``. Reuses the process-wide ``BrowserPool`` so a
+        request never launches a second browser; the context is closed either
+        way. Returns raw bytes under ``screenshot`` / ``pdf``.
+        """
+        from pry.engine.url_guard import validate_url
+
+        validate_url(url)
+        browser = await _browser_pool.get_playwright_browser()
+        context = await browser.new_context()
+        try:
+            page = await context.new_page()
+            await page.goto(url, timeout=int(timeout_s) * 1000, wait_until="domcontentloaded")
+            out: dict[str, Any] = {}
+            if want_screenshot:
+                out["screenshot"] = await page.screenshot(full_page=True)
+            if want_pdf:
+                out["pdf"] = await page.pdf(format="A4", print_background=True)
+            return out
+        finally:
+            with contextlib.suppress(Exception):
+                await context.close()

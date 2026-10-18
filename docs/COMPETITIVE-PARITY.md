@@ -5,7 +5,7 @@ are most often compared with. Every Pry claim below names the code path that
 implements it; a capability we cannot point at is marked MISSING rather than
 "planned".
 
-- **Snapshot:** HEAD `68272fd7` + this change set (2026-10-18)
+- **Snapshot:** HEAD `bcd69ba6` + this change set (2026-10-18)
 - **Vendors:** Firecrawl, Apify, ScrapingBee, Bright Data, Oxylabs, Crawl4AI
 - **Sources (retrieved 2026-10-18):**
   - Firecrawl scrape/formats — <https://docs.firecrawl.dev/features/scrape>
@@ -33,10 +33,10 @@ re-fetched · `?` unknown.
 | JS rendering | **F** | F | F~ | F~ | F~ | F~ | F |
 | Crawl (multi-page) | **F** | F | F~ (Crawler) | P~ (no crawl) | F~ | P~ | F |
 | Site map / URL discovery | **F** | F | P~ (sitemap actor) | – | P~ | – | P (link extract) |
-| Batch / async jobs | **P** | F (batch + async) | F (runs) | P~ (batch endpoint) | F~ | P~ | P (local queue) |
+| Batch / async jobs | **F** (sync + queue-backed async) | F (batch + async) | F (runs) | P~ (batch endpoint) | F~ | P~ | P (local queue) |
 | Structured extraction with schema | **F** | F (json format) | F (actors) | P~ (extract rules) | F~ (AI extract) | F~ (parse) | F |
-| Screenshots | **P** (`/v1/screenshot`, not a scrape format) | F (`screenshot`) | F~ | F~ | F~ | F~ | F |
-| PDF: page → PDF | **–** | `?` (PDF *input* yes) | F~ | P~ | F~ | F~ | F (pdf) |
+| Screenshots | **F** (`/v1/screenshot` and `formats: ["screenshot"]`) | F (`screenshot`) | F~ | F~ | F~ | F~ | F |
+| PDF: page → PDF | **F** (`formats: ["pdf"]`) | `?` (PDF *input* yes) | F~ | P~ | F~ | F~ | F (pdf) |
 | PDF: PDF → text/tables | **F** (`/v1/pdf/extract`) | F | F~ | – | F~ | F~ | F |
 | Proxy / anti-bot | **F** (15-tier chain, Camoufox, FlareSolverr) | F | F~ (proxy) | F~ | F~ (unlocker) | F~ | P (bring-your-own) |
 | Web search endpoint | **F** (`/v1/search`, now with markdown) | F | P~ (Google actor) | – | P~ (SERP) | P~ (SERP) | – |
@@ -59,11 +59,11 @@ re-fetched · `?` unknown.
 | Async crawl jobs | SHIPPED | `src/pry/api/routers/scraping/crawl_jobs.py` — `GET/DELETE /v1/crawl/{id}`, `/errors` |
 | Site map | SHIPPED | `POST /v1/map` — `search_map.py` `map_site()`; sitemap → crawl fallback |
 | Batch (sync) | SHIPPED | `POST /v1/batch` — `batch_scrape()`, max 50 URLs |
-| Batch (async job) | **PARTIAL** | only crawl is queue-backed; `/v1/batch` is synchronous |
+| Batch (async job) | SHIPPED | `POST /v1/batch` with `async: true` or `webhook` → `JobQueue`; `GET /v1/batch/{id}` in `batch_routes.py`; `tests/test_scrape_formats_extended.py` |
 | Structured extraction | SHIPPED | `jsonSchema` in `scrape()`; `POST /v1/extract` (`extraction.py`) |
-| Screenshot | **PARTIAL** | `POST /v1/screenshot` in `src/pry/api/routers/core/automation.py`; not accepted as `formats: ["screenshot"]` on `/v1/scrape` |
+| Screenshot | SHIPPED | `formats: ["screenshot"]` on `/v1/scrape` → `UltimateScraper.render_media()` (pooled Chromium) via `media_formats.py`; test `test_scrape_screenshot_returns_base64_png` |
 | PDF → text/tables | SHIPPED | `POST /v1/pdf/extract` (`advanced.py`) + `src/pry/engine/pdf_extractor.py` |
-| Page → PDF | **MISSING** | no route generates a PDF from a URL |
+| Page → PDF | SHIPPED | `formats: ["pdf"]` on `/v1/scrape` → `UltimateScraper.render_media()` `page.pdf()`; test `test_scrape_pdf_returns_pdf_bytes` |
 | Proxy / anti-bot | SHIPPED | `src/pry/engine/ultimate_scraper.py` tier chain; `flaresolverr.py`, `camoufox_*.py` |
 | Search | SHIPPED | `POST /v1/search` (`search_map.py`) over `engine/web_search.py` (SearXNG → DDG → per-engine) |
 | Webhooks | SHIPPED | `CrawlRequest.webhook` → `queue.create_job(..., webhook=...)` |
@@ -86,8 +86,15 @@ falling back to source), `rawHtml`, `links` (absolute, deduped, max 1000) and
 `images`. `formats` is also part of the cache key, so a markdown-only cache entry
 can never satisfy a `links` request.
 
-Unsupported Firecrawl formats (screenshot/branding/audio/video) are ignored, not
-faked. `data.metadata.formats` reports what was actually produced.
+Unsupported Firecrawl formats (branding/audio/video) are ignored, not faked.
+`data.metadata.formats` reports what was actually produced.
+
+`formats: ["screenshot"]` and `["pdf"]` render through the engine browser hook
+(`UltimateScraper.render_media`, reusing the process-wide `BrowserPool`) and
+return base64 in `data.screenshot` / `data.pdf`. Caps are 10 MiB PNG and 20 MiB
+PDF; a render over the cap fails with `422 scrape_failed`. The render budget is
+the request `timeout`, clamped to 60s. Media responses are never written to the
+shared response cache.
 
 ### 2. `/v1/map` applies `search`, `ignoreSitemap`, `sitemapOnly`
 
@@ -107,28 +114,49 @@ route delegates to that engine when markdown is requested and returns
 validated: only `web` is implemented, so `news`/`images` return **400** instead
 of being silently ignored.
 
+### 3. Async `/v1/batch` on the existing job queue
+
+Before: `/v1/batch` was synchronous only. After: a Firecrawl object body with
+`async: true` (or a `webhook`) creates a `batch` job on the same `JobQueue` the
+crawl path uses, returns its id, and `GET /v1/batch/{id}` reports
+`queued`/`scraping`/`completed`/`failed` plus per-URL pages. The legacy JSON
+array body and the sync response are unchanged; nothing else creates a second
+store.
+
 Tests: `tests/test_parity_wins.py` (9 tests) — formats, cache identity, map
 filters, sitemap-only, ignore-sitemap, search scrapeOptions, source rejection.
+`tests/test_scrape_formats_extended.py` (9 tests) — screenshot/PDF base64,
+size caps, no render when media is not requested, sync batch unchanged, async
+job id + webhook, job completion, unknown-job 404.
+
+Structured extraction note: Pry has no `formats: ["extract"]` keyword. Schema
+extraction is the `jsonSchema` field on `/v1/scrape` (v1 shape), verified by
+`tests/test_api_scraping.py::test_v1_scrape_with_json_schema`; `POST /v1/extract`
+covers rule-based extraction.
 
 ## Recommended next 10 gaps (value ÷ effort, highest first)
 
+The previous top 3 (screenshot format, page→PDF, async batch) shipped
+2026-10-18 — see the wins above. Remaining gaps, re-ranked:
+
 | # | Gap | Why it matters | Effort |
 |---|---|---|---|
-| 1 | `formats: ["screenshot"]` on `/v1/scrape` | Screenshot is the #1 Firecrawl migration blocker; engine already drives a browser (`/v1/screenshot` proves it) | S |
-| 2 | Page → PDF (`formats: ["pdf"]`) | Every paid competitor sells it; one `page.pdf()` call on the existing browser path | S |
-| 3 | Async `/v1/batch` + `GET /v1/batch/{id}` | Large migrations batch 100s of URLs; only crawl is queue-backed today | M |
-| 4 | TypeScript SDK | Half the AI-agent ecosystem is TS; Python-only loses them at hello-world | M |
-| 5 | `includePaths` / `excludePaths` / `limit` on `/v1/crawl` | Firecrawl crawl tuning; needs the filter inside `scraper.crawl`, not a post-filter | M |
-| 6 | `formats: ["json"]` inline in `formats` (schema object) | Firecrawl v2 moved schema into `formats`; our `jsonSchema` field is v1-shaped | S |
-| 7 | `maxAge` / `storeInCache` cache controls | We cache, but callers cannot force freshness — a correctness complaint waiting to happen | S |
-| 8 | `location` (country/languages) + proxy selection | Geo-targeted SERP and price pages; proxy pool exists, no selector | M |
-| 9 | `actions` (wait/click/write) before scrape | Login-walled and lazy-loaded pages; Playwright path exists | M |
-| 10 | Per-key usage dashboard API (`/v1/usage` breakdown by endpoint) | Observability exists internally; customers cannot self-serve quotas | S |
+| 1 | TypeScript SDK | Half the AI-agent ecosystem is TS; Python-only loses them at hello-world | M |
+| 2 | `includePaths` / `excludePaths` / `limit` on `/v1/crawl` | Firecrawl crawl tuning; needs the filter inside `scraper.crawl`, not a post-filter | M |
+| 3 | `formats: ["json"]` inline in `formats` (schema object) | Firecrawl v2 moved schema into `formats`; our `jsonSchema` field is v1-shaped | S |
+| 4 | `maxAge` / `storeInCache` cache controls | We cache, but callers cannot force freshness — a correctness complaint waiting to happen | S |
+| 5 | `location` (country/languages) + proxy selection | Geo-targeted SERP and price pages; proxy pool exists, no selector | M |
+| 6 | `actions` (wait/click/write) before scrape | Login-walled and lazy-loaded pages; Playwright path exists | M |
+| 7 | Per-key usage dashboard API (`/v1/usage` breakdown by endpoint) | Observability exists internally; customers cannot self-serve quotas | S |
 
 ## Caveats / non-claims
 
 - We do **not** have `branding`, `product`, `audio`, `video`, `query`,
   `highlights` or `rawBase64` formats. Unknown format names are ignored.
-- `/v1/batch` is synchronous and capped at 50 URLs; it is not a job.
-- Screenshot and PDF are separate routes, not scrape formats (see gaps 1–2).
+- `/v1/batch` is capped at 50 URLs. The sync path stays sync; `async: true` /
+  `webhook` uses the in-process `JobQueue` (Redis-backed with a local fallback),
+  not a separate worker fleet.
+- Screenshot/PDF are scrape formats now, but there is no `screenshot@fullPage`
+  flag: screenshots are always full-page, PDFs always A4 with backgrounds.
+- `formats: ["extract"]` is not accepted; schema extraction remains `jsonSchema`.
 - No TypeScript SDK; no hosted dashboard parity claim beyond Prometheus/OTel.
