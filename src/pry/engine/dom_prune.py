@@ -76,11 +76,17 @@ def _candidates(doc: Any):
 
 
 def _drop_boilerplate(doc: Any) -> None:
+    """Remove script/style-like subtrees, keeping their tail text.
+
+    ``drop_tree`` belongs to the *element* being removed (``HtmlMixin``), not
+    to its parent, and it merges the dropped node's tail into the preceding
+    sibling/parent. Detached nodes (already removed, or the document root)
+    have no parent and are skipped: dropping the root is unsupported.
+    """
     for tag in _DROP:
         for el in list(doc.iter(tag)):
-            parent = el.getparent()
-            if parent is not None:
-                parent.drop_tree(el)
+            if el.getparent() is not None:
+                el.drop_tree()
 
 
 def select_main_content(html: str, out: dict[str, Any] | None = None) -> str:
