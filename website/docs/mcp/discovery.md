@@ -36,9 +36,10 @@ payloads kept in sync from `pry_mcp/tools.py`:
 - `pulsemcp.json` — PulseMCP listing
 - `registry_manifest.json` — aggregated manifest (99 tools / 33 categories)
 
-Install one-liners:
+Install:
 
 ```bash
-uvx pryscraper-mcp        # stdio, no install
-pip install pryscraper-mcp
+python3 -m pip install -e .   # from a clone; PyPI is not published yet
 ```
+
+`uvx pryscraper-mcp` also fails — the PyPI distribution does not exist yet.

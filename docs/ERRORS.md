@@ -194,6 +194,94 @@ caller — **escalate** with `payment_id` and `tx_hash`; do not pay twice blindl
 
 ---
 
+## 5. Rate limits (429)
+
+Two different limiters can produce a `429`; the body tells you which one fired.
+Both send `Retry-After` (RFC 6585, integer seconds) **on every 429** — respect
+it before retrying.
+
+| Limiter | When | Body `detail` / reason | Scope |
+|---|---|---|---|
+| **Pre-auth IP bucket** | Before any credential lookup | `ip rate limit exceeded (pre-auth)` | In-process token bucket per client IP; ceiling is the anonymous per-IP rpm (`max(60, PRY_RATE_LIMIT_RPM)`). Never touches Redis or the DB, so a garbage-key flood is rejected cheaply. |
+| **Per-key quota** | After auth | limiter `reason` (e.g. `key rpm exceeded`, `quota unavailable`) | The authenticated key's rpm/quota from `user_ratelimit.TIER_LIMITS`; fail-closed — an unverifiable quota is denied rather than allowed. |
+
+```json
+{
+  "type": "/errors/rate_limit_exceeded",
+  "title": "Too Many Requests",
+  "status": 429,
+  "detail": "ip rate limit exceeded (pre-auth)",
+  "code": "rate_limit_exceeded",
+  "retry_after": 1.4,
+  "request_id": "…",
+  "instance": "/v1/scrape",
+  "timestamp": "2026-…"
+}
+```
+
+Rate-limit headers are included only when the limiter produced a figure — a
+missing `X-RateLimit-*` during a quota outage is deliberate, not a zero budget.
+Clients should back off on `Retry-After` and **not** rotate IPs or keys to dodge
+the pre-auth bucket; that only moves the same request into the fail-closed quota
+stage.
+
+---
+
+## 6. Invoice-required 402 (subscriptions)
+
+Hosted subscription purchases and tier changes do not return a bare x402
+challenge. They create an **invoice** the client pays on-chain, then confirm.
+
+`POST /v1/billing/subscription/invoice` returns HTTP 200 with
+`data.status_code: 402`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "status_code": 402,
+    "invoice_id": "inv_…",
+    "tier": "pro",
+    "months": 1,
+    "amount_usd": 29.0,
+    "amount_atomic": "29000000",
+    "asset": "USDC",
+    "chain": "base",
+    "pay_to": "0x…",
+    "expires_at": "2026-…",
+    "payment_method": "x402"
+  }
+}
+```
+
+A tier change that needs a prorated payment returns `success: false` with
+`invoice_required: true` and the same payment fields plus a human `message`:
+
+```json
+{
+  "success": false,
+  "invoice_required": true,
+  "invoice_id": "inv_…",
+  "amount": 12.5,
+  "amount_usd": 12.5,
+  "asset": "USDC",
+  "chain": "base",
+  "pay_to": "0x…",
+  "tier": "team",
+  "months": 1,
+  "expires_at": "2026-…"
+}
+```
+
+**Flow:** read `invoice_id` / `amount` / `asset` / `chain` / `pay_to`, pay the
+quoted amount on-chain, then call
+`POST /v1/billing/subscription/invoice/{invoice_id}/confirm`. The current tier
+stays active until payment verifies. A `pay_to` that is empty or a placeholder is
+never emitted: the endpoint **fails closed with 503** rather than quoting a
+wallet it cannot verify.
+
+---
+
 ## Retry matrix
 
 | Status / signal | Retry | Action |

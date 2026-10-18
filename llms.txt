@@ -5,8 +5,9 @@
 ## Documentation
 
 - [Full Docs](https://docs.pryscraper.com)
-- [API Reference](https://docs.pryscraper.com/api)
-- [x402 Payments](https://docs.pryscraper.com/x402)
+- [API Reference](https://docs.pryscraper.com/docs/api/scrape)
+- [Coverage, Vision & Crypto](https://docs.pryscraper.com/docs/api/data)
+- [x402 Payments](https://docs.pryscraper.com/docs/x402/overview)
 
 ## Install
 
@@ -57,6 +58,12 @@ REST surface, all under the same base URL. Bodies are JSON.
 - `POST /v1/templates/execute` — run a stored recipe for a known site. $0.002.
 - `GET /v1/job/{id}` — async job record, used after a webhook crawl.
 - `GET /v1/x402/pricing` — live price table.
+- `GET /v1/coverage` — free full site catalog; `/v1/coverage/{site_id}` and `/v1/coverage/recommend?url=…` are also free.
+- `POST /v1/vision` — analyse an image with an LLM. $0.010 (paid); `GET /v1/vision/models` is free.
+- `GET /v1/crypto/token-launches` — new tokens, pairs, or trending tokens. $0.002–$0.005.
+- `GET /v1/crypto/cex-listings` — CEX listing and delisting signals. $0.002–$0.005.
+- `GET /v1/crypto/token-security/{chain}/{address}` — token security scan. $0.002–$0.005.
+- `POST /v1/x402/batch-payment` — quote a batch; `POST /v1/x402/batch-verify` succeeds only when every item settles (per-item receipts, `unsettled` listed otherwise).
 - `GET /health` — liveness.
 
 ## Metadata

@@ -35,8 +35,7 @@ Standalone SSE entry: `http://localhost:8002/sse`; messages prefix at
 pry mcp --stdio
 # or
 pry-mcp
-# or
-uvx pryscraper-mcp
+# (PyPI is not published yet, so `uvx pryscraper-mcp` does not work)
 ```
 
 ## Protocol

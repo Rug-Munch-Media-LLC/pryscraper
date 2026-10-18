@@ -24,6 +24,14 @@ server never trusts a client-supplied amount.
 | `monitor` | $0.02 |
 | `graphql_query` | $0.003 |
 
+## Batch settlement
+
+`/v1/x402/batch-payment` returns a **combined** quote, but
+`/v1/x402/batch-verify` only reports success when **every item has settled**.
+The response lists `settled_items` and `unsettled`; a verified-but-unsettled
+batch returns `success: false`. Each settled item gets its own idempotent
+receipt — there is no single-payment short circuit for a batch.
+
 ## Domain tiers
 
 After the domain/tier merges the live surface is **64 priced operations**.

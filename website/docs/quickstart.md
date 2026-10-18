@@ -56,7 +56,7 @@ Services: API `http://localhost:8005`, MCP `http://localhost:8005/mcp/`, health 
 ## 3. CLI
 
 ```bash
-pip install pryscraper-mcp
+python3 -m pip install -e .        # PyPI is not published yet
 PRY_X402_ENABLED=false PRY_API_KEY=devkey pry serve
 pry open https://example.com
 pry crawl https://docs.com --max-pages 20

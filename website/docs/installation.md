@@ -19,10 +19,8 @@ This starts:
 
 ## CLI Install
 
-```bash
-pip install pryscraper-mcp
-pry serve
-```
+The PyPI distribution is **not published yet** — `pip install pryscraper-mcp`
+and `uvx pryscraper-mcp` return 404. Install from source (below) and run `pry serve`.
 
 ## From Source
 

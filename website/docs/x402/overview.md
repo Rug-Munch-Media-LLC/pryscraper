@@ -22,6 +22,23 @@ Pry uses the [x402](https://docs.x402.org/) protocol for pay-per-call micropayme
 5. Server verifies on-chain → returns data
 ```
 
+## Batch payments
+
+`POST /v1/x402/batch-payment` quotes one combined amount for several
+operations, but **settlement is per item**. After paying, submit the tx to
+`POST /v1/x402/batch-verify`:
+
+- success requires **settlement**, not verification — a verified but
+  unsettled batch returns `success: false` with the outstanding entries in
+  `unsettled`;
+- when every item settles, one idempotent receipt is written **per item**, so
+  the middleware can prove settlement for each operation;
+- a replayed verify returns the same receipts without double-crediting, and the
+  batch is bound to the verifying caller until it expires.
+
+An aggregated payment is therefore not enough: each operation in the batch must
+be individually settled before the batch counts as paid.
+
 ## Supported Networks
 
 | Network | CAIP-2 | Assets | Verification |

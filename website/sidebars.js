@@ -9,7 +9,13 @@ module.exports = {
 		{
 			type: "category",
 			label: "API Reference",
-			items: ["api/scrape", "api/crawl", "api/extract", "api/templates"],
+			items: [
+				"api/scrape",
+				"api/crawl",
+				"api/extract",
+				"api/templates",
+				"api/data",
+			],
 		},
 		{
 			type: "category",
