@@ -120,7 +120,7 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
         Per the 2025-03-26 spec, when the client advertises
         ``Accept: text/event-stream`` the JSON-RPC response is wrapped in a
         single SSE ``message`` event; otherwise it is returned as plain JSON
-        (the classic 2024-11-05 behavior, kept for backward compatibility).
+        (the classic pre-2025 behavior, kept for backward compatibility).
 
         Compliance details:
         * malformed JSON → JSON-RPC ``-32700`` parse error;

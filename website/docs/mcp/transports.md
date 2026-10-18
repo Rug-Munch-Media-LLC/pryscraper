@@ -41,7 +41,7 @@ uvx pryscraper-mcp
 
 ## Protocol
 
-- MCP protocol version **2024-11-05** (JSON-RPC 2.0), with 2025-11-25-style
+- MCP protocol version **2026-07-28** (JSON-RPC 2.0), with newer-revision
   tool annotations on every tool.
 - Compatible with Claude, Cursor, Hermes, and any MCP client.
 

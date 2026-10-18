@@ -61,7 +61,7 @@ def make_fallback_server(
     | None = None,
 ) -> Any:
     """Build a minimal stdio JSON-RPC server if official MCP SDK not available.
-    This implements the MCP 2024-11-05 protocol with all required methods.
+    This implements the MCP protocol (2026-07-28 revision) with all required methods.
 
     Note: the constructor arguments are forwarded to the instance — a server
     built with ``tool_executor=combined_tool_executor`` runs domain tools
@@ -284,7 +284,7 @@ def make_fallback_server(
             return self._rh.complete(ref, argument)
 
         async def handle_request(self, request: dict[str, Any]) -> dict[str, Any] | None:
-            """Handle a JSON-RPC 2.0 request. Implements MCP 2024-11-05.
+            """Handle a JSON-RPC 2.0 request. Implements MCP 2026-07-28.
 
             Notifications (requests without an ``id``) are processed for side
             effects but never produce a response, per JSON-RPC 2.0 §2.1.
