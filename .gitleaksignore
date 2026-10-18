@@ -1,6 +1,4 @@
-# Known false positives: eth_keyfile package hashes in uv.lock
-# (2026-08-20 audit, evidence log). Review on dependency changes.
-uv.lock:ethereum-private-key:1754
-uv.lock:ethereum-private-key:1756
-uv.lock:ethereum-private-key:1767
-uv.lock:ethereum-private-key:1769
+# Test-only CORS origin placeholder that previously used an internal hostname.
+# Not a credential; the string is a public DNS label asserted in a header test.
+b383920507028ab10f3751e19d8bea882f921778:tests/test_api_integration_errors.py:internal-hostname:47
+b383920507028ab10f3751e19d8bea882f921778:tests/test_api_integration_errors.py:internal-hostname:53
