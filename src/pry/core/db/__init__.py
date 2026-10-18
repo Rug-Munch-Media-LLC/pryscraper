@@ -38,7 +38,7 @@ import sys
 import types
 from typing import Any
 
-from . import session as _session
+from . import db_engine as _db_engine
 from .import_json import import_json_stores
 from .migrations import db_health, db_health_async, run_migrations
 from .models import (
@@ -127,40 +127,40 @@ __all__ = [
 # Tests (and a few call sites) manipulate the module-level engine state
 # directly: ``db._engine = None`` / ``db._SessionLocal = None`` to force a
 # fresh engine for an isolated test database. The real state lives in
-# ``db.session``; this module type transparently routes attribute reads
+# ``db.db_engine``; this module type transparently routes attribute reads
 # and writes there, so those assignments keep their original semantics.
 class _DbModuleType(types.ModuleType):
     @property
     def _engine(self) -> Any:
-        return _session._engine
+        return _db_engine._engine
 
     @_engine.setter
     def _engine(self, value: Any) -> None:
-        _session._engine = value
+        _db_engine._engine = value
 
     @property
     def _SessionLocal(self) -> Any:  # noqa: N802 - mirrors db._SessionLocal state name
-        return _session._SessionLocal
+        return _db_engine._SessionLocal
 
     @_SessionLocal.setter
     def _SessionLocal(self, value: Any) -> None:  # noqa: N802
-        _session._SessionLocal = value
+        _db_engine._SessionLocal = value
 
     @property
     def _async_engine(self) -> Any:
-        return _session._async_engine
+        return _db_engine._async_engine
 
     @_async_engine.setter
     def _async_engine(self, value: Any) -> None:
-        _session._async_engine = value
+        _db_engine._async_engine = value
 
     @property
     def _async_session_local(self) -> Any:
-        return _session._async_session_local
+        return _db_engine._async_session_local
 
     @_async_session_local.setter
     def _async_session_local(self, value: Any) -> None:
-        _session._async_session_local = value
+        _db_engine._async_session_local = value
 
 
 sys.modules[__name__].__class__ = _DbModuleType  # type: ignore[misc]

@@ -1,24 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
-"""Batched Postgres retention for Pry's unbounded-growth tables.
-
-Defaults: x402_payment_records 180d, usage 400d, audit_events 730d,
-scrape_jobs 30d (override with --days TABLE=DAYS). Deletes are ctid-batched
-and committed per batch, so no long transaction or table-wide lock:
-
-    DELETE FROM t WHERE ctid IN (
-        SELECT ctid FROM t WHERE created_at < now() - interval 'N days'
-        LIMIT batch)
-
-Schedule: docker compose --profile ops run --rm retention (nightly). The
-equivalent oneshot systemd service runs
-`docker compose --profile ops run --rm retention` with
-EnvironmentFile=/srv/rmi-infra/.env.pry and
-`OnCalendar=*-*-* 03:30:00 UTC`, Persistent=true.
-
-After large purges, autovacuum catches up; --vacuum runs the safe
-VACUUM (ANALYZE). VACUUM FULL is never automatic (ACCESS EXCLUSIVE lock).
+"""Batched Postgres retention: ctid-batched deletes committed per batch, so no
+long transaction or table-wide lock. ``--vacuum`` runs VACUUM (ANALYZE).
 """
 
 # ruff: noqa: S608 — identifiers come from the fixed policy tuple
@@ -78,8 +62,7 @@ def delete_sql(
     sql = (
         f"DELETE FROM {policy.table} WHERE ctid IN ("  # nosec B608
         f"SELECT ctid FROM {policy.table} "
-        f"WHERE {policy.ts_column} < now() - interval %s "
-        f"LIMIT %s)"
+        f"WHERE {policy.ts_column} < now() - interval %s LIMIT %s)"
     )
     return sql, (interval_literal(policy.days), int(batch_size))
 
@@ -101,14 +84,8 @@ def purge(
         cur.execute(*count_sql(policy))
         expired = int(cur.fetchone()[0])
 
-    plan = {
-        "table": policy.table,
-        "ts_column": policy.ts_column,
-        "days": policy.days,
-        "expired": expired,
-        "batch_size": batch_size,
-        "dry_run": dry_run,
-    }
+    plan = {"table": policy.table, "ts_column": policy.ts_column, "days": policy.days}
+    plan |= {"expired": expired, "batch_size": batch_size, "dry_run": dry_run}
     if dry_run:
         _log("retention.dry_run", **plan)
         return 0
@@ -131,26 +108,24 @@ def purge(
             cur.execute(f"VACUUM (ANALYZE) {policy.table}")
         _log("retention.vacuum", table=policy.table, mode="analyze")
     else:
-        _log(
-            "retention.vacuum_note",
-            table=policy.table,
-            hint=f"VACUUM (ANALYZE) {policy.table}",
-        )
+        hint = f"VACUUM (ANALYZE) {policy.table}"
+        _log("retention.vacuum_note", table=policy.table, hint=hint)
 
     _log("retention.done", deleted=deleted_total, **plan)
     return deleted_total
 
 
-def select_policies(
-    tables: Iterable[str] | None = None, overrides: Iterable[str] | None = None
-) -> list[RetentionPolicy]:
+def _select(tables: Iterable[str] | None) -> list[RetentionPolicy]:
+    """Filter the policy table to *tables* (all when empty)."""
     wanted = {t.strip() for t in tables or [] if t.strip()}
-    policies = [p for p in DEFAULT_POLICIES if not wanted or p.table in wanted]
     unknown = wanted - {p.table for p in DEFAULT_POLICIES}
     if unknown:
         raise SystemExit(f"unknown table(s): {', '.join(sorted(unknown))}")
+    return [p for p in DEFAULT_POLICIES if not wanted or p.table in wanted]
 
-    by_table = {p.table: p for p in policies}
+
+def _apply_overrides(overrides: Iterable[str] | None, by_table: dict[str, RetentionPolicy]) -> None:
+    """Apply TABLE=DAYS overrides in place."""
     for raw in overrides or []:
         table, _, days = raw.partition("=")
         if not table or not days:
@@ -158,6 +133,15 @@ def select_policies(
         if table not in by_table:
             raise SystemExit(f"--days names an unselected table: {table}")
         by_table[table] = RetentionPolicy(table, by_table[table].ts_column, int(days))
+
+
+def select_policies(
+    tables: Iterable[str] | None = None, overrides: Iterable[str] | None = None
+) -> list[RetentionPolicy]:
+    """Resolve the retention policy table, filtered and overridden by argv."""
+    policies = _select(tables)
+    by_table = {p.table: p for p in policies}
+    _apply_overrides(overrides, by_table)
     return [by_table[p.table] for p in policies]
 
 
@@ -179,9 +163,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--days", action="append", dest="overrides", default=[])
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument(
-        "--vacuum", action="store_true", help="run VACUUM (ANALYZE) after purging (safe)"
-    )
+    parser.add_argument("--vacuum", action="store_true", help="VACUUM (ANALYZE) after purge")
     args = parser.parse_args(argv)
 
     logging.basicConfig(

@@ -46,11 +46,15 @@ def _dec(value: Any) -> Decimal:
 
 def _existing(user_id: str, reference: str) -> _models.LedgerEntry | None:
     with get_session() as session:
-        return (
-            session.query(_models.LedgerEntry)
-            .filter_by(user_id=user_id, reason=REFUND_REASON, reference=reference)
-            .first()
-        )
+        return _find_entry(session, user_id, reference)
+
+
+def _find_entry(session: Any, user_id: str, reference: str) -> _models.LedgerEntry | None:
+    return (
+        session.query(_models.LedgerEntry)
+        .filter_by(user_id=user_id, reason=REFUND_REASON, reference=reference)
+        .first()
+    )
 
 
 def _result(
@@ -65,78 +69,110 @@ def _result(
     }
 
 
+def _load_invoice(session: Any, invoice_id: str) -> _models.HostingInvoice:
+    invoice = (
+        session.query(_models.HostingInvoice)
+        .filter_by(invoice_id=invoice_id)
+        .with_for_update()
+        .first()
+    )
+    if invoice is None:
+        raise RefundError(f"unknown invoice {invoice_id!r}")
+    return invoice
+
+
+def _validate(invoice: _models.HostingInvoice, amount: Any) -> tuple[Decimal, Decimal]:
+    """Return (paid, refund) after checking the refund is legal."""
+    paid = _dec(invoice.amount_usd)
+    refund = paid if amount is None else _dec(amount)
+    if refund <= 0:
+        raise RefundError("refund amount must be > 0")
+    if refund > paid:
+        raise RefundError(f"refund {refund} exceeds paid amount {paid}")
+    if not invoice.user_id:
+        raise RefundError("invoice has no user to credit the reversal to")
+    return paid, refund
+
+
+def _write_ledger(
+    session: Any,
+    invoice: _models.HostingInvoice,
+    refund: Decimal,
+    reference: str,
+) -> _models.LedgerEntry:
+    """Move the customer balance and append the negative ledger row."""
+    from pry.core.api_keys_service import ensure_user
+
+    ensure_user(str(invoice.user_id))
+    balance = (
+        session.query(_models.Balance).filter_by(user_id=invoice.user_id).with_for_update().first()
+    )
+    current = _dec(balance.balance_usd) if balance is not None else Decimal("0")
+    after = (current - refund).quantize(QUANT, rounding=ROUND_HALF_UP)
+    if balance is None:
+        balance = _models.Balance(user_id=str(invoice.user_id), balance_usd=after)
+        session.add(balance)
+    else:
+        balance.balance_usd = after
+
+    entry = _models.LedgerEntry(
+        user_id=str(invoice.user_id),
+        delta_usd=-refund,
+        reason=REFUND_REASON,
+        reference=reference,
+        balance_after=after,
+    )
+    session.add(entry)
+    return entry
+
+
+def _mark_invoice(
+    invoice: _models.HostingInvoice,
+    paid: Decimal,
+    refund: Decimal,
+    reason: str,
+    reference: str,
+) -> None:
+    invoice.status = "refunded" if refund == paid else "partially_refunded"
+    payment = dict(invoice.payment or {})
+    payment.update(
+        {
+            "refund_reason": str(reason or ""),
+            "refunded_amount": str(refund),
+            "refund_reference": reference,
+        }
+    )
+    invoice.payment = payment
+
+
+def _commit(session: Any, user_id: str, reference: str) -> _models.LedgerEntry | None:
+    """Commit; on a lost idempotency race return the winning ledger row."""
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        winner = _existing(user_id, reference)
+        if winner is None:
+            raise
+        return winner
+    return None
+
+
 def refund_invoice(invoice_id: str, amount: Any, reason: str = "") -> dict[str, Any]:
     """Refund *amount* USD of a paid invoice. Idempotent per invoice."""
     reference = refund_reference(invoice_id)
     session = get_session()
     try:
-        invoice = (
-            session.query(_models.HostingInvoice)
-            .filter_by(invoice_id=invoice_id)
-            .with_for_update()
-            .first()
-        )
-        if invoice is None:
-            raise RefundError(f"unknown invoice {invoice_id!r}")
-        paid = _dec(invoice.amount_usd)
-        refund = paid if amount is None else _dec(amount)
-        if refund <= 0:
-            raise RefundError("refund amount must be > 0")
-        if refund > paid:
-            raise RefundError(f"refund {refund} exceeds paid amount {paid}")
-        if not invoice.user_id:
-            raise RefundError("invoice has no user to credit the reversal to")
-
-        existing = (
-            session.query(_models.LedgerEntry)
-            .filter_by(user_id=invoice.user_id, reason=REFUND_REASON, reference=reference)
-            .first()
-        )
+        invoice = _load_invoice(session, invoice_id)
+        paid, refund = _validate(invoice, amount)
+        existing = _find_entry(session, str(invoice.user_id), reference)
         if existing is not None:
             return _result(invoice, existing, duplicate=True)
 
-        from pry.core.api_keys_service import ensure_user
-
-        ensure_user(str(invoice.user_id))
-        balance = (
-            session.query(_models.Balance)
-            .filter_by(user_id=invoice.user_id)
-            .with_for_update()
-            .first()
-        )
-        current = _dec(balance.balance_usd) if balance is not None else Decimal("0")
-        after = (current - refund).quantize(QUANT, rounding=ROUND_HALF_UP)
-        if balance is None:
-            balance = _models.Balance(user_id=str(invoice.user_id), balance_usd=after)
-            session.add(balance)
-        else:
-            balance.balance_usd = after
-
-        entry = _models.LedgerEntry(
-            user_id=str(invoice.user_id),
-            delta_usd=-refund,
-            reason=REFUND_REASON,
-            reference=reference,
-            balance_after=after,
-        )
-        session.add(entry)
-        invoice.status = "refunded" if refund == paid else "partially_refunded"
-        payment = dict(invoice.payment or {})
-        payment.update(
-            {
-                "refund_reason": str(reason or ""),
-                "refunded_amount": str(refund),
-                "refund_reference": reference,
-            }
-        )
-        invoice.payment = payment
-        try:
-            session.commit()
-        except IntegrityError:
-            session.rollback()
-            winner = _existing(str(invoice.user_id), reference)
-            if winner is None:
-                raise
+        entry = _write_ledger(session, invoice, refund, reference)
+        _mark_invoice(invoice, paid, refund, reason, reference)
+        winner = _commit(session, str(invoice.user_id), reference)
+        if winner is not None:
             return _result(invoice, winner, duplicate=True)
         logger.info(
             "invoice_refunded",

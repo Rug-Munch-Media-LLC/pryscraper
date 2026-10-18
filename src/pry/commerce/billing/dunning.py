@@ -60,7 +60,25 @@ def _state(record: dict[str, Any]) -> dict[str, Any]:
     return dunning
 
 
-def _fire(record: dict[str, Any], attempt: int, due: datetime, now: datetime) -> bool:
+def _moment(now: datetime | None) -> datetime:
+    moment = now or datetime.now(UTC)
+    return moment.replace(tzinfo=UTC) if moment.tzinfo is None else moment
+
+
+def _due_attempts(record: dict[str, Any], moment: datetime) -> list[tuple[int, datetime]]:
+    """Attempts already due at *moment*; stops at the first future offset."""
+    due = _due(record)
+    if due is None:
+        return []
+    due_now: list[tuple[int, datetime]] = []
+    for attempt, offset in enumerate(DUNNING_OFFSETS_DAYS, start=1):
+        if moment < due + timedelta(days=offset):
+            break
+        due_now.append((attempt, due))
+    return due_now
+
+
+def _apply_attempt(record: dict[str, Any], attempt: int, due: datetime, now: datetime) -> bool:
     """Record one attempt; False when it was already fired (idempotent)."""
     state = _state(record)
     if attempt in state["attempts"]:
@@ -80,7 +98,7 @@ def _fire(record: dict[str, Any], attempt: int, due: datetime, now: datetime) ->
     return True
 
 
-def _suspend(record: dict[str, Any], now: datetime) -> None:
+def _suspend_and_downgrade(record: dict[str, Any], now: datetime) -> None:
     api_key = str(record.get("api_key") or "")
     record["status"] = SUSPENDED
     record["suspended_at"] = _utc_iso(now)
@@ -99,30 +117,38 @@ def _suspend(record: dict[str, Any], now: datetime) -> None:
     )
 
 
+def _maybe_suspend(record: dict[str, Any], moment: datetime) -> bool:
+    """Suspend once the final attempt is recorded and the invoice is open."""
+    if len(DUNNING_OFFSETS_DAYS) not in _state(record)["attempts"]:
+        return False
+    if record.get("status") == SUSPENDED:
+        return False
+    _suspend_and_downgrade(record, moment)
+    return True
+
+
+def _run_invoice(record: dict[str, Any], moment: datetime) -> tuple[int, int]:
+    """Fire due attempts for one invoice; return (fired, suspended)."""
+    fired = sum(
+        1
+        for attempt, due in _due_attempts(record, moment)
+        if _apply_attempt(record, attempt, due, moment)
+    )
+    return fired, 1 if _maybe_suspend(record, moment) else 0
+
+
 def run_dunning(now: datetime | None = None) -> dict[str, Any]:
     """Fire every due retry and suspend invoices past the final attempt."""
-    moment = now or datetime.now(UTC)
-    if moment.tzinfo is None:
-        moment = moment.replace(tzinfo=UTC)
-
+    moment = _moment(now)
     fired = 0
     suspended = 0
     with _lock:
         for record in _INVOICES.values():
             if str(record.get("status", "")).lower() not in OPEN_STATUSES:
                 continue
-            due = _due(record)
-            if due is None:
-                continue
-            for attempt, offset in enumerate(DUNNING_OFFSETS_DAYS, start=1):
-                if moment < due + timedelta(days=offset):
-                    break
-                if _fire(record, attempt, due, moment):
-                    fired += 1
-            state = _state(record)
-            if len(DUNNING_OFFSETS_DAYS) in state["attempts"] and record.get("status") != SUSPENDED:
-                _suspend(record, moment)
-                suspended += 1
+            invoice_fired, invoice_suspended = _run_invoice(record, moment)
+            fired += invoice_fired
+            suspended += invoice_suspended
         if fired or suspended:
             _save_state_locked()
 

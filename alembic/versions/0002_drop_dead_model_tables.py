@@ -1,33 +1,19 @@
 """drop dead model tables — remove 11 models with zero live consumers
 
-Removes tables whose ORM models were deleted from db.py (2026-08-14).
-Each model had no live (non-test) importers; the JSON stores remain
-untouched (the SQL migration is one-way data-wise, downgrade recreates
-the empty tables for reversibility but cannot restore rows).
-
-Dropped models:
-  - ReviewItem        (review_items)
-  - CostingEntry      (costing_entries)
-  - FreshnessSnapshot (freshness_snapshots)
-  - SeoSnapshot       (seo_snapshots)
-  - TrainingDataset   (training_datasets)
-  - PipelineRun       (pipeline_runs)
-  - GdprRequest       (gdpr_requests)
-  - AgencyClient      (agency_clients)
-  - ActorRun          (actor_runs)
-  - LlmUsage          (llm_usage)
-  - X402Receipt       (x402_receipts)
+Downgrade recreates the empty tables but cannot restore rows: it refuses
+unless acknowledged, and refuses when a table still holds rows.
 
 Revision ID: 0002
 Revises: 0001
 Create Date: 2026-08-14 00:00:00.000000
-
 """
 
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 
@@ -49,6 +35,15 @@ _DROPPED_TABLES = (
     "llm_usage",
     "x402_receipts",
 )
+
+# Column definitions used by downgrade to rebuild each table EMPTY.
+_SPEC = spec_from_file_location(
+    "_pry_0002_tables", Path(__file__).resolve().parents[1] / "_0002_tables.py"
+)
+assert _SPEC is not None
+assert _SPEC.loader is not None
+_tables = module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_tables)
 
 revision: str = "0002"
 down_revision: str | None = "0001"
@@ -72,168 +67,45 @@ def upgrade() -> None:
     op.drop_table("review_items")
 
 
-def downgrade() -> None:
-    """Recreate the dropped tables — EMPTY. Refuses unless acknowledged.
-
-    0002's upgrade deletes the rows of eleven dead tables. Downgrade can
-    rebuild the schema but cannot restore that data, so silently running it
-    turns "rollback" into permanent loss. Require an explicit opt-in; when
-    any table still exists AND holds rows, refuse regardless.
-    """
+def _require_lossy_ack() -> None:
+    """Downgrade rebuilds eleven tables EMPTY; require an explicit opt-in."""
     if os.environ.get("PRY_ALLOW_LOSSY_DOWNGRADE", "0") != "1":
         raise RuntimeError(
             "0002 downgrade recreates eleven dropped tables EMPTY; the deleted "
             "rows cannot be restored. Set PRY_ALLOW_LOSSY_DOWNGRADE=1 (with a "
             "verified backup) to acknowledge the loss."
         )
-    insp = sa.inspect(op.get_bind())
+
+
+def _populated_tables(insp: Any) -> list[str]:
+    """Tables that still exist AND hold rows (a recreate would discard them)."""
     populated = []
     for table in _DROPPED_TABLES:
-        if table in insp.get_table_names():
-            count = (
-                op.get_bind()
-                .execute(
-                    sa.text(f"SELECT COUNT(*) FROM {table}")  # noqa: S608  # nosec B608 — fixed names
-                )
-                .scalar()
-            )
-            if count:
-                populated.append(f"{table}({count})")
+        if table not in insp.get_table_names():
+            continue
+        stmt = sa.text(f"SELECT COUNT(*) FROM {table}")  # noqa: S608  # nosec B608
+        count = op.get_bind().execute(stmt).scalar()
+        if count:
+            populated.append(f"{table}({count})")
+    return populated
+
+
+def _refuse_if_populated(insp: Any) -> None:
+    populated = _populated_tables(insp)
     if populated:
         raise RuntimeError(
             "0002 downgrade refused: these tables exist and hold rows that a "
             "recreate would discard: " + ", ".join(populated)
         )
-    # Recreate the tables (empty) so `alembic downgrade 0001` is reversible.
-    op.create_table(
-        "review_items",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("review_id", sa.String(64), nullable=False, unique=True, index=True),
-        sa.Column("url", sa.Text(), nullable=False),
-        sa.Column("fields", sa.JSON(), server_default="{}"),
-        sa.Column("status", sa.String(16), server_default="pending", index=True),
-        sa.Column("reviewer", sa.String(128), server_default=""),
-        sa.Column("notes", sa.Text(), server_default=""),
-        sa.Column("submitted_at", sa.DateTime(), index=True),
-        sa.Column("resolved_at", sa.DateTime(), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
-        "costing_entries",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("operation", sa.String(64), nullable=False, index=True),
-        sa.Column("cost_usd", sa.Float(), server_default="0.0"),
-        sa.Column("units", sa.Float(), server_default="1.0"),
-        sa.Column("provider", sa.String(64), server_default=""),
-        sa.Column("metadata", sa.JSON(), server_default="{}"),
-        sa.Column("ts", sa.DateTime(), index=True),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
-        "freshness_snapshots",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("url", sa.Text(), nullable=False, index=True),
-        sa.Column("content_hash", sa.String(64), server_default=""),
-        sa.Column("fingerprint", sa.String(128), server_default=""),
-        sa.Column("checked_at", sa.DateTime(), index=True),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
-        "seo_snapshots",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("url", sa.Text(), nullable=False, index=True),
-        sa.Column("title", sa.Text(), server_default=""),
-        sa.Column("meta_description", sa.Text(), server_default=""),
-        sa.Column("h1", sa.Text(), server_default=""),
-        sa.Column("keyword_count", sa.Integer(), server_default="0"),
-        sa.Column("readability_score", sa.Float(), server_default="0.0"),
-        sa.Column("full_data", sa.JSON(), server_default="{}"),
-        sa.Column("checked_at", sa.DateTime(), index=True),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
-        "training_datasets",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("dataset_id", sa.String(64), nullable=False, unique=True, index=True),
-        sa.Column("dataset_name", sa.String(256), server_default=""),
-        sa.Column("license_class", sa.String(64), server_default="unknown"),
-        sa.Column("pii_redacted", sa.Boolean(), server_default="0"),
-        sa.Column("record_count", sa.Integer(), server_default="0"),
-        sa.Column("file_path", sa.Text(), server_default=""),
-        sa.Column("created_at", sa.DateTime()),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
-        "pipeline_runs",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("pipeline_id", sa.String(64), nullable=False, index=True),
-        sa.Column("ts", sa.DateTime(), index=True),
-        sa.Column("status", sa.String(16), server_default="success"),
-        sa.Column("result", sa.JSON(), server_default="{}"),
-        sa.ForeignKeyConstraint(["pipeline_id"], ["pipelines.pipeline_id"]),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
-        "gdpr_requests",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("request_id", sa.String(64), nullable=False, unique=True, index=True),
-        sa.Column("request_type", sa.String(32), nullable=False),
-        sa.Column("subject_id", sa.String(256), nullable=False, index=True),
-        sa.Column("status", sa.String(16), server_default="pending"),
-        sa.Column("requested_at", sa.DateTime(), index=True),
-        sa.Column("completed_at", sa.DateTime(), nullable=True),
-        sa.Column("details", sa.JSON(), server_default="{}"),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
-        "agency_clients",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("client_id", sa.String(64), nullable=False, unique=True, index=True),
-        sa.Column("agency_id", sa.String(64), nullable=False, index=True),
-        sa.Column("name", sa.String(256), nullable=False),
-        sa.Column("email", sa.String(256), server_default=""),
-        sa.Column("quota_used", sa.Integer(), server_default="0"),
-        sa.Column("quota_limit", sa.Integer(), server_default="1000"),
-        sa.Column("active", sa.Boolean(), server_default="1"),
-        sa.Column("created_at", sa.DateTime()),
-        sa.ForeignKeyConstraint(["agency_id"], ["agencies.agency_id"]),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
-        "actor_runs",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("actor_id", sa.String(64), nullable=False, index=True),
-        sa.Column("ts", sa.DateTime(), index=True),
-        sa.Column("status", sa.String(16), server_default="success"),
-        sa.Column("result", sa.JSON(), server_default="{}"),
-        sa.Column("cost_usd", sa.Float(), server_default="0.0"),
-        sa.ForeignKeyConstraint(["actor_id"], ["actors.actor_id"]),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
-        "llm_usage",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("provider", sa.String(64), nullable=False, index=True),
-        sa.Column("model", sa.String(128), server_default=""),
-        sa.Column("input_tokens", sa.Integer(), server_default="0"),
-        sa.Column("output_tokens", sa.Integer(), server_default="0"),
-        sa.Column("cost_usd", sa.Float(), server_default="0.0"),
-        sa.Column("operation", sa.String(64), server_default=""),
-        sa.Column("ts", sa.DateTime(), index=True),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
-        "x402_receipts",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("receipt_id", sa.String(64), nullable=False, unique=True, index=True),
-        sa.Column("tx_hash", sa.String(128), index=True, server_default=""),
-        sa.Column("network", sa.String(32), server_default="base"),
-        sa.Column("asset", sa.String(16), server_default="USDC"),
-        sa.Column("amount_usd", sa.Float(), server_default="0.0"),
-        sa.Column("payer", sa.String(128), server_default=""),
-        sa.Column("payee", sa.String(128), server_default=""),
-        sa.Column("operation", sa.String(64), server_default=""),
-        sa.Column("ts", sa.DateTime(), index=True),
-        sa.Column("facilitator", sa.String(64), server_default="pry.payments.x402.org"),
-        sa.PrimaryKeyConstraint("id"),
-    )
+
+
+def _recreate_tables() -> None:
+    """Recreate the dropped tables (empty) so `alembic downgrade 0001` works."""
+    _tables.create_tables(op)
+
+
+def downgrade() -> None:
+    """Recreate the dropped tables EMPTY; refuse when that would lose rows."""
+    _require_lossy_ack()
+    _refuse_if_populated(sa.inspect(op.get_bind()))
+    _recreate_tables()
