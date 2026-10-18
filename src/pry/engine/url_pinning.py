@@ -58,6 +58,16 @@ async def _pinned_get(
     merged = {**(kwargs.pop("headers", None) or {}), **headers}
     if extensions:
         kwargs["extensions"] = {**(kwargs.pop("extensions", None) or {}), **extensions}
+    # httpx 0.28 removed the ``stream`` kwarg from AsyncClient.get(); a streamed
+    # GET must be built and sent explicitly. Callers (safe_get) need streaming so
+    # the body can be capped, and every guarded fetch was raising TypeError.
+    stream = bool(kwargs.pop("stream", False))
+    build = getattr(client, "build_request", None)
+    if callable(build):
+        request = build("GET", pinned, headers=merged, **kwargs)
+        if isinstance(request, httpx.Request):
+            return await client.send(request, stream=stream)
+    # Test doubles and other client shapes: plain GET (no streaming).
     return await client.get(pinned, headers=merged, **kwargs)
 
 
@@ -67,4 +77,14 @@ async def pinned_get(client: httpx.AsyncClient, url: str, kwargs: dict[str, Any]
     merged = {**(kwargs.pop("headers", None) or {}), **headers}
     if extensions:
         kwargs["extensions"] = {**(kwargs.pop("extensions", None) or {}), **extensions}
+    # httpx 0.28 removed the ``stream`` kwarg from AsyncClient.get(); a streamed
+    # GET must be built and sent explicitly. Callers (safe_get) need streaming so
+    # the body can be capped, and every guarded fetch was raising TypeError.
+    stream = bool(kwargs.pop("stream", False))
+    build = getattr(client, "build_request", None)
+    if callable(build):
+        request = build("GET", pinned, headers=merged, **kwargs)
+        if isinstance(request, httpx.Request):
+            return await client.send(request, stream=stream)
+    # Test doubles and other client shapes: plain GET (no streaming).
     return await client.get(pinned, headers=merged, **kwargs)

@@ -15,11 +15,13 @@ profiles, SSRF guarding, page mechanics and human-behaviour to sibling modules.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 from typing import Any, ClassVar
 
 from pry.core.errors import InvalidRequestError  # noqa: F401 - re-export surface
+from pry.engine.body_limits import cap_text
 from pry.engine.camoufox_config import DEFAULT_CONFIGS, resolve_config
 from pry.engine.camoufox_guard import guard_route
 from pry.engine.camoufox_page import FetchSpec, fetch_page
@@ -43,6 +45,10 @@ except ImportError:
 _pooled_camoufox: Any = None
 _pooled_camoufox_config: dict[str, Any] | None = None
 _MISSING_ERROR = "camoufox not installed. Run: pip install camoufox && python -m camoufox fetch"
+
+#: Wall-clock ceiling for one browser fetch. camoufox's ``page.goto`` carries
+#: no timeout, so a hung navigation would otherwise pin the worker forever.
+_BROWSER_TIMEOUT_S = 90.0
 
 
 async def _get_pooled_camoufox(config: dict[str, Any]) -> Any:
@@ -97,10 +103,24 @@ class CamoufoxBrowser:
         """Acquire an isolated page, fetch, and close only the page."""
         page = await browser.new_page()
         try:
-            return await fetch_page(page, spec, self._guarded_route)
+            async with asyncio.timeout(_BROWSER_TIMEOUT_S):
+                result = await fetch_page(page, spec, self._guarded_route)
         finally:
             with contextlib.suppress(Exception):
                 await page.close()
+        # ``page.content()`` is unbounded: cap the returned document and tell
+        # the caller it is partial instead of handing back a huge body.
+        truncated_one = False
+        for key in ("content", "raw_html"):
+            value = result.get(key)
+            if isinstance(value, str):
+                capped, dropped = cap_text(value, spec.url)
+                if dropped:
+                    result[key] = capped
+                    truncated_one = True
+        if truncated_one:
+            result["truncated"] = True
+        return result
 
     async def fetch(
         self,
@@ -177,8 +197,10 @@ class CamoufoxBrowser:
             result["human_behavior_applied"] = False
             result["human_behavior_error"] = reason
             return result
+        content, dropped = cap_text(content, url)
         result["content"] = content
         result["raw_html"] = content
+        result["truncated"] = bool(result.get("truncated") or dropped)
         result["human_behavior_applied"] = True
         result["human_behavior_error"] = None
         return result

@@ -18,6 +18,7 @@ from urllib.parse import quote
 
 import httpx
 
+from pry.engine.body_limits import MAX_RESPONSE_BYTES, cap_bytes
 from pry.engine.tiers_base import _get_shared_client, _us_flag
 from pry.engine.tiers_special_delegated import TierDelegatedMixin
 from pry.engine.url_guard import safe_get
@@ -174,7 +175,25 @@ class TierSpecialMixin(TierDelegatedMixin):
                 ) as resp,
             ):
                 if resp.status == 200:
-                    return await resp.text()
+                    # Stream with a hard byte ceiling: ``resp.text()`` buffers
+                    # the whole body, so one oversize .onion response could
+                    # exhaust the worker.
+                    chunks: list[bytes] = []
+                    total = 0
+                    truncated = False
+                    async for chunk in resp.content.iter_chunked(65536):
+                        room = MAX_RESPONSE_BYTES - total
+                        if len(chunk) > room:
+                            chunks.append(chunk[:room])
+                            total = MAX_RESPONSE_BYTES
+                            truncated = True
+                            break
+                        chunks.append(chunk)
+                        total += len(chunk)
+                    body, capped = cap_bytes(b"".join(chunks), url)
+                    if truncated or capped:
+                        opts["pry_truncated"] = True
+                    return body.decode(resp.charset or "utf-8", errors="replace")
         except Exception as e:
             # Deliberately broad, and it must stay the LAST handler. Two real
             # failures escape a narrower `except aiohttp.ClientError`:

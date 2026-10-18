@@ -17,6 +17,7 @@ and :mod:`pry.engine.engines_browser`.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from typing import Any
@@ -24,6 +25,12 @@ from typing import Any
 import httpx
 
 from pry.core.errors import InvalidRequestError
+from pry.engine.body_limits import (
+    MAX_JSON_ENVELOPE_BYTES,
+    MAX_RESPONSE_BYTES,
+    cap_httpx_stream,
+    cap_text,
+)
 from pry.engine.url_guard import validate_url
 
 logger = logging.getLogger(__name__)
@@ -67,9 +74,14 @@ async def fetch_via_flaresolverr(
         if proxy:
             payload["proxy"] = {"url": proxy}
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s)) as client:
-            resp = await client.post(_FLARESOLVERR_URL, json=payload)
-            resp.raise_for_status()
-            solution = resp.json().get("solution") or {}
+            # Stream the envelope and cap it: ``resp.json()`` would buffer an
+            # unbounded body, and the escaped page can dwarf the page itself.
+            async with client.stream("POST", _FLARESOLVERR_URL, json=payload) as resp:
+                resp.raise_for_status()
+                body, _envelope_truncated = await cap_httpx_stream(
+                    resp, max_bytes=MAX_JSON_ENVELOPE_BYTES
+                )
+            solution = json.loads(body).get("solution") or {}
             final_url = solution.get("url") or ""
             if final_url:
                 # A redirect inside the browser can land on a private target;
@@ -82,7 +94,10 @@ async def fetch_via_flaresolverr(
                         extra={"url": final_url, "reason": str(exc)},
                     )
                     return ""
-            return solution.get("response", "") or ""
+            text, _capped = cap_text(
+                str(solution.get("response", "") or ""), url, max_bytes=MAX_RESPONSE_BYTES
+            )
+            return text
     except Exception as exc:  # noqa: BLE001 - contract: never raise
         logger.debug("flaresolverr_fetch_failed", extra={"url": url, "error": str(exc)})
         return ""
