@@ -113,6 +113,40 @@ evt-2,2026-01-01T20:30:00Z,1.72,1.75,0,0.51
 `prob` is optional and becomes the model's pre-event estimate (`features[0]`).
 Duplicate `event_id` values are rejected; rows are sorted by `ts`.
 
+### Exporting a series (`scripts/export_backtest_series.py`)
+
+```bash
+python3 scripts/export_backtest_series.py --input settled.csv \
+    --since 2026-01-01 --limit 5000 --out series.csv
+python3 scripts/export_backtest_series.py --synthetic --events 2000 --out sim.csv
+```
+
+The exporter validates with the same loader the harness uses, applies
+`--since`/`--limit`, sorts by `ts`, writes the canonical columns and prints a
+12-hex data fingerprint. `--synthetic` is labelled as such in its output.
+
+### Exactly what is missing (no outcome column in this repo)
+
+Nothing in-repo can produce the ``won`` column, so the exporter has no
+``--source repo`` mode and exits `2` without `--input` or `--synthetic`:
+
+- `datasets/sports_data/data/*.json` are **book/sport/prop registries**
+  (`books.json`, `odds.json`, `props.json`, `us_books.json`, `european.json`,
+  `sources.json`) — no event records at all.
+- `datasets/sports_data/historical.get_closing_line()` returns
+  `{event_id, sport, event, closing, best, source}`: per-book **closing prices**
+  and the best price per side. There is no settlement key. Its "outcome" wording
+  refers to the name of an odds side (home/away), not a result.
+- `ev.py`, `clv.py` and `bankroll.py` are per-bet math on live quotes; they are
+  never joined to a settled outcome.
+
+**Missing, precisely:** a settled-result field (``won``: home/away win) joined to
+a **bet-time** price and the closing price for the same `event_id`. The Odds API
+historical endpoint supplies closing snapshots only and is paid; a real export
+needs results (e.g. a scores/results feed or exchange settlement) joined on
+`event_id`. Until then every unlabelled number is a simulation; an
+`--input` CSV is the only way to measure a real series.
+
 ### Tests
 
 `tests/test_backtest_strategy.py` — 14 tests. The load-bearing ones:
