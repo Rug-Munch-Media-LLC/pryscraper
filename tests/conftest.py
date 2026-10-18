@@ -198,3 +198,27 @@ def empty_scrape() -> Generator[None, None, None]:
 # tier_health_plugin.py follows the same shape — see its docstring for why the
 # per-tier health store must be redirected per test.
 pytest_plugins = ("tests.gdpr_fixtures", "tests.tier_health_plugin")
+
+
+#: Deterministic public address used by the ``resolved_dns`` fixture. TEST-NET-3
+#: (RFC 5737) is not a private range, so the guard accepts it, and respx
+#: intercepts every request -- no packet leaves the process.
+RESOLVED_DNS_IP = "203.0.113.10"
+
+
+@pytest.fixture
+def resolved_dns(monkeypatch: pytest.MonkeyPatch) -> str:
+    """Resolve every hostname to one fixed PUBLIC address.
+
+    The SSRF guard pins each request to the resolved IP (``url_pinning``), so a
+    transport keyed on the hostname never sees the pinned request, and a test
+    that leaves DNS live depends on the internet. Deterministic on both counts:
+    the address is returned so callers can key their routes on the pinned URL.
+    """
+    import socket
+
+    def _getaddrinfo(host: str, port: object, *args: object, **kwargs: object) -> list:
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (RESOLVED_DNS_IP, port or 0))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", _getaddrinfo)
+    return RESOLVED_DNS_IP

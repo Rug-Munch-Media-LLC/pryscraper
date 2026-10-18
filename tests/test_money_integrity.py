@@ -168,7 +168,7 @@ def test_alembic_upgrade_head_on_sqlite(tmp_path: Path, monkeypatch: pytest.Monk
 
     with engine.connect() as conn:
         version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-    assert version == "0011"
+    assert version == "0012"
     engine.dispose()
 
 
@@ -188,6 +188,9 @@ def test_0011_downgrade_refuses_without_ack(
     cfg.set_main_option("script_location", str(REPO_ROOT / "alembic"))
     cfg.set_main_option("sqlalchemy.url", f"sqlite:///{tmp_path}/down.db")
     command.upgrade(cfg, "head")
+    # 0012 has its own refusal guard; acknowledge it to reach 0011's guard.
+    monkeypatch.setenv("PRY_ALLOW_BILLING_DOWNGRADE", "1")
+    command.downgrade(cfg, "0011")
     with pytest.raises(RuntimeError, match="lossy"):
         command.downgrade(cfg, "0010")
 

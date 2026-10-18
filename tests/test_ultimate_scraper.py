@@ -290,16 +290,16 @@ async def test_scrape_with_retry(scraper: UltimateScraper):
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_direct_success(scraper: UltimateScraper):
-    respx.get("http://example.com").mock(return_value=httpx.Response(200, text="<html>OK</html>"))
+async def test_tier_direct_success(scraper: UltimateScraper, resolved_dns: str):
+    respx.get(f"http://{resolved_dns}/").mock(return_value=httpx.Response(200, text="<html>OK</html>"))
     result = await scraper._tier_direct("http://example.com", {})
     assert result == "<html>OK</html>"
 
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_direct_http_error(scraper: UltimateScraper):
-    respx.get("http://example.com").mock(side_effect=httpx.ConnectError("conn failed"))
+async def test_tier_direct_http_error(scraper: UltimateScraper, resolved_dns: str):
+    respx.get(f"http://{resolved_dns}/").mock(side_effect=httpx.ConnectError("conn failed"))
     result = await scraper._tier_direct("http://example.com", {})
     assert result is None
 
@@ -311,8 +311,8 @@ async def test_tier_direct_http_error(scraper: UltimateScraper):
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_premium_proxy_success(scraper: UltimateScraper):
-    respx.get("http://example.com").mock(
+async def test_tier_premium_proxy_success(scraper: UltimateScraper, resolved_dns: str):
+    respx.get(f"http://{resolved_dns}/").mock(
         return_value=httpx.Response(200, text="<html>proxied</html>")
     )
     result = await scraper._tier_premium_proxy("http://example.com", "http://proxy:8080", {})
@@ -321,8 +321,8 @@ async def test_tier_premium_proxy_success(scraper: UltimateScraper):
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_premium_proxy_error(scraper: UltimateScraper):
-    respx.get("http://example.com").mock(side_effect=httpx.ConnectError("proxy down"))
+async def test_tier_premium_proxy_error(scraper: UltimateScraper, resolved_dns: str):
+    respx.get(f"http://{resolved_dns}/").mock(side_effect=httpx.ConnectError("proxy down"))
     result = await scraper._tier_premium_proxy("http://example.com", "http://proxy:8080", {})
     assert result is None
 
@@ -343,7 +343,8 @@ async def test_tier_cloudscraper_missing_dep(scraper: UltimateScraper):
 async def test_tier_cloudscraper_success(scraper: UltimateScraper):
     mock_scraper = MagicMock()
     mock_scraper.get.return_value.status_code = 200
-    mock_scraper.get.return_value.text = "<html>cloud</html>"
+    mock_scraper.get.return_value.encoding = "utf-8"
+    mock_scraper.get.return_value.iter_content.return_value = [b"<html>cloud</html>"]
 
     with (
         patch("pry.engine.ultimate_scraper._has_cloudscraper", True),
@@ -454,9 +455,10 @@ async def test_tier_undetected_missing_dep(scraper: UltimateScraper):
 
 
 @pytest.mark.asyncio
-async def test_tier_undetected_success(scraper: UltimateScraper):
+async def test_tier_undetected_success(scraper: UltimateScraper, resolved_dns: str):
     mock_driver = MagicMock()
     mock_driver.page_source = "<html>undetected</html>"
+    mock_driver.current_url = "http://example.com"
     mock_uc = MagicMock()
     mock_uc.Chrome.return_value = mock_driver
 
@@ -595,8 +597,8 @@ async def test_tier_camoufox_failed(scraper: UltimateScraper):
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_googlebot_success(scraper: UltimateScraper):
-    respx.get("http://example.com").mock(
+async def test_tier_googlebot_success(scraper: UltimateScraper, resolved_dns: str):
+    respx.get(f"http://{resolved_dns}/").mock(
         return_value=httpx.Response(200, text="<html>googlebot</html>")
     )
     result = await scraper._tier_googlebot("http://example.com", {})
@@ -605,8 +607,8 @@ async def test_tier_googlebot_success(scraper: UltimateScraper):
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_googlebot_error(scraper: UltimateScraper):
-    respx.get("http://example.com").mock(side_effect=httpx.ConnectError("fail"))
+async def test_tier_googlebot_error(scraper: UltimateScraper, resolved_dns: str):
+    respx.get(f"http://{resolved_dns}/").mock(side_effect=httpx.ConnectError("fail"))
     result = await scraper._tier_googlebot("http://example.com", {})
     assert result is None
 
@@ -618,7 +620,7 @@ async def test_tier_googlebot_error(scraper: UltimateScraper):
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_archive_success(scraper: UltimateScraper):
+async def test_tier_archive_success(scraper: UltimateScraper, resolved_dns: str):
     # CDX API response
     respx.get(url__startswith="https://web.archive.org/cdx/").mock(
         return_value=httpx.Response(
@@ -626,7 +628,7 @@ async def test_tier_archive_success(scraper: UltimateScraper):
         )
     )
     # Archive snapshot
-    respx.get(url__startswith="https://web.archive.org/web/").mock(
+    respx.get(url__startswith=f"https://{resolved_dns}/web/").mock(
         return_value=httpx.Response(200, text="<html>archived</html>")
     )
     result = await scraper._tier_archive("http://example.com", {})
@@ -660,8 +662,8 @@ async def test_tier_archive_http_error(scraper: UltimateScraper):
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_google_cache_success(scraper: UltimateScraper):
-    respx.get(url__startswith="https://webcache.googleusercontent.com/").mock(
+async def test_tier_google_cache_success(scraper: UltimateScraper, resolved_dns: str):
+    respx.get(url__startswith=f"https://{resolved_dns}/").mock(
         return_value=httpx.Response(200, text="<html>cached</html>")
     )
     result = await scraper._tier_google_cache("http://example.com", {})
@@ -670,8 +672,8 @@ async def test_tier_google_cache_success(scraper: UltimateScraper):
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_google_cache_error(scraper: UltimateScraper):
-    respx.get(url__startswith="https://webcache.googleusercontent.com/").mock(
+async def test_tier_google_cache_error(scraper: UltimateScraper, resolved_dns: str):
+    respx.get(url__startswith=f"https://{resolved_dns}/").mock(
         side_effect=httpx.ConnectError("cache down")
     )
     result = await scraper._tier_google_cache("http://example.com", {})
@@ -680,9 +682,9 @@ async def test_tier_google_cache_error(scraper: UltimateScraper):
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_google_cache_rejects_search_interstitial(scraper: UltimateScraper):
+async def test_tier_google_cache_rejects_search_interstitial(scraper: UltimateScraper, resolved_dns: str):
     """A Google search page served with HTTP 200 must not be a fake success."""
-    respx.get(url__startswith="https://webcache.googleusercontent.com/").mock(
+    respx.get(url__startswith=f"https://{resolved_dns}/").mock(
         return_value=httpx.Response(
             200,
             text=(
@@ -698,9 +700,9 @@ async def test_tier_google_cache_rejects_search_interstitial(scraper: UltimateSc
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_google_cache_rejects_consent_page(scraper: UltimateScraper):
+async def test_tier_google_cache_rejects_consent_page(scraper: UltimateScraper, resolved_dns: str):
     """A Google consent interstitial must be rejected, not returned as content."""
-    respx.get(url__startswith="https://webcache.googleusercontent.com/").mock(
+    respx.get(url__startswith=f"https://{resolved_dns}/").mock(
         return_value=httpx.Response(
             200,
             text=(
@@ -716,9 +718,9 @@ async def test_tier_google_cache_rejects_consent_page(scraper: UltimateScraper):
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_google_cache_rejects_unusual_traffic_captcha(scraper: UltimateScraper):
+async def test_tier_google_cache_rejects_unusual_traffic_captcha(scraper: UltimateScraper, resolved_dns: str):
     """Google's 'unusual traffic' CAPTCHA page must be rejected."""
-    respx.get(url__startswith="https://webcache.googleusercontent.com/").mock(
+    respx.get(url__startswith=f"https://{resolved_dns}/").mock(
         return_value=httpx.Response(
             200,
             text=(
@@ -733,13 +735,13 @@ async def test_tier_google_cache_rejects_unusual_traffic_captcha(scraper: Ultima
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_google_cache_rejects_redirect_notice(scraper: UltimateScraper):
+async def test_tier_google_cache_rejects_redirect_notice(scraper: UltimateScraper, resolved_dns: str):
     """Google's post-webcache 'redirect notice' page must be rejected.
 
     Google discontinued webcache in 2024; the endpoint now serves this notice
     with HTTP 200 for every query.
     """
-    respx.get(url__startswith="https://webcache.googleusercontent.com/").mock(
+    respx.get(url__startswith=f"https://{resolved_dns}/").mock(
         return_value=httpx.Response(
             200,
             text=(
@@ -755,10 +757,10 @@ async def test_tier_google_cache_rejects_redirect_notice(scraper: UltimateScrape
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_google_cache_accepts_real_cached_content(scraper: UltimateScraper):
+async def test_tier_google_cache_accepts_real_cached_content(scraper: UltimateScraper, resolved_dns: str):
     """A genuine cached document (no Google markers) is still returned."""
     cached = "<html><body>" + "real cached article body " * 40 + "</body></html>"
-    respx.get(url__startswith="https://webcache.googleusercontent.com/").mock(
+    respx.get(url__startswith=f"https://{resolved_dns}/").mock(
         return_value=httpx.Response(200, text=cached)
     )
     result = await scraper._tier_google_cache("http://example.com", {})

@@ -129,6 +129,9 @@ dev = [
     # serially; `-n auto --dist loadfile` brings it to ~2-3 min. See ci.yml
     # `test` job and standards/templates/forgejo-ci-python.yml for the form.
     "pytest-xdist>=3.6.0",
+    # pytest-randomly: shuffled order exposes order-dependent tests (it found
+    # several in this suite); seed it in CI for reproducible failures.
+    "pytest-randomly>=3.15.0",
     "ruff>=0.16.0",
     "mypy>=2.3.0",
     "bandit>=1.9.0",

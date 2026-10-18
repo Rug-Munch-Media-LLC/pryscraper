@@ -114,7 +114,7 @@ def test_suggest_guard_runs_before_the_scraper() -> None:
 
 
 @respx.mock
-def test_suggest_rejects_a_redirect_to_metadata() -> None:
+def test_suggest_rejects_a_redirect_to_metadata(resolved_dns: str) -> None:
     """Kills: the "validate the submitted URL, then follow redirects" fix.
 
     The submitted URL is a valid public page, so a one-shot ``validate_url(url)`
@@ -123,7 +123,7 @@ def test_suggest_rejects_a_redirect_to_metadata() -> None:
     The first hop is *expected* to be fetched: rejecting it too would mean the
     test passes for the wrong reason.
     """
-    first_hop = respx.get("https://redirector.example.com/go").mock(
+    first_hop = respx.get(f"https://{resolved_dns}/go").mock(
         return_value=httpx.Response(302, headers={"location": METADATA})
     )
     metadata = respx.get(METADATA).mock(return_value=httpx.Response(200, text=LEAK_BODY))
@@ -136,12 +136,12 @@ def test_suggest_rejects_a_redirect_to_metadata() -> None:
 
 
 @respx.mock
-def test_suggest_rejects_a_redirect_to_loopback() -> None:
+def test_suggest_rejects_a_redirect_to_loopback(resolved_dns: str) -> None:
     """Kills: re-validating only the metadata address, or only the first
     redirect hop. Loopback is a different private range with a different payoff
     (local admin ports), so it is a separate attack, not a duplicate case.
     """
-    respx.get("https://redirector.example.com/go").mock(
+    respx.get(f"https://{resolved_dns}/go").mock(
         return_value=httpx.Response(301, headers={"location": "http://127.0.0.1:8080/admin"})
     )
     loopback = respx.get("http://127.0.0.1:8080/admin").mock(
@@ -155,12 +155,12 @@ def test_suggest_rejects_a_redirect_to_loopback() -> None:
 
 
 @respx.mock
-def test_suggest_rejects_a_redirect_to_a_non_http_scheme() -> None:
+def test_suggest_rejects_a_redirect_to_a_non_http_scheme(resolved_dns: str) -> None:
     """Kills: a redirect check that only inspects resolved addresses and so
     lets a ``file://`` Location through — an address check has nothing to say
     about a scheme that never resolves.
     """
-    respx.get("https://redirector.example.com/go").mock(
+    respx.get(f"https://{resolved_dns}/go").mock(
         return_value=httpx.Response(302, headers={"location": "file:///etc/passwd"})
     )
     catch_all = respx.route().mock(return_value=httpx.Response(200, text="root:x:0:0"))
@@ -172,14 +172,14 @@ def test_suggest_rejects_a_redirect_to_a_non_http_scheme() -> None:
 
 
 @respx.mock
-def test_suggest_stops_a_redirect_chain_at_the_offending_hop() -> None:
+def test_suggest_stops_a_redirect_chain_at_the_offending_hop(resolved_dns: str) -> None:
     """Kills: a fix that re-validates only the *first* redirect, or that
     validates but still follows. Two safe hops, then an internal third.
     """
-    respx.get("https://a.example.com/1").mock(
+    respx.get(f"https://{resolved_dns}/1").mock(
         return_value=httpx.Response(302, headers={"location": "https://b.example.com/2"})
     )
-    respx.get("https://b.example.com/2").mock(
+    respx.get(f"https://{resolved_dns}/2").mock(
         return_value=httpx.Response(302, headers={"location": METADATA})
     )
     metadata = respx.get(METADATA).mock(return_value=httpx.Response(200, text=LEAK_BODY))

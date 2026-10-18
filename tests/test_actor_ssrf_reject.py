@@ -113,7 +113,9 @@ def test_internal_first_hop_is_never_fetched(route: str, actor: str, target: obj
     ACTOR_ROUTES,
     ids=ROUTE_IDS,
 )
-def test_public_redirect_to_metadata_is_rejected(route: str, actor: str, body: object) -> None:
+def test_public_redirect_to_metadata_is_rejected(
+    route: str, actor: str, body: object, resolved_dns: str
+) -> None:
     """Kills: the "validate the first URL, then follow redirects" fix — the
     mistake that survives a first-hop-only guard.
 
@@ -124,7 +126,7 @@ def test_public_redirect_to_metadata_is_rejected(route: str, actor: str, body: o
     The first hop *is* expected to be fetched: proving the public URL was
     rejected for the wrong reason would hide the real bug.
     """
-    first_hop = respx.get(REDIRECTOR).mock(
+    first_hop = respx.get(f"https://{resolved_dns}/go").mock(
         return_value=httpx.Response(302, headers={"location": METADATA})
     )
     metadata = respx.get("http://169.254.169.254/latest/meta-data/").mock(
@@ -140,12 +142,12 @@ def test_public_redirect_to_metadata_is_rejected(route: str, actor: str, body: o
 
 
 @respx.mock
-def test_public_redirect_to_loopback_is_rejected() -> None:
+def test_public_redirect_to_loopback_is_rejected(resolved_dns: str) -> None:
     """Kills: per-hop re-validation that checks the scheme but not the host —
     the ``file://`` variant lives in ``test_router_ssrf_reject.py``; this is the
     loopback variant on the structure actor specifically.
     """
-    respx.get(REDIRECTOR).mock(
+    respx.get(f"https://{resolved_dns}/go").mock(
         return_value=httpx.Response(302, headers={"location": "http://127.0.0.1:8080/admin"})
     )
     loopback = respx.get("http://127.0.0.1:8080/admin").mock(
@@ -162,14 +164,14 @@ def test_public_redirect_to_loopback_is_rejected() -> None:
 
 
 @respx.mock
-def test_redirect_chain_stops_at_the_offending_hop() -> None:
+def test_redirect_chain_stops_at_the_offending_hop(resolved_dns: str) -> None:
     """Kills: a fix that re-validates only the *first* redirect, or that
     validates but still follows. Two safe hops, then an internal third.
     """
-    respx.get("https://a.example.com/1").mock(
+    respx.get(f"https://{resolved_dns}/1").mock(
         return_value=httpx.Response(302, headers={"location": "https://b.example.com/2"})
     )
-    respx.get("https://b.example.com/2").mock(
+    respx.get(f"https://{resolved_dns}/2").mock(
         return_value=httpx.Response(302, headers={"location": METADATA})
     )
     metadata = respx.get("http://169.254.169.254/latest/meta-data/").mock(
