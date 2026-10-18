@@ -60,6 +60,7 @@ from pry.api.routers.data.jobs import router as jobs_router
 from pry.api.routers.data.legal_docs import router as legal_docs_router
 from pry.api.routers.data.local_data import router as local_data_router
 from pry.api.routers.data.real_estate import router as real_estate_router
+from pry.api.routers.data.site_catalog import router as site_catalog_router
 from pry.api.routers.data.sports_data import router as sports_data_router
 from pry.api.routers.data.travel import router as travel_router
 from pry.api.routers.integrations.alerts import router as alerts_router

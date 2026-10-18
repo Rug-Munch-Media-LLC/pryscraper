@@ -25,6 +25,7 @@ env:
 jobs:
   pre-commit-mirror:
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -39,6 +40,7 @@ jobs:
 
   semgrep:
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -65,6 +67,7 @@ jobs:
 
   lint:
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -114,6 +117,7 @@ jobs:
 
   typecheck:
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -140,13 +144,14 @@ jobs:
         # because it is nested under src/; overlapping paths cause duplicate modules.
         run: |
           source .venv/bin/activate
-          mypy src/ pry_mcp/ datasets/sports_data/derivatives/
+          mypy src/pry pry_mcp/ datasets/sports_data/derivatives/
           mypy src/pry/payments/x402/solana_transfer/
           mypy src/pry/commerce/reconciliation/
           mypy datasets/sports_data/parlay_legs/
 
   test:
     runs-on: docker-x64
+    timeout-minutes: 60
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -203,6 +208,7 @@ jobs:
     # Run locally with:  pytest -m integration  (requires PG+Redis reachable)
     if: github.event_name == 'schedule'
     runs-on: docker-x64
+    timeout-minutes: 60
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     services:
@@ -274,6 +280,7 @@ jobs:
   docs:
     name: Docs site (Docusaurus)
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -301,6 +308,7 @@ jobs:
     name: Integration gate (Postgres + Redis)
     if: github.event_name == 'pull_request'
     runs-on: docker-x64
+    timeout-minutes: 60
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     services:
@@ -398,6 +406,7 @@ jobs:
     # does not exist. Fixing the baseline schema is a scripts/ + data/ change
     # and belongs to whichever lane owns those files.
     runs-on: docker-x64
+    timeout-minutes: 60
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -564,6 +573,7 @@ jobs:
   secrets:
     name: Secret scan (gitleaks)
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -586,6 +596,7 @@ jobs:
   security:
     name: Security audit (bandit)
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -620,6 +631,7 @@ jobs:
     # pruned by fleet cleanup and the runner then fails to pull them (404).
     # Use the cached standard image + distro shellcheck instead.
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -635,6 +647,7 @@ jobs:
   docker-lock-drift:
     name: docker lock drift check
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -653,6 +666,7 @@ jobs:
   hadolint:
     name: Hadolint (Dockerfile lint)
     runs-on: docker-x64
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Run hadolint on Dockerfile (blocking on ERROR)
@@ -674,6 +688,7 @@ jobs:
     # the filesystem + configs with the trivy static binary. Advisory while
     # the findings backlog is triaged; tighten to blocking in follow-up.
     runs-on: docker-x64
+    timeout-minutes: 30
     needs: test
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
@@ -704,6 +719,7 @@ jobs:
 
   pip-audit:
     runs-on: docker-x64
+    timeout-minutes: 30
     needs: test
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
@@ -724,6 +740,7 @@ jobs:
 
   deps-freshness:
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     needs: test
@@ -746,6 +763,7 @@ jobs:
     # pointing to the deployed service (set as a repository variable).
     if: github.event_name == 'schedule'
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       # Standard python+node image: actions/checkout is a node action and
       # cannot run inside grafana/k6 (no node -> exitcode 127). k6 itself
@@ -781,6 +799,7 @@ jobs:
 
   fuzz:
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     needs: test
@@ -812,6 +831,7 @@ jobs:
 
   contract-test:
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     needs: test
@@ -845,6 +865,7 @@ jobs:
     # v9.0.0 supports node20 max ("runs.using key ... got node24"). Replaced
     # with a direct syft install + generation (same artifact contract).
     runs-on: docker-x64
+    timeout-minutes: 30
     needs: [test, typecheck]
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
@@ -876,6 +897,7 @@ jobs:
     # no docker CLI ('docker: command not found'). Re-enable with a real
     # REGISTRY + docker-capable runner.
     runs-on: docker-x64
+    timeout-minutes: 30
     needs: test
     if: false
     # NOTE: `registry.example.com` is an INTENTIONAL placeholder for this
@@ -915,6 +937,7 @@ jobs:
 
   ocr-review:
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: node:22-bookworm-slim
     if: github.event_name == 'pull_request'
@@ -981,6 +1004,7 @@ jobs:
     # → runner pull 404). Runs on the standard image; installs Go only if the
     # distro provides it and degrades to a skip otherwise (advisory job).
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -1005,6 +1029,7 @@ jobs:
   mutation-test:
     name: Mutation testing (mutmut)
     runs-on: docker-x64
+    timeout-minutes: 60
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -1069,6 +1094,7 @@ jobs:
   complexity-gate:
     name: Code complexity (radon + xenon)
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -1100,6 +1126,7 @@ jobs:
   dead-code-gate:
     name: Dead code detection (vulture)
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -1118,6 +1145,7 @@ jobs:
   docstring-gate:
     name: Docstring coverage (interrogate)
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -1140,6 +1168,7 @@ jobs:
   coverage-regression-gate:
     name: Coverage regression (diff-cover)
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     if: github.event_name == 'pull_request'
@@ -1177,6 +1206,7 @@ jobs:
 # Append these jobs under `jobs:` in any repo's ci.yml. Self-contained.
   supply-chain:
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -1196,6 +1226,7 @@ jobs:
   nightly-deep-scan:
     if: ${{ github.event_name == 'schedule' }}
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -1218,6 +1249,7 @@ jobs:
   # is never clobbered.
   changelog:
     runs-on: docker-x64
+    timeout-minutes: 30
     needs: [lint]
     container:
       # Audit 2026-09-12: default node image has no pip ('pip: command not
@@ -1244,6 +1276,7 @@ jobs:
     # or NEW offenders fail the build. Regenerate deliberately:
     # --update-baseline.
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
@@ -1290,6 +1323,7 @@ jobs:
   guardian:
     name: Guardian (dangerous-diff)
     runs-on: docker-x64
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -1310,6 +1344,7 @@ jobs:
   # ===================================================================
   commitlint:
     runs-on: docker-x64
+    timeout-minutes: 30
     container:
       image: node:22-bookworm
     steps:

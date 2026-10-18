@@ -28,7 +28,10 @@ _AUTH_PUBLIC_PATHS: set[str] = {
     "/ready",
     "/readyz",
     "/supported",
-    "/metrics",
+    # /metrics is NOT listed: it is gated by metrics_authorized() below.
+    # Docs paths stay here because they are only MOUNTED outside prod
+    # (app_factory passes docs_url/openapi_url=None in prod), so a prod
+    # request for them falls through to the router's 404.
     "/docs",
     "/openapi.json",
     # MCP discovery is public; tools/call is auth-gated inside both the SSE
@@ -69,6 +72,73 @@ _AUTH_PUBLIC_PATHS: set[str] = {
 _LOOPBACK_OR_TEST_HOSTS: frozenset[str] = frozenset(
     {"127.0.0.1", "::1", "::ffff:127.0.0.1", "testclient"}
 )
+
+# ── Ops surfaces ──
+# /metrics exposes process internals (counters, tiers, provider health). It is
+# not a public endpoint: Prometheus scrapes it over loopback, and a remote
+# scraper must present PRY_OPS_TOKEN (X-Ops-Token or Bearer).
+# /docs, /redoc and /openapi.json are development aids only. They are 404 in
+# prod at the middleware, and stay available in dev/staging.
+_OPS_METRICS_PATH = "/metrics"
+DOCS_PATHS: frozenset[str] = frozenset(
+    {"/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"}
+)
+
+
+def docs_enabled() -> bool:
+    """True outside prod: interactive docs are a development aid, not a surface."""
+    return settings.environment != "prod"
+
+
+def ops_token_ok(scope: Mapping[str, Any]) -> bool:
+    """Constant-time check of PRY_OPS_TOKEN against X-Ops-Token / Bearer."""
+    expected = os.getenv("PRY_OPS_TOKEN", "").strip()
+    if not expected:
+        return False
+    supplied = _get_header(scope, b"x-ops-token") or _get_header(scope, b"authorization")
+    if supplied.startswith("Bearer "):
+        supplied = supplied[7:]
+    return bool(supplied) and hmac.compare_digest(
+        supplied.encode("utf-8"), expected.encode("utf-8")
+    )
+
+
+class DocsGateMiddleware:
+    """Answer 404 for /docs, /redoc and /openapi.json in prod.
+
+    Runs before the auth middleware: an absent surface must not advertise an
+    auth wall. Kept as ASGI (not BaseHTTPMiddleware) so it never buffers.
+    """
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope.get("type") == "http" and scope.get("path") in DOCS_PATHS and not docs_enabled():
+            body = b'{"detail":"Not Found"}'
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 404,
+                    "headers": [
+                        (b"content-type", b"application/json"),
+                        (b"content-length", str(len(body)).encode()),
+                    ],
+                }
+            )
+            await send({"type": "http.response.body", "body": body})
+            return
+        await self.app(scope, receive, send)
+
+
+def metrics_authorized(scope: Mapping[str, Any]) -> bool:
+    """Authorise a /metrics scrape: dev, loopback peer, or a valid ops token."""
+    if settings.environment != "prod":
+        return True
+    client_ip = resolve_client_ip(scope)
+    if client_ip is not None and is_loopback_client(client_ip):
+        return True
+    return ops_token_ok(scope)
 
 
 def _parse_trusted_proxy(value: str) -> ipaddress.IPv4Network | ipaddress.IPv6Network | None:
@@ -176,6 +246,9 @@ def request_authorized(scope: MutableMapping[str, Any]) -> bool:
     rejected rather than ignored.
     """
     api_key = settings.api_key
+    # Ops scrape endpoint: loopback or PRY_OPS_TOKEN, never the API key.
+    if scope.get("path") == _OPS_METRICS_PATH:
+        return metrics_authorized(scope)
     auth = _get_header(scope, b"authorization")
     token = auth[7:] if auth.startswith("Bearer ") else ""
 

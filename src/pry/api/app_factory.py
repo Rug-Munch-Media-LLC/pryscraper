@@ -35,13 +35,23 @@ from pry.api.lifecycle import lifespan
 from pry.api.routers.core.app_ui import router as app_ui_router
 from pry.api.routers.scraping.crawl_jobs import router as crawl_jobs_router
 from pry.api.routers.scraping.search_map import router as search_map_router
+from pry.core.middleware_auth import DocsGateMiddleware
 from pry.core.settings import settings
 
 logger = logging.getLogger(__name__)
 
+# Interactive docs and the OpenAPI document are development aids. In prod the
+# routes are not mounted at all, so /docs, /redoc and /openapi.json answer 404
+# instead of advertising the full API surface to anonymous callers.
+_DOCS_URL = "/docs" if settings.environment != "prod" else None
+_OPENAPI_URL = "/openapi.json" if settings.environment != "prod" else None
+
 app = FastAPI(
     title="PryScraper API",
     version="3.0.0",
+    docs_url=_DOCS_URL,
+    redoc_url=None if settings.environment == "prod" else "/redoc",
+    openapi_url=_OPENAPI_URL,
     description=APP_DESCRIPTION,
     contact=CONTACT,
     license_info=LICENSE_INFO,
@@ -57,6 +67,8 @@ app.include_router(search_map_router)
 app.include_router(crawl_jobs_router)
 
 wire_app(app)
+# Outermost: prod answers 404 for docs before any auth/rate-limit work.
+app.add_middleware(DocsGateMiddleware)
 
 app.include_router(app_ui_router)
 

@@ -143,3 +143,8 @@ def mount_secondary(app: FastAPI, ns: Mapping[str, Any]) -> None:
     app.include_router(ns["webhooks_router"])
     app.include_router(ns["x402_router"])
     app.include_router(ns["crypto_payment_router"])
+    # site_catalog (assured-scrape capability registry) owns absolute
+    # /v1/coverage* paths and declares no prefix; no other router claims
+    # them, so mounting last cannot shadow an earlier route. It lives in
+    # the secondary table because it was never wired into the registry.
+    app.include_router(ns["site_catalog_router"])
