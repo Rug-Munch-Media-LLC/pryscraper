@@ -76,6 +76,18 @@ def _seed_monitors_and_actors(temp_data_dir):
     )
 
 
+def _assert_quality_row(q) -> None:
+    assert q.url == "https://example.com"
+    assert q.completeness == 0.9
+    assert q.risk_level == "low"
+    assert q.issues == ["slow"]
+
+
+def _assert_intel_row(i) -> None:
+    assert i.competitor_name == "Acme Corp"
+    assert i.fields == {"price": 99.99}
+
+
 def test_import_valid_json_creates_rows_with_field_values(temp_data_dir):
     """Valid JSON stores are written to SQL with concrete field values."""
     import pry.core.db as db
@@ -93,18 +105,27 @@ def test_import_valid_json_creates_rows_with_field_values(temp_data_dir):
         q = s.execute(
             select(db.QualityCheck).where(db.QualityCheck.extraction_id == "q1")
         ).scalar_one()
-        assert q.url == "https://example.com"
-        assert q.completeness == 0.9
-        assert q.risk_level == "low"
-        expected = ["slow"]
-        assert q.issues == expected
+        _assert_quality_row(q)
 
         i = s.execute(
             select(db.IntelSnapshot).where(db.IntelSnapshot.competitor_id == "acme")
         ).scalar_one()
-        assert i.competitor_name == "Acme Corp"
-        expected_2 = {"price": 99.99}
-        assert i.fields == expected_2
+        _assert_intel_row(i)
+
+
+def _assert_monitor(m) -> None:
+    assert m.monitor_name == "Example Monitor"
+    assert m.schedule_cron == "0 * * * *"
+    assert m.active is True
+    assert m.webhook_url == "https://hooks.example.com/1"
+
+
+def _assert_actor(a) -> None:
+    assert a.name == "Scraper"
+    assert a.price_per_run == 0.5
+    assert a.visibility == "public"
+    assert a.tags == ["scrape"]
+    assert a.run_count == 3
 
 
 def test_import_renames_monitor_and_actor_fields(temp_data_dir):
@@ -116,19 +137,9 @@ def test_import_renames_monitor_and_actor_fields(temp_data_dir):
 
     with db.session_scope() as s:
         m = s.execute(select(db.Monitor).where(db.Monitor.monitor_id == "m1")).scalar_one()
-        # 'name' from JSON is renamed to 'monitor_name' in SQL.
-        assert m.monitor_name == "Example Monitor"
-        assert m.schedule_cron == "0 * * * *"
-        assert m.active is True
-        assert m.webhook_url == "https://hooks.example.com/1"
-
+        _assert_monitor(m)
         a = s.execute(select(db.Actor).where(db.Actor.actor_id == "a1")).scalar_one()
-        assert a.name == "Scraper"
-        assert a.price_per_run == 0.5
-        assert a.visibility == "public"
-        expected_3 = ["scrape"]
-        assert a.tags == expected_3
-        assert a.run_count == 3
+        _assert_actor(a)
         assert a.revenue_usd == 1.5
 
 
