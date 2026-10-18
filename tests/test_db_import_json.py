@@ -33,6 +33,10 @@ def temp_data_dir(monkeypatch, tmp_path):
     importlib.reload(db)
     db._engine = None
     db._SessionLocal = None
+    # get_engine() is deliberately not a schema authority (alembic owns the
+    # schema; see db_engine.get_engine), so the fixture must build the schema
+    # explicitly for this fresh SQLite file.
+    db.Base.metadata.create_all(db.get_engine())
     yield tmp_path
     db._engine = None
     db._SessionLocal = None

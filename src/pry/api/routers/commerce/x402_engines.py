@@ -29,6 +29,15 @@ ENGINE_TOOLS: dict[str | None, str] = {
     "invoice": "pry_parse_document",
     "corpus": "pry_crawl",
     "backlinks": "pry_domain",
+    # Processors owned by the consolidated runner registry
+    # (actor_factory/processors_registry.py). Without these the catalog
+    # silently advertises pry_scrape for a capability that has its own tool.
+    "serp": "pry_serp",
+    "screenshot": "pry_screenshot",
+    "pdfdoc": "pry_parse_document",
+    "sslcert": "pry_domain",
+    "tokensafety": "pry_token_security",
+    "sanctions": "pry_legal_sanctions",
 }
 
 

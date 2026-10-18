@@ -96,7 +96,7 @@ def _text(result: dict[str, Any]) -> str:
 class TestCallCryptoTool:
     async def test_missing_module_returns_not_available(self) -> None:
         """A crypto module that has not landed must not crash the dispatch."""
-        with _patch_module("crypto_market.token_launches", None):
+        with _patch_module("datasets.crypto_market.token_launches", None):
             result = await mcp_tools.call_crypto_tool("pry_token_launches", {})
         assert result is not None
         assert isinstance(result, dict)
@@ -108,7 +108,7 @@ class TestCallCryptoTool:
         assert "pry_token_launches" in text
 
     async def test_cex_listings_missing_returns_not_available(self) -> None:
-        with _patch_module("crypto_market.cex_listings", None):
+        with _patch_module("datasets.crypto_market.cex_listings", None):
             result = await mcp_tools.call_crypto_tool(
                 "pry_cex_listings", {"exchanges": ["binance"], "lookback_hours": 24}
             )
@@ -148,7 +148,7 @@ class TestCallCryptoTool:
             get_new_pairs=AsyncMock(return_value={"items": []}),
             get_trending_tokens=AsyncMock(return_value={"items": []}),
         )
-        with _patch_module("crypto_market.token_launches", fake):
+        with _patch_module("datasets.crypto_market.token_launches", fake):
             result = await mcp_tools.call_crypto_tool(
                 "pry_token_launches", {"chain": "solana", "limit": 5}
             )
@@ -282,7 +282,7 @@ class TestCombinedToolExecutor:
             get_new_pairs=AsyncMock(return_value={"items": []}),
             get_trending_tokens=AsyncMock(return_value={"items": []}),
         )
-        with _patch_module("crypto_market.token_launches", fake):
+        with _patch_module("datasets.crypto_market.token_launches", fake):
             result = await combined_tool_executor("pry_token_launches", {"chain": "all"})
         assert result is not None
         assert isinstance(result, dict)
