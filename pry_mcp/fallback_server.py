@@ -23,7 +23,12 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from pry.core.client import get_client
-from pry_mcp.constants import DEFAULT_BASE_URL, MCP_PROTOCOL_VERSION, SERVER_NAME, SERVER_VERSION
+from pry_mcp.constants import (
+    DEFAULT_BASE_URL,
+    SERVER_NAME,
+    SERVER_VERSION,
+    negotiate_protocol_version,
+)
 from pry_mcp.notifications import (
     _attach_mcp_logging,
     set_active_mcp_server,
@@ -322,7 +327,9 @@ def make_fallback_server(
                         "jsonrpc": "2.0",
                         "id": req_id,
                         "result": {
-                            "protocolVersion": MCP_PROTOCOL_VERSION,
+                            "protocolVersion": negotiate_protocol_version(
+                                (params or {}).get("protocolVersion")
+                            ),
                             "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
                             "capabilities": {
                                 "tools": {"listChanged": True},

@@ -2,7 +2,16 @@
 	"$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
 	"name": "io.rugmunch/pry",
 	"title": "Pry — Web Scraping, Browser Automation & Data Intelligence MCP",
-	"description": "Self-hosted web intelligence MCP: scrape, search, crawl, map, extract, monitor, parse, screenshot, x402 pricing, plus ten data domains (crypto, marketplace, legal, real estate, jobs, travel, attention, local, gov, ip).",
+	"icons": [
+		{
+			"src": "https://pryscraper.com/logo-mark-v2.png",
+			"mimeType": "image/png",
+			"sizes": [
+				"any"
+			]
+		}
+	],
+	"description": "Self-hosted web intelligence MCP: scrape, search, crawl, extract, monitor, and x402-paid data APIs.",
 	"version": "3.0.0",
 	"websiteUrl": "https://pryscraper.com",
 	"repository": {

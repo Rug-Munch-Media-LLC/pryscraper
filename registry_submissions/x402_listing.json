@@ -4,8 +4,8 @@
 		"name": "Pry Scraping API",
 		"description": "Professional web scraping with crypto payments",
 		"website": "https://pryscraper.com",
-		"icon": "https://pryscraper.com/img/pry.png",
-		"banner": "https://pryscraper.com/img/logo.svg"
+		"icon": "https://pryscraper.com/logo-mark-v2.png",
+		"banner": "https://pryscraper.com/og.png"
 	},
 	"services": [
 		{
@@ -72,7 +72,9 @@
 	"payment": {
 		"x402": true,
 		"crypto": true,
-		"providers": ["self-hosted"]
+		"providers": [
+			"self-hosted"
+		]
 	},
 	"contact": {
 		"email": "admin@pryscraper.com",

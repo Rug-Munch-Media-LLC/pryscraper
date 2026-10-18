@@ -43,7 +43,11 @@ def session_key(session_id: str) -> str:
 
 def _session_ttl() -> int:
     """Configured session TTL in seconds (``MCP_SESSION_TTL_SECONDS``)."""
-    raw = os.getenv("MCP_SESSION_TTL_SECONDS", "")
+    raw = os.getenv("MCP_SESSION_TTL_SECONDS", "").strip()
+    if not raw:
+        # Unset/blank is the normal case (no env needed); do not log a
+        # ValueError warning on every boot for an absent optional setting.
+        return DEFAULT_SESSION_TTL_SECONDS
     try:
         ttl = int(raw)
     except ValueError as e:

@@ -16,6 +16,8 @@ from pry_mcp.constants import (
     MCP_PROTOCOL_VERSION,
     SERVER_NAME,
     SERVER_VERSION,
+    SUPPORTED_PROTOCOL_VERSIONS,
+    negotiate_protocol_version,
 )
 from pry_mcp.fallback_server import make_fallback_server
 from pry_mcp.notifications import (
@@ -39,10 +41,12 @@ __all__ = [
     "PRY_TOOLS",
     "SERVER_NAME",
     "SERVER_VERSION",
+    "SUPPORTED_PROTOCOL_VERSIONS",
     "MCPLoggingHandler",
     "create_server",
     "main",
     "make_fallback_server",
+    "negotiate_protocol_version",
     "notify_resource_changed",
     "notify_resource_list_changed",
     "notify_tool_list_changed",
