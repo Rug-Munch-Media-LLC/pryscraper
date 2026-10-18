@@ -58,15 +58,6 @@ def _billing_allows(scope: Mapping[str, Any]) -> bool:
     return _facade.billing_enforcer().check_request(record.get("key_id"))
 
 
-def _implicit_bucket_id(api_key: str | None, x402_verified: Any) -> str:
-    """Bucket id used when the request carries no bound API-key record.
-
-    Delegates to ``middleware_ratelimit``; kept as a name here for existing
-    import sites.
-    """
-    return middleware_ratelimit.implicit_bucket_id(api_key, x402_verified)
-
-
 def _is_public_path(path: str) -> bool:
     """True for an exact public path or a public prefix (e.g. ``/mcp/*``)."""
     return path in _AUTH_PUBLIC_PATHS or any(
@@ -107,9 +98,8 @@ class PryHttpMiddleware:
             await self.app(scope, receive, send)
             return
 
-        # OpenTelemetry: one span per HTTP request (name "METHOD path").
-        # Attributes (status, duration) are attached inside _handle_http via
-        # set_span_attributes; tracing is a no-op when OTel is disabled.
+        # OpenTelemetry: one span per HTTP request (name "METHOD path");
+        # attributes are attached in _handle_http, no-op when OTel is off.
         method = scope.get("method", "GET")
         path = scope.get("path", "")
         start = time.time()
@@ -137,6 +127,16 @@ class PryHttpMiddleware:
         path = scope.get("path", "")
         method = scope.get("method", "GET")
         ip = _facade._resolve_client_ip(scope)
+
+        # Pre-auth per-IP bucket: bound floods BEFORE credential/DB resolution.
+        credentialed = bool(self._get_header(scope, b"authorization"))
+        pre_allowed, pre_stats = middleware_ratelimit.preauth_check(ip, credentialed)
+        if not pre_allowed:
+            await self._reject_rate_limited(
+                send, request_id=request_id, path=path, ip=ip, api_key=None,
+                stats=pre_stats, rate_limit_headers={},
+            )
+            return
 
         # Authentication — fail closed, and BEFORE the unknown-path pass-through.
         if not self._authorized(scope, path):

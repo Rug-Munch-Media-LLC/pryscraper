@@ -1,16 +1,18 @@
-"""Pry — rate-limit bucket selection for the HTTP middleware.
+"""Pry — rate-limit buckets: pre-auth IP ceiling + post-auth quota selection.
 
-Picks which limiter a request is charged against (x402 payment-verified, a
-DB-issued API key, or the legacy per-IP limiter), performs the pre-check
-quota refresh, and builds the ``x-ratelimit-*`` response headers.
+Two stages: ``preauth_check`` is a cheap in-process token bucket per client
+IP evaluated BEFORE any credential/DB lookup, so anonymous floods and
+garbage-key spam cost nothing; after auth, ``resolve_rate_limit`` selects the
+real bucket (x402 payer, DB key, or legacy IP) and enforces the per-key quota.
 
-Split out of ``middleware_http`` because it is a pure decision function: it
-touches no middleware instance state, only the request scope. Both
-dependencies are resolved through the ``pry.core.middleware`` facade at call
-time so tests that patch the facade keep working.
+REDIS-DOWN POLICY — FAIL-OPEN (degraded) for the legacy IP limiter,
+FAIL-CLOSED for per-key quotas: the pre-auth bucket never touches Redis, the
+legacy limiter degrades to a half-rate per-process bucket, checks served
+during the outage increment ``pry_rate_limit_fail_open_total`` (visible, not
+silent), and per-key quotas deny when the bucket is unverified.
 
-Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-Licensed under MIT. See LICENSE.
+Pure decision function: touches only the request scope; dependencies resolve
+through the ``pry.core.middleware`` facade at call time.
 """
 
 # SPDX-License-Identifier: MIT
@@ -22,19 +24,83 @@ Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
 import time
+from collections import OrderedDict
 from typing import Any
 
 from pry.core.middleware_common import _get_header
 from pry.core.settings import settings
 from pry.core.user_ratelimit import TIER_LIMITS
 
+try:
+    from prometheus_client import Counter as _PromCounter
+
+    FAIL_OPEN = _PromCounter(
+        "pry_rate_limit_fail_open_total",
+        "Rate-limit checks served fail-open because Redis was unavailable",
+        ["backend"],
+    )
+except Exception:  # noqa: BLE001 — metric registration must never break import
+    FAIL_OPEN = None
+
+# Pre-auth token buckets (ip -> [tokens, last_monotonic]); bounded table.
+_PREAUTH_BUCKETS: OrderedDict[str, list[float]] = OrderedDict()
+_PREAUTH_MAX_KEYS = 10_000
+
+
+def _preauth_rules(credential_present: bool) -> tuple[int, float]:
+    """Anonymous: per-IP default. Credentialed: the top tier, so a paying
+    caller is never pre-empted while a garbage-key flood stays bounded."""
+    if credential_present:
+        tier = TIER_LIMITS["ENTERPRISE"]
+        return int(tier["rpm"]), float(tier["burst"])
+    rpm = max(60, int(settings.rate_limit_rpm))
+    return rpm, float(rpm)
+
+
+def preauth_check(
+    ip: str, credential_present: bool = False, now: float | None = None
+) -> tuple[bool, dict[str, Any]]:
+    """Cheap per-IP token bucket, evaluated BEFORE authentication.
+
+    In-process by design: the unauthenticated path must not touch Redis or
+    the DB, so a ``Bearer pry_...`` garbage flood is rejected before the key
+    lookup costs anything, and unknown paths are bounded before the 404
+    pass-through. Anonymous and credential-bearing requests use separate
+    buckets; ``ip`` must come from the trusted resolver, never raw XFF.
+    """
+    rpm, capacity = _preauth_rules(credential_present)
+    now = time.monotonic() if now is None else now
+    key = f"{ip}|{'cred' if credential_present else 'anon'}"
+    state = _PREAUTH_BUCKETS.get(key)
+    if state is None:
+        if len(_PREAUTH_BUCKETS) >= _PREAUTH_MAX_KEYS:
+            _PREAUTH_BUCKETS.popitem(last=False)
+        state = [capacity, now]
+        _PREAUTH_BUCKETS[key] = state
+    else:
+        state[0] = min(capacity, state[0] + max(0.0, now - state[1]) * (rpm / 60.0))
+        state[1] = now
+    if state[0] >= 1.0:
+        state[0] -= 1.0
+        return True, {"remaining": int(state[0]), "limit": rpm}
+    retry_after = (1.0 - state[0]) * 60.0 / rpm
+    return False, {
+        "remaining": 0,
+        "limit": rpm,
+        "retry_after": round(max(retry_after, 1.0), 1),
+        "reason": "ip rate limit exceeded (pre-auth)",
+    }
+
+
+def _note_fail_open(limiter: Any) -> None:
+    """Count a legacy IP check served from the degraded memory backend."""
+    degraded = settings.redis_url and getattr(limiter, "backend", "memory") == "memory"
+    if degraded and FAIL_OPEN is not None:
+        FAIL_OPEN.labels(backend="memory").inc()
+
 
 def implicit_bucket_id(api_key: str | None, x402_verified: Any) -> str:
-    """Bucket id used when the request carries no bound API-key record.
-
-    Mirrors the ids the ``check()`` branches use so the pre-check quota
-    refresh and the enforced check always agree on which bucket they mean.
-    """
+    """Bucket id for a request with no bound API-key record (must match check())."""
     if x402_verified:
         return f"x402:{x402_verified.get('caller', 'unknown')}"
     return (api_key or "")[:12]
@@ -49,7 +115,6 @@ async def resolve_rate_limit(
     """
     from pry.core import middleware as _facade
 
-    # Rate limiting: use user rate limiter if API key present, else IP-based
     auth_header = _get_header(scope, b"authorization")
     api_key = None
     if auth_header.startswith("Bearer "):
@@ -58,33 +123,26 @@ async def resolve_rate_limit(
     ratelimiter = _facade.ratelimiter
     user_ratelimiter = _facade.user_ratelimiter
 
-    # x402 payment-verified requests carry NO Authorization header (the
-    # on-chain payment IS the credential). request_authorized() bound an
-    # identity with tier="X402" into scope["pry_api_key"]. Route them
-    # through the user rate limiter with the X402 tier so a paying caller
-    # gets the higher paid limit instead of being collapsed into the
-    # per-IP FREE bucket (which would throttle paid traffic behind a
-    # shared NAT/proxy and undercut what they paid for).
+    # x402 requests carry NO Authorization header (the payment IS the
+    # credential); request_authorized() bound tier="X402" into
+    # scope["pry_api_key"]. Route them through the user limiter so a payer
+    # gets the paid limit instead of the per-IP FREE bucket.
     x402_verified = scope.get("x402_verified")
 
-    # Refresh the per-key monthly quota BEFORE check() runs. check() is
-    # fail-closed on an unverified bucket, but it can only deny a bucket
-    # something has marked unverified — without this refresh the
-    # database read never happened on the request path, so a DB outage
-    # served every user at quota_used=0 (an unlimited-quota read) and
-    # the deny branch was unreachable. refresh_quota() only touches the
-    # DB when the cached quota is older than its TTL, and never raises:
-    # a failed read leaves the bucket unverified and check() denies.
+    # Refresh the per-key monthly quota BEFORE check(). check() is
+    # fail-closed on an unverified bucket, but only if something marked the
+    # bucket unverified: without this refresh a DB outage served every user
+    # at quota_used=0 (an unlimited-quota read) and the deny branch was
+    # unreachable. refresh_quota() is TTL-cached and never raises.
     if x402_verified or (api_key and api_key != settings.api_key):
         key_record = scope.get("pry_api_key") or {}
         bucket_id = key_record.get("key_id") or implicit_bucket_id(api_key, x402_verified)
         await user_ratelimiter.refresh_quota(bucket_id)
 
     if x402_verified:
+        # Bucket per payer (wallet/agent), not per IP: one payer behind many
+        # IPs shares one budget; many payers behind one IP do not share one.
         key_record = scope.get("pry_api_key") or {}
-        # Bucket per caller (the paying wallet/agent), not per IP — a
-        # single payer behind many IPs must share one budget, and many
-        # payers behind one IP must not share a budget.
         bucket_id = key_record.get("key_id") or implicit_bucket_id(api_key, x402_verified)
         allowed, stats = user_ratelimit_check(user_ratelimiter, bucket_id, key_record, "X402", 0.0)
         effective_limit = (
@@ -93,11 +151,9 @@ async def resolve_rate_limit(
         )
         rate_limit_headers = _user_headers(stats, effective_limit)
     elif api_key and api_key != settings.api_key:
-        # DB-issued key (pry_...) already validated in request_authorized(),
-        # which bound the authenticated record into scope["pry_api_key"].
-        # Use ITS per-key rate_limit_rpm + quota (set at issue time) so
-        # PRY_RATE_LIMIT_RPM / api_keys_service per-key quotas apply, instead
-        # of the previous hardcoded "FREE" tier default.
+        # DB-issued key (pry_...) validated by request_authorized(), which
+        # bound the record into scope["pry_api_key"]. Use ITS per-key
+        # rate_limit_rpm + quota instead of the FREE tier default.
         key_record = scope.get("pry_api_key") or {}
         bucket_id = key_record.get("key_id") or implicit_bucket_id(api_key, None)
         allowed, stats = user_ratelimit_check(user_ratelimiter, bucket_id, key_record, "FREE", 0.0)
@@ -106,6 +162,7 @@ async def resolve_rate_limit(
     else:
         # Legacy global key or no key — use IP-based rate limiter
         allowed, stats = ratelimiter.check(ip)
+        _note_fail_open(ratelimiter)
         rate_limit_headers = {
             "x-ratelimit-limit": str(ratelimiter.default_rpm),
             "x-ratelimit-remaining": str(stats.get("remaining", 0)),
@@ -132,11 +189,7 @@ def user_ratelimit_check(
 
 
 def _user_headers(stats: dict[str, Any], effective_limit: Any) -> dict[str, Any]:
-    """Build the x-ratelimit-* header map for a user-scoped check.
-
-    ``x-ratelimit-quota-used`` is ``None`` when the limiter withheld it, so
-    the rejection path can omit the header rather than emit a fabricated 0.
-    """
+    """Build the x-ratelimit-* headers (quota-used is None when withheld)."""
     return {
         "x-ratelimit-limit": str(stats.get("limit", effective_limit)),
         "x-ratelimit-remaining": str(stats.get("remaining", 0)),
