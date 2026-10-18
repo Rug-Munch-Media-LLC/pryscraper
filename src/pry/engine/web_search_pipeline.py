@@ -68,6 +68,27 @@ async def _extract_data(content: str, schema: dict[str, Any]) -> dict[str, Any]:
         return {}
 
 
+async def _scrape_entry(item: dict[str, Any], scrape: bool) -> dict[str, Any]:
+    """Scrape one search hit into a result entry. Never raises."""
+    entry: dict[str, Any] = {
+        "url": item.get("url", ""),
+        "title": item.get("title", ""),
+        "snippet": item.get("snippet", ""),
+        "content": "",
+        "markdown": "",
+    }
+    if scrape and entry["url"]:
+        page = await _scrape_page(entry["url"])
+        content = page.get("content", "") or ""
+        if content:
+            markdown, title = _clean_markdown(content, entry["url"])
+            entry["content"] = content
+            entry["markdown"] = markdown
+            if not entry["title"]:
+                entry["title"] = title
+    return entry
+
+
 async def search_and_scrape(
     query: str, num_results: int = 5, scrape: bool = True
 ) -> dict[str, Any]:
@@ -87,25 +108,7 @@ async def search_and_scrape(
         found = await _search(query.strip(), num_results)
         if not found:
             return {"results": [], "total": 0, "query": query.strip()}
-        results: list[dict[str, Any]] = []
-        for item in found:
-            entry: dict[str, Any] = {
-                "url": item.get("url", ""),
-                "title": item.get("title", ""),
-                "snippet": item.get("snippet", ""),
-                "content": "",
-                "markdown": "",
-            }
-            if scrape and entry["url"]:
-                page = await _scrape_page(entry["url"])
-                content = page.get("content", "") or ""
-                if content:
-                    markdown, title = _clean_markdown(content, entry["url"])
-                    entry["content"] = content
-                    entry["markdown"] = markdown
-                    if not entry["title"]:
-                        entry["title"] = title
-            results.append(entry)
+        results = [await _scrape_entry(item, scrape) for item in found]
         return {
             "results": results,
             "total": len(results),
@@ -114,6 +117,21 @@ async def search_and_scrape(
     except Exception as exc:  # noqa: BLE001 - contract: never raise
         logger.warning("search_and_scrape_failed", extra={"query": query, "error": str(exc)})
         return {}
+
+
+async def _extract_entry(item: dict[str, Any], schema: dict[str, Any]) -> dict[str, Any]:
+    """Scrape one search hit and extract structured data. Never raises."""
+    url = item.get("url", "")
+    entry: dict[str, Any] = {"url": url, "title": item.get("title", ""), "data": {}}
+    if url:
+        page = await _scrape_page(url)
+        content = page.get("content", "") or ""
+        if content:
+            _, title = _clean_markdown(content, url)
+            if not entry["title"]:
+                entry["title"] = title
+            entry["data"] = await _extract_data(content, schema)
+    return entry
 
 
 async def search_and_extract(
@@ -134,23 +152,7 @@ async def search_and_extract(
         found = await _search(query.strip(), num_results)
         if not found:
             return {"results": [], "total": 0, "query": query.strip()}
-        results: list[dict[str, Any]] = []
-        for item in found:
-            url = item.get("url", "")
-            entry: dict[str, Any] = {
-                "url": url,
-                "title": item.get("title", ""),
-                "data": {},
-            }
-            if url:
-                page = await _scrape_page(url)
-                content = page.get("content", "") or ""
-                if content:
-                    _, title = _clean_markdown(content, url)
-                    if not entry["title"]:
-                        entry["title"] = title
-                    entry["data"] = await _extract_data(content, schema)
-            results.append(entry)
+        results = [await _extract_entry(item, schema) for item in found]
         return {
             "results": results,
             "total": len(results),
