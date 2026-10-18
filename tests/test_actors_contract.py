@@ -121,7 +121,11 @@ def test_input_schema_valid_and_in_sync(actor: Path) -> None:
 
 def _handler_sources(actor: Path, processor: str | None) -> str:
     src = (actor / "src" / "main.py").read_text()
-    sources = [src, Path("actor_factory/runner.py").read_text()]
+    sources = [src]
+    # The runner is split: input normalisation lives in runner_flow/runner_urls.
+    sources.extend(
+        path.read_text() for path in Path("actor_factory").glob("runner*.py")
+    )
     if processor:
         sources.extend(p.read_text() for p in Path("actor_factory").glob("processors_*.py"))
     return " ".join(sources)
