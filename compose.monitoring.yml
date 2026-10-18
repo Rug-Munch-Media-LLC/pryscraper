@@ -1,26 +1,24 @@
 # Pry — Self-hosted monitoring stack
-# Add to your docker-compose.yml alongside the pry service:
 #
-#   services:
-#     pry:
-#       image: pryscraper/pry:latest
-#       environment:
-#         - PRY_ADMIN_PATH=${PRY_ADMIN_PATH}
-#         - PRY_ADMIN_LOOPBACK_ONLY=false  # allow prometheus to scrape
-#     prometheus:
-#       ...
-#     grafana:
-#       ...
+# Overlay for docker-compose.yml. Start everything with:
 #
-# Start: docker compose -f compose.yml -f compose.monitoring.yml up -d
-
+#   docker compose -f docker-compose.yml -f compose.monitoring.yml up -d
+#
+# Alert rules and dashboards are MOUNTED from the repo, not imported by hand:
+#   prometheus/alerts.yml        -> /etc/prometheus/alerts.yml (rule_files)
+#   prometheus/alertmanager.yml  -> /etc/alertmanager/alertmanager.yml
+#   grafana/dashboards/*.json     -> provisioned by grafana/dashboards/dashboard.yml
+#   grafana/datasources/*.yml     -> provisioned Prometheus datasource
+#
+# The app container must be scrapeable: PRY_ADMIN_LOOPBACK_ONLY=false.
 services:
   prometheus:
-    image: prom/prometheus:v2.55.5
+    image: prom/prometheus:v2.55.1
     container_name: pry-prometheus
     restart: unless-stopped
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
@@ -28,6 +26,20 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=30d"
+    depends_on:
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: pry-alertmanager
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    ports:
+      - "9093:9093"
 
   grafana:
     image: grafana/grafana:11.5.2
@@ -42,6 +54,8 @@ services:
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
     volumes:
       - grafana_data:/var/lib/grafana
+      # Provider file (dashboard.yml) + dashboard JSONs share this directory,
+      # so Grafana loads both with no manual import.
       - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
     ports:

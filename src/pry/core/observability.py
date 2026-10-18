@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import time
 from contextlib import contextmanager
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
@@ -17,11 +18,13 @@ from opentelemetry import trace
 # Prometheus + OpenTelemetry are hard runtime dependencies (see ACTOR_RUNTIME_PACKAGES).
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
+    REGISTRY,
     Counter,
     Gauge,
     Histogram,
     generate_latest,
 )
+from prometheus_client.core import GaugeMetricFamily
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -78,6 +81,68 @@ else:
     CACHE_HITS = None
     ACTIVE_CONNECTIONS = None
     ACTIVE_SESSIONS = None
+
+# Batch-queue SLIs. A plain Gauge would emit nothing until a caller set it —
+# and there is no such caller, so the panel would exist but never fill. A
+# collector instead samples the in-process queue at scrape time: always
+# fresh, no background thread, no Redis round-trip.
+QUEUE_DEPTH_NAME = "pry_queue_depth"
+QUEUE_OLDEST_JOB_AGE_NAME = "pry_queue_oldest_job_age_seconds"
+
+
+class JobQueueCollector:
+    """Emit batch-queue depth and oldest-job age from ``deps.queue``.
+
+    Reads only the local LRU (same source as ``/health``'s ``queue_depth``),
+    so it never blocks a scrape on Redis. Structural errors degrade to no
+    series rather than a fabricated zero: a missing queue means "unknown",
+    not "empty".
+    """
+
+    def collect(self):  # type: ignore[no-untyped-def]
+        depth = GaugeMetricFamily(
+            QUEUE_DEPTH_NAME, "Batch jobs pending or running (local queue)", labels=["source"]
+        )
+        age = GaugeMetricFamily(
+            QUEUE_OLDEST_JOB_AGE_NAME,
+            "Age in seconds of the oldest pending/running batch job",
+            labels=["source"],
+        )
+        try:
+            from pry.core.deps import queue
+
+            jobs = getattr(queue, "_local_jobs", None)
+            if not isinstance(jobs, dict):
+                return
+            active = [
+                j
+                for j in list(jobs.values())
+                if isinstance(j, dict) and j.get("status") in ("pending", "running")
+            ]
+            depth.add_metric(["local"], len(active))
+            oldest = 0.0
+            for job in active:
+                try:
+                    created = job.get("created_at")
+                    ts = time.time()
+                    if created:
+                        ts = datetime.fromisoformat(str(created)).timestamp()
+                    oldest = max(oldest, max(0.0, time.time() - ts))
+                except (TypeError, ValueError):
+                    continue
+            age.add_metric(["local"], oldest)
+        except Exception:  # noqa: BLE001 — metrics must never break a scrape
+            logger.debug("queue_metrics_unavailable")
+            return
+        yield depth
+        yield age
+
+
+if _has_prometheus:
+    try:
+        REGISTRY.register(JobQueueCollector())
+    except (ValueError, TypeError):  # pragma: no cover — already registered
+        logger.debug("queue_collector_already_registered")
 
 
 def setup_tracing(service_name: str = "pry") -> None:

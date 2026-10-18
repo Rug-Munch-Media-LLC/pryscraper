@@ -175,3 +175,35 @@ groups:
         for: 2m
         labels: {severity: critical}
         annotations: {summary: "Public API https://api.pryscraper.com/health failing"}
+  # Queue-window SLIs. `pry_queue_depth` / `pry_queue_oldest_job_age_seconds`
+  # are emitted by observability.JobQueueCollector at scrape time (no caller,
+  # so a plain Gauge would never produce a series).
+  - name: pry-slo-queue-lag
+    interval: 60s
+    rules:
+      - alert: PryQueueLagHigh
+        expr: pry_queue_oldest_job_age_seconds > 300
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Oldest batch job age {{ $value | humanizeDuration }} (>5m) for 10m"
+          description: "Queue is draining slower than it fills. Check worker count and PRY_MAX_SESSIONS; see docs/ops/SLO.md#queue-lag."
+      - alert: PryQueueBacklog
+        expr: pry_queue_depth > 100
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Batch queue depth {{ $value }} (>100) for 10m"
+          description: "Backlog growing. Scale workers or shed load; see docs/ops/SLO.md#queue-lag."
+  - name: pry-slo-scrape-latency-p99
+    interval: 60s
+    rules:
+      - alert: PryScrapeLatencyP99High
+        expr: |
+          (histogram_quantile(.99, sum by (le) (rate(pry_scrape_duration_seconds_bucket[1h]))) > 20)
+          and (histogram_quantile(.99, sum by (le) (rate(pry_scrape_duration_seconds_bucket[10m]))) > 20)
+        for: 15m
+        labels: {severity: warning}
+        annotations:
+          summary: "Scrape p99 above 20s (1h+10m)"
+          description: "Tail latency, not the median. Default histogram buckets cap at 10s, so a value pinned at 10 means '>10s' — see docs/ops/SLO.md#caveats."
