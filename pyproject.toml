@@ -199,22 +199,45 @@ pryscraper-mcp = "pry.misc.cli:mcp_serve"
 # ships the whole pry package tree (A4 folded x402 into pry.payments).
 
 [tool.setuptools.packages.find]
-where = ["src"]
-# The src-layout migration (07b025b) folded every top-level domain under
-# src/pry/, so `pry*` selects the whole runtime tree. This list used to carry
-# 27 further patterns (crypto_market*, compliance*, site_catalog*, …) naming
-# packages that do not exist: setuptools drops a pattern matching nothing
-# without an error, so the wheel built green while the list lied about what
-# shipped. scripts/check-package-discovery.py now fails on a phantom pattern
-# or a real package no pattern matches, in either direction.
-include = ["pry*"]
+# TWO roots: `src` holds the pry core (src-layout since 07b025b), while
+# pry_mcp/, extraction/, compliance/, site_catalog/, datasets/, actor_factory/
+# and crypto_market/ are root-level runtime packages imported absolutely by the
+# CLI and HTTP surfaces (`from extraction.css import …`, `from pry_mcp import …`).
+# With where = ["src"] alone those seven were never discovered: the wheel shipped
+# zero of their files and the installed `pry serve` / `pry-mcp` binaries died on
+# ModuleNotFoundError.
+where = ["src", "."]
+# Explicit names, never a bare `*`: `*` under the repo root would also collect
+# `tests` (which must never ship). `pry.*` / `datasets.*` / `actor_factory.*` /
+# `pry_mcp.*` cover the nested packages those trees contain.
+include = [
+    "pry",
+    "pry.*",
+    "pry_mcp",
+    "pry_mcp.*",
+    "extraction",
+    "compliance",
+    "site_catalog",
+    "datasets",
+    "datasets.*",
+    "actor_factory",
+    "actor_factory.*",
+    "crypto_market",
+]
 
 [tool.setuptools.package-data]
-# The commerce recipe catalogue is DATA, not code: 110 *.json files under
-# pry/commerce/templates/ were absent from every built wheel because no
-# package-data rule named them (the package imported fine, the templates did
-# not exist). `pry` is the anchor package; paths are relative to it.
+# Data files are not code: setuptools ships .py modules automatically but every
+# *.json a package reads at import time must be named here or the wheel builds
+# green and dies at runtime. The commerce recipe catalogue was the first case
+# (110 templates); the root-level packages below are the same defect found when
+# the wheel smoke test first imported them (actor_factory.presets failed on a
+# missing preset JSON, site_catalog/crypto_market load their registries from
+# data files next to the module). Paths are relative to each anchor package.
 pry = ["commerce/templates/*.json"]
+actor_factory = ["presets/*.json"]
+site_catalog = ["domains.json"]
+crypto_market = ["*.json"]
+datasets = ["*.json", "*/*.json", "*/*/*.json"]
 
 [tool.setuptools.exclude-package-data]
 # templates/ is a data directory with no __init__.py, so these helpers are not

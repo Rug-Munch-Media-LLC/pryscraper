@@ -1263,6 +1263,25 @@ jobs:
       - name: Claims gate (tool count, prices, chains, licence)
         run: python3 scripts/check-claims.py
 
+  wheel-smoke:
+    # Packaging regression gate (P0, 2026-10-18): the wheel shipped ZERO files
+    # for the seven root-level runtime packages (pry_mcp, extraction, compliance,
+    # site_catalog, datasets, actor_factory, crypto_market) because
+    # packages.find scanned only src/. The installed `pry serve` / `pry-mcp`
+    # binaries died on ModuleNotFoundError. This job builds the real wheel,
+    # asserts >=1 member per required package and no tests/, installs it into a
+    # clean venv, then boots both entry points from a non-repo cwd.
+    runs-on: docker-x64
+    container:
+      image: nikolaik/python-nodejs:python3.12-nodejs22
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install runtime deps (the entry points import them)
+        run: pip install -r requirements.txt
+      - name: Build + install wheel, assert membership and entry points
+        run: bash scripts/smoke-wheel.sh
+
   # Guardian — dangerous-diff gate (required). Fails a PR that deletes tests,
   # edits CI config while deleting tests, adds shell/exec or dynamic eval, or
   # exceeds the scope budget. The policy is pinned in scripts/guardian_scan.py
