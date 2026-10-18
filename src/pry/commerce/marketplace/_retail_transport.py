@@ -28,12 +28,17 @@ RETRY_BASE = 0.5  # seconds — exponential backoff base
 MAX_BACKOFF = 3.0  # seconds — backoff cap
 
 
-def _next_proxy() -> str | None:
-    """Next Webshare residential proxy (``WEBSHARE_PROXY_LIST``), or None."""
-    try:
-        from pry.engine.webshare_proxy import next_webshare_proxy
+def _next_proxy(url: str | None = None) -> str | None:
+    """Proxy for a retail URL via the single :class:`ProxyManager` path.
 
-        return next_webshare_proxy()
+    Delegates to ``ProxyManager.get_best_proxy(domain)`` so retail shares the
+    affinity, cooldown and rotation logic instead of maintaining its own
+    round-robin. ``url`` is optional to keep older callers working.
+    """
+    try:
+        from pry.engine.proxy_manager import ProxyManager
+
+        return ProxyManager().get_best_proxy(url)
     except Exception:  # noqa: BLE001 - proxy pool is best-effort
         return None
 

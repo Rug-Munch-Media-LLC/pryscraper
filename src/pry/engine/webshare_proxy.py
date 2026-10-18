@@ -128,27 +128,33 @@ def webshare_source() -> str:
     return source
 
 
-def next_webshare_proxy() -> str | None:
-    """Return the next proxy in the pool (round-robin), or None if the pool is empty.
+def next_webshare_proxy(domain: str | None = None) -> str | None:
+    """Thin wrapper over :meth:`ProxyManager.get_best_proxy`.
 
-    Rotation state is module-level so it advances across ProxyManager
-    instances (each request path constructs a fresh ProxyManager).
+    The manager is the single rotation/health authority: it applies affinity,
+    cooldown quarantine and round-robin tie-breaking across the pool. Kept as
+    a public name for existing callers.
     """
-    global _rotation_index
-    proxies = load_webshare_proxies()
-    if not proxies:
+    try:
+        from pry.engine.proxy_manager import ProxyManager
+
+        return ProxyManager().get_best_proxy(domain)
+    except Exception as e:  # noqa: BLE001 - proxy pool is best-effort
+        logger.debug("webshare_proxy_selection_failed", extra={"error": str(e)[:80]})
         return None
-    with _rotation_lock:
-        proxy = proxies[_rotation_index % len(proxies)]
-        _rotation_index += 1
-        return proxy
 
 
 def reset_rotation() -> None:
-    """Reset the round-robin index (used by tests)."""
+    """Reset rotation state (used by tests)."""
     global _rotation_index
     with _rotation_lock:
         _rotation_index = 0
+    try:
+        from pry.engine.proxy_manager import reset_selection_rotation
+
+        reset_selection_rotation()
+    except Exception as e:  # noqa: BLE001 - reset must never raise
+        logger.debug("selection_rotation_reset_failed", extra={"error": str(e)[:80]})
 
 
 def clear_cache() -> None:

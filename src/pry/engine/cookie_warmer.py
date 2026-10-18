@@ -13,12 +13,14 @@ realistic browsing history bypass anti-bot detection that checks for
 import asyncio
 import json
 import logging
+import os
 import random
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from pry.core.paths import PRY_DATA_DIR
 from pry.engine.route_guard import install_route_guard
 
 # SystemRandom: crypto-grade entropy so browsing simulation is not predictable.
@@ -26,8 +28,21 @@ _RNG = random.SystemRandom()
 
 logger = logging.getLogger(__name__)
 
-WARMER_DIR = Path(__file__).parent / "warmed_cookies"
+#: Runtime data dir — never the package tree (installed packages are read-only
+#: and writing session cookies next to the source leaks them into images).
+WARMER_DIR = PRY_DATA_DIR / "warmed_cookies"
 WARMER_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _tier_user_agent() -> str:
+    """The UA the render tier actually sends — read at call time.
+
+    Kept in one place so warmed cookies cannot claim a browser version the
+    scraper never presents (a UA mismatch is a bot signal).
+    """
+    from pry.engine.methods import _common
+
+    return _common._DEFAULT_USER_AGENT
 
 
 # Realistic pages to "warm" cookies against (these are common referrers/browsing paths)
@@ -83,34 +98,34 @@ class CookieWarmer:
         pages = WARMING_PAGES[domain_key][:pages_to_visit]
 
         cookies: list[dict[str, Any]] = []
-        user_agent = (
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-        )
+        user_agent = _tier_user_agent()
 
         try:
             async with async_playwright() as pw:
                 browser = await pw.chromium.launch(headless=True, args=["--no-sandbox"])
-                context = await browser.new_context(
-                    viewport={"width": 1920, "height": 1080},
-                    user_agent=user_agent,
-                )
-                # Add stealth
-                await context.add_init_script("""
-                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                    Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4,5]});
-                """)
-                page = await context.new_page()
-                # Warming targets and any redirect hop are SSRF-validated.
-                install_route_guard(page)
+                try:
+                    context = await browser.new_context(
+                        viewport={"width": 1920, "height": 1080},
+                        user_agent=user_agent,
+                    )
+                    # Add stealth
+                    await context.add_init_script("""
+                        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                        Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4,5]});
+                    """)
+                    page = await context.new_page()
+                    # Warming targets and any redirect hop are SSRF-validated.
+                    install_route_guard(page)
 
-                await self._warm_pages(page, pages, min_delay, max_delay)
-                cookies = self._collect_cookies(await context.cookies())
+                    await self._warm_pages(page, pages, min_delay, max_delay)
+                    cookies = self._collect_cookies(await context.cookies())
+                finally:
+                    # Always release the browser — an exception in warming must
+                    # not leak a Chromium process per warm.
+                    await browser.close()
 
-                await browser.close()
-
-            # Save warmed cookies
-            cookie_file = WARMER_DIR / f"{session_id}.json"
+            # Save warmed cookies (session cookies are credentials: 0600).
+            cookie_file = Path(WARMER_DIR) / f"{session_id}.json"
             cookie_data = {
                 "domain": target_domain,
                 "session_id": session_id,
@@ -121,6 +136,7 @@ class CookieWarmer:
                 "user_agent": user_agent,
             }
             cookie_file.write_text(json.dumps(cookie_data, indent=2))
+            os.chmod(cookie_file, 0o600)
             return {
                 "success": True,
                 "session_id": session_id,
@@ -129,8 +145,11 @@ class CookieWarmer:
                 "pages_visited": pages,
                 "expires_at": cookie_data["expires_at"],
             }
-        except (json.JSONDecodeError, ValueError) as e:
-            logger.warning("silent_exception_swallowed", exc_info=True)
+        except Exception as e:  # noqa: BLE001 - warmer must never crash a scrape
+            logger.warning(
+                "cookie_warm_failed",
+                extra={"domain": target_domain, "error": str(e)[:200]},
+            )
             return {"success": False, "error": str(e)[:300]}
 
     async def _warm_pages(
