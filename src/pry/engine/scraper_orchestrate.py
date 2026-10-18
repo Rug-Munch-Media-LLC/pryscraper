@@ -7,11 +7,9 @@ concrete tier implementations live in ``pry.engine.tiers`` (mixed in via
 ``TierMixin``); the per-domain semaphore registry and the tier→breaker
 mapping live in ``pry.engine.circuit_breaker``.
 
-Availability flags and the optional scraper singletons (``_has_ai_visual``,
-``_mobile_scraper``, ...) remain module-level globals on
-``pry.engine.ultimate_scraper`` because tests patch them there; tier-13/15
-availability and the resilience ``registry`` are resolved lazily through
-:func:`_us_flag` so patches stay effective.
+Availability flags and optional scraper singletons live on
+``pry.engine.ultimate_scraper`` because tests patch them there; they resolve
+lazily through :func:`_us_flag` so patches stay effective.
 """
 
 # SPDX-License-Identifier: BSL-1.1
@@ -114,21 +112,13 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
     async def scrape(self, url: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
         """Scrape any URL with automatic bypass strategy selection.
 
-        Thin public entry: emits the ``scrape.request`` parent span (with
-        final method/success attributes) around ``_scrape_with_fallbacks``,
-        which tries up to 10 strategies until one succeeds.
+        Thin public entry: emits the ``scrape.request`` parent span around
+        ``_scrape_with_fallbacks``.
 
         Per-domain concurrency throttle: at most
-        ``circuit_breaker.DOMAIN_MAX_CONCURRENCY`` scrapes may run against the
-        same site at once. This prevents a single caller (or a burst of
-        callers) from hammering one target site with unbounded parallel
-        requests — an abuse vector that would get the target (and our egress
-        IPs) rate-limited or banned. Different sites proceed in parallel;
-        only same-site concurrency is bounded.
-
-        Keyed on the registrable domain (``domain_key.memory_domain``), not
-        the raw netloc: ``www.example.com`` and ``example.com:8443`` are one
-        site and must share one cap, or the limit is bypassed by spelling.
+        ``circuit_breaker.DOMAIN_MAX_CONCURRENCY`` scrapes run against one site
+        at once, keyed on the registrable domain (``domain_key.memory_domain``)
+        so spelling variants share one cap.
         """
         domain = memory_domain(url)
         sem = domain_semaphore(domain)
@@ -155,9 +145,8 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
             return {"status": "error", "url": url, "error": str(e)}
 
         proxy_url = self._resolve_proxy_url(opts)
-        # Memory key for every tier outcome below (record + reorder). Registrable
-        # domain, so samples accumulate on one site instead of one netloc
-        # spelling — see domain_key.memory_domain.
+        # Memory key for every tier outcome below (record + reorder): the
+        # registrable domain, so one site accumulates one set of samples.
         domain = memory_domain(url)
         scrape_start = time.time()
         attempts: list[dict[str, Any]] = []
@@ -183,99 +172,104 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
             if premium_result is not None:
                 return premium_result
 
-        # Trusted cheap tiers first, then Tor (anonymous, free), then the
-        # paid premium proxy LAST, then cached-version fallbacks as the
-        # absolute last resort.
-        tier_order = self._build_tier_order(proxy_url, premium_first)
+        # Trusted cheap tiers, then Tor, then the paid proxy, then caches.
+        tier_order = self._build_tier_order(proxy_url, premium_first, domain=domain)
 
-        # Adaptive ordering: promote the domain's proven-best tier to the
-        # front and demote/skip tiers that have been failing recently. Each
-        # domain gets an intelligent, self-improving fallback chain.
+        # Promote the domain's proven-best tier and demote/skip failing ones.
         name_to_fn = dict(tier_order)
         ordered_names = registry.reorder_for_domain(domain, [name for name, _ in tier_order])
         tier_order = [(name, name_to_fn[name]) for name in ordered_names]
 
         i = 0
-        try:
-            async with asyncio.timeout(45):
-                while i < len(tier_order):
-                    tier_name, tier_fn = tier_order[i]
-                    # Skip external tiers whose circuit breaker is open.
-                    breaker_name = BREAKER_FOR_TIER.get(tier_name)
-                    if breaker_name and not registry.is_service_allowed(breaker_name):
-                        logger.debug(
-                            "tier_skipped_circuit_open", extra={"tier": tier_name, "domain": domain}
-                        )
-                        errors.append(f"{tier_name}: circuit_open")
-                        i += 1
-                        continue
+        # Per-tier deadline + a ladder budget that is the SUM of the deadlines
+        # the chain may still spend. The old fixed 45 s cap was shorter than a
+        # single Tor attempt, so tiers 9-15 never ran when an early rung was slow.
+        per_tier_s, ladder_budget_s = self._ladder_budget(len(tier_order))
+        ladder_deadline = time.monotonic() + ladder_budget_s
+        while i < len(tier_order):
+            tier_name, tier_fn = tier_order[i]
+            # Skip external tiers whose circuit breaker is open.
+            breaker_name = BREAKER_FOR_TIER.get(tier_name)
+            if breaker_name and not registry.is_service_allowed(breaker_name):
+                logger.debug(
+                    "tier_skipped_circuit_open", extra={"tier": tier_name, "domain": domain}
+                )
+                errors.append(f"{tier_name}: circuit_open")
+                i += 1
+                continue
 
-                    html, latency = await self._attempt_tier(
+            remaining = ladder_deadline - time.monotonic()
+            if remaining <= 0:
+                errors.append("ladder_budget_exhausted")
+                break
+            timeout_s = min(per_tier_s, remaining)
+            unavailable = False
+            try:
+                async with asyncio.timeout(timeout_s):
+                    html, latency, unavailable = await self._attempt_tier(
                         tier_name, tier_fn, url, proxy_url, opts
                     )
+            except TimeoutError:
+                html, latency = None, timeout_s
+                errors.append(f"{tier_name}_timeout")
+            # A missing dependency is not a tier loss: the tier never ran.
+            unavailable = unavailable or self._tier_unavailable(tier_name)
 
-                    # Persisted per-tier health. The in-process Prometheus counters answer
-                    # "how is this tier doing right now" and are ZEROED on every container
-                    # rebuild, which happens often here because the image is built from
-                    # source. After a rebuild /metrics accounted for exactly ONE successful
-                    # scrape, so "does premium_proxy ever win?" was unanswerable from
-                    # telemetry and had to be read out of a backtest file instead.
-                    _record_tier_health(tier_name, won=bool(html), cost_ms=latency * 1000.0)
+            # Block detection: classify the tier response (or failure) so the
+            # next tier choice can escalate intelligently. Tiers expose only the
+            # body, so status/headers default to 200/{} — body markers drive the
+            # classification. A block page is not content: even if it passes
+            # _is_valid (e.g. a long WAF challenge), it does not count as success
+            # and the chain escalates to the preferred tier family.
+            signal = self._detect_block_signal(html)
+            success = bool(html and self._is_valid(html))
+            block_kind = ""
+            if signal is not None and signal.kind != "none":
+                latest_signal = self._signal_to_dict(signal)
+                self._promote_preferred_tiers(tier_order, i, signal.kind)
+                success = False
+                block_kind = signal.kind
 
-                    # Block detection: classify the tier response (or failure) so the
-                    # next tier choice can escalate intelligently. Tiers expose only the
-                    # body, so status/headers default to 200/{} — body markers drive the
-                    # classification. A block page is not content: even if it passes
-                    # _is_valid (e.g. a long WAF challenge), it does not count as success
-                    # and the chain escalates to the preferred tier family.
-                    signal = self._detect_block_signal(html)
-                    success = bool(html and self._is_valid(html))
-                    block_kind = ""
-                    if signal is not None and signal.kind != "none":
-                        latest_signal = self._signal_to_dict(signal)
-                        self._promote_preferred_tiers(tier_order, i, signal.kind)
-                        success = False
-                        block_kind = signal.kind
+            # The single outcome sink: registry + Prometheus + persisted
+            # per-(domain, tier) health. Recording here, AFTER block detection,
+            # means a blocked page is a loss, not a win.
+            self._record_tier_outcome(
+                registry,
+                breaker_name,
+                domain,
+                tier_name,
+                success,
+                latency,
+                block_kind=block_kind,
+                unavailable=unavailable,
+            )
 
-                    self._record_tier_outcome(
-                        registry,
-                        breaker_name,
-                        domain,
-                        tier_name,
-                        success,
-                        latency,
-                        block_kind=block_kind,
-                    )
-
-                    if success:
-                        success_result = self._record_tier_success(
-                            domain=domain,
-                            tier_name=tier_name,
-                            ordered_names=ordered_names,
-                            attempts=attempts,
-                            scrape_start=scrape_start,
-                            errors=errors,
-                            html=html,
-                            latency=latency,
-                            latest_signal=latest_signal,
-                            url=url,
-                        )
-                        if success_result is None:
-                            continue
-                        return success_result
-                    errors.append(f"{tier_name}_failed")
-                    attempts.append(
-                        {
-                            "tier": tier_name,
-                            "success": False,
-                            "error": f"{tier_name}_failed",
-                            "duration_ms": round(latency * 1000, 2),
-                        }
-                    )
-                    i += 1
-        except TimeoutError:
-            logger.warning("silent_exception_swallowed", exc_info=True)
-            errors.append("timeout_45s")
+            if success:
+                success_result = self._record_tier_success(
+                    domain=domain,
+                    tier_name=tier_name,
+                    ordered_names=ordered_names,
+                    attempts=attempts,
+                    scrape_start=scrape_start,
+                    errors=errors,
+                    html=html,
+                    latency=latency,
+                    latest_signal=latest_signal,
+                    url=url,
+                )
+                if success_result is None:
+                    continue
+                return success_result
+            errors.append(f"{tier_name}_failed")
+            attempts.append(
+                {
+                    "tier": tier_name,
+                    "success": False,
+                    "error": f"{tier_name}_failed",
+                    "duration_ms": round(latency * 1000, 2),
+                }
+            )
+            i += 1
 
         self._record_telemetry(domain, ordered_names, attempts, None, False, scrape_start, errors)
         last_err = errors[-1] if errors else "all_tiers_failed"
@@ -290,10 +284,8 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
             "error": "; ".join(errors[-5:]) if errors else last_err,
             "tiers_attempted": ordered_names,
             "tiers_failed": errors,
-            # Tiers the chain deliberately did not try, with the reason. A
-            # caller must be able to tell "we skipped it, it has never won"
-            # from "we tried it and it failed" — those are different facts and
-            # conflating them is how a fast fail becomes a slow honest one.
+            # Tiers the chain deliberately did not try, with the reason: a
+            # caller must distinguish "skipped, never won here" from "failed".
             "tiers_skipped": list(self._last_skipped_tiers),
             "content": "",
             "proxy_recommendation": self._recommend_proxy(last_err),
@@ -331,19 +323,23 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
         url: str,
         proxy_url: str | None,
         opts: dict[str, Any],
-    ) -> tuple[Any, float]:
+    ) -> tuple[Any, float, bool]:
         """Run one tier attempt with its retry config + trace span.
 
-        Returns ``(html, latency_seconds)`` — html is None on any failure.
+        Returns ``(html, latency_seconds, unavailable)``. html is None on any failure.
+        ``unavailable`` is True when the failure was a missing dependency (the
+        tier never reached the network), so callers can avoid charging that to
+        the tier's record.
         ``InvalidRequestError`` (SSRF rejection) is re-raised so the whole
         chain aborts instead of falling through to other tiers that would
         hit the same unsafe target.
         """
         start = time.time()
+        unavailable = False
         try:
             retry_cfg = self._RETRY_CONFIGS.get(tier_name, self._DEFAULT_RETRY)
-            # Child span per tier attempt — the trace shows exactly which
-            # bypass strategies a target needed and what each cost.
+            # Child span per tier attempt — which bypass strategy a target
+            # needed and what each cost.
             with span("scrape.tier", {"pry.tier": tier_name, "http.url": url}):
                 if tier_name == "premium_proxy":
                     html = await async_retry(tier_fn, url, proxy_url, opts, config=retry_cfg)
@@ -356,8 +352,10 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
         except Exception as e:  # noqa: BLE001
             logger.debug("tier_exception", extra={"tier": tier_name, "error": str(e)[:200]})
             html = None
+            lowered = str(e).lower()
+            unavailable = any(marker in lowered for marker in _DEPENDENCY_MARKERS)
         latency = time.time() - start
-        return html, latency
+        return html, latency, unavailable
 
     def _record_tier_outcome(
         self,
@@ -369,14 +367,19 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
         latency: float,
         *,
         block_kind: str = "",
+        unavailable: bool = False,
     ) -> None:
-        """Feed one tier outcome to the registry + latency metric.
+        """Feed one tier outcome to the registry + latency metric + health.
 
-        ``block_kind`` and the tier's marginal cost are recorded alongside
-        the success flag so the learned ranking can tell "this method does
-        not work here" from "this method works but costs 40x more", and can
-        remember what the wall actually looked like.
+        ``block_kind`` lets the learned ranking tell "does not work here" from
+        "works but costs 40x more". The persisted health sample is written HERE
+        because only this sink knows the post-block-detection ``success``
+        predicate; recording ``bool(html)`` earlier counted a WAF block page as
+        a win and a missing dependency as a loss.
         """
+        _record_tier_health(
+            tier_name, domain=domain, won=success, cost_ms=latency * 1000.0, unavailable=unavailable
+        )
         registry.record_domain_tier_result(
             domain,
             tier_name,
@@ -404,10 +407,7 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
         latest_signal: dict[str, Any] | None,
         url: str,
     ) -> dict[str, Any] | None:
-        """Record telemetry + build the success result.
-
-        Returns None when html isn't a str (defensive — caller continues).
-        """
+        """Record telemetry + build the success result; None for a non-str body."""
         if not isinstance(html, str):
             return None
         attempts.append(

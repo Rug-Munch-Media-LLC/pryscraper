@@ -63,8 +63,54 @@ class TierChainMixin:
     #: ruff RUF012 is right that a bare mutable list default would be shared.
     _last_skipped_tiers: ClassVar[list[str]] = []
 
+    #: Availability flag each optional tier depends on. A tier returning None
+    #: because its flag is off never ran; a loss would poison it forever.
+    _UNAVAILABLE_FLAGS: ClassVar[dict[str, str]] = {
+        "tls_fingerprint": "_has_tls",
+        "cloudscraper": "_has_cloudscraper",
+        "undetected": "_has_undetected",
+        "playwright": "_has_playwright",
+        "camoufox": "_has_camoufox",
+        "tor": "_has_tor",
+        "ai_visual": "_has_ai_visual",
+        "mobile_app": "_has_mobile",
+        "graphql": "_has_graphql",
+    }
+
+    def _tier_unavailable(self, tier_name: str) -> bool:
+        """True when the tier cannot run at all because a dependency is missing."""
+        flag = self._UNAVAILABLE_FLAGS.get(tier_name)
+        if flag:
+            try:
+                return not bool(_us_flag(flag))
+            except (AttributeError, ImportError):
+                return False
+        if tier_name == "flaresolverr":
+            try:
+                from pry.core.settings import settings
+
+                return not bool(settings.flaresolverr_url)
+            except (AttributeError, ImportError):
+                return False
+        return False
+
+    def _ladder_budget(self, tier_count: int) -> tuple[float, float]:
+        """Return ``(per_tier_deadline_s, ladder_budget_s)``.
+
+        The old fixed 45 s cap was shorter than ONE Tor attempt, so a slow
+        early rung consumed the whole ladder and tiers 9-15 never ran. The
+        budget is now the sum of the per-tier deadlines the ladder may still
+        spend: a fast failure at the top leaves the full time for the rest,
+        and no single rung can eat more than its own deadline.
+        """
+        per_tier = float(os.getenv("PRY_TIER_TIMEOUT_S", "45") or 45)
+        total = float(os.getenv("PRY_LADDER_BUDGET_S", "0") or 0)
+        if total <= 0:
+            total = per_tier * max(1, tier_count)
+        return per_tier, total
+
     def _build_tier_order(
-        self, proxy_url: str | None, premium_first: bool
+        self, proxy_url: str | None, premium_first: bool, domain: str | None = None
     ) -> list[tuple[str, Any]]:
         """Build the fallback chain (cheap tiers -> Tor -> premium -> cached).
 
@@ -90,34 +136,18 @@ class TierChainMixin:
         #   theblock.co    plain curl      403, 5 KB
         #                   full 12-tier chain, 100s budget   FAILED, verdict=blocked
         #                   premium_proxy   744,148 B in 324ms
-        # It is not slow, and it is not broken. It was simply buried under ten
-        # rungs that each burn 10-45s first, so it was never REACHED — the same
-        # "last-resort component gets blamed for everything" trap, running
-        # in our own ladder. The 20 Webshare proxies were correct all along.
-        #
-        # So it moves to position 2, straight after direct. direct stays first
-        # because it is free and sub-second (measured 1.28s median); the proxy
-        # follows because it is the cheapest thing that beats a 403, at a few
-        # hundred ms. Set PRY_PROXY_AFTER_TIERS to pin it back to the end if a
-        # deployment needs the old behaviour.
+        # It is not slow and not broken: it was buried under ten rungs that each
+        # burn 10-45s, so it was never REACHED. So it moves to position 2, after
+        # direct (free, sub-second). Set PRY_PROXY_AFTER_TIERS to pin it back.
         if proxy_url and not premium_first and not os.getenv("PRY_PROXY_AFTER_TIERS"):
             tier_order.insert(1, ("premium_proxy", self._tier_premium_proxy))
         elif proxy_url and not premium_first:
             tier_order.append(("premium_proxy", self._tier_premium_proxy))
 
-        # Tiers with persisted evidence of never winning are SKIPPED, and the
-        # skip is reported rather than silently vanishing from the chain, so a
-        # caller can tell "we did not try that" from "we tried and it failed".
-        #
-        # The cost is measured, not assumed: over 8 sources the committed
-        # baseline recorded by_via {direct: 4, flaresolverr: 1}. archive,
-        # google_cache and premium_proxy won ZERO, and archive/google_cache
-        # appeared in 2 of 3 failures at 25-45s each — about 89% of the ladder's
-        # wall clock went to rungs that never returned a result.
-        #
-        # should_skip() requires >=3 recorded attempts and ZERO wins ever: a tier
-        # that has won once is kept, and one sample is not enough to condemn
-        # either. See engine/tier_health.py.
+        # Tiers with persisted evidence of never winning on THIS domain are
+        # SKIPPED, and the skip is reported rather than silently vanishing.
+        # should_skip() requires >=3 executed attempts and ZERO wins: a tier
+        # that has won once is kept. See engine/tier_health.py.
 
         tier_order.extend(
             [
@@ -150,7 +180,10 @@ class TierChainMixin:
         kept: list[tuple[str, Any]] = []
         skipped: list[str] = []
         for name, fn in tier_order:
-            skip, reason = should_skip_tier(name)
+            # Domain-scoped: a tier that never won on domain A is not thereby
+            # condemned on domain B. With domain=None the legacy unscoped keys
+            # are read, which is what the status tooling and its tests use.
+            skip, reason = should_skip_tier(name, domain=domain)
             if skip:
                 skipped.append(f"{name}:skipped({reason})")
                 continue
