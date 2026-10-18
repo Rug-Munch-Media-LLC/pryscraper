@@ -3,11 +3,15 @@
 	"name": "Pry — One-Click Scraper",
 	"version": "1.0.0",
 	"description": "Scrape any webpage with one click. Extract prices, products, reviews, and more. Send directly to your workflow.",
-	"permissions": ["activeTab", "storage", "scripting", "notifications"],
+	"permissions": ["activeTab", "storage", "scripting"],
 	"host_permissions": [],
-	"optional_host_permissions": ["https://api.pryscraper.com/*"],
+	"optional_host_permissions": [
+		"https://api.pryscraper.com/*",
+		"http://localhost:8002/*",
+		"https://localhost:8002/*"
+	],
 	"content_security_policy": {
-		"extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://api.pryscraper.com https://localhost:8002 http://localhost:8002"
+		"extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://api.pryscraper.com"
 	},
 	"action": {
 		"default_popup": "popup.html",

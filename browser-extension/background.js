@@ -3,6 +3,7 @@
 // Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 // Licensed under MIT. See LICENSE.
 // Pry Browser Extension — Background Service Worker
+// All scraping is performed by popup.js; this worker only seeds defaults.
 chrome.runtime.onInstalled.addListener(() => {
 	chrome.storage.sync.get(["pryServerUrl"], (result) => {
 		if (!result.pryServerUrl) {
@@ -10,26 +11,3 @@ chrome.runtime.onInstalled.addListener(() => {
 		}
 	});
 });
-
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-	if (message.type === "scrape") {
-		scrapeUrl(message.url, message.config).then(sendResponse);
-		return true;
-	}
-});
-
-async function scrapeUrl(url, config) {
-	try {
-		const response = await fetch(`${config.serverUrl}/v1/scrape`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
-			},
-			body: JSON.stringify({ url: url, bypassCloudflare: true }),
-		});
-		return await response.json();
-	} catch (err) {
-		return { success: false, error: err.message };
-	}
-}

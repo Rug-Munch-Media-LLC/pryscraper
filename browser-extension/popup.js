@@ -55,30 +55,28 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function loadSettings() {
-	chrome.storage.sync.get(
-		["pryServerUrl", "pryApiKey", "defaultDest"],
-		(result) => {
-			document.getElementById("pry-server-url").value =
-				result.pryServerUrl || "https://localhost:8002";
-			document.getElementById("pry-api-key").value = result.pryApiKey || "";
-			if (result.defaultDest) {
-				document.getElementById("default-destination").value =
-					result.defaultDest;
-			}
-		},
-	);
+	chrome.storage.sync.get(["pryServerUrl", "defaultDest"], (result) => {
+		document.getElementById("pry-server-url").value =
+			result.pryServerUrl || "http://localhost:8002";
+		if (result.defaultDest) {
+			document.getElementById("default-destination").value = result.defaultDest;
+		}
+		// API keys are stored in local storage only, never synced across devices.
+		chrome.storage.local.get(["pryApiKey"], (local) => {
+			document.getElementById("pry-api-key").value = local.pryApiKey || "";
+		});
+	});
 }
 
 function saveSettings() {
-	chrome.storage.sync.set(
-		{
-			pryServerUrl: document.getElementById("pry-server-url").value,
-			pryApiKey: document.getElementById("pry-api-key").value,
-			defaultDest: document.getElementById("default-destination").value,
-		},
-		() => {
-			showStatus("settings-status", "Settings saved!", "success");
-		},
+	chrome.storage.sync.set({
+		pryServerUrl: document.getElementById("pry-server-url").value,
+		defaultDest: document.getElementById("default-destination").value,
+	});
+	// API keys stay in local storage; sync would replicate the secret to every device.
+	chrome.storage.local.set(
+		{ pryApiKey: document.getElementById("pry-api-key").value },
+		() => showStatus("settings-status", "Settings saved!", "success"),
 	);
 }
 
@@ -106,61 +104,63 @@ function scrapeCurrentPage() {
 		const url = tabs[0].url;
 		showStatus("scrape-status", "Scraping...", "loading");
 
-		chrome.storage.sync.get(["pryServerUrl", "pryApiKey"], async (config) => {
-			const serverUrl = config.pryServerUrl || "https://localhost:8002";
-			if (!(await ensureHostPermission(serverUrl))) return;
-			try {
-				const response = await fetch(`${serverUrl}/v1/scrape`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						...(config.pryApiKey
-							? { Authorization: `Bearer ${config.pryApiKey}` }
-							: {}),
-					},
-					body: JSON.stringify({ url: url, bypassCloudflare: true }),
-				});
-				let data;
+		chrome.storage.sync.get(["pryServerUrl"], (sync) => {
+			const serverUrl = sync.pryServerUrl || "http://localhost:8002";
+			chrome.storage.local.get(["pryApiKey"], async (local) => {
+				const config = { pryServerUrl: serverUrl, pryApiKey: local.pryApiKey };
+				if (!(await ensureHostPermission(serverUrl))) return;
 				try {
-					data = await response.json();
-				} catch {
-					throw new Error(
-						`Server returned non-JSON response (HTTP ${response.status})`,
-					);
-				}
-				if (!response.ok && !data.error) {
-					data = { success: false, error: `HTTP ${response.status}` };
-				}
-
-				if (data.success) {
-					const content = data.data.content || data.data;
-					document.getElementById("scrape-result").style.display = "block";
-					document.getElementById("scrape-result").textContent =
-						typeof content === "string"
-							? content.substring(0, 2000)
-							: JSON.stringify(content, null, 2);
-
-					// Send to destination if active
-					const activeDest = document.querySelector(".dest-btn.active");
-					if (activeDest) {
-						sendToDestination(activeDest.dataset.dest, content, config);
+					const response = await fetch(`${serverUrl}/v1/scrape`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							...(config.pryApiKey
+								? { Authorization: `Bearer ${config.pryApiKey}` }
+								: {}),
+						},
+						body: JSON.stringify({ url: url, bypassCloudflare: true }),
+					});
+					let data;
+					try {
+						data = await response.json();
+					} catch {
+						throw new Error(
+							`Server returned non-JSON response (HTTP ${response.status})`,
+						);
+					}
+					if (!response.ok && !data.error) {
+						data = { success: false, error: `HTTP ${response.status}` };
 					}
 
-					showStatus("scrape-status", "Scraped successfully!", "success");
-				} else {
-					showStatus(
-						"scrape-status",
-						`Scrape failed: ${data.error || "Unknown error"}`,
-						"error",
-					);
+					if (data.success) {
+						const content = data.data.content || data.data;
+						document.getElementById("scrape-result").style.display = "block";
+						document.getElementById("scrape-result").textContent =
+							typeof content === "string"
+								? content.substring(0, 2000)
+								: JSON.stringify(content, null, 2);
+
+						// Send to destination if active
+						const activeDest = document.querySelector(".dest-btn.active");
+						if (activeDest) {
+							sendToDestination(activeDest.dataset.dest, content, config);
+						}
+
+						showStatus("scrape-status", "Scraped successfully!", "success");
+					} else {
+						showStatus(
+							"scrape-status",
+							`Scrape failed: ${data.error || "Unknown error"}`,
+							"error",
+						);
+					}
+				} catch (err) {
+					showStatus("scrape-status", `Error: ${err.message}`, "error");
 				}
-			} catch (err) {
-				showStatus("scrape-status", `Error: ${err.message}`, "error");
-			}
+			});
 		});
 	});
 }
-
 function extractFromPage() {
 	chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
 		const _url = tabs[0].url;

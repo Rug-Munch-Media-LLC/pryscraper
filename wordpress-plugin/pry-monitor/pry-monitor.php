@@ -6,7 +6,7 @@
 
 /**
  * Plugin Name: Pry Monitor
- * Plugin URI: https://pry.dev
+ * Plugin URI: https://pryscraper.com
  * Description: Competitor price & content monitoring directly in your WordPress dashboard. Track competitors, get alerts, and sync data to WooCommerce.
  * Version: 1.0.0
  * Author: Rug Munch Media LLC
@@ -236,6 +236,7 @@ function pry_monitor_settings_page() {
         update_option('pry_api_url', esc_url_raw($_POST['pry_api_url']));
         update_option('pry_api_key', sanitize_text_field($_POST['pry_api_key']));
         update_option('pry_check_interval', intval($_POST['pry_check_interval']));
+        pry_monitor_reschedule();
         echo '<div class="notice notice-success"><p>Settings saved!</p></div>';
     }
     ?>
@@ -261,75 +262,64 @@ function pry_monitor_settings_page() {
             <p><button type="submit" name="save_settings" class="button button-primary">Save Settings</button></p>
         </form>
 
-        <!-- Referral Section -->
+        <!-- Recommended services (untracked links, no referral programme) -->
         <h2 style="margin-top:30px;">Recommended Services</h2>
-        <p style="color:#666;">Pry uses these services. Signing up through these links helps support development.</p>
+        <p style="color:#666;">Services Pry is commonly deployed alongside.</p>
         <table class="pry-monitor-table" style="margin-top:15px;">
-            <thead><tr><th>Service</th><th>Category</th><th>Commission</th><th>Action</th></tr></thead>
+            <thead><tr><th>Service</th><th>Category</th><th>Action</th></tr></thead>
             <tbody>
                 <tr>
                     <td><strong>OpenAI</strong></td>
                     <td>LLM / AI</td>
-                    <td>20% first 6 months</td>
-                    <td><a href="https://platform.openai.com/signup?via=pry" target="_blank" rel="noopener" class="button button-small">Sign Up →</a></td>
+                    <td><a href="https://platform.openai.com/signup" target="_blank" rel="noopener" class="button button-small">Sign Up &rarr;</a></td>
                 </tr>
                 <tr>
                     <td><strong>Anthropic Claude</strong></td>
                     <td>LLM / AI</td>
-                    <td>Enterprise referrals</td>
-                    <td><a href="https://console.anthropic.com/?ref=pry" target="_blank" rel="noopener" class="button button-small">Sign Up →</a></td>
+                    <td><a href="https://console.anthropic.com/" target="_blank" rel="noopener" class="button button-small">Sign Up &rarr;</a></td>
                 </tr>
                 <tr>
                     <td><strong>OpenRouter</strong></td>
                     <td>LLM Aggregator</td>
-                    <td>$1/signup + usage share</td>
-                    <td><a href="https://openrouter.ai/?ref=pry" target="_blank" rel="noopener" class="button button-small">Sign Up →</a></td>
+                    <td><a href="https://openrouter.ai/" target="_blank" rel="noopener" class="button button-small">Sign Up &rarr;</a></td>
                 </tr>
                 <tr>
                     <td><strong>ElevenLabs</strong></td>
                     <td>Voice AI</td>
-                    <td>22% recurring</td>
-                    <td><a href="https://elevenlabs.io/?ref=pry" target="_blank" rel="noopener" class="button button-small">Sign Up →</a></td>
+                    <td><a href="https://elevenlabs.io/" target="_blank" rel="noopener" class="button button-small">Sign Up &rarr;</a></td>
                 </tr>
                 <tr>
                     <td><strong>Bright Data</strong></td>
                     <td>Proxies</td>
-                    <td>$2-$50/signup</td>
-                    <td><a href="https://brightdata.com/?ref=pry" target="_blank" rel="noopener" class="button button-small">Sign Up →</a></td>
+                    <td><a href="https://brightdata.com/" target="_blank" rel="noopener" class="button button-small">Sign Up &rarr;</a></td>
                 </tr>
                 <tr>
                     <td><strong>Capsolver</strong></td>
                     <td>CAPTCHA Solving</td>
-                    <td>20% recurring lifetime</td>
-                    <td><a href="https://capsolver.com/?ref=pry" target="_blank" rel="noopener" class="button button-small">Sign Up →</a></td>
+                    <td><a href="https://capsolver.com/" target="_blank" rel="noopener" class="button button-small">Sign Up &rarr;</a></td>
                 </tr>
                 <tr>
                     <td><strong>Sentry</strong></td>
                     <td>Error Monitoring</td>
-                    <td>$100-$1,000</td>
-                    <td><a href="https://sentry.io/?ref=pry" target="_blank" rel="noopener" class="button button-small">Sign Up →</a></td>
+                    <td><a href="https://sentry.io/" target="_blank" rel="noopener" class="button button-small">Sign Up &rarr;</a></td>
                 </tr>
                 <tr>
                     <td><strong>Resend</strong></td>
                     <td>Transactional Email</td>
-                    <td>$20/signup</td>
-                    <td><a href="https://resend.com/?ref=pry" target="_blank" rel="noopener" class="button button-small">Sign Up →</a></td>
+                    <td><a href="https://resend.com/" target="_blank" rel="noopener" class="button button-small">Sign Up &rarr;</a></td>
                 </tr>
                 <tr>
                     <td><strong>Hetzner</strong></td>
                     <td>Cloud Hosting</td>
-                    <td>€25/signup + 10%</td>
-                    <td><a href="https://hetzner.com/?ref=pry" target="_blank" rel="noopener" class="button button-small">Sign Up →</a></td>
+                    <td><a href="https://hetzner.com/" target="_blank" rel="noopener" class="button button-small">Sign Up &rarr;</a></td>
                 </tr>
                 <tr>
                     <td><strong>DigitalOcean</strong></td>
                     <td>Cloud Hosting</td>
-                    <td>$25/paid referral</td>
-                    <td><a href="https://m.do.co/c/pry" target="_blank" rel="noopener" class="button button-small">Sign Up →</a></td>
+                    <td><a href="https://www.digitalocean.com/" target="_blank" rel="noopener" class="button button-small">Sign Up &rarr;</a></td>
                 </tr>
             </tbody>
         </table>
-        <p style="font-size:11px;color:#999;margin-top:10px;">These are affiliate links. Pry earns a commission when you sign up through them.</p>
     </div>
     <?php
 }
@@ -364,22 +354,14 @@ function pry_monitor_woo_page() {
 // ── Proxy Page ──
 function pry_monitor_proxy_page() {
     $providers = array(
-        array('name' => 'Bright Data', 'tag' => 'brightdata', 'url' => 'https://brightdata.com/?ref=pry',
-              'commission' => '$2-$50/signup, 10% recurring', 'trial' => '$5 free credit', 'best' => true),
-        array('name' => 'Smartproxy', 'tag' => 'smartproxy', 'url' => 'https://smartproxy.com/?ref=pry',
-              'commission' => '20% recurring lifetime', 'trial' => '100MB free'),
-        array('name' => 'Oxylabs', 'tag' => 'oxylabs', 'url' => 'https://oxylabs.io/?ref=pry',
-              'commission' => '10-30% recurring', 'trial' => '5K requests free'),
-        array('name' => 'IPRoyal', 'tag' => 'iproyal', 'url' => 'https://iproyal.com/?ref=pry',
-              'commission' => '30% recurring lifetime', 'trial' => 'None'),
-        array('name' => 'Webshare', 'tag' => 'webshare', 'url' => 'https://www.webshare.io/?ref=pry',
-              'commission' => '30% recurring lifetime', 'trial' => '10 free proxies'),
-        array('name' => 'Proxy-Seller', 'tag' => 'proxyseller', 'url' => 'https://proxy-seller.com/?ref=pry',
-              'commission' => '30% recurring', 'trial' => 'None'),
-        array('name' => 'NetNut', 'tag' => 'netnut', 'url' => 'https://netnut.io/?ref=pry',
-              'commission' => 'Partner program', 'trial' => '7 days free'),
-        array('name' => 'PacketStream', 'tag' => 'packetstream', 'url' => 'https://packetstream.io/?ref=pry',
-              'commission' => '20% revenue share', 'trial' => 'Pay-as-you-go'),
+        array('name' => 'Bright Data', 'tag' => 'brightdata', 'url' => 'https://brightdata.com/', 'trial' => '$5 free credit', 'best' => true),
+        array('name' => 'Smartproxy', 'tag' => 'smartproxy', 'url' => 'https://smartproxy.com/', 'trial' => '100MB free'),
+        array('name' => 'Oxylabs', 'tag' => 'oxylabs', 'url' => 'https://oxylabs.io/', 'trial' => '5K requests free'),
+        array('name' => 'IPRoyal', 'tag' => 'iproyal', 'url' => 'https://iproyal.com/', 'trial' => 'None'),
+        array('name' => 'Webshare', 'tag' => 'webshare', 'url' => 'https://www.webshare.io/', 'trial' => '10 free proxies'),
+        array('name' => 'Proxy-Seller', 'tag' => 'proxyseller', 'url' => 'https://proxy-seller.com/', 'trial' => 'None'),
+        array('name' => 'NetNut', 'tag' => 'netnut', 'url' => 'https://netnut.io/', 'trial' => '7 days free'),
+        array('name' => 'PacketStream', 'tag' => 'packetstream', 'url' => 'https://packetstream.io/', 'trial' => 'Pay-as-you-go'),
     );
     ?>
     <div class="wrap">
@@ -391,10 +373,10 @@ function pry_monitor_proxy_page() {
         </div>
         <div class="pry-section">
             <h2>Premium Proxies (Recommended for Blocked Sites)</h2>
-            <p style="color:#666;">When Pry encounters anti-bot blocks, it can automatically recommend a premium proxy. Sign up through these links to support Pry (affiliate).</p>
+            <p style="color:#666;">When Pry encounters anti-bot blocks, it can automatically recommend a premium proxy. </p>
             <table class="pry-monitor-table">
                 <thead>
-                    <tr><th>Provider</th><th>Commission</th><th>Free Trial</th><th>Action</th></tr>
+                    <tr><th>Provider</th><th>Free Trial</th><th>Action</th></tr>
                 </thead>
                 <tbody>
                     <?php foreach ($providers as $p): ?>
@@ -403,7 +385,6 @@ function pry_monitor_proxy_page() {
                             <strong><?php echo esc_html($p['name']); ?></strong>
                             <?php if (isset($p['best'])) echo ' <span style="background:#f59e0b;color:#000;padding:2px 6px;border-radius:3px;font-size:11px;">RECOMMENDED</span>'; ?>
                         </td>
-                        <td><?php echo esc_html($p['commission']); ?></td>
                         <td><?php echo esc_html($p['trial']); ?></td>
                         <td>
                             <a href="<?php echo esc_url($p['url']); ?>" target="_blank" rel="noopener" class="button button-primary">Sign Up &rarr;</a>
@@ -524,13 +505,30 @@ function pry_run_scheduled_checks() {
     }
 }
 
+// ── Cron schedule: the recurrence follows the pry_check_interval option (minutes) ──
+add_filter('cron_schedules', 'pry_monitor_cron_schedules');
+function pry_monitor_cron_schedules($schedules) {
+    $minutes = max(15, intval(get_option('pry_check_interval', 60)));
+    $schedules['pry_interval'] = array(
+        'interval' => $minutes * 60,
+        'display'  => sprintf('Pry: every %d minutes', $minutes),
+    );
+    return $schedules;
+}
+
+function pry_monitor_reschedule() {
+    wp_clear_scheduled_hook('pry_hourly_check');
+    wp_schedule_event(time(), 'pry_interval', 'pry_hourly_check');
+}
+
 register_activation_hook(__FILE__, 'pry_monitor_activate');
 function pry_monitor_activate() {
+    // add_option() keeps any value the operator already set; re-activation must not reset it.
+    add_option('pry_api_url', 'http://localhost:8002');
+    add_option('pry_check_interval', 60);
     if (!wp_next_scheduled('pry_hourly_check')) {
-        wp_schedule_event(time(), 'hourly', 'pry_hourly_check');
+        wp_schedule_event(time(), 'pry_interval', 'pry_hourly_check');
     }
-    update_option('pry_api_url', 'http://localhost:8002');
-    update_option('pry_check_interval', 60);
 }
 
 register_deactivation_hook(__FILE__, 'pry_monitor_deactivate');
