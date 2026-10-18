@@ -69,7 +69,10 @@ def session_scope() -> Iterator[Session]:
 
 
 def get_async_session() -> AsyncSession:
-    """Get a new async Session. Caller must close it."""
+    """Return a new AsyncSession. Synchronous factory — callers must NOT await it.
+
+    Use ``async_session_scope()`` when you want automatic commit/rollback/close.
+    """
     if db_engine._async_session_local is None:
         get_async_engine()
     assert db_engine._async_session_local is not None
@@ -79,7 +82,7 @@ def get_async_session() -> AsyncSession:
 @asynccontextmanager
 async def async_session_scope() -> AsyncIterator[AsyncSession]:
     """Async context manager: commits on success, rolls back on error."""
-    s = await get_async_session()
+    s = get_async_session()
     try:
         yield s
         await s.commit()
