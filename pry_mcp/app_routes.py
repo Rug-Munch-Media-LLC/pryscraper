@@ -22,6 +22,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from pry.core.middleware import request_authorized
 from pry_mcp.app_structured import _attach_structured_content
+from pry_mcp.constants import MCP_DISCOVER_METHOD
+from pry_mcp.discovery import version_rejection
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +60,9 @@ async def _read_body(request: Request) -> tuple[dict[str, Any] | None, JSONRespo
 def _authorize(request: Request, body: dict[str, Any]) -> JSONResponse | None:
     """Auth gate: tool execution requires a key or a verified x402 payment.
 
-    Discovery methods (initialize, tools/list, resources/list, prompts/list,
-    ping, health) stay public so agents can enumerate the surface without a key.
+    Discovery methods (server/discover, initialize, tools/list,
+    resources/list, prompts/list, ping, health) stay public so agents can
+    enumerate the surface without a key.
     """
     if body.get("method") != "tools/call":
         return None
@@ -68,11 +71,30 @@ def _authorize(request: Request, body: dict[str, Any]) -> JSONResponse | None:
     return _rpc_error(401, body.get("id"), -32001, "Unauthorized: tools/call requires an API key")
 
 
+def _reject_unsupported_version(request: Request, body: dict[str, Any]) -> JSONResponse | None:
+    """Modern HTTP requests carry their revision in ``MCP-Protocol-Version``.
+
+    An unsupported declared revision is answered with the spec's
+    UnsupportedProtocolVersionError. ``initialize`` keeps legacy semantics,
+    where an unknown revision is answered with the server ceiling instead.
+    """
+    if body.get("method") == "initialize":
+        return None
+    rejection = version_rejection(body.get("id"), request.headers.get("mcp-protocol-version"))
+    if rejection is None:
+        return None
+    return JSONResponse(status_code=200, content=rejection, headers={"Cache-Control": "no-store"})
+
+
 async def _session_headers(
     request: Request, body: dict[str, Any], store: Store
 ) -> tuple[dict[str, str], JSONResponse | None]:
     """Reject unknown sessions and issue one on ``initialize``."""
     headers: dict[str, str] = {"Cache-Control": "no-store"}
+    # Modern discovery is stateless: a stale legacy session id must not turn a
+    # probe into a 404, and discovery never issues a session.
+    if body.get("method") == MCP_DISCOVER_METHOD:
+        return headers, None
     session_id = request.headers.get("mcp-session-id", "")
     handle = await store()
     if session_id and not await handle.exists(session_id):
@@ -111,10 +133,13 @@ async def mcp_json_rpc(request: Request, get_server: GetServer, store: Store) ->
     body, error = await _read_body(request)
     if error is not None:
         return error
-    server = get_server()
+    error = _reject_unsupported_version(request, body)
+    if error is not None:
+        return error
     error = _authorize(request, body)
     if error is not None:
         return error
+    server = get_server()
     headers, error = await _session_headers(request, body, store)
     if error is not None:
         return error

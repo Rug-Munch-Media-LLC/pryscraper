@@ -22,9 +22,9 @@ SDK facts recorded here (official ``mcp`` 2.2.0):
   matrix is driven with raw ``initialize`` requests — an SDK limitation, not a
   server limitation.
 * 2026-07-28 is a *modern* revision reached through ``server/discover``, not
-  ``initialize``. Pry does not implement ``server/discover`` yet, so a client
-  that speaks only 2026-07-28 cannot connect; clients with the legacy fallback
-  (Claude Desktop, Cursor, the official SDK today) negotiate 2025-11-25.
+  ``initialize``. Pry implements the modern handshake (and remains dual-era):
+  a 2026-07-28-only client can discover -> list -> call without ever sending
+  ``initialize``, while legacy clients negotiate 2025-11-25 unchanged.
 """
 
 from __future__ import annotations
@@ -45,8 +45,12 @@ if TYPE_CHECKING:
     from types import ModuleType
 
 from pry_mcp.constants import (
+    MCP_DISCOVER_METHOD,
     MCP_PROTOCOL_VERSION,
+    MCP_PROTOCOL_VERSION_META_KEY,
+    MCP_UNSUPPORTED_VERSION_CODE,
     SUPPORTED_PROTOCOL_VERSIONS,
+    discover_result,
     negotiate_protocol_version,
 )
 
@@ -163,11 +167,18 @@ async def test_unknown_revision_returns_ceiling_not_an_error(
 
 
 def _assert_sdk_handshake(result) -> None:
-    """The SDK can only ask for LATEST_HANDSHAKE_VERSION; the server echoes it."""
-    from mcp.client.session import HANDSHAKE_PROTOCOL_VERSIONS, LATEST_HANDSHAKE_VERSION
+    """The SDK can only ask for its newest handshake; the server echoes it."""
+    import mcp.client.session as sdk_session
+    import mcp.types
 
-    assert result["protocol_version"] == LATEST_HANDSHAKE_VERSION
-    assert result["protocol_version"] in HANDSHAKE_PROTOCOL_VERSIONS
+    latest_handshake = getattr(sdk_session, "LATEST_HANDSHAKE_VERSION", None)
+    handshake_versions = getattr(sdk_session, "HANDSHAKE_PROTOCOL_VERSIONS", None)
+    if latest_handshake is None:  # mcp 1.x has no modern handshake constants
+        latest_handshake = mcp.types.LATEST_PROTOCOL_VERSION
+        handshake_versions = sdk_session.SUPPORTED_PROTOCOL_VERSIONS
+
+    assert result["protocol_version"] == latest_handshake
+    assert result["protocol_version"] in handshake_versions
     assert result["server_info"]["name"] == "pry"
 
 
@@ -236,21 +247,128 @@ def test_tools_call_requires_the_bearer_header(live_server: Any, auth_key: str) 
         assert authorized.json()["result"]["isError"] is False
 
 
-def test_modern_discover_is_not_implemented_yet(live_server: Any) -> None:
-    """Canary for the 2026-07-28 modern handshake gap.
+def _modern_headers() -> dict[str, str]:
+    return {
+        "Accept": "application/json",
+        "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
+    }
 
-    ``server/discover`` is how the SDK negotiates 2026-07-28. It currently
-    answers -32601 (method not found), so docs/mcp/CLIENTS.md must state that
-    today's clients negotiate 2025-11-25. When this test starts failing
-    because the method exists, update CLIENTS.md and the SDK note in
-    ``scripts/mcp_conformance.py``.
-    """
+
+def _modern_meta() -> dict[str, Any]:
+    return {
+        MCP_PROTOCOL_VERSION_META_KEY: MCP_PROTOCOL_VERSION,
+        "io.modelcontextprotocol/clientInfo": {"name": "pytest-modern", "version": "1"},
+    }
+
+
+def _rpc(message_id: int, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    body: dict[str, Any] = {"jsonrpc": "2.0", "id": message_id, "method": method}
+    if params is not None:
+        body["params"] = params
+    return body
+
+
+def test_modern_discover_payload_matches_the_constant(live_server: Any) -> None:
+    """Discovery is public, stateless and exactly the shared constant."""
     url, _ = live_server
     with httpx.Client(timeout=10) as client:
         response = client.post(
             url,
-            headers={"Accept": "application/json", "Mcp-Protocol-Version": MCP_PROTOCOL_VERSION},
-            json={"jsonrpc": "2.0", "id": 1, "method": "server/discover", "params": {}},
+            headers=_modern_headers(),
+            json=_rpc(1, MCP_DISCOVER_METHOD, {"_meta": _modern_meta()}),
+        )
+    assert response.status_code == 200
+    assert response.json()["result"] == discover_result()
+    assert "mcp-session-id" not in response.headers, "modern discovery is stateless"
+
+
+def test_discover_ignores_a_stale_legacy_session(live_server: Any) -> None:
+    """Discovery is stateless: a stale Mcp-Session-Id is not a 404."""
+    url, _ = live_server
+    with httpx.Client(timeout=10) as client:
+        response = client.post(
+            url,
+            headers={**_modern_headers(), "Mcp-Session-Id": "stale-legacy-session"},
+            json=_rpc(6, MCP_DISCOVER_METHOD, {"_meta": _modern_meta()}),
+        )
+    assert response.status_code == 200
+    assert response.json()["result"] == discover_result()
+
+
+async def test_modern_session_without_initialize(
+    conformance: ModuleType, live_server: Any, auth_key: str
+) -> None:
+    """A 2026-07-28-only client: discover -> tools/list -> tools/call."""
+    url, key = live_server
+    assert key == auth_key
+    outcome = await conformance.run_modern_session(url, key)
+
+    assert outcome["errors"] == [], outcome
+    assert outcome["tool_count"] == len(PRY_TOOLS) == 99
+    assert outcome["tools_call"]["http_status"] == 200
+    assert outcome["tools_call"]["is_error"] is False
+
+
+def test_modern_discover_does_not_authorize_tools_call(live_server: Any, auth_key: str) -> None:
+    """Discovery is public; execution is not."""
+    url, _ = live_server
+    with httpx.Client(timeout=10) as client:
+        anonymous = client.post(
+            url,
+            headers=_modern_headers(),
+            json=_rpc(
+                2,
+                "tools/call",
+                {"_meta": _modern_meta(), "name": "pry_scrape_methods", "arguments": {}},
+            ),
+        )
+    assert anonymous.status_code == 401
+    assert anonymous.json()["error"]["code"] == -32001
+
+
+def test_modern_unsupported_version_is_minus_32022(live_server: Any) -> None:
+    """An unsupported declared revision is a modern error, not silent service."""
+    url, _ = live_server
+    with httpx.Client(timeout=10) as client:
+        response = client.post(
+            url,
+            headers={"Accept": "application/json", "MCP-Protocol-Version": "2099-01-01"},
+            json=_rpc(3, "tools/list", {"_meta": {MCP_PROTOCOL_VERSION_META_KEY: "2099-01-01"}}),
+        )
+    error = response.json()["error"]
+    assert error["code"] == MCP_UNSUPPORTED_VERSION_CODE
+    assert error["data"]["requested"] == "2099-01-01"
+    assert MCP_PROTOCOL_VERSION in error["data"]["supported"]
+
+
+def test_legacy_initialize_still_negotiates_2025_11_25(live_server: Any) -> None:
+    """The legacy handshake is unchanged by the modern addition."""
+    url, _ = live_server
+    with httpx.Client(timeout=10) as client:
+        response = client.post(
+            url,
+            headers={"Accept": "application/json"},
+            json=_rpc(
+                4,
+                "initialize",
+                {
+                    "protocolVersion": "2025-11-25",
+                    "capabilities": {},
+                    "clientInfo": {"name": "pytest-legacy", "version": "1"},
+                },
+            ),
+        )
+    result = response.json()["result"]
+    assert result["protocolVersion"] == "2025-11-25"
+    assert result["serverInfo"]["name"] == "pry"
+    assert response.headers.get("mcp-session-id")
+
+
+def test_unknown_method_is_still_minus_32601(live_server: Any) -> None:
+    url, _ = live_server
+    with httpx.Client(timeout=10) as client:
+        response = client.post(
+            url, headers={"Accept": "application/json"}, json=_rpc(5, "does/not/exist")
         )
     assert response.status_code == 200
     assert response.json()["error"]["code"] == -32601

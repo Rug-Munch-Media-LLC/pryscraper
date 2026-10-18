@@ -7,8 +7,8 @@ Pry exposes one MCP server through two transports:
 | Streamable HTTP | `https://api.pryscraper.com/mcp/` (self-host: `http://127.0.0.1:8006/`) | hosted or remote agents |
 | stdio | `uvx pryscraper-mcp` (or `pry-mcp`) | desktop clients that spawn a local process |
 
-Discovery (`initialize`, `tools/list`, `resources/list`, `prompts/list`,
-`ping`) is public. `tools/call` requires:
+Discovery (`server/discover`, `initialize`, `tools/list`, `resources/list`,
+`prompts/list`, `ping`) is public. `tools/call` requires:
 
 ```
 Authorization: Bearer <PRY_API_KEY>
@@ -17,42 +17,81 @@ Authorization: Bearer <PRY_API_KEY>
 An x402 payment is accepted instead of a key. Never put the key in the URL or
 commit it; pass it through the client's `headers`/`env` block.
 
-## Protocol revision you will actually negotiate
+## Protocol revisions — dual-era (legacy + modern)
 
-Observed 2026-10-18 against the official MCP Python SDK 2.2.0 and a live Pry
-server (matrix produced by `scripts/mcp_conformance.py`):
+Pry answers **both** protocol idioms on the same endpoint:
 
-| Client | Requested on `initialize` | Negotiated |
+* **Legacy** (`2025-11-25` and earlier) — the `initialize` handshake, then a
+  session. Unchanged.
+* **Modern** (`2026-07-28`) — the revision is declared per request (in
+  `params._meta` and the `MCP-Protocol-Version` header); clients may call
+  `server/discover` first. No `initialize` and no session are required.
+
+Observed 2026-10-18 against a live Pry server (matrix and modern session
+produced by `scripts/mcp_conformance.py`):
+
+| Client | Opens with | Negotiated |
 |---|---|---|
-| Official Python SDK `ClientSession` | `2025-11-25` (`LATEST_HANDSHAKE_VERSION`) | `2025-11-25` |
-| Claude Desktop / Cursor / Cline / VS Code using the current legacy handshake | `2025-11-25` | `2025-11-25` |
-| Custom/raw client asking for a supported revision | as sent | echoed verbatim |
-| Any unknown revision | as sent | server ceiling `2026-07-28` |
+| Official Python SDK 2.x (modern) | `server/discover` | `2026-07-28` |
+| Modern client without discovery | any RPC with `_meta` / header | served statelessly at `2026-07-28` |
+| Official Python SDK 1.x `ClientSession` (pinned in this repo) | `initialize` `2025-11-25` | `2025-11-25` |
+| Claude Desktop / Cursor / Cline / VS Code using the legacy handshake | `initialize` `2025-11-25` | `2025-11-25` |
+| Custom/raw legacy client asking for a supported revision | `initialize`, as sent | echoed verbatim |
+| Any unknown revision on `initialize` | `initialize`, as sent | server ceiling `2026-07-28` |
+| Modern request declaring an unsupported revision | any RPC | `-32022` UnsupportedProtocolVersionError |
 
 `2024-11-05`, `2025-03-26`, `2025-06-18`, `2025-11-25` and `2026-07-28` are
-echoed when requested over raw `initialize`. The server never errors on an
-unknown revision; it answers with `2026-07-28`.
+echoed when requested over raw `initialize`. The legacy handshake never errors
+on an unknown revision; it answers with `2026-07-28`.
 
-The `2025-11-25` row is verified against the official Python SDK 2.2.0. Desktop
-clients bundle their own SDK build, so treat their row as "the current SDK's
-newest legacy handshake", not as a version pinned by Pry.
+### Modern handshake — `server/discover`
 
-**2026-07-28 caveat.** In the current SDK, `2026-07-28` is a *modern* revision
-negotiated through `server/discover`, not `initialize`. Pry does not implement
-`server/discover` yet (it returns JSON-RPC `-32601`), so a client that speaks
-only `2026-07-28` cannot connect. Clients that support the legacy fallback
-negotiate `2025-11-25` and work normally. This is a server gap, not an SDK
-limitation; `tests/test_mcp_client_conformance.py::test_modern_discover_is_not_implemented_yet`
-is the canary for when it lands.
+Discovery is public and stateless: no API key, no `Mcp-Session-Id`. The result
+is defined once in `pry_mcp/constants.py` (`discover_result()`):
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "resultType": "complete",
+    "supportedVersions": ["2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25", "2026-07-28"],
+    "capabilities": {
+      "tools": {"listChanged": true},
+      "resources": {"subscribe": true, "listChanged": true},
+      "prompts": {"listChanged": true},
+      "logging": {}
+    },
+    "_meta": {
+      "io.modelcontextprotocol/serverInfo": {"name": "pry", "version": "3.0.0"}
+    },
+    "instructions": "Pry provides web scraping, extraction, and crypto-market intelligence tools. ...",
+    "ttlMs": 3600000,
+    "cacheScope": "public"
+  }
+}
+```
+
+`initialize` and `server/discover` share one capabilities definition, so the two
+eras cannot drift. A modern request whose declared revision is not in
+`supportedVersions` gets JSON-RPC `-32022` with
+`data: {"supported": [...], "requested": "..."}`; the client retries with a
+mutually supported version. `tools/call` still requires the Bearer key (or an
+x402 payment) in either era.
+
+**stdio caveat.** `pry-mcp` over stdio prefers the official MCP SDK server,
+which in the pinned 1.x SDK is legacy-only; it therefore answers `initialize`
+and rejects `server/discover` as an unknown method. The fallback server (used
+when the SDK is absent) answers both. A client that speaks only
+`2026-07-28` should use the Streamable HTTP endpoint.
 
 ### SDK limitation (not a server bug)
 
-`mcp.ClientSession.initialize()` takes no version argument: it always sends
-`LATEST_HANDSHAKE_VERSION` and rejects a reply outside
-`HANDSHAKE_PROTOCOL_VERSIONS`. The official SDK therefore cannot request
-`2024-11-05`, `2025-06-18` or `2026-07-28` itself. `scripts/mcp_conformance.py`
-runs those rows with raw `initialize` requests and uses the SDK for the full
-session (tools, resources, prompts).
+`mcp.ClientSession.initialize()` takes no version argument: it always sends its
+own `LATEST_HANDSHAKE_VERSION` and rejects a reply outside
+`HANDSHAKE_PROTOCOL_VERSIONS`. The pinned 1.x SDK therefore tops out at
+`2025-11-25`; the modern `2026-07-28` path is exercised with raw
+`server/discover` / `_meta` requests (the conformance runner's modern session).
 
 ## Claude Desktop
 
@@ -251,6 +290,36 @@ curl -sS -N -X POST "$URL" \
         "name":"pry_scrape","arguments":{"url":"https://example.com"}}}'
 ```
 
+### Modern (2026-07-28) flow — no `initialize`
+
+Every request declares the revision twice: in `params._meta` and in the
+`MCP-Protocol-Version` header. Discovery is public and stateless (no
+`Mcp-Session-Id`); only `tools/call` needs the key.
+
+```bash
+URL="https://api.pryscraper.com/mcp/"
+MODERN=(-H 'Content-Type: application/json' -H 'Accept: application/json'
+        -H 'MCP-Protocol-Version: 2026-07-28')
+META='"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}'
+
+# 1. discover — versions, capabilities, serverInfo (no key)
+curl -sS -X POST "$URL" "${MODERN[@]}" \
+  -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"server/discover\",\"params\":{$META}}"
+
+# 2. list tools (no key)
+curl -sS -X POST "$URL" "${MODERN[@]}" \
+  -d "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{$META}}"
+
+# 3. call a tool (Bearer required)
+curl -sS -X POST "$URL" "${MODERN[@]}" -H "Authorization: Bearer $KEY" \
+  -d "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",
+       \"params\":{$META,\"name\":\"pry_scrape\",\"arguments\":{\"url\":\"https://example.com\"}}}"
+```
+
+A modern request declaring a revision outside `supportedVersions` returns
+JSON-RPC `-32022` with `data.supported` and `data.requested`; retry with one of
+the listed versions.
+
 An unknown `Mcp-Session-Id` is rejected with HTTP 404. `DELETE` the endpoint
 with the same header to end a session. A missing/invalid key on `tools/call`
 returns HTTP 401 with JSON-RPC error `-32001`.
@@ -261,5 +330,6 @@ returns HTTP 401 with JSON-RPC error `-32001`.
 python scripts/mcp_conformance.py --url http://127.0.0.1:8006/ --key "$PRY_API_KEY"
 ```
 
-It prints the revision matrix, runs a full official-SDK session (99 tools, two
-tool calls, resources, subscribe, prompts), and exits `0`/`1`.
+It prints the legacy revision matrix, runs a full official-SDK session
+(99 tools, two tool calls, resources, subscribe, prompts), runs a
+2026-07-28-only modern session (discover -> list -> call), and exits `0`/`1`.

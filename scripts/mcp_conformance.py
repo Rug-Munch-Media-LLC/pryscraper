@@ -10,6 +10,9 @@ Two layers, deliberately:
 * **Official SDK session** — ``mcp.ClientSession`` over Streamable HTTP:
   initialize, list tools, call two tools (one free and one structured),
   list resources, subscribe to a resource, list prompts.
+* **Modern session** — a 2026-07-28-only client: ``server/discover`` ->
+  ``tools/list`` -> ``tools/call`` using per-request ``_meta`` and the
+  ``MCP-Protocol-Version`` header, with no ``initialize``.
 
 Usage::
 
@@ -39,7 +42,11 @@ if str(ROOT) not in sys.path:
 
 from pry_mcp import PRY_TOOLS  # noqa: E402
 from pry_mcp.constants import (  # noqa: E402
+    MCP_DISCOVER_METHOD,
     MCP_PROTOCOL_VERSION,
+    MCP_PROTOCOL_VERSION_META_KEY,
+    MCP_SERVER_INFO_META_KEY,
+    SERVER_NAME,
     SUPPORTED_PROTOCOL_VERSIONS,
 )
 
@@ -67,6 +74,12 @@ def _rpc(message_id: int, method: str, params: dict[str, Any] | None = None) -> 
     if params is not None:
         body["params"] = params
     return body
+
+
+def _sdk_field(obj: Any, snake: str, camel: str, default: Any = None) -> Any:
+    """Read a result field across SDK generations (1.x camelCase, 2.x snake)."""
+    value = getattr(obj, snake, None)
+    return value if value is not None else getattr(obj, camel, default)
 
 
 async def run_wire_matrix(
@@ -147,13 +160,20 @@ async def run_sdk_session(url: str, key: str | None) -> dict[str, Any]:
     http_client = create_mcp_http_client(headers=headers)
     async with (
         http_client,
-        streamable_http_client(url, http_client=http_client) as (read, write),
+        # mcp 1.29 yields (read, write, get_session_id); earlier builds
+        # yielded two streams. Accept both so the shipped runner works across
+        # the SDK range the project declares.
+        streamable_http_client(url, http_client=http_client) as (read, write, *_),
         ClientSession(read, write) as session,
     ):
         init = await session.initialize()
-        result["protocol_version"] = init.protocol_version
-        result["server_info"] = init.server_info.model_dump(mode="json")
-        check("initialize", bool(init.protocol_version), init.protocol_version)
+        version = _sdk_field(init, "protocol_version", "protocolVersion")
+        info = _sdk_field(init, "server_info", "serverInfo")
+        result["protocol_version"] = version
+        result["server_info"] = (
+            info.model_dump(mode="json") if hasattr(info, "model_dump") else info
+        )
+        check("initialize", bool(version), version)
 
         tools = await session.list_tools()
         names = [tool.name for tool in tools.tools]
@@ -161,24 +181,26 @@ async def run_sdk_session(url: str, key: str | None) -> dict[str, Any]:
         check("tools/list", len(names) == EXPECTED_TOOLS, len(names))
 
         free = await session.call_tool("pry_scrape_methods", {})
-        free_structured = getattr(free, "structured_content", None)
+        free_structured = _sdk_field(free, "structured_content", "structuredContent")
+        free_is_error = bool(_sdk_field(free, "is_error", "isError", False))
         result["free_tool"] = {
             "name": "pry_scrape_methods",
-            "is_error": bool(getattr(free, "is_error", False)),
+            "is_error": free_is_error,
             "structured": isinstance(free_structured, dict),
         }
-        check("call free tool", not free.is_error, "pry_scrape_methods")
+        check("call free tool", not free_is_error, "pry_scrape_methods")
         check("free tool structuredContent", isinstance(free_structured, dict), None)
 
         structured = await session.call_tool("pry_actor_catalog", {"limit": 1})
-        payload = getattr(structured, "structured_content", None) or {}
+        payload = _sdk_field(structured, "structured_content", "structuredContent") or {}
+        structured_is_error = bool(_sdk_field(structured, "is_error", "isError", False))
         result["structured_tool"] = {
             "name": "pry_actor_catalog",
-            "is_error": bool(getattr(structured, "is_error", False)),
+            "is_error": structured_is_error,
             "count": payload.get("count"),
             "total": payload.get("total"),
         }
-        check("call structured tool", not structured.is_error, "pry_actor_catalog")
+        check("call structured tool", not structured_is_error, "pry_actor_catalog")
         check("structured tool payload", payload.get("count") == 1, payload.get("count"))
 
         resources = await session.list_resources()
@@ -196,6 +218,79 @@ async def run_sdk_session(url: str, key: str | None) -> dict[str, Any]:
         prompts = await session.list_prompts()
         result["prompt_count"] = len(prompts.prompts)
         check("prompts/list", bool(prompts.prompts), len(prompts.prompts))
+
+    result["ok"] = not result["errors"]
+    return result
+
+
+async def run_modern_session(url: str, key: str | None) -> dict[str, Any]:
+    """Exercise a modern (2026-07-28-only) client against the dual-era server.
+
+    No ``initialize``: discovery, listing and execution all carry the revision
+    in ``_meta`` and in the ``MCP-Protocol-Version`` header. Discovery stays
+    public; ``tools/call`` still needs the Bearer key.
+    """
+    result: dict[str, Any] = {"checks": {}, "errors": []}
+
+    def check(name: str, condition: bool, detail: Any = None) -> None:
+        result["checks"][name] = {"ok": bool(condition), "detail": detail}
+        if not condition:
+            result["errors"].append(f"{name}: {detail}")
+
+    meta = {
+        MCP_PROTOCOL_VERSION_META_KEY: MCP_PROTOCOL_VERSION,
+        "io.modelcontextprotocol/clientInfo": {
+            "name": "pry-conformance-modern",
+            "version": "1",
+        },
+    }
+    headers = {
+        "Accept": ACCEPT,
+        "Content-Type": "application/json",
+        "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
+    }
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        discovered = await client.post(
+            url, headers=headers, json=_rpc(1, MCP_DISCOVER_METHOD, {"_meta": meta})
+        )
+        discover_body = _decode(discovered)
+        discover = discover_body.get("result") or {}
+        supported = discover.get("supportedVersions") or []
+        check("server/discover", discovered.status_code == 200, discovered.status_code)
+        check("supportedVersions", MCP_PROTOCOL_VERSION in supported, supported)
+        info = (discover.get("_meta") or {}).get(MCP_SERVER_INFO_META_KEY) or {}
+        check("serverInfo", info.get("name") == SERVER_NAME, info)
+        check("discover is public", "error" not in discover_body, discover_body.get("error"))
+        result["supported_versions"] = supported
+
+        listed = await client.post(
+            url, headers=headers, json=_rpc(2, "tools/list", {"_meta": meta})
+        )
+        listed_body = _decode(listed)
+        tools = (listed_body.get("result") or {}).get("tools") or []
+        result["tool_count"] = len(tools)
+        check("tools/list", len(tools) == EXPECTED_TOOLS, len(tools))
+
+        if not key:
+            result["tools_call"] = "skipped (no key)"
+        else:
+            called = await client.post(
+                url,
+                headers={**headers, "Authorization": f"Bearer {key}"},
+                json=_rpc(
+                    3,
+                    "tools/call",
+                    {"_meta": meta, "name": "pry_scrape_methods", "arguments": {}},
+                ),
+            )
+            called_body = _decode(called)
+            call_result = called_body.get("result") or {}
+            result["tools_call"] = {
+                "http_status": called.status_code,
+                "is_error": bool(call_result.get("isError", True)),
+            }
+            check("tools/call", called.status_code == 200, called.status_code)
+            check("tools/call result", call_result.get("isError") is False, call_result)
 
     result["ok"] = not result["errors"]
     return result
@@ -221,8 +316,8 @@ def _print_matrix(matrix: dict[str, Any], sdk: dict[str, Any] | None) -> None:
         "SDK note: ClientSession.initialize() always requests "
         "LATEST_HANDSHAKE_VERSION (2025-11-25) and rejects any reply outside "
         "HANDSHAKE_PROTOCOL_VERSIONS; the per-revision rows above are raw "
-        "initialize requests. 2026-07-28 is a modern revision negotiated via "
-        "server/discover, which this server does not implement."
+        "initialize requests. 2026-07-28 is a modern revision reached through "
+        "server/discover, which this server implements — see the modern session."
     )
 
 
@@ -237,30 +332,38 @@ async def _run_sdk(url: str, key: str) -> dict[str, Any] | None:
         return {"ok": False, "errors": [f"{type(exc).__name__}: {exc}"], "checks": {}}
 
 
-def _print_failures(matrix: dict[str, Any], sdk: dict[str, Any] | None) -> None:
-    """Print the matrix and SDK failure detail behind a FAIL result."""
+def _print_failures(
+    matrix: dict[str, Any], sdk: dict[str, Any] | None, modern: dict[str, Any] | None
+) -> None:
+    """Print the matrix, SDK and modern-session failure detail behind a FAIL."""
     if matrix["errors"]:
         print("matrix failures:")
         for error in matrix["errors"]:
             print(f"  - {error}")
-    if sdk is None:
-        return
-    print("SDK checks:")
-    for name, check in sdk["checks"].items():
-        detail = check["detail"] if check["detail"] is not None else ""
-        print(f"  {'PASS' if check['ok'] else 'FAIL'}  {name}  {detail}")
-    if sdk["errors"]:
-        print("SDK failures:")
-        for error in sdk["errors"]:
-            print(f"  - {error}")
+    for label, payload in (("SDK", sdk), ("modern", modern)):
+        if payload is None:
+            continue
+        print(f"{label} checks:")
+        for name, check in payload["checks"].items():
+            detail = check["detail"] if check["detail"] is not None else ""
+            print(f"  {'PASS' if check['ok'] else 'FAIL'}  {name}  {detail}")
+        if payload["errors"]:
+            print(f"{label} failures:")
+            for error in payload["errors"]:
+                print(f"  - {error}")
 
 
 async def _main(args: argparse.Namespace) -> int:
     matrix = await run_wire_matrix(args.url, args.timeout)
     sdk = await _run_sdk(args.url, args.key)
+    modern = await run_modern_session(args.url, args.key)
     _print_matrix(matrix, sdk)
-    ok = not matrix["errors"] and (sdk is None or sdk["ok"])
-    _print_failures(matrix, sdk)
+    print(
+        f"modern session  {MCP_PROTOCOL_VERSION:<14} "
+        f"{modern.get('tool_count', '-'):>5}  {'ok' if modern['ok'] else 'FAIL'}"
+    )
+    ok = not matrix["errors"] and (sdk is None or sdk["ok"]) and modern["ok"]
+    _print_failures(matrix, sdk, modern)
     print()
     print("RESULT:", "PASS" if ok else "FAIL")
     return 0 if ok else 1

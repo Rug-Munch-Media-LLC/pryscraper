@@ -62,7 +62,7 @@ def test_facade_keeps_public_imports() -> None:
 
 def test_dispatch_table_covers_every_handler() -> None:
     server = _server()
-    assert len(METHOD_TABLE) == 12
+    assert len(METHOD_TABLE) == 13
     for handler_name in METHOD_TABLE.values():
         assert callable(getattr(server, handler_name)), handler_name
 
@@ -75,6 +75,35 @@ def test_every_fallback_module_stays_within_the_gate_budget() -> None:
 
 
 class TestProtocol:
+    @pytest.mark.asyncio
+    async def test_discover_matches_the_constant(self) -> None:
+        """The fallback answers ``server/discover`` with the shared payload."""
+        from pry_mcp.constants import MCP_DISCOVER_METHOD, discover_result
+
+        server = _server()
+        response = await _call(server, MCP_DISCOVER_METHOD)
+        assert response["result"] == discover_result()
+
+    @pytest.mark.asyncio
+    async def test_discover_rejects_an_unsupported_modern_version(self) -> None:
+        from pry_mcp.constants import (
+            MCP_DISCOVER_METHOD,
+            MCP_PROTOCOL_VERSION,
+            MCP_PROTOCOL_VERSION_META_KEY,
+            MCP_UNSUPPORTED_VERSION_CODE,
+        )
+
+        server = _server()
+        response = await _call(
+            server,
+            MCP_DISCOVER_METHOD,
+            {"_meta": {MCP_PROTOCOL_VERSION_META_KEY: "2099-01-01"}},
+        )
+        error = response["error"]
+        assert error["code"] == MCP_UNSUPPORTED_VERSION_CODE
+        assert error["data"]["requested"] == "2099-01-01"
+        assert MCP_PROTOCOL_VERSION in error["data"]["supported"]
+
     @pytest.mark.asyncio
     async def test_initialize_echoes_supported_revision(self) -> None:
         server = _server()

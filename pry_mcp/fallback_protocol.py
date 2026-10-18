@@ -23,10 +23,13 @@ import sys
 from typing import Any
 
 from pry_mcp.constants import (
-    SERVER_NAME,
-    SERVER_VERSION,
+    MCP_DISCOVER_METHOD,
+    discover_result,
     negotiate_protocol_version,
+    server_capabilities,
+    server_info,
 )
+from pry_mcp.discovery import declared_protocol_version, version_rejection
 from pry_mcp.notifications import (
     _attach_mcp_logging,
     set_active_mcp_server,
@@ -37,6 +40,7 @@ logger = logging.getLogger(__name__)
 #: method name -> handler attribute name. One table, no if-chain.
 METHOD_TABLE: dict[str, str] = {
     "initialize": "_rpc_initialize",
+    MCP_DISCOVER_METHOD: "_rpc_discover",
     "ping": "_rpc_ping",
     "tools/list": "_rpc_tools_list",
     "tools/call": "_rpc_tools_call",
@@ -114,7 +118,15 @@ class ProtocolMixin:
             return None
         if not isinstance(method, str) or not method:
             return _error(req_id, -32600, "Invalid Request")
-        return await self._dispatch(method, req_id, request.get("params", {}))
+        params = request.get("params", {})
+        # Modern requests declare a revision in ``_meta``; an unsupported one
+        # is rejected per spec. ``initialize`` keeps legacy semantics, where an
+        # unknown revision is answered with the server ceiling.
+        if method != "initialize":
+            rejection = version_rejection(req_id, declared_protocol_version(params))
+            if rejection is not None:
+                return rejection
+        return await self._dispatch(method, req_id, params)
 
     async def _dispatch(self, method: str, req_id: Any, params: Any) -> dict[str, Any]:
         handler_name = METHOD_TABLE.get(method)
@@ -140,14 +152,17 @@ class ProtocolMixin:
         set_active_mcp_server(self)
         return {
             "protocolVersion": negotiate_protocol_version((params or {}).get("protocolVersion")),
-            "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
-            "capabilities": {
-                "tools": {"listChanged": True},
-                "resources": {"subscribe": True, "listChanged": True},
-                "prompts": {"listChanged": True},
-                "logging": {},
-            },
+            "serverInfo": server_info(),
+            "capabilities": server_capabilities(),
         }
+
+    async def _rpc_discover(self, _params: dict[str, Any]) -> dict[str, Any]:
+        """Modern (2026-07-28+) discovery: versions, capabilities, identity.
+
+        Stateless and unauthenticated — a client may call it before it holds a
+        session or a key, exactly like legacy ``initialize``.
+        """
+        return discover_result()
 
     async def _rpc_ping(self, _params: dict[str, Any]) -> dict[str, Any]:
         return {}
