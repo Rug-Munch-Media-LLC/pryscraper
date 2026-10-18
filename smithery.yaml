@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
-# Part of Pry — https://codeberg.org/RugMunchMedia/pryscraper
+# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT + BSL-1.1. MIT for the core engine; BSL-1.1 for the stealth/anti-detection module. See LICENSE.
 # Smithery configuration for Pry MCP server
 # https://smithery.ai/docs/config
@@ -28,7 +28,7 @@ startCommand:
   commandFunction: |
     (config) => ({
       command: 'python3',
-      args: ['-m', 'mcp_production'],
+      args: ['-m', 'pry.api.mcp_production'],
       env: {
         PRY_API_URL: config.pryApiUrl,
         PRY_API_KEY: config.pryApiKey || ''

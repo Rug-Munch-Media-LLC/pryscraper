@@ -7,7 +7,7 @@
 	"license": "MIT + BSL-1.1",
 	"author": "Rug Munch Media LLC",
 	"homepage": "https://pryscraper.com",
-	"repository": "https://codeberg.org/cryptorugmunch/pryscraper",
+	"repository": "https://git.rugmunch.io/RugMunchMedia/pryscraper",
 	"categories": [
 		"Web Scraping",
 		"Browser Automation",

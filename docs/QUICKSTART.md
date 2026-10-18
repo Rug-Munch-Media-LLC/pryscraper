@@ -56,7 +56,7 @@ The quote fields come from `build_multi_asset_accepts` (`src/pry/payments/x402/s
 ## 2. Self-host (Docker Compose)
 
 ```bash
-git clone https://codeberg.org/RugMunchMedia/pryscraper.git
+git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git
 cd pryscraper
 cp .env.selfhost.example .env.selfhost
 ./scripts/selfhost-init.sh

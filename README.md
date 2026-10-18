@@ -23,9 +23,13 @@ Pry turns a URL into Markdown, structured JSON, or a screenshot. It escalates th
 ## 30-second quickstart
 
 ```bash
-pip install pryscraper-mcp
+git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git && cd pryscraper
+python3 -m pip install -e .
 PRY_X402_ENABLED=false PRY_API_KEY=devkey pry serve    # http://127.0.0.1:8005
 ```
+
+The `pryscraper-mcp` distribution is not on PyPI yet; install from the repository
+(or use the Docker path in [QUICKSTART](docs/QUICKSTART.md)).
 
 ```bash
 curl -s http://127.0.0.1:8005/v1/scrape \
@@ -108,7 +112,7 @@ Poll `GET /v1/crawl/{id}` for status and the completed pages. `DELETE /v1/crawl/
 ## Self-host
 
 ```bash
-git clone https://codeberg.org/RugMunchMedia/pryscraper.git
+git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git
 cd pryscraper
 cp .env.selfhost.example .env.selfhost
 ./scripts/selfhost-init.sh

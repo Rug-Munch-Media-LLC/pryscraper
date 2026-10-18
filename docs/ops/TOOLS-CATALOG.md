@@ -25,7 +25,7 @@ an x402 operation with server-authoritative pricing.
 > - `pry_mcp/tools/` — `PRY_TOOLS`, 99 `"name"` entries (verify with
 >   `grep -cE '"name": "'`).
 > - `src/pry/api/registry_metadata.py` — `get_tools_by_category()` returns
->   35+ category groups; `get_registry_manifest()` reports `tools.count = 99`.
+>   33 category groups; `get_registry_manifest()` reports `tools.count = 99`.
 > - `server.json`, `glama.json`, `registry_manifest.json` each carry the same
 >   99-tool payload (machine-readable registry listings).
 
@@ -40,7 +40,7 @@ an x402 operation with server-authoritative pricing.
 | `pry_scrape` | `scrape` | $0.001 | Scrape any URL to clean markdown; 15-tier anti-bot fallback |
 | `pry_crawl` | `crawl` | $0.01 | Crawl up to 10 pages from a start URL |
 | `pry_template` | `template_execute` | $0.002 | Execute a pre-built scraper template |
-| `pry_search_templates` | free (listing) | $0 | List the 110+ regavailable scraper templates |
+| `pry_search_templates` | free (listing) | $0 | List the 110+ available scraper templates |
 | `pry_screenshot` | free per README (route `/v1/screenshot`) | $0 | Capture a full-page screenshot |
 | `pry_scrape_methods` | `scrape_methods` | $0.002 | Query the per-domain scraping-method registry |
 
@@ -142,7 +142,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Sports Betting (99 tools — flat $0.01/scan)
+## Sports Betting (13 tools — flat $0.01/scan)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -166,7 +166,7 @@ an x402 operation with server-authoritative pricing.
 
 
 
-## Prediction Markets (99 tools)
+## Prediction Markets (2 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -199,7 +199,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Player Intelligence (99 tools)
+## Player Intelligence (4 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -210,7 +210,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Sharp Money (99 tools)
+## Sharp Money (5 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -222,7 +222,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Live Analytics (99 tools)
+## Live Analytics (5 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -234,7 +234,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Game Context (99 tools)
+## Game Context (3 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -328,7 +328,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Payments / Billing / Account (99 tools)
+## Payments / Billing / Account (3 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -343,7 +343,7 @@ an x402 operation with server-authoritative pricing.
 
 ---
 
-## Actors / Marketplace (99 tools)
+## Actors / Marketplace (2 tools)
 
 | Tool | Operation | Price | Purpose |
 |------|-----------|:-----:|---------|
@@ -356,27 +356,27 @@ an x402 operation with server-authoritative pricing.
 
 | Category | Count | Category | Count |
 |----------|:-----:|----------|:-----:|
-| web_scraping | 6 | sports_betting | 13 |
-| data_extraction | 1 | crypto | 4 |
-| document_processing | 1 | legal | 5 |
-| data_enrichment | 2 | government | 3 |
-| monitoring | 1 | jobs_careers | 2 |
-| compliance | 1 | travel | 2 |
-| social | 3 | real_estate | 1 |
-| search | 3 | retail | 4 |
-| news_intelligence | 1 | utility | 4 |
-| alerts | 2 | local | 1 |
-| business | 2 | trade | 1 |
-| actors | 2 | logistics | 1 |
-| affiliate | 1 | energy | 1 |
-| payments | 3 | events | 1 |
-| data | 1 | research | 1 |
-| agriculture | 1 | safety | 1 |
-| app_store | 1 | prediction_markets | 2 |
-| sports_futures | 1 | sports_derivatives | 1 |
-| sports_bankroll | 1 | player_intelligence | 4 |
-| sharp_money | 5 | live_analytics | 5 |
-| game_context | 3 | | |
+| actors | 2 | local | 1 |
+| affiliate | 1 | logistics | 1 |
+| agriculture | 1 | monitoring | 1 |
+| alerts | 2 | news_intelligence | 1 |
+| app_store | 1 | payments | 1 |
+| business | 2 | real_estate | 1 |
+| compliance | 1 | research | 1 |
+| crypto | 3 | retail | 4 |
+| data | 3 | safety | 1 |
+| data_enrichment | 2 | search | 2 |
+| data_extraction | 1 | social | 3 |
+| document_processing | 1 | sports_betting | 17 |
+| energy | 1 | trade | 1 |
+| events | 1 | travel | 2 |
+| government | 3 | utility | 24 |
+| jobs_careers | 2 | web_scraping | 6 |
+| legal | 5 |  |  |
+
+> Registry truth: `get_tools_by_category()` in `src/pry/api/registry_metadata.py` returns these
+> 33 categories and 99 tools. The sports sections above are documentation groupings; the
+> registry rolls several of them into `sports_betting` (17).
 
 **Totals: 99 tools across 33 categories.**
 

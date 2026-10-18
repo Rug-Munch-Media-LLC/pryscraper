@@ -12,7 +12,7 @@
 	"homepage": "https://pryscraper.com",
 	"repository": {
 		"type": "git",
-		"url": "https://codeberg.org/RugMunchMedia/pryscraper"
+		"url": "https://git.rugmunch.io/RugMunchMedia/pryscraper"
 	},
 	"transports": [
 		{

@@ -45,12 +45,41 @@ config.set_main_option(
 target_metadata = Base.metadata
 exclude_tables = {"spatial_ref_sys"}
 
+# Tables whose reflected types are intentionally NOT compared.
+#
+# compare_type=True is required: with it off, a column silently changed from
+# Float to Numeric (the money-integrity fix) produced no autogenerate diff and
+# the drift stayed invisible. These tables are excluded because their type
+# shapes are dialect- or extension-owned and would otherwise emit permanent
+# false diffs:
+#   - alembic_version : Alembic owns its own bookkeeping table.
+#   - spatial_ref_sys : PostGIS extension table (Postgres only).
+#   - *_fts           : SQLite FTS5 virtual/shadow tables (untyped to the
+#                       inspector, so every compare sees a difference).
+_TYPE_NOISY_TABLES = {"alembic_version", "spatial_ref_sys"}
+_TYPE_NOISY_SUFFIXES = ("_fts", "_fts_data", "_fts_idx", "_fts_docsize", "_fts_config")
 
-# compare_type=False: SQLite round-trips lose NOT NULL/server-default
-# fidelity, producing endless modify_nullable noise. Structural drift
-# (tables/columns/indexes) is still detected.
+
+def _include_object(
+    obj: object, name: str | None, type_: str, reflected: bool, compare_to: object
+) -> bool:
+    """Keep noise out of autogenerate while leaving type comparison ON."""
+    if type_ == "table" and name is not None:
+        if name in _TYPE_NOISY_TABLES:
+            return False
+        if name.endswith(_TYPE_NOISY_SUFFIXES):
+            return False
+    return True
+
+
+# compare_type=True: a Float -> Numeric(18,6) change MUST surface as a diff.
+# compare_server_default stays off: SQLite reflection normalises defaults
+# (e.g. 0 vs '0'), which produced endless modify_default noise unrelated to
+# type drift.
 _ALEMBIC_CONFIGURE = {
-    "compare_type": False,
+    "compare_type": True,
+    "compare_server_default": False,
+    "include_object": _include_object,
 }
 
 

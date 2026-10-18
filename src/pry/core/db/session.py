@@ -170,11 +170,13 @@ def get_engine() -> Engine:
                         cur.close()
 
                 _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
-                # Auto-create tables on first engine init (idempotent).
-                # Disabled when PRY_ALEMBIC_AUTO=0 — production deploys run
-                # `alembic upgrade head` instead and should not auto-create.
-                if os.environ.get("PRY_ALEMBIC_AUTO", "1") == "1":
-                    Base.metadata.create_all(_engine)
+                # NO create_all here. Lazy engine init is not a schema
+                # authority: it manufactured tables (hosting_plans,
+                # hosted_instances) that the migration chain had never
+                # created, making `alembic upgrade` and runtime disagree.
+                # Alembic owns the schema in every environment; tests call
+                # Base.metadata.create_all explicitly, and the cold-start
+                # helper init_db() remains opt-in.
                 logger.info(
                     "db_engine_initialized",
                     extra={"url": make_url(url).render_as_string(hide_password=True)},
@@ -183,7 +185,15 @@ def get_engine() -> Engine:
 
 
 def init_db() -> None:
-    """Create all tables. Call from FastAPI lifespan startup, not per-request."""
+    """Cold-start / test helper: create all tables from the models.
+
+    NOT the schema authority — ``alembic upgrade head`` is. Called once from
+    the FastAPI lifespan; set ``PRY_ALEMBIC_AUTO=0`` to skip it entirely
+    (production deploys do). Keeping it out of ``get_engine()`` is what stops
+    the per-process schema drift.
+    """
+    if os.environ.get("PRY_ALEMBIC_AUTO", "1") == "0":
+        return
     engine = get_engine()
     Base.metadata.create_all(engine)
 

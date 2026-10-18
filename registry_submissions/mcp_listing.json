@@ -1,7 +1,7 @@
 {
-	"name": "pry-scraper",
+	"name": "io.rugmunch/pry",
 	"displayName": "Pry Scraping API",
-	"description": "Professional web scraping with x402 crypto payments. 15-tier anti-detection fallback, AI extraction, auto-signup, CAPTCHA solving.",
+	"description": "Self-hosted web intelligence MCP: scrape, search, crawl, map, extract, monitor, parse, screenshot, x402 pricing, plus ten data domains (crypto, marketplace, legal, real estate, jobs, travel, attention, local, gov, ip). 15-tier anti-detection fallback. Pay-per-call via x402.",
 	"version": "3.0.0",
 	"author": {
 		"name": "Rug Munch Media LLC",
@@ -18,44 +18,400 @@
 	},
 	"tools": [
 		{
-			"name": "scrape",
-			"description": "Scrape any URL with 15-tier fallback"
+			"name": "pry_scrape",
+			"description": "Scrape any URL to clean, readable markdown, automatically bypassing Cloudflare, DataDome, Akamai, and other anti-bot systems via a 15-tier fallback chain (direct -> cloudscraper -> FlareSolverr ->..."
 		},
 		{
-			"name": "crawl",
-			"description": "Crawl entire websites"
+			"name": "pry_crawl",
+			"description": "Crawl a website from a seed URL, discovering and scraping linked pages with BFS/DFS traversal up to max_pages."
 		},
 		{
-			"name": "extract",
-			"description": "AI-powered structured extraction"
+			"name": "pry_extract",
+			"description": "Extract structured data from a URL using CSS selectors — 10x cheaper than LLM extraction — and return JSON matching your schema."
 		},
 		{
-			"name": "search",
-			"description": "Search engine scraping"
+			"name": "pry_template",
+			"description": "Execute one of 110+ pre-built scraper templates (amazon-product, walmart-product, linkedin-profile, etc.) that return site-specific structured data."
 		},
 		{
-			"name": "signup",
-			"description": "Automated account registration"
+			"name": "pry_search_templates",
+			"description": "Search the 110+ pre-built scraper template catalog by keyword, category, or site name, returning matching template_ids, their categories, and descriptions."
 		},
 		{
-			"name": "captcha",
-			"description": "CAPTCHA solving"
+			"name": "pry_monitor",
+			"description": "Create a content-change monitor that notifies via webhook, Slack, or Discord when a page changes, using AI to judge whether changes are meaningful."
 		},
 		{
-			"name": "screenshot",
-			"description": "Full-page screenshots"
+			"name": "pry_compliance",
+			"description": "Compliance intelligence in two modes: pass a URL to check whether scraping it is legally safe (robots.txt, ToS, GDPR/CCPA, PII exposure -> green/yellow/red risk score with recommendations), or..."
 		},
 		{
-			"name": "monitor",
-			"description": "Website change monitoring"
+			"name": "pry_enrich",
+			"description": "Enrich a URL with company info, tech stack detection, social profiles, and competitive intelligence."
 		},
 		{
-			"name": "enrich",
-			"description": "Data enrichment"
+			"name": "pry_parse_document",
+			"description": "Parse a document (PDF, DOCX, image) and extract its text and tables using pdfplumber, Tesseract OCR, and python-docx."
 		},
 		{
-			"name": "compliance",
-			"description": "Compliance checking"
+			"name": "pry_screenshot",
+			"description": "Render a URL in a headless browser and return a screenshot as a base64-encoded PNG with width, height, and content type."
+		},
+		{
+			"name": "pry_x402_pricing",
+			"description": "Get current x402 pay-per-call pricing for all Pry operations, showing the cost in USDC atomic units and supported networks for each tool."
+		},
+		{
+			"name": "pry_balance",
+			"description": "Read the prepaid balance of a Pry account (bulk scrape credits purchased via crypto)."
+		},
+		{
+			"name": "pry_buy_pack",
+			"description": "Initiate a crypto purchase of a bulk scrape-credit pack."
+		},
+		{
+			"name": "pry_referrals",
+			"description": "Get Pry's referral catalog — 60+ providers across LLM, hosting, email, monitoring, proxies, and devtools — each link carrying our affiliate ID for revenue attribution."
+		},
+		{
+			"name": "pry_token_launches",
+			"description": "Discover new crypto token launches, new liquidity pairs, and trending tokens across chains (Solana, Ethereum, Base, ...) with optional age filtering."
+		},
+		{
+			"name": "pry_cex_listings",
+			"description": "Get recent centralized-exchange (CEX) listing and delisting signals — e.g."
+		},
+		{
+			"name": "pry_kol_leaderboards",
+			"description": "Scrape KOL / crypto-influencer leaderboards for usernames (handles), wallets, followers and P&L / win-loss stats."
+		},
+		{
+			"name": "pry_amazon_product",
+			"description": "Look up a single Amazon product by its ASIN (e.g."
+		},
+		{
+			"name": "pry_amazon_search",
+			"description": "Search Amazon products by keyword and return matching listings — title, price, rating, and ASIN for each result (up to limit)."
+		},
+		{
+			"name": "pry_walmart_product",
+			"description": "Look up a single Walmart product by its product ID (e.g."
+		},
+		{
+			"name": "pry_tiktok_trending",
+			"description": "Get currently trending products on TikTok Shop, ranked by engagement and sales velocity, with price, sales count, and shop info for each result (up to limit)."
+		},
+		{
+			"name": "pry_token_security",
+			"description": "Run a security scan on a crypto token by chain and contract/mint address — checking for honeypots, hidden mints, ownership concentration, LP lock, and other rug-pull risk signals."
+		},
+		{
+			"name": "pry_legal_dockets",
+			"description": "Search U.S."
+		},
+		{
+			"name": "pry_legal_sec",
+			"description": "Search SEC EDGAR filings for a public company by ticker and form type, returning filing dates, form names, and EDGAR accession numbers."
+		},
+		{
+			"name": "pry_legal_sanctions",
+			"description": "Screen a person or entity name against the OFAC Specially Designated Nationals (SDN) sanctions list, returning any matching records with their sanctions program and remarks."
+		},
+		{
+			"name": "pry_realestate_search",
+			"description": "Search real-estate listings by location and status (for_sale, for_rent, sold), returning address, price, beds/baths, square footage, and listing URLs."
+		},
+		{
+			"name": "pry_jobs_list",
+			"description": "List current job postings for a company from its applicant-tracking system (Greenhouse, Lever, Ashby, or Workday), returning normalized titles, locations, remote flags, and application URLs."
+		},
+		{
+			"name": "pry_jobs_salary",
+			"description": "Get per-level salary bands (total compensation, base, stock, bonus) for a company and role from Levels.fyi's public embedded data."
+		},
+		{
+			"name": "pry_flights_grid",
+			"description": "Get the cheapest flight option per day between two dates for an origin and destination pair, using Google Flights' public tfs deep-link page."
+		},
+		{
+			"name": "pry_hotel_rates",
+			"description": "Get per-night hotel rates for a stay window from Google Hotels with a Booking.com fallback, both free and keyless page scrapes."
+		},
+		{
+			"name": "pry_serp",
+			"description": "Scrape a Google search results page for a query, returning organic results, the AI Overview text when present, and People Also Ask questions."
+		},
+		{
+			"name": "pry_trends",
+			"description": "Measure Google Trends interest over time for a keyword, returning the daily interest timeline and related queries."
+		},
+		{
+			"name": "pry_places_search",
+			"description": "Search Google Maps for local businesses matching a query and location, returning name, rating, review count, address, and place IDs for lead generation."
+		},
+		{
+			"name": "pry_reviews",
+			"description": "Get the full review history for a local business place from Google Maps or Yelp, going beyond the 5-review API cap."
+		},
+		{
+			"name": "pry_procurement",
+			"description": "Search U.S."
+		},
+		{
+			"name": "pry_recalls",
+			"description": "Search recent product recalls from the U.S."
+		},
+		{
+			"name": "pry_patents",
+			"description": "Search U.S."
+		},
+		{
+			"name": "pry_trademarks",
+			"description": "Search U.S."
+		},
+		{
+			"name": "pry_odds",
+			"description": "Get live betting odds across major bookmakers (DraftKings, FanDuel, BetMGM, ESPN BET, ...) for one or more sports, backed by The Odds API (free tier via PRY_ODDS_API_KEY) with an ESPN scoreboard..."
+		},
+		{
+			"name": "pry_arbitrage",
+			"description": "Scan sportsbook lines for guaranteed-profit arbitrage opportunities: the same event quoted at different books where the combined implied probabilities total under 100%."
+		},
+		{
+			"name": "pry_plus_ev",
+			"description": "Find positive expected-value (+EV) betting opportunities by comparing market odds against a sharp book's line or consensus price."
+		},
+		{
+			"name": "pry_props",
+			"description": "Get player prop betting lines (points, rebounds, assists, yards, strikeouts, ...) for a player or sport, with the market and book prices."
+		},
+		{
+			"name": "pry_injuries",
+			"description": "Get the current injury report for a sport or team: player, team, injury detail, and status (out/questionable/active)."
+		},
+		{
+			"name": "pry_live_odds",
+			"description": "Get live in-play odds that update during games (moneyline, spreads, totals as they move)."
+		},
+		{
+			"name": "pry_scores",
+			"description": "Get final or live scores for one or more sports on a given day from ESPN public scoreboards (free, no quota, high-frequency safe)."
+		},
+		{
+			"name": "pry_historical_odds",
+			"description": "Get historical betting odds for past events from The Odds API history feed: the closing lines, opening lines, and best available prices for moneyline, spreads, and totals on a given date."
+		},
+		{
+			"name": "pry_betting_percentages",
+			"description": "Get public betting percentages (the share of bets and the share of money on each side of a game) across bookmakers, e.g."
+		},
+		{
+			"name": "pry_alerts",
+			"description": "Get or manage money-printer alerts: significant line moves, sharp steam, limit-up CLV, and bettor-facing notifications you subscribe to."
+		},
+		{
+			"name": "pry_books",
+			"description": "Aggregate live odds for one sport/market across all 112 sportsbooks in Pry's registry (US, offshore, EU, UK, and Asian books) by scraping each book directly through Pry's intelligent fallback..."
+		},
+		{
+			"name": "pry_book_coverage",
+			"description": "Get sportsbook coverage-registry statistics: how many of the 112 sportsbooks Pry scrapes directly, broken down by category (US, offshore, EU, UK, Asian), extraction method, and geo-requirement."
+		},
+		{
+			"name": "pry_prediction_markets",
+			"description": "Get live prediction-market data merged from Polymarket (Gamma API) and Kalshi (public trade API v2) — no API keys required."
+		},
+		{
+			"name": "pry_prediction_market_detail",
+			"description": "Look up a single prediction market by id or ticker and return its full detail: question, outcome prices (0-1 probabilities), volume, liquidity, resolution date, and source URL."
+		},
+		{
+			"name": "pry_futures",
+			"description": "Get futures and championship odds across sportsbooks — Super Bowl winner, NBA MVP, league champions, award winners."
+		},
+		{
+			"name": "pry_derivatives",
+			"description": "Price exotic bet derivatives — teasers, pleasers, if-bets, reverse bets, and round robins."
+		},
+		{
+			"name": "pry_kelly_criterion",
+			"description": "Kelly criterion bankroll management — optimal bet sizing from win probability and odds."
+		},
+		{
+			"name": "pry_lineups",
+			"description": "Get the active/projected lineup, injury report, and minutes projection for a team's next game, from ESPN."
+		},
+		{
+			"name": "pry_player_props_live",
+			"description": "Get ALL live player prop lines for one player across every bookmaker (DraftKings, FanDuel, BetMGM, ...) with a cross-book line-movement signal."
+		},
+		{
+			"name": "pry_player_stats",
+			"description": "Get a player's last N games of stats with per-game lines, averages, and a hot/cold trend flag per stat versus his season average, from the ESPN game log."
+		},
+		{
+			"name": "pry_props_matchup",
+			"description": "Get ALL player props for both teams in a matchup, annotated with defensive context: how the opposing defense ranks against each core prop type (points, rebounds, assists, yards, ...) with a..."
+		},
+		{
+			"name": "pry_steam_moves",
+			"description": "Detect steam moves: lines that shifted across 3+ sportsbooks simultaneously inside a short lookback window — the loudest sharp money signal, since independent books rarely move in lockstep without..."
+		},
+		{
+			"name": "pry_reverse_line_movement",
+			"description": "Find reverse line movement (RLM): lines that moved TOWARD the side with LESS public betting percentage — the classic sign that sharp money is fading the public."
+		},
+		{
+			"name": "pry_bet_money_divergence",
+			"description": "Find bet-percentage vs money-percentage divergence: when a large share of TICKETS is on one team but the MONEY (dollars) is on the other, big bettors are on the minority side."
+		},
+		{
+			"name": "pry_line_watch",
+			"description": "Lines worth watching for value: current vs opening line per event, which book currently holds the best number, total movement since the first recorded snapshot, and a value indicator (good_line /..."
+		},
+		{
+			"name": "pry_sharp_report",
+			"description": "Full sharp money intelligence report for a sport: aggregates steam moves, reverse line movement signals, top bet/money divergences, line-watch items, and an overall sharp-indicators ranking of..."
+		},
+		{
+			"name": "pry_sharp_consensus",
+			"description": "Games where MULTIPLE sharp indicators align on the same side: steam moves, reverse line movement, and bet/money divergence all pointing at one team."
+		},
+		{
+			"name": "pry_live_games",
+			"description": "Every in-progress game on a sport's slate right now, from ESPN's free public scoreboard: event_id, home/away, live scores, quarter, time remaining, status."
+		},
+		{
+			"name": "pry_live_game_state",
+			"description": "Full live state for one game: score, quarter, clock, possession, momentum (last five possessions when available), pace, scoring rate, remaining timeouts."
+		},
+		{
+			"name": "pry_live_win_probability",
+			"description": "Live win probability for one game: home/away chances (ESPN's model when published, else a lead-vs-time heuristic), projected final scores, projected total, over/under probability vs the posted..."
+		},
+		{
+			"name": "pry_live_scoring",
+			"description": "Scoring breakdown for one live game: per-quarter scores for both teams, lead changes, ties and quarter-by-quarter scoring runs."
+		},
+		{
+			"name": "pry_live_betting_impact",
+			"description": "Live betting impact for one game: current margin vs the posted spread, pace-based total projection vs the posted total, and live value/arb opportunities (spread edge >= 3 pts, total edge >= 8 pts)."
+		},
+		{
+			"name": "pry_game_weather",
+			"description": "Get current weather at a game venue (temperature, wind, precipitation, humidity, visibility) via Open-Meteo."
+		},
+		{
+			"name": "pry_weather_impact",
+			"description": "Translate venue weather into betting impact: wind/temp/precip bands, a total (points) adjustment, and pass-vs-run game lean."
+		},
+		{
+			"name": "pry_game_context",
+			"description": "Full game-context bundle for a matchup: venue weather, weather impact on scoring, rest days / back-to-back flags (ESPN), and travel distance / time-zone / altitude change."
+		},
+		{
+			"name": "pry_mega_search",
+			"description": "Search the web with EVERY engine at once and return one consensus-ranked list."
+		},
+		{
+			"name": "pry_scrape_methods",
+			"description": "List the extraction methods Pry uses to scrape sportsbook odds pages directly: JSON endpoints, __NEXT_DATA__ (Next.js), __NUXT__, __INITIAL_STATE__ / _dida_config_, HTML tables, and browser rendering."
+		},
+		{
+			"name": "pry_all_sources",
+			"description": "Aggregate one event's odds from every reachable source at once: The Odds API (free tier), ESPN, OddsPortal, Bovada, BetOnline, and the 112-book sportsbook registry scraped directly via intelligent..."
+		},
+		{
+			"name": "pry_weather",
+			"description": "Get current weather and short-range forecasts for a location, built for research pipelines that need environmental context (rain, wind, temperature, AQI) alongside other data."
+		},
+		{
+			"name": "pry_agri",
+			"description": "Get agricultural data: crop conditions, growing-degree days, soil moisture, and commodity-relevant climate indices for a region."
+		},
+		{
+			"name": "pry_papers",
+			"description": "Search academic papers and preprints (arXiv, Semantic Scholar, PubMed) by keyword, author, or topic and return titles, abstracts, and citation counts."
+		},
+		{
+			"name": "pry_domain",
+			"description": "Get a domain intelligence report: WHOIS registration, SSL/TLS details, hosting provider, and technology fingerprint for a website."
+		},
+		{
+			"name": "pry_events",
+			"description": "Search live event listings (concerts, sports, theater) by keyword and optionally location or date, backed by Ticketmaster / SeatGeek class feeds."
+		},
+		{
+			"name": "pry_resale",
+			"description": "Get resale ticket pricing for a specific event: asking prices, ticket counts, and section-level ranges across resale marketplaces."
+		},
+		{
+			"name": "pry_freight",
+			"description": "Get ocean container freight rates for a route: spot and contract rates per 40ft container across major trade lanes, plus FMC contract visibility where available."
+		},
+		{
+			"name": "pry_energy_lmp",
+			"description": "Get electricity locational marginal prices (LMP) for an ISO region and date, with day-ahead / real-time splits where available."
+		},
+		{
+			"name": "pry_grocery",
+			"description": "Get grocery prices for a product or category, optionally filtered by ZIP code for local store pricing."
+		},
+		{
+			"name": "pry_restaurant",
+			"description": "Get a restaurant's menu with prices: items, sections, and per-dish pricing for a named restaurant."
+		},
+		{
+			"name": "pry_imports",
+			"description": "Get U.S."
+		},
+		{
+			"name": "pry_firmographics",
+			"description": "Get firmographic data for a company: employee count band, revenue range, founding year, headquarters, industry, and company type."
+		},
+		{
+			"name": "pry_app_search",
+			"description": "Search the Apple App Store by keyword and return matching apps — name, bundle id, price, rating, category, and store URL."
+		},
+		{
+			"name": "pry_app_reviews",
+			"description": "Get recent user reviews for an app by its store identifier — the numeric App Store id or bundle id, e.g."
+		},
+		{
+			"name": "pry_news",
+			"description": "Search news articles by keyword across public news feeds and aggregators, returning title, source, published date, and URL for each result."
+		},
+		{
+			"name": "pry_sentiment",
+			"description": "Score the sentiment of recent news about a keyword — positive / neutral / negative with a confidence score — using lightweight text analysis over the same public news feeds as pry_news."
+		},
+		{
+			"name": "pry_company_watch",
+			"description": "Return the regulatory watch record for a company — recent enforcement actions, fines, sanctions, and compliance filings — e.g."
+		},
+		{
+			"name": "pry_deals",
+			"description": "Search deals, discounts, and promotions by keyword across public deal feeds, returning merchant, product, price, discount percentage, and expiry for each result."
+		},
+		{
+			"name": "pry_drop_alert",
+			"description": "Check for drop alerts / limited product restock or flash-sale signals for a product, returning availability windows, price drops, and the merchant for each signal, e.g."
+		},
+		{
+			"name": "pry_contracts",
+			"description": "Search government contract opportunities and awards by keyword across public procurement feeds, returning agency, solicitation number, award value, status, and deadline for each result."
+		},
+		{
+			"name": "pry_grants",
+			"description": "Search government grant opportunities by keyword across public grant feeds, returning agency, opportunity number, funding amount, eligibility, and deadline for each result."
+		},
+		{
+			"name": "pry_actor_catalog",
+			"description": "List every Pry Apify Store actor (109) with description, category, pricing events and per-event USD price."
+		},
+		{
+			"name": "pry_actor_run",
+			"description": "Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors."
 		}
 	],
 	"payment": {
@@ -93,5 +449,6 @@
 	},
 	"tags": ["scraping", "web", "data", "x402", "crypto", "ai-agents", "mcp"],
 	"categories": ["developer-tools", "data", "ai-agents"],
-	"featured": true
+	"featured": true,
+	"tools_count": 99
 }

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Version reconciliation (2026-10)
+
+The shipping version is **3.0.0**: `pyproject.toml`, `server.json`, `glama.json`,
+`pulsemcp.json` and `registry_submissions/mcp_listing.json` all declare 3.0.0, and
+no `3.0.0`/`3.1.0` git tags exist. The `3.1.0` section below is planned work, not a
+release — it is labelled unreleased and will be folded into a dated heading only
+when the version is bumped, tagged and published. Nothing here invents a release.
+
 ### Production Features (2026-09)
 - **Prometheus /metrics endpoint** — x402_verify_total, x402_settle_total, facilitator_healthy gauges
 - **GET /supported, /healthz, /readyz** — x402 V2 spec ops endpoints
@@ -37,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **On-chain batch channels** — voucher/claim/refund model with max_claims cap (from JS @x402/batch-settlement)
 - **register_facilitator plugin point** — custom facilitator per-network (from Coinbase x402-py)
 
-## [3.1.0] — 2026-09
+## [3.1.0] — unreleased (planned)
 
 Next release on top of 3.0.0: hardening the MCP server's security posture,
 eliminating blocking I/O in the scraping engine, and expanding the quality
@@ -168,4 +176,4 @@ payments reach production hardening, and the scraping engine grows to a
 
 ## [2.0.0] and earlier
 
-See git history: <https://codeberg.org/RugMunchMedia/pryscraper/commits/branch/main>
+See git history: <https://git.rugmunch.io/RugMunchMedia/pryscraper/commits/branch/main>

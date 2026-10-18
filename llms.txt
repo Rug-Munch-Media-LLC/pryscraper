@@ -8,6 +8,35 @@
 - [API Reference](https://docs.pryscraper.com/api)
 - [x402 Payments](https://docs.pryscraper.com/x402)
 
+## Install
+
+The PyPI distribution is not published yet — `pip install pryscraper-mcp` returns 404.
+Install from the repository instead.
+
+### Docker (self-host, recommended)
+
+```bash
+git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git
+cd pryscraper
+cp .env.selfhost.example .env.selfhost
+./scripts/selfhost-init.sh
+PRY_SELFHOST_PORT=8005 docker compose -f docker-compose.yml -f docker-compose.selfhost.yml \
+  --env-file .env.selfhost up -d
+```
+
+API `http://localhost:8005`, MCP `http://localhost:8005/mcp/`, health `http://localhost:8005/health`.
+Self-hosted calls are not x402-gated by default.
+
+### From source
+
+```bash
+git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git
+cd pryscraper
+python3 -m pip install -e .
+pry serve                                   # REST + HTTP MCP on :8005
+python3 -m pry.api.mcp_production           # stdio MCP server
+```
+
 ## MCP Server
 
 - URL: https://api.pryscraper.com/mcp/

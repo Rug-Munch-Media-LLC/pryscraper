@@ -158,6 +158,10 @@ services:
   # box from booting Postgres, Redis, Prometheus, Grafana, two extra
   # FlareSolverr instances and the OTEL/Jaeger pair.
   postgres: !reset null
+  # Self-host uses an EXTERNAL Redis. It must run
+  # `--maxmemory-policy noeviction`: DB 0 holds x402 nonces and quota
+  # counters, so an LRU policy can evict replay guards. Put any
+  # disposable cache on a different logical DB or instance.
   redis: !reset null
   prometheus: !reset null
   # Added to the base compose 2026-09-27 (22537038) to give the Pry alert rules
@@ -168,6 +172,13 @@ services:
   flaresolverr: !reset null
   postgres-exporter: !reset null
   redis-exporter: !reset null
+  # Postgres-only ops jobs: self-host runs SQLite (see PRY_DATABASE_URL
+  # above), so the dump/retention services have nothing to operate on.
+  retention: !reset null
+  backup: !reset null
+  # Cache split is a production-Postgres concern; the self-host overlay
+  # uses the operator's external Redis.
+  redis-cache: !reset null
   blackbox-exporter: !reset null
   otel-collector: !reset null
   jaeger: !reset null

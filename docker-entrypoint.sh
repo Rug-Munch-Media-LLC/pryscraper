@@ -20,7 +20,7 @@
 # the container with `init: true` (tini). Escape hatches (documented in docs/ops/DEPLOY.md):
 #   PRY_SKIP_MIGRATIONS=1               skip step 4 (self-host SQLite uses init_db)
 #   PRY_BACKUP_BEFORE_MIGRATE=0         skip step 3
-#   PRY_REQUIRE_PRE_MIGRATION_BACKUP=1  abort instead of warning if the dump fails
+#   PRY_REQUIRE_PRE_MIGRATION_BACKUP=1  DEFAULT: abort if the dump fails (0 to warn only)
 #   PRY_ALLOW_ROOT=1                    allow uid 0 (not supported; debug only)
 #   PRY_STRICT_CONFIG=1                 fail on [ERROR]-level config issues
 #   PRY_SHUTDOWN_HOOK                   command to run after uvicorn exits
@@ -112,7 +112,7 @@ _pre_migration_backup() {
         *) return 0 ;;
     esac
     if ! command -v pg_dump >/dev/null 2>&1; then
-        if [ "${PRY_REQUIRE_PRE_MIGRATION_BACKUP:-0}" = "1" ]; then
+        if [ "${PRY_REQUIRE_PRE_MIGRATION_BACKUP:-1}" = "1" ]; then
             die "pg_dump not found but PRY_REQUIRE_PRE_MIGRATION_BACKUP=1"
         fi
         log "WARNING: pg_dump not found; continuing without a pre-migration backup"
@@ -132,7 +132,7 @@ _pre_migration_backup() {
         done
         return 0
     fi
-    if [ "${PRY_REQUIRE_PRE_MIGRATION_BACKUP:-0}" = "1" ]; then
+    if [ "${PRY_REQUIRE_PRE_MIGRATION_BACKUP:-1}" = "1" ]; then
         die "pre-migration backup failed and PRY_REQUIRE_PRE_MIGRATION_BACKUP=1"
     fi
     log "WARNING: pre-migration backup failed (continuing; set PRY_REQUIRE_PRE_MIGRATION_BACKUP=1 to abort)"

@@ -26,6 +26,7 @@ Create Date: 2026-08-14 00:00:00.000000
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
@@ -34,6 +35,20 @@ from alembic import op
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+_DROPPED_TABLES = (
+    "review_items",
+    "costing_entries",
+    "freshness_snapshots",
+    "seo_snapshots",
+    "training_datasets",
+    "pipeline_runs",
+    "gdpr_requests",
+    "agency_clients",
+    "actor_runs",
+    "llm_usage",
+    "x402_receipts",
+)
 
 revision: str = "0002"
 down_revision: str | None = "0001"
@@ -58,6 +73,37 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Recreate the dropped tables — EMPTY. Refuses unless acknowledged.
+
+    0002's upgrade deletes the rows of eleven dead tables. Downgrade can
+    rebuild the schema but cannot restore that data, so silently running it
+    turns "rollback" into permanent loss. Require an explicit opt-in; when
+    any table still exists AND holds rows, refuse regardless.
+    """
+    if os.environ.get("PRY_ALLOW_LOSSY_DOWNGRADE", "0") != "1":
+        raise RuntimeError(
+            "0002 downgrade recreates eleven dropped tables EMPTY; the deleted "
+            "rows cannot be restored. Set PRY_ALLOW_LOSSY_DOWNGRADE=1 (with a "
+            "verified backup) to acknowledge the loss."
+        )
+    insp = sa.inspect(op.get_bind())
+    populated = []
+    for table in _DROPPED_TABLES:
+        if table in insp.get_table_names():
+            count = (
+                op.get_bind()
+                .execute(
+                    sa.text(f"SELECT COUNT(*) FROM {table}")  # noqa: S608  # nosec B608 — fixed names
+                )
+                .scalar()
+            )
+            if count:
+                populated.append(f"{table}({count})")
+    if populated:
+        raise RuntimeError(
+            "0002 downgrade refused: these tables exist and hold rows that a "
+            "recreate would discard: " + ", ".join(populated)
+        )
     # Recreate the tables (empty) so `alembic downgrade 0001` is reversible.
     op.create_table(
         "review_items",

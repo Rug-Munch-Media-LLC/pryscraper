@@ -125,10 +125,11 @@ def test_0009_duplicate_payment_tx_rejected(migrated):
         conn.execute(insert, {"payment_id": "pay_2", "tx_hash": "0xabc"})
 
 
-def test_0009_downgrade_upgrade_round_trip(migrated):
+def test_0009_downgrade_upgrade_round_trip(migrated, monkeypatch):
     from alembic import command
 
     cfg = _alembic_config(migrated.url.render_as_string(hide_password=False))
+    monkeypatch.setenv("PRY_ALLOW_LOSSY_DOWNGRADE", "1")
 
     command.downgrade(cfg, "0008")
     tables = set(inspect(migrated).get_table_names())
@@ -158,6 +159,11 @@ def test_0009_backfills_and_dedupes_before_unique_index(temp_data_dir, monkeypat
     monkeypatch.chdir(REPO_ROOT)
     # Authentic pre-0009 state: no model auto-create masking the migration.
     monkeypatch.setenv("PRY_ALEMBIC_AUTO", "0")
+    # Destructive dedupe is now opt-in and requires a verified dump path.
+    monkeypatch.setenv("PRY_ALLOW_X402_DEDUPE", "1")
+    dump = temp_data_dir / "dump"
+    dump.write_bytes(b"SQLite format 3\x00" + b"x" * 64)  # non-empty verified dump
+    monkeypatch.setenv("PRY_X402_BACKUP_PATH", str(dump))
     cfg = _alembic_config(f"sqlite:///{temp_data_dir}/test.db")
     command.upgrade(cfg, "0008")
 
@@ -200,7 +206,12 @@ def test_0009_tolerates_hosting_tables_precreated_by_auto_create(temp_data_dir, 
     cfg = _alembic_config(f"sqlite:///{temp_data_dir}/test.db")
     command.upgrade(cfg, "0008")
 
-    engine = db.get_engine()  # auto-create is ON for this test
+    engine = db.get_engine()
+    # 2026-10-18: get_engine() no longer runs create_all (schema drift P1).
+    # Keep the shape under test by creating the tables the old path created.
+    from pry.core.db.models import Base
+
+    Base.metadata.create_all(engine)
     assert "hosting_plans" in set(inspect(engine).get_table_names())
 
     command.upgrade(cfg, "head")

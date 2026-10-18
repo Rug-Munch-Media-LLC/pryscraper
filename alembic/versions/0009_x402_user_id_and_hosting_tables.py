@@ -28,6 +28,7 @@ app touched first the two hosting tables (new models) already exist; a blind
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
@@ -84,6 +85,42 @@ def _create_index_once(table: str, index: str, columns: list[str], *, unique: bo
     op.create_index(index, table, columns, unique=unique)
 
 
+def _duplicate_count() -> int:
+    """Rows that a UNIQUE(payment_id, tx_hash) index would collide with."""
+    row = (
+        op.get_bind()
+        .execute(
+            sa.text(
+                "SELECT COUNT(*) FROM ("
+                "SELECT 1 FROM x402_payment_records "
+                "GROUP BY payment_id, tx_hash HAVING COUNT(*) > 1)"
+            )
+        )
+        .scalar()
+    )
+    return int(row or 0)
+
+
+def _authorise_dedupe(count: int) -> None:
+    """Deleting ledger rows requires an explicit flag AND a verified dump.
+
+    A container start must never quietly delete payment records. Without
+    both an opt-in and an on-disk backup the migration refuses, naming the
+    duplicate count, so an operator resolves it deliberately.
+    """
+    if os.environ.get("PRY_ALLOW_X402_DEDUPE", "0") != "1":
+        raise RuntimeError(
+            f"0009 found {count} duplicate x402_payment_records row(s). "
+            "Deleting payment records is opt-in: set PRY_ALLOW_X402_DEDUPE=1."
+        )
+    dump = os.environ.get("PRY_X402_BACKUP_PATH", "")
+    if not dump or not os.path.isfile(dump) or os.path.getsize(dump) == 0:
+        raise RuntimeError(
+            "PRY_ALLOW_X402_DEDUPE=1 requires PRY_X402_BACKUP_PATH pointing at "
+            "a non-empty, verified database dump (pg_dump/sqlite .backup)."
+        )
+
+
 def upgrade() -> None:
     # ── 1. customer attribution on both x402 ledger tables ──
     _add_column_once(PAYMENT, "user_id", sa.String(128))
@@ -94,12 +131,15 @@ def upgrade() -> None:
     # ── 2. NULL tx_hash defeats UNIQUE: normalise, dedupe, then index ──
     if not _has_index(PAYMENT, UX_PAYMENT_TX):
         op.execute(sa.text("UPDATE x402_payment_records SET tx_hash = '' WHERE tx_hash IS NULL"))
-        op.execute(
-            sa.text(
-                "DELETE FROM x402_payment_records WHERE id NOT IN ("
-                "SELECT MIN(id) FROM x402_payment_records GROUP BY payment_id, tx_hash)"
+        duplicate_count = _duplicate_count()
+        if duplicate_count:
+            _authorise_dedupe(duplicate_count)
+            op.execute(
+                sa.text(
+                    "DELETE FROM x402_payment_records WHERE id NOT IN ("
+                    "SELECT MIN(id) FROM x402_payment_records GROUP BY payment_id, tx_hash)"
+                )
             )
-        )
         op.create_index(UX_PAYMENT_TX, PAYMENT, ["payment_id", "tx_hash"], unique=True)
 
     # ── 3. cloud hosting tables (models existed, schema did not) ──

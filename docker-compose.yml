@@ -121,6 +121,10 @@ services:
       # The URL above is a sync psycopg2 URL; alembic/env.py also normalises an
       # async driver, which is what used to crash migrations. See docs/ops/DEPLOY.md.
       - PRY_SKIP_MIGRATIONS=0
+      # Fail closed: a pre-migration backup that cannot be written aborts the
+      # rollout instead of migrating an unprotected database. The scheduled
+      # off-host copy is scripts/backup-postgres.sh (service `backup`).
+      - PRY_REQUIRE_PRE_MIGRATION_BACKUP=1
     healthcheck:
       # HTTP /health probe — matches the Dockerfile HEALTHCHECK. A TCP probe
       # only proves the socket accepts connections and masks HTTP-level
@@ -231,7 +235,16 @@ services:
       - "127.0.0.1:6380:6379"
     volumes:
       - pry-redis:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    # NOEVICTION IS LOAD-BEARING: this instance holds x402 nonces and quota
+    # counters. `allkeys-lru` could silently evict a nonce, turning a replay
+    # guard into an allow. With noeviction a full instance fails writes loudly
+    # (and is alerted) instead of dropping correctness-critical keys.
+    # maxmemory is below the container limit (256M) so eviction-free writes
+    # fail at 192M with headroom for AOF/RDB buffers rather than OOM-killing.
+    # Ephemeral LRU cache belongs on the separate `redis-cache` instance
+    # (profile `cache`) or, at minimum, a different logical DB on another
+    # instance — never DB 0 here.
+    command: redis-server --appendonly yes --maxmemory 192mb --maxmemory-policy noeviction
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -246,6 +259,92 @@ services:
         reservations:
           memory: 64M
           cpus: "0.1"
+
+  # ── Ops jobs (profile `ops`, not started by `up`) ──────────────────
+  # Nightly batched retention. systemd equivalent (documented in
+  # scripts/retention.py): oneshot service running
+  #   docker compose --profile ops run --rm retention
+  # with OnCalendar=*-*-* 03:30:00 UTC, Persistent=true.
+  retention:
+    profiles: ["ops"]
+    image: ${PRY_IMAGE_REPO:-pryscraper}:${PRY_IMAGE_TAG:-latest}
+    build: .
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}retention
+    entrypoint: ["python", "scripts/retention.py"]
+    working_dir: /app
+    restart: "no"
+    read_only: true
+    user: "1000:1000"
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      - /home/pry:size=32m,mode=0700,uid=1000,gid=1000
+    environment:
+      - PRY_DATABASE_URL=postgresql://pry:${POSTGRES_PASSWORD}@postgres:5432/pry
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
+  # On-demand off-host backup + restore test (scripts/backup-postgres.sh).
+  # B2_* comes from the environment; unset B2_BUCKET means a local-only dump.
+  backup:
+    profiles: ["ops"]
+    image: ${PRY_IMAGE_REPO:-pryscraper}:${PRY_IMAGE_TAG:-latest}
+    build: .
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}backup
+    entrypoint: ["bash", "scripts/backup-postgres.sh"]
+    working_dir: /app
+    restart: "no"
+    read_only: true
+    user: "1000:1000"
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      - /home/pry:size=32m,mode=0700,uid=1000,gid=1000
+    volumes:
+      - pry-data:/app/pry-data
+    environment:
+      - PRY_DATABASE_URL=postgresql://pry:${POSTGRES_PASSWORD}@postgres:5432/pry
+      - PRY_BACKUP_DIR=/app/pry-data/backups
+      - BACKUP_RETENTION_DAYS=30
+      - B2_BUCKET=${B2_BUCKET:-}
+      - B2_PREFIX=${B2_PREFIX:-pry/postgres}
+      - B2_ENDPOINT=${B2_ENDPOINT:-}
+      - B2_KEY_ID=${B2_KEY_ID:-}
+      - B2_APP_KEY=${B2_APP_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  # Separate, disposable LRU cache. Never store nonces/quota here.
+  redis-cache:
+    profiles: ["cache"]
+    image: redis:7.4.1-alpine
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}redis-cache
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:6381:6379"
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+          cpus: "0.25"
+
 
   # 2026-09-27: the pry stack had NO alertmanager, so every rule in
   # prometheus/alerts.yml evaluated but could never notify anyone — the rules

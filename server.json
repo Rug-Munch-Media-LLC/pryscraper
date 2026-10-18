@@ -6,8 +6,8 @@
 	"version": "3.0.0",
 	"websiteUrl": "https://pryscraper.com",
 	"repository": {
-		"source": "codeberg",
-		"url": "https://codeberg.org/cryptorugmunch/pryscraper"
+		"source": "git",
+		"url": "https://git.rugmunch.io/RugMunchMedia/pryscraper"
 	},
 	"packages": [
 		{

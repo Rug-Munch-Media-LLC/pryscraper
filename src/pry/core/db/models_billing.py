@@ -1,10 +1,6 @@
 """Pry - SQLAlchemy models: billing & commerce domain.
 
-Balances, ledger, hosting plans/instances/invoices, agency,
-referrals, actors, x402 payment/settlement records.
-
-Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
-Licensed under MIT. See LICENSE.
+Balances, ledger, hosting, x402 records. MIT - see LICENSE.
 """
 
 # SPDX-License-Identifier: MIT
@@ -27,35 +23,49 @@ if Base is not None:
         ForeignKey,
         Index,
         Integer,
+        Numeric,
         String,
         Text,
+        text,
     )
 
     # ── Billing (prepaid balances for API-key customers) ──
     class Balance(Base):
         __tablename__ = "balances"
         user_id = Column(String(64), ForeignKey("users.user_id"), primary_key=True)
-        balance_usd = Column(Float, default=0.0, nullable=False)
-        low_balance_threshold_usd = Column(Float, default=5.0, nullable=False)
+        # NUMERIC(18,6) is the only money type in the ledger path.
+        balance_usd = Column(Numeric(18, 6), default=0, nullable=False)
+        low_balance_threshold_usd = Column(Numeric(18, 6), default=5, nullable=False)
         updated_at = Column(DateTime, default=_now, onupdate=_now)
 
     class LedgerEntry(Base):
         __tablename__ = "ledger_entries"
         id = Column(Integer, primary_key=True)
         user_id = Column(String(64), ForeignKey("users.user_id"), index=True, nullable=False)
-        delta_usd = Column(Float, nullable=False)  # +credit / -debit
+        delta_usd = Column(Numeric(18, 6), nullable=False)  # +credit / -debit
         reason = Column(String(32), nullable=False)  # deposit, grant, usage, refund
         reference = Column(String(128), default="")  # payment_id / tx_hash / key_id
-        balance_after = Column(Float, nullable=False)
+        balance_after = Column(Numeric(18, 6), nullable=False)
         created_at = Column(DateTime, default=_now, index=True)
         Index("ix_ledger_user_created", user_id, created_at.desc())
+        Index("ix_ledger_entries_reference", reference)
+        # One row per idempotency key; blank reference (usage) is excluded.
+        Index(
+            "ux_ledger_user_reason_reference",
+            user_id,
+            reason,
+            reference,
+            unique=True,
+            sqlite_where=text("reference <> ''"),
+            postgresql_where=text("reference <> ''"),
+        )
 
     # ── Cloud hosting (hosted pry instances) ──
     class HostingPlan(Base):
         __tablename__ = "hosting_plans"
         tier = Column(String(32), primary_key=True)  # pro | team | enterprise
         name = Column(String(64), nullable=False)
-        price_usd_monthly = Column(Float, nullable=True)  # None = custom quote
+        price_usd_monthly = Column(Numeric(18, 6), nullable=True)  # None = custom quote
         max_concurrent_scrapes = Column(Integer, default=1, nullable=False)
         max_pages_month = Column(Integer, nullable=True)  # None = unlimited
         storage_gb = Column(Integer, default=1, nullable=False)
@@ -99,7 +109,8 @@ if Base is not None:
         )
         instance_id = Column(String(64), default="", index=True)  # "" until provisioned
         payment_method = Column(String(32), default="x402", nullable=False)
-        amount_usd = Column(Float, nullable=False)
+        amount_usd = Column(Numeric(18, 6), nullable=False)
+        # amount_atomic is the settlement source of truth; amount_usd is derived.
         amount_atomic = Column(String(64), default="0", nullable=False)
         chain = Column(String(32), default="", nullable=False)
         pay_to = Column(String(128), default="", nullable=False)
@@ -121,9 +132,6 @@ if Base is not None:
         updated_at = Column(DateTime, default=_now, onupdate=_now, nullable=False)
         Index("ix_hosting_invoices_user_created", user_email, created_at.desc())
 
-    # ── GDPR ──
-    # (GdprRequest removed 2026-08-14: zero live consumers, table dropped in 0002)
-
     # ── Agency (white-label) ──
     class Agency(Base):
         __tablename__ = "agencies"
@@ -137,8 +145,6 @@ if Base is not None:
         quota = Column(Integer, default=10000)
         active = Column(Boolean, default=True)
         created_at = Column(DateTime, default=_now)
-
-    # (AgencyClient removed 2026-08-14: zero live consumers, table dropped in 0002)
 
     # ── Referrals (click/conversion tracking) ──
     class ReferralClick(Base):
@@ -189,13 +195,9 @@ if Base is not None:
         revenue_usd = Column(Float, default=0.0)
         created_at = Column(DateTime, default=_now)
 
-    # (ActorRun removed 2026-08-14: zero live consumers, table dropped in 0002)
-
     # ── LLM usage tracking ──
-    # (LlmUsage removed 2026-08-14: zero live consumers, table dropped in 0002)
 
     # ── x402 receipts ──
-    # (X402Receipt removed 2026-08-14: zero live consumers, table dropped in 0002)
 
     # ── x402 ledger (payment + settlement records — audit item #2) ──
     class X402PaymentRecord(Base):
@@ -205,7 +207,7 @@ if Base is not None:
         tx_hash = Column(String(80), index=True, default="")
         network = Column(String(64), default="")
         asset = Column(String(32), default="")
-        amount_usd = Column(Float, default=0.0)
+        amount_usd = Column(Numeric(18, 6), default=0)
         required_amount_atomic = Column(String(64), default="")
         operation = Column(String(64), index=True, default="")
         verified = Column(Boolean, default=False, index=True)
@@ -233,7 +235,7 @@ if Base is not None:
         tx_hash = Column(String(80), index=True, default="")
         network = Column(String(64), default="")
         asset = Column(String(32), default="")
-        amount_usd = Column(Float, default=0.0)
+        amount_usd = Column(Numeric(18, 6), default=0)
         facilitator = Column(String(64), default="")
         settled_at = Column(DateTime, nullable=True)
         receipt = Column(JSON, default=dict)  # full settlement receipt (lossless)
