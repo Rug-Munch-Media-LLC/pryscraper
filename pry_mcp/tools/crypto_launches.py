@@ -156,7 +156,7 @@ async def handle_token_launches(name: str, arguments: dict[str, Any]) -> dict[st
     chain = arguments.get("chain", "all")
     limit = int(arguments.get("limit", 50))
     try:
-        from crypto_market.token_launches import (
+        from datasets.crypto_market.token_launches import (
             get_new_pairs,
             get_new_tokens,
             get_trending_tokens,
@@ -182,7 +182,7 @@ async def handle_cex_listings(name: str, arguments: dict[str, Any]) -> dict[str,
     exchanges = arguments.get("exchanges") or None
     lookback_hours = int(arguments.get("lookback_hours", 24))
     try:
-        from crypto_market.cex_listings import get_listing_signals
+        from datasets.crypto_market.cex_listings import get_listing_signals
     except ImportError as e:
         logger.warning(
             "suppressed %s in handle_cex_listings (crypto_launches.py:182): %s",

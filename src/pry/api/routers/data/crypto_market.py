@@ -1,9 +1,10 @@
 """Pry — Crypto market intelligence router.
 
 Exposes token-launch discovery, CEX listing/delisting signals, and token
-security scans backed by the ``crypto_market`` subpackage (built in parallel
-by other agents, so every import is guarded and degrades to 502 while a
-module has not landed yet).
+security scans backed by the ``datasets.crypto_market`` package. Every
+import is guarded: if a submodule is missing the endpoint still answers
+200 with ``available: false`` and a ``reason`` instead of failing the
+request, and an empty upstream result is a normal 200.
 
 Endpoints:
 - GET /v1/crypto/token-launches        — new tokens / pairs / trending
@@ -25,7 +26,7 @@ from typing import Any
 
 from fastapi import APIRouter, Query
 
-from pry.core.errors import ExternalServiceError, InvalidRequestError
+from pry.core.errors import InvalidRequestError
 
 logger = logging.getLogger(__name__)
 
@@ -47,10 +48,16 @@ def _crypto_module(module_name: str) -> Any:
         return None
 
 
-def _module_unavailable(module_name: str) -> None:
-    raise ExternalServiceError(
-        f"crypto_market.{module_name} is not available yet (parallel build in progress)"
-    )
+def _unavailable(module_name: str, **extra: Any) -> dict[str, Any]:
+    """200-safe payload for a missing submodule (never a 502)."""
+    logger.warning("crypto_market_endpoint_degraded", extra={"module_name": module_name})
+    return {
+        "success": True,
+        "available": False,
+        "reason": f"datasets.crypto_market.{module_name} is not available",
+        "data": [],
+        **extra,
+    }
 
 
 @router.get(
@@ -68,7 +75,7 @@ async def crypto_token_launches(
         raise InvalidRequestError(f"kind must be one of {sorted(_KINDS)}")
     mod = _crypto_module("token_launches")
     if mod is None:
-        _module_unavailable("token_launches")
+        return _unavailable("token_launches", chain=chain, kind=kind)
     fn = {
         "tokens": mod.get_new_tokens,
         "pairs": mod.get_new_pairs,
@@ -92,7 +99,7 @@ async def crypto_cex_listings(
     """List recent centralized-exchange listing signals."""
     mod = _crypto_module("cex_listings")
     if mod is None:
-        _module_unavailable("cex_listings")
+        return _unavailable("cex_listings", lookback_hours=lookback_hours)
     data = await mod.get_listing_signals(exchanges=exchanges, lookback_hours=lookback_hours)
     return {"success": True, "data": data, "lookback_hours": lookback_hours}
 
@@ -106,6 +113,6 @@ async def crypto_token_security(chain: str, address: str) -> dict[str, Any]:
     """Scan a token for rug-pull / honeypot risk signals."""
     mod = _crypto_module("token_security")
     if mod is None:
-        _module_unavailable("token_security")
+        return _unavailable("token_security", data={})
     data = await mod.scan_token(chain, address)
     return {"success": True, "data": data}
