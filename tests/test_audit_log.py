@@ -29,8 +29,11 @@ from pry.core.middleware import PryHttpMiddleware
 def db(tmp_path, monkeypatch):
     """Isolated SQLite DB (same pattern as test_api_keys_revocation.py)."""
     monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/test.db")
-    monkeypatch.setattr(session_mod, "_engine", None, raising=False)
-    monkeypatch.setattr(session_mod, "_SessionLocal", None, raising=False)
+    # `pry.core.db.session` only forwards reads; the owner is db_engine.
+    import pry.core.db.db_engine as db_engine_mod
+
+    monkeypatch.setattr(db_engine_mod, "_engine", None, raising=False)
+    monkeypatch.setattr(db_engine_mod, "_SessionLocal", None, raising=False)
 
     engine = create_engine(f"sqlite:///{tmp_path}/test.db")
     models_mod.Base.metadata.create_all(engine)

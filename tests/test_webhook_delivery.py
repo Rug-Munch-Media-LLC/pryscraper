@@ -25,7 +25,10 @@ def wh(tmp_path: Path) -> WebhookDelivery:
     """Return a webhook delivery with temp paths so tests don't collide."""
     with (
         patch("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks"),
-        patch("pry.api.webhook_delivery.settings.webhook_secret", "test-secret"),
+        # deliver() reads the retry backoff from this module constant; keep
+        # retry behaviour, not the wall-clock sleep.
+        patch("pry.api.webhook_delivery._RETRY_DELAY", 0.001),
+        patch("pry.api.webhook_support.settings.webhook_secret", "test-secret"),
         patch(
             "pry.api.webhook_delivery._validate_url",
             side_effect=lambda url: (url, None),
@@ -52,7 +55,7 @@ def test_init_signing_secret_resolution(monkeypatch):
 
 def test_init_falls_to_settings(monkeypatch):
     monkeypatch.delenv("PRY_WEBHOOK_SECRET", raising=False)
-    with patch("pry.api.webhook_delivery.settings.webhook_secret", "from-settings"):
+    with patch("pry.api.webhook_support.settings.webhook_secret", "from-settings"):
         w = WebhookDelivery()
         assert w.signing_secret == "from-settings"
 
@@ -155,7 +158,7 @@ async def test_deliver_retries_on_500(wh: WebhookDelivery):
     route = respx.post("https://hook.example.com")
     route.mock(return_value=httpx.Response(500, json={"error": "internal"}))
     result = await wh.deliver(
-        "https://hook.example.com", {"event": "test"}, max_retries=2, retry_delay=0.01
+        "https://hook.example.com", {"event": "test"}, max_retries=2
     )
     assert result["success"] is False
     assert result["error"] == "Max retries exceeded"
@@ -168,7 +171,7 @@ async def test_deliver_client_error_no_retry(wh: WebhookDelivery):
     route = respx.post("https://hook.example.com")
     route.mock(return_value=httpx.Response(400, json={"error": "bad request"}))
     result = await wh.deliver(
-        "https://hook.example.com", {"event": "test"}, max_retries=3, retry_delay=0.01
+        "https://hook.example.com", {"event": "test"}, max_retries=3
     )
     assert result["success"] is False
     assert "Client error" in result.get("error", "")
@@ -191,7 +194,7 @@ async def test_deliver_network_error_retries(wh: WebhookDelivery):
         ]
     )
     result = await wh.deliver(
-        "https://hook.example.com", {"event": "test"}, max_retries=2, retry_delay=0.01
+        "https://hook.example.com", {"event": "test"}, max_retries=2
     )
     assert result["success"] is True
     assert result["attempts"] == 2
@@ -204,7 +207,7 @@ async def test_deliver_all_retries_fail(wh: WebhookDelivery):
     route = respx.post("https://hook.example.com")
     route.mock(side_effect=httpx.ConnectError("always down"))
     result = await wh.deliver(
-        "https://hook.example.com", {"event": "test"}, max_retries=2, retry_delay=0.01
+        "https://hook.example.com", {"event": "test"}, max_retries=2
     )
     assert result["success"] is False
     assert result["error"] == "Max retries exceeded"
@@ -258,7 +261,7 @@ async def test_deliver_custom_event_type(wh: WebhookDelivery):
 def test_init_empty_secret(tmp_path: Path):
     with (
         patch("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks2"),
-        patch("pry.api.webhook_delivery.settings.webhook_secret", ""),
+        patch("pry.api.webhook_support.settings.webhook_secret", ""),
     ):
         w = WebhookDelivery()
         assert w.signing_secret == ""  # empty key allowed at init, but see below
@@ -275,7 +278,7 @@ async def test_deliver_empty_secret_refused(tmp_path: Path):
     """
     with (
         patch("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks3"),
-        patch("pry.api.webhook_delivery.settings.webhook_secret", ""),
+        patch("pry.api.webhook_support.settings.webhook_secret", ""),
         patch(
             "pry.api.webhook_delivery._validate_url",
             side_effect=lambda url: (url, None),
@@ -294,7 +297,7 @@ async def test_deliver_empty_secret_refused(tmp_path: Path):
 def test_sign_payload_empty_secret_raises(tmp_path: Path):
     with (
         patch("pry.api.webhook_delivery.WEBHOOK_DIR", tmp_path / "webhooks4"),
-        patch("pry.api.webhook_delivery.settings.webhook_secret", ""),
+        patch("pry.api.webhook_support.settings.webhook_secret", ""),
     ):
         w = WebhookDelivery()
         with pytest.raises(WebhookSecretNotConfigured):

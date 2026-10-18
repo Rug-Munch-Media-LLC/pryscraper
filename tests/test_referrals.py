@@ -22,6 +22,10 @@ def _referral_db(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     _db._engine = None
     _db._SessionLocal = None
     _db.get_engine()
+    # get_engine() no longer creates the schema (Alembic owns it).
+    from pry.core.db import Base
+
+    Base.metadata.create_all(_db.get_engine())
     yield
     _db._engine = None
     _db._SessionLocal = None

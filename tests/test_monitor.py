@@ -28,6 +28,11 @@ def temp_db(monkeypatch, tmp_path):
     db_module._engine = None
     db_module._SessionLocal = None
     db_module.get_engine()
+    # Schema authority is Alembic; get_engine() deliberately does not
+    # create_all. A test that needs tables must ask for them.
+    from pry.core.db import Base
+
+    Base.metadata.create_all(db_module.get_engine())
     yield
     db_module._engine = None
     db_module._SessionLocal = None
@@ -126,7 +131,10 @@ async def test_run_monitor_scrape_error(temp_db):
     mock_scraper = AsyncMock()
     mock_scraper.scrape.side_effect = ValueError("connection refused")
 
-    with patch("pry.engine.scraper.PryScraper", return_value=mock_scraper):
+    # run_monitor resolves its scraper through the scheduler's module binding
+    # (`scheduler._scraper`), not a fresh PryScraper() — patching the class
+    # left the real scraper in place and hit the network.
+    with patch("pry.actors.scheduler._scraper", mock_scraper):
         result = await run_monitor(m["id"])
 
     assert "error" in result

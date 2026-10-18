@@ -27,6 +27,11 @@ def temp_db(monkeypatch, tmp_path):
     db_module._engine = None
     db_module._SessionLocal = None
     db_module.get_engine()
+    # Schema authority is Alembic; get_engine() deliberately does not
+    # create_all. A test that needs tables must ask for them.
+    from pry.core.db import Base
+
+    Base.metadata.create_all(db_module.get_engine())
     yield tmp_path
     db_module._engine = None
     db_module._SessionLocal = None

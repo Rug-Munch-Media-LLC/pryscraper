@@ -70,6 +70,16 @@ NON_ROUTER_HELPERS = {
     # router by design — the routers that call it are still covered below.
     # Owner derivation for the credential routes; pure logic, no router.
     "core.credential_scope",
+    # 2026-10-18 splits: helpers extracted from routers that were over the
+    # 200-line cap. Each is pure logic injected into its owning router, so
+    # none exposes an APIRouter by design.
+    "core.health_probes",
+    "scraping.http_guards",
+    "scraping.seams",
+    "scraping.media_formats",
+    "ai.vision_flow",
+    "commerce.x402_payloads",
+    "commerce.x402_views",
 }
 
 

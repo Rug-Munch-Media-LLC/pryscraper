@@ -112,11 +112,17 @@ def _clean_hosting_state(tmp_path, monkeypatch):
     """
     monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/hosting-test.db")
     import pry.core.db as db_pkg
-    import pry.core.db.session as session_mod
+    import pry.core.db.db_engine as db_engine_mod
 
     monkeypatch.setattr(db_pkg, "_engine", None, raising=False)
-    monkeypatch.setattr(session_mod, "_engine", None, raising=False)
+    monkeypatch.setattr(db_engine_mod, "_engine", None, raising=False)
+    monkeypatch.setattr(db_engine_mod, "_SessionLocal", None, raising=False)
     reset_hosting_state()
+    # get_engine() no longer creates the schema (Alembic owns it), so a test
+    # that relies on the autouse DB must build the tables itself.
+    from pry.core.db import Base
+
+    Base.metadata.create_all(db_pkg.get_engine())
     monkeypatch.setattr(hosting_mod, "X402_NETWORK_WALLETS", {"eip155:8453": _REAL_WALLET})
     monkeypatch.setattr(hosting_mod, "X402_WALLET", _REAL_WALLET)
     # Test escape hatch: legacy flows confirm without verifying the email
