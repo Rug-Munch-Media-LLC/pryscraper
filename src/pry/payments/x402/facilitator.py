@@ -297,7 +297,18 @@ class FacilitatorRouter(DispatchMixin, SettleReceiptMixin, FacilitatorHealthMixi
                     self._mark_failure(facilitator)
 
         if _eip7702_rpc_key(network) is not None:
-            return self._eip7702_settlement(payment_id, tx_hash, network)
+            # Fail closed: the EIP-7702 receipt is only valid once the SAME
+            # tx has been verified on-chain (payTo + amount). Never mint a
+            # success receipt from the fallback alone.
+            verification = await self._eip7702_verify(tx_hash, network, asset, amount_usd)
+            if verification.get("verified") is True:
+                return self._eip7702_settlement(payment_id, tx_hash, network)
+            return {
+                "success": False,
+                "payment_id": payment_id,
+                "reason": verification.get("reason") or "EIP-7702 settlement not verified",
+                "network": normalize_network_id(network),
+            }
 
         if network_family(network) in ("solana", "tron"):
             return {

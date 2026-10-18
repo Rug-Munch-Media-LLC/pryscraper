@@ -109,12 +109,24 @@ async def _serve_preverified_payment(
     """Serve a pre-verified single payment; True when the request was passed.
 
     Refreshes handler state first so payments issued by other handlers are
-    visible, then marks ``x402_verified`` when the payment is valid.
+    visible, then marks ``x402_verified`` when the payment is valid AND a
+    successful settlement receipt is bound to the same payment_id.
+
+    ``is_paid`` alone only proves verification — a verified-but-unsettled
+    payment must never buy service (settle fail-closed, P0).
     """
     if not payment_id_header:
         return False
     mw.handler.refresh()
     if not mw.handler.is_paid(payment_id_header, caller_key=caller_key, operation=operation):
+        return False
+    from pry.payments.x402.settlement_gate import is_settled
+
+    if not is_settled(mw.handler, payment_id_header):
+        logger.warning(
+            "x402_payment_not_settled",
+            extra={"payment_id": payment_id_header, "operation": operation},
+        )
         return False
     scope["x402_verified"] = {
         "payment_id": payment_id_header,

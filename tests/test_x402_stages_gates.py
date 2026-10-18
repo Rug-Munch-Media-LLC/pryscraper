@@ -69,6 +69,8 @@ class TestPreverifiedPaymentStage:
 
     async def test_valid_payment_refreshes_then_serves_and_stamps(self):
         handler = _FakeHandler(paid=True)
+        # P0: verified is not settled — the gate now also requires a receipt.
+        handler._settled_txs = {"tx:base:0xabc": {"success": True, "payment_id": "pay_1"}}
         mw = _FakeMW(handler=handler)
         recorder = _Recorder()
         scope: dict[str, Any] = {}

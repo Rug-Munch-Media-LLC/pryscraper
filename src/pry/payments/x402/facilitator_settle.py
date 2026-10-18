@@ -28,9 +28,15 @@ class SettleReceiptMixin:
         network: str,
         facilitator: str,
     ) -> dict[str, Any]:
-        """Normalize facilitator response into a standard settlement receipt."""
+        """Normalize facilitator response into a standard settlement receipt.
+
+        An explicit ``success: false`` is a refusal — never upgrade it to a
+        success receipt. Only the absence of the flag keeps legacy semantics.
+        """
+        raw_success = data.get("success")
+        success = not (raw_success is False or raw_success == "false")
         return {
-            "success": True,
+            "success": success,
             "transaction": tx_hash,
             "network": network,
             "payment_id": payment_id,

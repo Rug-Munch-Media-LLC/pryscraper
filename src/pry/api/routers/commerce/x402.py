@@ -323,6 +323,7 @@ async def x402_pay(
             "data": {
                 "payment_id": "",
                 "tx_hash": tx_hash,
+                "settled": False,
                 "verified": {"verified": False, "reason": reason, "settlement": None},
                 "settlement": None,
                 "payer_wallet": payer_wallet,
@@ -355,15 +356,22 @@ async def x402_pay(
             amount_usd=amount_usd,
             operation=operation,
         )
+    # Fail closed: verification alone buys nothing. Access is granted only
+    # when the settlement receipt is a success for THIS payment_id.
+    settled = bool(settlement and settlement.get("success") is True)
+    success = bool(verify_result.get("verified")) and settled
     return {
-        "success": verify_result.get("verified", False),
+        "success": success,
         "data": {
-            "payment_id": payment_id,
+            "payment_id": payment_id if settled else "",
             "tx_hash": tx_hash,
+            "settled": settled,
             "verified": verify_result,
             "settlement": settlement,
             "payer_wallet": payer_wallet,
-            "use_in_header": {"X-Payment-ID": payment_id, "X-Payment-Hash": tx_hash},
+            "use_in_header": (
+                {"X-Payment-ID": payment_id, "X-Payment-Hash": tx_hash} if settled else {}
+            ),
         },
     }
 
