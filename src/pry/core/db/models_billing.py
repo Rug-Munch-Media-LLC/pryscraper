@@ -93,11 +93,24 @@ if Base is not None:
         resource_limit = Column(JSON, default=dict)  # concurrency / pages / storage caps
         Index("ix_hosted_instances_user_created", user_id, created_at.desc())
 
+    # ── Invoice number sequence (atomic, per YYYYMM) ──
+    class InvoiceNumberSequence(Base):
+        __tablename__ = "invoice_number_sequences"
+        period = Column(String(6), primary_key=True)  # YYYYMM
+        last_value = Column(Integer, default=0, nullable=False)
+
     # ── Hosting invoices (revenue records — persisted, audit item #1) ──
     class HostingInvoice(Base):
         __tablename__ = "hosting_invoices"
         id = Column(Integer, primary_key=True)
         invoice_id = Column(String(64), unique=True, index=True, nullable=False)
+        # Human-readable INV-YYYYMM-NNNNNN; NULL until 0012 backfill/creation.
+        invoice_number = Column(String(32), unique=True, index=True, nullable=True)
+        # Tax is computed at creation; paid invoices are immutable.
+        tax_amount = Column(Numeric(18, 6), default=0, nullable=False)
+        tax_rate = Column(Numeric(9, 6), default=0, nullable=False)  # fraction, 0.20 = 20%
+        tax_country = Column(String(2), default="", nullable=False)
+        reverse_charge = Column(Boolean, default=False, nullable=False)
         kind = Column(String(16), default="signup", nullable=False)  # signup | renewal
         plan_tier = Column(String(32), nullable=False)  # pro | team | enterprise
         user_email = Column(String(256), index=True, nullable=False)

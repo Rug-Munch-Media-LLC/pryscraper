@@ -21,6 +21,8 @@ from pry.commerce.billing import (
     submit_subscription_payment,
     verify_subscription_payment,
 )
+from pry.commerce.billing.invoices import compute_tax, number_subscription_invoice
+from pry.commerce.billing.subscription_state import _INVOICES
 from pry.payments.x402 import wallet_configured
 
 
@@ -51,11 +53,18 @@ def billing_subscription_invoice(payload: SubscriptionInvoiceRequest) -> dict[st
             detail="no real receiving wallet configured — refusing to emit a placeholder payTo",
         )
 
+    # Lifecycle fields: sequential number (DB sequence, best-effort when no DB)
+    # and tax computed at creation (default 0 / no country).
+    record = _INVOICES.get(invoice["invoice_id"])
+    number = number_subscription_invoice(record) if record is not None else None
+    tax = compute_tax(invoice["amount_usd"])
+
     return {
         "success": True,
         "data": {
             "status_code": 402,
             "invoice_id": invoice["invoice_id"],
+            "invoice_number": number,
             "tier": invoice["tier"],
             "months": payload.months,
             "amount_usd": invoice["amount_usd"],
@@ -65,6 +74,11 @@ def billing_subscription_invoice(payload: SubscriptionInvoiceRequest) -> dict[st
             "asset": invoice["asset"],
             "expires_at": invoice["expires_at"],
             "payment_method": invoice["payment_method"],
+            "tax_amount": float(tax["tax_amount"]),
+            "tax_rate": float(tax["tax_rate"]),
+            "tax_country": tax["tax_country"],
+            "reverse_charge": tax["reverse_charge"],
+            "total_usd": float(tax["total_usd"]),
         },
     }
 
