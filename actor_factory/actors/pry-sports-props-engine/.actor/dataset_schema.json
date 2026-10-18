@@ -1,80 +1,94 @@
 {
-	"actorSpecification": 1,
-	"fields": {
-		"type": "object",
-		"properties": {
-			"url": {
-				"type": "string",
-				"title": "URL"
-			},
-			"status": {
-				"type": "string",
-				"title": "Status"
-			},
-			"sport": {
-				"type": "string",
-				"title": "Sport"
-			},
-			"team": {
-				"type": "string",
-				"title": "Team"
-			},
-			"player_name": {
-				"type": "string",
-				"title": "Player Name"
-			},
-			"props": {
-				"type": "array",
-				"title": "Player Props",
-				"description": "Live prop markets: prop_type, line, over_odds, under_odds, book, movement."
-			},
-			"lineup_data": {
-				"type": "object",
-				"title": "Lineup Data",
-				"description": "Active/projected lineup, injury report, and minutes projection."
-			},
-			"recent_stats": {
-				"type": "object",
-				"title": "Recent Stats",
-				"description": "Last N games of player stats with averages and trend."
-			},
-			"streaks": {
-				"type": "object",
-				"title": "Streaks",
-				"description": "Hot/cold streak detection from recent game logs."
-			},
-			"defensive_context": {
-				"type": "object",
-				"title": "Defensive Context",
-				"description": "Defensive-ranking matchup context for the prop slate."
-			},
-			"method": {
-				"type": "string",
-				"title": "Method"
-			},
-			"error": {
-				"type": "string",
-				"title": "Error"
-			},
-			"scraped_at": {
-				"type": "string",
-				"title": "Scraped at"
-			},
-			"metadata": {
-				"type": "object",
-				"title": "Metadata"
-			}
-		}
-	},
-	"views": {
-		"overview": {
-			"title": "Overview",
-			"transformation": {
-				"fields": ["player_name", "team", "sport", "status", "scraped_at"]
-			},
-			"display": {
-				"component": "table"
-			}
-		}
-	}
+    "actorSpecification": 1,
+    "fields": {
+        "type": "object",
+        "properties": {
+            "url": {
+                "type": "string",
+                "title": "URL"
+            },
+            "status": {
+                "type": "string",
+                "title": "Status"
+            },
+            "sport": {
+                "type": "string",
+                "title": "Sport"
+            },
+            "team": {
+                "type": "string",
+                "title": "Team"
+            },
+            "player_name": {
+                "type": "string",
+                "title": "Player Name"
+            },
+            "props": {
+                "type": "array",
+                "title": "Player Props",
+                "description": "Live prop markets: prop_type, line, over_odds, under_odds, book, movement."
+            },
+            "lineup_data": {
+                "type": "object",
+                "title": "Lineup Data",
+                "description": "Active/projected lineup, injury report, and minutes projection."
+            },
+            "recent_stats": {
+                "type": "object",
+                "title": "Recent Stats",
+                "description": "Last N games of player stats with averages and trend."
+            },
+            "streaks": {
+                "type": "object",
+                "title": "Streaks",
+                "description": "Hot/cold streak detection from recent game logs."
+            },
+            "defensive_context": {
+                "type": "object",
+                "title": "Defensive Context",
+                "description": "Defensive-ranking matchup context for the prop slate."
+            },
+            "method": {
+                "type": "string",
+                "title": "Method"
+            },
+            "error": {
+                "type": "string",
+                "title": "Error"
+            },
+            "scraped_at": {
+                "type": "string",
+                "title": "Scraped at"
+            },
+            "metadata": {
+                "type": "object",
+                "title": "Metadata"
+            },
+            "content": {
+                "type": "string",
+                "title": "Content"
+            },
+            "data": {
+                "type": "object",
+                "title": "Data"
+            }
+        }
+    },
+    "views": {
+        "overview": {
+            "title": "Overview",
+            "transformation": {
+                "fields": [
+                    "player_name",
+                    "team",
+                    "sport",
+                    "status",
+                    "scraped_at"
+                ]
+            },
+            "display": {
+                "component": "table"
+            }
+        }
+    }
 }

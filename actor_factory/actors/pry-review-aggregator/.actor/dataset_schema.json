@@ -30,6 +30,10 @@
             "metadata": {
                 "type": "object",
                 "title": "Metadata"
+            },
+            "extracted": {
+                "type": "object",
+                "title": "Extracted"
             }
         }
     },

@@ -30,6 +30,10 @@
             "metadata": {
                 "type": "object",
                 "title": "Metadata"
+            },
+            "monitor": {
+                "type": "object",
+                "title": "Change monitor"
             }
         }
     },

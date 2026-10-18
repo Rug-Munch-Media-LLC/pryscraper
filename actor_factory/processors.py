@@ -50,6 +50,7 @@ from actor_factory.processors_registry import (
     PROCESSORS,
     get_processor,
 )
+from actor_factory.processors_serp import process_serp
 
 __all__ = [
     "PROCESSORS",
@@ -66,5 +67,6 @@ __all__ = [
     "process_news",
     "process_price",
     "process_seo",
+    "process_serp",
     "process_tech",
 ]

@@ -28,6 +28,7 @@ from actor_factory.processors_html import (
 )
 from actor_factory.processors_invoice import process_invoice
 from actor_factory.processors_json import process_extract, process_jsondata, process_price
+from actor_factory.processors_serp import process_serp
 
 if TYPE_CHECKING:
     from actor_factory.processors_common import ProcessorFn
@@ -45,6 +46,7 @@ PROCESSORS: dict[str, ProcessorFn] = {
     "audit": process_audit,
     "monitor": process_monitor,
     "extract": process_extract,
+    "serp": process_serp,
 }
 
 

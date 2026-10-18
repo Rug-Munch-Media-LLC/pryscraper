@@ -1,0 +1,96 @@
+{
+    "title": "Input schema for Pry Sports Props Engine",
+    "description": "Player prop betting intelligence: live props across 112+ books, lineup data, player recent stats with hot/cold streaks, defensive matchup context, and prop line movement tracking.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "urls": {
+            "title": "Target URLs",
+            "type": "array",
+            "description": "One or more https:// URLs to process (ESPN / odds API endpoints to scrape).",
+            "editor": "requestListSources",
+            "prefill": [
+                {
+                    "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
+                }
+            ],
+            "example": [
+                {
+                    "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
+                }
+            ]
+        },
+        "sport": {
+            "title": "Sport",
+            "type": "string",
+            "description": "Sport slug: nba, nfl, mlb, nhl, or any supported league key.",
+            "editor": "string",
+            "default": "nba",
+            "example": "nba"
+        },
+        "team": {
+            "title": "Team",
+            "type": "string",
+            "description": "Optional team filter (e.g. \"Lakers\", \"Boston Celtics\"). Used for lineup data and matchup context.",
+            "editor": "string",
+            "example": "Lakers"
+        },
+        "player_name": {
+            "title": "Player Name",
+            "type": "string",
+            "description": "Optional player filter (e.g. \"LeBron James\"). Narrows live props and recent stats to one player.",
+            "editor": "string",
+            "example": "LeBron James"
+        },
+        "include_lineups": {
+            "title": "Include Lineups",
+            "type": "boolean",
+            "description": "Attach active/projected lineups, injury reports, and minutes projections.",
+            "editor": "boolean",
+            "default": true,
+            "example": true
+        },
+        "include_stats": {
+            "title": "Include Recent Stats",
+            "type": "boolean",
+            "description": "Attach last-N-games player stats with hot/cold streak trends.",
+            "editor": "boolean",
+            "default": true,
+            "example": true
+        },
+        "include_matchup_context": {
+            "title": "Include Matchup Context",
+            "type": "boolean",
+            "description": "Attach defensive-ranking matchup context for the prop slate.",
+            "editor": "boolean",
+            "default": true,
+            "example": true
+        },
+        "max_items": {
+            "title": "Max items (cost cap)",
+            "type": "integer",
+            "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+            "sectionCaption": "Advanced",
+            "editor": "number",
+            "default": 50,
+            "minimum": 1,
+            "example": 50
+        },
+        "proxy_configuration": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+            "sectionCaption": "Advanced",
+            "editor": "hidden",
+            "prefill": {
+                "useApifyProxy": true
+            },
+            "example": {
+                "useApifyProxy": true
+            }
+        }
+    },
+    "required": [
+        "urls"
+    ]
+}

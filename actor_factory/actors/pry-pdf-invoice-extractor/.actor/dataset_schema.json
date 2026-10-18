@@ -30,6 +30,10 @@
             "metadata": {
                 "type": "object",
                 "title": "Metadata"
+            },
+            "invoice": {
+                "type": "object",
+                "title": "Invoice"
             }
         }
     },

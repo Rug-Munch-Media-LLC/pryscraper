@@ -30,6 +30,10 @@
             "metadata": {
                 "type": "object",
                 "title": "Metadata"
+            },
+            "outbound_domains": {
+                "type": "array",
+                "title": "Outbound domains"
             }
         }
     },

@@ -1,0 +1,106 @@
+{
+    "title": "Input schema for Pry Sports Betting Intelligence",
+    "description": "Comprehensive sports betting intelligence: live odds across 112+ books, arbitrage detection, +EV opportunities, player props, live in-game analytics, sharp money tracking, weather impact, lineup data, prediction market cross-reference, Kelly criterion stake sizing, and futures odds.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "urls": {
+            "title": "Target URLs",
+            "type": "array",
+            "description": "One or more https:// URLs to process (ESPN / odds API endpoints to scrape).",
+            "editor": "requestListSources",
+            "prefill": [
+                {
+                    "url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+                }
+            ],
+            "example": [
+                {
+                    "url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+                }
+            ]
+        },
+        "report_type": {
+            "title": "Report Type",
+            "type": "string",
+            "description": "Which intelligence report to generate: full (everything), odds_only, sharp_only, props_only, live_only, or weather_only.",
+            "editor": "select",
+            "enum": [
+                "full",
+                "odds_only",
+                "sharp_only",
+                "props_only",
+                "live_only",
+                "weather_only"
+            ],
+            "default": "full",
+            "example": "full"
+        },
+        "sport": {
+            "title": "Sport",
+            "type": "string",
+            "description": "Sport filter: all, nfl, nba, mlb, nhl, ncaaf, ncaab, soccer, mma, tennis, or any supported league key.",
+            "editor": "string",
+            "default": "all",
+            "example": "nfl"
+        },
+        "include_prediction_markets": {
+            "title": "Include Prediction Markets",
+            "type": "boolean",
+            "description": "Cross-reference sportsbook odds against prediction market prices (Polymarket/Kalshi style venues).",
+            "editor": "boolean",
+            "default": true,
+            "example": true
+        },
+        "include_weather": {
+            "title": "Include Weather Impact",
+            "type": "boolean",
+            "description": "Attach weather conditions and betting-impact assessment for outdoor events.",
+            "editor": "boolean",
+            "default": true,
+            "example": true
+        },
+        "include_sharp_intel": {
+            "title": "Include Sharp Money Intelligence",
+            "type": "boolean",
+            "description": "Track steam moves, reverse line movement (RLM), and bet/money percentage divergence.",
+            "editor": "boolean",
+            "default": true,
+            "example": true
+        },
+        "include_kelly": {
+            "title": "Include Kelly Criterion Sizing",
+            "type": "boolean",
+            "description": "Compute fractional Kelly stake sizing for detected +EV opportunities.",
+            "editor": "boolean",
+            "default": true,
+            "example": true
+        },
+        "max_items": {
+            "title": "Max items (cost cap)",
+            "type": "integer",
+            "description": "Hard cap on processed items for this run - keeps trial costs predictable. Billing stops when the cap or your spending limit is reached.",
+            "sectionCaption": "Advanced",
+            "editor": "number",
+            "default": 50,
+            "minimum": 1,
+            "example": 50
+        },
+        "proxy_configuration": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "Apify proxy settings passed through to Pry's premium-proxy tier. Leave default to use the platform proxy automatically.",
+            "sectionCaption": "Advanced",
+            "editor": "hidden",
+            "prefill": {
+                "useApifyProxy": true
+            },
+            "example": {
+                "useApifyProxy": true
+            }
+        }
+    },
+    "required": [
+        "urls"
+    ]
+}

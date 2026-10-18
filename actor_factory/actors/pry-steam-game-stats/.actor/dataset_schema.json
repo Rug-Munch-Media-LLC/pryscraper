@@ -30,6 +30,10 @@
             "metadata": {
                 "type": "object",
                 "title": "Metadata"
+            },
+            "data": {
+                "type": "object",
+                "title": "Data"
             }
         }
     },

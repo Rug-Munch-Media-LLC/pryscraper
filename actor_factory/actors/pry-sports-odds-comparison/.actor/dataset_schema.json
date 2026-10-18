@@ -1,79 +1,92 @@
 {
-	"actorSpecification": 1,
-	"fields": {
-		"type": "object",
-		"properties": {
-			"url": {
-				"type": "string",
-				"title": "URL"
-			},
-			"status": {
-				"type": "string",
-				"title": "Status"
-			},
-			"sport": {
-				"type": "string",
-				"title": "Sport"
-			},
-			"event_id": {
-				"type": "string",
-				"title": "Event ID"
-			},
-			"event_name": {
-				"type": "string",
-				"title": "Event Name"
-			},
-			"commence_time": {
-				"type": "string",
-				"title": "Commence Time"
-			},
-			"best_odds": {
-				"type": "object",
-				"title": "Best Odds",
-				"description": "Best available price per side (home/away/draw) with the book offering it, across h2h, spreads, and totals markets."
-			},
-			"arbitrage_opportunities": {
-				"type": "array",
-				"title": "Arbitrage Opportunities",
-				"description": "Detected arbitrage opportunities: legs, books, guaranteed ROI, stake split."
-			},
-			"ev_opportunities": {
-				"type": "array",
-				"title": "+EV Opportunities",
-				"description": "+EV bets: fair probability, best price, edge percentage, EV per unit."
-			},
-			"line_movements": {
-				"type": "array",
-				"title": "Line Movements",
-				"description": "Line movement history: opening line, current line, direction, timestamp."
-			},
-			"method": {
-				"type": "string",
-				"title": "Method"
-			},
-			"error": {
-				"type": "string",
-				"title": "Error"
-			},
-			"scraped_at": {
-				"type": "string",
-				"title": "Scraped at"
-			},
-			"metadata": {
-				"type": "object",
-				"title": "Metadata"
-			}
-		}
-	},
-	"views": {
-		"overview": {
-			"title": "Overview",
-			"transformation": {
-				"fields": ["event_name", "sport", "status", "scraped_at"]
-			},
-			"display": {
-				"component": "table"
-			}
-		}
-	}
+    "actorSpecification": 1,
+    "fields": {
+        "type": "object",
+        "properties": {
+            "url": {
+                "type": "string",
+                "title": "URL"
+            },
+            "status": {
+                "type": "string",
+                "title": "Status"
+            },
+            "sport": {
+                "type": "string",
+                "title": "Sport"
+            },
+            "event_id": {
+                "type": "string",
+                "title": "Event ID"
+            },
+            "event_name": {
+                "type": "string",
+                "title": "Event Name"
+            },
+            "commence_time": {
+                "type": "string",
+                "title": "Commence Time"
+            },
+            "best_odds": {
+                "type": "object",
+                "title": "Best Odds",
+                "description": "Best available price per side (home/away/draw) with the book offering it, across h2h, spreads, and totals markets."
+            },
+            "arbitrage_opportunities": {
+                "type": "array",
+                "title": "Arbitrage Opportunities",
+                "description": "Detected arbitrage opportunities: legs, books, guaranteed ROI, stake split."
+            },
+            "ev_opportunities": {
+                "type": "array",
+                "title": "+EV Opportunities",
+                "description": "+EV bets: fair probability, best price, edge percentage, EV per unit."
+            },
+            "line_movements": {
+                "type": "array",
+                "title": "Line Movements",
+                "description": "Line movement history: opening line, current line, direction, timestamp."
+            },
+            "method": {
+                "type": "string",
+                "title": "Method"
+            },
+            "error": {
+                "type": "string",
+                "title": "Error"
+            },
+            "scraped_at": {
+                "type": "string",
+                "title": "Scraped at"
+            },
+            "metadata": {
+                "type": "object",
+                "title": "Metadata"
+            },
+            "content": {
+                "type": "string",
+                "title": "Content"
+            },
+            "data": {
+                "type": "object",
+                "title": "Data"
+            }
+        }
+    },
+    "views": {
+        "overview": {
+            "title": "Overview",
+            "transformation": {
+                "fields": [
+                    "event_name",
+                    "sport",
+                    "status",
+                    "scraped_at"
+                ]
+            },
+            "display": {
+                "component": "table"
+            }
+        }
+    }
 }
