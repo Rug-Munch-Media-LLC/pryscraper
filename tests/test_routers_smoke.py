@@ -54,6 +54,11 @@ NON_ROUTER_HELPERS = {
     "commerce.hosting.auth",
     "commerce.hosting.models",
     "core.admin_shared",
+    # Apify profit fetch extracted from admin_shared to keep it under the
+    # 200-line cap. Pure data-access helper: the endpoint it feeds,
+    # GET /v1/admin/apify, is registered in admin_dashboard on the shared
+    # admin_router router — this module owns no routes by design.
+    "core.admin_apify",
     "ai.vision_keys",
     "core.admin_html_rows",
     "commerce.x402_engines",

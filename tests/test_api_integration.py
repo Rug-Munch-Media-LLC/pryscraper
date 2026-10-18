@@ -57,8 +57,9 @@ def _mock_all_deps() -> Iterator[None]:
         }
     )
     scraper_mock.crawl = AsyncMock(return_value=[{"url": "https://example.com", "status": "ok"}])
+    # Contract: Scraper.map_urls() -> list[str] (same-origin URLs).
     scraper_mock.map_urls = AsyncMock(
-        return_value=[{"url": "https://example.com/page1"}, {"url": "https://example.com/page2"}]
+        return_value=["https://example.com/page1", "https://example.com/page2"]
     )
     scraper_mock.detect_block = AsyncMock(
         return_value={
@@ -96,13 +97,23 @@ def _mock_all_deps() -> Iterator[None]:
         }
     )
 
-    with patch.multiple(
-        "pry.core.deps",
-        scraper=scraper_mock,
-        extractor=extractor_mock,
-        parser=parser_mock,
-        cache=cache_mock,
-        advanced=advanced_mock,
+    with (
+        patch.multiple(
+            "pry.core.deps",
+            scraper=scraper_mock,
+            extractor=extractor_mock,
+            parser=parser_mock,
+            cache=cache_mock,
+            advanced=advanced_mock,
+        ),
+        patch(
+            # The `/v1/map` handler resolves ``scraper`` through the scraping
+            # router module, which bound the object at import time — patching
+            # ``pry.core.deps`` alone leaves that binding pointing at the real
+            # scraper, so the mock never reached the endpoint.
+            "pry.api.routers.scraping.scraping.scraper",
+            scraper_mock,
+        ),
     ):
         yield
 
