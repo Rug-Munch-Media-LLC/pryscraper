@@ -69,8 +69,23 @@ LABEL org.opencontainers.image.title="Pry" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="Rug Munch Media LLC"
 
+# One apt transaction, one layer. Two `apt-get update` layers duplicated the
+# package metadata and the runtime toolchain, and every additional layer is
+# permanent image size (nothing here is removed at runtime, so layer count ==
+# bytes once it is pushed).
+#
+# `postgresql-client` is pg_dump for the entrypoint's pre-migration backup
+# guard. HISTORY: this used to add the PGDG `bookworm-pgdg` repo and install
+# postgresql-client-16; the pinned base digest is Debian 13 (trixie), so that
+# mixed a bookworm client into a trixie image and broke the build once PGDG
+# published libpq5 built against bookworm-only libldap-2.5-0. The DISTRO
+# client is correct: trixie ships postgresql-client 17 and a NEWER pg_dump can
+# dump an OLDER server (compose runs postgres:16) — never the reverse.
+# `docker-entrypoint.sh` still fails closed when
+# PRY_REQUIRE_PRE_MIGRATION_BACKUP=1.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
+    postgresql-client \
     curl \
     ca-certificates \
     libnss3 \
@@ -92,22 +107,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2t64 \
     tesseract-ocr \
     tesseract-ocr-eng \
-    && rm -rf /var/lib/apt/lists/*
-
-# pg_dump for the entrypoint's pre-migration backup guard.
-#
-# HISTORY (2026-10-18): this used to add the PGDG `bookworm-pgdg` repo and
-# install postgresql-client-16. The pinned base digest is Debian 13 (trixie),
-# so that mixed a bookworm client into a trixie image; once PGDG published
-# libpq5 18.6-1.pgdg12+2 (which needs the bookworm-only libldap-2.5-0) the
-# whole image stopped building. Use the DISTRO client instead: trixie ships
-# postgresql-client 17, and a NEWER pg_dump can dump an OLDER server (the
-# compose database is postgres:16) — the restriction only runs the other way.
-# This also removes an external apt repo + key fetch from the build.
-# `docker-entrypoint.sh` still fails closed when PRY_REQUIRE_PRE_MIGRATION_BACKUP=1.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /usr/share/doc/* /usr/share/man/*
 
 # Playwright browsers are copied to a shared, read-only location and pointed
 # at via PLAYWRIGHT_BROWSERS_PATH. This keeps them out of $HOME (which is
@@ -123,22 +123,26 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /root/.cache/ms-playwright /ms-playwright
 
+# Non-root runtime user created BEFORE the app tree, so `COPY --chown`
+# applies ownership in the copy layer itself. The previous order (COPY, then
+# `chown -R pry:pry /app`) rewrote every inode and duplicated the entire app
+# tree into an extra layer — measured 284 MB of pure duplication.
+RUN useradd --create-home --shell /bin/bash --uid 1000 pry
+
 WORKDIR /app
-# Copy the full app tree so every package ships (db/, x402/, billing/, data
-# domains, routers, ...). The .dockerignore excludes tests/, *.md, caches,
-# .env, and build files — this is the single source of truth for the image.
-COPY . ./
-# Install the src-layout pry package (entry points + importable pry.*)
+# Copy the app tree so every package ships (db/, x402/, billing/, data
+# domains, routers, ...). .dockerignore is the single source of truth for
+# what is excluded (tests/, docs, datasets/, data/, website/, caches).
+COPY --chown=pry:pry . ./
+# Install the src-layout pry package (entry points + importable pry.*) as
+# root: only site-packages is written, /app stays pry-owned.
 RUN pip install --no-cache-dir --no-deps .
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN mkdir -p /app/sessions /app/pry-data \
-    && chmod +x /usr/local/bin/docker-entrypoint.sh
-
-# Non-root runtime user. /app (and its writable subdirs) belong to pry.
+    && chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && chown pry:pry /app/sessions /app/pry-data
 # /ms-playwright stays root-owned: it is read-only at runtime (read_only
 # rootfs) and pry only needs read access to the browser binaries.
-RUN useradd --create-home --shell /bin/bash --uid 1000 pry \
-    && chown -R pry:pry /app
 USER pry
 
 EXPOSE 8002

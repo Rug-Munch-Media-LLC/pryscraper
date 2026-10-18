@@ -1,14 +1,63 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Build-context exclusions. Keep this list strict: everything not excluded
+# here is sent to the daemon AND, via `COPY . ./`, baked into the runtime
+# image. A missing entry is both bloat and a data/secret exposure path.
+#
+# Measured 2026-10-18: `COPY . ./` was 281 MB with these dirs included.
+
+# --- VCS / editor ---
 .git
 .gitignore
+.github
+.forgejo
+
+# --- Python caches / venvs ---
 __pycache__
+*.pyc
+*.pyo
 .mypy_cache
 .ruff_cache
 .pytest_cache
+.hypothesis
 .venv
+venv
+env
+*.egg-info
+.eggs
+build
+dist
+
+# --- Secrets / local env ---
 .env
+.env.*
+
+# --- Test + docs (not needed at runtime; tests are 22 MB) ---
 tests/
 *.md
 Dockerfile
-docker-compose.yml
+docker-compose*.yml
+compose.monitoring.yml
 Makefile
 test.sh
+
+# --- Local data: never ship datasets, scrapes, or coverage into an image ---
+data/
+datasets/
+sessions/
+pry-data/
+.cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# --- Node / docs site (website/node_modules alone is 310 MB) ---
+node_modules
+website/
+**/node_modules
+
+# --- Runtime noise ---
+*.log
+*.sarif
+.DS_Store

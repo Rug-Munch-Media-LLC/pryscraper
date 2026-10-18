@@ -682,11 +682,19 @@ jobs:
           hadolint --config .hadolint.yaml --failure-threshold error Dockerfile
 
   trivy-scan:
+    # BLOCKING on CRITICAL since 2026-10-18 (was advisory). Rationale and the
+    # allowlist policy live in docs/ops/SECURITY-GATES.md.
+    #
     # Audit 2026-09-12: was aquasecurity/trivy-action@0.28.0 + `docker build`
     # — the runner could not resolve the action ref, and job containers have
     # no docker CLI (same class as hadolint/sign-image). Rewritten to scan
-    # the filesystem + configs with the trivy static binary. Advisory while
-    # the findings backlog is triaged; tighten to blocking in follow-up.
+    # the filesystem + configs with the trivy static binary.
+    #
+    # Split deliberately: the vulnerability/secret/config scanners each carry
+    # only `--severity CRITICAL`, so HIGH findings cannot quietly ride along
+    # with a blocking gate. A CRITICAL that is genuinely unfixable goes into
+    # docs/ops/trivy-ignore.yaml WITH an expiry — never a blanket
+    # continue-on-error.
     runs-on: docker-x64
     timeout-minutes: 30
     needs: test
@@ -701,15 +709,32 @@ jobs:
           curl -sSL -o /tmp/trivy.tar.gz \
             https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz
           tar -xzf /tmp/trivy.tar.gz -C /usr/local/bin trivy
-      - name: Trivy filesystem scan (CRITICAL,HIGH — advisory)
-        continue-on-error: true
+          trivy --version
+      - name: Trivy vulnerability scan (CRITICAL — blocking)
+        # Scans the repo's dependency manifests/lockfiles, not an image: the
+        # job container has no docker CLI. Image-layer CVEs are caught by the
+        # same gate when a docker-capable runner builds the image.
+        # `--skip-dirs` keeps vendored copies and the docs site out of scope;
+        # the shipped lockfiles (requirements.docker.lock) are in scope.
         run: |
-          trivy fs --scanners vuln,secret --severity CRITICAL,HIGH \
+          trivy fs --scanners vuln --severity CRITICAL --exit-code 1 \
+            --ignorefile docs/ops/trivy-ignore.yaml \
+            --skip-dirs .git --skip-dirs .venv --skip-dirs node_modules \
+            --skip-dirs website --skip-dirs tests --skip-dirs datasets \
             --format sarif --output trivy-results.sarif .
-      - name: Trivy config scan (Dockerfile, compose — advisory)
-        continue-on-error: true
+      - name: Trivy secret scan (CRITICAL — blocking)
+        # Gitleaks (blocking, tests included) is the primary secret gate; this
+        # is the second independent scanner. Test fixtures are skipped here
+        # because gitleaks already covers them with its own allowlist.
         run: |
-          trivy config --severity CRITICAL,HIGH \
+          trivy fs --scanners secret --severity CRITICAL --exit-code 1 \
+            --skip-dirs .git --skip-dirs .venv --skip-dirs node_modules \
+            --skip-dirs website --skip-dirs tests --skip-dirs datasets \
+            --format sarif --output trivy-secrets.sarif .
+      - name: Trivy config scan (Dockerfile, compose — CRITICAL blocking)
+        run: |
+          trivy config --severity CRITICAL --exit-code 1 \
+            --ignorefile docs/ops/trivy-ignore.yaml \
             --format sarif --output trivy-config.sarif .
       - uses: actions/upload-artifact@v3
         if: always()
@@ -890,50 +915,6 @@ jobs:
         with:
           name: sbom
           path: sbom.spdx.json
-
-  sign-image:
-    # DISABLED (audit 2026-09-12): reference template only — there is no real
-    # registry to push/sign against for the OSS repo, and job containers have
-    # no docker CLI ('docker: command not found'). Re-enable with a real
-    # REGISTRY + docker-capable runner.
-    runs-on: docker-x64
-    timeout-minutes: 30
-    needs: test
-    if: false
-    # NOTE: `registry.example.com` is an INTENTIONAL placeholder for this
-    # public OSS repo. Pry is open source and does not publish images to a
-    # real container registry from CI, so the cosign build/push/sign/verify
-    # steps below are a reference template rather than a live pipeline.
-    #
-    # Production deployments SHOULD override the registry by setting the
-    # `REGISTRY` env var (e.g. `REGISTRY=ghcr.io/your-org`) and substituting
-    # it in the image refs below. The certificate-identity / oidc-issuer
-    # values must also be updated to match the real forgejo/git host.
-    #
-    # continue-on-error: this job must never block mainline CI for the OSS
-    # repo, since there is no real registry to push/sign against.
-    continue-on-error: true
-    steps:
-      - uses: sigstore/cosign-installer@v3
-        with:
-          cosign-release: 'v2.4.3'
-      - name: Build Docker image
-        run: docker build -t ${REGISTRY:-registry.example.com}/pryscraper:${{ github.sha }} .
-      - name: Push to registry
-        run: docker push ${REGISTRY:-registry.example.com}/pryscraper:${{ github.sha }}
-      - name: Sign image with keyless (OIDC)
-        run: |
-          cosign sign --yes ${REGISTRY:-registry.example.com}/pryscraper:${{ github.sha }}
-        env:
-          COSIGN_EXPERIMENTAL: "1"
-      - name: Verify signature
-        run: |
-          cosign verify \
-            --certificate-identity "https://git.example.com/org/pryscraper/.forgejo/workflows/ci.yml@refs/heads/main" \
-            --certificate-oidc-issuer "https://git.example.com" \
-            ${REGISTRY:-registry.example.com}/pryscraper:${{ github.sha }}
-        env:
-          COSIGN_EXPERIMENTAL: "1"
 
   ocr-review:
     runs-on: docker-x64

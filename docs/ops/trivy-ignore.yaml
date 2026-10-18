@@ -1,0 +1,22 @@
+# Trivy allowlist — explicit, expiring exceptions only.
+#
+# Consumed by the blocking `trivy-scan` job in .forgejo/workflows/ci.yml:
+#   trivy fs     --scanners vuln   --severity CRITICAL --ignorefile docs/ops/trivy-ignore.yaml
+#   trivy config --severity CRITICAL --ignorefile docs/ops/trivy-ignore.yaml
+#
+# RULES (enforced by review, not by the scanner):
+#   1. Every entry MUST have `statement` (why it is not fixable now) and
+#      `expired_at` (max 90 days out). An expired entry is ignored by Trivy,
+#      so the finding becomes blocking again automatically.
+#   2. Never add a blanket suppression. `continue-on-error` on the scan step
+#      is forbidden — tests/test_production_readiness.py fails on it.
+#   3. Prefer fixing: bump the pin in requirements.docker.lock / requirements.lock
+#      and regenerate with scripts/gen-docker-lock.py.
+#
+# Empty is the correct state. Add an entry only with a linked issue.
+#
+# Schema: https://trivy.dev/latest/docs/configuration/filtering/#trivyignoreyaml
+
+vulnerabilities: []
+misconfigurations: []
+secrets: []

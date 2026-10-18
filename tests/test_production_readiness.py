@@ -156,8 +156,11 @@ _SECURITY_JOB = re.compile(
     r"^  (semgrep|security|secrets|trivy-scan|pip-audit|supply-chain|guardian):\s*$"
 )
 # Known, deliberate advisories; a NEW neutralisation still fails the test.
-# Blocking gates: semgrep, gitleaks, bandit, pip-audit, OSV, trufflehog, guardian.
-_KNOWN_ADVISORY = {"ci.yml:trivy-scan:continue-on-error"}
+# Blocking gates: semgrep, gitleaks, bandit, pip-audit, OSV, trufflehog,
+# guardian, and (since 2026-10-18) trivy. Trivy's CRITICAL scans are blocking;
+# the only sanctioned exception path is docs/ops/trivy-ignore.yaml with an
+# expiry, so there is no carve-out here any more.
+_KNOWN_ADVISORY: set[str] = set()
 
 
 def _neutralisation_token(line: str, workflow: Path, job: str) -> str | None:
@@ -202,3 +205,45 @@ def test_every_ci_job_has_a_timeout() -> None:
         if "timeout-minutes" not in (spec or {})
     ]
     assert not missing, f"CI jobs without timeout-minutes: {missing}"
+
+
+_DOCKERIGNORE_REQUIRED = (
+    "data/",
+    "datasets/",
+    "dist/",
+    "build/",
+    ".cache",
+    ".coverage",
+    ".venv",
+    "node_modules",
+    "website/",
+)
+
+
+def test_dockerignore_excludes_data_and_build_artifacts() -> None:
+    """`COPY . ./` bakes anything not ignored into the runtime image.
+
+    A regression here leaks scraped datasets/secrets into the image and
+    re-inflates it; the list is measured against the 2026-10-18 audit.
+    """
+    lines = {
+        line.strip().rstrip("/")
+        for line in (REPO / ".dockerignore").read_text().splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    }
+    missing = [entry for entry in _DOCKERIGNORE_REQUIRED if entry.rstrip("/") not in lines]
+    assert not missing, f".dockerignore missing required exclusions: {missing}"
+
+
+def test_critical_trivy_gate_is_blocking() -> None:
+    """CRITICAL Trivy scans must exit non-zero — no advisory carve-out."""
+    text = (REPO / ".forgejo/workflows/ci.yml").read_text()
+    start = text.index("  trivy-scan:")
+    end = text.index("  pip-audit:")
+    # Comment lines explain the policy; only executable YAML is a gate.
+    job = "\n".join(
+        line for line in text[start:end].splitlines() if not line.strip().startswith("#")
+    )
+    assert "--severity CRITICAL --exit-code 1" in job, "trivy job is not blocking on CRITICAL"
+    assert "continue-on-error" not in job, "trivy job must not neutralise its own failure"
+    assert "docs/ops/trivy-ignore.yaml" in job, "trivy allowlist must be explicit and reviewed"
