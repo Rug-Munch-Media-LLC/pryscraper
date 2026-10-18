@@ -26,9 +26,27 @@ import logging
 import re
 from typing import Any
 
+from pry.core.errors import InvalidRequestError
+
 logger = logging.getLogger(__name__)
 
 _MAX_CONCURRENT = 20
+
+
+def _validate_selector(selector: str, *, field: str) -> str:
+    """Validate a user-supplied CSS selector (ReDoS guard) before cssselect.
+
+    Raises ``InvalidRequestError`` so the API maps it to a 400 field error
+    instead of leaking a parser exception or running a pathological selector.
+    """
+    try:
+        from extraction.css import _validate_css_selector
+    except ImportError:  # pragma: no cover - extraction ships with Pry
+        return selector
+    try:
+        return _validate_css_selector(selector)
+    except ValueError as exc:
+        raise InvalidRequestError(f"Invalid {field}: {exc}", details={"field": field}) from exc
 
 
 def _normalize_schema(schema: dict[str, Any] | None) -> dict[str, str]:
@@ -321,10 +339,13 @@ def infer_schema_from_example(example: dict) -> dict:
 async def extract_table(url: str, table_selector: str = "table") -> list[dict]:
     """Extract an HTML table as a list of dicts (header → value per row).
 
-    Returns ``[]`` on failure. Never raises.
+    Returns ``[]`` on failure. Raises :class:`InvalidRequestError` (HTTP 400)
+    when the caller-supplied selector is unsafe — a hostile selector is a
+    request error, not an extraction failure, and must never reach cssselect.
     """
     if not url:
         return []
+    _validate_selector(table_selector, field="table_selector")
     page = await _fetch_page(url)
     html = page["html"]
     if not html:

@@ -1,12 +1,10 @@
 """Pry — Ultimate Anti-Detection Scraper (facade).
 Multi-strategy scraping with 10+ bypass methods and intelligent fallback.
-Beats Cloudflare, DataDome, Akamai, Imperva, PerimeterX, and generic blocks.
 
 The orchestration (``scrape()`` / fallback chain / retry configs) lives in
-``pry.engine.scraper_orchestrate`` (mixed in via ``ScrapeOrchestrator``);
-the concrete tier implementations live in ``pry.engine.tiers`` (mixed in via
-``TierMixin``); the per-domain semaphore registry and the tier→breaker
-mapping live in ``pry.engine.circuit_breaker``.
+``pry.engine.scraper_orchestrate`` (mixed in via ``ScrapeOrchestrator``); the
+tier implementations live in ``pry.engine.tiers`` (mixed in via ``TierMixin``);
+the semaphore registry and tier→breaker map live in ``pry.engine.circuit_breaker``.
 
 The availability flags and optional scraper singletons below stay on THIS
 module (rather than ``scraper_orchestrate``) because tests patch them here
@@ -23,11 +21,14 @@ and tier methods resolve them lazily through ``tiers_base._us_flag``.
 from __future__ import annotations
 
 import importlib.util
+import json
 import logging
+import re
 
 # ``time`` is unused here but must stay importable as a module attribute:
 # tests freeze the clock via ``monkeypatch.setattr(ultimate_scraper.time, ...)``.
 import time  # noqa: F401
+from html import escape as _html_escape
 from typing import Any
 
 from pry.engine.browser_pool import (
@@ -41,6 +42,34 @@ from pry.engine.scraper_orchestrate import ScrapeOrchestrator
 logger = logging.getLogger(__name__)
 
 __all__ = ["BrowserPool", "UltimateScraper", "close_browsers", "get_browser_pool"]
+
+_GRAPHQL_JSON_RE = re.compile(r'^\s*\{\s*"(?:data|errors)"\s*:')
+
+
+def normalize_json_payload(result: dict[str, Any]) -> dict[str, Any]:
+    """Normalise a JSON/GraphQL body (``{"data": ...}``) into HTML.
+
+    Tiers return GraphQL JSON as ``raw_html``, so the HTML extractor matches
+    nothing; wrap it in a ``<pre>`` document, keep it as ``content``, flag it.
+    """
+    raw = result.get("raw_html") if isinstance(result, dict) else None
+    if result.get("status") != "ok" or result.get("is_json") or not isinstance(raw, str):
+        return result
+    if not _GRAPHQL_JSON_RE.match(raw):
+        return result
+    try:
+        payload = json.loads(raw)
+    except ValueError:
+        return result
+    if not isinstance(payload, dict):
+        return result
+    text = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    result["raw_html"] = f"<html><body><pre>{_html_escape(text)}</pre></body></html>"
+    result["content"] = result.get("content") or text
+    result["is_json"] = True
+    result["json_data"] = payload
+    return result
+
 
 # Try importing optional bypass libraries
 _has_cloudscraper = importlib.util.find_spec("cloudscraper") is not None
@@ -165,3 +194,7 @@ class UltimateScraper(ScrapeOrchestrator):
         self._ua_index = 0
         self._tls_scraper = TLSScraper() if _has_tls else None
         self._camoufox = CamoufoxBrowser() if _has_camoufox else None
+
+    async def scrape(self, url: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Scrape, then normalise a JSON/GraphQL body into the HTML contract."""
+        return normalize_json_payload(await super().scrape(url, options))

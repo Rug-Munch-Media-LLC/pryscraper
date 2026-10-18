@@ -22,6 +22,25 @@ from pry.engine.url_guard import validate_url
 
 logger = logging.getLogger(__name__)
 
+# Playwright raises its OWN Error/TimeoutError classes, which are not subclasses
+# of OSError or builtin TimeoutError. Catching only OSError let a navigation
+# timeout escape the tier and abort the whole fallback ladder instead of being
+# recorded as one tier failure.
+try:  # pragma: no cover - depends on the optional playwright install
+    from playwright.async_api import (
+        Error as _PlaywrightError,
+        TimeoutError as _PlaywrightTimeoutError,
+    )
+
+    _BROWSER_FAILURES: tuple[type[BaseException], ...] = (
+        _PlaywrightError,
+        _PlaywrightTimeoutError,
+        TimeoutError,
+        OSError,
+    )
+except Exception:  # pragma: no cover - playwright not installed
+    _BROWSER_FAILURES = (TimeoutError, OSError)
+
 
 class TierBrowserMixin:
     """Browser-based scraping tiers."""
@@ -71,6 +90,11 @@ class TierBrowserMixin:
                         logger.debug("undetected_reset_failed", exc_info=True)
 
             return await asyncio.to_thread(_do_fetch)
+        except asyncio.CancelledError:
+            # A cancelled request is NOT a tier failure: log the abandoned
+            # driver navigation and let cancellation propagate.
+            logger.info("undetected_cancelled", extra={"url": url})
+            raise
         except Exception as e:
             logger.debug("undetected_failed", extra={"error": str(e)[:200]})
         return None
@@ -117,8 +141,12 @@ class TierBrowserMixin:
                     await context.close()
                 except Exception:
                     logger.debug("playwright_context_close_failed", exc_info=True)
-        except OSError as e:
-            logger.debug("playwright_failed", extra={"error": str(e)[:200]})
+        except asyncio.CancelledError:
+            logger.info("playwright_cancelled", extra={"url": url})
+            raise
+        except _BROWSER_FAILURES as e:
+            # Includes playwright's TimeoutError, which is not an OSError.
+            logger.debug("playwright_failed", extra={"url": url, "error": str(e)[:200]})
         return None
 
     async def _tier_tls_fingerprint(

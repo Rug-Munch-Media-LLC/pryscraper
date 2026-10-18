@@ -22,6 +22,8 @@ from typing import Any
 
 from bs4 import BeautifulSoup, Tag
 
+from pry.engine.schema_extract import _validate_selector
+
 # Confidence levels.
 _EXACT = 1.0
 _RELOCATED = 0.5
@@ -224,7 +226,11 @@ class AdaptiveSelector:
     def select(self, name: str, selector: str, context: dict | None = None) -> str | None:
         """Select an element by CSS selector. On success, store the
         selector + surrounding context for later relocation. On failure,
-        try to relocate using previously stored context."""
+        try to relocate using previously stored context.
+
+        Raises :class:`InvalidRequestError` (HTTP 400) for an unsafe selector.
+        """
+        _validate_selector(selector, field="selector")
         node = self._soup.select_one(selector)
         if node is not None:
             self._contexts[name] = _capture_context(node, selector)
@@ -236,7 +242,11 @@ class AdaptiveSelector:
 
     def select_all(self, name: str, selector: str, context: dict | None = None) -> list[str]:
         """Select multiple elements by CSS selector. Stores context from
-        the first match for later relocation."""
+        the first match for later relocation.
+
+        Raises :class:`InvalidRequestError` (HTTP 400) for an unsafe selector.
+        """
+        _validate_selector(selector, field="selector")
         nodes = self._soup.select(selector)
         if nodes:
             self._contexts[name] = _capture_context(nodes[0], selector)
