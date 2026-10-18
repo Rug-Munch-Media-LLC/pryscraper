@@ -62,10 +62,11 @@ def test_dispatcher_help_lists_mcp(monkeypatch, capsys) -> None:
 def test_dispatcher_does_not_recurse(monkeypatch) -> None:
     """The dispatcher forwards to the click group, never back to itself."""
     from pry.misc import cli_commands
+    from pry.misc.cli_click import cli as click_group
 
     monkeypatch.setattr(cli_commands.sys, "argv", ["pry", "mcp", "info"])
     result = CliRunner().invoke(cli, ["mcp", "info"])
     assert result.exit_code == 0, result.output
     assert "Pry MCP Server" in result.output
     # `main` is the dispatcher; the click group is `cli` (distinct objects).
-    assert cli_commands.cli is not cli_commands.main
+    assert click_group is not cli_commands.main

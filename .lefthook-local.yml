@@ -1,0 +1,20 @@
+# Local override: the shared hook runs `lint-imports` without the package on
+# sys.path, so it fails with "Could not find package 'pry'" even when the
+# contracts pass. Same checks, correct environment.
+pre-push:
+  commands:
+    cc-mcp-architecture:
+      glob:
+        - "cc_mcp/*.py"
+        - ".importlinter"
+        - "scripts/check-cc-mcp-architecture.py"
+      run: |
+        if [ -f scripts/check-cc-mcp-architecture.py ]; then
+          python3 scripts/check-cc-mcp-architecture.py || exit 1
+        fi
+        # The pipx shim runs with -E (ignores PYTHONPATH); prefer the venv.
+        if [ -x .venv/bin/lint-imports ]; then
+          PYTHONPATH="src:." .venv/bin/lint-imports || exit 1
+        elif [ -f .importlinter ] && command -v lint-imports >/dev/null 2>&1; then
+          PYTHONPATH="src:." lint-imports || exit 1
+        fi
