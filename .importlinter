@@ -52,6 +52,9 @@ forbidden_modules =
 ignore_imports =
     pry.engine.scraper -> pry.engine.ultimate_scraper
     pry.engine.ultimate_scraper -> pry.engine.stealth_engine
+    # Engine-internal composition (search pipeline calls the ladder); not a
+    # router thinness edge. Router -> engine internals remain forbidden.
+    pry.engine.web_search_pipeline -> pry.engine.ultimate_scraper
     pry.api.routers.scraping.scraping_api -> pry.engine.ultimate_scraper
     pry.api.routers.core.signup -> pry.commerce.signup.engine
     # lifecycle.py (split from api.py) calls close_browsers() — shutdown-only,

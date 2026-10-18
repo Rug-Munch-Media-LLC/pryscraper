@@ -91,14 +91,15 @@ async def test_v1_scrape_with_json_schema(client: TestClient, mock_scrape_result
 async def test_v1_detect_block_success(client: TestClient) -> None:
     html = "<html><body>ok</body></html>"
     with patch("pry.api.routers.scraping.scraping.get_client") as mock_get_client:
-        mock_client = AsyncMock()
-        mock_client.get = AsyncMock(
-            return_value=AsyncMock(
-                text=html,
-                status_code=200,
-                headers={"content-type": "text/html"},
-            )
+        async def _body():
+            yield html.encode()
+
+        response = AsyncMock(
+            text=html, status_code=200, headers={"content-type": "text/html"}
         )
+        response.aiter_bytes = _body  # safe_get now streams and caps the body
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=response)
         mock_get_client.return_value = mock_client
         resp = client.post(
             "/v1/detect-block",
