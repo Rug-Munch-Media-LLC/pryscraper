@@ -1,25 +1,47 @@
-"""Pry — X402Handler settle mixin.
+"""Pry — X402Handler settle mixin (public facade).
 
-Extracted from handler.py: ``settle_payment`` / ``settle_payment_strict``
-with idempotent settlement caching, retry/backoff and the settlement
-webhook. Mixed into :class:`~pry.payments.x402.handler.X402Handler`, which
-owns the shared state (router, hooks, ledger, ``_verify_lock``,
-``_settled_txs``).
+``settle_payment`` / ``settle_payment_strict`` with idempotent settlement
+caching, retry/backoff and the settlement webhook. Batch finalisation lives in
+``handler_settle_batch``; the retry/hook/ledger helpers in
+``handler_settle_support`` — all re-exported here so existing imports and test
+patch targets (``handler_settle.<name>``, ``handler_settle.asyncio.sleep``)
+keep working.
 """
-# Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
-import asyncio
+import asyncio  # noqa: F401 — patch surface: tests patch handler_settle.asyncio.sleep
 import logging
+from dataclasses import replace
 from typing import Any
 
-from pry.payments.x402 import X402_DEFAULT_ASSET, X402_DEFAULT_NETWORK
-from pry.payments.x402.handler_verify import _extension_header
-from pry.payments.x402.metrics import record_settle
+from pry.payments.x402.handler_settle_batch import BatchSettleMixin
+from pry.payments.x402.handler_settle_flow import (
+    _cached_settlement,
+    _db_idempotent_cached,
+    _finalize_receipt,
+    _notify_success,
+    _persist_settle,
+    _pre_settle_aborted,
+    _settle_locked,
+)
+from pry.payments.x402.handler_settle_support import (
+    _enrich_record,
+    _retry_after_seconds,
+    _settle_context,
+)
 from pry.payments.x402.scheme import X402_PRICING, resolve_price_usd
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "SettleError",
+    "SettleMixin",
+    "_db_idempotent_cached",
+    "_enrich_record",
+    "_resolve_amount",
+    "_retry_after_seconds",
+]
 
 
 def _resolve_amount(
@@ -31,161 +53,10 @@ def _resolve_amount(
 ) -> float:
     """Resolve the server-authoritative amount for the receipt."""
     if operation:
-        # Resolve the server-authoritative price per (operation, network,
-        # asset); ignore any client-supplied amount for the receipt.
         amount_usd = resolve_price_usd(operation, network=network, asset=asset)
     if amount_usd <= 0:
         amount_usd = X402_PRICING.get(payment_id, {}).get("price_usd", 0.001)
     return amount_usd
-
-
-def _retry_after_seconds(exc: Exception, attempt: int) -> float:
-    """Parse Retry-After from httpx error responses when present."""
-    try:
-        retry_after = int(
-            (getattr(exc, "response", None) and exc.response.headers.get("Retry-After", "0")) or "0"
-        )
-    except (ValueError, TypeError) as exc:
-        logger.warning(
-            "payments_exception_swallowed",
-            extra={"error": str(exc), "handler": "_retry_after_seconds"},
-        )
-        retry_after = 0
-    return min(max(retry_after, 0.5 * 2**attempt), 30)
-
-
-def _enrich_record(
-    settlement: dict[str, Any] | None,
-    payment_id: str,
-    tx_hash: str,
-    network: str,
-    asset: str,
-) -> dict[str, Any]:
-    """Enrich the settlement audit record with the identity fields so the
-    JSONL ledger is self-describing (payment_id/tx_hash/network/asset)."""
-    record = dict(settlement or {})
-    record.setdefault("payment_id", payment_id)
-    record.setdefault("tx_hash", tx_hash)
-    record.setdefault("network", network)
-    record.setdefault("asset", asset)
-    return record
-
-
-def _db_idempotent_cached(self: Any, key: str) -> dict[str, Any] | None:
-    """DB-first idempotency: authoritative across processes AND hosts (the
-    in-memory index only sees this process's settles)."""
-    if not (key and self._use_db):
-        return None
-    try:
-        from pry.payments.x402.ledger_store import settlement_by_key
-
-        cached = settlement_by_key(key)
-        if cached is not None and cached.get("success") is True:
-            self._settled_txs.setdefault(key, cached)
-            logger.info("x402_settle_idempotent", extra={"settle_key": key})
-            return cached
-    except Exception as e:  # noqa: BLE001 — fall through to memory
-        logger.warning("x402_settle_db_idempotency_failed", extra={"error": str(e)[:160]})
-    return None
-
-
-def _pre_settle_aborted(
-    self: Any,
-    payment_id: str,
-    tx_hash: str,
-    network: str,
-    asset: str,
-    amount_usd: float,
-) -> dict[str, Any] | None:
-    """Run pre-settle hooks; return an abort receipt if any hook aborts."""
-    for hook in self._pre_settle_hooks:
-        result = hook(
-            payment_id=payment_id,
-            tx_hash=tx_hash,
-            network=network,
-            asset=asset,
-            amount_usd=amount_usd,
-        )
-        if isinstance(result, dict) and result.get("abort"):
-            return {
-                "success": False,
-                "error": result.get("reason", "aborted by pre-settle hook"),
-            }
-    return None
-
-
-async def _settle_with_retry(
-    self: Any,
-    payment_id: str,
-    tx_hash: str,
-    network: str,
-    asset: str,
-    amount_usd: float,
-) -> dict[str, Any] | None:
-    """Call the facilitator settle with bounded retry/backoff."""
-    settlement = None
-    for attempt in range(4):
-        try:
-            settlement = await self.router.settle(
-                payment_id=payment_id,
-                tx_hash=tx_hash,
-                network=network,
-                asset=asset,
-                amount_usd=amount_usd,
-            )
-            break
-        except Exception as exc:
-            delay = _retry_after_seconds(exc, attempt)
-            if attempt >= 3:
-                raise
-            logger.warning(
-                "x402_settle_retry",
-                extra={
-                    "payment_id": payment_id,
-                    "attempt": attempt,
-                    "retry_after": int(delay),
-                    "delay": delay,
-                    "error": str(exc)[:160],
-                },
-            )
-            await asyncio.sleep(delay)
-    return settlement
-
-
-def _run_post_settle_hooks(self: Any, record: dict[str, Any], payment_id: str) -> None:
-    """Best-effort post-settle hooks; never break settle."""
-    for hook in self._post_settle_hooks:
-        try:
-            hook(record)
-        except Exception as e:  # noqa: BLE001 — best-effort, never break settle
-            logger.debug(
-                "x402_post_settle_hook_error",
-                extra={"payment_id": payment_id, "error": str(e)},
-            )
-
-
-async def _notify_success(
-    self: Any,
-    record: dict[str, Any],
-    payment_id: str,
-    amount_usd: float,
-    network: str,
-) -> None:
-    """Customer notification (audit item #8): fire the settlement webhook
-    ONLY for genuinely new settlements — the idempotent-cache hit path
-    above returns early, so a replayed settle never re-notifies."""
-    self.usage.record(payment_id, amount_usd=amount_usd, network=network)
-    try:
-        # Late-bound via the handler module so tests can patch
-        # ``pry.payments.x402.handler.fire_settlement_webhook``.
-        from pry.payments.x402.handler import fire_settlement_webhook
-
-        await fire_settlement_webhook(record)
-    except Exception as e:  # noqa: BLE001 — best-effort, never break settle
-        logger.warning(
-            "x402_settlement_webhook_error",
-            extra={"payment_id": payment_id, "error": str(e)},
-        )
 
 
 class SettleError(Exception):
@@ -197,161 +68,48 @@ class SettleError(Exception):
         super().__init__(reason)
 
 
-class SettleMixin:
+class SettleMixin(BatchSettleMixin):
     """Payment settlement methods for X402Handler."""
 
-    async def settle_payment(
-        self,
-        payment_id: str,
-        tx_hash: str,
-        network: str = "",
-        asset: str = "",
-        amount_usd: float = 0.0,
-        operation: str = "",
-    ) -> dict[str, Any]:
+    async def settle_payment(self, payment_id: str, tx_hash: str, **options: Any) -> dict[str, Any]:
         """Settle a payment via the facilitator router.
 
-        Returns a settlement receipt (to be Base64-encoded in PAYMENT-RESPONSE header).
+        ``options`` accepts ``network``, ``asset``, ``amount_usd`` and
+        ``operation`` (the pre-split keyword arguments). Returns a settlement
+        receipt (to be Base64-encoded in PAYMENT-RESPONSE header).
         """
-        network = network or X402_DEFAULT_NETWORK
-        asset = asset or X402_DEFAULT_ASSET
-        amount_usd = _resolve_amount(payment_id, network, asset, amount_usd, operation)
-
-        # Idempotency (fix #4): a settled tx must never duplicate ledger
-        # entries. If this payment was already settled successfully, return the
-        # cached receipt WITHOUT re-rolling the facilitator and WITHOUT appending
-        # a second line to settlements.jsonl.
-        key = self._settlement_key(
-            {"payment_id": payment_id, "tx_hash": tx_hash, "network": network, "asset": asset}
+        ctx = _settle_context(self, payment_id, tx_hash, options)
+        ctx = replace(
+            ctx,
+            amount_usd=_resolve_amount(
+                ctx.payment_id, ctx.network, ctx.asset, ctx.amount_usd, ctx.operation
+            ),
         )
         # Serialize the check-then-settle sequence under _verify_lock to prevent
-        # TOCTOU double-settle under concurrent requests (same lock as verify_payment).
+        # TOCTOU double-settle under concurrent requests (same lock as verify).
         with self._verify_lock:
-            cached = _db_idempotent_cached(self, key)
+            cached = _cached_settlement(self, ctx)
             if cached is not None:
                 return cached
-            if key and key in self._settled_txs:
-                logger.info("x402_settle_idempotent", extra={"settle_key": key})
-                return self._settled_txs[key]
-
-            aborted = _pre_settle_aborted(self, payment_id, tx_hash, network, asset, amount_usd)
+            aborted = _pre_settle_aborted(self, ctx)
             if aborted is not None:
                 return aborted
-
-            settlement = await _settle_with_retry(
-                self, payment_id, tx_hash, network, asset, amount_usd
-            )
-            # Enrich the settlement audit record with the identity fields so the
-            # JSONL ledger is self-describing (payment_id/tx_hash/network/asset).
-            record = _enrich_record(settlement, payment_id, tx_hash, network, asset)
-            # Only index successful settles so a failed attempt can be retried.
-            if record.get("success") is True and key:
-                self._settled_txs.setdefault(key, record)
-            _run_post_settle_hooks(self, record, payment_id)
-
-        self._record_settlement(record)
-        record_settle(
-            network,
-            success=record.get("success") is True,
-            amount_usd=amount_usd if record.get("success") is True else 0.0,
-            asset=asset,
-        )
-        # Customer notification (audit item #8): fire the settlement webhook
-        # ONLY for genuinely new settlements — the idempotent-cache hit path
-        # above returns early, so a replayed settle never re-notifies.
+            settlement, record = await _settle_locked(self, ctx)
+        _persist_settle(self, record, ctx)
         if record.get("success") is True:
-            await _notify_success(self, record, payment_id, amount_usd, network)
-        if settlement is None:
-            # Fail closed: a facilitator that returned no receipt is not proof
-            # of settlement, and callers must never receive ``None`` and treat
-            # it as a (falsy) success-shaped value.
-            logger.warning(
-                "x402_settle_no_receipt",
-                extra={"payment_id": payment_id, "tx_hash": tx_hash, "network": network},
-            )
-            return {"success": False, "reason": "empty settlement response"}
-        settlement["extension_responses"] = _extension_header(settlement)
-        return settlement
-
-    def finalize_batch_settlement(
-        self,
-        batch_id: str,
-        *,
-        tx_hash: str = "",
-        network: str = "",
-        asset: str = "",
-    ) -> dict[str, Any]:
-        """Persist per-item receipts for a settled batch; return the gate status.
-
-        A batch settles as ONE on-chain tx but buys N operations, so access is
-        gated per operation. Requires the batch's stored settlement to be
-        explicitly ``success: True``; then writes one idempotent receipt per
-        operation (keyed per ``(tx_hash, operation)``). A replayed settle finds
-        the existing keys and writes nothing — each item is credited once —
-        while still reporting every item as settled.
-
-        All-or-nothing: a batch whose settlement is missing/failed (or whose
-        stored record predates per-item receipts and cannot be proven) returns
-        every item unsettled, so no part of it may be served.
-        """
-        from pry.payments.x402.batch import store as batch_store
-
-        batch = batch_store._load_batch(batch_id) or {}
-        ops = [str(op) for op in (batch.get("operations") or []) if str(op).strip()]
-        settlement = batch.get("settlement") or {}
-        if settlement.get("success") is not True:
-            logger.warning(
-                "x402_batch_settlement_not_proven",
-                extra={"batch_id": batch_id, "operations": ops},
-            )
-            return {
-                "batch_id": batch_id,
-                "settled": [],
-                "unsettled": ops,
-                "all_settled": False,
-                "written": 0,
-            }
-        recorded = self.record_batch_settlements(
-            batch_id,
-            ops,
-            settlement,
-            tx_hash=tx_hash or str(batch.get("tx_hash") or ""),
-            network=network or str(batch.get("network") or ""),
-            asset=asset or str(batch.get("asset") or ""),
-            caller_key=str(batch.get("caller_key") or ""),
-        )
-        recorded["batch_id"] = batch_id
-        return recorded
+            await _notify_success(self, ctx, record)
+        return _finalize_receipt(settlement, ctx)
 
     async def settle_payment_strict(
-        self,
-        payment_id: str,
-        tx_hash: str,
-        network: str = "",
-        asset: str = "",
-        amount_usd: float = 0.0,
-        operation: str = "",
+        self, payment_id: str, tx_hash: str, **options: Any
     ) -> dict[str, Any]:
-        """Settle a payment, raising :class:`SettleError` on failure.
-
-        Thin wrapper over :meth:`settle_payment` for callers who prefer
-        try/except over inspecting the ``success`` flag. On success the
-        settlement receipt dict is returned unchanged.
-        """
-        settlement = await self.settle_payment(
-            payment_id=payment_id,
-            tx_hash=tx_hash,
-            network=network,
-            asset=asset,
-            amount_usd=amount_usd,
-            operation=operation,
-        )
+        """Settle a payment, raising :class:`SettleError` on failure."""
+        settlement = await self.settle_payment(payment_id, tx_hash, **options)
         if not (settlement or {}).get("success"):
             raise SettleError(
                 (settlement or {}).get("reason", "settlement failed"),
                 payment_id=payment_id,
                 tx_hash=tx_hash,
-                network=network,
-                asset=asset,
+                **options,
             )
         return settlement

@@ -1,6 +1,8 @@
-"""Pry — x402 router (remaining api.py routes).
+"""Pry — x402 router (thin routes over the payload/view builders).
 
-Auto-extracted from api.py during the router-split refactor.
+POST/GET contracts are unchanged: same paths, tags, status codes and response
+shapes. Shaping lives in ``x402_views``; the pay request model and pay/verify
+helpers live in ``x402_payloads``.
 """
 
 # SPDX-License-Identifier: MIT
@@ -8,96 +10,30 @@ Auto-extracted from api.py during the router-split refactor.
 
 from __future__ import annotations
 
-import logging
-import uuid
 from typing import Any
 
 from fastapi import APIRouter, Body, Request
 
-from pry.api.routers.commerce import x402_engines
+from pry.api.routers.commerce import x402_views
+from pry.api.routers.commerce.x402_payloads import PayRequest  # noqa: TC001 — runtime for FastAPI
 from pry.core.errors import InvalidRequestError
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["x402"])
 
 
 @router.get("/v1/x402/health", tags=["x402"], summary="x402 readiness/health probe")
 async def x402_health() -> dict[str, Any]:
-    """Live x402 readiness probe.
-
-    Returns facilitator mode/readiness (self-hosted vs external), whether the
-    price oracle is reachable and from which source, the supported network
-    surface with per-network verification status, and settlement counters
-    (nonces seen, pending). All fields are probed — the facilitator wallet/RPC
-    and the oracle are checked, never assumed.
-    """
-    from pry.payments.x402 import get_facilitator_router
-    from pry.payments.x402.scheme import (
-        SUPPORTED_ASSETS,
-        SUPPORTED_NETWORKS,
-        network_verification_status,
-        probe_oracle,
-    )
-
-    router = get_facilitator_router()
-    oracle_reachable, oracle_source = await probe_oracle()
-    verification_status = {
-        n["network"]: network_verification_status(n["network"]) for n in SUPPORTED_NETWORKS
-    }
-    return {
-        "status": "ok",
-        "facilitator": router.readiness(),
-        "oracle": {"reachable": oracle_reachable, "source": oracle_source},
-        "supported_networks": [n["network"] for n in SUPPORTED_NETWORKS],
-        "supported_assets_count": sum(len(assets) for assets in SUPPORTED_ASSETS.values()),
-        "verification_status": verification_status,
-        "settlement": router.settlement_stats(),
-    }
-
-
-# Engine -> MCP tool binding moved to x402_engines; re-exported below so
-# `from pry.api.routers.commerce.x402 import ENGINE_TOOLS` keeps working.
+    """Live x402 readiness probe (facilitator, oracle, networks, settlement)."""
+    return await x402_views.health_payload()
 
 
 @router.get("/v1/x402/pricing", tags=["x402"], summary="Get x402 pricing for all paid operations")
 async def x402_pricing() -> dict[str, Any]:
-    """Get the price list for pay-per-scrape operations.
+    """Per-operation USD price, supported networks/assets and treasury wallets.
 
-    Returns the per-operation USD price, the supported networks/assets, and
-    the configured per-chain treasury wallets that a client pays into.
-
-    **Response**
-
-    ```json
-    {
-      "success": true,
-      "data": {
-        "operations": {
-          "scrape": {"price_usd": 0.01, "description": "Scrape a single URL"},
-          "crawl": {"price_usd": 0.05, "description": "Crawl a site"}
-        },
-        "wallets": {
-          "ethereum": "0x...",
-          "solana": "G1uZ..."
-        }
-      }
-    }
-    ```
-
-    **x402 payment**: this pricing endpoint is free. The operations it lists
-    are paid — call `POST /v1/x402/payment` to create a payment request, pay
-    the returned wallet, then submit the tx via `POST /v1/x402/verify` (or
-    `POST /v1/x402/pay` to receive an access token).
+    Free endpoint; the listed operations are paid via ``POST /v1/x402/payment``.
     """
-    from pry.payments.x402 import X402Handler
-    from pry.payments.x402.scheme import treasury_wallets
-
-    stats = X402Handler().get_stats()
-    # Surface the ACTUAL configured per-chain treasuries (env-driven) so the
-    # live pricing endpoint never reports a stale/empty wallet snapshot.
-    stats["wallets"] = treasury_wallets()
-    return {"success": True, "data": stats}
+    return x402_views.pricing_payload()
 
 
 @router.get(
@@ -106,56 +42,8 @@ async def x402_pricing() -> dict[str, Any]:
     summary="Full x402 catalog: operations, engines and every Apify actor preset",
 )
 async def x402_catalog() -> dict[str, Any]:
-    """Machine-readable catalog binding the three surfaces together.
-
-    Returns every paid operation (with pricing), the engine each Apify
-    actor preset runs on, and the MCP tool that exposes the same
-    capability — so agents can discover actor-equivalent MCP tools and
-    price any call without reading source.
-    """
-    from pry.payments.x402 import X402Handler
-    from pry.payments.x402_middleware import PAID_ENDPOINTS
-    from pry.payments.x402_middleware.config import X402_PRICING
-
-    # engine -> MCP tool mapping: core engines are 1:1; domain routers
-    # carry their own tool names. Actors with processor=None run the raw
-    # scrape/crawl/screenshot engines directly.
-
-    try:
-        from actor_factory.presets import ALL_PRESETS
-
-        actors = [
-            {
-                "actor": name,
-                "title": spec.title,
-                "icon": spec.icon,
-                "engine": spec.processor or "scrape",
-                "mcp_tool": x402_engines.ENGINE_TOOLS.get(spec.processor, "pry_scrape"),
-                "category": str(getattr(spec.category, "value", spec.category)),
-                "uses_browser": bool(spec.uses_browser),
-            }
-            for name, spec in sorted(ALL_PRESETS.items())
-        ]
-    except Exception:
-        # An empty ``actors`` list is indistinguishable from a factory that
-        # genuinely ships no presets, so a client pricing a call would be told
-        # a capability does not exist when it does. Serve the paid-operation
-        # surface anyway and mark the actor section as unavailable.
-        logger.warning("x402_catalog_actor_presets_unavailable", exc_info=True)
-        return {
-            "success": False,
-            "error": "actor presets unavailable",
-            "data": x402_engines.catalog_data(
-                X402_PRICING, PAID_ENDPOINTS, None, X402Handler().get_stats().get("settlement", {})
-            ),
-        }
-
-    return {
-        "success": True,
-        "data": x402_engines.catalog_data(
-            X402_PRICING, PAID_ENDPOINTS, actors, X402Handler().get_stats().get("settlement", {})
-        ),
-    }
+    """Machine-readable catalog: operations, engine per actor preset, MCP tool."""
+    return x402_views.catalog_payload()
 
 
 @router.post("/v1/x402/payment", tags=["x402"], summary="Create a x402 payment request")
@@ -163,14 +51,10 @@ async def x402_payment_request(
     operation: str = Body(...),
     metadata: dict[str, Any] | None = Body(None),
 ) -> dict[str, Any]:
-    """Create a x402 payment request for a paid operation.
-
-    Returns payment details (wallet, amount, asset) for the client to pay.
-    """
+    """Create a x402 payment request for a paid operation."""
     from pry.payments.x402 import create_payment_request
 
-    req = create_payment_request(operation, metadata)
-    return {"success": True, "data": req}
+    return {"success": True, "data": create_payment_request(operation, metadata)}
 
 
 @router.post("/v1/x402/verify", tags=["x402"], summary="Verify a x402 payment was settled")
@@ -181,46 +65,8 @@ async def x402_verify_payment(
     asset: str = Body(""),
     amount_usd: float = Body(0.0),
 ) -> dict[str, Any]:
-    """Verify a x402 payment has been settled on-chain via facilitator router.
-
-    When ``payment_id`` names a priced operation, the client-supplied
-    ``amount_usd`` is validated against the SERVER-side price first and
-    underpayment is rejected before any facilitator call.
-    """
-    from pry.payments.x402 import (
-        X402_PRICING,
-        X402Handler,
-        resolve_price_usd,
-    )
-
-    # When payment_id names a priced operation, the SERVER-side price is
-    # authoritative — never trust the client-supplied amount_usd. The client
-    # value is only a sanity check (reject if they claim MORE than the price,
-    # which would be a protocol violation); the actual on-chain verification
-    # uses the server price so a client who omits amount_usd (default 0.0)
-    # doesn't get a false "underpayment" rejection.
-    server_amount = 0.0
-    if payment_id in X402_PRICING:
-        server_amount = resolve_price_usd(payment_id, network=network, asset=asset)
-        # Sanity: reject if client claims MORE than the server price (protocol violation).
-        if amount_usd > server_amount + 1e-9:
-            logger.warning(
-                "x402_client_overpayment_claim",
-                extra={"operation": payment_id, "client": amount_usd, "server": server_amount},
-            )
-        # Use the server price for verification — the on-chain tx must match
-        # what the server charges, not what the client claims.
-        amount_usd = server_amount
-
-    result = await X402Handler().verify_payment(
-        payment_id,
-        tx_hash,
-        network=network,
-        asset=asset,
-        amount_usd=amount_usd,
-        operation=payment_id if payment_id in X402_PRICING else "",
-    )
-    return {"success": result["verified"], "data": result}
+    """Verify a payment on-chain; the server price overrides a client amount."""
+    return await x402_views.verify_payload(payment_id, tx_hash, network, asset, amount_usd)
 
 
 @router.post(
@@ -238,11 +84,7 @@ async def x402_require_payment(
 
 @router.post("/v1/x402/batch-payment", tags=["x402"], summary="Create a batch x402 payment")
 async def x402_batch_payment(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
-    """Create a single x402 payment covering multiple operations.
-
-    Returns a PaymentRequired body with the combined amount. After paying,
-    submit the tx to POST /v1/x402/batch-verify.
-    """
+    """Create a single x402 payment covering multiple operations."""
     from pry.payments.x402 import create_batch_payment
 
     operations = payload.get("operations", [])
@@ -259,142 +101,16 @@ async def x402_batch_verify(
     request: Request,
     payload: dict[str, Any] = Body(...),
 ) -> dict[str, Any]:
-    """Verify the on-chain payment for a batch and mark it paid.
-
-    The batch is bound to the caller's IP at verify time; only that caller
-    can use the batch payment until it expires (replay hardening).
-
-    Success requires SETTLEMENT, not verification: a verified-but-unsettled
-    batch returns ``success: false`` with the unsettled items listed
-    (``unsettled``). On a settled batch, one idempotent settlement receipt is
-    written per item so the middleware can prove settlement per operation; a
-    replayed call returns the same receipts without double-crediting.
-    """
-    from pry.payments.x402 import X402Handler, verify_batch_payment
-
-    batch_id = payload.get("batch_id", "")
-    tx_hash = payload.get("tx_hash", "")
-    network = payload.get("network", "")
-    asset = payload.get("asset", "")
-    if not batch_id or not tx_hash:
-        raise InvalidRequestError("batch_id and tx_hash are required")
-    caller_key = request.client.host if request and request.client else ""
-    result = await verify_batch_payment(
-        batch_id, tx_hash, network=network, asset=asset, caller_key=caller_key
-    )
-    # Verify does not prove settlement. Persist/read per-item receipts and gate
-    # on them: every operation must be settled before the batch counts as paid.
-    status = X402Handler().finalize_batch_settlement(
-        batch_id, tx_hash=tx_hash, network=network, asset=asset
-    )
-    verified = bool(result.get("verified"))
-    settled = bool(status.get("all_settled"))
-    data = {
-        **result,
-        "success": verified and settled,
-        "settled": settled,
-        "settled_items": status.get("settled", []),
-        "unsettled": status.get("unsettled", []),
-        "receipts_written": status.get("written", 0),
-    }
-    return {"success": verified and settled, "data": data}
+    """Verify + finalize a batch; success requires per-item settlement receipts."""
+    return await x402_views.batch_verify_payload(request, payload)
 
 
 @router.post("/v1/x402/pay", tags=["x402"], summary="Process x402 payment and get access token")
-async def x402_pay(
-    request: Request,
-    operation: str = Body(...),
-    tx_hash: str = Body(...),
-    payer_wallet: str = Body(...),
-    network: str = Body(""),
-    asset: str = Body(""),
-    amount_usd: float = Body(0.0),
-) -> dict[str, Any]:
-    """Verify then settle a payment; return an access token (payment_id).
-
-    ``amount_usd`` is checked against the SERVER-side price first, and access
-    requires a successful settlement receipt for THIS payment_id.
-    """
-    from pry.payments.x402 import validate_client_amount
-
-    payload = {
-        "payment_id": uuid.uuid4().hex[:12],
-        "tx_hash": tx_hash,
-        "network": network,
-        "asset": asset,
-        "amount_usd": amount_usd,
-        "operation": operation,
-        "payer_wallet": payer_wallet,
-        # Bind to the caller IP so the middleware replay check matches it.
-        "caller_key": request.client.host if request.client else "",
-    }
-    ok, reason = validate_client_amount(operation, amount_usd, asset, network=network)
-    if not ok:
-        logger.warning(
-            "x402_underpayment_rejected",
-            extra={"operation": operation, "reason": reason},
-        )
-        return _rejected_payment(payload, reason)
-
-    verify_result, settlement = await _verify_and_settle(payload)
-    settled = bool(settlement and settlement.get("success") is True)
-    success = bool(verify_result.get("verified")) and settled
-    payment_id = payload["payment_id"]
-    return {
-        "success": success,
-        "data": {
-            "payment_id": payment_id if settled else "",
-            "tx_hash": tx_hash,
-            "settled": settled,
-            "verified": verify_result,
-            "settlement": settlement,
-            "payer_wallet": payer_wallet,
-            "use_in_header": (
-                {"X-Payment-ID": payment_id, "X-Payment-Hash": tx_hash} if settled else {}
-            ),
-        },
-    }
-
-
-def _rejected_payment(payload: dict[str, Any], reason: str) -> dict[str, Any]:
-    """Underpayment response body — same shape as a failed verification."""
-    from pry.payments.x402 import resolve_price_usd
-
-    return {
-        "success": False,
-        "data": {
-            "payment_id": "",
-            "tx_hash": payload["tx_hash"],
-            "settled": False,
-            "verified": {"verified": False, "reason": reason, "settlement": None},
-            "settlement": None,
-            "payer_wallet": payload["payer_wallet"],
-            "required_amount_usd": resolve_price_usd(payload["operation"]),
-        },
-    }
-
-
-async def _verify_and_settle(payload: dict[str, Any]) -> tuple[dict[str, Any], Any]:
-    """Verify then settle one payment; settlement proves access, verification does not."""
-    from pry.payments.x402 import X402Handler
-
-    handler = X402Handler()
-    common = {
-        "network": payload["network"],
-        "asset": payload["asset"],
-        "amount_usd": payload["amount_usd"],
-        "operation": payload["operation"],
-    }
-    verify_result = await handler.verify_payment(
-        payload["payment_id"], payload["tx_hash"], caller_key=payload["caller_key"], **common
-    )
-    if not verify_result.get("verified"):
-        return verify_result, None
-    settlement = await handler.settle_payment(payload["payment_id"], payload["tx_hash"], **common)
-    return verify_result, settlement
+async def x402_pay(request: Request, body: PayRequest) -> dict[str, Any]:
+    """Verify then settle a payment; return an access token (payment_id)."""
+    return await x402_views.pay_payload(request, body)
 
 
 # Re-exported so `from pry.api.routers.commerce.x402 import ENGINE_TOOLS` keeps
-# working. NOT a bound local: internal callers above go through the
-# `x402_engines` module attribute so monkeypatching stays visible.
+# working. NOT a bound local: internal callers go through `x402_engines`.
 from pry.api.routers.commerce.x402_engines import ENGINE_TOOLS  # noqa: E402,F401
