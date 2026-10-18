@@ -37,3 +37,35 @@ def test_mcp_help_documents_stdio() -> None:
 def test_console_entrypoint_is_callable() -> None:
     """``pry-mcp`` / ``pryscraper-mcp`` point at this object."""
     assert callable(mcp_serve)
+
+
+def test_dispatcher_routes_mcp_to_click(monkeypatch) -> None:
+    """`pry mcp --stdio` must reach the click group, not "Unknown command"."""
+    from pry.misc import cli_commands
+
+    monkeypatch.setattr(cli_commands.sys, "argv", ["pry", "mcp", "--stdio"])
+    with patch("pry.misc.cli_click.launch_mcp_stdio") as launch:
+        cli_commands.main()
+    launch.assert_called_once_with()
+
+
+def test_dispatcher_help_lists_mcp(monkeypatch, capsys) -> None:
+    """The legacy usage block advertises the click-only mcp command."""
+    from pry.misc import cli_commands
+
+    monkeypatch.setattr(cli_commands.sys, "argv", ["pry", "--help"])
+    cli_commands.main()
+    out = capsys.readouterr().out
+    assert "pry mcp" in out
+
+
+def test_dispatcher_does_not_recurse(monkeypatch) -> None:
+    """The dispatcher forwards to the click group, never back to itself."""
+    from pry.misc import cli_commands
+
+    monkeypatch.setattr(cli_commands.sys, "argv", ["pry", "mcp", "info"])
+    result = CliRunner().invoke(cli, ["mcp", "info"])
+    assert result.exit_code == 0, result.output
+    assert "Pry MCP Server" in result.output
+    # `main` is the dispatcher; the click group is `cli` (distinct objects).
+    assert cli_commands.cli is not cli_commands.main

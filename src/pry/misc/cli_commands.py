@@ -235,6 +235,7 @@ def _print_usage() -> None:
     print(f"    {CYAN}pry serve{NC}                   Start the server")
     print(f"    {CYAN}pry completions{NC}             Install autocomplete")
     print(f"    {CYAN}pry proxy ...{NC}               Manage proxy providers and signup")
+    print(f"    {CYAN}pry mcp [--stdio]{NC}          MCP server for AI agents (stdio)")
     print()
     print(f"  {BOLD}Examples:{NC}")
     print("    pry open https://example.com")
@@ -246,6 +247,8 @@ def _print_usage() -> None:
     print("    pry serve")
     print("    pry proxy list")
     print("    pry proxy signup brightdata")
+    print("    pry mcp --stdio")
+    print("    pry mcp serve")
     print()
     print(f"  {BOLD}Settings:{NC}")
     print("    PRY_URL=http://localhost:8005    (default)")
@@ -327,11 +330,25 @@ def _dispatch_completions(args: list[str]) -> None:
     cmd_completions(shell)
 
 
-def _dispatch_proxy(args: list[str]) -> None:
+#: Commands defined on the click group in ``cli_click`` rather than in the
+#: legacy ``_COMMANDS`` table. ``mcp`` MUST be here: ``pry mcp --stdio``,
+#: ``pry mcp serve`` and ``pry mcp info`` live on the click group, and an
+#: unlisted command falls through to ``Unknown command: mcp``.
+_CLICK_COMMANDS = frozenset({"mcp", "proxy", "wallets"})
+
+
+def _dispatch_click(cmd: str, args: list[str]) -> None:
+    """Forward ``pry <cmd> ...`` to the click group with explicit argv.
+
+    ``args=[...]`` is passed instead of relying on the ambient ``sys.argv``
+    so the forwarded command line is exactly the dispatcher's own tail.
+    ``cli`` is the click group from ``cli_click`` — never ``main`` — so this
+    cannot recurse into the dispatcher.
+    """
     if click is None:
         print(f"{RED}✖ click is not installed. Run: pip install click{NC}")
         sys.exit(1)
-    cli.main(standalone_mode=False)
+    cli.main(args=[cmd, *args], standalone_mode=False)
 
 
 _COMMANDS: dict[str, Any] = {
@@ -354,8 +371,8 @@ _COMMANDS: dict[str, Any] = {
 
 
 def main() -> None:
-    if len(sys.argv) >= 2 and sys.argv[1] in ("proxy", "wallets") and click is not None:
-        cli.main(standalone_mode=False)
+    if len(sys.argv) >= 2 and sys.argv[1] in _CLICK_COMMANDS and click is not None:
+        _dispatch_click(sys.argv[1], sys.argv[2:])
         return
     if len(sys.argv) < 2:
         _print_usage()
@@ -369,8 +386,8 @@ def main() -> None:
             print(f"Pry v{VERSION}")
         elif cmd in ("-h", "--help", "help"):
             _print_usage()
-        elif cmd == "proxy":
-            _dispatch_proxy(args)
+        elif cmd in _CLICK_COMMANDS:
+            _dispatch_click(cmd, args)
         else:
             handler = _COMMANDS.get(cmd)
             if handler is None:

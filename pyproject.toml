@@ -236,7 +236,13 @@ include = [
 # the wheel smoke test first imported them (actor_factory.presets failed on a
 # missing preset JSON, site_catalog/crypto_market load their registries from
 # data files next to the module). Paths are relative to each anchor package.
-pry = ["commerce/templates/*.json"]
+# `api/templates/**/*` covers the FastAPI app UI assets (app/ui.css) that
+# pry.api.routers.core.app_ui reads with Path.read_text at import time. Without
+# it the wheel imports fine but `uvicorn pry.api.api:app` dies
+# FileNotFoundError: .../pry/api/templates/app/ui.css. The explicit one-level
+# pattern is kept alongside `**` because older setuptools expanded package-data
+# globs non-recursively.
+pry = ["commerce/templates/*.json", "api/templates/*/*", "api/templates/**/*"]
 actor_factory = ["presets/*.json"]
 site_catalog = ["domains.json"]
 crypto_market = ["*.json"]
