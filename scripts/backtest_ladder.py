@@ -52,6 +52,22 @@ _compare = compare
 
 #: Measured and regressed.
 EXIT_REGRESSION = 1
+
+
+def _covers_current_sources(results: list[dict], want: set[str] | None = None) -> bool:
+    """True when the fixture/baseline describes the SAME source set we measure.
+
+    A success-rate diff across different source sets is not a regression, it is
+    a different experiment. The committed ``data/ladder_baseline.json`` is a
+    one-source placeholder (``a.example``) while ``SOURCES`` defines ten, so
+    comparing the two would report a real 9/10 run as a "regression" from a
+    fabricated 1.0. Refuse the comparison instead of inventing a verdict.
+    """
+    have = {r.get("url") for r in results}
+    expected = want if want is not None else {s["url"] for s in SOURCES}
+    return bool(have) and have == expected
+
+
 #: Could not measure. Not a verdict about the ladder.
 EXIT_UNMEASURABLE = 2
 
@@ -102,6 +118,15 @@ def _offline(argv: list[str] | None) -> int:
             f"offline (or it has no 'results'). Nothing was measured; refusing "
             f"to fabricate a pass. Run the live path once with "
             f"--update-baseline to record one."
+        )
+        return EXIT_UNMEASURABLE
+
+    if not _covers_current_sources(results):
+        print(
+            f"\n  UNMEASURABLE: {BASELINE} covers {len({r.get('url') for r in results})} "
+            f"source(s) but the harness defines {len(SOURCES)}. Replaying a different "
+            f"experiment is not a measurement of this one; refusing to grade it. "
+            f"Record a real baseline with --update-baseline."
         )
         return EXIT_UNMEASURABLE
 
@@ -164,6 +189,15 @@ async def main(argv: list[str] | None = None) -> int:
         return EXIT_UNMEASURABLE
 
     if args.compare:
+        base_results = await asyncio.to_thread(read_results)
+        if not _covers_current_sources(base_results, {s["url"] for s in sources}):
+            print(
+                f"\n  UNMEASURABLE: the committed baseline covers "
+                f"{len({r.get('url') for r in base_results})} source(s) but this run "
+                f"measured {len(sources)}. Different source sets cannot be diffed; "
+                f"re-record with --update-baseline."
+            )
+            return EXIT_UNMEASURABLE
         regressions = _compare(await asyncio.to_thread(read_baseline), summary)
         if regressions:
             for key, b, n in regressions:
