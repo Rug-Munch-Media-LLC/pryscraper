@@ -42,6 +42,28 @@ logger = logging.getLogger(__name__)
 
 logger = logging.getLogger("pry.payments.x402.handler")
 
+BATCH_ITEM_SEP = ":"
+
+
+def batch_item_payment_id(batch_id: str, operation: str) -> str:
+    """Stable pseudo ``payment_id`` carrying one batch item's settlement receipt.
+
+    A batch is one on-chain tx but N purchased operations. Serving is gated per
+    operation, so each ``(batch_id, operation)`` needs its own receipt that the
+    settlement gate can look up by ``payment_id``.
+    """
+    return f"{str(batch_id or '').strip()}{BATCH_ITEM_SEP}{str(operation or '').strip()}"
+
+
+def batch_reference(batch_id: str, operation: str) -> str:
+    """Ledger-style idempotency reference for one batch item (migration 0011 shape).
+
+    ``ledger_entries`` is UNIQUE on ``(user_id, reason, reference)``; this is the
+    reference a credit for the item must use so a replayed settle cannot
+    double-credit.
+    """
+    return f"x402:batch:{str(batch_id or '').strip()}:{str(operation or '').strip()}"
+
 
 class StateMixin:
     """Ledger persistence, replay-hardening indexes, hooks and the payment gate.
@@ -235,9 +257,17 @@ class StateMixin:
         still get idempotency.
         """
         rec = rec or {}
-        tx_hash = str(rec.get("tx_hash") or "").strip()
+        tx_hash = str(rec.get("tx_hash") or rec.get("transaction") or "").strip()
+        network = str(rec.get("network") or "").strip()
+        batch_id = str(rec.get("batch_id") or "").strip()
+        operation = str(rec.get("operation") or "").strip()
+        if batch_id and operation:
+            # One receipt per batch ITEM: the tx_hash alone would collide across
+            # the N operations the single on-chain tx bought.
+            if tx_hash:
+                return f"batch:{network}:{tx_hash}:{operation}"
+            return batch_reference(batch_id, operation)
         if tx_hash:
-            network = str(rec.get("network") or "").strip()
             return f"tx:{network}:{tx_hash}"
         pid = str(rec.get("payment_id") or "").strip()
         return f"pid:{pid}" if pid else ""
@@ -253,6 +283,98 @@ class StateMixin:
             return False
         self._ensure_loaded()
         return tx_hash in self._consumed_txs
+
+    def record_batch_settlements(
+        self,
+        batch_id: str,
+        operations: list[str],
+        settlement: dict[str, Any] | None,
+        *,
+        tx_hash: str = "",
+        network: str = "",
+        asset: str = "",
+        caller_key: str = "",
+    ) -> dict[str, Any]:
+        """Write ONE idempotent settlement receipt per batch item.
+
+        A batch settles as a single on-chain tx but buys N operations, so the
+        access gate must be able to prove settlement per operation. Each item
+        receipt is keyed ``batch:{network}:{tx_hash}:{operation}`` (or the
+        migration-0011-shaped ``x402:batch:{batch_id}:{operation}`` reference
+        when no tx_hash is known) and indexed under
+        ``payment_id = {batch_id}:{operation}``.
+
+        Replay-safe by construction: an existing key is skipped, so a replayed
+        batch settle credits each item exactly once (the same uniqueness the DB
+        enforces on ``settlement_key``). A settlement that is not explicitly
+        ``success: True`` writes nothing and returns every item unsettled.
+        """
+        ops = [str(op) for op in (operations or []) if str(op).strip()]
+        settlement = settlement or {}
+        if not ops or settlement.get("success") is not True:
+            return {"settled": [], "unsettled": ops, "all_settled": False, "written": 0}
+
+        tx_hash = str(tx_hash or settlement.get("tx_hash") or settlement.get("transaction") or "")
+        network = str(network or settlement.get("network") or "")
+        asset = str(asset or settlement.get("asset") or "")
+        self._ensure_loaded()
+        written = 0
+        for op in ops:
+            record = dict(settlement)
+            record.update(
+                {
+                    "payment_id": batch_item_payment_id(batch_id, op),
+                    "batch_id": batch_id,
+                    "operation": op,
+                    "success": True,
+                    "tx_hash": tx_hash,
+                    "network": network,
+                    "asset": asset,
+                    "amount_usd": X402_PRICING.get(op, {}).get("price_usd", 0.0),
+                    "reference": batch_reference(batch_id, op),
+                    "user_id": str(caller_key or settlement.get("user_id") or ""),
+                }
+            )
+            key = self._settlement_key(record)
+            if key and key in self._settled_txs:
+                continue  # replay → the item is already credited exactly once
+            self._record_settlement(record)
+            if key:
+                self._settled_txs.setdefault(key, record)
+            written += 1
+        return {
+            "settled": ops,
+            "unsettled": [],
+            "all_settled": True,
+            "written": written,
+        }
+
+    def batch_settlement_status(self, batch_id: str) -> dict[str, Any]:
+        """Per-item settlement proof for a batch (all-or-nothing gate).
+
+        Reads the batch record for its operation list, then requires a
+        successful settlement receipt for EVERY item. Any item without one is
+        reported in ``unsettled``; ``all_settled`` is True only when the batch
+        has operations and every one of them is proven. Read errors already
+        fail closed inside :func:`pry.payments.x402.settlement_gate.is_settled`.
+        """
+        from pry.payments.x402.batch import store as batch_store
+        from pry.payments.x402.settlement_gate import is_settled
+
+        batch = batch_store._load_batch(batch_id) or {}
+        ops = [str(op) for op in (batch.get("operations") or []) if str(op).strip()]
+        settled: list[str] = []
+        unsettled: list[str] = []
+        for op in ops:
+            lookup = batch_item_payment_id(batch_id, op)
+            (settled if is_settled(self, lookup) else unsettled).append(op)
+        return {
+            "batch_id": batch_id,
+            "operations": ops,
+            "settled": settled,
+            "unsettled": unsettled,
+            "all_settled": bool(ops) and not unsettled,
+        }
 
     def is_paid(self, payment_id: str, caller_key: str = "", operation: str = "") -> bool:
         """Return True only if the payment is verified, unexpired, caller-bound

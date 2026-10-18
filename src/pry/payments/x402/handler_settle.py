@@ -261,9 +261,67 @@ class SettleMixin:
         # above returns early, so a replayed settle never re-notifies.
         if record.get("success") is True:
             await _notify_success(self, record, payment_id, amount_usd, network)
-        if settlement is not None:
-            settlement["extension_responses"] = _extension_header(settlement)
+        if settlement is None:
+            # Fail closed: a facilitator that returned no receipt is not proof
+            # of settlement, and callers must never receive ``None`` and treat
+            # it as a (falsy) success-shaped value.
+            logger.warning(
+                "x402_settle_no_receipt",
+                extra={"payment_id": payment_id, "tx_hash": tx_hash, "network": network},
+            )
+            return {"success": False, "reason": "empty settlement response"}
+        settlement["extension_responses"] = _extension_header(settlement)
         return settlement
+
+    def finalize_batch_settlement(
+        self,
+        batch_id: str,
+        *,
+        tx_hash: str = "",
+        network: str = "",
+        asset: str = "",
+    ) -> dict[str, Any]:
+        """Persist per-item receipts for a settled batch; return the gate status.
+
+        A batch settles as ONE on-chain tx but buys N operations, so access is
+        gated per operation. Requires the batch's stored settlement to be
+        explicitly ``success: True``; then writes one idempotent receipt per
+        operation (keyed per ``(tx_hash, operation)``). A replayed settle finds
+        the existing keys and writes nothing — each item is credited once —
+        while still reporting every item as settled.
+
+        All-or-nothing: a batch whose settlement is missing/failed (or whose
+        stored record predates per-item receipts and cannot be proven) returns
+        every item unsettled, so no part of it may be served.
+        """
+        from pry.payments.x402.batch import store as batch_store
+
+        batch = batch_store._load_batch(batch_id) or {}
+        ops = [str(op) for op in (batch.get("operations") or []) if str(op).strip()]
+        settlement = batch.get("settlement") or {}
+        if settlement.get("success") is not True:
+            logger.warning(
+                "x402_batch_settlement_not_proven",
+                extra={"batch_id": batch_id, "operations": ops},
+            )
+            return {
+                "batch_id": batch_id,
+                "settled": [],
+                "unsettled": ops,
+                "all_settled": False,
+                "written": 0,
+            }
+        recorded = self.record_batch_settlements(
+            batch_id,
+            ops,
+            settlement,
+            tx_hash=tx_hash or str(batch.get("tx_hash") or ""),
+            network=network or str(batch.get("network") or ""),
+            asset=asset or str(batch.get("asset") or ""),
+            caller_key=str(batch.get("caller_key") or ""),
+        )
+        recorded["batch_id"] = batch_id
+        return recorded
 
     async def settle_payment_strict(
         self,

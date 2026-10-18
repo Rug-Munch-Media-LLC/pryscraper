@@ -263,8 +263,14 @@ async def x402_batch_verify(
 
     The batch is bound to the caller's IP at verify time; only that caller
     can use the batch payment until it expires (replay hardening).
+
+    Success requires SETTLEMENT, not verification: a verified-but-unsettled
+    batch returns ``success: false`` with the unsettled items listed
+    (``unsettled``). On a settled batch, one idempotent settlement receipt is
+    written per item so the middleware can prove settlement per operation; a
+    replayed call returns the same receipts without double-crediting.
     """
-    from pry.payments.x402 import verify_batch_payment
+    from pry.payments.x402 import X402Handler, verify_batch_payment
 
     batch_id = payload.get("batch_id", "")
     tx_hash = payload.get("tx_hash", "")
@@ -276,7 +282,22 @@ async def x402_batch_verify(
     result = await verify_batch_payment(
         batch_id, tx_hash, network=network, asset=asset, caller_key=caller_key
     )
-    return {"success": result["verified"], "data": result}
+    # Verify does not prove settlement. Persist/read per-item receipts and gate
+    # on them: every operation must be settled before the batch counts as paid.
+    status = X402Handler().finalize_batch_settlement(
+        batch_id, tx_hash=tx_hash, network=network, asset=asset
+    )
+    verified = bool(result.get("verified"))
+    settled = bool(status.get("all_settled"))
+    data = {
+        **result,
+        "success": verified and settled,
+        "settled": settled,
+        "settled_items": status.get("settled", []),
+        "unsettled": status.get("unsettled", []),
+        "receipts_written": status.get("written", 0),
+    }
+    return {"success": verified and settled, "data": data}
 
 
 @router.post("/v1/x402/pay", tags=["x402"], summary="Process x402 payment and get access token")

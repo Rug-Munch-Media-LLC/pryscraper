@@ -146,15 +146,51 @@ async def _serve_preverified_batch(
     caller_key: str,
     operation: str,
 ) -> bool:
-    """Serve a pre-verified batch payment; True when the request was passed."""
+    """Serve a pre-verified batch payment; True when the request was passed.
+
+    ``is_batch_paid`` only proves the batch record's ``paid`` flag — the same
+    verified-vs-settled fail-open the single path had. Serving additionally
+    requires a successful settlement receipt for EVERY operation in the batch
+    (all-or-nothing: a batch whose items cannot all be proven is refused
+    entirely rather than partially served, so no unproven item ever buys
+    service). A missing status helper also fails closed.
+    """
     if not batch_id_header:
         return False
     if not is_batch_paid(batch_id_header, caller_key=caller_key, operation=operation):
+        return False
+    status = _batch_settlement_status(mw, batch_id_header, operation)
+    if status is None or not status.get("all_settled"):
+        logger.warning(
+            "x402_batch_not_settled",
+            extra={
+                "batch_id": batch_id_header,
+                "operation": operation,
+                "unsettled": (status or {}).get("unsettled", []),
+            },
+        )
         return False
     scope["x402_verified"] = {
         "batch_id": batch_id_header,
         "caller": caller_key,
         "operation": operation,
+        "settled_items": status.get("settled", []),
     }
     await mw.app(scope, receive, send)
     return True
+
+
+def _batch_settlement_status(mw: Any, batch_id: str, operation: str) -> dict[str, Any] | None:
+    """Per-item settlement proof via the handler; None when unavailable.
+
+    The requested ``operation`` must itself be proven, even if the batch
+    record's operation list drifted, so the check is scoped to the operation
+    this request is actually buying.
+    """
+    status_fn = getattr(mw.handler, "batch_settlement_status", None)
+    if status_fn is None:
+        return None
+    status = status_fn(batch_id) or {}
+    if operation and operation not in (status.get("settled") or []):
+        return {**status, "all_settled": False}
+    return status
