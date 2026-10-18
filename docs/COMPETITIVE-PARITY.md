@@ -42,7 +42,7 @@ re-fetched · `?` unknown.
 | Web search endpoint | **F** (`/v1/search`, now with markdown) | F | P~ (Google actor) | – | P~ (SERP) | P~ (SERP) | – |
 | Webhooks | **F** (crawl webhook + job polling) | F | F~ | P~ | F~ | P~ | – |
 | Python SDK | **F** (`PryCrawl`, `PryCrawlSync`) | F | F~ | F~ | F~ | F~ | F (library) |
-| TypeScript SDK | **–** | F | F~ (JS client) | F~ | F~ | F~ | – |
+| TypeScript SDK | **F** (`@pryscraper/sdk`) | F | F~ (JS client) | F~ | F~ | F~ | – |
 | MCP server | **F** (`pry_mcp/`) | F | P~ | – | – | – | P (community) |
 | Self-host | **F** (`docker-compose.selfhost.yml`) | F (OSS) | – | – | – | – | F |
 | Pricing model | **x402 per call + tiers** | credits | compute units | credits | GB/plan~ | credits~ | free (self-host) |
@@ -68,7 +68,7 @@ re-fetched · `?` unknown.
 | Search | SHIPPED | `POST /v1/search` (`search_map.py`) over `engine/web_search.py` (SearXNG → DDG → per-engine) |
 | Webhooks | SHIPPED | `CrawlRequest.webhook` → `queue.create_job(..., webhook=...)` |
 | Python SDK | SHIPPED | `src/pry/api/pry_sdk.py` (`PryCrawl`, `PryCrawlSync`), `tests/test_sdk.py` |
-| TypeScript SDK | **MISSING** | no TS client in the tree (`browser-extension/`, `wordpress-plugin/` are not SDKs) |
+| TypeScript SDK | **SHIPPED** | `sdk/typescript/` — `PryClient` (`scrape`/`crawl`/`map`/`search`/`batch`/`extract`), `PryMcpClient`, typed 402/429/network errors; `sdk/typescript/test/client.test.ts` |
 | MCP server | SHIPPED | `pry_mcp/` + `pulsemcp.json`, `server.json`, `glama.json` |
 | Self-host | SHIPPED | `docker-compose.selfhost.yml`, `Dockerfile`, `docker-entrypoint.sh` |
 | Pricing | SHIPPED | `src/pry/payments/x402_middleware/config.py` (`X402_PRICING`, `PAID_ENDPOINTS`); tier limits in `src/pry/core/api_keys_service.py` |
