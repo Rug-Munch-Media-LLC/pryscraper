@@ -70,6 +70,11 @@ services:
       - PRY_ENVIRONMENT=prod
       - PRY_HOST=0.0.0.0
       - PRY_PORT=8002
+      # Auth. `--env-file .env.selfhost` only fills interpolation variables;
+      # without this line the container would boot with an EMPTY key and —
+      # because PRY_ENVIRONMENT=prod disables keyless loopback — reject every
+      # request that arrives through the published port.
+      - PRY_API_KEY=${PRY_API_KEY:-}
       - PRY_URL=http://localhost:${PRY_SELFHOST_PORT:-8002}
       - PRY_TIMEOUT=60
       - PRY_DATA_DIR=/app/pry-data
@@ -142,6 +147,52 @@ services:
         reservations:
           memory: 512M
           cpus: "0.5"
+
+  # ── pry-mcp: remote MCP (Streamable HTTP) — ON by default ──────────
+  # Same image, same API key, separate process. A self-hoster gets a remote
+  # MCP endpoint at http://127.0.0.1:8006/ with no extra setup; stdio
+  # (`pry-mcp` / `pryscraper-mcp`) keeps working unchanged.
+  #
+  # State is process-local here (no Redis in this profile), which is why the
+  # service is pinned to one worker. With several replicas, set
+  # PRY_REDIS_URL so `Mcp-Session-Id`s are shared.
+  pry-mcp:
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}mcp
+    env_file: !override []
+    ports: !override
+      - "127.0.0.1:${PRY_MCP_SELFHOST_PORT:-8006}:8006"
+    environment: !override
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - PRY_ENVIRONMENT=prod
+      - PRY_HOST=0.0.0.0
+      - PRY_PORT=8006
+      # REST fallback for tools without a local executor -> the `pry`
+      # container on the compose network.
+      - PRY_API_URL=http://pry:8002
+      # Same key as the API. .env.selfhost is read with --env-file, which
+      # only supplies interpolation, so it MUST be re-exported here.
+      - PRY_API_KEY=${PRY_API_KEY:-}
+      # SQLite is not shared with the API container (no named volume on
+      # purpose): the MCP process authenticates with PRY_API_KEY and proxies
+      # writes to the API. A private DB keeps it from ever locking the API's.
+      - PRY_DATABASE_URL=sqlite:////tmp/pry.db
+      - PRY_ALLOW_SQLITE_PROD=1
+      - PRY_REDIS_URL=
+      - PRY_DATA_DIR=/tmp
+      - PRY_CONFIG_FILE=/tmp/pry-config.json
+      - HOME=/home/pry
+      - TMPDIR=/tmp
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+      - PRY_SKIP_MIGRATIONS=1
+      - TOR_ENABLED=0
+      - PRY_FLARESOLVERR_URL=http://flaresolverr-pry:8191/v1
+    # The API container owns the data tier; wait for it to be healthy before
+    # accepting MCP traffic. No postgres/redis dependency exists here (both
+    # are reset below).
+    depends_on: !override
+      pry:
+        condition: service_healthy
 
   # ── flaresolverr-pry: the anti-bot browser tier ─────────────────────
   flaresolverr-pry:

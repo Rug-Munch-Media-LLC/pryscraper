@@ -145,7 +145,10 @@ RUN mkdir -p /app/sessions /app/pry-data \
 # rootfs) and pry only needs read access to the browser binaries.
 USER pry
 
-EXPOSE 8002
+# 8002 = REST API (default CMD). 8006 = standalone Streamable HTTP MCP
+# (`pry_mcp.asgi:app`, selectable via the compose `pry-mcp` service or
+# `docker run --entrypoint uvicorn ... pry_mcp.asgi:app`).
+EXPOSE 8002 8006
 
 # docker-compose healthcheck uses the same probe. /health returns 200 only
 # when BOTH critical deps (Redis + database) answer; FlareSolverr is reported

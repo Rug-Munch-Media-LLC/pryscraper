@@ -169,6 +169,98 @@ services:
       flaresolverr-pry:
         condition: service_healthy
 
+  # ── pry-mcp: the Streamable HTTP MCP transport ──────────────────────
+  # Same image as `pry`, different entrypoint: it serves ONLY the MCP ASGI
+  # app (`pry_mcp.asgi:app`) on 8006. Remote clients (Claude, Cursor, Cline,
+  # registry probes) speak streamable HTTP to `/`; health lives at `/health`.
+  # Stateless: no named volume. Browser scratch and $HOME are tmpfs, so the
+  # rootfs stays read-only and the container can be recreated at any time.
+  # Tools that are not executed locally are proxied to the API at
+  # PRY_API_URL (the sibling `pry` container), never to localhost.
+  pry-mcp:
+    image: ${PRY_IMAGE_REPO:-pryscraper}:${PRY_IMAGE_TAG:-latest}
+    build: .
+    container_name: ${PRY_CONTAINER_PREFIX:-pry-}mcp
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    read_only: true
+    # The image ENTRYPOINT runs alembic + the pre-migration backup. This
+    # container must NOT race the API's migration on the same database, so
+    # bypass it and exec uvicorn directly.
+    entrypoint:
+      - uvicorn
+      - pry_mcp.asgi:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8006"
+      # One worker is deliberate: sessions live in Redis when it is
+      # reachable and in-process otherwise. One worker keeps the in-memory
+      # path correct; scale out only with PRY_REDIS_URL set.
+      - --workers
+      - "1"
+      - --timeout-keep-alive
+      - "120"
+      - --timeout-graceful-shutdown
+      - "30"
+    ports:
+      - "127.0.0.1:${PRY_MCP_PORT:-8006}:8006"
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+      # uid/gid 1000 = the `pry` user. Chromium/camoufox need a writable
+      # HOME; the rootfs is read-only.
+      - /home/pry:size=128m,mode=0700,uid=1000,gid=1000
+    env_file:
+      - path: /srv/rmi-infra/.env.pry
+        required: false
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - PRY_ENVIRONMENT=prod
+      - PRY_HOST=0.0.0.0
+      - PRY_PORT=8006
+      # REST proxy target for tools without a local executor.
+      - PRY_API_URL=http://pry:8002
+      # Shared session store across replicas (pry:mcp:sess:* keys).
+      - PRY_REDIS_URL=redis://redis:6379/0
+      # Auth: PRY_API_KEY comes from env_file. Without it the gate falls
+      # back to keyless-loopback, which Docker's bridge gateway is NOT —
+      # tools/call would 401 for every remote client.
+      - PRY_DATA_DIR=/tmp
+      - PRY_CONFIG_FILE=/tmp/pry-config.json
+      - HOME=/home/pry
+      - TMPDIR=/tmp
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+      - PRY_SKIP_MIGRATIONS=1
+    healthcheck:
+      # `/health` is the MCP app's own liveness payload (server name,
+      # protocol version, tool/resource/prompt counts). It does not gate on
+      # Postgres/Redis: the MCP surface must answer discovery even when the
+      # API's data tier is degraded.
+      test: ["CMD", "curl", "-fsS", "http://localhost:8006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      pry:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+
   # ── flaresolverr-pry: the browser tier Pry actually calls ──────────
   # THIS is Pry's FlareSolverr. Three things must name this service, and
   # all three did not agree until 53381ae6:

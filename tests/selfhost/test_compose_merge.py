@@ -28,9 +28,10 @@ from tests.selfhost.conftest import (
 class TestSelfhostMerge:
     """The merged self-host model is exactly two services on port 8002."""
 
-    def test_only_pry_and_flaresolverr_survive(self) -> None:
+    def test_only_the_selfhost_services_survive(self) -> None:
         model = render_compose()
-        expected = ["flaresolverr-pry", "pry"]
+        # The remote MCP rides with the API in the self-host profile.
+        expected = ["flaresolverr-pry", "pry", "pry-mcp"]
         assert sorted(model["services"]) == expected
 
     def test_operator_only_services_are_reset(self) -> None:

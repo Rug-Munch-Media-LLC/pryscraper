@@ -29,8 +29,13 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from pry.api.mcp_sse import mcp_post_message, mcp_sse_endpoint
 from pry.core.middleware import request_authorized
-from pry.core.settings import settings
-from pry_mcp import MCP_PROTOCOL_VERSION, SERVER_VERSION, make_fallback_server, register_all
+from pry_mcp import (
+    DEFAULT_BASE_URL,
+    MCP_PROTOCOL_VERSION,
+    SERVER_VERSION,
+    make_fallback_server,
+    register_all,
+)
 from pry_mcp.fallback_server import combined_tool_executor
 from pry_mcp.notifications import (
     register_mcp_notification_observer,
@@ -71,7 +76,11 @@ def _default_get_server() -> Any:
     global _MCP_SERVER_INSTANCE
     if _MCP_SERVER_INSTANCE is None:
         _MCP_SERVER_INSTANCE = make_fallback_server(
-            base_url=f"http://localhost:{settings.port}",
+            # PRY_API_URL is the REST proxy target for tools that are not
+            # executed locally. In the shipped `pry-mcp` compose service the
+            # API lives in a sibling container (`http://pry:8002`), so
+            # localhost:settings.port would dial the MCP process itself.
+            base_url=DEFAULT_BASE_URL,
             # Crypto-market, marketplace-intelligence, and the eight data-domain
             # packages (legal / real estate / jobs / travel / attention / local /
             # gov / ip) execute locally via guarded imports; other tools fall
@@ -80,6 +89,53 @@ def _default_get_server() -> Any:
         )
         register_all(_MCP_SERVER_INSTANCE)
     return _MCP_SERVER_INSTANCE
+
+
+def _attach_structured_content(
+    response: dict[str, Any], server: Any, request_body: dict[str, Any]
+) -> dict[str, Any]:
+    """Populate ``structuredContent`` for successful ``tools/call`` responses.
+
+    Every Pry tool declares an ``outputSchema``. Per the MCP spec a tool that
+    advertises an output schema MUST return ``structuredContent``; the official
+    SDK client raises
+    ``Tool <name> has an output schema but did not return structured content``
+    and discards an otherwise valid result. The fallback server returns the
+    payload as a JSON text block only, so this transport layer rehydrates the
+    object from that block. Non-object payloads (arrays/scalars), errors and
+    tools without an output schema are left untouched.
+    """
+    if request_body.get("method") != "tools/call":
+        return response
+    result = response.get("result")
+    if not isinstance(result, dict) or result.get("isError"):
+        return response
+    if "structuredContent" in result:
+        return response
+    name = (request_body.get("params") or {}).get("name")
+    # The fallback server keeps tools as a name-keyed dict; the SDK/facade
+    # variants expose a list. Support both.
+    tools = getattr(server, "tools", None) or {}
+    if isinstance(tools, dict):
+        spec = tools.get(name)
+    else:
+        spec = next(
+            (tool for tool in tools if isinstance(tool, dict) and tool.get("name") == name),
+            None,
+        )
+    if spec is None or not spec.get("outputSchema"):
+        return response
+    for block in result.get("content") or []:
+        if not isinstance(block, dict) or block.get("type") != "text":
+            continue
+        try:
+            payload = json.loads(block.get("text", ""))
+        except (TypeError, ValueError):
+            return response
+        if isinstance(payload, dict):
+            result["structuredContent"] = payload
+        return response
+    return response
 
 
 def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
@@ -214,6 +270,7 @@ def create_mcp_app(get_server: Callable[[], Any] | None = None) -> FastAPI:
         result = cast("dict[str, Any] | None", await server.handle_request(body))
         if result is None:
             return Response(status_code=202)
+        result = _attach_structured_content(result, server, body)
 
         accept = request.headers.get("accept", "")
         if "text/event-stream" in accept:
