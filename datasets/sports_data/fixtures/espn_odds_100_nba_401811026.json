@@ -1,0 +1,31 @@
+{
+ "provider": {
+  "id": "100",
+  "name": "DraftKings"
+ },
+ "details": "CHA -6.5",
+ "homeTeamOdds": {
+  "open": {
+   "moneyLine": {
+    "decimal": 1.74
+   }
+  },
+  "close": {
+   "moneyLine": {
+    "decimal": 1.45
+   }
+  }
+ },
+ "awayTeamOdds": {
+  "open": {
+   "moneyLine": {
+    "decimal": 2.14
+   }
+  },
+  "close": {
+   "moneyLine": {
+    "decimal": 2.8
+   }
+  }
+ }
+}

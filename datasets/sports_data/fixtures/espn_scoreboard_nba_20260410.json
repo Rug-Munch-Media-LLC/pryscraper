@@ -1,0 +1,74 @@
+{
+ "events": [
+  {
+   "id": "401811026",
+   "date": "2026-04-10T23:00Z",
+   "name": "Detroit Pistons at Charlotte Hornets",
+   "competitions": [
+    {
+     "id": "401811026",
+     "date": "2026-04-10T23:00Z",
+     "status": {
+      "type": {
+       "completed": true,
+       "name": "STATUS_FINAL"
+      }
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "displayName": "Charlotte Hornets"
+       },
+       "score": "100",
+       "winner": false
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "displayName": "Detroit Pistons"
+       },
+       "score": "118",
+       "winner": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401811027",
+   "date": "2026-04-10T23:00Z",
+   "name": "Miami Heat at Washington Wizards",
+   "competitions": [
+    {
+     "id": "401811027",
+     "date": "2026-04-10T23:00Z",
+     "status": {
+      "type": {
+       "completed": true,
+       "name": "STATUS_FINAL"
+      }
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "displayName": "Washington Wizards"
+       },
+       "score": "117",
+       "winner": false
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "displayName": "Miami Heat"
+       },
+       "score": "140",
+       "winner": true
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -14,6 +14,11 @@ So this tool never invents an outcome. It has exactly two honest inputs:
 * ``--input user.csv`` — a settled series you supply (schema in docs/BACKTESTING.md).
   The file is validated by the same loader the harness uses, filtered by
   ``--since`` / ``--limit``, sorted by ``ts``, and re-emitted canonically.
+* ``--input odds.csv|json --outcomes results.csv|json`` — the honest join: odds
+  rows carry ``event_id, ts, odds, closing_odds`` (bet-time and closing prices);
+  outcomes carry scores (or an explicit ``won``). Every odds row must match one
+  settled outcome; **one unmatched row aborts the export** rather than shrinking
+  the sample (see ``scripts/backtest_join.py``).
 * ``--synthetic`` — the seeded generator, written with a ``source=synthetic``
   label in the fingerprint line so a simulation cannot be mistaken for history.
 
@@ -34,6 +39,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from backtest_data import Event, data_fingerprint, generate_synthetic, load_csv
+from backtest_join import load_series
 
 EXIT_OK = 0
 EXIT_UNMEASURABLE = 2
@@ -93,8 +99,10 @@ def write_series(events: list[Event], out: Path) -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     src = ap.add_mutually_exclusive_group()
-    src.add_argument("--input", help="user-supplied settled CSV (see docs/BACKTESTING.md)")
+    src.add_argument("--input", help="settled CSV, or odds CSV/JSON when --outcomes is given")
     src.add_argument("--synthetic", action="store_true", help="seeded simulation, labelled")
+    ap.add_argument("--outcomes", help="settled results CSV/JSON to join onto --input odds")
+    ap.add_argument("--side", default="home", choices=("home", "away"), help="moneyline side to settle")
     ap.add_argument("--out", default="backtest_series.csv", help="output CSV path")
     ap.add_argument("--since", help="keep events at/after this epoch or ISO-8601 time")
     ap.add_argument("--limit", type=int, help="keep at most N events (oldest first)")
@@ -102,11 +110,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=7)
     args = ap.parse_args(argv)
 
+    if args.outcomes and not args.input:
+        print("\n  UNMEASURABLE: --outcomes needs --input <odds.csv|json>")
+        return EXIT_UNMEASURABLE
     if not args.input and not args.synthetic:
         print(f"\n  UNMEASURABLE: {MISSING}")
         return EXIT_UNMEASURABLE
     try:
-        if args.input:
+        if args.outcomes:
+            events, pushes = load_series(args.input, args.outcomes, side=args.side)
+            label = f"join:odds={args.input} outcomes={args.outcomes} side={args.side} pushes={pushes}"
+        elif args.input:
             events, label = load_csv(args.input), f"csv:{args.input}"
         else:
             events = generate_synthetic(args.events, seed=args.seed)
@@ -117,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
             return EXIT_UNMEASURABLE
         out = Path(args.out)
         fingerprint = write_series(picked, out)
-    except (OSError, ValueError, KeyError) as exc:
+    except (OSError, ValueError, KeyError) as exc:  # JoinError subclasses ValueError
         print(f"\n  UNMEASURABLE: {exc}")
         return EXIT_UNMEASURABLE
 
