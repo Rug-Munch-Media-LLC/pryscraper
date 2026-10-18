@@ -8,6 +8,9 @@ from typing import Any
 
 import httpx
 
+from pry.core.errors import InvalidRequestError
+from pry.engine.url_guard import validate_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,6 +29,19 @@ async def sync_to_salesforce(
         access_token: Salesforce OAuth2 access token
     """
     from pry.api.client import get_client
+
+    # Caller-supplied host: the OAuth token is sent here, so an internal
+    # instance_url would exfiltrate the credential to loopback/metadata.
+    try:
+        validate_url(instance_url)
+    except InvalidRequestError as exc:
+        logger.warning("crm_url_rejected", extra={"crm": "salesforce", "reason": str(exc)})
+        return {
+            "success": False,
+            "created": 0,
+            "results": [],
+            "error": f"instance_url rejected: {exc}",
+        }
 
     client = await get_client()
     api_url = instance_url.rstrip("/")

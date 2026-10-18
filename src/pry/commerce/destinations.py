@@ -11,6 +11,8 @@ from urllib.parse import quote
 import httpx
 
 from pry.api.client import get_client
+from pry.core.errors import InvalidRequestError
+from pry.engine.url_guard import validate_url
 
 logger = logging.getLogger(__name__)
 # ── Slack ──
@@ -25,6 +27,14 @@ async def write_to_slack(
     """Send data to a Slack webhook as a formatted message."""
     if not webhook_url:
         return {"success": False, "error": "Slack webhook URL is required"}
+    # Caller-supplied destination: never POST to loopback/metadata/internal.
+    try:
+        validate_url(webhook_url)
+    except InvalidRequestError as exc:
+        logger.warning(
+            "destination_url_rejected", extra={"destination": "slack", "reason": str(exc)}
+        )
+        return {"success": False, "error": f"Slack webhook URL rejected: {exc}"}
 
     # Truncate message if too long (Slack limit: 40000 chars)
     if len(message) > 35000:

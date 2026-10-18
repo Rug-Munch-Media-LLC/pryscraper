@@ -16,7 +16,9 @@ import logging
 from typing import Any
 
 from pry.engine.browser_pool import get_browser_pool
+from pry.engine.route_guard import install_route_guard
 from pry.engine.tiers_base import _RNG, _us_flag
+from pry.engine.url_guard import validate_url
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,19 @@ class TierBrowserMixin:
                 # time.
                 driver = get_browser_pool().get_uc_driver()
                 try:
+                    # Selenium/undetected has no request interception, so the
+                    # guard here is DETECTION ONLY: validate the navigation
+                    # target, then check where the browser actually landed.
+                    # A redirect into a private range is refused AFTER the
+                    # fact (the request may already have been sent) — the
+                    # Playwright/Camoufox paths use route_guard for prevention.
+                    validate_url(url)
                     driver.get(url)
+                    try:
+                        validate_url(driver.current_url or "")
+                    except Exception:
+                        logger.warning("undetected_redirect_blocked", extra={"url": url})
+                        return None
                     # Note: time.sleep is used inside a sync thread-pool task because
                     # undetected_chromedriver's blocking API runs in asyncio.to_thread.
                     # Replacing with asyncio.sleep would require restructuring the tier
@@ -86,6 +100,8 @@ class TierBrowserMixin:
                 if stealth_script:
                     await context.add_init_script(stealth_script)
                 page = await context.new_page()
+                # Every request and redirect hop is validated before it is sent.
+                install_route_guard(page)
                 await page.goto(url, wait_until="domcontentloaded", timeout=60000)
                 await page.wait_for_timeout(_RNG.randint(1000, 3000))
                 for _ in range(_RNG.randint(2, 5)):

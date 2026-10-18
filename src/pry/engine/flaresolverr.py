@@ -23,6 +23,9 @@ from typing import Any
 
 import httpx
 
+from pry.core.errors import InvalidRequestError
+from pry.engine.url_guard import validate_url
+
 logger = logging.getLogger(__name__)
 
 _FLARESOLVERR_URL = os.environ.get("PRY_FLARESOLVERR_URL", "http://flaresolverr-pry:8191/v1")
@@ -42,6 +45,15 @@ async def fetch_via_flaresolverr(
     FlareSolverr runs a real browser and clears the challenge, so the DDG
     HTML endpoint returns parseable results.
     """
+    # The caller URL is posted to FlareSolverr, which navigates a real browser
+    # and follows redirects itself. Validate BEFORE posting: otherwise the
+    # browser is the SSRF client and the redirect hops are invisible to us.
+    try:
+        validate_url(url)
+    except InvalidRequestError as exc:
+        logger.warning("flaresolverr_url_rejected", extra={"url": url, "reason": str(exc)})
+        return ""
+
     try:
         payload: dict[str, Any] = {
             "cmd": "request.get",
@@ -57,7 +69,20 @@ async def fetch_via_flaresolverr(
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s)) as client:
             resp = await client.post(_FLARESOLVERR_URL, json=payload)
             resp.raise_for_status()
-            return (resp.json().get("solution") or {}).get("response", "") or ""
+            solution = resp.json().get("solution") or {}
+            final_url = solution.get("url") or ""
+            if final_url:
+                # A redirect inside the browser can land on a private target;
+                # validate where it actually ended up before trusting the body.
+                try:
+                    validate_url(final_url)
+                except InvalidRequestError as exc:
+                    logger.warning(
+                        "flaresolverr_final_url_rejected",
+                        extra={"url": final_url, "reason": str(exc)},
+                    )
+                    return ""
+            return solution.get("response", "") or ""
     except Exception as exc:  # noqa: BLE001 - contract: never raise
         logger.debug("flaresolverr_fetch_failed", extra={"url": url, "error": str(exc)})
         return ""

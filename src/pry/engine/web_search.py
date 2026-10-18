@@ -31,6 +31,7 @@ from pry.engine.engine_qwant import search_qwant
 from pry.engine.engine_seznam import search_seznam
 from pry.engine.engine_yahoo import search_yahoo
 from pry.engine.flaresolverr import fetch_via_flaresolverr
+from pry.engine.url_guard import safe_get
 
 logger = logging.getLogger(__name__)
 
@@ -47,14 +48,19 @@ _DDG_REDIRECT = re.compile(r"[?&]uddg=([^&]+)")
 
 
 async def _fetch_text(url: str, timeout_s: float = 15.0) -> str:
-    """Fetch a URL's text body via httpx. Returns "" on any failure."""
+    """Fetch a URL's text body via the SSRF-safe GET. Returns "" on failure.
+
+    ``follow_redirects=False`` is mandatory: ``safe_get`` validates every
+    redirect hop, and an httpx client that follows redirects itself would
+    reach a private/metadata target before the guard sees it.
+    """
     try:
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(timeout_s),
-            follow_redirects=True,
+            follow_redirects=False,
             headers={"User-Agent": _UA, "Accept": "*/*"},
         ) as client:
-            resp = await client.get(url)
+            resp = await safe_get(client, url)
             resp.raise_for_status()
             return resp.text
     except Exception as exc:  # noqa: BLE001 - contract: never raise

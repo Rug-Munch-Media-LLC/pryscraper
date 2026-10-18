@@ -67,8 +67,14 @@ def wire_app(app: FastAPI) -> None:
     OUTERMOST — a keyless agent must reach the 402 challenge BEFORE the API-key
     auth layer rejects with 401. Verified payments mark ``scope["x402_verified"]``,
     which request_authorized accepts as the credential.
+
+    ORDER MATTERS #2: CORS is added LAST, so it is the OUTERMOST layer.
+    ``X402Middleware`` (402) and ``PryHttpMiddleware`` (401/429) both call
+    ``send()`` directly, bypassing the router; a CORS middleware added first
+    would sit strictly inside them and those responses would carry no
+    ``Access-Control-Allow-Origin``, so a browser could not read the payment
+    challenge. Outermost CORS wraps every response, including the direct ones.
     """
-    _add_cors(app)
     # Auth + rate limiting + timing middleware (see middleware.py).
     app.add_middleware(PryHttpMiddleware)
     # Classification lives in x402_middleware (DEFAULT_FREE_PATHS /
@@ -81,6 +87,8 @@ def wire_app(app: FastAPI) -> None:
     # ledger is involved. The hosted/priced deployment leaves the switch on.
     if X402_ENABLED:
         app.add_middleware(X402Middleware)
+    # CORS MUST be last: outermost wraps the direct-send 401/402/429 responses.
+    _add_cors(app)
     add_error_handlers(app)
     _mount_mcp(app)
     register_routers(app)

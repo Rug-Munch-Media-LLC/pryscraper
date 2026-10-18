@@ -25,6 +25,8 @@ import os
 import urllib.parse
 from typing import Any
 
+from pry.engine.route_guard import install_route_guard
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_VISION_ENDPOINT = "https://api.openai.com/v1/chat/completions"
@@ -108,7 +110,10 @@ class AIVisualScraper:
         try:
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=True)
-                page = await browser.new_viewport_size(**viewport)
+                # ``browser.new_viewport_size`` is not a Playwright API; the
+                # viewport is a page/context option.
+                page = await browser.new_page(viewport=viewport)
+                install_route_guard(page)
                 await page.goto(url, wait_until="networkidle", timeout=30000)
                 await page.wait_for_timeout(wait_time)
                 screenshot = await page.screenshot(full_page=True)

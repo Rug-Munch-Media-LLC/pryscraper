@@ -254,18 +254,33 @@ async def safe_get(
     Every redirect hop is re-validated (including DNS) before the request;
     private/loopback/link-local targets abort the chain. Pinning needs
     httpx >= 0.27 and a client with follow_redirects=False (default).
+
+    A client with ``follow_redirects=True`` is refused: httpx would follow the
+    redirect itself, before this loop can validate the hop, and the
+    metadata/link-local target would be reached.
     """
     from pry.engine.url_pinning import pinned_get
 
+    if getattr(client, "follow_redirects", False) is True:
+        raise ValueError(
+            "safe_get requires an httpx client with follow_redirects=False "
+            "(httpx would follow redirects unvalidated)"
+        )
+
     current = url
+    # Explicit pre-flight validation for the first hop; pinned_get re-validates
+    # at connect time (TOCTOU/DNS-rebinding), this makes the contract local.
+    validate_redirect_url(current)
     response = await pinned_get(client, current, dict(kwargs))
     redirects = 0
     while response.is_redirect and redirects < max_redirects:
         location = response.headers.get("location")
         if not location:
             break
-        # Join on the logical URL, not the pinned-IP request URL.
+        # Join on the logical URL, not the pinned-IP request URL, then validate
+        # this hop BEFORE any second request is issued.
         current = urljoin(current, location)
+        validate_redirect_url(current)
         response = await pinned_get(client, current, dict(kwargs))
         redirects += 1
     return response

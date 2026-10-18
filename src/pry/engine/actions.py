@@ -31,6 +31,7 @@ import logging
 from typing import Any
 
 from pry.engine.browser_pool import get_browser_pool
+from pry.engine.route_guard import install_route_guard
 from pry.engine.url_guard import validate_url
 
 _has_markdownify = importlib.util.find_spec("markdownify") is not None
@@ -74,6 +75,7 @@ async def execute_actions(url: str, actions: list[dict], extract_after: bool = T
     try:
         context = await browser.new_context()
         page = await context.new_page()
+        install_route_guard(page)
         await page.goto(url, timeout=30_000, wait_until="domcontentloaded")
         await asyncio.sleep(_NAV_SETTLE)
 

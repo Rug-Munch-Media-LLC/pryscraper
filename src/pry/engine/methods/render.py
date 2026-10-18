@@ -15,6 +15,7 @@ from typing import Any
 from pry.core.errors import InvalidRequestError
 from pry.engine.methods import _common
 from pry.engine.methods._common import _DEFAULT_USER_AGENT, logger
+from pry.engine.route_guard import install_route_guard
 from pry.engine.url_guard import validate_url
 
 
@@ -74,6 +75,7 @@ async def _render_with_playwright(
                     context_kwargs["proxy"] = {"server": proxy}
                 context = await browser.new_context(**context_kwargs)
                 page = await context.new_page()
+                install_route_guard(page)
                 if collect_json:
                     page.on("response", lambda r: asyncio.create_task(_on_response(r)))
                 await page.goto(url, wait_until="domcontentloaded", timeout=max(wait_ms, 30000))
@@ -125,6 +127,7 @@ async def _render_with_camoufox(
 
             async with _common.AsyncCamoufox(headless=True) as browser:
                 page = await browser.new_page()
+                install_route_guard(page)
                 if collect_json:
                     page.on("response", lambda r: asyncio.create_task(_on_response(r)))
                 await page.goto(url, wait_until="domcontentloaded")

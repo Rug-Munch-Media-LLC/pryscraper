@@ -19,6 +19,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from pry.engine.route_guard import install_route_guard
+
 # SystemRandom: crypto-grade entropy so browsing simulation is not predictable.
 _RNG = random.SystemRandom()
 
@@ -107,6 +109,8 @@ class CookieWarmer:
                     Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4,5]});
                 """)
                 page = await context.new_page()
+                # Warming targets and any redirect hop are SSRF-validated.
+                install_route_guard(page)
 
                 for warming_url in pages:
                     try:
