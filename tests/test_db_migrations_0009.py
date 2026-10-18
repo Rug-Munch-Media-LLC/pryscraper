@@ -16,88 +16,43 @@ fixture) and asserts the four defects 0009 fixes stay fixed:
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-
-PAYMENT = "x402_payment_records"
-SETTLEMENT = "x402_settlement_records"
-USAGE = "usage"
-UX_PAYMENT_TX = "ux_x402_payment_records_payment_tx"
-
-PLAN_COLUMNS = {
-    "tier",
-    "name",
-    "price_usd_monthly",
-    "max_concurrent_scrapes",
-    "max_pages_month",
-    "storage_gb",
-    "features",
-    "created_at",
-}
-INSTANCE_COLUMNS = {
-    "id",
-    "instance_id",
-    "user_id",
-    "plan_tier",
-    "status",
-    "api_key",
-    "created_at",
-    "expires_at",
-    "region",
-    "resource_limit",
-}
-
-
-def _alembic_config(url: str):
-    from alembic.config import Config
-
-    cfg = Config(str(REPO_ROOT / "alembic.ini"))
-    cfg.set_main_option("script_location", str(REPO_ROOT / "alembic"))
-    cfg.set_main_option("sqlalchemy.url", url)
-    return cfg
-
-
-def _columns(engine, table: str) -> set[str]:
-    return {column["name"] for column in inspect(engine).get_columns(table)}
-
-
-def _indexes(engine, table: str) -> dict[str, dict]:
-    return {index["name"]: index for index in inspect(engine).get_indexes(table)}
-
-
-@pytest.fixture
-def migrated(temp_data_dir, monkeypatch):
-    """Apply the full chain to a temp SQLite DB and hand back its engine."""
-    import pry.core.db as db
-
-    monkeypatch.chdir(REPO_ROOT)
-    db.run_migrations()
-    return db.get_engine()
+from tests.db_migrations_support import (  # noqa: F401 — fixture for this module
+    INSTANCE_COLUMNS,
+    PAYMENT,
+    PLAN_COLUMNS,
+    REPO_ROOT,
+    SETTLEMENT,
+    USAGE,
+    UX_PAYMENT_TX,
+    alembic_config,
+    columns,
+    indexes,
+    migrated,
+)
 
 
 def test_0009_tables_and_columns(migrated):
     tables = set(inspect(migrated).get_table_names())
     assert {"hosting_plans", "hosted_instances"} <= tables
-    assert "user_id" in _columns(migrated, PAYMENT)
-    assert "user_id" in _columns(migrated, SETTLEMENT)
-    assert "payment_id" in _columns(migrated, USAGE)
+    assert "user_id" in columns(migrated, PAYMENT)
+    assert "user_id" in columns(migrated, SETTLEMENT)
+    assert "payment_id" in columns(migrated, USAGE)
 
 
 def test_0009_unique_index_is_composite(migrated):
-    unique = _indexes(migrated, PAYMENT)[UX_PAYMENT_TX]
+    unique = indexes(migrated, PAYMENT)[UX_PAYMENT_TX]
     assert unique["unique"] == 1
     expected = ["payment_id", "tx_hash"]
     assert unique["column_names"] == expected
 
 
 def test_0009_hosting_schema_matches_models(migrated):
-    assert _columns(migrated, "hosting_plans") == PLAN_COLUMNS
-    assert _columns(migrated, "hosted_instances") == INSTANCE_COLUMNS
+    assert columns(migrated, "hosting_plans") == PLAN_COLUMNS
+    assert columns(migrated, "hosted_instances") == INSTANCE_COLUMNS
     fks = inspect(migrated).get_foreign_keys("hosted_instances")
     assert len(fks) == 1
     expected = ["user_id"]
@@ -128,22 +83,25 @@ def test_0009_duplicate_payment_tx_rejected(migrated):
 def test_0009_downgrade_upgrade_round_trip(migrated, monkeypatch):
     from alembic import command
 
-    cfg = _alembic_config(migrated.url.render_as_string(hide_password=False))
+    cfg = alembic_config(migrated.url.render_as_string(hide_password=False))
     monkeypatch.setenv("PRY_ALLOW_LOSSY_DOWNGRADE", "1")
+    # 0012 guards its own downgrade; the refusal path is covered by
+    # test_billing_dunning. This round-trip must reach 0008 to be exercised.
+    monkeypatch.setenv("PRY_ALLOW_BILLING_DOWNGRADE", "1")
 
     command.downgrade(cfg, "0008")
     tables = set(inspect(migrated).get_table_names())
     assert "hosting_plans" not in tables
     assert "hosted_instances" not in tables
-    assert "user_id" not in _columns(migrated, PAYMENT)
-    assert "user_id" not in _columns(migrated, SETTLEMENT)
-    assert "payment_id" not in _columns(migrated, USAGE)
+    assert "user_id" not in columns(migrated, PAYMENT)
+    assert "user_id" not in columns(migrated, SETTLEMENT)
+    assert "payment_id" not in columns(migrated, USAGE)
 
     command.upgrade(cfg, "head")
     tables = set(inspect(migrated).get_table_names())
     assert {"hosting_plans", "hosted_instances"} <= tables
-    assert "user_id" in _columns(migrated, PAYMENT)
-    assert UX_PAYMENT_TX in _indexes(migrated, PAYMENT)
+    assert "user_id" in columns(migrated, PAYMENT)
+    assert UX_PAYMENT_TX in indexes(migrated, PAYMENT)
 
 
 def test_0009_backfills_and_dedupes_before_unique_index(temp_data_dir, monkeypatch):
@@ -164,7 +122,7 @@ def test_0009_backfills_and_dedupes_before_unique_index(temp_data_dir, monkeypat
     dump = temp_data_dir / "dump"
     dump.write_bytes(b"SQLite format 3\x00" + b"x" * 64)  # non-empty verified dump
     monkeypatch.setenv("PRY_X402_BACKUP_PATH", str(dump))
-    cfg = _alembic_config(f"sqlite:///{temp_data_dir}/test.db")
+    cfg = alembic_config(f"sqlite:///{temp_data_dir}/test.db")
     command.upgrade(cfg, "0008")
 
     engine = db.get_engine()
@@ -203,7 +161,7 @@ def test_0009_tolerates_hosting_tables_precreated_by_auto_create(temp_data_dir, 
     from alembic import command
 
     monkeypatch.chdir(REPO_ROOT)
-    cfg = _alembic_config(f"sqlite:///{temp_data_dir}/test.db")
+    cfg = alembic_config(f"sqlite:///{temp_data_dir}/test.db")
     command.upgrade(cfg, "0008")
 
     engine = db.get_engine()
@@ -218,4 +176,4 @@ def test_0009_tolerates_hosting_tables_precreated_by_auto_create(temp_data_dir, 
 
     tables = set(inspect(engine).get_table_names())
     assert {"hosting_plans", "hosted_instances"} <= tables
-    assert "user_id" in _columns(engine, PAYMENT)
+    assert "user_id" in columns(engine, PAYMENT)

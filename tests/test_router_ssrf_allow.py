@@ -13,6 +13,24 @@ from __future__ import annotations
 
 import httpx
 import pytest
+
+@pytest.fixture(autouse=True)
+def _preserve_hostname(monkeypatch):
+    """Keep the logical hostname so respx routes match.
+
+    These tests assert that *ordinary public URLs are allowed*; the IP-pinning
+    path is covered by test_url_guard/test_ssrf_redirect_hop. Resolve to a fixed
+    public address (no live DNS) and skip the URL rewrite.
+    """
+    from pry.engine import url_pinning
+    from pry.engine.url_guard import socket as guard_socket
+
+    monkeypatch.setattr(
+        guard_socket, "getaddrinfo",
+        lambda *a, **k: [(guard_socket.AF_INET, guard_socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))],
+    )
+    monkeypatch.setattr(url_pinning, "pin_request", lambda url, *a, **k: (url, {}, {}))
+
 import respx
 
 from tests.ssrf_harness import (

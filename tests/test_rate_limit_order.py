@@ -167,12 +167,14 @@ class _FakeUserLimiter:
     async def refresh_quota(self, bucket_id):
         self.refreshed.append(bucket_id)
 
-    def check(self, *, api_key_id, tier, rpm, quota_monthly, cost_usd):
+    def check(self, **request):
+        """Duck-type the per-key limiter contract (5 keyword fields)."""
+        api_key_id = request["api_key_id"]
         self.checked.append(api_key_id)
         return False, {
             "reason": "monthly quota exceeded",
             "retry_after": 30,
-            "limit": rpm or 10,
+            "limit": request.get("rpm") or 10,
             "remaining": 0,
             "quota_used": 5,
             "quota_limit": 5,
