@@ -11,7 +11,7 @@ Pry is a **self-hosted MCP server** for web scraping and browser automation. It 
 
 - **Auth**: self-hosted by default — loopback-only when `PRY_API_KEY` is unset; set `PRY_API_KEY` to require `Authorization: Bearer` for remote clients. The server is a FastAPI app mounted at `/mcp` plus a stdio entry point (`pry-mcp`).
 - **Registry identity**: `io.rugmunch/pry` (see `server.json`); install `uvx pryscraper-mcp` or `pipx install pryscraper`.
-- **Protocol**: MCP 2024-11-05, JSON-RPC over stdio or streamable HTTP. Compatible with Claude, Cursor, Hermes, any MCP client.
+- **Protocol**: MCP 2026-07-28 ceiling; the worker negotiates down to the client's requested revision on `initialize`. JSON-RPC over stdio or streamable HTTP. Compatible with Claude, Cursor, Hermes, any MCP client.
 
 ## Decision Flow — Which Tool First
 
