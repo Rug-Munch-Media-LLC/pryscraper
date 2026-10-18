@@ -61,10 +61,13 @@ dependencies = [
     "qrcode>=8.0",
     "fastapi>=0.115.0,<1.0",
     "uvicorn[standard]>=0.32.0,<1.0",
-    # Official Model Context Protocol Python SDK — primary stdio transport for
-    # the `pry-mcp` / `pryscraper-mcp` entry points (sdk_server.py uses it when
-    # present and falls back to a pure-httpx stdio server otherwise).
-    "mcp>=1.0.0,<2.0",
+    # Official Model Context Protocol Python SDK. Pry's stdio transports use
+    # the dual-era JSON-RPC loop (pry_mcp/fallback_protocol.py): it answers
+    # `server/discover` (2026-07-28) and legacy `initialize`. The 1.x SDK is
+    # legacy-only and rejects `server/discover`, and 2.x dropped the decorator
+    # Server API sdk_server.py wraps — so 2.x is the supported floor and the
+    # runtime routes stdio to the dual-era loop.
+    "mcp>=2.0,<3.0",
     "trafilatura>=2.0.0",
     "readability-lxml>=0.8.1",
     "lxml>=5.3.0",
@@ -190,13 +193,14 @@ stealth = [
 # migration commit 07b025b).
 pry = "pry.misc.cli:main"
 # MCP stdio entry points — runnable via `uvx pryscraper-mcp`, `pipx install pryscraper`,
-# or directly as `pry-mcp` / `pryscraper-mcp`. Backed by the click command that boots
-# the MCP server over stdio (same path as `pry mcp serve` / `python -m mcp_production`).
+# or directly as `pry-mcp` / `pryscraper-mcp`. These target the same launch function
+# as `pry mcp --stdio` / `pry mcp serve` / `python -m pry.api.mcp_production`, and
+# accept `--stdio` as a no-op flag (the transport is always stdio here).
 # MCP registry identity (server.json): io.rugmunch/pry
-pry-mcp = "pry.misc.cli:mcp_serve"
+pry-mcp = "pry.misc.cli_click:launch_mcp_stdio"
 # Alias matching the publishable PyPI name (`uvx pryscraper-mcp` resolves a binary of
 # the same name as the package).
-pryscraper-mcp = "pry.misc.cli:mcp_serve"
+pryscraper-mcp = "pry.misc.cli_click:launch_mcp_stdio"
 
 # src-layout: all runtime modules live under src/pry/<domain>/. packages.find
 # ships the whole pry package tree (A4 folded x402 into pry.payments).

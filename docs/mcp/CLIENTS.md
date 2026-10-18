@@ -5,7 +5,7 @@ Pry exposes one MCP server through two transports:
 | Transport | Endpoint / command | Use |
 |---|---|---|
 | Streamable HTTP | `https://api.pryscraper.com/mcp/` (self-host: `http://127.0.0.1:8006/`) | hosted or remote agents |
-| stdio | `uvx pryscraper-mcp` (or `pry-mcp`) | desktop clients that spawn a local process |
+| stdio | `uvx pryscraper-mcp`, `pry-mcp`, `pry-mcp --stdio`, `pry mcp --stdio`, or `python -m pry.api.mcp_production` | desktop clients that spawn a local process |
 
 Discovery (`server/discover`, `initialize`, `tools/list`, `resources/list`,
 `prompts/list`, `ping`) is public. `tools/call` requires:
@@ -34,7 +34,7 @@ produced by `scripts/mcp_conformance.py`):
 |---|---|---|
 | Official Python SDK 2.x (modern) | `server/discover` | `2026-07-28` |
 | Modern client without discovery | any RPC with `_meta` / header | served statelessly at `2026-07-28` |
-| Official Python SDK 1.x `ClientSession` (pinned in this repo) | `initialize` `2025-11-25` | `2025-11-25` |
+| Official Python SDK `ClientSession` (2.x, pinned in this repo) | `initialize` `2025-11-25` | `2025-11-25` |
 | Claude Desktop / Cursor / Cline / VS Code using the legacy handshake | `initialize` `2025-11-25` | `2025-11-25` |
 | Custom/raw legacy client asking for a supported revision | `initialize`, as sent | echoed verbatim |
 | Any unknown revision on `initialize` | `initialize`, as sent | server ceiling `2026-07-28` |
@@ -79,17 +79,21 @@ eras cannot drift. A modern request whose declared revision is not in
 mutually supported version. `tools/call` still requires the Bearer key (or an
 x402 payment) in either era.
 
-**stdio caveat.** `pry-mcp` over stdio prefers the official MCP SDK server,
-which in the pinned 1.x SDK is legacy-only; it therefore answers `initialize`
-and rejects `server/discover` as an unknown method. The fallback server (used
-when the SDK is absent) answers both. A client that speaks only
-`2026-07-28` should use the Streamable HTTP endpoint.
+**stdio serves both eras.** Every stdio boot path (`pry-mcp`,
+`pryscraper-mcp`, `pry-mcp --stdio`, `pry mcp --stdio`,
+`python -m pry.api.mcp_production`) runs the same dual-era JSON-RPC loop
+(`pry_mcp/fallback_protocol.py`). A modern-only client can therefore run
+`server/discover` -> `tools/list` -> `tools/call` over stdio without sending
+`initialize`, and a legacy client keeps its `initialize` handshake unchanged.
+The loop is chosen whenever the installed SDK cannot serve modern discovery
+(the 1.x SDK is legacy-only and 2.x dropped the decorator `Server` API), so the
+two eras cannot be split by which SDK a deployment happens to resolve.
 
 ### SDK limitation (not a server bug)
 
 `mcp.ClientSession.initialize()` takes no version argument: it always sends its
 own `LATEST_HANDSHAKE_VERSION` and rejects a reply outside
-`HANDSHAKE_PROTOCOL_VERSIONS`. The pinned 1.x SDK therefore tops out at
+`HANDSHAKE_PROTOCOL_VERSIONS`. The installed 2.x SDK still tops out at
 `2025-11-25`; the modern `2026-07-28` path is exercised with raw
 `server/discover` / `_meta` requests (the conformance runner's modern session).
 

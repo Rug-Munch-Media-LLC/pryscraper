@@ -219,9 +219,31 @@ def _create_sdk_server() -> Any:
     return server
 
 
+def _sdk_supports_modern_discovery() -> bool:
+    """True only when the installed SDK can dispatch ``server/discover``.
+
+    SDK 1.x owns the decorator-based ``Server`` API but has no modern
+    discovery types; serving stdio through it would silently downgrade a
+    modern-only session to the legacy era (``server/discover`` -> method not
+    found). Only an SDK that ships the 2026-07-28 request types is eligible;
+    every other version falls through to Pry's dual-era JSON-RPC loop, which
+    answers ``server/discover`` and legacy ``initialize`` from one surface.
+    """
+    try:
+        import mcp.types as mcp_types
+    except ImportError:
+        return False
+    return hasattr(mcp_types, "DiscoverRequest")
+
+
 def create_server() -> Any:
-    """Create the MCP server (uses official SDK if available, fallback otherwise)."""
-    if _has_mcp_sdk:
+    """Create the MCP server (uses official SDK if available, fallback otherwise).
+
+    The SDK is used only when it can serve the modern era; otherwise the
+    fallback server runs a dual-era JSON-RPC loop over stdio, so both
+    ``initialize`` and ``server/discover`` work on every shipped entry point.
+    """
+    if _has_mcp_sdk and _sdk_supports_modern_discovery():
         try:
             return _create_sdk_server()
         except AttributeError as exc:
