@@ -145,7 +145,7 @@ RUN pip install --no-cache-dir --no-compile --no-deps . \
     && find /usr/local/lib/python3.12/site-packages -type f -name '*.pyc' -delete
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN mkdir -p /app/sessions /app/pry-data \
-    && chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && chmod 755 /usr/local/bin/docker-entrypoint.sh \
     && chown pry:pry /app/sessions /app/pry-data
 # /ms-playwright stays root-owned: it is read-only at runtime (read_only
 # rootfs) and pry only needs read access to the browser binaries.

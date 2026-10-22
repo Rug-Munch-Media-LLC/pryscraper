@@ -26,6 +26,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from functools import lru_cache
+from typing import TYPE_CHECKING
 
 import redis
 from fastapi import APIRouter
@@ -35,6 +37,9 @@ from pry.api.client import get_client
 from pry.api.routers.core.health_probes import bounded, queue_depth, uptime_seconds
 from pry.core.settings import settings
 
+if TYPE_CHECKING:
+    from redis.asyncio import Redis
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Health"])
@@ -42,15 +47,23 @@ router = APIRouter(tags=["Health"])
 APP_VERSION = settings.app_version
 
 
+@lru_cache(maxsize=1)
+def _redis_probe_client() -> Redis:
+    """Process-wide probe client — one pool, reused by every health probe.
+
+    A client per probe leaked a pool on every failed ping (the except path
+    never closed it) and on every cancelled probe, so a Redis blip turned the
+    healthcheck into a client factory.
+    """
+    import redis.asyncio as aioredis
+
+    return aioredis.from_url(settings.redis_url)
+
 
 async def _check_redis() -> bool:
-    """CRITICAL dep — ping redis."""
+    """CRITICAL dep — ping redis over the shared probe connection."""
     try:
-        import redis.asyncio as aioredis
-
-        r = aioredis.from_url(settings.redis_url)
-        await r.ping()
-        await r.close()  # type: ignore[attr-defined]  # redis.asyncio.Redis has close() in older stubs
+        await _redis_probe_client().ping()
         return True
     except redis.RedisError:
         logger.warning("health_exception_handler", exc_info=True)
