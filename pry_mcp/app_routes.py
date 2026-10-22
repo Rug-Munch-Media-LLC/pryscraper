@@ -133,6 +133,8 @@ async def mcp_json_rpc(request: Request, get_server: GetServer, store: Store) ->
     body, error = await _read_body(request)
     if error is not None:
         return error
+    if body is None:  # _read_body returns exactly one of (body, error)
+        return Response(status_code=400)
     error = _reject_unsupported_version(request, body)
     if error is not None:
         return error

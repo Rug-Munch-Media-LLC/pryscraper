@@ -79,8 +79,10 @@ def _validate_host(
     try:
         ip = ipaddress.ip_address(hostname)
     except ValueError:
-        # Not an IP literal — continue with hostname checks.
-        logger.warning("silent_exception_swallowed", exc_info=True)
+        # Not an IP literal — the common case, not an error. This logged a
+        # WARNING with a full traceback for every hostname: 2 357 events =
+        # 15% of the whole log stream, pure noise around the real failures.
+        logger.debug("host_not_ip_literal", extra={"hostname": hostname})
     else:
         for net in _PRIVATE_NETS:
             if ip in ipaddress.ip_network(net):

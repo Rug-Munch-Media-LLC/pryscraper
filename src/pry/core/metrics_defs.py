@@ -19,6 +19,9 @@ REQUEST_COUNT = Counter("pry_requests_total", "Total requests", ["method", "endp
 REQUEST_LATENCY = Histogram("pry_request_duration_seconds", "Request latency", ["endpoint"])
 ERROR_COUNT = Counter("pry_request_errors_total", "Request errors", ["method", "endpoint"])
 SCRAPE_COUNT = Counter("pry_scrapes_total", "Total scrapes", ["method", "status"])
+SCRAPE_FAILURES = Counter(
+    "pry_scrape_failures_total", "Scrape failures by reason", ["method", "reason"]
+)
 SCRAPE_LATENCY = Histogram("pry_scrape_duration_seconds", "Scrape latency", ["method"])
 LLM_CALLS = Counter("pry_llm_calls_total", "Total LLM calls", ["provider", "model"])
 LLM_COST = Counter("pry_llm_cost_usd_total", "Total LLM cost in USD", ["provider"])

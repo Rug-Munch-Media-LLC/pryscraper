@@ -19,10 +19,30 @@ from pry.api.routers.scraping.media_formats import MEDIA_FORMATS, media_extras
 from pry.api.routers.scraping.scraping_models import ScrapeRequest  # noqa: TC001 - runtime
 from pry.api.routers.scraping.seams import bindings
 from pry.core.errors import ExternalServiceError, PryError, ScrapeError
+from pry.core.logging_config import get_logger
+from pry.core.metrics_defs import SCRAPE_FAILURES
 from pry.core.observability import track_scrape
+from pry.core.scrape_reason import classify_failure
 from pry.engine.scraping_service import format_extras, render_media_for, requested_formats
 
 router = APIRouter()
+logger = get_logger(__name__)
+
+
+def _record_failure(exc: BaseException) -> None:
+    """Label WHY a scrape failed. Without this, 27% is undiagnosable."""
+    reason = classify_failure(exc)
+    SCRAPE_FAILURES.labels(method="direct", reason=reason).inc()
+    logger.warning(
+        "scrape_failed",
+        extra={
+            "reason": reason,
+            "error": str(exc)[:300],
+            "verdict": getattr(exc, "verdict", None),
+            "tiers_failed": getattr(exc, "tiers_failed", None),
+            "tiers_attempted": getattr(exc, "tiers_attempted", None),
+        },
+    )
 
 
 async def _scrape_fresh(
@@ -113,9 +133,11 @@ async def scrape(request: ScrapeRequest, http_request: Request) -> dict[str, Any
         out = _paginate(copy.deepcopy(response), request.offset, request.limit)
         audit_http(http_request, "scrape", request.url, "success")
         return out
-    except PryError:
+    except PryError as e:
+        _record_failure(e)
         audit_http(http_request, "scrape", request.url, "error")
         raise
     except Exception as e:
+        _record_failure(e)
         audit_http(http_request, "scrape", request.url, "error")
         raise ExternalServiceError(str(e)) from e

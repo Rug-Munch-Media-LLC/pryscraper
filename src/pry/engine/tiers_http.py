@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from typing import Any
 
 import httpx
@@ -135,7 +136,13 @@ class TierHTTPMixin:
         if not settings.flaresolverr_url:
             return None
         try:
-            payload = {"cmd": "request.get", "url": url, "maxTimeout": 60000}
+            # The ladder kills every tier at PRY_TIER_TIMEOUT_S (default 45 s).
+            # Asking for 60 s guaranteed a blind asyncio kill and discarded the
+            # sidecar's own verdict; 75/214 measured flaresolverr losses were
+            # exactly 45.0 s, i.e. killed, not answered.
+            tier_s = float(os.getenv("PRY_TIER_TIMEOUT_S", "45") or 45)
+            max_timeout_ms = max(10_000, int((tier_s - 5) * 1000))
+            payload = {"cmd": "request.get", "url": url, "maxTimeout": max_timeout_ms}
             c = await _get_shared_client()
             # Stream the JSON envelope: ``r.json()`` would buffer an unbounded
             # body (a hostile page is escaped into the envelope and can be
@@ -144,7 +151,7 @@ class TierHTTPMixin:
                 "POST",
                 settings.flaresolverr_url,
                 json=payload,
-                timeout=60,
+                timeout=tier_s,
             ) as r:
                 if not r.is_success:
                     # Surface the transport-level failure (e.g. 500 from the

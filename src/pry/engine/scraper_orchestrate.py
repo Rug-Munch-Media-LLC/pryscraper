@@ -44,11 +44,11 @@ from pry.engine.url_guard import validate_url
 #: Markers in a tier-failure string that mean a Pry dependency was down rather
 #: than the target refusing us.
 _DEPENDENCY_MARKERS = (
-    "flaresolverr",
+    "browser version",
     "browser_pool",
-    "unavailable",
-    "dependency",
     "browser_unavailable",
+    "executable doesn't exist",
+    "dependency",
 )
 
 
@@ -78,7 +78,7 @@ def classify_verdict(
     """
     if block_signal is not None and block_signal.get("kind") not in (None, "none"):
         return "blocked"
-    if any(marker in err for err in errors for marker in _DEPENDENCY_MARKERS):
+    if any(marker in err.lower() for err in errors for marker in _DEPENDENCY_MARKERS):
         return "unavailable"
     if tiers_available and len(errors) >= tiers_available:
         # Every tier was attempted and none refused us.
