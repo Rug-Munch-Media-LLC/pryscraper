@@ -100,13 +100,21 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "event_id": {"type": "string"},
-                        "min_price": {"type": "number"},
-                        "max_price": {"type": "number"},
-                        "ticket_count": {"type": "integer"},
-                        "sections": {"type": "array", "items": {"type": "object"}},
+                    "type": "array",
+                    "description": (
+                        "Resale listings across marketplaces; empty when no resale "
+                        "page is reachable."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "marketplace": {"type": "string"},
+                            "section": {"type": "string"},
+                            "row": {"type": "string"},
+                            "listing_price": {"type": "number"},
+                            "quantity": {"type": ["integer", "null"]},
+                            "last_update": {"type": "string"},
+                        },
                     },
                 },
             },

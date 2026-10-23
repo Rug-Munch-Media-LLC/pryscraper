@@ -24,7 +24,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
         "name": "pry_amazon_product",
         "description": (
             "Look up a single Amazon product by its ASIN (e.g. 'B08N5WRWNW') and return "
-            "current price, title, availability, rating, and listing details from the "
+            "current price, title, rating, and listing details from the "
             "marketplace intelligence provider. "
             "Use to check a product's live price or stock, e.g. 'what does B0BLVMHNF1 "
             "cost right now?'."
@@ -48,14 +48,22 @@ PRY_TOOLS: list[dict[str, Any]] = [
                 "success": {"type": "boolean"},
                 "data": {
                     "type": "object",
+                    "description": (
+                        "One normalized Amazon product; an empty object when the "
+                        "listing could not be read."
+                    ),
                     "properties": {
                         "asin": {"type": "string"},
                         "title": {"type": "string"},
                         "price": {"type": "number"},
                         "currency": {"type": "string"},
-                        "availability": {"type": "string"},
+                        "buy_box": {"type": "string"},
+                        "brand": {"type": "string"},
                         "rating": {"type": "number"},
-                        "reviews_count": {"type": "integer"},
+                        "review_count": {"type": "integer"},
+                        "bsr": {"type": "integer"},
+                        "category": {"type": "string"},
+                        "offers": {"type": "integer"},
                         "url": {"type": "string"},
                     },
                 },
@@ -93,24 +101,27 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "items": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "asin": {"type": "string"},
-                                    "title": {"type": "string"},
-                                    "price": {"type": "number"},
-                                    "currency": {"type": "string"},
-                                    "rating": {"type": "number"},
-                                    "url": {"type": "string"},
-                                },
-                            },
+                    "type": "array",
+                    "description": (
+                        "Matching products in scrape order; empty when Amazon blocks "
+                        "the search or nothing matches."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "asin": {"type": "string"},
+                            "title": {"type": "string"},
+                            "price": {"type": "number"},
+                            "currency": {"type": "string"},
+                            "buy_box": {"type": "string"},
+                            "brand": {"type": "string"},
+                            "rating": {"type": "number"},
+                            "review_count": {"type": "integer"},
+                            "bsr": {"type": "integer"},
+                            "category": {"type": "string"},
+                            "offers": {"type": "integer"},
+                            "url": {"type": "string"},
                         },
-                        "total": {"type": "integer"},
-                        "query": {"type": "string"},
                     },
                 },
             },
@@ -121,7 +132,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
         "name": "pry_walmart_product",
         "description": (
             "Look up a single Walmart product by its product ID (e.g. '4JH7P89H7X5P') "
-            "and return current price, title, availability, seller, and rating from the "
+            "and return current price, title, stock, seller, and rating from the "
             "marketplace intelligence provider. "
             "Use to check a Walmart listing's live price or stock, e.g. 'what does "
             "Walmart product 4JH7P89H7X5P cost?'."
@@ -142,14 +153,18 @@ PRY_TOOLS: list[dict[str, Any]] = [
                 "success": {"type": "boolean"},
                 "data": {
                     "type": "object",
+                    "description": (
+                        "One normalized Walmart product; an empty object when the "
+                        "listing could not be read."
+                    ),
                     "properties": {
                         "product_id": {"type": "string"},
                         "title": {"type": "string"},
                         "price": {"type": "number"},
                         "currency": {"type": "string"},
-                        "availability": {"type": "string"},
                         "seller": {"type": "string"},
                         "rating": {"type": "number"},
+                        "stock": {"type": "boolean"},
                         "url": {"type": "string"},
                     },
                 },
@@ -184,24 +199,23 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "items": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "product_id": {"type": "string"},
-                                    "title": {"type": "string"},
-                                    "price": {"type": "number"},
-                                    "currency": {"type": "string"},
-                                    "sales_count": {"type": "integer"},
-                                    "shop_name": {"type": "string"},
-                                    "url": {"type": "string"},
-                                },
-                            },
+                    "type": "array",
+                    "description": (
+                        "Trending products in engagement order; empty when the "
+                        "bestseller surface is unavailable."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "product_id": {"type": "string"},
+                            "title": {"type": "string"},
+                            "price": {"type": "number"},
+                            "sold_count": {"type": "integer"},
+                            "gmv_estimate": {"type": "number"},
+                            "rating": {"type": "number"},
+                            "shop": {"type": "string"},
+                            "url": {"type": "string"},
                         },
-                        "total": {"type": "integer"},
                     },
                 },
             },

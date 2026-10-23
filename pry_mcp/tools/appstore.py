@@ -54,28 +54,24 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "items": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "app_id": {"type": "string"},
-                                    "name": {"type": "string"},
-                                    "price": {"type": "number"},
-                                    "currency": {"type": "string"},
-                                    "rating": {"type": "number"},
-                                    "categories": {
-                                        "type": "array",
-                                        "items": {"type": "string"},
-                                    },
-                                    "url": {"type": "string"},
-                                },
-                            },
+                    "type": "array",
+                    "description": (
+                        "Matching apps in relevance order; empty when the iTunes feed "
+                        "is unreachable or nothing matches."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "app_id": {"type": ["integer", "null"]},
+                            "title": {"type": "string"},
+                            "developer": {"type": "string"},
+                            "genre": {"type": "string"},
+                            "rating": {"type": ["number", "null"]},
+                            "rating_count": {"type": ["integer", "null"]},
+                            "price": {"type": "string"},
+                            "version": {"type": "string"},
+                            "url": {"type": "string"},
                         },
-                        "total": {"type": "integer"},
-                        "query": {"type": "string"},
                     },
                 },
             },
@@ -117,24 +113,21 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "items": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "app_id": {"type": "string"},
-                                    "rating": {"type": "integer"},
-                                    "title": {"type": "string"},
-                                    "body": {"type": "string"},
-                                    "author": {"type": "string"},
-                                    "date": {"type": "string"},
-                                },
-                            },
+                    "type": "array",
+                    "description": (
+                        "Recent reviews, newest first; empty when the reviews feed is "
+                        "unreachable."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "author": {"type": "string"},
+                            "rating": {"type": ["number", "null"]},
+                            "title": {"type": "string"},
+                            "body": {"type": "string"},
+                            "date": {"type": "string"},
+                            "version": {"type": "string"},
                         },
-                        "total": {"type": "integer"},
-                        "app_id": {"type": "string"},
                     },
                 },
             },

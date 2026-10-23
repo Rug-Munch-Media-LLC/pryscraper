@@ -121,26 +121,26 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "items": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "title": {"type": "string"},
-                                    "agency": {"type": "string"},
-                                    "opportunity_number": {"type": "string"},
-                                    "amount": {"type": "number"},
-                                    "currency": {"type": "string"},
-                                    "eligibility": {"type": "string"},
-                                    "deadline": {"type": "string"},
-                                    "url": {"type": "string"},
-                                },
-                            },
+                    "type": "array",
+                    "description": (
+                        "Matching opportunities; empty when the grant feed is "
+                        "unreachable or nothing matches. Fields the source omits "
+                        "are null."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": ["string", "null"]},
+                            "title": {"type": ["string", "null"]},
+                            "agency": {"type": ["string", "null"]},
+                            "funding_type": {"type": ["string", "null"]},
+                            "open_date": {"type": ["string", "null"]},
+                            "close_date": {"type": ["string", "null"]},
+                            "amount": {"type": ["string", "null"]},
+                            "eligible": {"type": ["string", "null"]},
+                            "url": {"type": ["string", "null"]},
+                            "source": {"type": "string"},
                         },
-                        "total": {"type": "integer"},
-                        "query": {"type": "string"},
                     },
                 },
             },
