@@ -115,18 +115,8 @@ PRY_TOOLS: list[dict[str, Any]] = [
                     "type": "object",
                     "properties": {
                         "hotel": {"type": "string"},
-                        "nights": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "date": {"type": "string"},
-                                    "price_usd": {"type": "number"},
-                                    "source": {"type": "string"},
-                                },
-                            },
-                        },
-                        "total_usd": {"type": "number"},
+                        "price_per_night": {"type": "number"},
+                        "total": {"type": "number"},
                     },
                 },
             },

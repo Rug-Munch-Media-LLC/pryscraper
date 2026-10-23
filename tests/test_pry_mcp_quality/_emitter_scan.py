@@ -83,16 +83,36 @@ def _parsed(path: pathlib.Path) -> ast.Module | None:
         return None
 
 
+def _relative_base(path: pathlib.Path, level: int) -> str | None:
+    """The package a ``level``-deep relative import resolves against."""
+    dotted = module_dotted(path)
+    parts = dotted.split(".") if dotted else []
+    if not parts:
+        return None
+    package = parts[:-1] if path.stem != "__init__" else parts
+    if level > 1:
+        package = package[: len(package) - (level - 1)]
+    return ".".join(package) if package else ""
+
+
 def _imported_modules(path: pathlib.Path) -> list[str]:
-    """Absolute module names imported by ``path`` (relative imports skipped)."""
+    """Module names ``path`` imports, relative imports resolved to absolute."""
     tree = _parsed(path)
     if tree is None:
         return []
     names: list[str] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-            names.append(node.module)
-            names.extend(f"{node.module}.{alias.name}" for alias in node.names)
+        if isinstance(node, ast.ImportFrom):
+            base = node.module or ""
+            if node.level:
+                package = _relative_base(path, node.level)
+                if package is None:
+                    continue
+                base = f"{package}.{base}" if base else package
+            if not base:
+                continue
+            names.append(base)
+            names.extend(f"{base}.{alias.name}" for alias in node.names)
         elif isinstance(node, ast.Import):
             names.extend(alias.name for alias in node.names)
     return names

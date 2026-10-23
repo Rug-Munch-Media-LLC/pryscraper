@@ -61,11 +61,10 @@ PRY_TOOLS: list[dict[str, Any]] = [
                         "properties": {
                             "place_id": {"type": "string"},
                             "name": {"type": "string"},
-                            "rating": {"type": "number"},
-                            "reviews_count": {"type": "integer"},
                             "address": {"type": "string"},
                             "phone": {"type": "string"},
                             "website": {"type": "string"},
+                            "rating": {"type": "number"},
                         },
                     },
                 },

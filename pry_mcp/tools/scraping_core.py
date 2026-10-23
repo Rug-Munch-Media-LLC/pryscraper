@@ -146,8 +146,6 @@ PRY_TOOLS: list[dict[str, Any]] = [
                                 "type": "object",
                                 "properties": {
                                     "url": {"type": "string"},
-                                    "title": {"type": "string"},
-                                    "markdown": {"type": "string"},
                                     "method": {"type": "string"},
                                 },
                             },
@@ -311,19 +309,9 @@ PRY_TOOLS: list[dict[str, Any]] = [
                 "data": {
                     "type": "object",
                     "properties": {
-                        "templates": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "template_id": {"type": "string"},
-                                    "category": {"type": "string"},
-                                    "description": {"type": "string"},
-                                },
-                            },
-                        },
+                        "templates": {"type": "array", "items": {"type": "object"}},
+                        "categories": {"type": "object"},
                         "total": {"type": "integer"},
-                        "query": {"type": "string"},
                     },
                 },
             },

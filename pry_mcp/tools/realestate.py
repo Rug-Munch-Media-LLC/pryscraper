@@ -62,14 +62,14 @@ PRY_TOOLS: list[dict[str, Any]] = [
                     "items": {
                         "type": "object",
                         "properties": {
-                            "zpid": {"type": "string"},
                             "address": {"type": "string"},
-                            "price": {"type": "number"},
-                            "beds": {"type": "integer"},
+                            "beds": {"type": "number"},
                             "baths": {"type": "number"},
-                            "sqft": {"type": "integer"},
+                            "price": {"type": "number"},
+                            "sqft": {"type": "number"},
                             "status": {"type": "string"},
                             "url": {"type": "string"},
+                            "zestimate": {"type": "integer"},
                         },
                     },
                 },

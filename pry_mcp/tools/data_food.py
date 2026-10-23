@@ -58,11 +58,12 @@ PRY_TOOLS: list[dict[str, Any]] = [
                     "items": {
                         "type": "object",
                         "properties": {
-                            "item": {"type": "string"},
-                            "price_usd": {"type": "number"},
-                            "unit": {"type": "string"},
+                            "product": {"type": "string"},
                             "store": {"type": "string"},
-                            "zip": {"type": "string"},
+                            "price": {"type": "number"},
+                            "currency": {"type": "string"},
+                            "zip_code": {"type": "string"},
+                            "unit": {"type": "string"},
                             "date": {"type": "string"},
                         },
                     },

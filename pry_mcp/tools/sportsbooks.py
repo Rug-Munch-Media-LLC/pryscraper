@@ -179,11 +179,14 @@ PRY_TOOLS: list[dict[str, Any]] = [
                     "items": {
                         "type": "object",
                         "properties": {
-                            "alert_type": {"type": "string"},
-                            "sport": {"type": "string"},
                             "event": {"type": "string"},
+                            "sport": {"type": "string"},
+                            "market": {"type": "string"},
+                            "threshold": {"type": "number"},
+                            "kind": {"type": "string"},
+                            "edge": {"type": "number"},
                             "message": {"type": "string"},
-                            "severity": {"type": "string"},
+                            "notify_url": {"type": "string"},
                             "created_at": {"type": "string"},
                         },
                     },

@@ -30,10 +30,9 @@ PRY_TOOLS: list[dict[str, Any]] = [
                 "data": {
                     "type": "object",
                     "properties": {
-                        "pricing": {"type": "object"},
-                        "wallet": {"type": "string"},
                         "facilitator": {"type": "string"},
                         "supported_networks": {"type": "array", "items": {"type": "string"}},
+                        "wallets": {"type": "object"},
                     },
                 },
             },
