@@ -17,6 +17,7 @@ facade module keep working.
 # Licensed under MIT. See LICENSE.
 
 import json
+import logging
 import time
 import uuid
 from collections.abc import Mapping
@@ -78,6 +79,17 @@ def _billing_reject(scope: Mapping[str, Any]) -> dict[str, Any] | None:
 
 
 # Middleware: auth + rate limit + timing + request logging
+
+#: Probe + metrics endpoints are polled every few seconds; logging them at INFO
+#: made up 28% of all log lines (130/460 in a 10-minute sample, 2026-10-23).
+_PROBE_PATHS = frozenset({"/health", "/healthz", "/live", "/ready", "/version", "/metrics"})
+
+
+def _level_for(path: str) -> int:
+    """INFO for real traffic, DEBUG for orchestrator/prometheus probes."""
+    return logging.DEBUG if path in _PROBE_PATHS else logging.INFO
+
+
 class PryHttpMiddleware:
     """Pure-ASGI middleware for auth, rate limiting, timing, and logging.
 
@@ -133,8 +145,13 @@ class PryHttpMiddleware:
         pre_allowed, pre_stats = middleware_ratelimit.preauth_check(ip, credentialed)
         if not pre_allowed:
             await self._reject_rate_limited(
-                send, request_id=request_id, path=path, ip=ip, api_key=None,
-                stats=pre_stats, rate_limit_headers={},
+                send,
+                request_id=request_id,
+                path=path,
+                ip=ip,
+                api_key=None,
+                stats=pre_stats,
+                rate_limit_headers={},
             )
             return
 
@@ -185,7 +202,8 @@ class PryHttpMiddleware:
     # ── Extracted blocks (audit P2) ─────────────────────────────────────────
 
     def _log_request_start(self, scope: dict[str, Any], request_id: str, ip: str) -> None:
-        logger.info(
+        logger.log(
+            _level_for(scope.get("path", "")),
             "request_start",
             extra={
                 "request_id": request_id,
@@ -222,7 +240,8 @@ class PryHttpMiddleware:
     def _log_request_end(
         self, scope: dict[str, Any], request_id: str, status: int, elapsed: float
     ) -> None:
-        logger.info(
+        logger.log(
+            _level_for(scope.get("path", "")),
             "request_end",
             extra={
                 "request_id": request_id,

@@ -9,6 +9,7 @@ Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
 import copy
+import time
 from functools import partial
 from typing import Any
 
@@ -29,20 +30,34 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-def _record_failure(exc: BaseException) -> None:
-    """Label WHY a scrape failed. Without this, 27% is undiagnosable."""
+def _record_failure(exc: BaseException, elapsed_ms: int | None = None) -> None:
+    """Label WHY a scrape failed — tier + reason + elapsed on ONE line.
+
+    Without the reason, 27% of failures is undiagnosable; without the tier and
+    the elapsed time the line says a scrape broke but not where it burned its
+    budget. One JSON line per failure, never a traceback: the engine already
+    logs per-tier detail and ``exc_info`` here drowned the signal.
+    """
     reason = classify_failure(exc)
+    tiers_failed = getattr(exc, "tiers_failed", None) or []
     SCRAPE_FAILURES.labels(method="direct", reason=reason).inc()
     logger.warning(
         "scrape_failed",
         extra={
             "reason": reason,
+            "tier": tiers_failed[-1] if tiers_failed else None,
+            "elapsed_ms": elapsed_ms,
             "error": str(exc)[:300],
             "verdict": getattr(exc, "verdict", None),
-            "tiers_failed": getattr(exc, "tiers_failed", None),
+            "tiers_failed": tiers_failed or None,
             "tiers_attempted": getattr(exc, "tiers_attempted", None),
         },
     )
+
+
+def _elapsed_ms(started: float) -> int:
+    """Wall-clock spent on the failed attempt, rounded to milliseconds."""
+    return int((time.monotonic() - started) * 1000)
 
 
 async def _scrape_fresh(
@@ -123,6 +138,7 @@ async def scrape(request: ScrapeRequest, http_request: Request) -> dict[str, Any
         out["_cached"] = True
         audit_http(http_request, "scrape", request.url, "success")
         return out
+    started = time.monotonic()
     try:
         with track_scrape(method="direct"):
             response = await _scrape_fresh(
@@ -134,10 +150,10 @@ async def scrape(request: ScrapeRequest, http_request: Request) -> dict[str, Any
         audit_http(http_request, "scrape", request.url, "success")
         return out
     except PryError as e:
-        _record_failure(e)
+        _record_failure(e, _elapsed_ms(started))
         audit_http(http_request, "scrape", request.url, "error")
         raise
     except Exception as e:
-        _record_failure(e)
+        _record_failure(e, _elapsed_ms(started))
         audit_http(http_request, "scrape", request.url, "error")
         raise ExternalServiceError(str(e)) from e
