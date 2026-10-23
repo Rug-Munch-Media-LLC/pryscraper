@@ -31,6 +31,7 @@ from pry.engine.body_limits import (
     cap_httpx_stream,
     cap_text,
 )
+from pry.engine.flare_budget import client_budget_s, solve_budget_s
 from pry.engine.url_guard import validate_url
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ _FLARESOLVERR_URL = os.environ.get("PRY_FLARESOLVERR_URL", "http://flaresolverr-
 
 
 async def fetch_via_flaresolverr(
-    url: str, timeout_s: float = 90.0, proxy: str | None = None
+    url: str, timeout_s: float | None = None, proxy: str | None = None
 ) -> str:
     """Fetch a URL through FlareSolverr. Returns "" when unavailable.
 
@@ -52,6 +53,8 @@ async def fetch_via_flaresolverr(
     FlareSolverr runs a real browser and clears the challenge, so the DDG
     HTML endpoint returns parseable results.
     """
+    # Two derived budgets, both below the ladder deadline: see flare_budget.
+    client_s = client_budget_s(timeout_s)
     # The caller URL is posted to FlareSolverr, which navigates a real browser
     # and follows redirects itself. Validate BEFORE posting: otherwise the
     # browser is the SSRF client and the redirect hops are invisible to us.
@@ -65,7 +68,7 @@ async def fetch_via_flaresolverr(
         payload: dict[str, Any] = {
             "cmd": "request.get",
             "url": url,
-            "maxTimeout": int(timeout_s * 1000),
+            "maxTimeout": int(solve_budget_s() * 1000),
         }
         # Residential egress: Google/DuckDuckGo block a bare datacenter IP. When a
         # proxy is supplied it is handed to FlareSolverr's own ``proxy`` field so
@@ -73,7 +76,7 @@ async def fetch_via_flaresolverr(
         # rmi/infra/webshare_proxy_list_v2; see docs/ops/site-access-playbook.md.)
         if proxy:
             payload["proxy"] = {"url": proxy}
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(client_s)) as client:
             # Stream the envelope and cap it: ``resp.json()`` would buffer an
             # unbounded body, and the escaped page can dwarf the page itself.
             async with client.stream("POST", _FLARESOLVERR_URL, json=payload) as resp:

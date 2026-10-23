@@ -24,6 +24,7 @@ from pry.core.errors import InvalidRequestError
 from pry.core.settings import settings
 from pry.engine.block_detector import BlockDetector
 from pry.engine.dom_prune import finalize_document, select_main_content
+from pry.engine.flare_budget import client_budget_s, solve_budget_s
 from pry.engine.url_guard import safe_get, validate_url
 
 logger = logging.getLogger(__name__)
@@ -180,9 +181,16 @@ class PryScraper:
             resp.raise_for_status()
             return resp.text
 
-    async def _fetch_via_flaresolverr(self, url: str, timeout_s: int) -> str:
-        payload = {"cmd": "request.get", "url": url, "maxTimeout": timeout_s * 1000}
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s + 10)) as client:
+    async def _fetch_via_flaresolverr(self, url: str, timeout_s: float | None = None) -> str:
+        # Same policy as the ladder tier (flare_budget): solve < client <
+        # PRY_TIER_TIMEOUT_S. ``timeout_s`` is a ceiling, never a multiplier.
+        client_s = client_budget_s(timeout_s)
+        payload = {
+            "cmd": "request.get",
+            "url": url,
+            "maxTimeout": int(solve_budget_s() * 1000),
+        }
+        async with httpx.AsyncClient(timeout=httpx.Timeout(client_s)) as client:
             resp = await client.post(settings.flaresolverr_url, json=payload)
             resp.raise_for_status()
             data = resp.json()

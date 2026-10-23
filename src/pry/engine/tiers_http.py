@@ -14,7 +14,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 from typing import Any
 
 import httpx
@@ -26,6 +25,7 @@ from pry.engine.body_limits import (
     cap_httpx_stream,
     cap_text,
 )
+from pry.engine.flare_budget import client_budget_s, solve_budget_s
 from pry.engine.tiers_base import _get_shared_client, _us_flag
 from pry.engine.url_guard import safe_get
 
@@ -136,13 +136,17 @@ class TierHTTPMixin:
         if not settings.flaresolverr_url:
             return None
         try:
-            # The ladder kills every tier at PRY_TIER_TIMEOUT_S (default 45 s).
-            # Asking for 60 s guaranteed a blind asyncio kill and discarded the
-            # sidecar's own verdict; 75/214 measured flaresolverr losses were
-            # exactly 45.0 s, i.e. killed, not answered.
-            tier_s = float(os.getenv("PRY_TIER_TIMEOUT_S", "45") or 45)
-            max_timeout_ms = max(10_000, int((tier_s - 5) * 1000))
-            payload = {"cmd": "request.get", "url": url, "maxTimeout": max_timeout_ms}
+            # Both budgets derive from the ladder deadline in flare_budget:
+            # solve < client < PRY_TIER_TIMEOUT_S. The old hardcoded 60 s was
+            # longer than the deadline, so the attempt died as a blind asyncio
+            # kill that discarded the sidecar's own verdict (75/214 measured
+            # losses were exactly 45.0 s, i.e. killed, not answered).
+            tier_s = client_budget_s()
+            payload = {
+                "cmd": "request.get",
+                "url": url,
+                "maxTimeout": int(solve_budget_s() * 1000),
+            }
             c = await _get_shared_client()
             # Stream the JSON envelope: ``r.json()`` would buffer an unbounded
             # body (a hostile page is escaped into the envelope and can be

@@ -73,7 +73,9 @@ async def test_flaresolverr_max_timeout_fits_the_ladder(
     monkeypatch.setattr(tiers_http, "_get_shared_client", lambda: _fake_client(sink))
     assert await TierHTTPMixin()._tier_flaresolverr("https://example.com", {}) is None
     assert sink[0]["json"]["maxTimeout"] == expected_ms
-    assert sink[0]["timeout"] == float(env_s)
+    # The client gives up one second BEFORE the ladder's kill, so the
+    # sidecar's verdict arrives instead of a blind asyncio cancellation.
+    assert sink[0]["timeout"] == float(env_s) - 1
 
 
 async def _fake_client(sink: list) -> _FakeClient:
