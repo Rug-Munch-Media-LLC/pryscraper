@@ -59,12 +59,39 @@ PRY_TOOLS: list[dict[str, Any]] = [
                 "data": {
                     "type": "object",
                     "properties": {
-                        "location": {"type": "string"},
-                        "temperature_c": {"type": "number"},
-                        "condition": {"type": "string"},
-                        "humidity_pct": {"type": "number"},
-                        "wind_kph": {"type": "number"},
-                        "forecast": {"type": "array", "items": {"type": "object"}},
+                        "location": {
+                            "type": "object",
+                            "properties": {
+                                "lat": {"type": "number"},
+                                "lon": {"type": "number"},
+                                "city": {"type": ["string", "null"]},
+                                "state": {"type": ["string", "null"]},
+                            },
+                        },
+                        "current": {
+                            "type": "object",
+                            "properties": {
+                                "temp_f": {"type": ["number", "null"]},
+                                "condition": {"type": ["string", "null"]},
+                                "wind_mph": {"type": ["number", "null"]},
+                                "humidity_pct": {"type": ["number", "null"]},
+                                "observed_at": {"type": ["string", "null"]},
+                            },
+                        },
+                        "forecast": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "date": {"type": "string"},
+                                    "high_f": {"type": ["number", "null"]},
+                                    "low_f": {"type": ["number", "null"]},
+                                    "condition": {"type": ["string", "null"]},
+                                    "precip_pct": {"type": ["number", "null"]},
+                                },
+                            },
+                        },
+                        "alerts": {"type": "array", "items": {"type": "object"}},
                     },
                 },
             },

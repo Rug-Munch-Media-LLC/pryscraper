@@ -269,6 +269,25 @@ async def call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[st
             )
             return _marketplace_module_unavailable(name)
         product_data = await get_amazon_product(asin)
+        if not product_data:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": json.dumps(
+                            {
+                                "success": False,
+                                "error": (
+                                    f"Amazon product not found or blocked for ASIN {asin!r}: "
+                                    "the listing could not be read."
+                                ),
+                                "code": "NOT_FOUND",
+                            }
+                        ),
+                    }
+                ],
+                "isError": True,
+            }
         return {
             "content": [
                 {
@@ -318,6 +337,25 @@ async def call_marketplace_tool(name: str, arguments: dict[str, Any]) -> dict[st
             )
             return _marketplace_module_unavailable(name)
         product_data = await get_walmart_product(product_id)
+        if not product_data:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": json.dumps(
+                            {
+                                "success": False,
+                                "error": (
+                                    f"Walmart product not found or blocked for product id "
+                                    f"{product_id!r}: the listing could not be read."
+                                ),
+                                "code": "NOT_FOUND",
+                            }
+                        ),
+                    }
+                ],
+                "isError": True,
+            }
         return {
             "content": [
                 {

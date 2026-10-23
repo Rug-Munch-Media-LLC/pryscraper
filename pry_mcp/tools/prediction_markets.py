@@ -160,8 +160,6 @@ PRY_TOOLS: list[dict[str, Any]] = [
                         "last_update": {"type": "string"},
                     },
                 },
-                "market_id": {"type": "string"},
-                "source": {"type": "string"},
             },
             "required": ["success"],
         },

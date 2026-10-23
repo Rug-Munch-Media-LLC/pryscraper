@@ -110,16 +110,20 @@ PRY_TOOLS: list[dict[str, Any]] = [
                     "type": "object",
                     "properties": {
                         "query": {"type": "string"},
-                        "sentiment": {
-                            "type": "string",
-                            "enum": ["positive", "neutral", "negative"],
-                        },
-                        "score": {"type": "number"},
-                        "confidence": {"type": "number"},
-                        "articles_analyzed": {"type": "integer"},
-                        "sample_articles": {
+                        "avg_tone": {"type": "number"},
+                        "positive_pct": {"type": "number"},
+                        "negative_pct": {"type": "number"},
+                        "articles": {"type": "integer"},
+                        "mentions_timeline": {
                             "type": "array",
-                            "items": {"type": "object"},
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "date": {"type": "string"},
+                                    "count": {"type": "integer"},
+                                    "avg_tone": {"type": "number"},
+                                },
+                            },
                         },
                     },
                 },
