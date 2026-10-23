@@ -28,9 +28,27 @@ interval, only on real state changes.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ProbeTiming:
+    """How long one probe took, and the budget it was given."""
+
+    elapsed_ms: int
+    budget_ms: int
+
+
+@dataclass(frozen=True)
+class ProbeFailure:
+    """Why a probe failed, and whether its dependency is optional."""
+
+    reason: str
+    error_type: str | None = None
+    optional: bool = False
 
 
 class ProbeLog:
@@ -43,31 +61,28 @@ class ProbeLog:
         self,
         dependency: str,
         ok: bool,
-        *,
-        elapsed_ms: int,
-        budget_ms: int,
-        optional: bool = False,
-        reason: str | None = None,
-        error_type: str | None = None,
+        timing: ProbeTiming,
+        failure: ProbeFailure | None = None,
     ) -> None:
         """Record one probe outcome and log at most one line for it."""
         previous = self._last.get(dependency)
         self._last[dependency] = ok
+        failure = failure or ProbeFailure(reason="unhealthy")
         extra: dict[str, Any] = {
             "dependency": dependency,
-            "optional": optional,
-            "elapsed_ms": elapsed_ms,
-            "budget_ms": budget_ms,
+            "optional": failure.optional,
+            "elapsed_ms": timing.elapsed_ms,
+            "budget_ms": timing.budget_ms,
         }
         if ok:
             if previous is False:
                 logger.info("health_probe_recovered", extra=extra)
             return
-        extra["reason"] = reason or "unhealthy"
-        extra["error_type"] = error_type
+        extra["reason"] = failure.reason
+        extra["error_type"] = failure.error_type
         if previous is False:
             logger.debug("health_probe_still_down", extra=extra)
-        elif optional:
+        elif failure.optional:
             logger.info("health_probe_failed", extra=extra)
         else:
             logger.warning("health_probe_failed", extra=extra)
@@ -80,4 +95,4 @@ class ProbeLog:
 #: Process-wide probe reporter.
 probes = ProbeLog()
 
-__all__ = ["ProbeLog", "probes"]
+__all__ = ["ProbeFailure", "ProbeLog", "ProbeTiming", "probes"]

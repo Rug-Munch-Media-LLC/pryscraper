@@ -34,6 +34,11 @@ from typing import Any
 
 import structlog
 
+from pry.core.logging_filters import (
+    filter_reserved_extras,
+    mute_transport_noise,
+)
+
 _HAS_STRUCTLOG = True
 
 
@@ -75,7 +80,7 @@ def _shared_processors() -> list[Any]:
         structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
-        _filter_reserved_extras,
+        filter_reserved_extras,
         _add_service_name,
         _add_request_id_if_present,
     ]
@@ -142,11 +147,7 @@ def setup_logging(level: int | None = None, fmt: str | None = None) -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
     root = logging.getLogger()
-    # httpx logs one INFO line per outbound request ("HTTP Request: POST ..."),
-    # including every 5s health probe. It is transport chatter, not application
-    # telemetry: 77 of 460 lines in a 10-minute sample (2026-10-23).
-    for noisy in ("httpx", "httpcore"):
-        logging.getLogger(noisy).setLevel(logging.WARNING)
+    mute_transport_noise()
 
     # Remove any existing handlers (e.g., uvicorn's) and add ours
     root.handlers = [handler]
@@ -247,59 +248,6 @@ def _add_request_id_if_present(_: Any, __: Any, event_dict: dict[str, Any]) -> d
         request_id = ctx.get(REQUEST_ID_KEY)
     if request_id:
         event_dict[REQUEST_ID_KEY] = request_id
-    return event_dict
-
-
-# Reserved stdlib LogRecord attribute names. Code that uses these as keys
-# in `logger.info("...", extra={"name": ...})` would normally crash with
-# KeyError "Attempt to overwrite 'name' in LogRecord". We strip them in
-# the foreign_pre_chain so existing code keeps working. In strict mode
-# (PRY_LOG_STRICT_EXTRAS=1) the filtering is disabled and the stdlib
-# default behavior takes over.
-_RESERVED_LOGRECORD_KEYS = frozenset(
-    {
-        "name",
-        "msg",
-        "args",
-        "levelname",
-        "levelno",
-        "pathname",
-        "filename",
-        "module",
-        "exc_info",
-        "exc_text",
-        "stack_info",
-        "lineno",
-        "funcName",
-        "created",
-        "msecs",
-        "relativeCreated",
-        "thread",
-        "threadName",
-        "processName",
-        "process",
-        "message",
-        "asctime",
-        "taskName",
-    }
-)
-
-
-def _filter_reserved_extras(_: Any, __: Any, event_dict: dict[str, Any]) -> dict[str, Any]:
-    """Filter out reserved LogRecord keys from extra={...} in stdlib log calls.
-
-    Without this, code like `logger.warning("x", extra={"name": "foo"})` would
-    raise KeyError because LogRecord already has a 'name' attribute. We move
-    the offending keys to a `_extra` sub-dict so they survive the round-trip.
-    """
-    if os.getenv("PRY_LOG_STRICT_EXTRAS", "").lower() in ("1", "true", "yes"):
-        return event_dict  # let stdlib do its thing (and crash if used)
-    extras: dict[str, Any] = {}
-    for k in list(event_dict.keys()):
-        if k in _RESERVED_LOGRECORD_KEYS:
-            extras[k] = event_dict.pop(k)
-    if extras:
-        event_dict["extra"] = extras
     return event_dict
 
 

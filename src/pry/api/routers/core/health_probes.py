@@ -22,7 +22,7 @@ import logging
 import time
 from typing import Any
 
-from pry.api.routers.core.probe_log import probes
+from pry.api.routers.core.probe_log import ProbeFailure, ProbeTiming, probes
 
 logger = logging.getLogger(__name__)
 
@@ -73,11 +73,11 @@ async def bounded(coro: Any, dependency: str = "dependency", *, optional: bool =
         probes.report(
             dependency,
             False,
-            elapsed_ms=int((time.monotonic() - start) * 1000),
-            budget_ms=int(PROBE_TIMEOUT_S * 1000),
-            optional=optional,
-            reason="budget_exhausted",
-            error_type="TimeoutError",
+            ProbeTiming(
+                elapsed_ms=int((time.monotonic() - start) * 1000),
+                budget_ms=int(PROBE_TIMEOUT_S * 1000),
+            ),
+            ProbeFailure(reason="budget_exhausted", error_type="TimeoutError", optional=optional),
         )
         return False
 

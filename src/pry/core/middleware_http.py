@@ -17,7 +17,6 @@ facade module keep working.
 # Licensed under MIT. See LICENSE.
 
 import json
-import logging
 import time
 import uuid
 from collections.abc import Mapping
@@ -26,7 +25,7 @@ from typing import Any
 
 from pry.core import middleware_ratelimit
 from pry.core.audit import audit_event
-from pry.core.middleware_auth import _AUTH_PUBLIC_PATHS
+from pry.core.middleware_billing import billing_reject, is_public_path
 from pry.core.middleware_common import (
     _SECURITY_HEADERS,
     _get_header,
@@ -34,6 +33,7 @@ from pry.core.middleware_common import (
     clear_request_id,
     logger,
 )
+from pry.core.middleware_log_level import level_for
 from pry.core.middleware_usage import _record_usage
 from pry.core.observability import (
     REQUEST_COUNT,
@@ -42,52 +42,7 @@ from pry.core.observability import (
     span,
 )
 
-
-def _billing_allows(scope: Mapping[str, Any]) -> bool:
-    """Enforce the billing tier for identities that have no DB limit row.
-
-    DB-issued keys carry ``quota_monthly`` and are already enforced by the
-    user rate limiter; charging them here too would double-count. Only
-    identities bound from ``PRY_BILLING_KEYS`` (``billing_env``) go through
-    the process-wide enforcer.
-    """
-    from pry.core import middleware as _facade
-
-    record = scope.get("pry_api_key") or {}
-    if not record.get("billing_env") or "quota_monthly" in record:
-        return True
-    return _facade.billing_enforcer().check_request(record.get("key_id"))
-
-
-def _is_public_path(path: str) -> bool:
-    """True for an exact public path or a public prefix (e.g. ``/mcp/*``)."""
-    return path in _AUTH_PUBLIC_PATHS or any(
-        path.startswith(p + "/") for p in _AUTH_PUBLIC_PATHS if p != "/"
-    )
-
-
-def _billing_reject(scope: Mapping[str, Any]) -> dict[str, Any] | None:
-    """Return ``_reject_rate_limited`` kwargs when billing denies, else None."""
-    if _billing_allows(scope):
-        return None
-    record = scope.get("pry_api_key") or {}
-    return {
-        "api_key": str(record.get("key_id") or ""),
-        "stats": {"reason": "billing quota or rate limit exceeded", "retry_after": 60},
-        "rate_limit_headers": {},
-    }
-
-
 # Middleware: auth + rate limit + timing + request logging
-
-#: Probe + metrics endpoints are polled every few seconds; logging them at INFO
-#: made up 28% of all log lines (130/460 in a 10-minute sample, 2026-10-23).
-_PROBE_PATHS = frozenset({"/health", "/healthz", "/live", "/ready", "/version", "/metrics"})
-
-
-def _level_for(path: str) -> int:
-    """INFO for real traffic, DEBUG for orchestrator/prometheus probes."""
-    return logging.DEBUG if path in _PROBE_PATHS else logging.INFO
 
 
 class PryHttpMiddleware:
@@ -167,7 +122,7 @@ class PryHttpMiddleware:
 
         # Billing enforcement (post-auth): PRY_BILLING_KEYS tiers were neither
         # authenticated nor enforced before this check.
-        billing = _billing_reject(scope)
+        billing = billing_reject(scope)
         if billing is not None:
             await self._reject_rate_limited(
                 send, request_id=request_id, path=path, ip=ip, **billing
@@ -203,7 +158,7 @@ class PryHttpMiddleware:
 
     def _log_request_start(self, scope: dict[str, Any], request_id: str, ip: str) -> None:
         logger.log(
-            _level_for(scope.get("path", "")),
+            level_for(scope.get("path", "")),
             "request_start",
             extra={
                 "request_id": request_id,
@@ -241,7 +196,7 @@ class PryHttpMiddleware:
         self, scope: dict[str, Any], request_id: str, status: int, elapsed: float
     ) -> None:
         logger.log(
-            _level_for(scope.get("path", "")),
+            level_for(scope.get("path", "")),
             "request_end",
             extra={
                 "request_id": request_id,
@@ -256,7 +211,7 @@ class PryHttpMiddleware:
         """Public path or an authorized request; fail closed otherwise."""
         from pry.core import middleware as _facade
 
-        return _is_public_path(path) or _facade.request_authorized(scope)
+        return is_public_path(path) or _facade.request_authorized(scope)
 
     def _route_missing(self, path: str) -> bool:
         """True when no mounted route matches ``path`` (router 404s it)."""

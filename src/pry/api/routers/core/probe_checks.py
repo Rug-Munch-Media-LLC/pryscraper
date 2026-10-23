@@ -28,7 +28,7 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
 from pry.api.routers.core.health_probes import PROBE_TIMEOUT_S
-from pry.api.routers.core.probe_log import probes
+from pry.api.routers.core.probe_log import ProbeFailure, ProbeTiming, probes
 from pry.core.client import get_client
 from pry.core.settings import settings
 
@@ -71,11 +71,11 @@ async def _timed(dependency: str, optional: bool, coro: Any) -> bool:
     probes.report(
         dependency,
         ok,
-        elapsed_ms=int((time.monotonic() - start) * 1000),
-        budget_ms=int(PROBE_TIMEOUT_S * 1000),
-        optional=optional,
-        reason=reason,
-        error_type=error_type,
+        ProbeTiming(
+            elapsed_ms=int((time.monotonic() - start) * 1000),
+            budget_ms=int(PROBE_TIMEOUT_S * 1000),
+        ),
+        ProbeFailure(reason=reason or "unhealthy", error_type=error_type, optional=optional),
     )
     return ok
 
@@ -130,10 +130,8 @@ async def probe_ollama() -> bool:
         probes.report(
             "ollama",
             False,
-            elapsed_ms=0,
-            budget_ms=int(PROBE_TIMEOUT_S * 1000),
-            optional=True,
-            reason="not_configured",
+            ProbeTiming(elapsed_ms=0, budget_ms=int(PROBE_TIMEOUT_S * 1000)),
+            ProbeFailure(reason="not_configured", optional=True),
         )
         return False
     return await _timed("ollama", True, _ollama_ok())

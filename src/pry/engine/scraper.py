@@ -24,7 +24,7 @@ from pry.core.errors import InvalidRequestError
 from pry.core.settings import settings
 from pry.engine.block_detector import BlockDetector
 from pry.engine.dom_prune import finalize_document, select_main_content
-from pry.engine.flare_budget import client_budget_s, solve_budget_s
+from pry.engine.flare_fetch import fetch_via_flaresolverr
 from pry.engine.url_guard import safe_get, validate_url
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,23 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
     "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0",
 ]
+
+
+def _page_result(url: str, result: dict[str, Any]) -> dict[str, Any]:
+    """Crawl entry for one scraped page: the ok shape or the error shape."""
+    if result.get("status") == "ok":
+        return {
+            "url": url,
+            "markdown": result.get("content", ""),
+            "title": result.get("title", ""),
+            "method": result.get("method", "unknown"),
+        }
+    return {
+        "url": url,
+        "status": "error",
+        "error": result.get("error", "scrape failed"),
+        "method": result.get("method", "unknown"),
+    }
 
 
 class PryScraper:
@@ -182,24 +199,7 @@ class PryScraper:
             return resp.text
 
     async def _fetch_via_flaresolverr(self, url: str, timeout_s: float | None = None) -> str:
-        # Same policy as the ladder tier (flare_budget): solve < client <
-        # PRY_TIER_TIMEOUT_S. ``timeout_s`` is a ceiling, never a multiplier.
-        client_s = client_budget_s(timeout_s)
-        payload = {
-            "cmd": "request.get",
-            "url": url,
-            "maxTimeout": int(solve_budget_s() * 1000),
-        }
-        async with httpx.AsyncClient(timeout=httpx.Timeout(client_s)) as client:
-            resp = await client.post(settings.flaresolverr_url, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-            solution = data.get("solution", {})
-            if solution.get("status") == 200:
-                return solution["response"]
-            raise Exception(
-                f"FlareSolverr status {solution.get('status')}: {str(solution.get('status', ''))[:200]}"
-            )
+        return await fetch_via_flaresolverr(url, timeout_s)
 
     async def crawl(self, url: str, options: dict | None = None) -> list[dict]:
         opts = options or {}
@@ -215,25 +215,7 @@ class PryScraper:
                 continue
             visited.add(current_url)
             try:
-                result = await self.scrape(current_url, opts)
-                if result.get("status") == "ok":
-                    results.append(
-                        {
-                            "url": current_url,
-                            "markdown": result.get("content", ""),
-                            "title": result.get("title", ""),
-                            "method": result.get("method", "unknown"),
-                        }
-                    )
-                else:
-                    results.append(
-                        {
-                            "url": current_url,
-                            "status": "error",
-                            "error": result.get("error", "scrape failed"),
-                            "method": result.get("method", "unknown"),
-                        }
-                    )
+                results.append(_page_result(current_url, await self.scrape(current_url, opts)))
             except Exception as exc:
                 logger.warning(
                     "crawl_page_scrape_failed", extra={"url": current_url}, exc_info=True
