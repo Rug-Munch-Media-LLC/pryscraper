@@ -17,6 +17,7 @@ removed.
 from __future__ import annotations
 
 import ast
+import functools
 import pathlib
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -118,8 +119,13 @@ def _imported_modules(path: pathlib.Path) -> list[str]:
     return names
 
 
-def emitted_literals(dotted: str) -> set[str]:
-    """Every string literal reachable from ``dotted`` within ``_MAX_HOPS``."""
+@functools.cache
+def emitted_literals(dotted: str) -> frozenset[str]:
+    """Every string literal reachable from ``dotted`` within ``_MAX_HOPS``.
+
+    Cached: 85 tools share a handful of domain packages, and the closure walk is
+    the expensive part of the guard (253s uncached for the full surface).
+    """
     seen: set[pathlib.Path] = set()
     frontier = module_files(dotted)
     literals: set[str] = set()
@@ -140,4 +146,4 @@ def emitted_literals(dotted: str) -> set[str]:
             for name in _imported_modules(path):
                 following.extend(module_files(name))
         frontier = following
-    return literals
+    return frozenset(literals)

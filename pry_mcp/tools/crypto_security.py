@@ -59,17 +59,10 @@ PRY_TOKEN_SECURITY_TOOLS: list[dict[str, Any]] = [
                         "address": {"type": "string"},
                         "risk_score": {"type": "number"},
                         "risk_level": {"type": "string"},
-                        "findings": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {"type": "string"},
-                                    "severity": {"type": "string"},
-                                    "description": {"type": "string"},
-                                },
-                            },
-                        },
+                        "verdict": {"type": "string"},
+                        "flags": {"type": "array", "items": {"type": "string"}},
+                        "checks": {"type": "object"},
+                        "source": {"type": "string"},
                     },
                 },
             },

@@ -18,7 +18,7 @@ import ast
 import functools
 import pathlib
 
-from ._emitter_scan import _parsed, module_files
+from ._emitter_scan import _parsed, module_files, package_modules
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 _TOOLS_DIR = _REPO_ROOT / "pry_mcp" / "tools"
@@ -78,9 +78,12 @@ def registry_modules() -> dict[str, set[str]]:
             for key, entry in zip(value.keys, value.values, strict=False):
                 if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
                     continue
-                if not isinstance(entry, ast.Tuple):
+                if not isinstance(entry, ast.Tuple) or not entry.elts:
                     continue
-                for option in entry.elts:
+                # Two shapes ship: a tuple of ``(module, callables)`` options, and
+                # the flat ``(module, callables)`` the gov/ip registries use.
+                options = [entry] if isinstance(entry.elts[0], ast.Constant) else entry.elts
+                for option in options:
                     if not isinstance(option, ast.Tuple) or not option.elts:
                         continue
                     short = option.elts[0]
@@ -89,10 +92,50 @@ def registry_modules() -> dict[str, set[str]]:
     return found
 
 
+def _branch_modules(body: list[ast.stmt]) -> set[str]:
+    """Modules a dispatch branch reaches: its imports and literal resolver pairs."""
+    modules: set[str] = set()
+    for node in ast.walk(ast.Module(body=body, type_ignores=[])):
+        if isinstance(node, ast.ImportFrom) and node.module and not node.level:
+            modules.add(node.module)
+        if isinstance(node, ast.Call) and _call_name(node) == "resolve_domain_module":
+            package, short = (_literal(node, 0), _literal(node, 1))
+            if package and short:
+                modules.add(f"{package}.{short}")
+    return modules
+
+
+def _literal(node: ast.Call, index: int) -> str | None:
+    if len(node.args) <= index:
+        return None
+    arg = node.args[index]
+    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+        return arg.value
+    return None
+
+
+@functools.cache
+def _helpers() -> dict[str, list[ast.stmt]]:
+    """Module-level handler helpers in the tools package, keyed by name."""
+    helpers: dict[str, list[ast.stmt]] = {}
+    for _, tree in _sources():
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                helpers.setdefault(node.name, []).append(node.body)
+    return helpers
+
+
 @functools.cache
 def inline_modules() -> dict[str, set[str]]:
-    """Tool -> absolute modules imported inside its ``if name ==`` branch."""
+    """Tool -> modules its ``if name ==`` branch reaches.
+
+    A branch either imports its handler or delegates to a module-level helper
+    that does (``return await handle_token_launches(...)``). Following the
+    helper one hop is what keeps tools covered when the dispatcher is split
+    into a per-domain module.
+    """
     found: dict[str, set[str]] = {}
+    helpers = _helpers()
     for _, tree in _sources():
         for node in ast.walk(tree):
             if not isinstance(node, ast.If) or not isinstance(node.test, ast.Compare):
@@ -105,11 +148,11 @@ def inline_modules() -> dict[str, set[str]]:
                 for term in node.test.comparators
                 if isinstance(term, ast.Constant) and isinstance(term.value, str)
             ]
-            modules = {
-                sub.module
-                for sub in ast.walk(ast.Module(body=node.body, type_ignores=[]))
-                if isinstance(sub, ast.ImportFrom) and sub.module and not sub.level
-            }
+            modules = _branch_modules(node.body)
+            for call in ast.walk(ast.Module(body=node.body, type_ignores=[])):
+                if isinstance(call, ast.Call) and _call_name(call) in helpers:
+                    for body in helpers[_call_name(call)]:
+                        modules |= _branch_modules(body)
             for tool in tools:
                 if modules:
                     found.setdefault(tool, set()).update(modules)
@@ -117,7 +160,12 @@ def inline_modules() -> dict[str, set[str]]:
 
 
 def _expand(short: str) -> set[str]:
-    """Dotted modules for a registry short name (``odds`` -> ``sports_data.odds``)."""
+    """Dotted modules for a registry short name (``odds`` -> ``sports_data.odds``).
+
+    A registry entry may also name a whole package (``ip_data``); the dispatcher
+    then reaches whichever sibling exposes the callable, so every module in the
+    package is an emitter candidate.
+    """
     if "." in short:
         return {short}
     expanded = {
@@ -125,7 +173,10 @@ def _expand(short: str) -> set[str]:
         for package in dispatch_packages()
         if module_files(f"{package}.{short}")
     }
-    return expanded or ({short} if module_files(short) else set())
+    if expanded:
+        return expanded
+    siblings = package_modules(short)
+    return set(siblings) if siblings else ({short} if module_files(short) else set())
 
 
 @functools.cache

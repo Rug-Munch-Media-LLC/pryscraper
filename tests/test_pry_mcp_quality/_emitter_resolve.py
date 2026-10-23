@@ -26,21 +26,15 @@ from typing import Any
 from ._emitter_routes import tool_route_modules
 from ._emitter_tools import tool_local_modules
 
-#: Tools with no domain emitter to check, and why.
+#: Tools with no domain emitter to check, and why. Deliberately a decision
+#: ledger rather than a skip list: ``test_untracked_*`` fails on an entry that
+#: names a tool that no longer exists, one the resolver now reaches, or one
+#: whose reason is too thin to review. Empty-but-explained is the goal.
 UNTRACKED: dict[str, str] = {
-    "pry_actor_catalog": "reads the in-process actor_factory.presets registry",
-    "pry_actor_run": "payload assembled by the actor runner, no normalized schema",
-    "pry_cex_listings": "exchange announcements are parsed into a list the tool builds",
-    "pry_kol_leaderboards": "social leaderboard list is assembled per provider",
-    "pry_legal_sanctions": "sanctions rows are mapped from the OFAC payload",
-    "pry_mega_search": "fans out over the other tools and returns their combined items",
-    "pry_patents": "patent rows mapped from the provider payload",
-    "pry_procurement": "procurement notices mapped from the SAM.gov payload",
-    "pry_recalls": "recall rows mapped from the openFDA payload",
-    "pry_reviews": "review rows are normalized per marketplace provider",
-    "pry_token_launches": "launch rows mapped by crypto_launches from provider feeds",
-    "pry_token_security": "security findings assembled by crypto_security from scanners",
-    "pry_trademarks": "trademark rows mapped from the USPTO payload",
+    "pry_mega_search": (
+        "fans out over the other tools and returns their combined items; "
+        "it owns no domain module and declares no data shape"
+    ),
 }
 
 
