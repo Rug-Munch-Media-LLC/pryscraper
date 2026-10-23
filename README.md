@@ -1,14 +1,12 @@
-<div align="center">
+# Pry — open any website
+
+> Self-hosted web scraping and browser automation with Cloudflare bypass, an MCP server and x402 pay-per-call.
+
+**License:** [MIT + BSL 1.1](LICENSE) · **Canonical:** https://git.rugmunch.io/RugMunchMedia/pryscraper
+**Mirrors:** [GitHub](https://github.com/Rug-Munch-Media-LLC) · [GitLab](https://gitlab.com/rug-munch-media-group) · [Codeberg](https://codeberg.org/RugMunchMedia)
 
 <img src="website/static/img/pry-logo.png" alt="Pry logo" width="360">
 
-# Pry — open any website
-
-**Self-hosted scraping and browser automation with x402 pay-per-call.**
-
-[api.pryscraper.com](https://api.pryscraper.com) · Python 3.11+ · MIT + BSL-1.1
-
-</div>
 
 ## What it is
 
