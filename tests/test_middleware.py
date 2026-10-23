@@ -78,6 +78,56 @@ def test_path_exists_empty_mount_no_sub():
 
 
 # ---------------------------------------------------------------------------
+# _path_exists against the REAL application object
+#
+# Regression guard for 8ff0a354. FastAPI >= 0.141 keeps an include_router()
+# result as a lazy ``_IncludedRouter`` wrapper, so the old isinstance(Route |
+# Mount) walk found none of the ~380 API routes and ``_path_exists()`` answered
+# False for every real path. Every request then took the unknown-path
+# pass-through: no request logging, no pre-auth rate limiting, no billing
+# enforcement and a single ``endpoint="unmatched"`` label. The suite stayed
+# green because it only ever exercised MagicMock apps, so these tests run
+# against the assembled app that production actually serves.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def real_app():
+    """The real FastAPI app (imported lazily: module import builds the app)."""
+    from pry.api.app_factory import app
+
+    return app
+
+
+def test_path_exists_real_app_resolves_api_route(real_app):
+    """A served /v1 route MUST resolve, or every request is silently unmetered."""
+    assert _path_exists("/v1/scrape", real_app) is True
+
+
+def test_path_exists_real_app_resolves_health(real_app):
+    assert _path_exists("/health", real_app) is True
+
+
+def test_path_exists_real_app_rejects_unknown_path(real_app):
+    """Guard against a fix that simply answers True for everything."""
+    assert _path_exists("/definitely-not-a-route-xyz", real_app) is False
+
+
+def test_real_app_route_patterns_are_plausibly_large(real_app):
+    """>100 resolvable patterns, so a future FastAPI change fails loudly.
+
+    Without a floor, a regression that resolves 2 of 380 routes keeps the two
+    spot checks above green while de-instrumenting the rest of the API.
+    """
+    from pry.core.middleware_common import _compiled_route_patterns, _route_table_root
+
+    root = _route_table_root(real_app)
+    assert root is not None, "middleware chain no longer exposes a route table"
+    patterns = _compiled_route_patterns(root)
+    assert len(patterns) > 100, f"only {len(patterns)} route patterns are resolvable"
+
+
+# ---------------------------------------------------------------------------
 # is_loopback_client
 # ---------------------------------------------------------------------------
 

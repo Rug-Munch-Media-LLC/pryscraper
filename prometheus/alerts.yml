@@ -171,11 +171,52 @@ groups:
   - name: pry-service-health
     interval: 30s
     rules:
+      # Per-endpoint attribution. The old rule summed by (le) only, so all ~380
+      # routes shared ONE p95: a single slow route was invisible, and an
+      # instrumentation regression (every request labelled `unmatched`) read as
+      # fleet-wide slowness for weeks. Same 5s threshold, same 20m hold-down;
+      # the only change is `by (le, endpoint)`, so the alert names the route.
+      # `unmatched` is excluded here because it is not a route — it is the
+      # sentinel that PryEndpointUnmatchedHigh owns.
       - alert: PryRequestP95LatencyHigh
-        expr: histogram_quantile(.95, sum by (le) (rate(pry_request_duration_seconds_bucket[10m]))) > 5
+        expr: |
+          histogram_quantile(.95,
+            sum by (le, endpoint) (
+              rate(pry_request_duration_seconds_bucket{endpoint!~"unmatched|/metrics"}[10m])))
+          > 5
         for: 20m
         labels: {severity: warning}
-        annotations: {summary: "API p95 request latency above 5s for 20m"}
+        annotations:
+          summary: 'Endpoint {{ $labels.endpoint }} p95 latency {{ $value | printf "%.2f" }}s > 5s for 20m'
+          description: "Route-scoped p95 (was fleet-wide). Compare with pry_scrape_duration_seconds by tier before paging the on-call: a slow route is a route bug, not fleet saturation."
+      # Instrumentation regression, NOT latency — its own name on purpose.
+      # Origin: FastAPI >= 0.141 keeps include_router() output as a lazy
+      # _IncludedRouter, so _path_exists() saw no routes and every request took
+      # the unknown-path pass-through (no request logging, no pre-auth rate
+      # limiting, no billing, endpoint=\"unmatched\"). Fixed in 8ff0a354.
+      # A 404 is a genuinely unknown path (internet scanner noise) and is
+      # EXCLUDED from the numerator: only requests that were served (200/3xx/
+      # 401/402/5xx) while classified `unmatched` prove the resolver is blind.
+      - alert: PryEndpointUnmatchedHigh
+        expr: |
+          sum(rate(pry_requests_total{endpoint="unmatched",status!~"404"}[10m]))
+          / clamp_min(sum(rate(pry_requests_total[10m])), .001)
+          > .02
+        for: 10m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of served requests classified `unmatched`"
+          description: "Route resolution is broken: every served request is being treated as an unknown path, so rate limiting, request logging and billing enforcement are bypassed. Run pytest tests/test_middleware.py -k real_app and check _path_exists against the real app object."
+      # Dashboard inputs. unmatched_all includes 404 scanner noise; routed
+      # excludes it, so `routed` above 0 means the resolver is blind.
+      - record: pry:unmatched_share:ratio
+        expr: |
+          sum(rate(pry_requests_total{endpoint="unmatched"}[10m]))
+          / clamp_min(sum(rate(pry_requests_total[10m])), .001)
+      - record: pry:routed_unmatched_share:ratio
+        expr: |
+          sum(rate(pry_requests_total{endpoint="unmatched",status!~"404"}[10m]))
+          / clamp_min(sum(rate(pry_requests_total[10m])), .001)
       - alert: PryPaymentGateMisconfigured
         expr: increase(pry_x402_gate_misconfigured_total[5m]) > 0
         for: 0m
