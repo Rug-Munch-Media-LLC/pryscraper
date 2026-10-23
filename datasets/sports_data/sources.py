@@ -58,6 +58,7 @@ from urllib.parse import urlparse
 
 import httpx
 
+from datasets.shape_error import UpstreamPayloadError
 from datasets.sports_data.sources_betonline import (  # re-exported surface
     _container_text as _container_text,
     _parse_betonline_embedded_json as _parse_betonline_embedded_json,
@@ -312,12 +313,16 @@ async def _fetch_uncached(url: str) -> str | None:
                 response.raise_for_status()
             text = response.text
         if not text:
-            raise ValueError("empty upstream response")
+            raise UpstreamPayloadError("empty upstream response")
         return text
 
     try:
         return await async_retry(_one, config=_RETRY_CONFIG)
-    except (httpx.HTTPError, OSError, ValueError):
+    except (httpx.HTTPError, OSError, UpstreamPayloadError) as exc:
+        logger.warning(
+            "sports_source_fetch_failed",
+            extra={"url": url[:120], "error": str(exc)[:160]},
+        )
         return None
 
 
@@ -328,5 +333,9 @@ async def _fetch_json(url: str) -> Any | None:
         return None
     try:
         return json.loads(text)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        logger.warning(
+            "sports_source_json_invalid",
+            extra={"url": url[:120], "error": str(exc)[:160]},
+        )
         return None

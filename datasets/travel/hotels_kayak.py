@@ -12,6 +12,7 @@ Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Any
 from urllib.parse import quote
@@ -20,6 +21,8 @@ from datasets.travel.flights_parse import _walk_dicts
 from datasets.travel.hotels_common import _CURRENCY_RE
 
 _KAYAK_URL = "https://www.kayak.com/hotels"
+
+logger = logging.getLogger(__name__)
 
 
 def _extract_embedded_object(html: str, marker: str) -> Any:
@@ -68,7 +71,11 @@ def _extract_embedded_object(html: str, marker: str) -> Any:
     raw = html[start : i + 1]
     try:
         return json.loads(raw)
-    except (json.JSONDecodeError, ValueError, TypeError):
+    except json.JSONDecodeError as exc:
+        logger.warning(
+            "kayak_embedded_json_invalid",
+            extra={"marker": marker[:60], "error": str(exc)[:160]},
+        )
         return None
 
 

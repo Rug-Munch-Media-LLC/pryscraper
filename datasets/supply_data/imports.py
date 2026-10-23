@@ -59,12 +59,14 @@ Licensed under MIT. See LICENSE.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import json
 import logging
 import os
 from typing import Any
 
 import httpx
 
+from datasets.shape_error import UpstreamPayloadError
 from pry.engine.retry import RetryConfig, async_retry
 
 logger = logging.getLogger(__name__)
@@ -171,11 +173,18 @@ async def _fetch_records(params: dict[str, str]) -> Any | None:
         ) as client:
             response = await client.get(_IMPORTS_API_URL, params=params)
             response.raise_for_status()
-            return response.json()
+            try:
+                return response.json()
+            except json.JSONDecodeError as exc:
+                raise UpstreamPayloadError("import records payload is not valid JSON") from exc
 
     try:
         return await async_retry(_one, config=_RETRY_CONFIG)
-    except (httpx.HTTPError, OSError, ValueError):
+    except (httpx.HTTPError, OSError, UpstreamPayloadError) as exc:
+        logger.warning(
+            "import_records_fetch_failed",
+            extra={"params": str(params)[:120], "error": str(exc)[:160]},
+        )
         return None
 
 
