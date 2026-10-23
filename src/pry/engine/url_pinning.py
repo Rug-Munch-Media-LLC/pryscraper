@@ -50,14 +50,35 @@ def _pinned_netloc(parsed: Any, address: str) -> tuple[str, str]:
     return netloc, host
 
 
-async def pinned_get(client: httpx.AsyncClient, url: str, kwargs: dict[str, Any]) -> httpx.Response:
+async def pinned_get(
+    client: httpx.AsyncClient,
+    url: str,
+    kwargs: dict[str, Any],
+    *,
+    pin_connections: bool = True,
+) -> httpx.Response:
     """GET *url* with the validated IP pinned as the connect target.
 
     The connect URL carries the validated IP, but the cookie jar must stay
     keyed on the logical host: httpx keys cookies by the request URL, so a
     pinned request would otherwise store/send cookies under the resolved IP
     (which changes on the next DNS answer and silently drops the session).
+
+    ``pin_connections=False`` keeps the logical hostname in the request URL.
+    Required when the client routes through an HTTP(S) proxy: httpcore's
+    CONNECT-tunnel path ignores the ``sni_hostname`` extension (measured on
+    httpx 0.28.1 / httpcore 1.0.9), so a pinned URL sends the resolved IP as
+    the TLS SNI and every hop fails the handshake. URL validation still runs
+    per hop in :func:`safe_get`; only the connect-time pinning is dropped.
     """
+    if not pin_connections:
+        stream = bool(kwargs.pop("stream", False))
+        headers = kwargs.pop("headers", None) or {}
+        build = getattr(client, "build_request", None)
+        if callable(build):
+            request = build("GET", url, headers=headers, **kwargs)
+            return await client.send(request, stream=stream)
+        return await client.get(url, headers=headers, **kwargs)
     pinned, headers, extensions = await asyncio.to_thread(pin_request, url)
     merged = {**(kwargs.pop("headers", None) or {}), **headers}
     if extensions:

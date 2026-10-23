@@ -68,7 +68,7 @@ class TestResponseCap:
 
 
 def _fake_pinned(response):
-    async def _pinned(client, url, kwargs):
+    async def _pinned(client, url, kwargs, **_kwargs):
         assert kwargs.get("stream") is True
         return response
 

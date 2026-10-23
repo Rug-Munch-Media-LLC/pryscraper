@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pry.engine.ultimate_scraper import UltimateScraper
+from pry.engine.ultimate_scraper import UltimateScraper  # noqa: TC001 — type-only
 from tests.ultimate_scraper_support import scraper  # noqa: F401 — fixture for this module
 
 
@@ -61,13 +61,30 @@ async def test_tier_playwright_missing_dep(scraper: UltimateScraper):
 
 
 @pytest.mark.asyncio
-async def test_tier_playwright_oserror(scraper: UltimateScraper):
+async def test_tier_playwright_oserror_is_dependency_fault(scraper: UltimateScraper):
+    """A launch failure must surface as a dependency fault, never as a loss."""
+    from pry.engine.browser_pool_config import BrowserUnavailableError
+
     with (
         patch("pry.engine.ultimate_scraper._has_playwright", True),
         patch("pry.engine.browser_pool.async_playwright", side_effect=OSError("no playwright")),
+        pytest.raises(BrowserUnavailableError, match="browser_unavailable"),
     ):
-        result = await scraper._tier_playwright("http://example.com", {})
-        assert result is None
+        await scraper._tier_playwright("http://example.com", {})
+
+
+def test_browser_pool_binds_async_playwright():
+    """Regression: the 2026-10-18 split left the import as ``pass``.
+
+    ``async_playwright`` stayed None, so every launch raised
+    ``TypeError: 'NoneType' object is not callable`` in ~0.2 ms and the tier
+    recorded 41 losses at 0.4 ms instead of a configuration fault.
+    """
+    from pry.engine.browser_pool_config import _has_playwright, async_playwright
+
+    if not _has_playwright:
+        pytest.skip("playwright is not installed in this environment")
+    assert async_playwright is not None
 
 
 @pytest.mark.asyncio

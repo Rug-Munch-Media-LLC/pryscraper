@@ -13,7 +13,7 @@ import httpx
 import pytest
 import respx
 
-from pry.engine.ultimate_scraper import UltimateScraper
+from pry.engine.ultimate_scraper import UltimateScraper  # noqa: TC001 — type-only
 from tests.ultimate_scraper_support import scraper  # noqa: F401 — fixture for this module
 
 
@@ -37,8 +37,11 @@ async def test_tier_direct_http_error(scraper: UltimateScraper, resolved_dns: st
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_premium_proxy_success(scraper: UltimateScraper, resolved_dns: str):
-    respx.get(f"http://{resolved_dns}/").mock(
+async def test_tier_premium_proxy_success(scraper: UltimateScraper):
+    # The proxied rung MUST keep the logical hostname: IP pinning puts the
+    # resolved IP in the TLS SNI and httpcore ignores sni_hostname on the
+    # CONNECT tunnel, so a pinned request never completes a handshake.
+    respx.get("http://example.com/").mock(
         return_value=httpx.Response(200, text="<html>proxied</html>")
     )
     result = await scraper._tier_premium_proxy("http://example.com", "http://proxy:8080", {})
@@ -47,8 +50,8 @@ async def test_tier_premium_proxy_success(scraper: UltimateScraper, resolved_dns
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_tier_premium_proxy_error(scraper: UltimateScraper, resolved_dns: str):
-    respx.get(f"http://{resolved_dns}/").mock(side_effect=httpx.ConnectError("proxy down"))
+async def test_tier_premium_proxy_error(scraper: UltimateScraper):
+    respx.get("http://example.com/").mock(side_effect=httpx.ConnectError("proxy down"))
     result = await scraper._tier_premium_proxy("http://example.com", "http://proxy:8080", {})
     assert result is None
 

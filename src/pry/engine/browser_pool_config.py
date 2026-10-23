@@ -19,9 +19,24 @@ from typing import Any
 
 _has_playwright = importlib.util.find_spec("playwright") is not None
 
+
+class BrowserUnavailableError(RuntimeError):
+    """A browser dependency is missing — not a refusal by the target.
+
+    Raised instead of swallowed so the orchestration layer records the attempt
+    as ``unavailable`` (excluded from the tier's win/loss ratio) rather than as
+    a tier loss. The message always carries a ``_DEPENDENCY_MARKERS`` token.
+    """
+
+
 async_playwright: Any = None
 if _has_playwright:
-    pass
+    # Guarded because playwright is an optional dependency. This import was
+    # left as a placeholder (``pass``) by the 2026-10-18 split, so the name
+    # stayed None and every Playwright launch died with
+    # ``TypeError: 'NoneType' object is not callable`` in ~0.2 ms — recorded as
+    # a tier loss, never as the configuration fault it was.
+    from playwright.async_api import async_playwright  # noqa: F401
 
 # The image ships Playwright's Chromium only (no distro ``chromium`` package).
 # undetected-chromedriver still needs a concrete binary, so point it at the
