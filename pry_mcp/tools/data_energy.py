@@ -48,14 +48,17 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "region": {"type": "string"},
-                        "date": {"type": "string"},
-                        "lmp_usd_mwh": {"type": "number"},
-                        "day_ahead_usd_mwh": {"type": "number"},
-                        "real_time_usd_mwh": {"type": "number"},
-                        "nodes": {"type": "array", "items": {"type": "object"}},
+                    "type": "array",
+                    "description": "One record per node, empty list when the ISO feed has no data",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "region": {"type": "string"},
+                            "node": {"type": "string"},
+                            "timestamp": {"type": "string"},
+                            "price_usd_mwh": {"type": "number"},
+                            "lmp_type": {"type": "string"},
+                        },
                     },
                 },
             },

@@ -59,12 +59,27 @@ PRY_TOOLS: list[dict[str, Any]] = [
                 "data": {
                     "type": "object",
                     "properties": {
-                        "url": {"type": "string"},
-                        "title": {"type": "string"},
-                        "content": {"type": "string", "description": "Clean markdown content"},
-                        "links": {"type": "array", "items": {"type": "string"}},
-                        "images": {"type": "array", "items": {"type": "string"}},
-                        "status_code": {"type": "integer"},
+                        "markdown": {
+                            "type": "string",
+                            "description": "Clean markdown content",
+                        },
+                        "metadata": {
+                            "type": "object",
+                            "description": "Scrape provenance and page metadata",
+                            "properties": {
+                                "url": {"type": "string"},
+                                "method": {"type": "string"},
+                                "title": {"type": "string"},
+                                "description": {"type": "string"},
+                                "markdown_quality": {"type": "number"},
+                                "formats": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                                "offset": {"type": "integer"},
+                                "total": {"type": "integer"},
+                            },
+                        },
                     },
                 },
             },
@@ -123,8 +138,20 @@ PRY_TOOLS: list[dict[str, Any]] = [
                 "data": {
                     "type": "object",
                     "properties": {
-                        "pages": {"type": "array", "items": {"type": "object"}},
-                        "total_pages": {"type": "integer"},
+                        "id": {"type": "string"},
+                        "url": {"type": "string"},
+                        "pages": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "url": {"type": "string"},
+                                    "title": {"type": "string"},
+                                    "markdown": {"type": "string"},
+                                    "method": {"type": "string"},
+                                },
+                            },
+                        },
                     },
                 },
             },
@@ -236,12 +263,16 @@ PRY_TOOLS: list[dict[str, Any]] = [
                     "type": "object",
                     "properties": {
                         "template_id": {"type": "string"},
+                        "template_name": {"type": "string"},
                         "url": {"type": "string"},
-                        "status_code": {"type": "integer"},
-                        "result": {
-                            "type": "object",
-                            "description": "Template-specific parsed fields (e.g. title, price, availability)",
+                        "items": {
+                            "type": "array",
+                            "description": "Template-specific parsed records (e.g. title, price, availability)",
+                            "items": {"type": "object"},
                         },
+                        "count": {"type": "integer"},
+                        "extracted_at": {"type": "string"},
+                        "warning": {"type": "string"},
                     },
                 },
                 "error": {"type": "string"},
