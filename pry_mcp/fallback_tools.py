@@ -142,7 +142,19 @@ class ToolMixin:
         if "error" in tool_result:
             error = tool_result["error"]
             raise RpcError(error["code"], error["message"])
-        return {
+        result = {
             "content": tool_result.get("content", []),
             "isError": tool_result.get("isError", False),
         }
+        # Tools that advertise outputSchema MUST return structuredContent.
+        for block in result["content"]:
+            if not isinstance(block, dict) or block.get("type") != "text":
+                continue
+            try:
+                payload = json.loads(block.get("text", ""))
+            except (TypeError, ValueError):
+                continue
+            if isinstance(payload, dict):
+                result["structuredContent"] = payload
+            break
+        return result
