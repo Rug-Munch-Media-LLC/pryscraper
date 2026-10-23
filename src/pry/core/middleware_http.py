@@ -16,6 +16,7 @@ facade module keep working.
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
+import hmac
 import json
 import time
 import uuid
@@ -41,6 +42,7 @@ from pry.core.observability import (
     set_span_attributes,
     span,
 )
+from pry.core.settings import settings
 
 # Middleware: auth + rate limit + timing + request logging
 
@@ -96,9 +98,15 @@ class PryHttpMiddleware:
         ip = _facade._resolve_client_ip(scope)
 
         # Pre-auth per-IP bucket: bound floods BEFORE credential/DB resolution.
-        credentialed = bool(self._get_header(scope, b"authorization"))
+        auth_value = self._get_header(scope, b"authorization")
+        credentialed = bool(auth_value)
+        owner = bool(
+            auth_value.startswith("Bearer ")
+            and settings.api_key
+            and hmac.compare_digest(auth_value[7:].encode(), settings.api_key.encode())
+        )
         pre_allowed, pre_stats = middleware_ratelimit.preauth_check(ip, credentialed)
-        if not pre_allowed:
+        if not pre_allowed and not owner:
             await self._reject_rate_limited(
                 send,
                 request_id=request_id,

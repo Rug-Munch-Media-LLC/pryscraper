@@ -23,6 +23,7 @@ through the ``pry.core.middleware`` facade at call time.
 
 from __future__ import annotations
 
+import hmac
 import time
 from collections import OrderedDict
 from typing import Any
@@ -45,6 +46,14 @@ except Exception:  # noqa: BLE001 — metric registration must never break impor
 # Pre-auth token buckets (ip -> [tokens, last_monotonic]); bounded table.
 _PREAUTH_BUCKETS: OrderedDict[str, list[float]] = OrderedDict()
 _PREAUTH_MAX_KEYS = 10_000
+
+# Owner responses still carry the full x-ratelimit-* contract: the send wrapper
+# indexes remaining/reset unconditionally, so a partial dict is a 500.
+_OWNER_HEADERS = {
+    "x-ratelimit-limit": "owner",
+    "x-ratelimit-remaining": "owner",
+    "x-ratelimit-reset": "0",
+}
 
 
 def _preauth_rules(credential_present: bool) -> tuple[int, float]:
@@ -99,6 +108,11 @@ def _note_fail_open(limiter: Any) -> None:
         FAIL_OPEN.labels(backend="memory").inc()
 
 
+def _owner_key(candidate: str) -> bool:
+    """Constant-time match against the operator key (bytes: never raises)."""
+    return hmac.compare_digest(candidate.encode(), settings.api_key.encode())
+
+
 def implicit_bucket_id(api_key: str | None, x402_verified: Any) -> str:
     """Bucket id for a request with no bound API-key record (must match check())."""
     if x402_verified:
@@ -120,6 +134,12 @@ async def resolve_rate_limit(
     if auth_header.startswith("Bearer "):
         api_key = auth_header[7:]
 
+    # Owner keys are the fleet's internal credential: they are never billed and
+    # never share a tenant quota. Keep external callers paywalled; only this
+    # exact key bypasses both the per-IP and per-key limiters.
+    if api_key and settings.api_key and _owner_key(api_key):
+        return True, {"allowed": True, "reason": "owner"}, _OWNER_HEADERS, api_key
+
     ratelimiter = _facade.ratelimiter
     user_ratelimiter = _facade.user_ratelimiter
 
@@ -128,6 +148,12 @@ async def resolve_rate_limit(
     # scope["pry_api_key"]. Route them through the user limiter so a payer
     # gets the paid limit instead of the per-IP FREE bucket.
     x402_verified = scope.get("x402_verified")
+
+    # The x402 middleware classifies the operator's own loopback traffic as
+    # caller="owner". That is the fleet's internal credential: never meter it
+    # against a tenant quota (the DB quota read is not available for it).
+    if x402_verified and str(x402_verified.get("caller", "")).lower() in {"owner", "internal"}:
+        return True, {"allowed": True, "reason": "owner"}, _OWNER_HEADERS, api_key
 
     # Refresh the per-key monthly quota BEFORE check(). check() is
     # fail-closed on an unverified bucket, but only if something marked the
