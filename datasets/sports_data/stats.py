@@ -47,12 +47,14 @@ Licensed under MIT. See LICENSE.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import json
 import logging
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
+from datasets.shape_error import UpstreamPayloadError
 from datasets.sports_data.odds import _SPORTS, _resolve_sports
 from pry.engine.retry import RetryConfig, async_retry
 
@@ -100,14 +102,21 @@ async def _fetch_json(url: str, params: dict[str, str] | None = None) -> dict[st
         ) as client:
             response = await client.get(url, params=params)
             response.raise_for_status()
-            payload = response.json()
+            try:
+                payload = response.json()
+            except json.JSONDecodeError as exc:
+                raise UpstreamPayloadError("ESPN stats payload is not valid JSON") from exc
         if not isinstance(payload, dict):
-            raise ValueError("ESPN stats payload is not an object")
+            raise UpstreamPayloadError("ESPN stats payload is not an object")
         return payload
 
     try:
         return await async_retry(_one, config=_RETRY_CONFIG)
-    except (httpx.HTTPError, OSError, ValueError):
+    except (httpx.HTTPError, OSError, UpstreamPayloadError) as exc:
+        logger.warning(
+            "espn_stats_fetch_failed",
+            extra={"url": url[:120], "error": str(exc)[:160]},
+        )
         return None
 
 

@@ -142,7 +142,16 @@ async def search_flights(
         return []
     try:
         tfs = _build_tfs([(date, origin_code, dest_code)])
-    except (TypeError, ValueError, UnicodeEncodeError):
+    except (TypeError, ValueError) as exc:
+        logger.warning(
+            "flights_tfs_encode_failed",
+            extra={
+                "origin": origin_code,
+                "dest": dest_code,
+                "date": date,
+                "error": str(exc)[:160],
+            },
+        )
         return []
     html = await _fetch_page(tfs)
     if not html:

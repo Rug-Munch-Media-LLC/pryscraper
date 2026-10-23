@@ -8,12 +8,17 @@ Licensed under MIT. See LICENSE.
 # Copyright (c) 2026 Rug Munch Media LLC
 from __future__ import annotations
 
+import json
+import logging
 import os
 from typing import Any
 
 import httpx
 
+from datasets.shape_error import UpstreamPayloadError
 from pry.engine.retry import RetryConfig, async_retry
+
+logger = logging.getLogger(__name__)
 
 # The Odds API endpoints. Player props live on the per-event odds endpoint —
 # the events list is only used to discover event ids to scan.
@@ -62,12 +67,19 @@ async def fetch_json(
         ) as client:
             response = await client.get(url, params=params)
             response.raise_for_status()
-            payload = response.json()
+            try:
+                payload = response.json()
+            except json.JSONDecodeError as exc:
+                raise UpstreamPayloadError("sports props payload is not valid JSON") from exc
         if not isinstance(payload, (dict, list)):
-            raise ValueError("sports props payload is not an object or array")
+            raise UpstreamPayloadError("sports props payload is not an object or array")
         return payload
 
     try:
         return await async_retry(_one, config=RETRY_CONFIG)
-    except (httpx.HTTPError, OSError, ValueError):
+    except (httpx.HTTPError, OSError, UpstreamPayloadError) as exc:
+        logger.warning(
+            "sports_props_fetch_failed",
+            extra={"url": url[:120], "error": str(exc)[:160]},
+        )
         return None
