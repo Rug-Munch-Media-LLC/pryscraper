@@ -111,10 +111,13 @@ def _parse_json(text: str) -> Any:
 
 # ── Plain HTML table extraction (lxml, guarded) ──────────────────────────
 _lxml_html: Any = None
+_lxml_etree: Any = None
 if importlib.util.find_spec("lxml") is not None:
+    import lxml.etree
     import lxml.html
 
     _lxml_html = lxml.html
+    _lxml_etree = lxml.etree
 
 
 def _records_from_html_tables(
@@ -128,7 +131,11 @@ def _records_from_html_tables(
         return []
     try:
         tree = _lxml_html.fromstring(html_text)
-    except Exception:  # noqa: BLE001 - lxml raises on hostile HTML
+    except (_lxml_etree.ParserError, ValueError) as exc:
+        logger.warning(
+            "books_html_parse_failed",
+            extra={"book": book.get("id"), "error": str(exc)[:120]},
+        )
         return []
     records: list[dict[str, Any]] = []
     for table in tree.xpath("//table"):

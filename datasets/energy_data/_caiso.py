@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 import zipfile
 from datetime import datetime, timedelta
 from typing import Any
@@ -20,6 +21,8 @@ from typing import Any
 import httpx
 
 from datasets.energy_data._common import _HEADERS, _TIMEOUT, _as_float, _as_text, _iso_utc
+
+logger = logging.getLogger(__name__)
 
 _CAISO_OASIS_URL = "https://oasis.caiso.com/oasisapi/SingleZip"
 
@@ -84,7 +87,8 @@ async def _fetch_caiso(start_date: str) -> list[dict[str, Any]]:
             response = await client.get(_CAISO_OASIS_URL, params=params)
             response.raise_for_status()
             content = response.content
-    except (httpx.HTTPError, OSError):
+    except (httpx.HTTPError, OSError) as exc:
+        logger.warning("caiso_fetch_failed", extra={"error": str(exc)[:120]})
         return []
     try:
         with zipfile.ZipFile(io.BytesIO(content)) as archive:

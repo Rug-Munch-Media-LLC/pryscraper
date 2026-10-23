@@ -4,8 +4,11 @@
 # Copyright (c) 2026 Rug Munch Media LLC
 from __future__ import annotations
 
+import logging
 import math
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 _ANCHORED_MARKETS = frozenset({"h2h", "spread", "total"})
 
@@ -49,7 +52,8 @@ def _fair_probability(
     if compute_no_vig is not None:
         try:
             fair = compute_no_vig(odds_a_value, odds_b_value)
-        except Exception:  # noqa: BLE001 - helper contract is never-raise
+        except (TypeError, ValueError, ZeroDivisionError, KeyError, AttributeError) as exc:
+            logger.warning("no_vig_helper_failed", extra={"error": str(exc)[:120]})
             fair = {}
         if isinstance(fair, dict):
             prob_a = fair.get("home_prob")
@@ -92,7 +96,8 @@ def _market_anchor_fair(
         side_keys = list(sides)
         try:
             fair = compute_no_vig(sides[side_keys[0]], sides[side_keys[1]])
-        except Exception:  # noqa: BLE001 - helper contract is never-raise
+        except (TypeError, ValueError, ZeroDivisionError, KeyError, AttributeError) as exc:
+            logger.warning("no_vig_helper_failed", extra={"error": str(exc)[:120]})
             fair = {}
         if not isinstance(fair, dict):
             continue

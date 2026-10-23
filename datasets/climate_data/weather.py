@@ -191,7 +191,8 @@ async def _get_json(url: str) -> dict[str, Any] | None:
 
     try:
         return await async_retry(_one, config=_RETRY_CONFIG)
-    except (httpx.HTTPError, OSError, ValueError):
+    except (httpx.HTTPError, OSError, ValueError) as exc:
+        logger.warning("weather_fetch_failed", extra={"error": str(exc)[:120]})
         return None
 
 
@@ -352,6 +353,7 @@ async def _get_alerts(region: str) -> list[dict[str, Any]]:
 
     try:
         features = await async_retry(_one, config=_RETRY_CONFIG)
-    except (httpx.HTTPError, OSError, ValueError):
+    except (httpx.HTTPError, OSError, ValueError) as exc:
+        logger.warning("weather_series_failed", extra={"error": str(exc)[:120]})
         return []
     return [alert for alert in (_map_alert(f) for f in features if isinstance(f, dict)) if alert]

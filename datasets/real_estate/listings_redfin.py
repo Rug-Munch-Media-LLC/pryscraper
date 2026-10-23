@@ -56,8 +56,8 @@ try:  # static tables come from the sibling listings.json (loaded by zillow mod)
 
     _REDFIN_STATUS_CODES = _DATA.get("redfin_status_codes", {})
     _REDFIN_REGION_IDS = _DATA.get("redfin_region_ids", {})
-except Exception:  # pragma: no cover  # noqa: BLE001, S110  - defensive; _DATA load never raises
-    pass
+except (ImportError, AttributeError, TypeError) as exc:  # pragma: no cover
+    logger.warning("redfin_static_tables_unavailable", extra={"error": str(exc)[:120]})
 _REDFIN_REGION_ENV = "PRY_REAL_ESTATE_REDFIN_REGION_IDS"
 
 

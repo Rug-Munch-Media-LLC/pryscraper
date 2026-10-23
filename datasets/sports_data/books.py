@@ -217,7 +217,11 @@ async def get_all_books_odds(
                         scrape_book_odds(book_id, sport, market=market, limit=limit),
                         timeout=_PER_BOOK_TIMEOUT,
                     )
-                except Exception:  # noqa: BLE001 - per-book degradation
+                except Exception as exc:  # noqa: BLE001 - per-book degradation
+                    logger.warning(
+                        "book_odds_unavailable",
+                        extra={"book": book_id, "sport": sport, "error": str(exc)[:120]},
+                    )
                     return []
 
         results = await asyncio.gather(

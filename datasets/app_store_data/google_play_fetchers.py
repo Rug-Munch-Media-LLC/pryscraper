@@ -93,7 +93,8 @@ async def _get_text(url: str, params: dict[str, Any] | None = None) -> str | Non
 
     try:
         return await async_retry(_one, config=_facade()._RETRY_CONFIG)
-    except (httpx.HTTPError, OSError):
+    except (httpx.HTTPError, OSError) as exc:
+        logger.warning("google_play_fetch_failed", extra={"error": str(exc)[:120]})
         return None
     except _AntiBotError:
         return None
@@ -115,7 +116,8 @@ async def _post_text(url: str, data: dict[str, Any]) -> str | None:
 
     try:
         return await async_retry(_one, config=_facade()._RETRY_CONFIG)
-    except (httpx.HTTPError, OSError):
+    except (httpx.HTTPError, OSError) as exc:
+        logger.warning("google_play_fetch_failed", extra={"error": str(exc)[:120]})
         return None
     except _AntiBotError:
         return None

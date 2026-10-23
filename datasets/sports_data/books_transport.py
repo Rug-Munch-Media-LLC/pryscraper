@@ -95,7 +95,8 @@ def _geo_proxy() -> str | None:
         from pry.engine.webshare_proxy import next_webshare_proxy
 
         return next_webshare_proxy()
-    except Exception:  # noqa: BLE001 - proxy pool is best-effort
+    except (ImportError, AttributeError, RuntimeError, ValueError) as exc:
+        logger.debug("webshare_proxy_unavailable", extra={"error": str(exc)[:120]})
         return None
 
 
@@ -136,7 +137,8 @@ async def _plain_fetch(url: str, proxy: str | None = None) -> str | None:
 
     try:
         return await async_retry(_one, config=_RETRY_CONFIG)
-    except Exception:  # noqa: BLE001 - never raise out of the transport
+    except (httpx.HTTPError, OSError, TimeoutError, ValueError) as exc:
+        logger.warning("books_plain_fetch_failed", extra={"url": url, "error": str(exc)[:120]})
         return None
 
 
