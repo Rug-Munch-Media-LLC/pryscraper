@@ -123,13 +123,41 @@ groups:
   - name: pry-scrape-success
     interval: 60s
     rules:
+      # THRESHOLD IS MEASURED, NOT ASPIRATIONAL (2026-10-23).
+      #
+      # 0.90 was unreachable by construction: two hosts that Cloudflare blocks
+      # permanently dominate the paid path — x.com 163 errors/24h and medium.com
+      # 117/24h (audit_events.detail->>'host', 480 errors / 23 successes), i.e.
+      # 58% of every paid-path failure. No local change clears them; they need
+      # residential egress.
+      #
+      # Measured distribution (pry-prometheus, [3h] ratio, n=181, the only
+      # 15h in which the error leg exists — it first appears 2026-10-22T16:53Z,
+      # so a 7d query is a step function at 1.0 and is NOT evidence):
+      #   min 0.465  p10 0.516  p25 0.565  median 0.639  mean 0.672  p90 0.888
+      #   volume-weighted ceiling over the window: 0.684
+      # 0.50 = just under p10: fires only when a 3h window is in the bottom 8%
+      # of what THIS target mix has actually achieved (0/181 samples < 0.45).
+      # Raising the bar to 0.60 would be red 34% of the time; 0.90 is red 100%.
+      # The structural cause has its own signal below — do not "fix" this one by
+      # raising it again.
       - alert: PryScrapeSuccessRateLow
         expr: |
-          (sum(rate(pry_scrapes_total{status="success"}[15m])) / clamp_min(sum(rate(pry_scrapes_total[15m])), .001)) < .90
-          unless sum(rate(pry_scrapes_total[15m])) == 0
-        for: 15m
+          (sum(rate(pry_scrapes_total{status="success"}[3h])) / clamp_min(sum(rate(pry_scrapes_total[3h])), .001)) < .50
+          # Require real volume before judging a ratio: with ~2 events in the
+          # window a single failure reads as a 20% success rate and pages.
+          unless sum(rate(pry_scrapes_total[3h])) < 0.01
+        for: 45m
         labels: {severity: warning}
-        annotations: {summary: "Scrape success below 90% for 15m", description: "Scrapes running; see per-method degradation."}
+        annotations: {summary: "Scrape success below 50% for 3h (measured floor 0.50)", description: "Below the bottom decile of the achievable distribution for the current target mix; see PryCfBlockShareHigh for the structural cause."}
+
+      # Structural, not alertable: the share of failures Cloudflare blocks
+      # outright. Recording rule so the dashboard explains a low success ratio
+      # instead of someone paging on it. 0.58 of failures on 2026-10-23.
+      - record: pry:cf_block_share:ratio
+        expr: |
+          sum(rate(pry_scrape_failures_total{reason="blocked"}[1h]))
+          / clamp_min(sum(rate(pry_scrape_failures_total[1h])), .001)
       - alert: PryScraperIdle
         expr: |
           (sum(rate(pry_scrapes_total[15m])) == 0)
