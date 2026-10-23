@@ -39,7 +39,7 @@ SERVER_NAME = "pry"
 SERVER_VERSION = "3.0.0"
 
 DEFAULT_BASE_URL = (
-    os.getenv("PRY_API_URL") or os.getenv("PRY_URL") or "http://localhost:8002"
+    os.getenv("PRY_URL") or os.getenv("PRY_API_URL") or "http://localhost:8002"
 )
 
 # ── Modern (2026-07-28+) discovery ───────────────────────────────────
