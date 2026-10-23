@@ -27,7 +27,38 @@ _SEARCH_ROOTS = (_REPO_ROOT / "src", _REPO_ROOT / "datasets", _REPO_ROOT)
 _MAX_HOPS = 2
 
 
-def _module_files(dotted: str) -> list[pathlib.Path]:
+def module_dotted(path: pathlib.Path) -> str:
+    """The dotted module name of a file in one of the search roots."""
+    for root in _SEARCH_ROOTS:
+        try:
+            relative = path.relative_to(root)
+        except ValueError:
+            continue
+        parts = list(relative.with_suffix("").parts)
+        if parts and parts[-1] == "__init__":
+            parts.pop()
+        return ".".join(parts)
+    return ""
+
+
+def package_modules(prefix: str) -> list[str]:
+    """Every dotted module directly inside the package ``prefix``."""
+    relative = prefix.replace(".", "/")
+    names: list[str] = []
+    for root in _SEARCH_ROOTS:
+        directory = root / relative
+        if not directory.is_dir():
+            continue
+        for child in sorted(directory.glob("*.py")):
+            if child.name == "__init__.py":
+                continue
+            dotted = f"{prefix}.{child.stem}"
+            if dotted not in names:
+                names.append(dotted)
+    return names
+
+
+def module_files(dotted: str) -> list[pathlib.Path]:
     """Every file that can hold ``dotted`` across the layout roots.
 
     The same dotted name exists in two namespaces for a few domains: a
@@ -70,7 +101,7 @@ def _imported_modules(path: pathlib.Path) -> list[str]:
 def emitted_literals(dotted: str) -> set[str]:
     """Every string literal reachable from ``dotted`` within ``_MAX_HOPS``."""
     seen: set[pathlib.Path] = set()
-    frontier = _module_files(dotted)
+    frontier = module_files(dotted)
     literals: set[str] = set()
     for _ in range(_MAX_HOPS + 1):
         following: list[pathlib.Path] = []
@@ -87,6 +118,6 @@ def emitted_literals(dotted: str) -> set[str]:
                 if isinstance(node, ast.Constant) and isinstance(node.value, str)
             }
             for name in _imported_modules(path):
-                following.extend(_module_files(name))
+                following.extend(module_files(name))
         frontier = following
     return literals
