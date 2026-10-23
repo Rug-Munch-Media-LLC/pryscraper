@@ -51,47 +51,44 @@ PRY_MEGA_SEARCH_TOOLS: list[dict[str, Any]] = [
         "outputSchema": {
             "type": "object",
             "properties": {
-                "data": {
-                    "type": "object",
-                    "properties": {
-                        "results": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "url": {"type": "string", "description": "Result URL."},
-                                    "title": {"type": "string", "description": "Result title."},
-                                    "snippet": {"type": "string", "description": "Result snippet."},
-                                    "consensus": {
-                                        "type": "integer",
-                                        "description": "How many engines surfaced this URL.",
-                                    },
-                                    "sources": {
-                                        "type": "array",
-                                        "items": {"type": "string"},
-                                        "description": "Which engines found it.",
-                                    },
-                                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "url": {"type": "string", "description": "Result URL."},
+                            "title": {"type": "string", "description": "Result title."},
+                            "snippet": {"type": "string", "description": "Result snippet."},
+                            "consensus": {
+                                "type": "integer",
+                                "description": "How many engines surfaced this URL.",
+                            },
+                            "sources": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Which engines found it.",
                             },
                         },
-                        "total": {
-                            "type": "integer",
-                            "description": "Unique results before the limit.",
-                        },
-                        "query": {"type": "string", "description": "The query that was run."},
-                        "engines_ok": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Engines that returned results.",
-                        },
-                        "engines_failed": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Engines that returned nothing this run.",
-                        },
                     },
-                }
+                },
+                "total": {
+                    "type": "integer",
+                    "description": "Unique results before the limit.",
+                },
+                "query": {"type": "string", "description": "The query that was run."},
+                "engines": {"description": "Per-engine status detail."},
+                "engines_ok": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Engines that returned results.",
+                },
+                "engines_failed": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Engines that returned nothing this run.",
+                },
             },
+            "required": ["results"],
         },
     }
 ]

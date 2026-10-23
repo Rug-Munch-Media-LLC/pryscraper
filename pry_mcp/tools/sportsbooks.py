@@ -47,8 +47,15 @@ PRY_TOOLS: list[dict[str, Any]] = [
                     "maximum": 100,
                     "description": "Maximum number of historical records (default: 20)",
                 },
+                "event_id": {
+                    "type": "string",
+                    "description": (
+                        "Odds API event id the history feed is queried for, "
+                        "e.g. 'nba:bda33adc' (from pry_odds / pry_all_sources)"
+                    ),
+                },
             },
-            "required": [],
+            "required": ["event_id"],
         },
         "outputSchema": {
             "type": "object",
@@ -70,8 +77,6 @@ PRY_TOOLS: list[dict[str, Any]] = [
                         },
                     },
                 },
-                "sport": {"type": "string"},
-                "date": {"type": "string"},
             },
             "required": ["success"],
         },
@@ -98,7 +103,9 @@ PRY_TOOLS: list[dict[str, Any]] = [
                 },
                 "event": {
                     "type": "string",
-                    "description": "Event substring filter, e.g. 'Chiefs vs Bills'",
+                    "description": (
+                        "Event id the handler keys on, e.g. 'nba:bda33adc' (from pry_live_games)"
+                    ),
                 },
                 "limit": {
                     "type": "integer",
@@ -108,29 +115,19 @@ PRY_TOOLS: list[dict[str, Any]] = [
                     "description": "Maximum number of percentage records (default: 20)",
                 },
             },
-            "required": [],
+            "required": ["event"],
         },
         "outputSchema": {
             "type": "object",
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "sport": {"type": "string"},
-                            "event": {"type": "string"},
-                            "event_id": {"type": "string"},
-                            "home_bets_pct": {"type": "number"},
-                            "away_bets_pct": {"type": "number"},
-                            "home_money_pct": {"type": "number"},
-                            "away_money_pct": {"type": "number"},
-                            "bookmaker": {"type": "string"},
-                        },
-                    },
+                    "type": "object",
+                    "description": (
+                        "Betting-percentage record for the requested event; an "
+                        "empty object when none is published"
+                    ),
                 },
-                "sport": {"type": "string"},
             },
             "required": ["success"],
         },
