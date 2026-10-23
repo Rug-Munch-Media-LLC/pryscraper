@@ -153,7 +153,11 @@ def get_review_queue(status: str | None = None) -> list[dict[str, Any]]:
                     "reviewed_at": item.get("reviewed_at"),
                 }
             )
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(
+                "review_record_skipped",
+                extra={"path": str(path), "error": str(e), "error_type": type(e).__name__},
+            )
             continue
     return reviews
 

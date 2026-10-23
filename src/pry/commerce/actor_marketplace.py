@@ -73,7 +73,11 @@ class ActorMarketplace:
                 actor.__dict__.update(data)
                 actor.visibility = ActorVisibility(data.get("visibility", "private"))
                 self.actors[actor.actor_id] = actor
-            except (json.JSONDecodeError, OSError, ValueError):
+            except (json.JSONDecodeError, OSError, ValueError) as e:
+                logger.warning(
+                    "actor_definition_skipped",
+                    extra={"path": str(f), "error": str(e), "error_type": type(e).__name__},
+                )
                 continue
 
     def _save(self, actor: Actor) -> None:

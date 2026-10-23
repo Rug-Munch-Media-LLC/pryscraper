@@ -152,7 +152,11 @@ class ToolMixin:
                 continue
             try:
                 payload = json.loads(block.get("text", ""))
-            except (TypeError, ValueError):
+            except (TypeError, ValueError) as e:
+                logger.debug(
+                    "mcp_structured_content_undecodable",
+                    extra={"tool": params.get("name"), "error": str(e)},
+                )
                 continue
             if isinstance(payload, dict):
                 result["structuredContent"] = payload

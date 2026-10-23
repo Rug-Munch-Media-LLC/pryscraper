@@ -17,6 +17,8 @@ import json
 import logging
 from typing import TYPE_CHECKING, Any
 
+from pry_mcp.tool_errors import HANDLER_ERRORS
+
 if TYPE_CHECKING:
     from types import ModuleType
 
@@ -235,11 +237,18 @@ async def _call_domain_dispatcher(
 
         try:
             result = fn(**{k: v for k, v in kwargs.items() if _callable_accepts(fn, k)})
-        except Exception as e:  # noqa: BLE001 — surface handler failures as MCP errors
+        except HANDLER_ERRORS as e:
+            # The module LANDED and the handler failed: try the next candidate,
+            # but say which tool and which module, otherwise this looks like a
+            # module that never shipped.
             logger.warning(
-                "suppressed %s in _call_domain_dispatcher (_common.py:273): %s",
-                type(e).__name__,
-                e,
+                "mcp_domain_handler_failed",
+                extra={
+                    "tool": name,
+                    "module": module_name,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
             )
             continue
         if inspect.isawaitable(result):
@@ -261,4 +270,3 @@ async def _call_domain_dispatcher(
     else:
         _dm_unavail = _data_module_unavailable
     return _dm_unavail(name, package)
-
