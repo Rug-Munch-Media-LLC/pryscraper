@@ -13,6 +13,7 @@ keep working.
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
+import os
 from typing import Any
 
 from pry.core.settings import settings
@@ -35,7 +36,7 @@ def _get_mcp_server() -> Any:
         # actor + crypto + marketplace + 21 domain dispatchers and raises
         # _ToolNotHandled for anything REST-wired, which then proxies.
         _mcp_server_instance = make_fallback_server(
-            base_url=f"http://localhost:{settings.port}",
+            base_url=os.getenv("PRY_URL") or f"http://localhost:{settings.port}",
             tool_executor=combined_tool_executor,
         )
         register_all(_mcp_server_instance)
