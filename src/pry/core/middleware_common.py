@@ -12,10 +12,8 @@ live in ``middleware.py`` (facade) and ``middleware_http.py`` respectively.
 # Licensed under MIT. See LICENSE.
 
 import re
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from typing import Any, cast
-
-from starlette.routing import Mount as StarletteMount, Route as StarletteRoute
 
 try:
     from pry.core.logging_config import (
@@ -84,30 +82,66 @@ def _route_table_root(app: Any) -> Any:
     return None
 
 
-def _path_exists(path: str, app) -> bool:
-    """Check if a path matches any registered route."""
-    root = _route_table_root(app)
-    routes = getattr(root, "routes", []) or []
+def _iter_route_templates(route: Any) -> Iterator[tuple[str, bool]]:
+    """Yield ``(template, is_prefix)`` for ``route`` and everything under it.
 
-    for route in routes:
-        if isinstance(route, StarletteMount):
-            if route.path == "" or route.path == "/":
-                # Root mount — check all sub-routes
-                if route.routes and _path_exists(path, route):
-                    return True
-                continue
-            if path == route.path or path.startswith(route.path.rstrip("/") + "/"):
-                if route.routes:
-                    sub_path = path[len(route.path) :] if route.path != "/" else path
-                    if _path_exists(sub_path, route):
-                        return True
-                # Mounts without sub-routes catch-all under prefix
-                return True
-        elif isinstance(route, StarletteRoute):
-            route_path = getattr(route, "path", "")
-            if route_path:
-                # Convert path template to regex
-                pattern = "^" + re.sub(r"\{[^}]+\}", "[^/]+", route_path) + "$"
-                if re.match(pattern, path):
-                    return True
-    return False
+    FastAPI >= 0.141 keeps an ``include_router`` result as a lazy
+    ``_IncludedRouter`` wrapper: neither a ``starlette.routing.Route`` nor a
+    ``Mount``, with the sub-routes behind ``effective_candidates()`` and the
+    include prefix already applied. An isinstance() walk therefore saw none of
+    the ~380 API routes and ``_path_exists`` answered False for every real
+    path, sending all traffic down the unknown-path pass-through (no
+    rate limiting, no billing enforcement, no per-route metrics).
+    Duck-typing keeps one implementation across FastAPI/Starlette versions.
+
+    A ``Mount`` is a prefix catch-all (it serves everything under its path),
+    so it is yielded with ``is_prefix=True``; plain routes match exactly.
+    """
+    expand = getattr(route, "effective_candidates", None)
+    if expand is not None:
+        for candidate in expand():
+            yield from _iter_route_templates(candidate)
+        return
+    path = getattr(route, "path", None)
+    children = getattr(route, "routes", None)
+    if path:
+        # ``routes`` present (even empty) == Mount == prefix catch-all.
+        yield path, children is not None
+    for child in children or ():
+        yield from _iter_route_templates(child)
+
+
+#: (route_count, compiled) cache slot, attached to the app object so a rebuilt
+#: app can never read a stale table and the entry dies with the app.
+_ROUTE_CACHE_ATTR = "_pry_route_patterns"
+
+
+def _template_regex(template: str, is_prefix: bool) -> re.Pattern[str]:
+    """Compile a route template (``{param}`` -> one segment) into a matcher."""
+    if is_prefix and template == "/":
+        return re.compile("^/.*$")
+    body = re.sub(r"\{[^}]+\}", "[^/]+", template)
+    return re.compile("^" + body + ("(?:/.*)?" if is_prefix else "") + "$")
+
+
+def _compiled_route_patterns(root: Any) -> tuple[re.Pattern[str], ...]:
+    """Compiled path matchers for ``root``'s routes (cached per app object)."""
+    routes = getattr(root, "routes", None) or ()
+    cached = getattr(root, _ROUTE_CACHE_ATTR, None)
+    if cached is not None and cached[0] == len(routes):
+        return cast("tuple[re.Pattern[str], ...]", cached[1])
+    patterns = tuple(
+        _template_regex(template, is_prefix)
+        for route in routes
+        for template, is_prefix in _iter_route_templates(route)
+    )
+    setattr(root, _ROUTE_CACHE_ATTR, (len(routes), patterns))
+    return patterns
+
+
+def _path_exists(path: str, app: Any) -> bool:
+    """True when the app has a route for ``path`` (any method)."""
+    root = _route_table_root(app)
+    if root is None:
+        return False
+    return any(pattern.match(path) for pattern in _compiled_route_patterns(root))
