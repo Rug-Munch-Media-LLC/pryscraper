@@ -55,14 +55,13 @@ from ._common import (
     _call_domain_dispatcher,
     _callable_accepts,
     _data_module_unavailable,
-    _domain_module_unavailable,
-    _domain_tool_kwargs,
     _missing_arg,
     _ModuleNotFound,
-    _new_domain_tool_kwargs,
     resolve_domain_module,
     resolve_domain_package,
 )
+from ._kwargs_climate_research import _domain_module_unavailable, _domain_tool_kwargs
+from ._kwargs_new_domains import _new_domain_tool_kwargs
 from .actor import ACTOR_TOOL_NAMES, _actor_catalog_entries, _actor_tool_kwargs, call_actor_tool
 from .annotations import _TOOL_ANNOTATIONS, _annotations_for
 from .appstore import _APP_STORE_TOOL_FNS, call_app_store_tool
@@ -77,7 +76,6 @@ from .data import (
     _FOOD_TOOL_FNS,
     _FREIGHT_TOOL_FNS,
     _SUPPLY_TOOL_FNS,
-    _broad_domain_tool_kwargs,
     call_energy_tool,
     call_events_tool,
     call_food_tool,
