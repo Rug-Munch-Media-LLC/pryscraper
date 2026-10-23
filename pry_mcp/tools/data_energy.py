@@ -15,7 +15,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ._common import _broad_domain_tool_kwargs, _call_domain_dispatcher
+from ._common import _call_domain_dispatcher
+from ._kwargs_data import _broad_domain_tool_kwargs
 
 PRY_TOOLS: list[dict[str, Any]] = [
     {
