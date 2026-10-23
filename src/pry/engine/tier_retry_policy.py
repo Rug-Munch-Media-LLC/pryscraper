@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
-from pry.engine.retry import RetryConfig
+from pry.engine.retry import Jitter, RetryConfig
 
 
 class TierRetryPolicyMixin:
@@ -30,8 +30,14 @@ class TierRetryPolicyMixin:
     _RETRY_CONFIGS: ClassVar[dict[str, RetryConfig]] = {
         "direct": RetryConfig(max_retries=2, base_delay=0.5, max_delay=5.0),
         "tls_fingerprint": RetryConfig(max_retries=1, base_delay=1.0, max_delay=5.0),
-        "cloudscraper": RetryConfig(max_retries=1, base_delay=1.0, max_delay=5.0),
-        "flaresolverr": RetryConfig(max_retries=2, base_delay=2.0, max_delay=10.0),
+        # A dead target needs no de-synchronisation: jitter only spreads
+        # retries of a URL that may work. Cap and retry shape unchanged.
+        "cloudscraper": RetryConfig(
+            max_retries=1, base_delay=1.0, max_delay=5.0, jitter=Jitter.NONE
+        ),
+        "flaresolverr": RetryConfig(
+            max_retries=2, base_delay=2.0, max_delay=10.0, jitter=Jitter.NONE
+        ),
         "undetected": RetryConfig(max_retries=0),
         "camoufox": RetryConfig(max_retries=0),
         "playwright": RetryConfig(max_retries=0),

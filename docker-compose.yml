@@ -585,9 +585,13 @@ services:
           # 2026-10-06: raised 512M -> 1536M. FlareSolverr v3 runs a full
           # headless Chrome; 512M OOM-killed its chromium repeatedly (kernel
           # memcg OOM at 10:51-10:54 on 2026-10-06 while a session hammered
-          # 127.0.0.1:8192). The dedicated flaresolverr-pry already ran 1500m;
-          # the shared instance was the odd one out. Match it.
-          memory: 1536M
+          # 127.0.0.1:8192).
+          # 2026-10-23: measured, not guessed. memory.peak on this container
+          # reached 2,685,915,136 B (2.50 GiB) under a retry storm against
+          # 127.0.0.1:8192, i.e. it exceeded the 1536M file limit and the
+          # 2560M live limit. 4 GiB = measured peak x 1.5 headroom for
+          # concurrent chromium. See /root/.knowledge/kernel-2026-10/memory-offenders.md
+          memory: 4096M
           cpus: "1"
 
   tor:

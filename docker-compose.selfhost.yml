@@ -201,7 +201,12 @@ services:
     # The base file publishes 8192 for the operator's second instance; the
     # self-host profile does not need a second browser, so it is not exposed.
     ports: !reset []
-    mem_limit: 1500m
+    # 2026-10-23: measured. memory.peak hit 1,609,777,152 B (1.50 GiB) and
+    # the cgroup logged 6.2M memory.events max hits + 268 oom_kill while
+    # serving 3 concurrent chromium scrapes at ~1.05 GiB resident. 1500m was
+    # below the working set. 3 GiB = measured peak x 1.86 headroom.
+    # See /root/.knowledge/kernel-2026-10/memory-offenders.md
+    mem_limit: 3g
     cpus: 1.5
 
   # ── Everything below is operator-only; drop it from the self-host run ──
