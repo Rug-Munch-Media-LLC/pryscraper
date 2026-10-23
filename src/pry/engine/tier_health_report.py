@@ -11,6 +11,10 @@ rung — at 0 wins in 41 attempts. Neither is a verdict on the method, and
 neither may be silently skipped, so both are named explicitly here and in
 :func:`health_alerts`.
 
+ONE HELPER PER SUMMARY BLOCK. Three independent questions (never won /
+never executed / paid and unpaid) do not belong in the same loop: inlined they
+put ``report`` at CCN 14, and each block is easier to test alone.
+
 Keys in the store are ``domain|tier``; the flag lookup must use the TIER part or
 a paid tier on any domain would be reported as if it were free.
 """
@@ -52,9 +56,33 @@ def _flag(tier: str, att: int, win: int, avg_ms: float) -> str:
     return ""
 
 
+def _never_won(rows: list[Row]) -> str | None:
+    """Tiers that took attempts, spent measurable time, and never won."""
+    dead = [r[0] for r in rows if r[3] == 0 and r[2] >= _REPORT_MIN_ATTEMPTS and r[7] > 0]
+    return f"NEVER WON (>=3 attempts): {', '.join(dead)}" if dead else None
+
+
+def _instant_fail(rows: list[Row]) -> str | None:
+    """Tiers whose attempts never reached the network — a dependency gap."""
+    instant = [r for r in rows if _flag(r[1], r[2], r[3], r[6]) == "INSTANT"]
+    if not instant:
+        return None
+    detail = ", ".join(f"{r[0]} ({r[6]:.2f} ms avg, {r[2]} attempts)" for r in instant)
+    return f"INSTANT-FAIL — never executed, fix the dependency: {detail}"
+
+
+def _paid_zero_wins(rows: list[Row]) -> str | None:
+    """Paid rungs that were attempted and won nothing — money, not evidence."""
+    paid = [r for r in rows if r[1] in _th.PAID_TIERS and r[3] == 0 and r[2] > 0]
+    if not paid:
+        return None
+    detail = ", ".join(f"{r[0]} ({r[2]} attempts, {r[7]:.0f}s burned)" for r in paid)
+    return f"PAID TIER WITH ZERO WINS — money spent, nothing won: {detail}"
+
+
 def report(path: Any = None) -> str:
     """A ranked table: what wins, what burns time and returns nothing."""
-    rows = _rows(_th._load(path or _th.DEFAULT_PATH))
+    rows = _rows(_th.load(path or _th.DEFAULT_PATH))
     if not rows:
         return "no tier health recorded yet"
     lines = [
@@ -68,17 +96,9 @@ def report(path: Any = None) -> str:
         )
     lines.append("")
     lines.append("wasted_s = time spent on attempts that did not win the scrape.")
-    dead = [r[0] for r in rows if r[3] == 0 and r[2] >= _REPORT_MIN_ATTEMPTS and r[7] > 0]
-    if dead:
-        lines.append(f"NEVER WON (>=3 attempts): {', '.join(dead)}")
-    instant = [r for r in rows if _flag(r[1], r[2], r[3], r[6]) == "INSTANT"]
-    if instant:
-        detail = ", ".join(f"{r[0]} ({r[6]:.2f} ms avg, {r[2]} attempts)" for r in instant)
-        lines.append(f"INSTANT-FAIL — never executed, fix the dependency: {detail}")
-    paid = [r for r in rows if r[1] in _th.PAID_TIERS and r[3] == 0 and r[2] > 0]
-    if paid:
-        detail = ", ".join(f"{r[0]} ({r[2]} attempts, {r[7]:.0f}s burned)" for r in paid)
-        lines.append(f"PAID TIER WITH ZERO WINS — money spent, nothing won: {detail}")
+    lines.extend(
+        block for block in (_never_won(rows), _instant_fail(rows), _paid_zero_wins(rows)) if block
+    )
     return "\n".join(lines)
 
 
@@ -90,9 +110,7 @@ def health_alerts(path: Any = None) -> list[dict[str, Any]]:
     ``paid_tier_zero_wins`` (paid egress failing every request).
     """
     alerts: list[dict[str, Any]] = []
-    for name, tier, att, win, _lose, _pct, avg, wasted in _rows(
-        _th._load(path or _th.DEFAULT_PATH)
-    ):
+    for name, tier, att, win, _lose, _pct, avg, wasted in _rows(_th.load(path or _th.DEFAULT_PATH)):
         if win or att < _REPORT_MIN_ATTEMPTS:
             continue
         if 0 < avg < _th.MIN_EXEC_MS:

@@ -29,12 +29,17 @@ from pathlib import Path
 from typing import Any
 
 from pry.engine.tier_cost import PAID_TIERS, premium_proxy_cost_usd
-from pry.engine.tier_health_store import POLICY_VERSION, SEP, key, load, record as _store_record
+from pry.engine.tier_health_store import (
+    POLICY_VERSION,
+    SEP,
+    Attempt,
+    Tuning,
+    key,
+    load,
+    record as _store_record,
+)
 
 logger = logging.getLogger(__name__)
-
-#: Storage-format aliases kept for callers/tests that reach for them.
-_load, _key = load, key
 
 DEFAULT_PATH = Path(os.getenv("PRY_TIER_HEALTH_PATH", "/app/pry-data/tier_health.json"))
 
@@ -77,15 +82,9 @@ def record(
 ) -> None:
     """Record one tier attempt. Never raises — health is observability."""
     _store_record(
-        tier,
-        won=won,
-        cost_ms=cost_ms,
+        Attempt(tier=tier, won=won, cost_ms=cost_ms, domain=domain, unavailable=unavailable),
         path=path or DEFAULT_PATH,
-        domain=domain,
-        unavailable=unavailable,
-        stale_after_s=STALE_AFTER_S,
-        min_exec_ms=MIN_EXEC_MS,
-        probation_s=PROBATION_S,
+        tuning=Tuning(STALE_AFTER_S, MIN_EXEC_MS, PROBATION_S),
     )
 
 

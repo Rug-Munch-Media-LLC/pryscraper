@@ -5,9 +5,10 @@ different reasons, and :mod:`pry.engine.tier_health` ran into the 200-line cap.
 Storage lives here; ``tier_health.report`` / ``should_skip`` keep their public
 signatures.
 
-``record()`` is handed ``stale_after_s`` and ``min_exec_ms`` explicitly rather
-than importing them: the caller owns the settings (so a test can monkeypatch
-them) and this module stays free of import cycles.
+``record()`` is handed an :class:`Attempt` and a :class:`Tuning` rather than
+free-standing knobs: the caller owns the settings (so a test can monkeypatch
+them), this module stays free of import cycles, and a write cannot arrive with
+half the policy applied.
 """
 
 # SPDX-License-Identifier: MIT
@@ -21,6 +22,7 @@ import json
 import logging
 import tempfile
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -89,45 +91,55 @@ def probation(data: dict[str, Any], now: float, probation_s: float) -> None:
     data["_policy"] = POLICY_VERSION
 
 
-def record(
-    tier: str,
-    *,
-    won: bool,
-    cost_ms: float,
-    path: Path,
-    domain: str | None,
-    unavailable: bool,
-    stale_after_s: float,
-    min_exec_ms: float,
-    probation_s: float,
-) -> None:
+@dataclass(frozen=True)
+class Attempt:
+    """One tier attempt, as recorded. Pure data: no clock, no I/O."""
+
+    tier: str
+    won: bool
+    cost_ms: float
+    domain: str | None = None
+    unavailable: bool = False
+
+
+@dataclass(frozen=True)
+class Tuning:
+    """Write-time policy knobs, owned and resolved by the caller."""
+
+    stale_after_s: float
+    min_exec_ms: float
+    probation_s: float
+
+
+def record(attempt: Attempt, *, path: Path, tuning: Tuning) -> None:
     """Record one tier attempt. Never raises — health is observability.
 
-    ``unavailable`` marks an attempt that never reached the network because a
-    dependency was missing. That is not a loss, and charging it to the tier is
-    how a dependency gap becomes "this method does not work here". A
+    ``attempt.unavailable`` marks an attempt that never reached the network
+    because a dependency was missing. That is not a loss, and charging it to the
+    tier is how a dependency gap becomes "this method does not work here". A
     sub-millisecond loss is the same fault seen from the other side, so it is
     counted separately as ``instant_fails``.
     """
-    if unavailable:
+    if attempt.unavailable:
         return
     try:
         now = time.time()
         data = load(path)
-        prune(data, now, scoped=domain is not None, stale_after_s=stale_after_s)
-        probation(data, now, probation_s)
-        name = key(tier, domain)
+        scoped = attempt.domain is not None
+        prune(data, now, scoped=scoped, stale_after_s=tuning.stale_after_s)
+        probation(data, now, tuning.probation_s)
+        name = key(attempt.tier, attempt.domain)
         entry = data.get(name) or {}
         entry["attempts"] = int(entry.get("attempts", 0)) + 1
-        entry["wins"] = int(entry.get("wins", 0)) + int(bool(won))
-        entry["losses"] = int(entry.get("losses", 0)) + int(not won)
-        entry["cost_ms_total"] = round(float(entry.get("cost_ms_total", 0.0)) + cost_ms, 1)
-        if not won and cost_ms < min_exec_ms:
+        entry["wins"] = int(entry.get("wins", 0)) + int(bool(attempt.won))
+        entry["losses"] = int(entry.get("losses", 0)) + int(not attempt.won)
+        entry["cost_ms_total"] = round(float(entry.get("cost_ms_total", 0.0)) + attempt.cost_ms, 1)
+        if not attempt.won and attempt.cost_ms < tuning.min_exec_ms:
             entry["instant_fails"] = int(entry.get("instant_fails", 0)) + 1
         entry["last_seen"] = now
-        entry["scope"] = "domain" if domain else "global"
-        if domain:
-            entry["domain"] = domain
+        entry["scope"] = "domain" if attempt.domain else "global"
+        if attempt.domain:
+            entry["domain"] = attempt.domain
         data[name] = entry
         data["_updated"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         path.parent.mkdir(parents=True, exist_ok=True)
