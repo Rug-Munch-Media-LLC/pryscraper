@@ -295,7 +295,6 @@ PRY_TOOLS: list[dict[str, Any]] = [
                         },
                     },
                 },
-                "sport": {"type": "string"},
             },
             "required": ["success"],
         },
