@@ -146,7 +146,11 @@ class ToolMixin:
             "content": tool_result.get("content", []),
             "isError": tool_result.get("isError", False),
         }
-        # Tools that advertise outputSchema MUST return structuredContent.
+        # Tools that advertise outputSchema MUST return structuredContent;
+        # tools without one must not invent it.
+        tool = self.tools.get(params.get("name", ""), {})
+        if not tool.get("outputSchema"):
+            return result
         for block in result["content"]:
             if not isinstance(block, dict) or block.get("type") != "text":
                 continue

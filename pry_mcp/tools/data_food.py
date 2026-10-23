@@ -102,15 +102,18 @@ PRY_TOOLS: list[dict[str, Any]] = [
                 "data": {
                     "type": "object",
                     "properties": {
-                        "name": {"type": "string"},
-                        "cuisine": {"type": "string"},
-                        "sections": {
+                        "restaurant": {"type": "string"},
+                        "location": {"type": "string"},
+                        "source": {"type": "string"},
+                        "menu": {
                             "type": "array",
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "section": {"type": "string"},
-                                    "items": {"type": "array", "items": {"type": "object"}},
+                                    "item": {"type": "string"},
+                                    "price": {"type": ["number", "null"]},
+                                    "description": {"type": ["string", "null"]},
+                                    "category": {"type": "string"},
                                 },
                             },
                         },

@@ -49,9 +49,8 @@ PRY_TOOLS: list[dict[str, Any]] = [
                 },
                 "bankroll": {
                     "type": "number",
-                    "default": 1000,
                     "exclusiveMinimum": 0,
-                    "description": "Current bankroll in currency units (default: 1000)",
+                    "description": "Current bankroll in currency units (e.g. 1000)",
                 },
                 "kelly_pct": {
                     "type": "number",
@@ -71,7 +70,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
                     "description": ("Hard cap on stake as a percentage of bankroll (default: 5.0)"),
                 },
             },
-            "required": ["win_prob", "decimal_odds"],
+            "required": ["win_prob", "decimal_odds", "bankroll"],
         },
         "outputSchema": {
             "type": "object",
@@ -98,8 +97,6 @@ PRY_TOOLS: list[dict[str, Any]] = [
                         "valid": {"type": "boolean"},
                     },
                 },
-                "kelly_pct": {"type": "number"},
-                "max_bet_pct": {"type": "number"},
             },
             "required": ["success"],
         },
