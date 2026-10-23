@@ -8,6 +8,11 @@
 Split out of the health router so the endpoint payload stays readable and the
 probe budget lives in one place. Nothing here raises: a failed probe is a
 reported state, never an exception on the health path.
+
+2026-10-23: ``bounded`` used to log ``health_probe_timeout`` with no idea which
+dependency had stalled, once per probe, forever. It now names the dependency and
+routes through :class:`~pry.api.routers.core.probe_log.ProbeLog`, so a repeat
+timeout is a debug line instead of a WARNING every 5 seconds.
 """
 
 from __future__ import annotations
@@ -17,10 +22,13 @@ import logging
 import time
 from typing import Any
 
+from pry.api.routers.core.probe_log import probes
+
 logger = logging.getLogger(__name__)
 
 # Every dependency check must finish inside this window so a hung dependency
-# cannot stretch /health past its 1s SLO.
+# cannot stretch /health past its 1s SLO. The per-client deadlines in
+# ``probe_checks`` sit BELOW this so the failure class is observable.
 PROBE_TIMEOUT_S = 0.8
 STARTED_AT = time.monotonic()
 
@@ -52,12 +60,25 @@ def queue_depth() -> int | None:
         return None
 
 
-async def bounded(coro: Any) -> bool:
-    """Run one dependency probe under the shared timeout budget."""
+async def bounded(coro: Any, dependency: str = "dependency", *, optional: bool = False) -> bool:
+    """Run one dependency probe under the shared timeout budget.
+
+    Backstop only: the probe's own client deadline is shorter, so this path
+    fires for genuinely hung code (or a monkeypatched probe in tests).
+    """
+    start = time.monotonic()
     try:
         return bool(await asyncio.wait_for(coro, timeout=PROBE_TIMEOUT_S))
     except TimeoutError:
-        logger.warning("health_probe_timeout")
+        probes.report(
+            dependency,
+            False,
+            elapsed_ms=int((time.monotonic() - start) * 1000),
+            budget_ms=int(PROBE_TIMEOUT_S * 1000),
+            optional=optional,
+            reason="budget_exhausted",
+            error_type="TimeoutError",
+        )
         return False
 
 

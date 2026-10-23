@@ -142,6 +142,12 @@ def setup_logging(level: int | None = None, fmt: str | None = None) -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
     root = logging.getLogger()
+    # httpx logs one INFO line per outbound request ("HTTP Request: POST ..."),
+    # including every 5s health probe. It is transport chatter, not application
+    # telemetry: 77 of 460 lines in a 10-minute sample (2026-10-23).
+    for noisy in ("httpx", "httpcore"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
     # Remove any existing handlers (e.g., uvicorn's) and add ours
     root.handlers = [handler]
     root.setLevel(level)

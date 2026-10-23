@@ -17,6 +17,11 @@ Dependency tiers (2026-08-25 health-contract fix):
 Incident context: 2026-08-21..25 pry reported unhealthy for 4 days because
 /health gated on FlareSolverr alone. Optional deps must not fail the service.
 
+Logging (2026-10-23): probe bodies moved to ``probe_checks``. They emit ONE
+line per state change and never a traceback — the old ``exc_info=True`` on an
+unreachable Ollama produced 61 tracebacks / 10 min (80% of log bytes) and hid
+every real scrape failure behind probe noise.
+
 Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 """
 
@@ -25,92 +30,22 @@ Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 from __future__ import annotations
 
 import asyncio
-import logging
-from functools import lru_cache
-from typing import TYPE_CHECKING
 
-import redis
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from pry.api.client import get_client
 from pry.api.routers.core.health_probes import bounded, queue_depth, uptime_seconds
+from pry.api.routers.core.probe_checks import (
+    probe_database as _check_database,
+    probe_flaresolverr as _check_flaresolverr,
+    probe_ollama as _check_ollama,
+    probe_redis as _check_redis,
+)
 from pry.core.settings import settings
-
-if TYPE_CHECKING:
-    from redis.asyncio import Redis
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Health"])
 
 APP_VERSION = settings.app_version
-
-
-@lru_cache(maxsize=1)
-def _redis_probe_client() -> Redis:
-    """Process-wide probe client — one pool, reused by every health probe.
-
-    A client per probe leaked a pool on every failed ping (the except path
-    never closed it) and on every cancelled probe, so a Redis blip turned the
-    healthcheck into a client factory.
-    """
-    import redis.asyncio as aioredis
-
-    return aioredis.from_url(settings.redis_url)
-
-
-async def _check_redis() -> bool:
-    """CRITICAL dep — ping redis over the shared probe connection."""
-    try:
-        await _redis_probe_client().ping()
-        return True
-    except redis.RedisError:
-        logger.warning("health_exception_handler", exc_info=True)
-        return False
-
-
-async def _check_database() -> bool:
-    """CRITICAL dep — SQLAlchemy engine reachable.
-
-    The sync ``db_health()`` probe is run in a worker thread so it never
-    blocks the event loop (ASYNC240). Fails closed (False) on any error.
-    """
-    try:
-        from pry.core.db import db_health
-
-        result = await asyncio.to_thread(db_health)
-        return bool(result.get("available"))
-    except Exception:
-        logger.warning("health_exception_handler", exc_info=True)
-        return False
-
-
-async def _check_flaresolverr() -> bool:
-    """OPTIONAL dep — tier 3 of the 9-tier scrape fallback chain."""
-    try:
-        c = await get_client()
-        r = await c.post(
-            settings.flaresolverr_url,
-            json={"cmd": "sessions.list"},
-            headers={"Content-Type": "application/json"},
-            timeout=3,
-        )
-        return r.is_success
-    except Exception:
-        logger.warning("health_exception_handler", exc_info=True)
-        return False
-
-
-async def _check_ollama() -> bool:
-    """OPTIONAL dep — LLM enhancement only."""
-    try:
-        c = await get_client()
-        r = await c.get(f"{settings.ollama_url}/api/tags", timeout=3)
-        return r.is_success
-    except Exception:
-        logger.warning("health_exception_handler", exc_info=True)
-        return False
 
 
 @router.get("/healthz", summary="Pure liveness — always 200 while serving")
@@ -128,10 +63,10 @@ async def health_check() -> JSONResponse:
     gate the verdict. Total probe time is capped at ~0.8s.
     """
     redis_ok, db_ok, flare_ok, ollama_ok = await asyncio.gather(
-        bounded(_check_redis()),
-        bounded(_check_database()),
-        bounded(_check_flaresolverr()),
-        bounded(_check_ollama()),
+        bounded(_check_redis(), "redis"),
+        bounded(_check_database(), "database"),
+        bounded(_check_flaresolverr(), "flaresolverr", optional=True),
+        bounded(_check_ollama(), "ollama", optional=True),
         return_exceptions=False,
     )
     deps = {
@@ -173,7 +108,10 @@ async def ready() -> JSONResponse | dict[str, str]:
     optional enhancement tiers; gating readiness on them caused the
     2026-08-21 four-day false-unhealthy incident.
     """
-    db_ok, redis_ok = await asyncio.gather(bounded(_check_database()), bounded(_check_redis()))
+    db_ok, redis_ok = await asyncio.gather(
+        bounded(_check_database(), "database"),
+        bounded(_check_redis(), "redis"),
+    )
     if db_ok and redis_ok:
         return {"status": "ready"}
     return JSONResponse(
