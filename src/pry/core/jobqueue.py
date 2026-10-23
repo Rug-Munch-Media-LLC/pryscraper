@@ -48,8 +48,11 @@ def _deadline_ts(job: dict) -> float:
     """Return the job's execution deadline (epoch seconds), or +inf if unknown."""
     try:
         return float(job["deadline_ts"])
-    except (KeyError, TypeError, ValueError):
-        pass
+    except (KeyError, TypeError, ValueError) as e:
+        logger.debug(
+            "job_deadline_ts_unusable",
+            extra={"job_id": job.get("id"), "error": str(e), "error_type": type(e).__name__},
+        )
     try:
         base = datetime.fromisoformat(str(job["created_at"])).timestamp()
     except (KeyError, TypeError, ValueError):

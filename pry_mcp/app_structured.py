@@ -12,7 +12,10 @@ handler stays below the complexity gate.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def _tool_spec(server: Any, name: Any) -> dict[str, Any] | None:
@@ -39,7 +42,11 @@ def _text_payload(result: dict[str, Any]) -> dict[str, Any] | None:
             continue
         try:
             payload = json.loads(block.get("text", ""))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as e:
+            logger.debug(
+                "mcp_text_block_not_json",
+                extra={"error": str(e), "error_type": type(e).__name__},
+            )
             return None
         return payload if isinstance(payload, dict) else None
     return None

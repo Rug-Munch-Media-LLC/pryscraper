@@ -82,7 +82,11 @@ def _load_jsonl_records(path: str) -> list[dict[str, Any]]:
                     continue
                 try:
                     row = json.loads(line)
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
+                    logger.warning(
+                        "payment_record_line_dropped",
+                        extra={"path": path, "error": str(e)},
+                    )
                     continue
                 if isinstance(row, dict):
                     records.append(row)

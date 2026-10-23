@@ -135,6 +135,7 @@ class ProtocolMixin:
         try:
             result = await getattr(self, handler_name)(params)
         except RpcError as exc:
+            logger.debug("mcp_rpc_error", extra={"method": method, "code": exc.code})
             return _error(req_id, exc.code, exc.message)
         except Exception as exc:  # noqa: BLE001
             logger.warning("mcp_handler_failed", extra={"method": method, "error": str(exc)})
@@ -185,10 +186,12 @@ class ProtocolMixin:
                 response = await self.handle_request(request)
                 if response is not None:
                     _write_response(response)
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
                 # JSON-RPC 2.0 §2.4.2: a parse error gets id null.
+                logger.warning("mcp_stdin_parse_error", extra={"error": str(e)})
                 _write_response(_error(None, -32700, "Parse error"))
             except (EOFError, KeyboardInterrupt):
+                logger.debug("mcp_stdio_closed")
                 break
 
 

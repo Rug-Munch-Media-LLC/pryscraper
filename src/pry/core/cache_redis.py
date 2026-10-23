@@ -180,7 +180,11 @@ class RedisBackendMixin:
                     continue
                 try:
                     payload = json.loads(raw)
-                except (TypeError, ValueError):
+                except (TypeError, ValueError) as e:
+                    logger.debug(
+                        "cache_entry_undecodable",
+                        extra={"key": key, "error": str(e), "error_type": type(e).__name__},
+                    )
                     continue
                 meta = (
                     payload.get("data", {}).get("metadata", {}) if isinstance(payload, dict) else {}
