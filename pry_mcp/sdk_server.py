@@ -73,7 +73,7 @@ except ImportError as e:
     _has_mcp_sdk = False
 
 
-from pry_mcp.sdk_server_build import build_sdk_server as _create_sdk_server
+from pry_mcp.sdk_server_build import build_sdk_server as _create_sdk_server  # noqa: E402
 
 
 def _sdk_supports_modern_discovery() -> bool:
