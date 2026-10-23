@@ -93,7 +93,7 @@ PRY_EXTRACT_TOOLS: list[dict[str, Any]] = [
         "name": "pry_screenshot",
         "description": (
             "Render a URL in a headless browser and return a screenshot as a "
-            "base64-encoded PNG with width, height, and content type. "
+            "base64-encoded PNG. "
             "Use for visual verification or design QA of a rendered page — e.g. "
             "screenshot https://example.com/checkout with full_page=true to capture "
             "the whole checkout flow before launch. JavaScript is executed before "
@@ -121,12 +121,12 @@ PRY_EXTRACT_TOOLS: list[dict[str, Any]] = [
                 "success": {"type": "boolean"},
                 "data": {
                     "type": "object",
+                    "description": (
+                        "The captured PNG; ``screenshot`` is empty when the render "
+                        "produced no image."
+                    ),
                     "properties": {
-                        "url": {"type": "string"},
-                        "image_base64": {"type": "string"},
-                        "content_type": {"type": "string"},
-                        "width": {"type": "integer"},
-                        "height": {"type": "integer"},
+                        "screenshot": {"type": "string"},
                     },
                 },
             },

@@ -173,22 +173,13 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "categories": {"type": "array", "items": {"type": "string"}},
-                        "providers": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {"type": "string"},
-                                    "category": {"type": "string"},
-                                    "url": {"type": "string"},
-                                },
-                            },
-                        },
-                        "total": {"type": "integer"},
-                    },
+                    "type": "array",
+                    "description": (
+                        "Referral catalog entries. Without a category filter each "
+                        "entry is {category, providers}; with one, each entry is a "
+                        "bare provider record."
+                    ),
+                    "items": {"type": "object"},
                 },
             },
             "required": ["success"],

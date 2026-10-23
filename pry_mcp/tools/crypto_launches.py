@@ -63,26 +63,27 @@ PRY_LAUNCH_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "items": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "address": {"type": "string"},
-                                    "symbol": {"type": "string"},
-                                    "name": {"type": "string"},
-                                    "chain": {"type": "string"},
-                                    "created_at": {"type": "string"},
-                                    "liquidity_usd": {"type": "number"},
-                                    "volume_24h_usd": {"type": "number"},
-                                },
-                            },
+                    "type": "array",
+                    "description": (
+                        "New or trending tokens; empty when every upstream source "
+                        "fails."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "chain": {"type": "string"},
+                            "address": {"type": "string"},
+                            "symbol": {"type": "string"},
+                            "name": {"type": "string"},
+                            "pair_address": {"type": "string"},
+                            "created_at_utc": {"type": "string"},
+                            "created_at": {"type": "string"},
+                            "price_usd": {"type": "number"},
+                            "liquidity_usd": {"type": "number"},
+                            "volume_24h_usd": {"type": "number"},
+                            "price_change_24h_pct": {"type": "number"},
+                            "source": {"type": "string"},
                         },
-                        "total": {"type": "integer"},
-                        "chain": {"type": "string"},
-                        "kind": {"type": "string"},
                     },
                 },
             },

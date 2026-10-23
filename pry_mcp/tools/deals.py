@@ -106,25 +106,22 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "items": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "product": {"type": "string"},
-                                    "merchant": {"type": "string"},
-                                    "price": {"type": "number"},
-                                    "currency": {"type": "string"},
-                                    "availability": {"type": "string"},
-                                    "alert_type": {"type": "string"},
-                                    "url": {"type": "string"},
-                                },
-                            },
+                    "type": "array",
+                    "description": (
+                        "Drop signals for the watched product, newest first; empty "
+                        "when no alert is registered. Prices are null while a "
+                        "listing price cannot be resolved."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "alert_id": {"type": "string"},
+                            "product": {"type": "string"},
+                            "current_price": {"type": ["number", "null"]},
+                            "target_price": {"type": ["number", "null"]},
+                            "triggered": {"type": "boolean"},
+                            "delta_pct": {"type": ["number", "null"]},
                         },
-                        "total": {"type": "integer"},
-                        "product": {"type": "string"},
                     },
                 },
             },

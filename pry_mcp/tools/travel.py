@@ -56,23 +56,26 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "origin": {"type": "string"},
-                        "dest": {"type": "string"},
-                        "days": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "date": {"type": "string"},
-                                    "price_usd": {"type": "number"},
-                                    "airline": {"type": "string"},
-                                },
-                            },
+                    "type": "array",
+                    "description": (
+                        "Cheapest option per day, date ascending; days that could not "
+                        "be fetched are omitted, so the grid can be empty."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "date": {"type": "string"},
+                            "price": {"type": "number"},
+                            "airline": {"type": "string"},
+                            "duration": {"type": "integer"},
+                            "stops": {"type": "integer"},
                         },
                     },
                 },
+                "origin": {"type": "string"},
+                "dest": {"type": "string"},
+                "start_date": {"type": "string"},
+                "end_date": {"type": "string"},
             },
             "required": ["success"],
         },
