@@ -45,7 +45,12 @@ class TierHTTPMixin:
             # so connections are kept alive across requests.
             if proxy_url:
                 async with httpx.AsyncClient(timeout=30, proxy=proxy_url) as c:
-                    r = await safe_get(c, url, headers=self._build_headers(url))
+                    # The proxy resolves the target, so IP pinning cannot
+                    # apply: a pinned URL sends the IP as TLS SNI through the
+                    # CONNECT tunnel and the handshake fails.
+                    r = await safe_get(
+                        c, url, headers=self._build_headers(url), pin_connections=False
+                    )
             else:
                 c = await _get_shared_client()
                 r = await safe_get(c, url, headers=self._build_headers(url), timeout=30)
@@ -65,7 +70,9 @@ class TierHTTPMixin:
             # A dedicated client is therefore required here — the shared pooled
             # client cannot carry a per-request proxy.
             async with httpx.AsyncClient(timeout=45, proxy=proxy_url) as c:
-                r = await safe_get(c, url, headers=self._build_headers(url))
+                # See _tier_direct: httpcore ignores sni_hostname on a proxy
+                # tunnel, so the request MUST stay on the logical hostname.
+                r = await safe_get(c, url, headers=self._build_headers(url), pin_connections=False)
                 if r.is_success:
                     return r.text
         except (httpx.HTTPError, httpx.RequestError) as e:

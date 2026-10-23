@@ -31,7 +31,11 @@ import threading
 from typing import Any
 
 from pry.core.chromium import CHROMIUM_CHANNEL
-from pry.engine.browser_pool_config import async_playwright, chromium_binary
+from pry.engine.browser_pool_config import (
+    BrowserUnavailableError,
+    async_playwright,
+    chromium_binary,
+)
 from pry.engine.browser_pool_teardown import PoolTeardownMixin, close_browsers
 
 logger = logging.getLogger(__name__)
@@ -66,6 +70,10 @@ class BrowserPool(PoolTeardownMixin):
         if self._playwright_browser is None:
             async with self._pw_lock:
                 if self._playwright_browser is None:
+                    if async_playwright is None:
+                        raise BrowserUnavailableError(
+                            "browser_unavailable: playwright async API is not importable"
+                        )
                     try:
                         self._playwright = await async_playwright().start()
                         self._playwright_browser = await self._playwright.chromium.launch(
@@ -78,12 +86,15 @@ class BrowserPool(PoolTeardownMixin):
                                 "--disable-web-security",
                             ],
                         )
-                    except Exception:
+                    except Exception as exc:
                         if self._playwright is not None:
                             with contextlib.suppress(Exception):
                                 await self._playwright.stop()
                             self._playwright = None
-                        raise
+                        # A browser that cannot launch is a broken dependency,
+                        # not evidence about any target: surface it as such so
+                        # the caller excludes it from the tier record.
+                        raise BrowserUnavailableError(f"browser_unavailable: {exc}") from exc
         return self._playwright_browser
 
     # -- undetected-chromedriver (synchronous) --------------------------

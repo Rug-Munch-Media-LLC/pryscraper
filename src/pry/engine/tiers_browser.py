@@ -16,6 +16,7 @@ import logging
 from typing import Any
 
 from pry.engine.browser_pool import get_browser_pool
+from pry.engine.browser_pool_config import BrowserUnavailableError
 from pry.engine.route_guard import install_route_guard
 from pry.engine.tiers_base import _RNG, _us_flag
 from pry.engine.url_guard import validate_url
@@ -143,6 +144,11 @@ class TierBrowserMixin:
                     logger.debug("playwright_context_close_failed", exc_info=True)
         except asyncio.CancelledError:
             logger.info("playwright_cancelled", extra={"url": url})
+            raise
+        except BrowserUnavailableError:
+            # Never swallow this one: it is a Pry dependency fault, and the
+            # orchestrator must record it as unavailable, not as a tier loss.
+            logger.warning("playwright_unavailable", extra={"url": url})
             raise
         except _BROWSER_FAILURES as e:
             # Includes playwright's TimeoutError, which is not an OSError.

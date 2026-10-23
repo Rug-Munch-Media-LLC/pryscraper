@@ -63,6 +63,7 @@ async def safe_get(
     url: str,
     *,
     max_redirects: int = 10,
+    pin_connections: bool = True,
     **kwargs: Any,
 ) -> httpx.Response:
     """GET with SSRF-safe redirect re-validation and pinned-IP connects.
@@ -87,7 +88,9 @@ async def safe_get(
     # Explicit pre-flight validation for the first hop; pinned_get re-validates
     # at connect time (TOCTOU/DNS-rebinding), this makes the contract local.
     validate_redirect_url(current)
-    response = await pinned_get(client, current, {**kwargs, "stream": True})
+    response = await pinned_get(
+        client, current, {**kwargs, "stream": True}, pin_connections=pin_connections
+    )
     redirects = 0
     while response.is_redirect and redirects < max_redirects:
         location = response.headers.get("location")
@@ -98,7 +101,9 @@ async def safe_get(
         current = urljoin(current, location)
         validate_redirect_url(current)
         await response.aclose()
-        response = await pinned_get(client, current, {**kwargs, "stream": True})
+        response = await pinned_get(
+            client, current, {**kwargs, "stream": True}, pin_connections=pin_connections
+        )
         redirects += 1
     body, truncated = await read_capped_body(response)
     # Hand the body back in the streamed response so every caller's
