@@ -31,6 +31,7 @@ _URL = "https://blocked.example/page"
 
 
 def _seed(path: Any, payload: dict[str, Any]) -> None:
+    payload.setdefault("_policy", tier_health.POLICY_VERSION)
     path.write_text(json.dumps(payload))
 
 

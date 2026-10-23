@@ -47,7 +47,14 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_enough_attempts_and_no_wins_is_skipped_with_a_costed_reason(tmp_path: Path) -> None:
     """The reason must carry the evidence AND the cost, or it says nothing."""
     path = tmp_path / "h.json"
-    path.write_text(json.dumps({"camoufox": {"attempts": 4, "wins": 0, "cost_ms_total": 120_000}}))
+    path.write_text(
+        json.dumps(
+            {
+                "_policy": tier_health.POLICY_VERSION,
+                "camoufox": {"attempts": 4, "wins": 0, "cost_ms_total": 120_000},
+            }
+        )
+    )
     skip, reason = should_skip("camoufox", path=path)
     assert skip is True
     assert "4_attempts" in reason, reason
