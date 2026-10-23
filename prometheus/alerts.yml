@@ -181,6 +181,12 @@ groups:
         for: 0m
         labels: {severity: critical}
         annotations: {summary: "x402 gate misconfiguration detected", description: "Paid prefix without X402_PRICING; fails closed 500."}
+      # Fires on REAL downtime (verified 2026-10-23: 66 one-minute samples
+      # with up==0 between 07:36 and 09:04 local, then container restart).
+      # A misconfigured PORT also lands here as up==0 — but a host-side
+      # `curl 127.0.0.1:8002` returning 000 is the expected view of an
+      # unpublished port, not proof of misconfiguration. The scrape target is
+      # the CONTAINER port (8002); the host publishes 8005. See prometheus.yml.
       - alert: pry_container_down
         expr: up{job="pry"} == 0
         for: 2m

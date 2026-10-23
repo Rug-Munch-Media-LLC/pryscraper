@@ -29,6 +29,15 @@ alerting:
         - targets: ['alertmanager:9093']
 
 scrape_configs:
+  # PORT MAP (do not "fix" this to :8005 — that would break the scrape).
+  #   container pry listens on 8002 (EXPOSE 8002)
+  #   compose publishes it to the HOST as 127.0.0.1:8005 -> 8002/tcp
+  # This target is resolved on pryscraper_default, i.e. the CONTAINER port is
+  # the correct one. `curl 127.0.0.1:8002/health` from the host returns 000
+  # (nothing binds 8002 on the host) and that 000 is NOT evidence the target is
+  # wrong — it is the expected host-side view of an unpublished port.
+  # Verified 2026-10-23: up{job="pry",instance="pry:8002"} == 1, /health 200 on
+  # 127.0.0.1:8005. See /root/.knowledge/kernel-2026-10/pry-alert-targets.md
   - job_name: 'pry'
     static_configs:
       - targets: ['pry:8002']
