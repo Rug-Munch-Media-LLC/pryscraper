@@ -16,6 +16,9 @@ tier, so a permanently dead target stops consuming the solver. One success
 clears the state.
 
 Bounded memory: the table is capped at ``_MAX_ENTRIES`` and pruned on write.
+State is per process, so the effective cap is ``_MAX_ENTRIES`` per worker
+and a restart forgets every verdict — acceptable, because a verdict only
+ever suppresses work for at most ``_MAX_BACKOFF_S``.
 """
 
 # SPDX-License-Identifier: MIT
@@ -75,13 +78,11 @@ def terminal_reason(url: str, now: float | None = None) -> str | None:
         state = _STATES.get(url)
         if state is None or state.attempts < max_attempts():
             return None
-        remaining = state.failed_at + cooldown_s(state.attempts) - (now or time.monotonic())
+        clock = time.monotonic() if now is None else now
+        remaining = state.failed_at + cooldown_s(state.attempts) - clock
         if remaining <= 0:
             return None
-        return (
-            f"url_terminal_after_{state.attempts}_attempts:"
-            f"retry_after_{int(remaining) + 1}s"
-        )
+        return f"url_terminal_after_{state.attempts}_attempts:retry_after_{int(remaining) + 1}s"
 
 
 def record_failure(url: str) -> int:

@@ -8,8 +8,16 @@ module is the only seam the scrape path needs, so the orchestrator stays a
 ``pre_tier_check`` runs BEFORE any tier (and before the domain semaphore): a
 terminal URL returns a structured failure naming the verdict, so the caller
 gets the same shape it gets from the ladder while no browser, proxy or solver
-slot is spent. ``post_tier_outcome`` is called once per scrape with the
-outcome, so consecutive failures accumulate and one success clears them.
+slot is spent. ``post_tier_outcome`` is called once per attempt with the
+payload (or ``None`` when the attempt raised), so consecutive failures
+accumulate and one success clears them.
+
+Success is ``status == "ok"`` — the status this engine's ``_result`` returns —
+NOT ``"success"``. The two differ, and testing the wrong one is not a cosmetic
+bug: every winning scrape would count as a failure, so the third success of a
+perfectly healthy URL would make that URL terminal. Only a payload carrying a
+``verdict`` is evidence about the target: an invalid-URL error never ran the
+ladder and must not spend a URL's failure budget.
 
 Neither function raises: a broken gate must degrade to "try the tier", never
 to a 500 on a scrape that would otherwise work.
@@ -60,12 +68,22 @@ def pre_tier_check(url: str) -> dict[str, Any] | None:
     return _terminal_result(url, reason)
 
 
-def post_tier_outcome(url: str, ok: bool) -> None:
-    """Count this scrape's outcome so a dead URL eventually becomes terminal."""
+def _is_success(result: dict[str, Any]) -> bool:
+    """True when the ladder returned a win (``_result`` sets ``status: ok``)."""
+    return result.get("status") == "ok"
+
+
+def post_tier_outcome(url: str, result: dict[str, Any] | None) -> None:
+    """Count this attempt's outcome so a dead URL eventually becomes terminal.
+
+    ``result`` is the scrape payload, or ``None`` when the attempt raised.
+    """
     try:
-        if ok:
+        if result is None:
+            url_terminal_state.record_failure(url)
+        elif _is_success(result):
             url_terminal_state.record_success(url)
-        else:
+        elif "verdict" in result:  # the ladder actually ran and lost
             url_terminal_state.record_failure(url)
     except Exception:  # bookkeeping never fails a scrape
         logger.debug("url_gate_post_outcome_failed", exc_info=True)

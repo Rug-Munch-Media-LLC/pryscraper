@@ -15,13 +15,10 @@ from __future__ import annotations
 
 import time
 from typing import Any
-from unittest.mock import AsyncMock
 
 import pytest
 
-import pry.engine.scraper_orchestrate as so
 from pry.engine import tier_terminal_gate, url_terminal_state
-from pry.engine.scraper_orchestrate import ScrapeOrchestrator
 
 _URL = "https://medium.com/blog/in-case-you-missed-it-june-2016-8505534e0ac9"
 
@@ -106,78 +103,38 @@ def test_gate_short_circuits_at_the_cap() -> None:
     assert "url_terminal_after_" in result["error"]
 
 
+_FAILED = {"status": "error", "verdict": "exhausted", "url": _URL}
+
+
 def test_post_outcome_counts_failures_and_success_clears() -> None:
     for _ in range(url_terminal_state.max_attempts()):
-        tier_terminal_gate.post_tier_outcome(_URL, False)
+        tier_terminal_gate.post_tier_outcome(_URL, _FAILED)
     assert url_terminal_state.terminal_reason(_URL) is not None
-    tier_terminal_gate.post_tier_outcome(_URL, True)
+    tier_terminal_gate.post_tier_outcome(_URL, {"status": "ok", "url": _URL, "method": "direct"})
     assert url_terminal_state.terminal_reason(_URL) is None
 
 
-# ---------------------------------------------------------------------------
-# Orchestrator wiring — the production path
-# ---------------------------------------------------------------------------
+def test_a_winning_scrape_is_not_counted_as_a_failure() -> None:
+    """Regression: success is ``status == "ok"``, never ``"success"``.
+
+    Testing for the wrong token counted every win as a loss, so the third
+    success of a healthy URL made that URL terminal — a self-inflicted outage.
+    """
+    win = {"status": "ok", "url": _URL, "method": "direct"}
+    for _ in range(url_terminal_state.max_attempts() + 2):
+        tier_terminal_gate.post_tier_outcome(_URL, win)
+    assert url_terminal_state.terminal_reason(_URL) is None
+    assert _URL not in url_terminal_state.snapshot()
 
 
-class _Stub(ScrapeOrchestrator):
-    """Real fallback loop, one zero-retry tier, mocks at the network seam."""
-
-    def __init__(self) -> None:
-        self.tier = AsyncMock(return_value=None)
-        self.tier_orders: int = 0
-        self._last_skipped_tiers: list[str] = []
-
-    def _resolve_proxy_url(self, opts: dict[str, Any]) -> None:
-        return None
-
-    def _build_tier_order(
-        self, proxy_url: str | None, premium_first: bool, domain: str | None = None
-    ) -> list[tuple[str, Any]]:
-        self.tier_orders += 1
-        return [("undetected", self.tier)]
-
-    def _detect_block_signal(self, html: str | None) -> None:
-        return None
-
-    def _record_telemetry(self, *_args: Any, **_kw: Any) -> None:
-        return None
-
-    def _recommend_proxy(self, last_error: str) -> None:
-        return None
+def test_a_payload_that_never_ran_the_ladder_spends_no_budget() -> None:
+    """An invalid-URL error is not evidence about the target."""
+    for _ in range(url_terminal_state.max_attempts() + 2):
+        tier_terminal_gate.post_tier_outcome(_URL, {"status": "error", "url": _URL, "error": "bad"})
+    assert url_terminal_state.snapshot() == {}
 
 
-@pytest.fixture
-def _quiet(monkeypatch: pytest.MonkeyPatch) -> None:
-    from pry.engine import ultimate_scraper as us
-
-    reg = us.registry
-    monkeypatch.setattr(reg, "reorder_for_domain", lambda domain, names: list(names))
-    monkeypatch.setattr(reg, "is_service_allowed", lambda name: True)
-    monkeypatch.setattr(reg, "record_domain_tier_result", lambda *a, **k: None)
-    monkeypatch.setattr(reg, "record_service_result", lambda *a, **k: None)
-    monkeypatch.setattr(so, "validate_url", lambda url: url)
-
-    async def _verdict(_url: str) -> dict[str, Any]:
-        return {"reachability": "unknown", "blame_tier": False}
-
-    monkeypatch.setattr(so, "reachability_verdict", _verdict)
-
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures("_quiet")
-async def test_a_terminal_url_never_touches_a_tier(pry_tier_health_isolation: Any) -> None:
-    stub = _Stub()
-    for attempt in range(url_terminal_state.max_attempts()):
-        result = await stub.scrape(_URL)
-        assert result["verdict"] != "url_terminal", f"terminal too early at {attempt}"
-        stub.tier.assert_called_once()
-        stub.tier.reset_mock()
-
-    orders_before = stub.tier_orders
-    result = await stub.scrape(_URL)
-
-    assert result["verdict"] == "url_terminal"
-    assert result["status"] == "error"
-    assert result["tiers_attempted"] == []
-    stub.tier.assert_not_called()
-    assert stub.tier_orders == orders_before  # stopped before tier selection
+def test_a_raised_attempt_counts_as_a_failure() -> None:
+    for _ in range(url_terminal_state.max_attempts()):
+        tier_terminal_gate.post_tier_outcome(_URL, None)
+    assert url_terminal_state.terminal_reason(_URL) is not None

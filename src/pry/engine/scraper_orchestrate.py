@@ -28,7 +28,7 @@ from typing import Any, ClassVar
 
 from pry.core.errors import InvalidRequestError
 from pry.core.observability import SCRAPE_LATENCY, span
-from pry.engine.circuit_breaker import BREAKER_FOR_TIER, domain_semaphore
+from pry.engine.circuit_breaker import BREAKER_FOR_TIER
 from pry.engine.domain_key import memory_domain
 from pry.engine.reachability_precheck import reachability_verdict
 from pry.engine.retry import async_retry
@@ -37,9 +37,9 @@ from pry.engine.tier_chain import TierChainMixin
 from pry.engine.tier_cost import tier_cost
 from pry.engine.tier_health import record as _record_tier_health
 from pry.engine.tier_retry_policy import TierRetryPolicyMixin
-from pry.engine.tier_terminal_gate import post_tier_outcome, pre_tier_check
 from pry.engine.tiers import TierMixin
 from pry.engine.tiers_base import _us_flag
+from pry.engine.url_dispatch import dispatch_scrape
 from pry.engine.url_guard import validate_url
 
 #: Markers in a tier-failure string that mean a Pry dependency was down rather
@@ -113,28 +113,13 @@ class ScrapeOrchestrator(PremiumFirstMixin, TierRetryPolicyMixin, TierChainMixin
     async def scrape(self, url: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
         """Scrape any URL with automatic bypass strategy selection.
 
-        Thin public entry: emits the ``scrape.request`` parent span around
-        ``_scrape_with_fallbacks``.
-
-        Per-domain concurrency throttle: at most
-        ``circuit_breaker.DOMAIN_MAX_CONCURRENCY`` scrapes run against one site
-        at once, keyed on the registrable domain (``domain_key.memory_domain``)
-        so spelling variants share one cap.
+        Thin public entry: :func:`pry.engine.url_dispatch.dispatch_scrape` owns
+        the terminal-URL gate, the per-domain concurrency throttle
+        (``circuit_breaker.DOMAIN_MAX_CONCURRENCY``, keyed on the registrable
+        domain so spelling variants share one cap), the ``scrape.request``
+        span and the per-URL outcome record.
         """
-        if (terminal := pre_tier_check(url)) is not None:
-            return terminal
-        domain = memory_domain(url)
-        sem = domain_semaphore(domain)
-        async with sem:
-            with span("scrape.request", {"http.url": url}) as request_span:
-                result = await self._scrape_with_fallbacks(url, options)
-                post_tier_outcome(url, result.get("status") == "success")
-                if request_span is not None and isinstance(result, dict):
-                    request_span.set_attribute("pry.method", str(result.get("method", "")))
-                    request_span.set_attribute("pry.success", result.get("status") == "success")
-                    if isinstance(result.get("attempts"), list):
-                        request_span.set_attribute("pry.attempts", len(result["attempts"]))
-                return result
+        return await dispatch_scrape(url, options, self._scrape_with_fallbacks)
 
     async def _scrape_with_fallbacks(
         self, url: str, options: dict[str, Any] | None = None
