@@ -14,7 +14,7 @@ Pry turns a URL into Markdown, structured JSON, or a screenshot. It escalates th
 
 ## Why it is different
 
-- **One engine, three doors.** REST, CLI, and 49 MCP tools resolve to the same scraper. `pry_mcp/tool_routes.py` maps every MCP tool to an HTTP route.
+- **One engine, three doors.** REST, CLI and the MCP surface resolve to the same scraper. `pry_mcp/tool_routes.py` maps every MCP tool to an HTTP route.
 - **Escalation is learned per domain.** The engine records which tier succeeded and prefers it next time (`src/pry/engine/resilience.py`, `src/pry/engine/tier_score.py`).
 - **Payment is per request.** An unpaid call returns HTTP 402 with the price and payee; the client pays on-chain and retries. No account, no subscription (`src/pry/payments/x402/`).
 
@@ -74,7 +74,7 @@ curl -s http://127.0.0.1:8005/v1/scrape \
 
 Crawl returns `{"success":true,"data":{"id":"sync","url":"...","pages":[...]}}`. Extract returns the requested keys as JSON. Templates read from `src/pry/commerce/templates/` (110 files).
 
-All 49 tools are callable over MCP at `/mcp/` (Streamable HTTP) or `/mcp/sse` (SSE). Discovery is keyless; execution needs an API key or an x402 payment.
+The MCP surface is callable at `/mcp/` (Streamable HTTP) or `/mcp/sse` (SSE). Discovery is keyless; execution needs an API key or an x402 payment.
 
 ## Pricing
 
@@ -128,7 +128,7 @@ MIT for the core engine. BSL-1.1 for the stealth/anti-detection module. See [LIC
 
 | Claim | Source |
 |---|---|
-| 49 tools, 33 categories | `pry_mcp/tools/` (`PRY_TOOLS`), `llms.txt` |
+| MCP tools, 33 categories | `pry_mcp/tools/` (`PRY_TOOLS`), `llms.txt` |
 | 15 tiers | `_tier_*` methods in `src/pry/engine/tiers_*.py` |
 | 110 templates | `src/pry/commerce/templates/*.json` |
 | 112 actors | `actor_factory/actors/` (directories) |
