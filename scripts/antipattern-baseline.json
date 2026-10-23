@@ -3,7 +3,7 @@
 		"god-file": 40,
 		"too-many-params": 179,
 		"long-function": 92,
-		"bare-except": 524,
+		"bare-except": 523,
 		"slop-markers": 1,
 		"fstring-logging": 6,
 		"monkeypatch": 3
