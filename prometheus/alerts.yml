@@ -154,10 +154,13 @@ groups:
       # Structural, not alertable: the share of failures Cloudflare blocks
       # outright. Recording rule so the dashboard explains a low success ratio
       # instead of someone paging on it. 0.58 of failures on 2026-10-23.
+      # ``or vector(0)`` on both legs: a plain sum() of an absent series yields
+      # NO sample, so the rule would write nothing — and a dashboard would show a
+      # hole exactly when blocked failures are zero. Missing must read as 0.
       - record: pry:cf_block_share:ratio
         expr: |
-          sum(rate(pry_scrape_failures_total{reason="blocked"}[1h]))
-          / clamp_min(sum(rate(pry_scrape_failures_total[1h])), .001)
+          (sum(rate(pry_scrape_failures_total{reason="blocked"}[1h])) or vector(0))
+          / clamp_min(sum(rate(pry_scrape_failures_total[1h])) or vector(0), .001)
       - alert: PryScraperIdle
         expr: |
           (sum(rate(pry_scrapes_total[15m])) == 0)
