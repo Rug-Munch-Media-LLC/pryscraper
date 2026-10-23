@@ -22,6 +22,8 @@ import asyncio
 import logging
 from typing import Any
 
+import httpx
+
 from datasets.sports_data.us_books import (
     _US_BOOK_IDS,
     _canonical_sport,
@@ -141,5 +143,9 @@ async def _dispatch_book(book_id: str, slug: str) -> list[dict[str, Any]]:
     """Fetch one book for one raw sport slug (gather-safe wrapper)."""
     try:
         return await _fetch_book(book_id, _canonical_sport(slug))
-    except Exception:  # noqa: BLE001 - never-raise contract for the orchestrator
+    except (httpx.HTTPError, OSError, TimeoutError, ValueError, KeyError, TypeError) as exc:
+        logger.warning(
+            "us_book_fetch_failed",
+            extra={"book": book_id, "sport": slug, "error": str(exc)[:120]},
+        )
         return []

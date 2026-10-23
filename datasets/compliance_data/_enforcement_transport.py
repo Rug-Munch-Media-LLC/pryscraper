@@ -15,6 +15,7 @@ Licensed under MIT. See LICENSE.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -26,6 +27,8 @@ from datasets.compliance_data._enforcement_data import (
     _TIMEOUT,
 )
 from pry.engine.retry import RetryConfig, async_retry
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -62,7 +65,8 @@ async def _fetch_json(url: str, params: dict[str, str] | None = None) -> dict[st
 
     try:
         return await async_retry(_one, config=_get_retry_config())
-    except (httpx.HTTPError, OSError, ValueError):
+    except (httpx.HTTPError, OSError, ValueError) as exc:
+        logger.warning("enforcement_json_fetch_failed", extra={"error": str(exc)[:120]})
         return None
 
 
@@ -82,5 +86,6 @@ async def _fetch_html(url: str, params: dict[str, str] | None = None) -> str | N
 
     try:
         return await async_retry(_one, config=_get_retry_config())
-    except (httpx.HTTPError, OSError, ValueError):
+    except (httpx.HTTPError, OSError, ValueError) as exc:
+        logger.warning("enforcement_html_fetch_failed", extra={"error": str(exc)[:120]})
         return None

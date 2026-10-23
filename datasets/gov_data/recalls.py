@@ -172,7 +172,8 @@ async def _fetch_json(url: str, params: dict[str, str] | None = None) -> dict[st
 
     try:
         return await async_retry(_one, config=_RETRY_CONFIG)
-    except (httpx.HTTPError, OSError, ValueError):
+    except (httpx.HTTPError, OSError, ValueError) as exc:
+        logger.warning("recalls_fetch_failed", extra={"error": str(exc)[:120]})
         return None
 
 

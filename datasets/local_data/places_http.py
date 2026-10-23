@@ -113,7 +113,8 @@ async def _robots_allowed(url: str) -> bool:
                 "robots_blocked",
                 extra={"url": url, "matched": result.get("matched_disallow")},
             )
-    except Exception:  # noqa: BLE001 — fail open; never break on robots errors
+    except Exception as exc:  # noqa: BLE001 - fail open; never break on robots errors
+        logger.warning("robots_check_failed", extra={"url": url, "error": str(exc)[:120]})
         allowed = True
     _robots_cache[key] = (now, allowed)
     return allowed

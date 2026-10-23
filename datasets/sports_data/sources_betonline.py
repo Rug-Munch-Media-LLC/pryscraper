@@ -53,7 +53,8 @@ _TEAM_CLASS_RE = re.compile(r"team|participant|name", re.I)
 def _container_text(el: Any) -> str:
     try:
         return el.text_content() or ""
-    except Exception:  # noqa: BLE001 - lxml text access on odd nodes
+    except (AttributeError, TypeError) as exc:
+        logger.debug("betonline_container_text_failed", extra={"error": str(exc)[:120]})
         return ""
 
 

@@ -78,7 +78,8 @@ async def _fetch_html(url: str, request_timeout: httpx.Timeout, config: RetryCon
 
     try:
         return await async_retry(_one, config=config)
-    except (httpx.HTTPError, OSError):
+    except (httpx.HTTPError, OSError) as exc:
+        logger.warning("insurance_fetch_failed", extra={"error": str(exc)[:120]})
         return None
 
 

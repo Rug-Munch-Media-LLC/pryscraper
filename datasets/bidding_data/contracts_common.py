@@ -109,7 +109,8 @@ async def _fetch_text(url: str, params: dict[str, str] | None = None) -> str | N
 
     try:
         return await async_retry(_one, config=_RETRY_CONFIG)
-    except (httpx.HTTPError, OSError):
+    except (httpx.HTTPError, OSError) as exc:
+        logger.warning("contracts_fetch_failed", extra={"error": str(exc)[:120]})
         return None
 
 
