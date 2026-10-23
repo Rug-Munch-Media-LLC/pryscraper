@@ -1,6 +1,6 @@
 # Pry — open any website
 
-> Self-hosted web scraping and browser automation with Cloudflare bypass, an MCP server and x402 pay-per-call.
+> Self-hosted web scraping and browser automation with Cloudflare bypass, **380+ HTTP routes**, an MCP server and x402 pay-per-call.
 
 **License:** [MIT + BSL 1.1](LICENSE) · **Canonical:** https://git.rugmunch.io/RugMunchMedia/pryscraper
 **Mirrors:** [GitHub](https://github.com/Rug-Munch-Media-LLC) · [GitLab](https://gitlab.com/rug-munch-media-group) · [Codeberg](https://codeberg.org/RugMunchMedia)
