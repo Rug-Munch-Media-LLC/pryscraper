@@ -38,7 +38,9 @@ def negotiate_protocol_version(requested: str | None) -> str:
 SERVER_NAME = "pry"
 SERVER_VERSION = "3.0.0"
 
-DEFAULT_BASE_URL = os.getenv("PRY_API_URL", "http://localhost:8002")
+DEFAULT_BASE_URL = (
+    os.getenv("PRY_API_URL") or os.getenv("PRY_URL") or "http://localhost:8002"
+)
 
 # ── Modern (2026-07-28+) discovery ───────────────────────────────────
 # Pry is dual-era: legacy clients handshake with ``initialize`` (2025-11-25
