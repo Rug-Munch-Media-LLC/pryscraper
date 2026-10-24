@@ -44,7 +44,10 @@ test.sh
 
 # --- Local data: never ship datasets, scrapes, or coverage into an image ---
 data/
-datasets/
+datasets/*
+!datasets/__init__.py
+!datasets/attention/
+!datasets/attention/**
 sessions/
 pry-data/
 .cache/
