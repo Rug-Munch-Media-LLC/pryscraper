@@ -119,10 +119,10 @@ def test_validate_redirect_url_never_crashes(url: str) -> None:
     scheme / hostname / path checks.
     """
     # Patch by qualified name, not through the module attribute: url_guard no
-        # longer imports socket at module scope, so `url_guard.socket` raised
-        # AttributeError and this totality property silently stopped testing
-        # anything. Patching "socket.getaddrinfo" works wherever the import lives.
-        with mock.patch("socket.getaddrinfo", return_value=[]):
+    # longer imports socket at module scope, so `url_guard.socket` raised
+    # AttributeError and this totality property silently stopped testing
+    # anything. Patching "socket.getaddrinfo" works wherever the import lives.
+    with mock.patch("socket.getaddrinfo", return_value=[]):
         try:
             result = validate_redirect_url(url)
         except InvalidRequestError:
