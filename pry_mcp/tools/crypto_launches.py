@@ -65,8 +65,7 @@ PRY_LAUNCH_TOOLS: list[dict[str, Any]] = [
                 "data": {
                     "type": "array",
                     "description": (
-                        "New or trending tokens; empty when every upstream source "
-                        "fails."
+                        "New or trending tokens; empty when every upstream source fails."
                     ),
                     "items": {
                         "type": "object",
@@ -124,24 +123,19 @@ PRY_LAUNCH_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "signals": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "token_symbol": {"type": "string"},
-                                    "token_address": {"type": "string"},
-                                    "chain": {"type": "string"},
-                                    "exchange": {"type": "string"},
-                                    "event": {"type": "string"},
-                                    "announced_at": {"type": "string"},
-                                },
-                            },
+                    "type": "array",
+                    "description": "listing and delisting signals",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "exchange": {"type": "string"},
+                            "symbol": {"type": "string"},
+                            "base": {"type": "string"},
+                            "quote": {"type": "string"},
+                            "action": {"type": "string"},
+                            "detected_at_utc": {"type": "string"},
+                            "source": {"type": "string"},
                         },
-                        "total": {"type": "integer"},
-                        "lookback_hours": {"type": "integer"},
                     },
                 },
             },

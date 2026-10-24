@@ -68,33 +68,29 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
+                    "type": ["object", "array"],
+                    "description": "URL mode returns the risk object; query/agency mode returns a list of enforcement records.",
                     "properties": {
-                        "url": {"type": "string"},
-                        "risk_level": {
-                            "type": "string",
-                            "enum": ["green", "yellow", "red"],
-                        },
-                        "risk_score": {"type": "number"},
-                        "checks": {"type": "array", "items": {"type": "object"}},
-                        "recommendations": {"type": "array", "items": {"type": "string"}},
-                        "query": {"type": "string"},
                         "agency": {"type": "string"},
-                        "records": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "kind": {"type": "string"},
-                                    "title": {"type": "string"},
-                                    "agency": {"type": "string"},
-                                    "date": {"type": "string"},
-                                    "severity": {"type": "string"},
-                                    "source": {"type": "string"},
-                                },
-                            },
+                        "query": {"type": "string"},
+                        "recommendations": {"type": "array", "items": {"type": "string"}},
+                        "risk_level": {"type": "string"},
+                        "risk_score": {"type": "number"},
+                        "url": {"type": "string"},
+                    },
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "agency": {"type": "string"},
+                            "id": {"type": "string"},
+                            "title": {"type": "string"},
+                            "type": {"type": "string"},
+                            "company": {"type": "string"},
+                            "date": {"type": "string"},
+                            "penalty_amount": {"type": "number"},
+                            "url": {"type": "string"},
+                            "source": {"type": "string"},
                         },
-                        "total": {"type": "integer"},
                     },
                 },
             },
@@ -136,23 +132,20 @@ PRY_WATCH_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "company": {"type": "string"},
-                        "findings": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "kind": {"type": "string"},
-                                    "title": {"type": "string"},
-                                    "date": {"type": "string"},
-                                    "severity": {"type": "string"},
-                                    "source": {"type": "string"},
-                                },
-                            },
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "agency": {"type": "string"},
+                            "id": {"type": "string"},
+                            "title": {"type": "string"},
+                            "type": {"type": "string"},
+                            "company": {"type": "string"},
+                            "date": {"type": "string"},
+                            "penalty_amount": {"type": "number"},
+                            "url": {"type": "string"},
+                            "source": {"type": "string"},
                         },
-                        "total": {"type": "integer"},
                     },
                 },
             },

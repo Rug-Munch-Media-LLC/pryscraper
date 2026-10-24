@@ -53,26 +53,21 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "items": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "title": {"type": "string"},
-                                    "agency": {"type": "string"},
-                                    "solicitation_number": {"type": "string"},
-                                    "value": {"type": "number"},
-                                    "currency": {"type": "string"},
-                                    "status": {"type": "string"},
-                                    "deadline": {"type": "string"},
-                                    "url": {"type": "string"},
-                                },
-                            },
+                    "type": "array",
+                    "description": "one record per notice",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string"},
+                            "title": {"type": "string"},
+                            "agency": {"type": "string"},
+                            "type": {"type": "string"},
+                            "notice_type": {"type": "string"},
+                            "due_date": {"type": "string"},
+                            "value": {"type": "string"},
+                            "url": {"type": "string"},
+                            "source": {"type": "string"},
                         },
-                        "total": {"type": "integer"},
-                        "query": {"type": "string"},
                     },
                 },
             },

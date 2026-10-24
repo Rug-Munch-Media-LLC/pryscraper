@@ -41,11 +41,9 @@ PRY_EXTRACT_TOOLS: list[dict[str, Any]] = [
                     "type": "object",
                     "properties": {
                         "url": {"type": "string"},
-                        "company": {"type": "object"},
-                        "tech_stack": {"type": "array", "items": {"type": "string"}},
+                        "tech_stack": {"type": "object"},
                         "social_profiles": {"type": "object"},
-                        "emails": {"type": "array", "items": {"type": "string"}},
-                        "intelligence": {"type": "object"},
+                        "company_info": {"type": "object"},
                     },
                 },
             },
@@ -79,9 +77,7 @@ PRY_EXTRACT_TOOLS: list[dict[str, Any]] = [
                     "type": "object",
                     "properties": {
                         "url": {"type": "string"},
-                        "content_type": {"type": "string"},
                         "text": {"type": "string"},
-                        "tables": {"type": "array", "items": {"type": "object"}},
                         "pages": {"type": "integer"},
                     },
                 },

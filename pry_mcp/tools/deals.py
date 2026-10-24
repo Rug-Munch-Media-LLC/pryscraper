@@ -49,25 +49,21 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "success": {"type": "boolean"},
                 "data": {
-                    "type": "object",
-                    "properties": {
-                        "items": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "title": {"type": "string"},
-                                    "merchant": {"type": "string"},
-                                    "price": {"type": "number"},
-                                    "currency": {"type": "string"},
-                                    "discount_pct": {"type": "number"},
-                                    "expires_at": {"type": "string"},
-                                    "url": {"type": "string"},
-                                },
-                            },
+                    "type": "array",
+                    "description": "one record per deal",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "string"},
+                            "title": {"type": "string"},
+                            "store": {"type": "string"},
+                            "discount": {"type": "number"},
+                            "price": {"type": "number"},
+                            "original_price": {"type": "number"},
+                            "url": {"type": "string"},
+                            "expires": {"type": "string"},
+                            "source": {"type": "string"},
                         },
-                        "total": {"type": "integer"},
-                        "query": {"type": "string"},
                     },
                 },
             },

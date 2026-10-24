@@ -54,20 +54,25 @@ PRY_TOOLS: list[dict[str, Any]] = [
                     "type": "object",
                     "properties": {
                         "query": {"type": "string"},
-                        "organic": {
+                        "ai_overview": {"type": "string"},
+                        "results": {
                             "type": "array",
+                            "description": "organic results in rank order",
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "rank": {"type": "integer"},
+                                    "position": {"type": "integer"},
                                     "title": {"type": "string"},
                                     "url": {"type": "string"},
                                     "snippet": {"type": "string"},
                                 },
                             },
                         },
-                        "ai_overview": {"type": "string"},
-                        "people_also_ask": {"type": "array", "items": {"type": "string"}},
+                        "paa": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "People Also Ask questions",
+                        },
                     },
                 },
             },
@@ -112,11 +117,10 @@ PRY_TOOLS: list[dict[str, Any]] = [
                                 "type": "object",
                                 "properties": {
                                     "date": {"type": "string"},
-                                    "interest": {"type": "number"},
+                                    "value": {"type": "number"},
                                 },
                             },
                         },
-                        "related_queries": {"type": "array", "items": {"type": "string"}},
                     },
                 },
             },

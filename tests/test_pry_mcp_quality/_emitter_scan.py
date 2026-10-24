@@ -17,6 +17,7 @@ removed.
 from __future__ import annotations
 
 import ast
+import functools
 import pathlib
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -27,7 +28,38 @@ _SEARCH_ROOTS = (_REPO_ROOT / "src", _REPO_ROOT / "datasets", _REPO_ROOT)
 _MAX_HOPS = 2
 
 
-def _module_files(dotted: str) -> list[pathlib.Path]:
+def module_dotted(path: pathlib.Path) -> str:
+    """The dotted module name of a file in one of the search roots."""
+    for root in _SEARCH_ROOTS:
+        try:
+            relative = path.relative_to(root)
+        except ValueError:
+            continue
+        parts = list(relative.with_suffix("").parts)
+        if parts and parts[-1] == "__init__":
+            parts.pop()
+        return ".".join(parts)
+    return ""
+
+
+def package_modules(prefix: str) -> list[str]:
+    """Every dotted module directly inside the package ``prefix``."""
+    relative = prefix.replace(".", "/")
+    names: list[str] = []
+    for root in _SEARCH_ROOTS:
+        directory = root / relative
+        if not directory.is_dir():
+            continue
+        for child in sorted(directory.glob("*.py")):
+            if child.name == "__init__.py":
+                continue
+            dotted = f"{prefix}.{child.stem}"
+            if dotted not in names:
+                names.append(dotted)
+    return names
+
+
+def module_files(dotted: str) -> list[pathlib.Path]:
     """Every file that can hold ``dotted`` across the layout roots.
 
     The same dotted name exists in two namespaces for a few domains: a
@@ -52,25 +84,50 @@ def _parsed(path: pathlib.Path) -> ast.Module | None:
         return None
 
 
+def _relative_base(path: pathlib.Path, level: int) -> str | None:
+    """The package a ``level``-deep relative import resolves against."""
+    dotted = module_dotted(path)
+    parts = dotted.split(".") if dotted else []
+    if not parts:
+        return None
+    package = parts[:-1] if path.stem != "__init__" else parts
+    if level > 1:
+        package = package[: len(package) - (level - 1)]
+    return ".".join(package) if package else ""
+
+
 def _imported_modules(path: pathlib.Path) -> list[str]:
-    """Absolute module names imported by ``path`` (relative imports skipped)."""
+    """Module names ``path`` imports, relative imports resolved to absolute."""
     tree = _parsed(path)
     if tree is None:
         return []
     names: list[str] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-            names.append(node.module)
-            names.extend(f"{node.module}.{alias.name}" for alias in node.names)
+        if isinstance(node, ast.ImportFrom):
+            base = node.module or ""
+            if node.level:
+                package = _relative_base(path, node.level)
+                if package is None:
+                    continue
+                base = f"{package}.{base}" if base else package
+            if not base:
+                continue
+            names.append(base)
+            names.extend(f"{base}.{alias.name}" for alias in node.names)
         elif isinstance(node, ast.Import):
             names.extend(alias.name for alias in node.names)
     return names
 
 
-def emitted_literals(dotted: str) -> set[str]:
-    """Every string literal reachable from ``dotted`` within ``_MAX_HOPS``."""
+@functools.cache
+def emitted_literals(dotted: str) -> frozenset[str]:
+    """Every string literal reachable from ``dotted`` within ``_MAX_HOPS``.
+
+    Cached: 85 tools share a handful of domain packages, and the closure walk is
+    the expensive part of the guard (253s uncached for the full surface).
+    """
     seen: set[pathlib.Path] = set()
-    frontier = _module_files(dotted)
+    frontier = module_files(dotted)
     literals: set[str] = set()
     for _ in range(_MAX_HOPS + 1):
         following: list[pathlib.Path] = []
@@ -87,6 +144,6 @@ def emitted_literals(dotted: str) -> set[str]:
                 if isinstance(node, ast.Constant) and isinstance(node.value, str)
             }
             for name in _imported_modules(path):
-                following.extend(_module_files(name))
+                following.extend(module_files(name))
         frontier = following
-    return literals
+    return frozenset(literals)

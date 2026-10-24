@@ -115,8 +115,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
                 "data": {
                     "type": "array",
                     "description": (
-                        "Recent reviews, newest first; empty when the reviews feed is "
-                        "unreachable."
+                        "Recent reviews, newest first; empty when the reviews feed is unreachable."
                     ),
                     "items": {
                         "type": "object",
