@@ -29,13 +29,17 @@ import time
 from collections import OrderedDict
 from typing import Any
 
-from pry.payments.x402_middleware import internal_replay_selection as _selection
+from pry.payments.x402_middleware import (
+    internal_identity as _identity,
+    internal_replay_selection as _selection,
+)
 
 logger = logging.getLogger(__name__)
 INTERNAL_TOKEN_HEADER = b"x-internal-token"
 INTERNAL_SIG_HEADER = b"x-internal-signature"
 INTERNAL_TIMESTAMP_HEADER = b"x-internal-timestamp"
 INTERNAL_SCOPE_KEY = "x402_verified"
+CALLER_SCOPE_KEY = "pry_internal_caller"
 DEFAULT_MAX_SKEW_SECONDS = 300
 MAX_SKEW_ENV = "PRY_INTERNAL_MAX_SKEW_SECONDS"
 REPLAY_TTL_SECONDS = 2 * DEFAULT_MAX_SKEW_SECONDS
@@ -167,31 +171,19 @@ def internal_request(scope: dict[str, Any], headers: dict[bytes, bytes]) -> bool
     signature = headers.get(INTERNAL_SIG_HEADER, b"").decode().strip()
     if not signature:
         return False
-    expected = internal_signature(
-        token,
-        str(scope.get("method", "")),
-        str(scope.get("path", "")),
-        _caller_from_scope(scope),
-        timestamp,
-    )
+    caller = _identity.resolve_caller(scope, headers)
+    if caller is None:
+        return False
+    method = str(scope.get("method", ""))
+    path = str(scope.get("path", ""))
+    expected = internal_signature(token, method, path, caller, timestamp)
     if not hmac.compare_digest(signature, expected):
         return False
-    return not _already_seen(signature, now)
-
-
-def _caller_from_scope(scope: dict[str, Any]) -> str:
-    """Derive the caller identity bound into the signature (socket peer)."""
-    try:
-        from pry.payments.x402_middleware.classification import _caller_key_from_scope
-
-        return _caller_key_from_scope(scope)
-    except ImportError as exc:  # pragma: no cover - partial import during startup
-        logger.warning(
-            "payments_exception_swallowed",
-            extra={"error": str(exc), "handler": "_caller_from_scope"},
-        )
-        client = scope.get("client") or ()
-        return str(client[0]) if client and client[0] else ""
+    if _already_seen(signature, now):
+        return False
+    _identity.audit_grant(caller, method, path)
+    scope[CALLER_SCOPE_KEY] = caller
+    return True
 
 
 def mark_internal_verified(scope: dict[str, Any]) -> None:
@@ -199,4 +191,9 @@ def mark_internal_verified(scope: dict[str, Any]) -> None:
     Same payment-shaped dict the owner path uses: the auth layer reads
     ``payment_id``/``batch_id`` off it, so a bool would crash it.
     """
-    scope[INTERNAL_SCOPE_KEY] = {"payment_id": "internal", "batch_id": "", "internal": True}
+    scope[INTERNAL_SCOPE_KEY] = {
+        "payment_id": "internal",
+        "batch_id": "",
+        "internal": True,
+        "caller": scope.get(CALLER_SCOPE_KEY, ""),
+    }
