@@ -126,3 +126,5 @@ mutants/
 
 # local secret mount (never commit)
 /.config/
+
+.test-selector-cache.json
