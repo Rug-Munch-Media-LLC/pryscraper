@@ -6,9 +6,10 @@ Google Trends interest, and Meta Ad Library ad intelligence backed by the
 import is guarded and degrades to 502 while a module has not landed yet).
 
 Endpoints:
-- GET /v1/attention/serp   — Google SERP scrape (organic + AI Overview + PAA)
-- GET /v1/attention/trends — Google Trends interest over time + related
-- GET /v1/attention/ads    — Meta Ad Library active-ad search
+- GET /v1/attention/serp     — Google SERP scrape (organic + AI Overview + PAA)
+- GET /v1/attention/trends   — Google Trends interest over time + related
+- GET /v1/attention/ads      — Meta Ad Library active-ad search
+- GET /v1/attention/x/posts  — public X/Twitter posts (profile/status/thread/search)
 """
 
 # SPDX-License-Identifier: MIT
@@ -103,3 +104,24 @@ async def attention_ads(
         _module_unavailable("ad_intel")
     data = await mod.search_ads(page_name, country=country, limit=limit)
     return {"success": True, "data": data}
+
+
+@router.get(
+    "/v1/attention/x/posts",
+    tags=["Attention"],
+    summary="Scrape public X/Twitter posts: profile timeline, status, thread, search",
+)
+async def attention_x_posts(
+    kind: str = Query(
+        "profile_timeline",
+        description="profile_timeline | status | thread | search",
+    ),
+    target: str = Query(..., description="Handle, status id/URL, or search query"),
+    limit: int = Query(20, ge=1, le=100, description="Max posts (default: 20)"),
+) -> dict[str, Any]:
+    """Return normalized X posts; a login wall is reported, never fabricated."""
+    mod = _attention_module("x_posts")
+    if mod is None:
+        _module_unavailable("x_posts")
+    data = await mod.get_posts(kind, target, limit=limit)
+    return {"success": "error" not in data, "data": data}
