@@ -1,138 +1,103 @@
-# Pry — open any website
+# pryscraper
 
-> Self-hosted web scraping and browser automation with Cloudflare bypass, **380+ HTTP routes**, an MCP server and x402 pay-per-call.
+A self-hosted scraping service and CLI: fetch a page, get clean Markdown or typed
+JSON back, with Cloudflare handling and JS rendering available when a plain HTTP
+request is not enough. Built for people who would rather run their own fetcher
+than buy API credits.
 
-**License:** [MIT + BSL 1.1](LICENSE) · **Canonical:** https://git.rugmunch.io/RugMunchMedia/pryscraper
-**Mirrors:** [GitHub](https://github.com/Rug-Munch-Media-LLC) · [GitLab](https://gitlab.com/rug-munch-media-group) · [Codeberg](https://codeberg.org/RugMunchMedia)
+**Status:** production · **Licence:** MIT for most of the tree; the stealth/browser
+layer is under BSL 1.1 — read [LICENSE](LICENSE) and
+[LICENSE-BSL-STEALTH](LICENSE-BSL-STEALTH).
 
-<img src="website/static/img/pry-logo.png" alt="Pry logo" width="360">
+Canonical: https://git.rugmunch.io/RugMunchMedia/pryscraper
 
+## Quickstart
 
-## What it is
-
-Pry turns a URL into Markdown, structured JSON, or a screenshot. It escalates through 15 anti-bot tiers only as far as a site needs, then remembers which tier worked for that domain.
-
-## Why it is different
-
-- **One engine, three doors.** REST, CLI and the MCP surface resolve to the same scraper. `pry_mcp/tool_routes.py` maps every MCP tool to an HTTP route.
-- **Escalation is learned per domain.** The engine records which tier succeeded and prefers it next time (`src/pry/engine/resilience.py`, `src/pry/engine/tier_score.py`).
-- **Payment is per request.** An unpaid call returns HTTP 402 with the price and payee; the client pays on-chain and retries. No account, no subscription (`src/pry/payments/x402/`).
-
-## 30-second quickstart
-
-```bash
-git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git && cd pryscraper
-python3 -m pip install -e .
-PRY_X402_ENABLED=false PRY_API_KEY=devkey pry serve    # http://127.0.0.1:8005
-```
-
-The `pryscraper-mcp` distribution is not on PyPI yet; install from the repository
-(or use the Docker path in [QUICKSTART](docs/QUICKSTART.md)).
-
-```bash
-curl -s http://127.0.0.1:8005/v1/scrape \
-  -H 'Authorization: Bearer devkey' \
-  -H 'Content-Type: application/json' \
-  -d '{"url":"https://example.com"}'
-```
-
-```json
-{
-  "success": true,
-  "data": {
-    "markdown": "# Example Domain\n\nThis domain is for use in illustrative examples...",
-    "metadata": {
-      "url": "https://example.com",
-      "method": "direct",
-      "title": "Example Domain",
-      "description": "",
-      "offset": 0,
-      "total": 1256
-    }
-  }
-}
-```
-
-`method` names the tier that served the page. `total` is the full Markdown length; `offset` and `limit` page through large bodies (`ScrapeRequest`, `src/pry/api/routers/scraping/scraping_models.py`).
-
-`metadata.markdown_quality` scores the cleaned Markdown from 0 to 100. It runs seven weighted checks: relative links, fenced-code languages, heading structure, stray HTML tables, images, boilerplate noise, and duplicate blocks. A low score means the page kept little readable content; raise the tier, or switch to `POST /v1/extract` for typed output. The per-check breakdown is `metadata.markdown_checks` (`src/pry/engine/markdown_quality.py`).
-
-## What you can do
-
-| Job | Endpoint | Request |
-|---|---|---|
-| Scrape one page | `POST /v1/scrape` | `{"url":"https://example.com"}` |
-| Search the web | `POST /v1/search` | `{"query":"rust web frameworks","limit":5}` |
-| Crawl a site | `POST /v1/crawl` | `{"url":"https://example.com","maxPages":10}` |
-| Map a site's URLs | `POST /v1/map` | `{"url":"https://example.com","limit":50}` |
-| Extract fields | `POST /v1/extract` | `{"url":"https://shop.example/p/1","fields":{"price":"Price in USD"}}` |
-| Run a template | `POST /v1/templates/execute` | `{"template_id":"amazon_product","url":"https://amazon.com/dp/..."}` |
-
-`/v1/search` returns ranked web results (`data.results[]` with `url`, `title`, `description`). It queries SearXNG and falls back to DuckDuckGo.
-
-`/v1/map` returns same-origin URLs in `data.links`. It reads the sitemap when `ignoreSitemap` is false, and falls back to link extraction. The cap is 500.
-
-Crawl returns `{"success":true,"data":{"id":"sync","url":"...","pages":[...]}}`. Extract returns the requested keys as JSON. Templates read from `src/pry/commerce/templates/` (110 files).
-
-The MCP surface is callable at `/mcp/` (Streamable HTTP) or `/mcp/sse` (SSE). Discovery is keyless; execution needs an API key or an x402 payment.
-
-## Pricing
-
-| Operation | USD per call | Operation key |
-|---|---:|---|
-| Scrape one URL | $0.001 | `scrape` |
-| Web search | $0.003 | `search` |
-| Crawl up to 10 pages | $0.010 | `crawl` |
-| Structured extraction | $0.005 | `extract` |
-| Execute a template | $0.002 | `template_execute` |
-| Create a monitor | $0.020 | `monitor` |
-
-Source: `X402_PRICING` in `src/pry/payments/x402/scheme/pricing/catalog.py`. The live table is `GET /v1/x402/pricing`.
-
-Seven networks settle: Base, Ethereum, Arbitrum, Optimism, Polygon, Solana, TRON (`CAIP2_NETWORK_IDS`, `src/pry/payments/x402/scheme/networks.py`). A 402 advertises `accepts[]` with `network`, `asset`, `maxAmountRequired` (atomic units), and `payToAddress`.
-
-```bash
-curl -s https://api.pryscraper.com/v1/scrape -H 'Content-Type: application/json' -d '{"url":"https://example.com"}'
-# 402 Payment Required -> pay the quoted amount -> retry with PAYMENT-SIGNATURE
-```
-
-## Async jobs
-
-Crawl runs synchronously unless you pass a `webhook`. With a webhook it returns a job id straight away:
-
-```bash
-POST /v1/crawl   {"url":"https://example.com","maxPages":10,"webhook":"https://example.com/hook"}
-# -> {"success":true,"data":{"id":"crawl-7f3a","status":"pending"}}
-```
-
-Poll `GET /v1/crawl/{id}` for status and the completed pages. `DELETE /v1/crawl/{id}` cancels a queued or running job, and repeating it is safe. `GET /v1/crawl/{id}/errors` lists per-URL failures. A finished job also posts its body to the webhook.
-
-## Self-host
+Python 3.11+.
 
 ```bash
 git clone https://git.rugmunch.io/RugMunchMedia/pryscraper.git
 cd pryscraper
-cp .env.selfhost.example .env.selfhost
-./scripts/selfhost-init.sh
-PRY_SELFHOST_PORT=8005 docker compose -f docker-compose.yml -f docker-compose.selfhost.yml \
-  --env-file .env.selfhost up -d
+python3 -m venv .venv && . .venv/bin/activate
+pip install -e .
+pry scrape https://example.com
 ```
 
-API `http://localhost:8005`, MCP `http://localhost:8005/mcp/`, health `http://localhost:8005/health`. The container listens on 8002; `PRY_SELFHOST_PORT` sets the host port (`docker-compose.selfhost.yml`). Self-hosted calls are not x402-gated by default.
+That returns Markdown on stdout with no API key and no external service. For the
+HTTP API:
+
+```bash
+pry serve                     # binds PRY_HOST:PRY_PORT from your .env
+curl -s "localhost:${PRY_PORT}/v1/scrape" -H 'content-type: application/json' \
+  -d '{"url":"https://example.com"}' | head -40
+```
+
+Docker, single node:
+
+```bash
+docker compose up -d
+```
+
+The MCP entry points are installed alongside the CLI (`pry-mcp`,
+`pryscraper-mcp`) and target the same launch code as `pry mcp --stdio`.
+
+## What it does
+
+- **One fetch path, three outputs.** Raw HTML, cleaned Markdown, or a typed
+  extraction. Markdown cleaning strips boilerplate and reports per-check quality
+  in `metadata.markdown_quality`, so a bad extraction is visible instead of silent.
+- **Escalation when needed.** Plain HTTP first; FlareSolverr for Cloudflare; a
+  real browser only if the previous tier failed. You pay the cost only on pages
+  that need it.
+- **Actors.** Named, parameterised scraping jobs live in `src/pry/actors/`, so a
+  recurring target is configuration rather than new code.
+- **MCP server.** Exposes scrape/extract/crawl as MCP tools for agent runtimes.
+- **Self-host first.** Postgres/SQLite for job state, Redis optional. No vendor
+  account is required for the core path.
+
+## How it is put together
+
+```
+pry (CLI)  ──┐
+HTTP API  ───┼──> src/pry/engine/      fetch tiers, cleaners, extraction
+MCP       ───┘         ├── src/pry/actors/    named scrape jobs
+                       ├── src/pry/api/       FastAPI routes + MCP bridge
+                       └── src/pry/data/      job store, migrations (alembic)
+```
+
+## Configuration
+
+`PRY_`-prefixed environment variables; `.env.example` and
+`.env.selfhost.example` are the reference.
+
+| Variable | Purpose |
+|---|---|
+| `PRY_HOST`, `PRY_PORT` | bind address for `pry serve` |
+| `PRY_URL` | public base URL, used in generated links |
+| `PRY_FLARESOLVERR_URL` | FlareSolverr endpoint for the Cloudflare tier |
+| `PRY_CAPTCHA_ENABLED`, `PRY_CAPTCHA_OCR_BACKEND` | opt-in captcha solving and its OCR backend |
+| `PRY_LLM_PROVIDER_ORDER` | provider order for LLM-backed extraction |
+| `PRY_X402_WALLET_SOLANA`, `PRY_X402_WALLET_TRON` | payout addresses if you meter access |
+| `PRY_ODDS_API_KEY` | only for the odds actor |
+
+## Known limits
+
+- The stealth browser layer is BSL 1.1: free for non-commercial and internal use,
+  not for reselling as a scraping product. The rest is MIT.
+- FlareSolverr and the browser tier are optional dependencies. Without them,
+  Cloudflare-protected pages fail rather than silently returning empty Markdown.
+- `markdown_quality` scores readable content, not correctness — a well-formed
+  page with the wrong content still scores high.
+- No hosted fallback. If your egress IP is blocked, that is your egress IP.
+
+## Development
+
+```bash
+make install
+make lint
+make test
+```
 
 ## Licence
 
-MIT for the core engine. BSL-1.1 for the stealth/anti-detection module. See [LICENSE](LICENSE) and [LICENSE-BSL-STEALTH](LICENSE-BSL-STEALTH). Copyright (c) 2026 Rug Munch Media LLC.
-
-## Where the numbers come from
-
-| Claim | Source |
-|---|---|
-| MCP tools, 33 categories | `pry_mcp/tools/` (`PRY_TOOLS`), `llms.txt` |
-| 15 tiers | `_tier_*` methods in `src/pry/engine/tiers_*.py` |
-| 110 templates | `src/pry/commerce/templates/*.json` |
-| 112 actors | `actor_factory/actors/` (directories) |
-| 7 payment networks | `SUPPORTED_NETWORKS`, `src/pry/payments/x402/scheme/networks.py` |
-| 377 test files | `tests/**/test_*.py` |
-
-More: [Quickstart](docs/QUICKSTART.md) · [Concepts](docs/CONCEPTS.md) · [Testing](docs/ops/TESTING.md) · [Tool catalog](docs/ops/TOOLS-CATALOG.md) · [API reference](docs/ops/API-REFERENCE.md) · [Payments](docs/ops/PAYMENTS.md)
+MIT, except the stealth/browser layer (BSL 1.1). Both files ship in the repo.
