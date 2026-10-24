@@ -28,6 +28,7 @@ from hypothesis import HealthCheck, given, settings, strategies as st
 from pry.core.errors import InvalidRequestError
 from pry.engine import url_guard
 from pry.engine.url_guard import validate_redirect_url, validate_url
+from ._url_guard_support import _assert_accepted_unchanged, _is_known_stdlib_parse_error
 
 # Valid hostname alphabet (RFC 1123-ish: letters, digits, hyphen, dot, plus
 # a few extra chars urlparse tolerates) for structured URL generation.
@@ -37,20 +38,8 @@ _HOST_ALPHABET = string.ascii_letters + string.digits + "-._~"
 _PRIVATE_NETS_SAMPLE = ["10.0.0.0/8", "192.168.0.0/16", "127.0.0.0/8", "169.254.0.0/16"]
 
 
-def _is_known_stdlib_parse_error(e: BaseException) -> bool:
-    """Defensive guard for any residual stdlib parse leak.
-
-    url_guard.py now wraps malformed-host parsing in InvalidRequestError, so
-    this should never match; kept as a safety net so a future regression in
-    urllib.parse behavior still fails the property test loudly instead of
-    silently passing.
-    """
-    return isinstance(e, ValueError) and "Invalid IPv6 URL" in str(e)
 
 
-def _assert_accepted_unchanged(url: str, result: str) -> None:
-    """validate_url is documented to return the URL unchanged when accepted."""
-    assert result == url, f"validate_url mutated accepted URL: {url!r} -> {result!r}"
 
 
 @pytest.mark.parametrize("url", ["http://[", "http://[::1", "http://[::1]x"])
@@ -118,10 +107,8 @@ def test_validate_redirect_url_never_crashes(url: str) -> None:
     never touches the network; the totality invariant still holds for the
     scheme / hostname / path checks.
     """
-    # Patch by qualified name, not through the module attribute: url_guard no
-    # longer imports socket at module scope, so `url_guard.socket` raised
-    # AttributeError and this totality property silently stopped testing
-    # anything. Patching "socket.getaddrinfo" works wherever the import lives.
+    # Patch by name: url_guard no longer imports socket at module
+    # scope, so url_guard.socket raised and this property tested nothing.
     with mock.patch("socket.getaddrinfo", return_value=[]):
         try:
             result = validate_redirect_url(url)
