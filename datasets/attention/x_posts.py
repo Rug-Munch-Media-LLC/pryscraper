@@ -109,6 +109,28 @@ async def _fetch_with_egress(url: str, session: XSession) -> tuple[str, str, str
     return "", url, error
 
 
+def _capped(limit: Any) -> int:
+    """Clamp ``limit`` to the supported range; never raises."""
+    try:
+        return max(1, min(int(limit or DEFAULT_LIMIT), MAX_LIMIT))
+    except (TypeError, ValueError):
+        return DEFAULT_LIMIT
+
+
+def _select(kind: str, posts: list[dict[str, Any]], capped: int) -> list[dict[str, Any]]:
+    """Apply the per-kind selection rule before truncation."""
+    if kind == "status":
+        return posts[:1]
+    if kind == "thread":
+        return posts[:capped]
+    return posts
+
+
+def _empty_code(kind: str, session: XSession) -> str:
+    """A search with no posts is a login wall; anything else is genuinely empty."""
+    return "login_wall" if kind == "search" and not session.authenticated else "no_posts"
+
+
 async def get_posts(
     kind: str = "profile_timeline", target: str = "", limit: int = DEFAULT_LIMIT
 ) -> dict[str, Any]:
@@ -119,10 +141,7 @@ async def get_posts(
     if not normalized:
         return _failure(kind, target, "", "invalid_target")
     url = build_url(kind, normalized)
-    try:
-        capped = max(1, min(int(limit or DEFAULT_LIMIT), MAX_LIMIT))
-    except (TypeError, ValueError):
-        capped = DEFAULT_LIMIT
+    capped = _capped(limit)
 
     session = XSession.from_env()
     html, final_url, error = await _fetch_with_egress(url, session)
@@ -132,15 +151,11 @@ async def get_posts(
         return _failure(kind, normalized, url, "login_wall", **session.masked())
 
     posts, source = parse_posts(html)
-    if kind == "status":
-        posts = posts[:1]
-    elif kind == "thread":
-        posts = posts[:capped]
-    if not posts:
-        code = "login_wall" if kind == "search" and not session.authenticated else "no_posts"
+    selected = _select(kind, posts, capped)[:capped]
+    if not selected:
+        code = _empty_code(kind, session)
         return _failure(kind, normalized, url, code, source=source, **session.masked())
 
-    selected = posts[:capped]
     return {
         "kind": kind,
         "target": normalized,
