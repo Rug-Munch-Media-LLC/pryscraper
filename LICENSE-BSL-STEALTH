@@ -86,6 +86,8 @@ src/pry/engine/adaptive.py
 src/pry/engine/ai_visual_scraper.py
 src/pry/engine/behavioral_biometrics.py
 src/pry/engine/browser_pool.py
+src/pry/engine/browser_pool_config.py
+src/pry/engine/browser_pool_teardown.py
 src/pry/engine/camoufox_config.py
 src/pry/engine/camoufox_guard.py
 src/pry/engine/camoufox_integration.py
@@ -93,6 +95,8 @@ src/pry/engine/camoufox_page.py
 src/pry/engine/camoufox_stealth.py
 src/pry/engine/captcha_solver.py
 src/pry/engine/cookie_warmer.py
+src/pry/engine/cookie_warmer_storage.py
+src/pry/engine/cookie_warmer_ua.py
 src/pry/engine/graphql_scraper_enhanced.py
 src/pry/engine/lazy_load.py
 src/pry/engine/mobile_app_scraper.py
@@ -110,6 +114,8 @@ src/pry/engine/stealth_scripts/webdriver_hide.js
 src/pry/engine/stealth_scripts/webgl_noise.js
 src/pry/engine/tier_chain.py
 src/pry/engine/tier_retry_policy.py
+src/pry/engine/tier_terminal_gate.py
 src/pry/engine/tls_fingerprint.py
 src/pry/engine/ultimate_scraper.py
+src/pry/engine/url_dispatch.py
 <!-- END SPDX-BSL-FILE-LIST -->

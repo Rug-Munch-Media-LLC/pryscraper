@@ -3,7 +3,7 @@ MIT License
 Copyright (c) 2026 Rug Munch Media LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the Software), to deal
+of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
@@ -21,35 +21,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ================================================================================
-DUAL LICENSING NOTICE
+LICENCE SCOPE — dual licensing (MIT + BSL 1.1)
 ================================================================================
-Pry is dual-licensed. Most of the codebase (the core scraping engine, extraction,
-templates, MCP server, x402 payment rail, CLI, and SDK) is MIT-licensed under
-the terms above. The following anti-detection / stealth components are licensed
-under the Business Source License 1.1 — see LICENSE-BSL-STEALTH:
+Pry is dual-licensed. Two scopes, one tree:
 
-  - ultimate_scraper.py        (10-tier fallback engine)
-  - stealth_engine.py          (stealth orchestration)
-  - stealth_scripts/*.js       (6 anti-detection JS injectors)
-  - camoufox_integration.py    (Firefox anti-detection)
-  - tls_fingerprint.py         (TLS fingerprint randomization)
-  - cookie_warmer.py           (cookie pre-aging)
-  - behavioral_biometrics.py   (behavioral mimicry)
-  - adaptive.py                (adaptive strategy rotation)
-  - browser_pool.py            (browser pre-warming for stealth)
-  - network.py                 (Tor / SOCKS5 routing)
-  - captcha_solver.py          (CAPTCHA bypass)
-  - shadow_dom.py              (stealth DOM extraction)
-  - lazy_load.py                (human-like scroll)
-  - auth_connector.py           (human-like login)
+  MIT         Everything NOT listed as BSL-1.1 below: the core scraping engine,
+              extraction, templates, MCP server, x402 payment rail, CLI, SDK,
+              browser-extension/, wordpress-plugin/, shopify-app/,
+              llm_providers/, and the bulk of api.py, mcp_production.py and
+              x402.py. Full MIT text: the body of this file.
 
-That list is a summary only. The authoritative, machine-checked list of every
-BSL-licensed file is the SPDX-BSL-FILE-LIST block in LICENSE-BSL-STEALTH;
-scripts/check_licence_spdx.py fails when it drifts from the actual headers.
+  BSL-1.1     The files enumerated in the SPDX-BSL-FILE-LIST block of
+              LICENSE-BSL-STEALTH (40 files at the last check), each carrying
+              "SPDX-License-Identifier: BSL-1.1" in its header. Entry points:
+                src/pry/engine/ultimate_scraper.py   (10-tier fallback engine)
+                src/pry/engine/stealth_engine.py     (stealth orchestration)
+                src/pry/engine/stealth_scripts/*.js  (anti-detection injectors)
+              Terms: LICENSE-BSL-STEALTH (Change Date 2029-01-01,
+              Change License MIT).
 
-Each of those files is individually marked with:
-  SPDX-License-Identifier: BSL-1.1
-The BSL terms apply only to those files. All other files (including all
-templates/, browser-extension/, wordpress-plugin/, shopify-app/, llm_providers/,
-and the bulk of api.py, mcp_production.py, x402.py) are MIT-licensed.
+The SPDX block in LICENSE-BSL-STEALTH is the authority, not this summary.
+"python3 scripts/check_licence_spdx.py" fails when that block and the actual
+file headers disagree in either direction; regenerate the block with
+"python3 scripts/check_licence_spdx.py --list".
+
+SPDX-License-Identifier for the tree as a whole: MIT AND LicenseRef-BSL-1.1
+(the same expression pyproject.toml declares).
 ================================================================================
