@@ -1,0 +1,73 @@
+{
+	"_provenance": "SYNTHETIC — parser fixtures only. No real X scraping (x.com robots.txt disallows '*'). Shape mirrors a public profile capture.",
+	"accounts": [
+		{
+			"platform": "x",
+			"handle": "PromoKing",
+			"display_name": "Promo King",
+			"followers": 48200,
+			"bio": "DM for promo | SOL calls daily | wallet: 3BEtHGzhdWPtxSzqVsBorWpbi4jfMvD5cCZy1Qrtac7E | t.me/promokinggg",
+			"declared_wallets": ["3BEtHGzhdWPtxSzqVsBorWpbi4jfMvD5cCZy1Qrtac7E"],
+			"evidence_url": "https://x.com/PromoKing",
+			"first_seen": "2026-10-25",
+			"last_checked": "2026-10-25"
+		},
+		{
+			"platform": "x",
+			"handle": "ShillBot",
+			"display_name": "Shill Bot",
+			"followers": 1200,
+			"bio": "Ambassador @ProjectX | shill package available | $WIF $BONK | 0x1111111111111111111111111111111111111111",
+			"declared_wallets": ["0x1111111111111111111111111111111111111111"],
+			"evidence_url": "https://x.com/ShillBot",
+			"first_seen": "2026-10-25",
+			"last_checked": "2026-10-25"
+		},
+		{
+			"platform": "x",
+			"handle": "BullishDev",
+			"display_name": "Bullish Dev",
+			"followers": 9300,
+			"bio": "Building on Solana. #ad posts marked. sol: EYBMFf8mUyvZobqX7bkaCrvZ6bHCYxeVjFHQ9v2bmtAy",
+			"declared_wallets": ["EYBMFf8mUyvZobqX7bkaCrvZ6bHCYxeVjFHQ9v2bmtAy"],
+			"evidence_url": "https://x.com/BullishDev",
+			"first_seen": "2026-10-25",
+			"last_checked": "2026-10-25"
+		}
+	],
+	"risk_inputs": {
+		"promoking": {
+			"posts_sampled": 40,
+			"promo_posts": 34,
+			"posts_with_contract": 31,
+			"promos_total": 34,
+			"promos_lowcap": 28,
+			"promos_flagged_rug": 9,
+			"posts_deleted": 7,
+			"median_engagement": 40.0,
+			"discloses_promos": false
+		},
+		"shillbot": {
+			"posts_sampled": 20,
+			"promo_posts": 18,
+			"posts_with_contract": 16,
+			"promos_total": 18,
+			"promos_lowcap": 15,
+			"promos_flagged_rug": 6,
+			"posts_deleted": 4,
+			"median_engagement": 1.0,
+			"discloses_promos": false
+		},
+		"bullishdev": {
+			"posts_sampled": 30,
+			"promo_posts": 4,
+			"posts_with_contract": 6,
+			"promos_total": 4,
+			"promos_lowcap": 1,
+			"promos_flagged_rug": 0,
+			"posts_deleted": 0,
+			"median_engagement": 120.0,
+			"discloses_promos": true
+		}
+	}
+}
