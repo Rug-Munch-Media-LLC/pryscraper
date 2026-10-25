@@ -1,0 +1,72 @@
+{
+  "generated_at": "2026-10-25T10:26:16+00:00",
+  "method": "http",
+  "counts": {
+    "ok": 4,
+    "wall": 2,
+    "empty": 0,
+    "error": 0
+  },
+  "rows": [
+    {
+      "site": "syndication.twitter.com",
+      "method": "http",
+      "http_status": 429,
+      "bytes": 20,
+      "parsed_fields": 0,
+      "latency_ms": 157,
+      "verdict": "wall",
+      "url": "https://syndication.twitter.com/srv/timeline-profile/screen-name/AnthropicAI"
+    },
+    {
+      "site": "dexscreener.com",
+      "method": "http",
+      "http_status": 403,
+      "bytes": 5672,
+      "parsed_fields": 1,
+      "latency_ms": 132,
+      "verdict": "wall",
+      "url": "https://dexscreener.com/"
+    },
+    {
+      "site": "coingecko.com",
+      "method": "http",
+      "http_status": 200,
+      "bytes": 2243769,
+      "parsed_fields": 5,
+      "latency_ms": 186,
+      "verdict": "ok",
+      "url": "https://www.coingecko.com/"
+    },
+    {
+      "site": "rugcheck.xyz",
+      "method": "http",
+      "http_status": 200,
+      "bytes": 4434,
+      "parsed_fields": 3,
+      "latency_ms": 423,
+      "verdict": "ok",
+      "url": "https://rugcheck.xyz/"
+    },
+    {
+      "site": "docs.anthropic.com",
+      "method": "http",
+      "http_status": 200,
+      "bytes": 468964,
+      "parsed_fields": 6,
+      "latency_ms": 803,
+      "verdict": "ok",
+      "url": "https://docs.anthropic.com/en/docs/overview"
+    },
+    {
+      "site": "github.com",
+      "method": "http",
+      "http_status": 200,
+      "bytes": 580257,
+      "parsed_fields": 5,
+      "latency_ms": 836,
+      "verdict": "ok",
+      "url": "https://github.com/"
+    }
+  ]
+}
