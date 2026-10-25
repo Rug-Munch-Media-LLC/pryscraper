@@ -9,7 +9,6 @@
 		"scripts/check-antipatterns.py": 211,
 		"scripts/check-structure.py": 205,
 		"scripts/docs_sync.py": 273,
-		"src/pry/actors/apify_actor.py": 414,
 		"src/pry/actors/apify_schema.py": 429,
 		"src/pry/actors/automator.py": 345,
 		"src/pry/actors/monitor.py": 396,
