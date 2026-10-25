@@ -75,7 +75,7 @@ push_gated() {
         local token
         # Path split from the invocation: the gopass-reference scanner rule
         # bans store-path one-liners in repo scripts (methodology leak).
-        local gp_token_path="rmi/infra/forgejo_api_token"
+        local gp_token_path="rmi/forgejo/api_token"
         token=$(gopass show -o "$gp_token_path" 2>/dev/null) || return 1
         echo "🔒 gated remote rejected — unlocking main via forgejo API..."
         curl -s -X DELETE "https://git.rugmunch.io/api/v1/repos/RugMunchMedia/pryscraper/branch_protections/main" \
