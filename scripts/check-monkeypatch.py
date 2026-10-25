@@ -7,7 +7,8 @@ increase. This gate is deliberately separate from the aggregate
 the monkeypatch budget while other rules shrink to compensate.
 
 Counts monkeypatch-attribute access, mock-patch calls, patch decorators,
-patch-object calls and sys.modules deletions (Python sources only).
+patch-object calls, sys.modules deletions, `# HACK|# WORKAROUND|# TEMP`
+markers and `setattr(<module>, "attr", ...)` (Python sources, production only).
 The matched patterns live in ``MONKEY_RE`` below.
 
 Usage:
@@ -35,7 +36,13 @@ DEFAULT_BASELINE = "scripts/monkeypatch-baseline.json"
 #   2 = could not load the baseline, so nothing was measured
 # A CI job must be able to tell the last one apart from the first two.
 BASELINE_UNREADABLE = 2
-MONKEY_RE = re.compile(r"monkeypatch\.|mock\.patch|@patch\(|patch\.object|del sys\.modules")
+MONKEY_RE = re.compile(
+    r"monkeypatch\.|mock\.patch|@patch\(|patch\.object|del sys\.modules"
+    # fleet canon zero-tolerance classes: explicit debt markers, and
+    # setattr(<module>, "attr", ...) — a patch spelled differently.
+    r"|#\s*(?:HACK|WORKAROUND|TEMP)\b"
+    r"|setattr\(\s*[\w.]+\s*,\s*[\"']"
+)
 
 SKIP_DIRS = {
     ".git",
@@ -62,6 +69,9 @@ def scan(root: Path) -> tuple[int, dict[str, int]]:
     per_file: dict[str, int] = {}
     for p in root.rglob("*.py"):
         if any(part in SKIP_DIRS for part in p.parts):
+            continue
+        # never count the gate's own source: it embeds the patterns verbatim
+        if p.name == "check-monkeypatch.py":
             continue
         # pytest's `monkeypatch` fixture is idiomatic test tooling, not the
         # production patching this ratchet exists to stop. The paired
