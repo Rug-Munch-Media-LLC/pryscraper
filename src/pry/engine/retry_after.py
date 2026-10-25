@@ -7,8 +7,11 @@ less than the server asked is how a fleet gets its IP space banned.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
+
+logger = logging.getLogger(__name__)
 
 #: A server asking for more than this is either broken or hostile; we cap and
 #: let the caller's tier/breaker policy decide to abandon the target.
@@ -34,10 +37,12 @@ def retry_delay(
         seconds: float | None = None
         try:
             seconds = float(raw)
-        except ValueError:
+        except ValueError as exc:
+            logger.debug("retry_after_numeric_parse_failed handler=retry_after error=%s", exc)
             try:
                 when = parsedate_to_datetime(raw)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError) as exc:
+                logger.debug("retry_after_http_date_unparsable handler=retry_after error=%s", exc)
                 when = None
             if when is not None:
                 if when.tzinfo is None:

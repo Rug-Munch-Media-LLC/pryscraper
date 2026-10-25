@@ -8,9 +8,14 @@ so extraction walks the tree instead of hard-coding a path.
 from __future__ import annotations
 
 import json
+import logging
 import re
-from collections.abc import Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+logger = logging.getLogger(__name__)
 
 NEXT_DATA_RE = re.compile(
     r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', re.S
@@ -22,9 +27,7 @@ def _walk(node: Any, depth: int = 0) -> Iterator[dict]:
     if depth > MAX_DEPTH:
         return
     if isinstance(node, dict):
-        if ("full_text" in node or "text" in node) and (
-            "id_str" in node or "rest_id" in node
-        ):
+        if ("full_text" in node or "text" in node) and ("id_str" in node or "rest_id" in node):
             yield node
         for value in node.values():
             yield from _walk(value, depth + 1)
@@ -70,7 +73,8 @@ def normalize_tweets(html: str, handle: str, limit: int = 20) -> list[dict]:
         return []
     try:
         payload = json.loads(match.group(1))
-    except ValueError:
+    except ValueError as exc:
+        logger.warning("x_next_data_unparsable handler=x_parse error=%s", exc)
         return []
 
     tweets: list[dict] = []
