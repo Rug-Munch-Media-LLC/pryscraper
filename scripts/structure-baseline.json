@@ -241,7 +241,7 @@
 		"tests/test_sports_pipeline.py": 369,
 		"tests/test_sports_props_injuries_live.py": 761,
 		"tests/test_sports_sources.py": 730,
-		"tests/test_sports_us_books.py": 749,
+		"tests/test_sports_us_books.py": 758,
 		"tests/test_subscription_route.py": 324,
 		"tests/test_supply_data.py": 451,
 		"tests/test_template_engine.py": 202,
@@ -274,5 +274,6 @@
 		"tests/test_x402_treasury_settle.py": 573,
 		"tests/test_x402_tron_verify.py": 372,
 		"tests/test_x402_verify_e2e.py": 329
-	}
+	},
+	"generated_on": "2026-10-25"
 }

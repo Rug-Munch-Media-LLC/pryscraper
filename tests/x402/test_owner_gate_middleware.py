@@ -4,6 +4,8 @@ Runs the real X402Middleware with a stub ASGI app on a paid endpoint. Guards
 the self-hosted access rule (owner key = free, anonymous = 402) so a future
 refactor cannot silently re-gate our own CLI/MCP/internal services.
 """
+from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
+from tests.x402._gate_support import db, no_owner_key  # noqa: F401
 
 import json
 

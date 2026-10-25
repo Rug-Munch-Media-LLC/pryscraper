@@ -17,6 +17,8 @@ without a name allowlist, one compromised job can impersonate all of them.
 The ASGI harness is the shared one in ``_gate_support`` so these tests exercise
 the real ``X402Middleware``, not a lookalike.
 """
+from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
+from tests.x402._gate_support import db, no_owner_key  # noqa: F401
 
 import time
 

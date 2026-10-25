@@ -18,6 +18,7 @@ Each test names the mutation it kills. Any test that would still pass after
 reverting enforcement.py to the old ``Bearer `` prefix+length bypass is
 decoration and must be deleted.
 """
+from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC

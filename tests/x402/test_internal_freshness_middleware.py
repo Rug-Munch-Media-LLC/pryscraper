@@ -10,6 +10,8 @@ Also the shared scaffolding for ``test_internal_replay_middleware.py`` (the
 skew + binding half) and a sibling of ``test_internal_gate_middleware.py``
 (gate-level cover that predates the timestamp header).
 """
+from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
+from tests.x402._gate_support import db, no_owner_key  # noqa: F401
 
 import json
 import time
