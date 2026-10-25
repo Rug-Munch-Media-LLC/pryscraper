@@ -17,12 +17,12 @@ from typing import Any
 import httpx
 
 from pry.intelligence.llm.base_client import (
-from pry.core.outbound_politeness import outbound_backoff
     LLM_STREAM_RETRY_ATTEMPTS,
     LLM_STREAM_RETRY_BACKOFF,
     LLM_TIMEOUT_SECONDS,
     TRANSIENT_HTTP_STATUSES,
 )
+from pry.core.outbound_politeness import outbound_backoff
 
 
 async def _stream_openai_compatible(

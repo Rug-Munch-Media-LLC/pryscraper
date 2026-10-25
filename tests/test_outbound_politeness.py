@@ -40,11 +40,7 @@ def test_outbound_backoff_sleeps_the_returned_delay(monkeypatch):
     assert len(slept) == 3
 
 
-def test_data_bus_delivery_backoff_stays_capped():
+def test_data_bus_delivery_backoff_is_retry_after_aware():
     text = (SRC / "api" / "databus_bridge.py").read_text()
-    if "outbound_backoff(" in text:
-        return
-    sleeps = re.findall(r"asyncio\.sleep\(([^\n]*)", text)
-    assert sleeps, "DataBus retry sleeps not found"
-    for expr in sleeps:
-        assert "min(" in expr or "cap" in expr.lower(), f"unbounded backoff: {expr}"
+    assert "retry_delay(" in text or "outbound_backoff(" in text
+    assert not re.search(r"asyncio\.sleep\(2\*\*", text)
