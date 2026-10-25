@@ -19,12 +19,17 @@ Covers:
 Every public function is asserted never to raise (HTTP errors and
 malformed payloads degrade to ``[]`` / ``{}``).
 """
+from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
+from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
+from tests.sports._sports_bet_types_support import _hermetic_sports  # noqa: F401
+
 import httpx
 import pytest
 import respx
 
 import datasets.sports_data.props as props
 from pry.engine.retry import RetryConfig
+from tests.sports._sports_bet_types_support2 import _props_event_payload, _props_events_payload
 
 _ODDS_NBA = "https://api.the-odds-api.com/v4/sports/basketball_nba"
 _ODDS_NFL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl"
@@ -36,7 +41,6 @@ _STATS_NFL = (
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
 )
-from tests.sports._sports_bet_types_support2 import _props_event_payload, _props_events_payload
 
 
 @respx.mock
@@ -53,6 +57,8 @@ async def test_get_player_props_new_market_alias(monkeypatch: pytest.MonkeyPatch
     assert results[0]["market"] == "player_sacks"
     assert results[0]["line"] == 1.5
     assert results[0]["book"] == "DraftKings"
+
+
 @respx.mock
 async def test_get_player_props_multi_market(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PRY_ODDS_API_KEY", "test-key")
@@ -83,6 +89,8 @@ async def test_get_player_props_multi_market(monkeypatch: pytest.MonkeyPatch) ->
     # Pipe separated works the same way.
     results2 = await props.get_player_props("Myles Garrett", sport="nfl", market="sacks|pass_yds")
     assert len(results2) == 1
+
+
 @respx.mock
 async def test_get_player_props_raw_odds_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PRY_ODDS_API_KEY", "test-key")
@@ -96,9 +104,13 @@ async def test_get_player_props_raw_odds_api_key(monkeypatch: pytest.MonkeyPatch
     results = await props.get_player_props("Myles Garrett", sport="nfl", market="player_sacks")
     assert len(results) == 1
     assert results[0]["market"] == "player_sacks"
+
+
 @respx.mock
 async def test_get_player_props_unknown_market_never_raises() -> None:
     assert await props.get_player_props("LeBron James", sport="nba", market="garbage") == []
+
+
 @respx.mock
 async def test_get_player_props_espn_estimate_new_market() -> None:
     # No key → ESPN season-average estimate path for the new 'sacks' alias.

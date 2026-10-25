@@ -8,12 +8,15 @@ degrade to empty output), and the /v1/legal/* router (200 + 502-degradation
 
 All HTTP is mocked with respx — no live network.
 """
+from tests.legal._legal_docs_support2 import legal_app  # noqa: F401
+from tests.legal._legal_docs_support import _hermetic_legal  # noqa: F401
 
 import httpx
 import respx
 
 import datasets.legal_docs.sec_filings as sec_filings
 from pry.engine.retry import RetryConfig
+from tests.legal._legal_docs_support import _fts_payload, _tickers_payload
 
 _CL_BASE = "https://www.courtlistener.com/api/rest/v4"
 _PACER_FETCH = f"{_CL_BASE}/pacer-fetch/"
@@ -29,7 +32,6 @@ _OFAC_CSV = "https://www.treasury.gov/ofac/downloads/sdn.csv"
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
 )
-from tests.legal._legal_docs_support import _fts_payload, _tickers_payload
 
 
 @respx.mock
@@ -48,17 +50,23 @@ async def test_sec_search_success() -> None:
         "https://www.sec.gov/Archives/edgar/data/320193/000032019324000005/aapl-20240201.htm"
     )
     assert out[0]["source"] == "sec_edgar"
+
+
 @respx.mock
 async def test_sec_search_unknown_ticker() -> None:
     respx.get(url=_TICKERS).mock(return_value=httpx.Response(200, json=_tickers_payload()))
     assert await sec_filings.search_filings("NOPE") == []
     assert respx.calls.call_count == 1
+
+
 @respx.mock
 async def test_sec_search_never_raises_network_error() -> None:
     respx.get(url=_TICKERS).mock(return_value=httpx.Response(500))
     respx.get(url__startswith=_FTS).mock(return_value=httpx.Response(500))
     assert await sec_filings.search_filings("aapl") == []
     assert respx.calls.call_count == 4
+
+
 async def test_sec_search_blank_ticker() -> None:
     assert await sec_filings.search_filings("  ") == []
     assert respx.calls.call_count == 0

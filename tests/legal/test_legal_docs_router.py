@@ -8,6 +8,8 @@ degrade to empty output), and the /v1/legal/* router (200 + 502-degradation
 
 All HTTP is mocked with respx — no live network.
 """
+from tests.legal._legal_docs_support import _hermetic_legal  # noqa: F401
+
 from typing import Any
 
 import httpx
@@ -18,6 +20,7 @@ import datasets.legal_docs as legal_docs
 import datasets.legal_docs.dockets as dockets
 import pry.api.routers.data.legal_docs as legal_router_mod
 from pry.engine.retry import RetryConfig
+from tests.legal._legal_docs_support2 import _client
 
 _CL_BASE = "https://www.courtlistener.com/api/rest/v4"
 _PACER_FETCH = f"{_CL_BASE}/pacer-fetch/"
@@ -33,7 +36,6 @@ _OFAC_CSV = "https://www.treasury.gov/ofac/downloads/sdn.csv"
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
 )
-from tests.legal._legal_docs_support2 import _client
 
 
 def test_router_importable() -> None:
@@ -44,6 +46,8 @@ def test_router_importable() -> None:
     assert hasattr(legal_docs, "insider_trades")
     assert hasattr(legal_docs, "screen_name")
     assert hasattr(legal_router_mod, "router")
+
+
 def test_router_dockets_search_success(legal_app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake(query: str, limit: int = 20) -> list[dict[str, Any]]:
         return [{"id": 42, "case_name": f"match for {query}", "source": "courtlistener"}]
@@ -57,6 +61,8 @@ def test_router_dockets_search_success(legal_app: FastAPI, monkeypatch: pytest.M
     assert body["success"] is True
     assert body["query"] == "example fraud"
     assert body["data"][0]["id"] == 42
+
+
 def test_router_dockets_get_success(legal_app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake(docket_id: int) -> dict[str, Any]:
         return {"id": docket_id, "case_name": "SEC v. Example Corp.", "source": "courtlistener"}

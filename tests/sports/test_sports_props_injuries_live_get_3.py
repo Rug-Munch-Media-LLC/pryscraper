@@ -9,6 +9,10 @@ malformed payloads degrade to empty output).
 
 All HTTP is mocked with respx — no live network.
 """
+from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
+from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
+from tests.sports._sports_bet_types_support import _hermetic_sports  # noqa: F401
+
 import httpx
 import pytest
 import respx
@@ -16,6 +20,10 @@ import respx
 import datasets.sports_data.injuries as injuries
 import datasets.sports_data.live as live
 from pry.engine.retry import RetryConfig
+from tests.sports._sports_props_injuries_live_support2 import (
+    _live_scoreboard_payload,
+    _odds_api_live_payload,
+)
 
 _ODDS_NBA = "https://api.the-odds-api.com/v4/sports/basketball_nba"
 _SCORE_NBA = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
@@ -26,20 +34,20 @@ _STATS = "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/ath
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
 )
-from tests.sports._sports_props_injuries_live_support2 import (
-    _live_scoreboard_payload,
-    _odds_api_live_payload,
-)
 
 
 @respx.mock
 async def test_get_injury_report_http_error_returns_empty() -> None:
     respx.get(url__startswith=_SCORE_NBA).mock(return_value=httpx.Response(500))
     assert await injuries.get_injury_report("401765432") == []
+
+
 @respx.mock
 async def test_get_injury_report_empty_id_returns_empty() -> None:
     assert await injuries.get_injury_report("") == []
     assert respx.calls.call_count == 0
+
+
 @respx.mock
 async def test_get_live_scores_success() -> None:
     respx.get(url__startswith=_SCORE_NBA).mock(
@@ -56,25 +64,35 @@ async def test_get_live_scores_success() -> None:
     assert record["away_score"] == "50"
     assert record["status"] == "In Progress"
     assert record["clock"] == "Q2 4:11"
+
+
 @respx.mock
 async def test_get_live_scores_403_defensive_returns_empty() -> None:
     # Some egress IPs get 403 from ESPN; must degrade to [] and never raise.
     respx.get(url__startswith=_SCORE_NBA).mock(return_value=httpx.Response(403))
     assert await live.get_live_scores("nba") == []
+
+
 @respx.mock
 async def test_get_live_scores_http_error_returns_empty() -> None:
     respx.get(url__startswith=_SCORE_NBA).mock(return_value=httpx.Response(500))
     assert await live.get_live_scores("nba") == []
+
+
 @respx.mock
 async def test_get_live_scores_malformed_payload_returns_empty() -> None:
     respx.get(url__startswith=_SCORE_NBA).mock(
         return_value=httpx.Response(200, json={"nope": True})
     )
     assert await live.get_live_scores("nba") == []
+
+
 @respx.mock
 async def test_get_live_scores_invalid_sport_returns_empty() -> None:
     assert await live.get_live_scores("quidditch") == []
     assert respx.calls.call_count == 0
+
+
 @respx.mock
 async def test_get_live_odds_espn_success() -> None:
     respx.get(url__startswith=_SCORE_NBA).mock(
@@ -90,6 +108,8 @@ async def test_get_live_odds_espn_success() -> None:
     assert spread["clock"] == "Q2 4:11"
     total = next(record for record in results if record["market"] == "total")
     assert total["odds"] == 224.5
+
+
 @respx.mock
 async def test_get_live_odds_odds_api_merge(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PRY_ODDS_API_KEY", "test-key")
@@ -108,14 +128,20 @@ async def test_get_live_odds_odds_api_merge(monkeypatch: pytest.MonkeyPatch) -> 
     assert odds_api[0]["book"] == "DraftKings"
     assert odds_api[0]["live_score"] is None
     assert odds_api[0]["clock"] is None
+
+
 @respx.mock
 async def test_get_live_odds_403_defensive_returns_empty() -> None:
     respx.get(url__startswith=_SCORE_NBA).mock(return_value=httpx.Response(403))
     assert await live.get_live_odds("nba") == []
+
+
 @respx.mock
 async def test_get_live_odds_http_error_returns_empty() -> None:
     respx.get(url__startswith=_SCORE_NBA).mock(return_value=httpx.Response(500))
     assert await live.get_live_odds("nba") == []
+
+
 @respx.mock
 async def test_get_live_odds_limit_truncates() -> None:
     respx.get(url__startswith=_SCORE_NBA).mock(
@@ -123,6 +149,8 @@ async def test_get_live_odds_limit_truncates() -> None:
     )
     results = await live.get_live_odds("nba", limit=1)
     assert len(results) == 1
+
+
 @respx.mock
 async def test_get_live_odds_invalid_sport_returns_empty() -> None:
     assert await live.get_live_odds("quidditch") == []

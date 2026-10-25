@@ -13,6 +13,10 @@ from __future__ import annotations
 
 import httpx
 import pytest
+import respx
+
+from tests.ssrf_harness import MULTI_TABLE_PAGE, PAGE, TABLE_PAGE, client
+
 
 @pytest.fixture(autouse=True)
 def _preserve_hostname(monkeypatch):
@@ -26,19 +30,13 @@ def _preserve_hostname(monkeypatch):
     from pry.engine.url_guard import socket as guard_socket
 
     monkeypatch.setattr(
-        guard_socket, "getaddrinfo",
-        lambda *a, **k: [(guard_socket.AF_INET, guard_socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))],
+        guard_socket,
+        "getaddrinfo",
+        lambda *a, **k: [
+            (guard_socket.AF_INET, guard_socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))
+        ],
     )
     monkeypatch.setattr(url_pinning, "pin_request", lambda url, *a, **k: (url, {}, {}))
-
-import respx
-
-from tests.ssrf_harness import (
-    MULTI_TABLE_PAGE,
-    PAGE,
-    TABLE_PAGE,
-    client,
-)
 
 
 @respx.mock

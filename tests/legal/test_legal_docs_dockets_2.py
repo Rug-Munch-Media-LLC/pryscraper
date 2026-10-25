@@ -8,6 +8,9 @@ degrade to empty output), and the /v1/legal/* router (200 + 502-degradation
 
 All HTTP is mocked with respx — no live network.
 """
+from tests.legal._legal_docs_support2 import legal_app  # noqa: F401
+from tests.legal._legal_docs_support import _hermetic_legal  # noqa: F401
+
 import re
 
 import httpx
@@ -15,6 +18,7 @@ import respx
 
 import datasets.legal_docs.dockets as dockets
 from pry.engine.retry import RetryConfig
+from tests.legal._legal_docs_support2 import _justia_search_html, _ny_ecourts_html, _pacer_payload
 
 _CL_BASE = "https://www.courtlistener.com/api/rest/v4"
 _PACER_FETCH = f"{_CL_BASE}/pacer-fetch/"
@@ -30,7 +34,6 @@ _OFAC_CSV = "https://www.treasury.gov/ofac/downloads/sdn.csv"
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
 )
-from tests.legal._legal_docs_support2 import _justia_search_html, _ny_ecourts_html, _pacer_payload
 
 
 @respx.mock
@@ -58,6 +61,8 @@ async def test_dockets_search_justia_fallback() -> None:
         == "https://dockets.justia.com/docket/new-york-southern-district-court/example-1"
     )
     assert first["id"] == "example-1"
+
+
 @respx.mock
 async def test_dockets_search_justia_scrape_never_raises() -> None:
     respx.get(url__startswith=f"{_CL_BASE}/dockets/?").mock(
@@ -70,6 +75,8 @@ async def test_dockets_search_justia_scrape_never_raises() -> None:
     respx.post(_NY_ECOURTS).mock(return_value=httpx.Response(403))
     assert await dockets.search_dockets("example") == []
     assert respx.calls.call_count == 6
+
+
 @respx.mock
 async def test_dockets_get_justia_slug_fallback() -> None:
     page = """<html><head><title>SEC v. Example Corp. - Docket</title></head><body>
@@ -89,6 +96,8 @@ async def test_dockets_get_justia_slug_fallback() -> None:
     assert (
         out["url"] == "https://dockets.justia.com/docket/new-york-southern-district-court/example-1"
     )
+
+
 @respx.mock
 async def test_dockets_get_pacer_fallback() -> None:
     # CourtListener detail misses (not in RECAP archive) → pacer-fetch POST.
@@ -102,6 +111,8 @@ async def test_dockets_get_pacer_fallback() -> None:
     assert out["docket_number"] == "1:24-bk-00099"
     assert out["description"] == "PACER-fetched bankruptcy docket"
     assert out["source"] == "pacer"
+
+
 @respx.mock
 async def test_dockets_get_pacer_never_raises() -> None:
     respx.get(url__regex=rf"{re.escape(_CL_BASE)}/dockets/42/$").mock(
@@ -110,6 +121,8 @@ async def test_dockets_get_pacer_never_raises() -> None:
     respx.post(_PACER_FETCH).mock(return_value=httpx.Response(401, json={}))
     assert await dockets.get_docket(42) == {}
     assert respx.calls.call_count == 4
+
+
 @respx.mock
 async def test_dockets_search_state_fallback() -> None:
     # CourtListener + RECAP + Justia all empty → NY eCourts state search.
@@ -135,6 +148,8 @@ async def test_dockets_search_state_fallback() -> None:
     assert first["nature_of_suit"] == "Contract"
     assert "New York" in first["court"]
     assert _NY_ECOURTS in first["url"]
+
+
 @respx.mock
 async def test_dockets_search_state_never_raises() -> None:
     respx.get(url__startswith=f"{_CL_BASE}/dockets/?").mock(

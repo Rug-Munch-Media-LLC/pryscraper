@@ -9,6 +9,9 @@ Every book degrades independently and never raises — one dead or geo-blocked
 book never blanks the result if another works. All HTTP is mocked with respx
 — no live network.
 """
+from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
+from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
+from tests.sports._sports_bet_types_support import _hermetic_sports  # noqa: F401
 from urllib.parse import urlencode
 
 import httpx

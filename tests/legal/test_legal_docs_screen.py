@@ -8,7 +8,11 @@ degrade to empty output), and the /v1/legal/* router (200 + 502-degradation
 
 All HTTP is mocked with respx — no live network.
 """
+from tests.legal._legal_docs_support2 import legal_app  # noqa: F401
+from tests.legal._legal_docs_support import _hermetic_legal  # noqa: F401
+
 import json
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import httpx
@@ -16,8 +20,8 @@ import pytest
 import respx
 
 import datasets.legal_docs.sanctions as sanctions
-from pathlib import Path
 from pry.engine.retry import RetryConfig
+from tests.legal._legal_docs_support import _sdn_json_payload, _sdn_xml
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -35,7 +39,6 @@ _OFAC_CSV = "https://www.treasury.gov/ofac/downloads/sdn.csv"
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
 )
-from tests.legal._legal_docs_support import _sdn_json_payload, _sdn_xml
 
 
 @respx.mock
@@ -53,6 +56,8 @@ async def test_screen_name_json_source() -> None:
     expected_2 = ["primary"]
     assert out[0]["matched_fields"] == expected_2
     assert out[0]["source"] == "ofac_sdn"
+
+
 @respx.mock
 async def test_screen_name_xml_fallback() -> None:
     respx.get(url__startswith=_OFAC_JSON).mock(return_value=httpx.Response(404))
@@ -64,6 +69,8 @@ async def test_screen_name_xml_fallback() -> None:
     assert out[0]["programs"] == expected
     expected_2 = ["AERO-CARIBBEAN"]
     assert out[0]["akas"] == expected_2
+
+
 @respx.mock
 async def test_screen_name_csv_fallback() -> None:
     csv_body = '36,"AEROCARIBBEAN AIRLINES",-0- ,"CUBA",-0- ,-0- ,-0- ,-0- ,-0- ,-0- ,-0- ,-0- \n'
@@ -75,6 +82,8 @@ async def test_screen_name_csv_fallback() -> None:
     assert out[0]["uid"] == "36"
     expected = ["CUBA"]
     assert out[0]["programs"] == expected
+
+
 @respx.mock
 async def test_screen_name_no_match() -> None:
     respx.get(url__startswith=_OFAC_JSON).mock(
@@ -82,15 +91,21 @@ async def test_screen_name_no_match() -> None:
     )
     assert await sanctions.screen_name("nobody here") == []
     assert respx.calls.call_count == 1
+
+
 @respx.mock
 async def test_screen_name_never_raises() -> None:
     for url in (_OFAC_JSON, _OFAC_XML, _OFAC_CSV):
         respx.get(url__startswith=url).mock(return_value=httpx.Response(500))
     assert await sanctions.screen_name("john smith") == []
     assert respx.calls.call_count == 6
+
+
 async def test_screen_name_blank_name() -> None:
     assert await sanctions.screen_name("   ") == []
     assert respx.calls.call_count == 0
+
+
 @respx.mock
 async def test_screen_name_disk_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     cache_file = tmp_path / "sdn_cache.json"

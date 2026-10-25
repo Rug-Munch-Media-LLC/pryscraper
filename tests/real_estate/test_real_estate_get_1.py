@@ -10,6 +10,8 @@ the /v1/realestate/* router (200 + 502-degradation + query validation).
 All HTTP is mocked with respx (local-router ``respx_mock`` — the version
 of this venv attaches routes to the local router only) — no live network.
 """
+from tests.real_estate._real_estate_support import _hermetic_real_estate  # noqa: F401
+from tests.real_estate._real_estate_support2 import real_estate_app  # noqa: F401
 import json
 
 import httpx

@@ -9,6 +9,10 @@ Every book degrades independently and never raises — one dead or geo-blocked
 book never blanks the result if another works. All HTTP is mocked with respx
 — no live network.
 """
+from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
+from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
+from tests.sports._sports_bet_types_support import _hermetic_sports  # noqa: F401
+
 from urllib.parse import urlencode
 
 import httpx
@@ -17,6 +21,16 @@ import respx
 import datasets.sports_data.european as european
 import datasets.sports_data.offshore as offshore
 from pry.engine.retry import RetryConfig
+from tests.sports._sports_offshore_european_support import (
+    _1xbet_payload,
+    _betfair_page_html,
+    _betonline_family_embedded_html,
+    _betonline_family_html,
+    _marathon_coupon_html,
+    _pinnacle_fixtures_payload,
+    _pinnacle_odds_payload,
+)
+from tests.sports._sports_offshore_european_support2 import _betfair_markets_payload
 
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
@@ -49,16 +63,6 @@ _BETFAIR_QUERY = urlencode(
 _BETFAIR_MARKETS = (
     f"https://www.betfair.com/www/sports/exchange/readonly/v1/bymarket?{_BETFAIR_QUERY}"
 )
-from tests.sports._sports_offshore_european_support import (
-    _1xbet_payload,
-    _betfair_page_html,
-    _betonline_family_embedded_html,
-    _betonline_family_html,
-    _marathon_coupon_html,
-    _pinnacle_fixtures_payload,
-    _pinnacle_odds_payload,
-)
-from tests.sports._sports_offshore_european_support2 import _betfair_markets_payload
 
 
 @respx.mock
@@ -78,11 +82,15 @@ async def test_fetch_offshore_odds_aggregates_reachable_books() -> None:
         assert record["market"] == "h2h"
         assert record["home_odds"] is not None
         assert record["away_odds"] is not None
+
+
 @respx.mock
 async def test_fetch_offshore_odds_all_fail_returns_empty() -> None:
     respx.get(url__regex=r"^https://").mock(return_value=httpx.Response(403))
     records = await offshore.fetch_offshore_odds("nba")
     assert records == []
+
+
 @respx.mock
 async def test_fetch_european_odds_aggregates_reachable_books() -> None:
     respx.get(_PINNACLE_FIXTURES).mock(
@@ -100,6 +108,8 @@ async def test_fetch_european_odds_aggregates_reachable_books() -> None:
     books = {record["book"] for record in records}
     assert {"pinnacle", "marathonbet", "1xbet", "betfair"} <= books
     assert all(record["source"] == "european" for record in records)
+
+
 @respx.mock
 async def test_fetch_european_odds_never_raises_with_dead_books() -> None:
     respx.get(_PINNACLE_FIXTURES).mock(side_effect=httpx.ConnectError("boom"))
@@ -107,9 +117,13 @@ async def test_fetch_european_odds_never_raises_with_dead_books() -> None:
     respx.get(url__regex=r"^https://").mock(return_value=httpx.Response(403))
     records = await european.fetch_european_odds("nba")
     assert records == []
+
+
 async def test_fetch_offshore_odds_unsupported_sport() -> None:
     records = await offshore.fetch_offshore_odds("quidditch")
     assert records == []
+
+
 @respx.mock
 async def test_fetch_offshore_odds_reuses_bovada_and_betonline() -> None:
     """The aggregate extends (never duplicates) sources' Bovada/BetOnline fetchers."""

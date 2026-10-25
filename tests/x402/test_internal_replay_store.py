@@ -13,11 +13,6 @@ No live Redis: the fake is injected through the store's ``client`` seam, so the
 real ``_get_client`` / ``SET NX EX`` / cooldown code all run for real.
 """
 
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
 import time
@@ -32,10 +27,16 @@ from pry.payments.x402_middleware.internal import (
     _already_seen,
     internal_max_skew,
 )
-from pry.payments.x402_middleware.internal_replay_store import (
-    KEY_PREFIX,
-    RedisSeenSignatures,
-)
+from pry.payments.x402_middleware.internal_replay_store import KEY_PREFIX, RedisSeenSignatures
+from tests.x402._gate_support import db, no_owner_key
+from tests.x402._x402_facilitator_support import _eip7702_ok, router
+
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Rug Munch Media LLC
+#
+# Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
+# Licensed under MIT. See LICENSE.
+
 
 REDIS_URL = "redis://fake:6379/0"
 

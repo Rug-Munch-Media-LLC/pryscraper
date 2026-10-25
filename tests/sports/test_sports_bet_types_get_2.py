@@ -19,6 +19,10 @@ Covers:
 Every public function is asserted never to raise (HTTP errors and
 malformed payloads degrade to ``[]`` / ``{}``).
 """
+from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
+from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
+from tests.sports._sports_bet_types_support import _hermetic_sports  # noqa: F401
+
 import httpx
 import pytest
 import respx
@@ -26,6 +30,8 @@ import respx
 import datasets.sports_data.halves as halves
 import datasets.sports_data.props as props
 from pry.engine.retry import RetryConfig
+from tests.sports._sports_bet_types_support import _event_odds_payload
+from tests.sports._sports_bet_types_support2 import _periods_payload, _prop_markets_payload
 
 _ODDS_NBA = "https://api.the-odds-api.com/v4/sports/basketball_nba"
 _ODDS_NFL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl"
@@ -37,8 +43,6 @@ _STATS_NFL = (
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
 )
-from tests.sports._sports_bet_types_support import _event_odds_payload
-from tests.sports._sports_bet_types_support2 import _periods_payload, _prop_markets_payload
 
 
 @respx.mock
@@ -65,6 +69,8 @@ async def test_get_half_quarters_odds_api(monkeypatch: pytest.MonkeyPatch) -> No
     assert all(r["book"] == "draftkings" for r in results)
     assert all(r["source"] == "the_odds_api" for r in results)
     assert all(r["event"] == "Boston Celtics @ Los Angeles Lakers" for r in results)
+
+
 @respx.mock
 async def test_get_half_quarters_book_filter(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PRY_ODDS_API_KEY", "test-key")
@@ -105,10 +111,14 @@ async def test_get_half_quarters_book_filter(monkeypatch: pytest.MonkeyPatch) ->
     assert len(results) == 1
     assert results[0]["book"] == "fanduel"
     assert results[0]["home_odds"] == 1.75
+
+
 @respx.mock
 async def test_get_half_quarters_no_key_returns_empty() -> None:
     # No Odds API key → [] (ESPN publishes no period odds; no fabrication).
     assert await halves.get_half_quarters("nba:eid123") == []
+
+
 @respx.mock
 async def test_get_half_quarters_never_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PRY_ODDS_API_KEY", "test-key")
@@ -118,6 +128,8 @@ async def test_get_half_quarters_never_raises(monkeypatch: pytest.MonkeyPatch) -
     assert await halves.get_half_quarters("nba:eid123") == []
     assert await halves.get_half_quarters("") == []
     assert await halves.get_half_quarters("bogus:eid123") == []
+
+
 @respx.mock
 async def test_get_prop_markets_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PRY_ODDS_API_KEY", "test-key")
@@ -138,9 +150,13 @@ async def test_get_prop_markets_success(monkeypatch: pytest.MonkeyPatch) -> None
     assert rebounds["player_count"] == 1
     expected_2 = ["DraftKings"]
     assert rebounds["books"] == expected_2
+
+
 @respx.mock
 async def test_get_prop_markets_no_key_empty() -> None:
     assert await props.get_prop_markets("nba:eid123") == []
+
+
 @respx.mock
 async def test_get_prop_markets_never_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PRY_ODDS_API_KEY", "test-key")

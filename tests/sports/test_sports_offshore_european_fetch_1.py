@@ -9,6 +9,10 @@ Every book degrades independently and never raises — one dead or geo-blocked
 book never blanks the result if another works. All HTTP is mocked with respx
 — no live network.
 """
+from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
+from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
+from tests.sports._sports_bet_types_support import _hermetic_sports  # noqa: F401
+
 from urllib.parse import urlencode
 
 import httpx
@@ -18,6 +22,14 @@ import respx
 import datasets.sports_data.european as european
 import datasets.sports_data.offshore as offshore
 from pry.engine.retry import RetryConfig
+from tests.sports._sports_offshore_european_support import (
+    _betonline_family_embedded_html,
+    _betonline_family_html,
+    _decimal_rows_html,
+    _pinnacle_fixtures_payload,
+    _pinnacle_odds_payload,
+)
+from tests.sports._sports_offshore_european_support2 import _blocked_html
 
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
@@ -50,14 +62,6 @@ _BETFAIR_QUERY = urlencode(
 _BETFAIR_MARKETS = (
     f"https://www.betfair.com/www/sports/exchange/readonly/v1/bymarket?{_BETFAIR_QUERY}"
 )
-from tests.sports._sports_offshore_european_support import (
-    _betonline_family_embedded_html,
-    _betonline_family_html,
-    _decimal_rows_html,
-    _pinnacle_fixtures_payload,
-    _pinnacle_odds_payload,
-)
-from tests.sports._sports_offshore_european_support2 import _blocked_html
 
 
 @respx.mock
@@ -74,6 +78,8 @@ async def test_fetch_bookmaker_html_happy_path() -> None:
     assert record["home_odds"] == 2.10  # +110
     assert record["away_odds"] == 1.85  # -118
     assert offshore.book_status("bookmaker")["availability"]["reachable"] is True
+
+
 @respx.mock
 async def test_fetch_sportsbetting_embedded_json() -> None:
     respx.get(_SPORTSBETTING_NBA).mock(
@@ -88,6 +94,8 @@ async def test_fetch_sportsbetting_embedded_json() -> None:
     assert record["home_odds"] == 2.10
     assert record["away_odds"] == 1.85
     assert record["last_update"] == "2026-08-17T00:00:00Z"
+
+
 @respx.mock
 async def test_fetch_family_book_blocked_flagged() -> None:
     respx.get(_SPORTSBETTING_NBA).mock(return_value=httpx.Response(200, text=_blocked_html()))
@@ -96,6 +104,8 @@ async def test_fetch_family_book_blocked_flagged() -> None:
     health = offshore.book_status("sportsbetting")["availability"]
     assert health["blocked"] is True
     assert health["reachable"] is False
+
+
 @respx.mock
 async def test_fetch_mybookie_decimal_rows() -> None:
     respx.get(_MYBOOKIE_NBA).mock(return_value=httpx.Response(200, text=_decimal_rows_html()))
@@ -108,6 +118,8 @@ async def test_fetch_mybookie_decimal_rows() -> None:
     assert record["away"] == "Los Angeles Lakers"
     assert record["home_odds"] == 2.05
     assert record["away_odds"] == 1.90
+
+
 @respx.mock
 async def test_fetch_heritage_js_shell_returns_empty() -> None:
     # A JS-heavy SPA shell has no decimal odds rows -> honest empty, not an error.
@@ -119,14 +131,20 @@ async def test_fetch_heritage_js_shell_returns_empty() -> None:
     health = offshore.book_status("heritage")["availability"]
     assert health["reachable"] is False
     assert health["error"] == "no odds parsed"
+
+
 @respx.mock
 async def test_fetch_offshore_network_error_never_raises() -> None:
     respx.get(_MYBOOKIE_NBA).mock(side_effect=httpx.ConnectError("boom"))
     records = await offshore.fetch_mybookie("nba")
     assert records == []
+
+
 async def test_fetch_offshore_unsupported_sport() -> None:
     records = await offshore.fetch_bookmaker("quidditch")
     assert records == []
+
+
 @respx.mock
 async def test_fetch_geo_block_retries_via_proxy(monkeypatch: pytest.MonkeyPatch) -> None:
     """Direct request blocked -> retried through the Webshare pool -> odds flow."""
@@ -144,12 +162,16 @@ async def test_fetch_geo_block_retries_via_proxy(monkeypatch: pytest.MonkeyPatch
     assert len(records) == 1
     assert records[0]["home_odds"] == 2.10
     assert calls["count"] == 2
+
+
 @respx.mock
 async def test_fetch_geo_block_no_proxy_returns_empty() -> None:
     respx.get(_SPORTSBETTING_NBA).mock(return_value=httpx.Response(200, text=_blocked_html()))
     records = await offshore.fetch_sportsbetting("nba")
     assert records == []
     assert offshore.book_status("sportsbetting")["availability"]["blocked"] is True
+
+
 @respx.mock
 async def test_fetch_pinnacle_happy_path() -> None:
     respx.get(_PINNACLE_FIXTURES).mock(

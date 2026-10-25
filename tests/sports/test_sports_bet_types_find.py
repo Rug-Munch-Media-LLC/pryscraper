@@ -19,6 +19,10 @@ Covers:
 Every public function is asserted never to raise (HTTP errors and
 malformed payloads degrade to ``[]`` / ``{}``).
 """
+from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
+from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
+from tests.sports._sports_bet_types_support import _hermetic_sports  # noqa: F401
+
 from typing import Any
 
 import httpx
@@ -26,6 +30,7 @@ import pytest
 
 import datasets.sports_data.parlays as parlays
 from pry.engine.retry import RetryConfig
+from tests.sports._sports_bet_types_support import _comparison_payload, _game_props_records
 
 _ODDS_NBA = "https://api.the-odds-api.com/v4/sports/basketball_nba"
 _ODDS_NFL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl"
@@ -37,7 +42,6 @@ _STATS_NFL = (
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
 )
-from tests.sports._sports_bet_types_support import _comparison_payload, _game_props_records
 
 
 async def test_find_parlay_opportunities_plus_ev(
@@ -74,6 +78,8 @@ async def test_find_parlay_opportunities_plus_ev(
     assert any(
         {leg["market"] for leg in item["legs"]} == {"player_points", "total"} for item in results
     )
+
+
 async def test_find_parlay_opportunities_mixed_book_flag(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -103,6 +109,8 @@ async def test_find_parlay_opportunities_mixed_book_flag(
     results = await parlays.find_parlay_opportunities("eid123")
     assert any(item["book"] == "mixed" for item in results)
     assert any(item["book"] == "draftkings" for item in results)
+
+
 async def test_find_parlay_opportunities_threshold_filters(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -120,6 +128,8 @@ async def test_find_parlay_opportunities_threshold_filters(
     # Threshold 20% → the 15.5% combo is filtered out.
     results = await parlays.find_parlay_opportunities("eid123", min_ev_pct=20.0)
     assert results == []
+
+
 async def test_find_parlay_opportunities_never_raises(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -19,12 +19,21 @@ Covers:
 Every public function is asserted never to raise (HTTP errors and
 malformed payloads degrade to ``[]`` / ``{}``).
 """
+from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
+from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
+from tests.sports._sports_bet_types_support import _hermetic_sports  # noqa: F401
+
 import httpx
 import pytest
 import respx
 
 import datasets.sports_data.alt_lines as alt_lines
 from pry.engine.retry import RetryConfig
+from tests.sports._sports_bet_types_support import (
+    _alt_lines_payload,
+    _espn_scoreboard_payload,
+    _event_odds_payload,
+)
 
 _ODDS_NBA = "https://api.the-odds-api.com/v4/sports/basketball_nba"
 _ODDS_NFL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl"
@@ -35,11 +44,6 @@ _STATS_NFL = (
 )
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
-)
-from tests.sports._sports_bet_types_support import (
-    _alt_lines_payload,
-    _espn_scoreboard_payload,
-    _event_odds_payload,
 )
 
 
@@ -66,6 +70,8 @@ async def test_get_alt_lines_odds_api_success(monkeypatch: pytest.MonkeyPatch) -
     high = next(r for r in totals if r["line"] == 230.5)
     assert high["home_odds"] == 1.91
     assert high["away_odds"] == 1.95
+
+
 @respx.mock
 async def test_get_alt_lines_market_filter(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PRY_ODDS_API_KEY", "test-key")
@@ -78,6 +84,8 @@ async def test_get_alt_lines_market_filter(monkeypatch: pytest.MonkeyPatch) -> N
     results2 = await alt_lines.get_alt_lines("nba:eid123", market="spread")
     assert results2
     assert all(r["market"] == "spread" for r in results2)
+
+
 @respx.mock
 async def test_get_alt_lines_book_filter(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PRY_ODDS_API_KEY", "test-key")
@@ -118,6 +126,8 @@ async def test_get_alt_lines_book_filter(monkeypatch: pytest.MonkeyPatch) -> Non
     assert results
     assert all(r["book"] == "draftkings" for r in results)
     assert len(results) == 1
+
+
 @respx.mock
 async def test_get_alt_lines_espn_fallback() -> None:
     # No Odds API key → ESPN modeled ladder.
@@ -137,6 +147,8 @@ async def test_get_alt_lines_espn_fallback() -> None:
     neg = next(r for r in spreads if r["line"] == -5.5)
     deeper = next(r for r in spreads if r["line"] == -9.0)
     assert deeper["home_odds"] > neg["home_odds"]  # -9.0 covers less often → longer price
+
+
 @respx.mock
 async def test_get_alt_lines_never_raises() -> None:
     respx.get(url__startswith=f"{_ODDS_NBA}/events/eid123/odds").mock(
