@@ -99,13 +99,32 @@ BASELINE: dict[str, str] = {
 }
 
 
-def test_no_new_zero_importer_modules() -> None:
-    """Every zero-importer module is allowlisted with a reason; allowlist only shrinks."""
-    modules = {
+
+def _modules() -> dict[str, Path]:
+    return {
         ".".join(path.relative_to(SRC).with_suffix("").parts): path
         for path in (SRC / "pry").rglob("*.py")
         if path.name != "__init__.py"
     }
+
+
+def _names_imported_by(text: str) -> set[str]:
+    found: set[str] = set(DYN.findall(text))
+    try:
+        tree: ast.AST | None = ast.parse(text)
+    except SyntaxError:
+        tree = None
+    if tree is not None:
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                found.update(alias.name for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+                found.add(node.module)
+                found.update(f"{node.module}.{alias.name}" for alias in node.names)
+    return found
+
+
+def _referenced(modules: dict[str, Path]) -> set[str]:
     referenced: set[str] = set()
     for path in ROOT.rglob("*.py"):
         if any(part in SKIP for part in path.relative_to(ROOT).parts) or path.resolve() == SELF:
@@ -114,22 +133,16 @@ def test_no_new_zero_importer_modules() -> None:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
-        found: set[str] = set(DYN.findall(text))
-        try:
-            tree: ast.AST | None = ast.parse(text)
-        except SyntaxError:
-            tree = None
-        if tree is not None:
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    found.update(alias.name for alias in node.names)
-                elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
-                    found.add(node.module)
-                    found.update(f"{node.module}.{alias.name}" for alias in node.names)
+        found = _names_imported_by(text)
         referenced.update(m for m, own in modules.items() if m in found and path != own)
+    return referenced
 
-    zero = {m for m in modules if m not in referenced}
+
+def test_no_new_zero_importer_modules() -> None:
+    """Every zero-importer module is allowlisted with a reason; allowlist only shrinks."""
+    modules = _modules()
+    zero = {m for m in modules if m not in _referenced(modules)}
     new = sorted(zero - set(BASELINE))
     stale = sorted(set(BASELINE) - zero)
-    assert not new, f"new zero-importer modules — wire an importer or allowlist WITH a reason: {new}"
-    assert not stale, f"baseline entries gained an importer — delete them (ratchet only shrinks): {stale}"
+    assert not new, f"new zero-importer modules - wire an importer or allowlist WITH a reason: {new}"
+    assert not stale, f"baseline entries gained an importer - delete them (ratchet only shrinks): {stale}"
