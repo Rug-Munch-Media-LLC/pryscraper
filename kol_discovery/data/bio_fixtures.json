@@ -1,0 +1,22 @@
+{
+	"_provenance": "Only rows actually captured. x.com profile HTML is robots-disallowed for our user agent, so the single bio row below is the og:description value returned by ONE reachability probe (not a crawl), recorded verbatim. No synthetic accounts are shipped here.",
+	"captured_at": "2026-10-25",
+	"accounts": [
+		{
+			"platform": "x",
+			"handle": "cobie",
+			"display_name": "Cobie",
+			"followers": 0,
+			"bio": "@echodotxyz @coinbase @uponlytv",
+			"bio_links": [],
+			"declared_wallets": [],
+			"evidence_url": "https://x.com/cobie",
+			"sources": ["og_description_probe"],
+			"confidence": 0.2,
+			"first_seen": "2026-10-25",
+			"last_checked": "2026-10-25",
+			"_note": "truncated by X's og:description; followers and full bio require the x-social-ops capture lane"
+		}
+	],
+	"risk_inputs": {}
+}

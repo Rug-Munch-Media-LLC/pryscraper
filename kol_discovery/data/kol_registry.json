@@ -1,0 +1,1568 @@
+{
+	"schema_version": "kol-discovery/1",
+	"sources": [
+		{
+			"name": "x_profile_bio",
+			"url": "https://x.com/cobie",
+			"status": "blocked",
+			"http_status": 200,
+			"detail": "robots.txt User-agent:* Disallow:/ (Crawl-delay 1) \u2014 HTML does carry og:title/og:description, but we do not crawl a disallowed path; the authenticated capture client is owned by the x-social-ops lane",
+			"verification": "probed",
+			"fetched_at": "2026-10-25",
+			"yields": ["bio_truncated_og"]
+		},
+		{
+			"name": "kolscan_leaderboard",
+			"url": "https://kolscan.io/leaderboard",
+			"status": "reachable",
+			"http_status": 200,
+			"detail": "Next.js RSC flight payload parsed without a browser; robots.txt 404 (no crawl rules) -> self-imposed 2s rate limit",
+			"verification": "probed",
+			"fetched_at": "2026-10-25",
+			"yields": ["wallet_address", "twitter", "name", "telegram"]
+		},
+		{
+			"name": "kaito",
+			"url": "https://kaito.ai/",
+			"status": "blocked",
+			"http_status": 403,
+			"detail": "edge WAF rejects non-browser clients; JS-rendered app, no public JSON",
+			"verification": "probed",
+			"fetched_at": "2026-10-25",
+			"yields": []
+		},
+		{
+			"name": "dexcheck",
+			"url": "https://dexcheck.io/",
+			"status": "blocked",
+			"http_status": 403,
+			"detail": "Cloudflare bot management; KOL board needs a JS-capable solver",
+			"verification": "probed",
+			"fetched_at": "2026-10-25",
+			"yields": []
+		},
+		{
+			"name": "gmgn_leaderboard",
+			"url": "https://gmgn.ai/leaderboard",
+			"status": "blocked",
+			"http_status": 403,
+			"detail": "Cloudflare; matches the x-social-ops stub (crypto_market/kol_leaderboards.py)",
+			"verification": "probed",
+			"fetched_at": "2026-10-25",
+			"yields": []
+		},
+		{
+			"name": "cielo_finance",
+			"url": "https://www.cielo.finance/",
+			"status": "blocked",
+			"http_status": 0,
+			"detail": "no response (curl exit: connection/TLS failure) \u2014 DNS or egress blocked",
+			"verification": "probed",
+			"fetched_at": "2026-10-25",
+			"yields": []
+		},
+		{
+			"name": "dexscreener_smart_money",
+			"url": "https://dexscreener.com/smart-money",
+			"status": "blocked",
+			"http_status": 403,
+			"detail": "Cloudflare per x-social-ops record; not re-probed in this run",
+			"verification": "prior_record",
+			"fetched_at": "2026-10-25",
+			"yields": []
+		},
+		{
+			"name": "x_social_ops_bio_feed",
+			"url": "import:crypto_market.kol_leaderboards (owner: x-social-ops lane)",
+			"status": "interface",
+			"http_status": 0,
+			"detail": "cross-lane interface \u2014 consumed via import when the module is present, never re-implemented and never written to",
+			"verification": "probed",
+			"fetched_at": "2026-10-25",
+			"yields": ["kolscan_leaderboard"]
+		}
+	],
+	"stats": {
+		"accounts": 51,
+		"by_platform": {
+			"x": 51
+		},
+		"wallets_declared": 0,
+		"wallets_inferred": 50,
+		"unique_wallets": 50,
+		"with_telegram": 15
+	},
+	"accounts": [
+		{
+			"key": "x:0xenjooyer",
+			"handle": "0xEnjooyer",
+			"display_name": "Enjooyer",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "Enjoy9BmQgAUD9AKC4HpUbHByVdzwp7jQppKukEvdyWm",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @0xEnjooyer",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:0xgroovy",
+			"handle": "0xGroovy",
+			"display_name": "Groovy",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "34ZEH778zL8ctkLwxxERLX5ZnUu6MuFyX9CWrs8kucMw",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @0xGroovy",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:0xsweep",
+			"handle": "0xSweep",
+			"display_name": "Sweep",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "GP9PyTwGybX3q3tC5dMRKeuq8Dr15uPVvn3Z9fKbempH",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @0xSweep",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "https://t.me/jsdao",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:7xnickk",
+			"handle": "7xNickk",
+			"display_name": "7xNickk",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "AmofvGJ59dgf5P85Pofip83pk7nZqrQRmSZvv5rRFVtf",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @7xNickk",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:beezyscores",
+			"handle": "BeezyScores",
+			"display_name": "B*",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "3wZ6MfB1DRUvtozvcptvV1qAhQ5FKj3qpZR4Db45G6jk",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @BeezyScores",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:bigbagsbobby",
+			"handle": "bigbagsbobby",
+			"display_name": "big bags bobby",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "8oQoMhfBQnRspn7QtNAq2aPThRE4q94kLSTwaaFQvRgs",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @bigbagsbobby",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:bihoznfts",
+			"handle": "bihozNFTs",
+			"display_name": "bihoz",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "An68XCxJvfXc9NRWjNXGSFY55dyFVKjfgtpt8AKGJ2dE",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @bihozNFTs",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:cobie",
+			"handle": "cobie",
+			"display_name": "Cobie",
+			"platform": "x",
+			"followers": 0,
+			"bio": "@echodotxyz @coinbase @uponlytv",
+			"bio_links": [],
+			"wallets": [],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "2026-10-25",
+			"last_checked": "2026-10-25",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.2,
+			"sources": ["og_description_probe"]
+		},
+		{
+			"key": "x:cryptolaanie",
+			"handle": "cryptolaanie",
+			"display_name": "Laanie",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "37Y6bz7AXpHHRzMHGMqGRxv8JMuHQCS2FFHrPZkUeRt2",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @cryptolaanie",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "https://t.me/laaniecalls",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:dingalingts",
+			"handle": "dingalingts",
+			"display_name": "dingaling",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "9X5n5i1mugTjgGPhqf1KJDt8r4kD8TF3s62ttbxKzFHa",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @dingalingts",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:doncaarbon",
+			"handle": "doncaarbon",
+			"display_name": "Don",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "winkACDSxstg19HJgX1pwDGpD8f2ZpiqqAjyAbkgXLu",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @doncaarbon",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "https://t.me/dontrenches",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:eth_exy",
+			"handle": "eth_exy",
+			"display_name": "Exy",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "8hKZKqCgZWxnvRz1XAvmbuzCAfqo5xFjH17vM2J2HTe1",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @eth_exy",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:evansofweb3",
+			"handle": "EvansOfWeb3",
+			"display_name": "EvansOfWeb",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "5RQEcWJZdhkxRMbwjSq32RaocgYPaWDhi3ztimWUcrwo",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @EvansOfWeb3",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:exitliquid1ty",
+			"handle": "exitliquid1ty",
+			"display_name": "unprofitable",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "DYmsQudNqJyyDvq86XmzAvrU9T7xwfQEwh6gPQw9TPNF",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @exitliquid1ty",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:finnbags",
+			"handle": "finnbags",
+			"display_name": "FINN",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "BTeqNydtKyDaSxQNRm8ByaUDPK3cpQ1FsXMtaF1Hfaom",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @finnbags",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:giann2k",
+			"handle": "Giann2K",
+			"display_name": "Giann",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "GNrmKZCxYyNiSUsjduwwPJzhed3LATjciiKVuSGrsHEC",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @Giann2K",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:gr3gor14n",
+			"handle": "gr3gor14n",
+			"display_name": "gr3g",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "J23qr98GjGJJqKq9CBEnyRhHbmkaVxtTJNNxKu597wsA",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @gr3gor14n",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:guappy_eth",
+			"handle": "guappy_eth",
+			"display_name": "guappy",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "3TsRAE3Pdx4eJAcxbiwi9NY8mNYChEkjV5DbAwazFKSq",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @guappy_eth",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:hesikillaz",
+			"handle": "hesikillaz",
+			"display_name": "Hesi",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "FpD6n8gfoZNxyAN6QqNH4TFQdV9vZEgcv5W4H2YL8k4X",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @hesikillaz",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:ieatjeets",
+			"handle": "ieatjeets",
+			"display_name": "Jeets",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "D1H83ueSw5Nxy5okxH7VBfV4jRnqAK5Mm1tm3JAj3m5t",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @ieatjeets",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:ignhail",
+			"handle": "ignHail",
+			"display_name": "Hail",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "HA1L7GhQfypSRdfBi3tCkkCVEdEcBVYqBSQCENCrwPuB",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @ignHail",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:insidecalls",
+			"handle": "insidecalls",
+			"display_name": "Inside Calls",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "4NtyFqqRzvHWsTmJZoT26H9xtL7asWGTxpcpCxiKax9a",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @insidecalls",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "http://t.me/callsfromwithin",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:insydercrypto",
+			"handle": "insydercrypto",
+			"display_name": "Insyder",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "G3g1CKqKWSVEVURZDNMazDBv7YAhMNTjhJBVRTiKZygk",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @insydercrypto",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:itsthurstxn",
+			"handle": "itsthurstxn",
+			"display_name": "Thurston (zapped arc)",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "ALauG4FwEYDgSXd5Hen6kvuWSCdUi2fYNSNqM1Ci31wE",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @itsthurstxn",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:jeetburner",
+			"handle": "Jeetburner",
+			"display_name": "JB",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "7dP8DmRka5rmQti4zEEDjdAyaQyvFsPkcXMjEKJucqCu",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @Jeetburner",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:lectronnft",
+			"handle": "LectronNFT",
+			"display_name": "Lectron",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "Gv8YFCU9WESGpN6fcGKG9nirqcyF9wVZAqnQ1DjrsfcE",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @LectronNFT",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:levisnft",
+			"handle": "LevisNFT",
+			"display_name": "Levis",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "GwoFJFjUTUSWq2EwTz4P2Sznoq9XYLrf8t4q5kbTgZ1R",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @LevisNFT",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "https://t.me/LevisAlpha",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:lilmoonlambo",
+			"handle": "LilMoonLambo",
+			"display_name": "LilMoonLambo",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "GJyhzLoZAxZHZGPvF3V1wsyGUnoGSQ55n6hN6nHv7W8B",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @LilMoonLambo",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:limpcritisism",
+			"handle": "limpcritisism",
+			"display_name": "Sebi",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "DxwDRWxQXDaVZquH3YvCVBQ75nUf16FttQ4q88okn5mc",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @limpcritisism",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:luckedhub",
+			"handle": "luckedhub",
+			"display_name": "jamessmith",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "EQaxqKT3N981QBmdSUGNzAGK5S26zUwAdRHhBCgn87zD",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @luckedhub",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:lynk0x",
+			"handle": "lynk0x",
+			"display_name": "Lynk",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "CkPFGv2Wv1vwdWjtXioEgb8jhZQfs3eVZez3QCetu7xD",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @lynk0x",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "https://t.me/lynkscabal",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:mambatrades_",
+			"handle": "mambatrades_",
+			"display_name": "M A M B A \ud83e\uddf2",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "4nvNc7dDEqKKLM4Sr9Kgk3t1of6f8G66kT64VoC95LYh",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @mambatrades_",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:moneymaykah_",
+			"handle": "moneymaykah_",
+			"display_name": "MoneyMaykah",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "3i8akM4xfSX9WKFB5bQ61fmiYkeKQEFqvdMEyu6pSEk9",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @moneymaykah_",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:ohzarke",
+			"handle": "ohzarke",
+			"display_name": "ozark",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "DZAa55HwXgv5hStwaTEJGXZz1DhHejvpb7Yr762urXam",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @ohzarke",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:oura456",
+			"handle": "Oura456",
+			"display_name": "Oura",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "4WPTQA7BB4iRdrPhgNpJihGcxKh8T43gLjMn5PbEVfQw",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @Oura456",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "https://t.me/OuraEmergencyCalls",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:owlfn_",
+			"handle": "OwlFN_",
+			"display_name": "Owl",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "A5uxHmjTVyBd1Aj4BFUAekujpPjaWnCrLSRJhjAyvjH4",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @OwlFN_",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:paincrypt0",
+			"handle": "PainCrypt0",
+			"display_name": "Pain",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "J6TDXvarvpBdPXTaTU8eJbtso1PUCYKGkVtMKUUY8iEa",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @PainCrypt0",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "https://t.me/PainCrypto69",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:phineas_sol",
+			"handle": "Phineas_Sol",
+			"display_name": "Phineas.SOL",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "64ymeD9XTAkNJgHtXgrG6JCNZmBC9fSVcmgkL54pFikE",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @Phineas_Sol",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "https://t.me/PhineasCabal",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:prxnterr",
+			"handle": "prxnterr",
+			"display_name": "printer",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "Bu8iZsGvS5dwuY3GiEDjUSDayEME7LthH4x7TRGTnMXA",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @prxnterr",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:psykogem",
+			"handle": "psykogem",
+			"display_name": "psyk\u00f8",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "FC3nyVqdufVfrgXiRJEqgST1JdJSEBEz6a9KoBfFP7c4",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @psykogem",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:publixplayz",
+			"handle": "Publixplayz",
+			"display_name": "Publix",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "86AEJExyjeNNgcp7GrAvCXTDicf5aGWgoERbXFiG1EdD",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @Publixplayz",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:putrickk",
+			"handle": "Putrickk",
+			"display_name": "Putrick",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "AVjEtg2ECYKXYeqdRQXvaaAZBjfTjYuSMTR4WLhKoeQN",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @Putrickk",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "https://t.me/cryptoputro",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:saint_pablo123",
+			"handle": "Saint_pablo123",
+			"display_name": "Sebastian",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "3BLjRcxWGtR7WRshJ3hL25U3RjWr5Ud98wMcczQqk4Ei",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @Saint_pablo123",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:shockedjs",
+			"handle": "ShockedJS",
+			"display_name": "ShockedJS",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "6m5sW6EAPAHncxnzapi1ZVJNRb9RZHQ3Bj7FD84X9rAF",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @ShockedJS",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "https://t.me/shockedjstrading",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:sizeab1e",
+			"handle": "sizeab1e",
+			"display_name": "Sizeab1e",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "AtmeWwb6Y6KNDgu2dPJT5dsar84bFCbNxLiW2DyYfm8p",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @sizeab1e",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "https://t.me/thetradingcorps",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:staticctrades",
+			"handle": "staticctrades",
+			"display_name": "staticc",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "9pgKiUsNHXMe5p4DoGwzT9i6of7XympnNJ5TgbrZVqk6",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @staticctrades",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:the__solstice",
+			"handle": "The__Solstice",
+			"display_name": "Solstice",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "GrD2umbfEBjQKFPDQvmmYNQ5eyRL9SAdWJj9FFMyeaDN",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @The__Solstice",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "https://t.me/solsticesmoonshots",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:theunipcs",
+			"handle": "theunipcs",
+			"display_name": "Unipcs (aka 'Bonk Guy')",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "5M8ACGKEXG1ojKDTMH3sMqhTihTgHYMSsZc6W8i7QW3Y",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @theunipcs",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:xandereef",
+			"handle": "xandereef",
+			"display_name": "xander",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "B3wagQZiZU2hKa5pUCj6rrdhWsX3Q6WfTTnki9PjwzMh",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @xandereef",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "https://t.me/xanderstrenches",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:xunle111",
+			"handle": "xunle111",
+			"display_name": "xunle",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "4YzpSZpxDdjNf3unjkCtdWEsz2FL5mok7e5XQaDNqry8",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @xunle111",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		},
+		{
+			"key": "x:zilxbt",
+			"handle": "zilxbt",
+			"display_name": "Zil",
+			"platform": "x",
+			"followers": 0,
+			"bio": "",
+			"bio_links": [],
+			"wallets": [
+				{
+					"chain": "solana",
+					"address": "FSAmbD6jm6SZZQadSJeC1paX3oTtAiY9hTx1UYzVoXqj",
+					"source": "leaderboard",
+					"attribution": "inferred",
+					"evidence": "board pairs wallet with @zilxbt",
+					"evidence_url": "https://kolscan.io/leaderboard"
+				}
+			],
+			"telegram": "https://t.me/zilcalls",
+			"projects": [],
+			"first_seen": "",
+			"last_checked": "",
+			"promo_history": [],
+			"risk_signals": {},
+			"risk_score": 0.0,
+			"confidence": 0.4,
+			"sources": ["kolscan_leaderboard"]
+		}
+	],
+	"wallets": {
+		"solana:34zeh778zl8ctklwxxerlx5znuu6mufyx9cwrs8kucmw": "x:0xgroovy",
+		"solana:37y6bz7axphhrzmhgmqgrxv8jmuhqcs2ffhrpzkuert2": "x:cryptolaanie",
+		"solana:3bljrcxwgtr7wrshj3hl25u3rjwr5ud98wmcczqqk4ei": "x:saint_pablo123",
+		"solana:3i8akm4xfsx9wkfb5bq61fmiykekqefqvdmeyu6psek9": "x:moneymaykah_",
+		"solana:3tsrae3pdx4ejacxbiwi9ny8mnychekjv5dbawazfksq": "x:guappy_eth",
+		"solana:3wz6mfb1druvtozvcptvv1qahq5fkj3qpzr4db45g6jk": "x:beezyscores",
+		"solana:4ntyfqqrzvhwstmjzot26h9xtl7aswgtxpcpcxikax9a": "x:insidecalls",
+		"solana:4nvnc7ddeqkklm4sr9kgk3t1of6f8g66kt64voc95lyh": "x:mambatrades_",
+		"solana:4wptqa7bb4irdrphgnpjihgcxkh8t43gljmn5pbevfqw": "x:oura456",
+		"solana:4yzpszpxddjnf3unjkctdwesz2fl5mok7e5xqadnqry8": "x:xunle111",
+		"solana:5m8acgkexg1ojkdtmh3smqhtihtghymsszc6w8i7qw3y": "x:theunipcs",
+		"solana:5rqecwjzdhkxrmbwjsq32raocgypawdhi3ztimwucrwo": "x:evansofweb3",
+		"solana:64ymed9xtaknjghtxgrg6jcnzmbc9fsvcmgkl54pfike": "x:phineas_sol",
+		"solana:6m5sw6eapahncxnzapi1zvjnrb9rzhq3bj7fd84x9raf": "x:shockedjs",
+		"solana:7dp8dmrka5rmqti4zeedjdayaqyvfspkcxmjekjucqcu": "x:jeetburner",
+		"solana:86aejexyjenngcp7gravcxtdicf5agwgoerbxfig1edd": "x:publixplayz",
+		"solana:8hkzkqcgzwxnvrz1xavmbuzcafqo5xfjh17vm2j2hte1": "x:eth_exy",
+		"solana:8oqomhfbqnrspn7qtnaq2apthre4q94klstwaafqvrgs": "x:bigbagsbobby",
+		"solana:9pgkiusnhxme5p4dogwzt9i6of7xympnnj5tgbrzvqk6": "x:staticctrades",
+		"solana:9x5n5i1mugtjggphqf1kjdt8r4kd8tf3s62ttbxkzfha": "x:dingalingts",
+		"solana:a5uxhmjtvybd1aj4bfuaekujppjawncrlsrjhjayvjh4": "x:owlfn_",
+		"solana:alaug4fweydgsxd5hen6kvuwscdui2fynsnqm1ci31we": "x:itsthurstxn",
+		"solana:amofvgj59dgf5p85pofip83pk7nzqrqrmszvv5rrfvtf": "x:7xnickk",
+		"solana:an68xcxjvfxc9nrwjnxgsfy55dyfvkjfgtpt8akgj2de": "x:bihoznfts",
+		"solana:atmewwb6y6kndgu2dpjt5dsar84bfcbnxliw2dyyfm8p": "x:sizeab1e",
+		"solana:avjetg2ecykxyeqdrqxvaaazbjftjyusmtr4wlhkoeqn": "x:putrickk",
+		"solana:b3wagqzizu2hka5pucj6rrdhwsx3q6wfttnki9pjwzmh": "x:xandereef",
+		"solana:bteqnydtkydasxqnrm8byaudpk3cpq1fsxmtaf1hfaom": "x:finnbags",
+		"solana:bu8izsgvs5dwuy3giedjusdayeme7lthh4x7trgtnmxa": "x:prxnterr",
+		"solana:ckpfgv2wv1vwdwjtxioegb8jhzqfs3evzez3qcetu7xd": "x:lynk0x",
+		"solana:d1h83uesw5nxy5okxh7vbfv4jrnqak5mm1tm3jaj3m5t": "x:ieatjeets",
+		"solana:dxwdrwxqxdavzquh3yvcvbq75nuf16fttq4q88okn5mc": "x:limpcritisism",
+		"solana:dymsqudnqjyydvq86xmzavru9t7xwfqewh6gpqw9tpnf": "x:exitliquid1ty",
+		"solana:dzaa55hwxgv5hstwatejgxzz1dhhejvpb7yr762urxam": "x:ohzarke",
+		"solana:enjoy9bmqgaud9akc4hpubhbyvdzwp7jqppkukevdywm": "x:0xenjooyer",
+		"solana:eqaxqkt3n981qbmdsugnzagk5s26zuwadrhhbcgn87zd": "x:luckedhub",
+		"solana:fc3nyvqdufvfrgxirjeqgst1jdjsebez6a9kobffp7c4": "x:psykogem",
+		"solana:fpd6n8gfoznxyan6qqnh4tfqdv9vzegcv5w4h2yl8k4x": "x:hesikillaz",
+		"solana:fsambd6jm6szzqadsjec1pax3ottaiy9htx1uyzvoxqj": "x:zilxbt",
+		"solana:g3g1ckqkwsvevurzdnmazdbv7yahmntjhjbvrtikzygk": "x:insydercrypto",
+		"solana:gjyhzlozaxzhzgpvf3v1wsygunogsq55n6hn6nhv7w8b": "x:lilmoonlambo",
+		"solana:gnrmkzcxyynisusjduwwpjzhed3latjciikvusgrshec": "x:giann2k",
+		"solana:gp9pytwgybx3q3tc5dmrkeuq8dr15upvvn3z9fkbemph": "x:0xsweep",
+		"solana:grd2umbfebjqkfpdqvmmynq5eyrl9sadwjj9ffmyeadn": "x:the__solstice",
+		"solana:gv8yfcu9wesgpn6fcgkg9nirqcyf9wvzaqnq1djrsfce": "x:lectronnft",
+		"solana:gwofjfjutuswq2ewtz4p2sznoq9xylrf8t4q5kbtgz1r": "x:levisnft",
+		"solana:ha1l7ghqfypsrdfbi3tckkcvedecbvyqbsqcencrwpub": "x:ignhail",
+		"solana:j23qr98gjgjjqkq9cbenyrhhbmkavxttjnnxku597wsa": "x:gr3gor14n",
+		"solana:j6tdxvarvpbdpxtatu8ejbtso1pucykgkvtmkuuy8iea": "x:paincrypt0",
+		"solana:winkacdsxstg19hjgx1pwdgpd8f2zpiqqajyabkgxlu": "x:doncaarbon"
+	}
+}
