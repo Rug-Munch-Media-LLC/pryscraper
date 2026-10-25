@@ -108,11 +108,13 @@ _UTILITY_OWNERS: dict[str, str] = {
     "core/outbound_politeness.py": "outbound per-key spacing + capped backoff",
     "engine/extractor.py": "canonical schema extractor",
     "engine/retry.py": "retry policy + backoff math",
+    "engine/retry_after.py": "Retry-After parsing helper (pry_sdk, #38)",
     "engine/email_scraper/extractor.py": "email-pattern extractor (own domain)",
 }
 
 
 def test_utility_modules_have_one_owner():
+    import pathlib
     import re
 
     pattern = re.compile(r"^(rate_?limit|extractor|retry)")
@@ -130,6 +132,8 @@ def test_utility_modules_have_one_owner():
 
 
 def test_utility_owner_allowlist_has_no_dead_entries():
+    import pathlib
+
     src = pathlib.Path(__file__).resolve().parents[1] / "src" / "pry"
     missing = [rel for rel in _UTILITY_OWNERS if not (src / rel).is_file()]
     assert missing == [], f"stale allowlist entries (shrink-only): {missing}"
