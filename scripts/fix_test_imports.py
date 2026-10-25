@@ -50,6 +50,19 @@ def _block(nodes: list[ast.stmt]) -> list[str]:
     return out
 
 
+def _prefix_end(body: list[ast.stmt], head_end: int) -> int:
+    for number in range(head_end, len(body)):
+        node = body[number]
+        guarded = isinstance(node, (ast.Import, ast.ImportFrom)) or _is_constant_like(node)
+        guarded = guarded or (
+            isinstance(node, ast.If)
+            and all(isinstance(s, (ast.Import, ast.ImportFrom)) for s in node.body)
+        )
+        if not guarded:
+            return number
+    return len(body)
+
+
 def _rewrite(path: Path) -> str:
     source = path.read_text()
     lines = source.splitlines(keepends=True)
@@ -63,17 +76,7 @@ def _rewrite(path: Path) -> str:
     while index < len(body) and isinstance(body[index], (ast.Import, ast.ImportFrom)):
         index += 1
     head = list(body[head_end:index])
-    stop = len(body)
-    for number in range(head_end, len(body)):
-        node = body[number]
-        guarded = isinstance(node, (ast.Import, ast.ImportFrom)) or _is_constant_like(node)
-        guarded = guarded or (
-            isinstance(node, ast.If)
-            and all(isinstance(s, (ast.Import, ast.ImportFrom)) for s in node.body)
-        )
-        if not guarded:
-            stop = number
-            break
+    stop = _prefix_end(body, head_end)
     tail = [n for n in body[head_end:stop] if isinstance(n, (ast.Import, ast.ImportFrom))]
     late = [n for n in body[stop:] if isinstance(n, (ast.Import, ast.ImportFrom))]
     if late:

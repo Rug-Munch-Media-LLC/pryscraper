@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
 import pytest
 
 import datasets.legal_docs.dockets as dockets
 import datasets.legal_docs.sanctions as sanctions
 import datasets.legal_docs.sec_filings as sec_filings
+from pry.engine.retry import RetryConfig
+
+_ZERO_RETRY = RetryConfig(
+    max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
+)
 
 
 @pytest.fixture(autouse=True)
@@ -25,6 +31,7 @@ def _hermetic_legal(monkeypatch: pytest.MonkeyPatch) -> Any:
     sanctions.configure_retries(previous_sanctions)
     sec_filings.reset_ticker_cache()
     sanctions.reset_cache()
+
 
 def _cl_search_payload() -> dict[str, Any]:
     return {
@@ -45,6 +52,7 @@ def _cl_search_payload() -> dict[str, Any]:
         ],
     }
 
+
 def _cl_detail_payload() -> dict[str, Any]:
     return {
         **_cl_search_payload()["results"][0],
@@ -57,6 +65,7 @@ def _cl_detail_payload() -> dict[str, Any]:
         "appeal_from": "dcd",
         "panel": None,
     }
+
 
 def _fts_payload() -> dict[str, Any]:
     return {
@@ -78,8 +87,10 @@ def _fts_payload() -> dict[str, Any]:
         }
     }
 
+
 def _tickers_payload() -> dict[str, Any]:
     return {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}}
+
 
 def _submissions_payload() -> dict[str, Any]:
     return {
@@ -107,6 +118,7 @@ def _submissions_payload() -> dict[str, Any]:
         },
     }
 
+
 def _index_payload() -> dict[str, Any]:
     return {
         "directory": {
@@ -117,6 +129,7 @@ def _index_payload() -> dict[str, Any]:
             ],
         }
     }
+
 
 def _sdn_json_payload() -> dict[str, Any]:
     return {
@@ -141,6 +154,7 @@ def _sdn_json_payload() -> dict[str, Any]:
             }
         }
     }
+
 
 def _sdn_xml() -> str:
     return """<?xml version="1.0" standalone="yes"?>
