@@ -140,7 +140,9 @@ def mount_secondary(app: FastAPI, ns: Mapping[str, Any]) -> None:
     app.include_router(ns["streams_router"])
     app.include_router(ns["api_keys_router"])
     app.include_router(ns["vision_router"])
-    app.include_router(ns["webhooks_router"])
+    _webhooks = ns.get("webhooks_router")
+    if _webhooks is not None:
+        app.include_router(_webhooks)
     app.include_router(ns["x402_router"])
     app.include_router(ns["crypto_payment_router"])
     # site_catalog (assured-scrape capability registry) owns absolute
