@@ -22,6 +22,7 @@ from pry.intelligence.llm.base_client import (
     LLM_TIMEOUT_SECONDS,
     TRANSIENT_HTTP_STATUSES,
 )
+from pry.core.outbound_politeness import outbound_backoff
 
 
 async def _stream_openai_compatible(
@@ -90,7 +91,7 @@ async def _stream_openai_compatible(
                 raise
             last_error = e
         if attempt < retry_attempts:
-            await asyncio.sleep(backoff_base * (2**attempt))
+            await outbound_backoff("llm", attempt + 1, base=backoff_base)
 
     if last_error is not None:
         raise last_error

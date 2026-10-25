@@ -97,3 +97,44 @@ def test_guard_rejects_a_new_copy(tmp_path):
     assert ("pryscraper", "src/pry/core/rate_limit_v2.py") in found
     assert not allowed("pryscraper", "src/pry/core/rate_limit_v2.py")
     assert allowed("pryscraper", "src/pry/engine/retry_after.py")
+
+
+# --- utility-module ownership (pry-utils-49) -------------------------------
+# A second rate_limit*/extractor*/retry* module re-creates duplication this repo
+# already paid for (19 rate-limit copies, 17 extractor copies). One owner per
+# capability; the allowlist is shrink-only (dead entries fail too).
+_UTILITY_OWNERS: dict[str, str] = {
+    "core/ratelimit.py": "inbound per-IP bucket (Redis + memory)",
+    "core/outbound_politeness.py": "outbound per-key spacing + capped backoff",
+    "engine/extractor.py": "canonical schema extractor",
+    "engine/retry.py": "retry policy + backoff math",
+    "engine/retry_after.py": "Retry-After parsing helper (pry_sdk, #38)",
+    "engine/email_scraper/extractor.py": "email-pattern extractor (own domain)",
+}
+
+
+def test_utility_modules_have_one_owner():
+    import pathlib
+    import re
+
+    pattern = re.compile(r"^(rate_?limit|extractor|retry)")
+    src = pathlib.Path(__file__).resolve().parents[1] / "src" / "pry"
+    offenders = sorted(
+        str(p.relative_to(src))
+        for p in src.rglob("*.py")
+        if "__pycache__" not in p.parts and pattern.search(p.stem)
+    )
+    unknown = [rel for rel in offenders if rel not in _UTILITY_OWNERS]
+    assert unknown == [], (
+        f"utility module outside a canonical path: {unknown}. "
+        "Reuse the canonical module or add it to _UTILITY_OWNERS with a reason."
+    )
+
+
+def test_utility_owner_allowlist_has_no_dead_entries():
+    import pathlib
+
+    src = pathlib.Path(__file__).resolve().parents[1] / "src" / "pry"
+    missing = [rel for rel in _UTILITY_OWNERS if not (src / rel).is_file()]
+    assert missing == [], f"stale allowlist entries (shrink-only): {missing}"
+
