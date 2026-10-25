@@ -10,11 +10,14 @@ rather than reporting a tweet with no text.
 from __future__ import annotations
 
 import json
+import logging
 import re
 
 import httpx
 
 from pry.actors.x_envelope import envelope, refusal
+
+logger = logging.getLogger(__name__)
 
 SOURCE = "cdn.syndication.tweet-result"
 URL = "https://cdn.syndication.twimg.com/tweet-result?id={tweet_id}&lang=en"
@@ -43,7 +46,8 @@ def fetch_tweet(
     )
     try:
         response = client.get(URL.format(tweet_id=tweet_id))
-    except Exception as exc:
+    except (httpx.HTTPError, httpx.InvalidURL) as exc:
+        logger.warning("x_tweet_transport_failure handler=x_tweet error=%s", exc)
         return refusal(SOURCE, "blocked.challenge", detail=f"transport: {type(exc).__name__}")
     finally:
         if owns_client:
@@ -57,7 +61,8 @@ def fetch_tweet(
 
     try:
         payload = json.loads(response.text or "{}")
-    except ValueError:
+    except ValueError as exc:
+        logger.warning("x_tweet_body_not_json handler=x_tweet error=%s", exc)
         return refusal(SOURCE, "no_data", http_status=status, detail="non-JSON body")
     if not isinstance(payload, dict) or not payload:
         return refusal(
