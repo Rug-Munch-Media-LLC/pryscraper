@@ -12,12 +12,15 @@ registrable-host rule table: a degraded answer is labelled, never faked.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+import logging
 import math
 import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -32,7 +35,15 @@ SIMILAR_LIMIT = 5
 # Anything the lane can realistically raise; deliberately not ``Exception``.
 _LANE_ERRORS = (httpx.HTTPError, KeyError, IndexError, OSError, TypeError, ValueError, RuntimeError)
 
-__all__ = ["EMBED_DIM", "EmbedLane", "Similarity", "cosine", "find_similar_domain", "host_family", "rule_matches"]
+__all__ = [
+    "EMBED_DIM",
+    "EmbedLane",
+    "Similarity",
+    "cosine",
+    "find_similar_domain",
+    "host_family",
+    "rule_matches",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,7 +81,9 @@ def cosine(left: list[float], right: list[float]) -> float:
 class EmbedLane:
     """Thin client for the embed lane. An injected ``embedder`` is the test seam."""
 
-    def __init__(self, url: str = EMBED_LANE_URL, embedder: Callable[[str], list[float]] | None = None) -> None:
+    def __init__(
+        self, url: str = EMBED_LANE_URL, embedder: Callable[[str], list[float]] | None = None
+    ) -> None:
         self._url = url.rstrip("/")
         self._embedder = embedder
 
@@ -94,6 +107,7 @@ class EmbedLane:
         try:
             self.embed("probe")
         except _LANE_ERRORS as exc:
+            logger.warning("embed_probe_failed handler=unlock_similar error=%s", exc)
             return False, f"{type(exc).__name__}: {exc}"
         return True, "ok"
 
@@ -112,10 +126,15 @@ def find_similar_domain(
         base = lane.embed(domain)
         scored = [(cosine(base, lane.embed(other)), other) for other in candidates]
     except _LANE_ERRORS as exc:
+        logger.warning("embed_lane_unavailable handler=unlock_similar error=%s", exc)
         return Similarity(
             available=False,
             reason=f"embed lane unavailable ({type(exc).__name__}); rule table used",
             matches=rule_matches(domain, candidates),
         )
-    hits = sorted((pair for pair in scored if pair[0] >= floor), key=lambda pair: (-pair[0], pair[1]))
-    return Similarity(available=True, reason="embed lane", matches=[other for _, other in hits[:limit]])
+    hits = sorted(
+        (pair for pair in scored if pair[0] >= floor), key=lambda pair: (-pair[0], pair[1])
+    )
+    return Similarity(
+        available=True, reason="embed lane", matches=[other for _, other in hits[:limit]]
+    )

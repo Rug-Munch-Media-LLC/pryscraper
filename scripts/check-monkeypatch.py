@@ -7,7 +7,7 @@ increase. This gate is deliberately separate from the aggregate
 the monkeypatch budget while other rules shrink to compensate.
 
 Counts monkeypatch-attribute access, mock-patch calls, patch decorators,
-patch-object calls, sys.modules deletions, `# HACK|# WORKAROUND|# TEMP`
+patch-object calls, sys.modules deletions, HACK / WORKAROUND / TEMP markers
 markers and `setattr(<module>, "attr", ...)` (Python sources, production only).
 The matched patterns live in ``MONKEY_RE`` below.
 

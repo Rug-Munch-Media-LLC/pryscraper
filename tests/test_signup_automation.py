@@ -435,7 +435,7 @@ async def test_verify_email_no_mailbox(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Temp-mail (mail.tm) fallback
+# Disposable-mail (mail.tm) fallback
 # ---------------------------------------------------------------------------
 
 
