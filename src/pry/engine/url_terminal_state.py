@@ -29,10 +29,13 @@ ever suppresses work for at most ``_MAX_BACKOFF_S``.
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 _MAX_ENTRIES = 2048
 _MAX_BACKOFF_S = 900.0
@@ -55,7 +58,8 @@ _STATES: dict[str, _State] = {}
 def _env_float(name: str, default: float, floor: float) -> float:
     try:
         return max(floor, float(os.getenv(name, str(default))))
-    except ValueError:
+    except ValueError as exc:
+        logger.debug("env_float_invalid handler=url_terminal_state error=%s", exc)
         return default
 
 

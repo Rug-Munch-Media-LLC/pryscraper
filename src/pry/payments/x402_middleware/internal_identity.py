@@ -60,7 +60,8 @@ def peer_caller(scope: Mapping[str, Any]) -> str:
         from pry.payments.x402_middleware.classification import _caller_key_from_scope
 
         return _caller_key_from_scope(scope)
-    except ImportError:  # pragma: no cover - partial import during startup
+    except ImportError as exc:  # pragma: no cover - partial import during startup
+        logger.warning("caller_key_import_failed handler=internal_identity error=%s", exc)
         client = scope.get("client") or ()
         return str(client[0]) if client and client[0] else ""
 

@@ -10,14 +10,21 @@ Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
+import logging
+
 from pry.core.errors import InvalidRequestError
+
+logger = logging.getLogger(__name__)
 
 
 def validate_selector(selector: str, *, field: str) -> str:
     """Validate a user-supplied CSS selector; raise 400-style on rejection."""
     try:
         from extraction.css import _validate_css_selector
-    except ImportError:  # pragma: no cover - extraction ships with Pry
+    except ImportError as exc:  # pragma: no cover - extraction ships with Pry
+        logger.warning(
+            "selector_validate_exception_suppressed handler=validate_selector error=%s", exc
+        )
         return selector
     try:
         return _validate_css_selector(selector)
