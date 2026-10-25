@@ -8,7 +8,6 @@ degrade to empty output), and the /v1/legal/* router (200 + 502-degradation
 
 All HTTP is mocked with respx — no live network.
 """
-from tests.legal._legal_docs_support import _hermetic_legal  # noqa: F401
 
 from typing import Any
 
@@ -20,7 +19,8 @@ import datasets.legal_docs as legal_docs
 import datasets.legal_docs.dockets as dockets
 import pry.api.routers.data.legal_docs as legal_router_mod
 from pry.engine.retry import RetryConfig
-from tests.legal._legal_docs_support2 import _client
+from tests.legal._legal_docs_support import _hermetic_legal  # noqa: F401
+from tests.legal._legal_docs_support2 import _client, legal_app  # noqa: F401
 
 _CL_BASE = "https://www.courtlistener.com/api/rest/v4"
 _PACER_FETCH = f"{_CL_BASE}/pacer-fetch/"
