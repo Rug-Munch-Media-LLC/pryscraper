@@ -12,6 +12,13 @@ import pytest
 
 from pry.payments.x402_middleware.internal import _SEEN_SIGNATURES
 
+# Split scenario files rely on the shared router fixture (regression: settle_1/_2
+# were split without it, so pytest reported "fixture 'router' not found").
+from tests.x402._x402_facilitator_support import (  # noqa: F401
+    _eip7702_ok,
+    router,
+)
+
 
 @pytest.fixture(autouse=True)
 def _clear_internal_replay_cache():
