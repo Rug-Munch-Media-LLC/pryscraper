@@ -15,10 +15,15 @@ from typing import Any
 
 import httpx
 
+from pry.engine.retry_after import retry_delay
+
 DEFAULT_BASE_URL = "http://localhost:8005"
 _CURSOR_KEYS = ("next_cursor", "nextCursor", "cursor", "next")
 _ITEM_KEYS = ("data", "items", "results", "records")
 _RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
+#: Base for the no-header fallback. 0.05 (the old value) is not a backoff — a
+#: 429 with no Retry-After was retried after 50 ms, i.e. we self-banned.
+_RETRY_BASE_S = 0.5
 _LOOP: asyncio.AbstractEventLoop | None = None
 PayCallback = Callable[[dict[str, Any]], "str | dict[str, Any] | Awaitable[Any]"]
 
@@ -148,6 +153,7 @@ class PryCrawl:
         ) as client:
             for attempt in range(self.max_retries + 1):
                 last = attempt == self.max_retries
+                resp: httpx.Response | None = None
                 try:
                     resp = await client.request(
                         method, f"{self.base_url}{path}", json=body, params=params
@@ -158,7 +164,11 @@ class PryCrawl:
                 else:
                     if not (idempotent and resp.status_code in _RETRY_STATUS) or last:
                         return resp
-                await asyncio.sleep(min(0.05 * 2**attempt, 2.0))
+                # Honour Retry-After: sleeping less than the server asked is how
+                # the fleet gets its IP space banned. Absent header → capped
+                # exponential from _RETRY_BASE_S.
+                header = resp.headers.get("retry-after") if resp is not None else None
+                await asyncio.sleep(retry_delay(attempt, base=_RETRY_BASE_S, header=header))
         raise PryError(0, "transport_error", f"{method} {path} failed")
 
     async def _post(
