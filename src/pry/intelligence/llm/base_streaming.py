@@ -17,6 +17,7 @@ from typing import Any
 import httpx
 
 from pry.intelligence.llm.base_client import (
+from pry.core.outbound_politeness import outbound_backoff
     LLM_STREAM_RETRY_ATTEMPTS,
     LLM_STREAM_RETRY_BACKOFF,
     LLM_TIMEOUT_SECONDS,
@@ -90,7 +91,7 @@ async def _stream_openai_compatible(
                 raise
             last_error = e
         if attempt < retry_attempts:
-            await asyncio.sleep(backoff_base * (2**attempt))
+            await outbound_backoff("llm", attempt + 1, base=backoff_base)
 
     if last_error is not None:
         raise last_error

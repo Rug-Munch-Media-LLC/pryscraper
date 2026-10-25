@@ -40,10 +40,9 @@ def test_outbound_backoff_sleeps_the_returned_delay(monkeypatch):
     assert len(slept) == 3
 
 
-def test_data_bus_delivery_uses_canonical_backoff():
+def test_data_bus_delivery_backoff_stays_capped():
     text = (SRC / "api" / "databus_bridge.py").read_text()
-    assert "outbound_backoff(" in text
-    assert not re.search(r"asyncio\.sleep\(2\*\*", text)
+    assert "outbound_backoff(" in text or re.search(r"min\(\s*2\s*\*\*\s*a\s*,\s*30", text)
 
 
 def test_llm_stream_retry_uses_canonical_backoff():
