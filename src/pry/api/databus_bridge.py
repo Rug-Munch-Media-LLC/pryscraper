@@ -41,6 +41,7 @@ from pry.api.databus_common import (
 )
 from pry.commerce.pipeline import Pipeline, get_pipeline
 from pry.core.paths import PRY_DATA_DIR
+from pry.engine.retry_after import retry_delay
 
 logger = structlog.get_logger(__name__)
 
@@ -58,6 +59,9 @@ DATABUS_API_KEY = os.getenv("RMI_INTERNAL_KEY", "") or os.getenv("PRY_DATABUS_AP
 DATABUS_ENABLED = os.getenv("PRY_DATABUS_ENABLED", "1") == "1"
 DATABUS_TIMEOUT = int(os.getenv("PRY_DATABUS_TIMEOUT", "10"))
 DATABUS_MAX_RETRIES = int(os.getenv("PRY_DATABUS_MAX_RETRIES", "3"))
+#: Base for the retry ladder; retry_delay caps every sleep at
+#: RETRY_AFTER_CAP_S (30 s) so a long ladder cannot park the worker.
+_RETRY_BASE_S = 1.0
 
 # Retry queue (persistent on disk for durability)
 RETRY_DIR = PRY_DATA_DIR / "databus_retry"
@@ -170,7 +174,9 @@ async def _deliver_with_retry(payload: dict[str, Any], attempt: int = 1) -> bool
         if await _deliver_once(payload):
             return True
         if a < DATABUS_MAX_RETRIES:
-            await asyncio.sleep(2**a)  # exponential backoff
+            # Capped backoff — 2**a was unbounded, so attempt 10 parked the
+            # worker for 17 minutes with a delivered-nothing payload.
+            await asyncio.sleep(retry_delay(a, base=_RETRY_BASE_S))
 
     # Exhausted retries — persist to disk queue for later delivery
     _queue_for_retry(payload)
