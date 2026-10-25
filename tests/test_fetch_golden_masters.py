@@ -226,7 +226,7 @@ class TestScrapingMethodsGolden:
     </urlset>"""
 
     def test_rss_entries_exact_shape(self) -> None:
-        from pry.engine.scraping_methods import _rss_entries
+        from pry.engine.methods.feeds import _rss_entries
 
         entries = _rss_entries(ET.fromstring(self.RSS))  # noqa: S314 - trusted fixture
         expected = [
@@ -241,7 +241,7 @@ class TestScrapingMethodsGolden:
         assert entries == expected
 
     def test_atom_entries_content_and_updated_fallbacks(self) -> None:
-        from pry.engine.scraping_methods import _atom_entries
+        from pry.engine.methods.feeds import _atom_entries
 
         entries = _atom_entries(ET.fromstring(self.ATOM))  # noqa: S314 - trusted fixture
         expected = {
@@ -276,7 +276,7 @@ class TestScrapingMethodsGolden:
         assert sorted(urls) == expected
 
     def test_discover_feed_resolves_relative_href(self) -> None:
-        from pry.engine.scraping_methods import discover_feed
+        from pry.engine.methods.feeds import discover_feed
 
         html = '<link rel="alternate" type="application/rss+xml" href="/feed.xml">'
         assert discover_feed("http://blog.example/post/1", html) == ("http://blog.example/feed.xml")

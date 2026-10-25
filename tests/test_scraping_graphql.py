@@ -11,7 +11,8 @@ from unittest.mock import patch
 
 import httpx
 
-from pry.engine.scraping_methods import discover_graphql, paginated_fetch, query_graphql
+from pry.engine.methods.graphql import discover_graphql, query_graphql
+from pry.engine.methods.pagination import paginated_fetch
 from tests.support.scraping import GRAPHQL_HTML
 
 # ── GraphQL endpoint discovery ──────────────────────────────────────────────

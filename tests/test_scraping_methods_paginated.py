@@ -12,9 +12,7 @@ from unittest.mock import patch
 
 import httpx
 
-from pry.engine.scraping_methods import (
-    paginated_fetch,
-)
+from pry.engine.methods.pagination import paginated_fetch
 
 FIXTURE_HTML = """<!DOCTYPE html><html><head>
 <script src="/static/app.js"></script>

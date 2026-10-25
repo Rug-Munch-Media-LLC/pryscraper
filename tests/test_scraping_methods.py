@@ -9,16 +9,14 @@ from __future__ import annotations
 
 import pytest
 
-from pry.engine.scraping_methods import (
-    METHODS,
-    PersistentSession,
-    discover_graphql,
-    discover_json_api,
-    fetch_rendered,
-    paginated_fetch,
-    parse_feed,
-    parse_sitemap,
-)
+from pry.engine.methods.feeds import parse_feed
+from pry.engine.methods.graphql import discover_graphql, query_graphql  # noqa: F401
+from pry.engine.methods.hidden_api import discover_json_api
+from pry.engine.methods.pagination import paginated_fetch
+from pry.engine.methods.registry import METHODS
+from pry.engine.methods.render import fetch_rendered
+from pry.engine.methods.session import PersistentSession
+from pry.engine.methods.sitemaps import parse_sitemap
 from tests.support.scraping import FIXTURE_HTML
 
 # ── Hidden-API discovery ────────────────────────────────────────────────────

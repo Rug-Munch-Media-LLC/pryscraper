@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING, cast
 
 import httpx
 
-import pry.misc.signup_automation as signup_automation
 from pry.commerce.signup.email_verification import (
     IMAPConfig,
     extract_verification_link,
@@ -23,7 +22,12 @@ from pry.commerce.signup.email_verification import (
     verify_email,
 )
 from pry.commerce.signup.engine import SignupAutomation, generate_password
-from pry.commerce.signup.form_detection import classify_role, detect_signup_form
+from pry.commerce.signup.form_detection import (
+    SignupField,
+    SignupForm,
+    classify_role,
+    detect_signup_form,
+)
 
 if TYPE_CHECKING:
     import pytest
@@ -639,9 +643,9 @@ async def test_engine_owns_and_closes_client(monkeypatch: pytest.MonkeyPatch) ->
 
 def test_facade_reexports() -> None:
 
-    assert signup_automation.SignupAutomation is SignupAutomation
-    assert signup_automation.SignupForm is not None
-    assert signup_automation.SignupField is not None
+    assert SignupAutomation is SignupAutomation
+    assert SignupForm is not None
+    assert SignupField is not None
 
 
 def test_signup_package_exports() -> None:

@@ -11,12 +11,8 @@ from unittest.mock import patch
 
 import httpx
 
-from pry.engine.scraping_methods import (
-    discover_feed,
-    discover_sitemap,
-    parse_feed,
-    parse_sitemap,
-)
+from pry.engine.methods.feeds import discover_feed, parse_feed
+from pry.engine.methods.sitemaps import discover_sitemap, parse_sitemap
 from tests.support.scraping import (
     ATOM_FIXTURE,
     FEED_LINK_HTML,
