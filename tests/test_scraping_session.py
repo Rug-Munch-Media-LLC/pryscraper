@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import httpx
 
-from pry.engine.scraping_methods import PersistentSession
+from pry.engine.methods.session import PersistentSession
 from tests.support.scraping import ok_handler
 
 # ── Session persistence / cookie warmer ─────────────────────────────────────

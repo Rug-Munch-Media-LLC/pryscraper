@@ -115,13 +115,13 @@ def pry_x402_ledger_isolation(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) ->
     the LIVE ~/.pry/x402/payments.jsonl. Tests must never touch the live
     ledger; handlers that need a specific file still pass explicit paths.
     """
-    import pry.misc.x402 as _misc_x402
+    import pry.payments.x402 as _x402_pkg
     import pry.payments.x402.handler as _handler_mod
     import pry.payments.x402.self_facilitator as _selffac_mod
 
     scratch = tmp_path / "x402-ledger"
     scratch.mkdir(parents=True, exist_ok=True)
-    for mod in (_handler_mod, _misc_x402, _selffac_mod):
+    for mod in (_handler_mod, _x402_pkg, _selffac_mod):
         if hasattr(mod, "X402_DIR"):
             monkeypatch.setattr(mod, "X402_DIR", scratch)
 

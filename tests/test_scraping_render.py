@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from pry.engine.scraping_methods import fetch_rendered
+from pry.engine.methods.render import fetch_rendered
 from tests.support.scraping import FakePage, FakeResponse, fake_playwright
 
 
