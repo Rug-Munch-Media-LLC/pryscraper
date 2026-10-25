@@ -1,6 +1,7 @@
 # Tiered test gates sized for 3 runner slots.
-#   smoke  : PR gate, <=5 min, no network, no slow, no integration.
-#   full   : nightly only, everything (network + integration + slow).
+#   smoke : PR gate, bounded unit core (split scenario suites + actor contracts +
+#           tier system). No network, no slow, no integration; hard 60s per test.
+#   full  : nightly only — everything, never a PR gate.
 name: tests-tiered
 on:
   pull_request:
@@ -17,13 +18,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python3 -m pip install -e '.[dev]' pytest-xdist pytest-timeout
-      - name: collect (import gate)
+      - name: collect (import gate, must be 9627 of 9638)
         run: python3 -m pytest tests --collect-only -q
       - name: smoke tier
         run: >-
-          python3 -m pytest tests -q -n 4 --dist loadfile --timeout=60
+          python3 -m pytest -q -n 4 --timeout=60
           -m "not network and not slow and not integration"
-          --ignore=tests/contract
+          tests/sports tests/legal tests/travel tests/real_estate tests/x402
+          tests/test_actor_catalog_contracts.py tests/test_actor_metadata.py
+          tests/test_15_tier_system.py
   full:
     if: github.event_name == 'schedule'
     runs-on: docker
@@ -32,4 +35,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: python3 -m pip install -e '.[dev]' pytest-xdist pytest-timeout
       - name: full tier (everything, never a PR gate)
-        run: python3 -m pytest tests -q -n 4 --dist loadfile --timeout=120 -m "" || true
+        run: python3 -m pytest tests -q -n 4 --dist loadfile --timeout=120

@@ -16,6 +16,7 @@ import pytest
 import respx
 
 import datasets.legal_docs.sanctions as sanctions
+from pathlib import Path
 from pry.engine.retry import RetryConfig
 
 if TYPE_CHECKING:
