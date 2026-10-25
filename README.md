@@ -101,3 +101,6 @@ make test
 ## Licence
 
 MIT, except the stealth/browser layer (BSL 1.1). Both files ship in the repo.
+
+Where the owners live (retry, rate limiter, extractor), how the actor factory
+composes an actor, and the full test lanes: [docs/ops/CONTRIBUTOR-MAP.md](docs/ops/CONTRIBUTOR-MAP.md).
