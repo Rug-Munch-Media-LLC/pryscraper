@@ -37,8 +37,10 @@ from pry.core.errors import PryError
 @pytest.fixture(autouse=True)
 def _hermetic_attention(monkeypatch: pytest.MonkeyPatch) -> Any:
     """Kill backoff sleeps + never leak a respx-bound shared client."""
-    monkeypatch.setattr(serp, "RETRY_BASE", 0.0)
-    monkeypatch.setattr(serp, "MAX_BACKOFF", 0.0)
+    # serp is a package: the backoff budget lives on its fetch module, which
+    # is what the retry loop reads at call time.
+    monkeypatch.setattr(serp.fetch, "RETRY_BASE", 0.0)
+    monkeypatch.setattr(serp.fetch, "MAX_BACKOFF", 0.0)
     monkeypatch.setattr(trends, "RETRY_BASE", 0.0)
     monkeypatch.setattr(trends, "MAX_BACKOFF", 0.0)
     monkeypatch.setattr(ad_intel, "RETRY_BASE", 0.0)
