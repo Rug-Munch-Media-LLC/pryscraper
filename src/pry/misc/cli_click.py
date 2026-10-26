@@ -186,3 +186,9 @@ if click is not None:
         pm = ProxyManager()
         rec = pm.get_recommendation(last_error)
         click.echo(json.dumps(rec, indent=2))
+
+
+if click is not None:
+    from pry.misc.cli_dextools import dextools_group
+
+    cli.add_command(dextools_group)

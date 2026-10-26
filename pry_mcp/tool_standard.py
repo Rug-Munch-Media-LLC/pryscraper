@@ -48,6 +48,7 @@ _DOMAIN_DISPATCHERS = (
     "call_news_tool",
     "call_compliance_tool",
     "call_deals_tool",
+    "call_dextools_tool",
     "call_bidding_tool",
 )
 
