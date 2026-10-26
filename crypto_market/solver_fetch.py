@@ -16,13 +16,13 @@ Measured on Talos before writing this:
 
 The solver is NOT a bypass of anything the operator owns: it is the standard
 Cloudflare-challenge client used elsewhere in this repo (pry's own compose
-declares `flaresolverr-pry` and PRY_FLARESOLVERR_URL). It renders the public
-page a browser would render, and the caller then parses public JSON.
+uses the single canonical `flaresolverr` and PRY_FLARESOLVERR_URL). It renders
+the public page a browser would render, and the caller then parses public JSON.
 
 CONFIG (env, all optional)
 --------------------------
-PRY_FLARESOLVERR_URL     solver endpoint. Default http://flaresolverr-pry:8191/v1
-                         (the in-network name pry already depends on).
+PRY_FLARESOLVERR_URL     solver endpoint. Default http://flaresolverr:8191/v1
+                         (the canonical in-network name).
 PRY_FLARESOLVERR_HOST_PORT
                          host-published fallback, tried when the in-network
                          name does not resolve: http://127.0.0.1:8192/v1
@@ -49,10 +49,9 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# Both the in-network service name pry already depends on, and the
-# host-published port. Tried in order; the first that answers wins.
+# The canonical in-network name first, then the host-published ports for a
+# host-run process. Tried in order; the first that answers wins.
 _DEFAULT_ENDPOINTS = (
-    "http://flaresolverr-pry:8191/v1",
     "http://flaresolverr:8191/v1",
     "http://127.0.0.1:8192/v1",
     "http://127.0.0.1:8191/v1",

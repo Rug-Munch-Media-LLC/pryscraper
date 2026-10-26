@@ -57,8 +57,8 @@ scrape_configs:
       - targets: ['redis-exporter:9121']
 
   # FlareSolverr exposes no native /metrics — probe its health endpoint
-  # via blackbox exporter (up=1 healthy, up=0 down). Probes the DEDICATED
-  # pry instance (flaresolverr-pry), which is the one the ladder depends on.
+  # via blackbox exporter (up=1 healthy, up=0 down). Probes the canonical
+  # `flaresolverr`, the one instance the ladder depends on.
   - job_name: 'flaresolverr'
     metrics_path: /probe
     params:

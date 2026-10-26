@@ -154,14 +154,16 @@ services:
     # NOTE: rmi-backend binds 127.0.0.1:8000 on the host, so host-gateway
     # routing is NOT an option — the public URL is the only decoupled path.
     depends_on:
-      # Must be the SAME service PRY_FLARESOLVERR_URL names two lines above,
-      # which is flaresolverr-pry. It was flaresolverr — the shared instance
-      # degenfeed saturates — so Pry waited on the health of a service it
-      # never called. Fixing one without the other is how the split happened.
+      # PRY_FLARESOLVERR_URL (line 97) names `flaresolverr`, which is NOT a
+      # service in this file: it is the one canonical instance from
+      # fleet-infra/compose/flaresolverr.yml, attached to this network under
+      # that alias. The per-app sidecar is gone (retired 2026-10-26): pry used
+      # to CALL `flaresolverr-pry` while WAITING on `flaresolverr`, which is
+      # how T1 ended up dialling a name that was never running.
       # The app needs its database and queue before the entrypoint migrates;
       # without these the first boot races Postgres and exits on connect.
-      # docker-compose.selfhost.yml replaces this whole map (`!override`) with
-      # flaresolverr-pry only, because it removes postgres/redis entirely.
+      # docker-compose.selfhost.yml replaces this whole map (`!override`),
+      # because it removes postgres/redis and bundles its own solver.
       postgres:
         condition: service_healthy
       redis:

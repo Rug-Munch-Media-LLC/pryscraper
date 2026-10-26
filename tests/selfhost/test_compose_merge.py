@@ -81,7 +81,10 @@ class TestContainerPrefix:
         names = self._names()
         assert names["pry"] == "pry"
         assert names["postgres"] == "pry-postgres"
-        assert names["flaresolverr-pry"] == "pry-flaresolverr-pry"
+        # The solver is fleet-infra's single container, not a pryscraper
+        # service: the base file must not declare one at all (retired
+        # 2026-10-26). Its container name is covered by the selfhost render.
+        assert "flaresolverr-pry" not in names
 
     def test_empty_prefix_keeps_fleet_names(self) -> None:
         """`-` (not `:-`) is required: an EMPTY prefix must still yield `pry`."""
