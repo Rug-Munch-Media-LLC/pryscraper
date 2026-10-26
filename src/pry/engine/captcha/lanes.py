@@ -12,7 +12,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from pry.engine.captcha import audio_asr, browser_integrity, image_ocr, t0_profile, vision
+import httpx
+
+from pry.core.settings import settings
+from pry.engine.captcha import (
+    audio_asr,
+    browser_integrity,
+    clearance,
+    image_ocr,
+    t0_profile,
+    vision,
+)
 from pry.engine.captcha.flaresolverr import flaresolverr_fetch, looks_unsolved
 
 
@@ -41,7 +51,28 @@ class LaneOutcome:
     reason: str = ""
 
 
+async def _cached(item: clearance.Clearance, url: str, remaining: float) -> str | None:
+    """Replay a stored clearance: the cookie AND the UA that earned it."""
+    headers = {"User-Agent": item.user_agent, "Cookie": item.cookie_header()}
+    try:
+        timeout = max(min(remaining, 20.0), 1.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.get(url, headers=headers)
+    except httpx.HTTPError:
+        return None
+    return (resp.text or None) if resp.status_code == 200 else None
+
+
 async def _t0(challenge: Challenge, remaining: float) -> LaneOutcome:
+    if settings.captcha_enabled and clearance.enabled():
+        domain = clearance.domain_of(challenge.url)
+        item = await clearance.store().get(domain)
+        if item is not None:
+            html = await _cached(item, challenge.url, remaining)
+            if html and not looks_unsolved(html):
+                return LaneOutcome("solved", "http", html=html, reason="clearance")
+            if html:
+                await clearance.store().invalidate(domain)
     html, reason = await t0_profile.fetch_clean(challenge.url, min(remaining, 20.0))
     if reason == "solved" and html:
         return LaneOutcome("solved", "http", html=html)
@@ -51,6 +82,7 @@ async def _t0(challenge: Challenge, remaining: float) -> LaneOutcome:
 async def _t1(challenge: Challenge, remaining: float) -> LaneOutcome:
     solution = await flaresolverr_fetch(challenge.url, remaining)
     if solution.ok and not looks_unsolved(solution.html):
+        await clearance.record(challenge.url, solution.token, "T1")
         return LaneOutcome("solved", "js", token=solution.token, html=solution.html)
     return LaneOutcome("unsolved" if solution.ok else solution.error or "failed", "js")
 
