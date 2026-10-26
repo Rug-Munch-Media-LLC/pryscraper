@@ -17,7 +17,10 @@ def test_image_bytes_normalisation_accepts_data_urls() -> None:
 async def test_audio_without_model_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(audio_asr.MODEL_ENV, "/nonexistent/asr-model")
     assert audio_asr.capability() is False
-    assert await audio_asr.solve_audio(b"clip") == (None, "unavailable.model")
+    assert await audio_asr.solve_audio(b"clip") == (
+        None,
+        "unavailable.model:/nonexistent/asr-model",
+    )
     assert await audio_asr.solve_audio(None) == (None, "not_applicable")
 
 
@@ -31,7 +34,10 @@ async def test_vision_refuses_unsupported_classes() -> None:
 async def test_ocr_without_model_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(image_ocr.MODEL_ENV, "/nonexistent/common.onnx")
     assert image_ocr.capability() is False
-    assert await image_ocr.solve_image(b"img") == (None, "unavailable.model")
+    assert await image_ocr.solve_image(b"img") == (
+        None,
+        "unavailable.model:/nonexistent/common.onnx",
+    )
 
 
 @pytest.mark.asyncio

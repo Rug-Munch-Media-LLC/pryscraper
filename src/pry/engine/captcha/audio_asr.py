@@ -60,7 +60,7 @@ async def solve_audio(audio: bytes | None, timeout_s: float = 30.0) -> tuple[str
     if not audio:
         return None, "not_applicable"
     if not capability():
-        return None, "unavailable.model"
+        return None, f"unavailable.model:{model_path()}"
     try:
         async with asyncio.timeout(timeout_s):
             text = await asyncio.to_thread(_transcribe, audio, model_path())
