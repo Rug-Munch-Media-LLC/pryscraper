@@ -1,150 +1,194 @@
-"""Tests for the CAPTCHA ladder: order, key absence, robots, submission."""
+"""Free-tier CAPTCHA ladder: policy, order, breaker, typed refusals."""
 
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
-import httpx
+import pathlib
+
 import pytest
-import respx
 
-from pry.core.settings import settings
-from pry.engine.captcha import flaresolverr as fs_mod
-from pry.engine.captcha.diagnostics import captcha_diagnostics
-from pry.engine.captcha.ladder import LADDER_ORDER, LadderResult, solve_ladder
-from pry.engine.captcha.lanes import TOKEN_METHODS, Challenge
-from pry.engine.captcha.submit import submit_solution
-from pry.engine.captcha.token_api import CAPSOLVER_CREATE_URL, CAPSOLVER_RESULT_URL
+from pry.engine.captcha import ladder as ladder_mod, probes
+from pry.engine.captcha.breaker import TierBreaker
+from pry.engine.captcha.ladder import solve_ladder
+from pry.engine.captcha.lanes import Challenge, LaneOutcome
+from pry.engine.captcha.tiers import RETIRED_PROVIDERS, ordered_tiers
 
-TARGET = "https://target.test/challenge"
-UNSOLVED_HTML = "<html><body>Please verify you are human. g-recaptcha</body></html>"
-FLARE_OK = {
-    "status": "ok",
-    "solution": {"status": 200, "response": UNSOLVED_HTML, "cookies": [], "userAgent": "ua"},
-}
-ROBOTS_ALLOW = "User-agent: *\nAllow: /\n"
-ROBOTS_DENY = "User-agent: *\nDisallow: /private\n"
-WIDGET = Challenge(url=TARGET, html=UNSOLVED_HTML, captcha_type="recaptcha_v2", sitekey="SITEKEY")
+PKG = pathlib.Path(__file__).resolve().parents[1] / "src" / "pry" / "engine" / "captcha"
+SRC = PKG.parents[1]
+CLASS = "recaptcha_v2"
 
 
-def _mock_flare(router: respx.Router, payload: dict | None = None) -> None:
-    for endpoint in fs_mod._endpoints():
-        router.post(endpoint).mock(return_value=httpx.Response(200, json=payload or FLARE_OK))
+async def _allow(_url: str) -> tuple[bool, str]:
+    return True, "allowed"
 
 
-async def _no_key_run(monkeypatch: pytest.MonkeyPatch, tmp_path) -> LadderResult:
-    monkeypatch.setenv("PRY_CAPTCHA_ENV_FILE", str(tmp_path / "absent.env"))
-    monkeypatch.setattr(settings, "captcha_capsolver_api_key", "")
-    monkeypatch.setattr(settings, "captcha_2captcha_api_key", "")
-    with respx.mock(assert_all_called=False) as router:
-        router.get("https://target.test/robots.txt").mock(
-            return_value=httpx.Response(200, text=ROBOTS_ALLOW)
-        )
-        _mock_flare(router)
-        return await solve_ladder(WIDGET)
+async def _robots(_url: str) -> tuple[bool, str]:
+    return False, "blocked.robots"
 
 
-async def _key_run(monkeypatch: pytest.MonkeyPatch, tmp_path) -> tuple[LadderResult, str, str]:
-    monkeypatch.setenv("PRY_CAPTCHA_ENV_FILE", str(tmp_path / "absent.env"))
-    monkeypatch.setattr(settings, "captcha_capsolver_api_key", "test-key")
-    monkeypatch.setattr(settings, "captcha_2captcha_api_key", "")
-    with respx.mock(assert_all_called=False) as router:
-        router.get("https://target.test/robots.txt").mock(
-            return_value=httpx.Response(200, text=ROBOTS_ALLOW)
-        )
-        _mock_flare(router, {"status": "error", "message": "not cleared"})
-        create = router.post(CAPSOLVER_CREATE_URL).mock(
-            return_value=httpx.Response(200, json={"errorId": 0, "taskId": "task-1"})
-        )
-        router.post(CAPSOLVER_RESULT_URL).mock(
-            return_value=httpx.Response(
-                200, json={"status": "ready", "solution": {"gRecaptchaResponse": "TOKEN123"}}
-            )
-        )
-        submitted = router.post(TARGET).mock(return_value=httpx.Response(200, text="ok"))
-        result = await solve_ladder(WIDGET)
-        await submit_solution(TARGET, result.token or "")
-        return (
-            result,
-            create.calls[0].request.content.decode(),
-            submitted.calls[0].request.content.decode(),
-        )
+@pytest.fixture(autouse=True)
+def _settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(ladder_mod.settings, "captcha_enabled", True)
+    monkeypatch.setattr(ladder_mod.settings, "captcha_max_seconds", 30.0)
+    monkeypatch.setattr(ladder_mod, "solver_allowed", _allow)
 
 
-async def _robots_run(monkeypatch: pytest.MonkeyPatch, tmp_path) -> LadderResult:
-    monkeypatch.setenv("PRY_CAPTCHA_ENV_FILE", str(tmp_path / "absent.env"))
-    url = "https://private.test/private/page"
-    with respx.mock(assert_all_called=False) as router:
-        router.get("https://private.test/robots.txt").mock(
-            return_value=httpx.Response(200, text=ROBOTS_DENY)
-        )
-        router.post(fs_mod._endpoints()[0]).mock(
-            side_effect=AssertionError("solver lane called on a robots-disallowed URL")
-        )
-        return await solve_ladder(Challenge(url=url, html=UNSOLVED_HTML))
+def _challenge() -> Challenge:
+    return Challenge(url="https://example.com/page", captcha_type=CLASS, sitekey="k")
 
 
-@pytest.mark.asyncio
-async def test_no_key_attempts_free_lanes_in_order(monkeypatch, tmp_path):
-    """(a) No key: flaresolverr then image are attempted, in that order."""
-    result = await _no_key_run(monkeypatch, tmp_path)
-    assert result.status == "blocked.captcha_unsolved"
-    assert [a.provider for a in result.attempts] == list(LADDER_ORDER)
-    assert [a.provider for a in result.attempts][:2] == ["flaresolverr", "image"]
+# ── (a) the paid surface is gone ──────────────────────────────────────────
 
 
-@pytest.mark.asyncio
-async def test_no_key_names_missing_keys(monkeypatch, tmp_path):
-    """(a) The unsolved result names the two missing key env vars."""
-    result = await _no_key_run(monkeypatch, tmp_path)
-    outcomes = {a.provider: a.outcome for a in result.attempts}
-    assert result.missing_keys == [
-        "PRY_CAPTCHA_CAPSOLVER_API_KEY",
-        "PRY_CAPTCHA_2CAPTCHA_API_KEY",
+def test_retired_providers_are_declared_with_reason() -> None:
+    assert dict(RETIRED_PROVIDERS) == {
+        "capsolver": "paid — removed by policy",
+        "2captcha": "paid — removed by policy",
+    }
+
+
+def test_no_paid_provider_is_named_outside_the_retired_list() -> None:
+    hits = [
+        f"{path.name}:{name}"
+        for path in PKG.rglob("*.py")
+        if path.name != "tiers.py"
+        for name in ("capsolver", "2captcha")
+        if name in path.read_text(encoding="utf-8").lower()
     ]
-    assert outcomes["capsolver"] == "no_key"
-    assert outcomes["2captcha"] == "no_key"
+    assert hits == []
+
+
+def test_no_paid_solver_endpoint_survives_anywhere_in_src() -> None:
+    hits = [
+        str(path)
+        for path in SRC.rglob("*.py")
+        if any(
+            url in path.read_text(encoding="utf-8").lower()
+            for url in ("api.capsolver.com", "2captcha.com/in.php", "2captcha.com/res.php")
+        )
+    ]
+    assert hits == []
+
+
+# ── (b) order and skip-on-missing-capability ─────────────────────────────
+
+
+def test_tier_order_is_expected_cost_times_latency() -> None:
+    assert [t.tier for t in ordered_tiers()] == ["T0", "T1", "T3", "T4", "T2", "T5"]
 
 
 @pytest.mark.asyncio
-async def test_mocked_key_capsolver_request_shape(monkeypatch, tmp_path):
-    """(b) A token key produces the documented Capsolver request shape."""
-    result, body, _ = await _key_run(monkeypatch, tmp_path)
-    assert result.status == "solved"
-    assert result.provider == "capsolver"
-    assert result.token == "TOKEN123"
-    assert "test-key" in body
-    assert TOKEN_METHODS["recaptcha_v2"][1] in body
-    assert "SITEKEY" in body
-    assert TARGET in body
+async def test_absent_capability_is_skipped_not_attempted(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(probes, "available", lambda _cap: False)
+    calls: list[str] = []
+
+    async def _never(tier: str, _challenge: Challenge, _remaining: float) -> LaneOutcome:
+        calls.append(tier)
+        return LaneOutcome("solved", "x")
+
+    monkeypatch.setattr(ladder_mod, "run_tier", _never)
+    result = await solve_ladder(_challenge(), breaker=TierBreaker())
+    assert calls == []
+    assert result.status == "unavailable.model"
+    assert [a.status for a in result.attempts] == ["skipped"] * 6
+    assert result.tiers_tried == []
 
 
 @pytest.mark.asyncio
-async def test_solved_token_is_submitted(monkeypatch, tmp_path):
-    """(b) The solved token is posted back to the page."""
-    _, _, submitted = await _key_run(monkeypatch, tmp_path)
-    assert "TOKEN123" in submitted
+async def test_missing_browser_reports_unavailable_browser(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(probes, "available", lambda cap: cap != "patchright")
+
+    async def _unsolved(_tier: str, _challenge: Challenge, _remaining: float) -> LaneOutcome:
+        return LaneOutcome("unsolved", "x")
+
+    monkeypatch.setattr(ladder_mod, "run_tier", _unsolved)
+    result = await solve_ladder(_challenge(), breaker=TierBreaker())
+    last = result.attempts[-1]
+    assert last.tier == "T5"
+    assert last.reason.startswith("unavailable.browser")
+    assert result.status == "blocked.captcha_unsolved"
 
 
 @pytest.mark.asyncio
-async def test_robots_disallowed_has_zero_attempts(monkeypatch, tmp_path):
-    """(c) A robots-disallowed URL is refused with no solver attempt."""
-    result = await _robots_run(monkeypatch, tmp_path)
+async def test_solves_at_the_first_successful_tier(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(probes, "available", lambda _cap: True)
+
+    async def _run(tier: str, _challenge: Challenge, _remaining: float) -> LaneOutcome:
+        if tier == "T1":
+            return LaneOutcome("solved", "js", token="tok")
+        return LaneOutcome("unsolved", "x")
+
+    monkeypatch.setattr(ladder_mod, "run_tier", _run)
+    result = await solve_ladder(_challenge(), breaker=TierBreaker())
+    assert (result.status, result.provider, result.token) == ("solved", "T1", "tok")
+    assert [a.tier for a in result.attempts] == ["T0", "T1"]
+
+
+# ── (c) circuit breaker ──────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_breaker_opens_and_is_reported_in_the_trail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(probes, "available", lambda _cap: True)
+
+    async def _unsolved(_tier: str, _challenge: Challenge, _remaining: float) -> LaneOutcome:
+        return LaneOutcome("unsolved", "x")
+
+    monkeypatch.setattr(ladder_mod, "run_tier", _unsolved)
+    clock = [0.0]
+    breaker = TierBreaker(limit=3, window_s=60.0, clock=lambda: clock[0])
+    for _ in range(3):
+        await solve_ladder(_challenge(), breaker=breaker)
+    result = await solve_ladder(_challenge(), breaker=breaker)
+    assert result.tiers_tried == []
+    assert all(a.reason.startswith("breaker.open") for a in result.attempts)
+    assert breaker.snapshot()[f"T0:{CLASS}"] == 3
+
+
+# ── (d) typed refusals ───────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_unsolvable_returns_typed_refusal_with_class_and_tiers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(probes, "available", lambda _cap: True)
+
+    async def _unsolved(_tier: str, _challenge: Challenge, _remaining: float) -> LaneOutcome:
+        return LaneOutcome("unsolved", "x")
+
+    monkeypatch.setattr(ladder_mod, "run_tier", _unsolved)
+    result = await solve_ladder(_challenge(), breaker=TierBreaker())
+    assert result.token is None
+    assert result.status == "blocked.captcha_unsolved"
+    assert result.captcha_class == CLASS
+    assert result.tiers_tried == ["T0", "T1", "T3", "T4", "T2", "T5"]
+    assert all(a.line().startswith(a.tier) for a in result.attempts)
+
+
+@pytest.mark.asyncio
+async def test_disabled_ladder_refuses_instead_of_solving(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(ladder_mod.settings, "captcha_enabled", False)
+    result = await solve_ladder(_challenge(), breaker=TierBreaker())
+    assert (result.status, result.attempts, result.token) == ("disabled", [], None)
+
+
+# ── (e) robots is terminal with zero attempts ────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_robots_is_terminal_with_no_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(ladder_mod, "solver_allowed", _robots)
+    calls: list[str] = []
+
+    async def _never(tier: str, _challenge: Challenge, _remaining: float) -> LaneOutcome:
+        calls.append(tier)
+        return LaneOutcome("solved", "x")
+
+    monkeypatch.setattr(ladder_mod, "run_tier", _never)
+    result = await solve_ladder(_challenge(), breaker=TierBreaker())
     assert result.status == "blocked.robots"
     assert result.attempts == []
-
-
-def test_diagnostics_reports_unavailable_token_providers(monkeypatch, tmp_path):
-    """Missing keys are loud in diagnostics; solving stays enabled."""
-    monkeypatch.setenv("PRY_CAPTCHA_ENV_FILE", str(tmp_path / "absent.env"))
-    monkeypatch.setattr(settings, "captcha_capsolver_api_key", "")
-    monkeypatch.setattr(settings, "captcha_2captcha_api_key", "")
-    report = captcha_diagnostics()
-    assert report["enabled"] is True
-    assert set(report["token_providers_unavailable"]) == {
-        "PRY_CAPTCHA_CAPSOLVER_API_KEY",
-        "PRY_CAPTCHA_2CAPTCHA_API_KEY",
-    }
+    assert result.tiers_tried == []
+    assert calls == []

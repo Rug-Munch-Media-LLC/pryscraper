@@ -1,14 +1,12 @@
-"""Pry — multi-provider CAPTCHA solver package.
+"""Pry — free, tiered CAPTCHA solving.
 
-Importing this package registers every provider in
-:data:`captcha.registry.REGISTRY`:
+Rungs, cheapest-first by expected cost x latency (see :mod:`tiers`)::
 
-* ``flaresolverr`` — free JS/Cloudflare lane (no key)
-* ``image`` — local OCR (pytesseract / EasyOCR, no network)
-* ``recaptcha_v2`` / ``recaptcha_v3`` / ``hcaptcha`` / ``turnstile`` —
-  token providers backed by Capsolver / 2captcha-style APIs
+    T0 clean profile -> T1 FlareSolverr -> T3 ONNX OCR -> T4 vision
+    -> T2 audio ASR -> T5 browser integrity
 
-Missing token-solver keys are logged loudly at import (startup).
+No paid provider is reachable from this package: the retired providers live in
+:data:`tiers.RETIRED_PROVIDERS` with their reason and nowhere else.
 """
 
 # SPDX-License-Identifier: MIT
@@ -16,33 +14,20 @@ Missing token-solver keys are logged loudly at import (startup).
 #
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
-import logging
-
-# Importing the provider modules has the side effect of registering them.
-from pry.engine.captcha import (  # noqa: F401
-    flaresolverr,
-    hcaptcha,
-    image_ocr,
-    recaptcha_v2,
-    recaptcha_v3,
-    turnstile,
-)
+from pry.engine.captcha import flaresolverr, image_ocr  # noqa: F401  (registry adapters)
 from pry.engine.captcha.base import CaptchaProvider
-from pry.engine.captcha.keys import CAPTCHA_ENV_FILE, missing_token_keys
+from pry.engine.captcha.ladder import LadderResult, solve_ladder
 from pry.engine.captcha.registry import REGISTRY, get_provider, register
-
-_missing_keys = missing_token_keys()
-if _missing_keys:
-    logging.getLogger(__name__).warning(
-        "captcha_token_providers_unavailable missing=%s keys_file=%s",
-        _missing_keys,
-        CAPTCHA_ENV_FILE,
-    )
+from pry.engine.captcha.tiers import RETIRED_PROVIDERS, TIERS, ordered_tiers
 
 __all__ = [
-    "CAPTCHA_ENV_FILE",
     "REGISTRY",
+    "RETIRED_PROVIDERS",
+    "TIERS",
     "CaptchaProvider",
+    "LadderResult",
     "get_provider",
+    "ordered_tiers",
     "register",
+    "solve_ladder",
 ]

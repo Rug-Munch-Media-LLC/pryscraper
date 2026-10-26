@@ -91,7 +91,6 @@ def test_detect_all_available(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     assert report["proxies"]["detail"] == "http"
     assert report["captcha"]["available"] is True
     assert "local OCR" in report["captcha"]["detail"]
-    assert "2captcha" in report["captcha"]["detail"]
     assert report["llm"]["available"] is True
     assert report["llm"]["detail"] == "openrouter"
     assert report["storage"]["available"] is True
@@ -109,8 +108,6 @@ def test_detect_all_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     monkeypatch.setattr(settings, "tor_enabled", False)
     monkeypatch.setattr(settings, "proxy_enabled", False)
     monkeypatch.setattr(settings, "proxy_url", "")
-    monkeypatch.setattr(settings, "captcha_2captcha_api_key", "")
-    monkeypatch.setattr(settings, "captcha_capsolver_api_key", "")
     no_llm_keys(monkeypatch)
     monkeypatch.setattr(
         capabilities.probes, "_tcp_reachable", lambda host, port, timeout=1.0: False
@@ -137,7 +134,7 @@ def test_detect_all_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     assert "install tor + set PRY_TOR_ENABLED=true" in recs
     assert "PRY_PROXY_ENABLED=true" in recs
     assert "tesseract-ocr" in recs
-    assert "PRY_CAPTCHA_2CAPTCHA_API_KEY" in recs
+    assert "pryscraper[captcha]" in recs
     assert "PRY_OPENROUTER_API_KEY" in recs
     assert "start Postgres" in recs
     assert "start Redis" in recs

@@ -23,9 +23,7 @@ import asyncio
 import logging
 import time
 from datetime import UTC, datetime
-from typing import Any, Literal
-
-import httpx
+from typing import Any
 
 from pry.api.credential_vault import (
     VAULT_DIR,
@@ -138,84 +136,19 @@ async def solve_captcha(
     image_base64: str = "",
     site_key: str = "",
     page_url: str = "",
-    service: Literal["capsolver", "2captcha"] = "capsolver",
+    service: str = "",
     api_key: str = "",
 ) -> dict[str, Any]:
-    """Solve a CAPTCHA using a third-party service.
+    """Refuse: paid CAPTCHA providers were retired by policy.
 
-    Supports Capsolver and 2Captcha.
-    Returns the solution token.
+    The free tier ladder (:mod:`pry.engine.captcha.ladder`) is the only solver;
+    it is reached through the scraper and needs no key.
     """
-    if not api_key:
-        return {"success": False, "error": f"{service} API key required"}
-
-    if service == "capsolver":
-        return await _solve_capsolver(image_base64, site_key, page_url, api_key)
-    elif service == "2captcha":
-        return await _solve_2captcha(image_base64, site_key, page_url, api_key)
-    else:
-        return {"success": False, "error": f"Unknown service: {service}"}
-
-
-async def _solve_capsolver(
-    image_base64: str, site_key: str, page_url: str, api_key: str
-) -> dict[str, Any]:
-    """Solve CAPTCHA via Capsolver API."""
-    from pry.api.client import get_client
-
-    client = await get_client()
-
-    if image_base64:
-        task = {
-            "type": "ImageToTextTask",
-            "body": image_base64[:100000] if len(image_base64) > 100000 else image_base64,
-        }
-    elif site_key and page_url:
-        task = {
-            "type": "ReCaptchaV2TaskProxyLess",
-            "websiteKey": site_key,
-            "websiteURL": page_url,
-        }
-    else:
-        return {"success": False, "error": "Provide image_base64 or site_key + page_url"}
-
-    try:
-        resp = await client.post(
-            "https://api.capsolver.com/createTask",
-            json={"clientKey": api_key, "task": task},
-            timeout=30,
-        )
-        data = resp.json()
-        task_id = data.get("taskId")
-        if not task_id:
-            return {"success": False, "error": data.get("errorDescription", "Capsolver error")}
-
-        for _ in range(30):
-            await asyncio.sleep(2)
-            result_resp = await client.post(
-                "https://api.capsolver.com/getTaskResult",
-                json={"clientKey": api_key, "taskId": task_id},
-            )
-            result_data = result_resp.json()
-            if result_data.get("status") == "ready":
-                return {
-                    "success": True,
-                    "token": result_data["solution"].get("gRecaptchaResponse", ""),
-                }
-            if result_data.get("status") == "failed":
-                return {"success": False, "error": "CAPTCHA solving failed"}
-
-        return {"success": False, "error": "CAPTCHA solving timed out"}
-    except (httpx.HTTPError, httpx.RequestError) as e:
-        logger.warning("auth_connector_exception_handler", exc_info=True)
-        return {"success": False, "error": str(e)[:200]}
-
-
-async def _solve_2captcha(
-    image_base64: str, site_key: str, page_url: str, api_key: str
-) -> dict[str, Any]:
-    """Solve CAPTCHA via 2Captcha API."""
-    return {"success": False, "error": "2Captcha support coming soon. Use Capsolver."}
+    return {
+        "success": False,
+        "error": "unavailable.provider_retired",
+        "detail": "paid CAPTCHA providers are retired; use the free tier ladder",
+    }
 
 
 # ── Session Health Monitoring ──

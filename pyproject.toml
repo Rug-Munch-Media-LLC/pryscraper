@@ -124,6 +124,12 @@ Source = "https://codeberg.org/cryptorugmunch/pryscraper"
 Changelog = "https://git.rugmunch.io/RugMunchMedia/pryscraper/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
+captcha-ocr = ["ddddocr==1.6.1; sys_platform == 'linux' or sys_platform == 'darwin'"]
+captcha-audio = ["faster-whisper==1.2.1", "av==15.1.0", "ctranslate2==4.8.4"]
+captcha-browser = ["camoufox==0.5.8; sys_platform == 'linux'"]
+captcha = ["ddddocr==1.6.1; sys_platform == 'linux' or sys_platform == 'darwin'",
+           "faster-whisper==1.2.1", "av==15.1.0", "ctranslate2==4.8.4"]
+
 dev = [
     "pytest>=9.1.0",
     "pytest-asyncio>=1.4.0",
@@ -606,10 +612,10 @@ exclude = ["tests/*", "setup.py", "browser-extension/*", "shopify-app/*", "mutan
 
 # mutmut 3.x — core parsing/extraction scope per AI Test Oracle Policy
 [tool.mutmut]
-source_paths = ["src/pry/engine/mega_search.py"]
+source_paths = ["src/pry/api/auth_connector.py"]
 also_copy = ["src", "tests", "pyproject.toml", "uv.lock"]
 pytest_add_cli_args = ["-o", "addopts=", "-p", "no:cacheprovider"]
-pytest_add_cli_args_test_selection = ["tests/test_mega_search.py"]
+pytest_add_cli_args_test_selection = ["tests/test_auth_connector.py"]
 
 [tool.fleet-gates]
 scan-roots = ["src/pry", "tests", "scripts"]

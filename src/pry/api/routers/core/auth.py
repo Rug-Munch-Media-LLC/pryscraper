@@ -148,12 +148,14 @@ async def generate_sso(
     return {"success": result["success"], "data": result}
 
 
-@router.post("/v1/auth/captcha", summary="Solve a CAPTCHA using third-party service")
+@router.post(
+    "/v1/auth/captcha", summary="Solve a CAPTCHA with the free tier ladder (paid providers retired)"
+)
 async def solve_captcha_endpoint(
     image_base64: str = Body(""),
     site_key: str = Body(""),
     page_url: str = Body(""),
-    service: str = Body("capsolver"),
+    service: str = Body(""),
     api_key: str = Body(""),
 ) -> dict[str, Any]:
     """Solve a CAPTCHA using Capsolver or 2Captcha.

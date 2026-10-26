@@ -15,10 +15,9 @@ the signup-automation pipeline)::
 Provider backends live in the :mod:`captcha` package and register
 themselves in :data:`captcha.registry.REGISTRY`:
 
-* ``image`` — local OCR (pytesseract / EasyOCR), no network
-* ``recaptcha_v2`` / ``recaptcha_v3`` / ``hcaptcha`` / ``turnstile`` —
-  2captcha-style API (``PRY_CAPTCHA_2CAPTCHA_API_KEY``) and/or Capsolver
-  (``PRY_CAPTCHA_CAPSOLVER_API_KEY``)
+* ``image`` — local ONNX OCR, no network
+* ``flaresolverr`` — free JS/Cloudflare lane, no key
+* paid token providers (``RETIRED_PROVIDERS``) are retired by policy
 
 Set ``PRY_CAPTCHA_ENABLED=false`` to disable all solving (returns None).
 """

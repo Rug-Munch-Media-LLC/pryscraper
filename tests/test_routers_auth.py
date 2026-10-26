@@ -144,7 +144,7 @@ def test_solve_captcha_image():
             "/v1/auth/captcha",
             json={
                 "image_base64": "aW1hZ2U=",
-                "service": "capsolver",
+                "service": "retired",
                 "api_key": "test-key",
             },
         )
@@ -163,7 +163,7 @@ def test_solve_captcha_recaptcha():
             json={
                 "site_key": "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI",
                 "page_url": "http://example.com",
-                "service": "2captcha",
+                "service": "retired",
             },
         )
         assert r.status_code in (200, 422, 500)
