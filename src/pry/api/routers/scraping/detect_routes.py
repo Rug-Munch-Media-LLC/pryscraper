@@ -25,7 +25,17 @@ router = APIRouter()
 @router.post("/v1/detect-block", summary="Detect if a site is blocking the scraper")
 async def detect_block(url: str = Body(...)) -> dict[str, Any]:
     """Detect anti-bot protection (tier, vendor, confidence)."""
-    return await detect_block_service(url, bindings().get_client)
+    result = await detect_block_service(url, bindings().get_client)
+    if result.get("blocked"):
+        from pry.engine.captcha.ladder import solve_ladder
+        from pry.engine.captcha.lanes import Challenge
+
+        ladder = await solve_ladder(Challenge(url=url, html=result.get("html")))
+        result["captcha_ladder"] = ladder.as_dict()
+        if ladder.status == "solved":
+            result["blocked"] = False
+            result["solved_by"] = ladder.provider
+    return result
 
 
 @router.post("/v1/capture/lazy", summary="Detect and handle lazy-loaded content")

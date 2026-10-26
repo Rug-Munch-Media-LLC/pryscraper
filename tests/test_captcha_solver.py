@@ -26,7 +26,14 @@ from pry.engine.captcha.image_ocr import _normalize_image, ocr_image, preprocess
 from pry.engine.captcha.token_api import solve_2captcha, solve_capsolver
 from pry.engine.captcha_solver import available_providers, solve_captcha
 
-EXPECTED_PROVIDERS = {"image", "recaptcha_v2", "recaptcha_v3", "hcaptcha", "turnstile"}
+EXPECTED_PROVIDERS = {
+    "flaresolverr",
+    "image",
+    "recaptcha_v2",
+    "recaptcha_v3",
+    "hcaptcha",
+    "turnstile",
+}
 
 
 def _png_bytes() -> bytes:
