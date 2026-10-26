@@ -6,10 +6,12 @@
 Source -> store (nothing else is guessed):
 
     chain, token_address  -> chain, address            (required)
+    pair_address          -> source_url                (canonical pair-explorer URL)
     token_name            -> name                      (``''`` becomes NULL)
     token_symbol          -> symbol                    (``''`` becomes NULL)
+    price_usd             -> price_usd
     liquidity_usd         -> liquidity_usd
-    (absent)              -> price_usd/volume/holders/taxes/socials/source_url = NULL
+    (absent)              -> volume/holders/taxes/socials = NULL
 
 ``rugdex.pairs`` was extracted with two columns misaligned: ``token_symbol``
 holds a *price* (``0.014378``) and the ticker sits in ``token_name``
@@ -24,6 +26,24 @@ holds a *price* (``0.014378``) and the ticker sits in ``token_name``
 ``name`` is preserved unchanged, so every derived ``symbol`` is traceable.
 Idempotency: ``plan`` compares the mapped row with the latest stored row and
 emits only real changes, so re-running the same snapshot inserts nothing.
+
+Upstream contract (repair, reversible):
+
+* ``rugdex.pairs`` holds 12 columns in this order - ``chain, token_address, pair_address, token_name, token_symbol, price_usd, liquidity_usd, volume_24h_usd, holders, tax_buy, tax_sell, socials``
+  - written by a service that is **not in any repository we hold**. Two were
+  misaligned at extract time: the ticker landed in ``token_name`` and the price
+  in ``token_symbol``.
+* ``pry dextools repair --direction up`` rebuilds the table into
+  ``rugdex.pairs_v2`` and swaps with ``EXCHANGE TABLES rugdex.pairs AND
+  rugdex.pairs_v2``; the pre-repair rows are kept as
+  ``rugdex.pairs_unrepaired_20261026`` (361 -> 351 rows, deduped on
+  ``(chain, token_address)``).
+* Rollback: ``pry dextools repair --direction down`` performs ``EXCHANGE TABLES
+  rugdex.pairs AND rugdex.pairs_unrepaired_20261026`` - the repaired table
+  survives intact under the ``_v2`` name, so the swap is repeatable in either
+  direction. Nothing is dropped by either direction.
+* This module never rewrites ``rugdex.pairs``; it only reads it and appends
+  changed projections to ``rugdex.dextools_tokens``.
 """
 
 from __future__ import annotations
@@ -38,13 +58,26 @@ if TYPE_CHECKING:
 
 NUMERIC = re.compile(r"^[0-9][0-9.,eE+-]*$")
 PAIRS = "rugdex.pairs"
-COMPARED = ("symbol", "name", "liquidity_usd", "quality")
+DEXTOOLS = "https://www.dextools.io/app"
+COMPARED = ("symbol", "name", "price_usd", "liquidity_usd", "source_url", "quality")
+
+
+def pair_url(chain: str, pair_address: str | None) -> str | None:
+    """Canonical pair-explorer URL, or ``None`` when no pair address is known."""
+    pair = (pair_address or "").strip()
+    if chain and pair.startswith(f"{chain}_"):
+        pair = pair[len(chain) + 1 :]
+    if not chain or not pair or "/" in pair:
+        return None
+    return f"{DEXTOOLS}/{chain}/pair-explorer/{pair}"
 
 
 def pair_to_row(pair: dict[str, Any], fetched_at: str | None = None) -> dict[str, Any]:
     """Map one ``rugdex.pairs`` row to a store row; unknown fields stay ``None``."""
+    chain = (pair.get("chain") or "").strip()
     name = (pair.get("token_name") or "").strip() or None
     raw_symbol = (pair.get("token_symbol") or "").strip() or None
+    source_url = (pair.get("source_url") or "").strip() or pair_url(chain, pair.get("pair_address"))
     symbol, quality = raw_symbol, "ok"
     if not raw_symbol:
         symbol, quality = None, "no_symbol"
@@ -56,18 +89,18 @@ def pair_to_row(pair: dict[str, Any], fetched_at: str | None = None) -> dict[str
         else:
             symbol, quality = None, "symbol_is_price"
     return {
-        "chain": (pair.get("chain") or "").strip(),
+        "chain": chain,
         "address": (pair.get("token_address") or "").strip().lower(),
         "symbol": symbol,
         "name": name,
-        "price_usd": None,
+        "price_usd": pair.get("price_usd"),  # stated column only, never re-guessed
         "liquidity_usd": pair.get("liquidity_usd"),
         "volume_24h_usd": None,
         "holders": None,
         "tax_buy": None,
         "tax_sell": None,
         "socials": [],
-        "source_url": None,
+        "source_url": source_url,
         "quality": quality,
         "fetched_at": fetched_at or datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S.000"),
     }
@@ -98,7 +131,8 @@ def plan(
 
 def read_pairs(store: DextoolsStore, limit: int = 5000) -> list[dict[str, Any]]:
     raw = store.sql(  # nosec B608 - constant query
-        "SELECT chain, token_address, token_name, token_symbol, liquidity_usd"
+        "SELECT chain, token_address, pair_address, token_name, token_symbol,"
+        " liquidity_usd, price_usd, source_url"
         f" FROM {PAIRS} FINAL LIMIT {int(limit)} FORMAT JSONEachRow"
     )
     return [json.loads(line) for line in raw.splitlines() if line.strip()]

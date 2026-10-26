@@ -9,6 +9,7 @@ import json
 import click
 
 from pry.datasources.dextools_ingest import ingest_pairs
+from pry.datasources.dextools_repair import repair
 from pry.datasources.dextools_scrape import scrape_dextools
 from pry.datasources.dextools_store import open_store, search_or_refusal
 
@@ -56,6 +57,18 @@ def dextools_ingest_cmd(as_json: bool) -> None:
         f"source={summary['source']} read={summary['read']} inserted={summary['inserted']} "
         f"skipped={summary['skipped']} total={summary['after']} quality={summary['quality']}"
     )
+
+
+@dextools_group.command(name="repair")
+@click.option("--direction", type=click.Choice(["up", "down"]), default="up", show_default=True)
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+def dextools_repair_cmd(direction: str, as_json: bool) -> None:
+    """Repair rugdex.pairs columns/keys (exchange-swapped, reversible)."""
+    summary = repair(open_store(), direction=direction)
+    click.echo(json.dumps(summary, indent=2, default=str))
+    if not as_json:
+        click.echo(json.dumps(summary))
+    raise SystemExit(0 if summary["after"]["tickers"] == summary["after"]["rows"] else 1)
 
 
 @dextools_group.command(name="scrape")

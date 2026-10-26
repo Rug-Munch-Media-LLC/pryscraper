@@ -73,6 +73,14 @@ class ToolRegistry:
     async def dispatch(
         self, name: str, arguments: dict[str, Any], identity: str | None = None
     ) -> dict[str, Any]:
+        """Guarded entry: spend gate + deadline bound, then the executor chain."""
+        from pry_mcp.surface import surf_gate
+
+        return await surf_gate(name, arguments, self._dispatch_inner, identity)
+
+    async def _dispatch_inner(
+        self, name: str, arguments: dict[str, Any], identity: str | None = None
+    ) -> dict[str, Any]:
         """Dispatch a tool: validate, then run the registered chain in order.
 
         Raises ``ToolNotHandled`` when no executor owns the tool so callers

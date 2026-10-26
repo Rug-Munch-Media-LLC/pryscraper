@@ -25,6 +25,7 @@ def test_schema_is_exactly_the_contract() -> None:
         "tax_buy",
         "tax_sell",
         "socials",
+        "quality",
         "source_url",
         "fetched_at",
     )
