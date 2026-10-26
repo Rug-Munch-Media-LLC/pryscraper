@@ -109,7 +109,7 @@ async def solve_image(image: bytes | str | None, timeout_s: float = 15.0) -> tup
     if image is None:
         return None, "not_applicable"
     if not capability():
-        return None, "unavailable.model"
+        return None, f"unavailable.model:{model_path()}"
     raw = _normalize_image(image)
     if raw is None:
         return None, "unsolved"
