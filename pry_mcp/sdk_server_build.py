@@ -108,9 +108,9 @@ def _wire_assets(server: Any, delegate: Any, legacy: Any) -> Any:
     )
 
     from pry_mcp.resources_handler import PRY_RESOURCES
+
     dec_list_resources = legacy.list_resources
     dec_read_resource = legacy.read_resource
-
 
     @dec_list_resources()
     async def list_resources() -> list[Resource]:
@@ -187,5 +187,3 @@ def _wire_prompts(server: Any, delegate: Any, legacy: Any) -> Any:
         )
 
     return server
-
-

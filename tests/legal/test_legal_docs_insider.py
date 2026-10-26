@@ -8,15 +8,18 @@ degrade to empty output), and the /v1/legal/* router (200 + 502-degradation
 
 All HTTP is mocked with respx — no live network.
 """
-from tests.legal._legal_docs_support2 import legal_app  # noqa: F401
-from tests.legal._legal_docs_support import _hermetic_legal  # noqa: F401
 
 import httpx
 import respx
 
 import datasets.legal_docs.sec_filings as sec_filings
 from pry.engine.retry import RetryConfig
-from tests.legal._legal_docs_support import _submissions_payload, _tickers_payload
+from tests.legal._legal_docs_support import (
+    _hermetic_legal,  # noqa: F401
+    _submissions_payload,
+    _tickers_payload,
+)
+from tests.legal._legal_docs_support2 import legal_app  # noqa: F401
 
 _CL_BASE = "https://www.courtlistener.com/api/rest/v4"
 _PACER_FETCH = f"{_CL_BASE}/pacer-fetch/"

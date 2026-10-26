@@ -57,4 +57,3 @@ def _broad_domain_tool_kwargs(name: str, arguments: dict[str, Any]) -> dict[str,
     if name == "pry_firmographics":
         return {"company": arguments.get("company", "")}
     return dict(arguments)
-

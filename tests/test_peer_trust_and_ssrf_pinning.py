@@ -15,8 +15,7 @@ from pry.api.routers.integrations import webhooks
 from pry.core import middleware_auth
 from pry.core.errors import InvalidRequestError
 from pry.engine import url_guard
-from pry.engine.url_guard import safe_get, validate_url
-from pry.engine.url_guard import socket as guard_socket
+from pry.engine.url_guard import safe_get, socket as guard_socket, validate_url
 
 
 def _scope(peer: str, xff: str | None = None) -> dict:

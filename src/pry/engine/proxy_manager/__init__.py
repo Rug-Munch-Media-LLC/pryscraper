@@ -21,8 +21,7 @@ from __future__ import annotations
 
 import os as os  # re-exported: existing tests patch this seam
 import threading
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pry.engine.proxy_health import (
     CONSECUTIVE_FAILURE_THRESHOLD,
@@ -41,6 +40,9 @@ from pry.engine.proxy_manager.proxy_types import (
     redact_credentials,
 )
 from pry.engine.proxy_providers import FREE_PROXY_SOURCES, PREMIUM_PROXY_PROVIDERS
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 __all__ = [
     "CONSECUTIVE_FAILURE_THRESHOLD",

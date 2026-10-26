@@ -32,6 +32,7 @@ _LEGACY_TIME = "%a %b %d %H:%M:%S %z %Y"
 
 __all__ = ["iso_from_legacy", "iso_from_ms", "nearest_user", "post_from_result"]
 
+
 def _as_int(value: Any) -> int:
     """Coerce a count field to int (0 for anything unusable)."""
     if isinstance(value, bool):
@@ -42,6 +43,7 @@ def _as_int(value: Any) -> int:
         return int(value)
     return 0
 
+
 def iso_from_ms(value: Any) -> str | None:
     """Epoch milliseconds -> ISO-8601 UTC (None when unusable)."""
     if not isinstance(value, (int, float)):
@@ -50,6 +52,7 @@ def iso_from_ms(value: Any) -> str | None:
         return datetime.fromtimestamp(value / 1000, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     except (OSError, OverflowError, ValueError):
         return None
+
 
 def iso_from_legacy(value: Any) -> str | None:
     """Legacy ``Wed Nov 23 12:34:56 +0000 2016`` -> ISO-8601 UTC."""
@@ -61,12 +64,14 @@ def iso_from_legacy(value: Any) -> str | None:
         return None
     return parsed.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+
 def _first_str(*values: Any) -> str:
     """Return the first non-empty string among ``values``."""
     for value in values:
         if isinstance(value, str) and value:
             return value
     return ""
+
 
 def _author(result: dict[str, Any]) -> dict[str, Any]:
     """Normalize the tweet author (modern ``core`` first, legacy second)."""
@@ -85,6 +90,7 @@ def _author(result: dict[str, Any]) -> dict[str, Any]:
         "verified": bool((user.get("verification") or {}).get("is_blue_verified")),
     }
 
+
 def _unique_values(items: list[Any], field: str) -> list[str]:
     """Collect unique non-empty string ``field`` values from dict items."""
     out: list[str] = []
@@ -94,12 +100,14 @@ def _unique_values(items: list[Any], field: str) -> list[str]:
             out.append(value)
     return out
 
+
 def _entities(result: dict[str, Any], key: str, field: str) -> list[str]:
     """Collect a text field from modern ``details`` or legacy ``entities``."""
     details = result.get("details") or {}
     modern = details.get(f"{key}_entities") or []
     legacy = ((result.get("legacy") or {}).get("entities") or {}).get(key) or []
     return _unique_values(list(modern) + list(legacy), field)
+
 
 def _media_url(item: Any) -> str:
     """Best URL for one media item (empty when unusable)."""
@@ -110,6 +118,7 @@ def _media_url(item: Any) -> str:
         item.get("url"),
         (item.get("media_info") or {}).get("original_img_url"),
     )
+
 
 def _media(result: dict[str, Any]) -> list[dict[str, str]]:
     """Normalize attached media to ``{type, url}`` pairs."""
@@ -124,6 +133,7 @@ def _media(result: dict[str, Any]) -> list[dict[str, str]]:
             out.append({"type": str(item.get("type") or ""), "url": url})
     return out
 
+
 def _unwrap(result: Any) -> dict[str, Any] | None:
     """Peel ``result``/``tweet`` wrappers; None when the node is not a tweet."""
     if not isinstance(result, dict):
@@ -133,6 +143,7 @@ def _unwrap(result: Any) -> dict[str, Any] | None:
     if "legacy" not in result and "details" not in result and isinstance(result.get("tweet"), dict):
         result = result["tweet"]
     return result
+
 
 def _metrics(result: dict[str, Any]) -> dict[str, int]:
     """Normalize engagement counts from modern ``counts`` or legacy fields."""
@@ -147,13 +158,16 @@ def _metrics(result: dict[str, Any]) -> dict[str, int]:
         "views": _as_int((result.get("views") or {}).get("count")),
     }
 
+
 def _created_at(details: dict[str, Any], legacy: dict[str, Any]) -> str | None:
     """ISO timestamp from modern milliseconds or the legacy string."""
     return iso_from_ms(details.get("created_at_ms")) or iso_from_legacy(legacy.get("created_at"))
 
+
 def _urls(result: dict[str, Any]) -> list[str]:
     """Expanded URLs first, then raw t.co URLs."""
     return _entities(result, "url", "expanded_url") or _entities(result, "url", "url")
+
 
 def post_from_result(result: Any) -> dict[str, Any] | None:
     """Normalize one ``tweet_results.result`` node; None when unusable."""

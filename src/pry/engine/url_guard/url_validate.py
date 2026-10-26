@@ -50,9 +50,7 @@ def _parse_url_shape(url: str) -> tuple:
         # e.g. "http://[" — Python 3.12 urlparse raises on malformed IPv6
         raise _error("URL has a malformed host", url) from None
     if parsed.scheme not in _ALLOWED_SCHEMES:
-        raise _error(
-            f"URL scheme {parsed.scheme} is not allowed (only http/https)", url
-        )
+        raise _error(f"URL scheme {parsed.scheme} is not allowed (only http/https)", url)
     if parsed.username or parsed.password:
         raise _error("URL must not contain embedded credentials (user:password@)", url)
     try:
@@ -91,6 +89,7 @@ def validate_url(url: str, *, resolve_dns: bool = True) -> str:
     if _TRAVERSAL_RE.search(path):
         raise _error("URL contains path traversal sequences", url)
     return url
+
 
 async def validate_url_async(url: str, *, resolve_dns: bool = True) -> str:
     """Async variant of :func:`validate_url` that does not block the event loop.

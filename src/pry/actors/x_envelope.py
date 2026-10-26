@@ -36,15 +36,14 @@ def envelope(
         "ok": ok,
         "source": source,
         "data": data,
-        "error": None
-        if ok
-        else {"code": code, "detail": detail or REFUSALS.get(code or "", "")},
+        "error": None if ok else {"code": code, "detail": detail or REFUSALS.get(code or "", "")},
         "http_status": http_status,
         "fetched_at": datetime.now(tz=UTC).isoformat(timespec="seconds"),
     }
 
 
-def refusal(source: str, code: str, *, http_status: int | None = None,
-            detail: str | None = None) -> dict[str, Any]:
+def refusal(
+    source: str, code: str, *, http_status: int | None = None, detail: str | None = None
+) -> dict[str, Any]:
     """Shorthand for the failure branch."""
     return envelope(ok=False, source=source, code=code, detail=detail, http_status=http_status)

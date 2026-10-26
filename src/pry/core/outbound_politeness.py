@@ -42,7 +42,7 @@ def _delay(
     if retry_after is not None and retry_after >= 0:
         return min(float(retry_after), cap)
     raw = base * (2 ** max(0, int(attempt) - 1))
-    return min(raw, cap) * (1.0 + random.random() * jitter)
+    return min(raw, cap) * (1.0 + random.random() * jitter)  # noqa: S311 - backoff jitter, not crypto
 
 
 async def outbound_backoff(

@@ -80,9 +80,7 @@ def test_credentials_refused_when_permissions_cannot_be_fixed(
     assert manager.credentials == {}
 
 
-def test_affinity_sticks_then_expires(
-    pm: ProxyManager, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_affinity_sticks_then_expires(pm: ProxyManager, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(pm, "_candidate_proxies", lambda: ["http://p1:8080", "http://p2:8080"])
     pm.affinity_ttl_seconds = 0.05
     pm.record_proxy_result("http://p2:8080", True, 1.0, domain="example.com")

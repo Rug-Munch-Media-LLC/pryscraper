@@ -65,7 +65,14 @@ def _run(monkeypatch, module, client):
 
 @pytest.mark.parametrize(
     ("attempt", "header", "expected"),
-    [(0, None, 0.5), (1, None, 1.0), (0, "2", 2.0), (2, "0.1", 0.1), (0, "banana", 0.5), (3, "9999", 30.0)],
+    [
+        (0, None, 0.5),
+        (1, None, 1.0),
+        (0, "2", 2.0),
+        (2, "0.1", 0.1),
+        (0, "banana", 0.5),
+        (3, "9999", 30.0),
+    ],
 )
 def test_reference_delay_table(ref, attempt, header, expected):
     assert ref.retry_delay(attempt=attempt, base=0.5, header=header) == pytest.approx(expected)

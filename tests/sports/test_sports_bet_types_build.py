@@ -19,14 +19,15 @@ Covers:
 Every public function is asserted never to raise (HTTP errors and
 malformed payloads degrade to ``[]`` / ``{}``).
 """
-from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
-from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
-from tests.sports._sports_bet_types_support import _hermetic_sports  # noqa: F401
+
 import httpx
 import pytest
 
 import datasets.sports_data.parlays as parlays
 from pry.engine.retry import RetryConfig
+from tests.sports._sports_bet_types_support import _hermetic_sports
+from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
+from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
 
 _ODDS_NBA = "https://api.the-odds-api.com/v4/sports/basketball_nba"
 _ODDS_NFL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl"
@@ -38,6 +39,7 @@ _STATS_NFL = (
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
 )
+
 
 async def test_build_same_game_parlay_math() -> None:
     result = await parlays.build_same_game_parlay(
@@ -58,6 +60,8 @@ async def test_build_same_game_parlay_math() -> None:
     # legs carry per-leg implied probability
     assert result["legs"][0]["implied_prob"] == pytest.approx(1 / 1.91)
     assert result["legs"][0]["line"] == -5.5
+
+
 async def test_build_same_game_parlay_correlation_shared_team() -> None:
     # Spread + player prop on the same team → correlated.
     result = await parlays.build_same_game_parlay(
@@ -68,6 +72,8 @@ async def test_build_same_game_parlay_correlation_shared_team() -> None:
         ],
     )
     assert result["correlation_flag"] is True
+
+
 async def test_build_same_game_parlay_correlation_team_markets() -> None:
     # No entity info, but spread + total are two team-market classes → correlated.
     result = await parlays.build_same_game_parlay(
@@ -78,6 +84,8 @@ async def test_build_same_game_parlay_correlation_team_markets() -> None:
         ],
     )
     assert result["correlation_flag"] is True
+
+
 async def test_build_same_game_parlay_correlation_independent_players() -> None:
     # Two player props on different players, no team info → not correlated.
     result = await parlays.build_same_game_parlay(
@@ -90,6 +98,8 @@ async def test_build_same_game_parlay_correlation_independent_players() -> None:
     assert result["correlation_flag"] is False
     # side defaults to the player name for player props
     assert result["legs"][0]["side"] == "LeBron James"
+
+
 async def test_build_same_game_parlay_same_book_mixed() -> None:
     result = await parlays.build_same_game_parlay(
         "eid123",
@@ -108,6 +118,8 @@ async def test_build_same_game_parlay_same_book_mixed() -> None:
         ],
     )
     assert result2["parlay"]["book"] == "mixed"
+
+
 async def test_build_same_game_parlay_never_raises() -> None:
     # Fewer than two valid legs → {} (never raises).
     assert await parlays.build_same_game_parlay("eid123", []) == {}

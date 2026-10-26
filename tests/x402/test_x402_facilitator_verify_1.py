@@ -1,6 +1,5 @@
 """Tests for x402/facilitator.py — FacilitatorRouter, multi-provider fallback."""
-from tests.x402._gate_support import db, no_owner_key  # noqa: F401
-from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
+
 from unittest.mock import patch
 
 import httpx
@@ -8,6 +7,8 @@ import pytest
 import respx
 
 from pry.payments.x402.facilitator import FacilitatorRouter
+from tests.x402._gate_support import db, no_owner_key  # noqa: F401
+from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
 
 
 @pytest.mark.asyncio
@@ -22,6 +23,8 @@ async def test_verify_offline_always_succeeds(router: FacilitatorRouter):
         )
         assert result["verified"] is True
         assert result["reason"] == "offline_mode"
+
+
 @pytest.mark.asyncio
 async def test_verify_no_facilitators():
     empty = FacilitatorRouter(facilitators=[])
@@ -34,6 +37,8 @@ async def test_verify_no_facilitators():
             amount_usd=1.0,
         )
         assert result["verified"] is False
+
+
 @pytest.mark.asyncio
 async def test_verify_self_hosted_path(router: FacilitatorRouter):
     """When no facilitator handles the network, returns needs_facilitator."""
@@ -47,6 +52,8 @@ async def test_verify_self_hosted_path(router: FacilitatorRouter):
             amount_usd=1.0,
         )
         assert "reason" in result
+
+
 @pytest.mark.asyncio
 async def test_verify_solana_path(router: FacilitatorRouter):
     """Solana uses the dedicated SPL verifier fallback."""
@@ -59,6 +66,8 @@ async def test_verify_solana_path(router: FacilitatorRouter):
             amount_usd=5.0,
         )
         assert "reason" in result
+
+
 @respx.mock
 @pytest.mark.asyncio
 async def test_verify_via_external_facilitator(router: FacilitatorRouter):
@@ -78,6 +87,8 @@ async def test_verify_via_external_facilitator(router: FacilitatorRouter):
             amount_usd=1.0,
         )
         assert result["verified"] is True
+
+
 @respx.mock
 @pytest.mark.asyncio
 async def test_verify_external_http_error(router: FacilitatorRouter):
@@ -95,6 +106,8 @@ async def test_verify_external_http_error(router: FacilitatorRouter):
             amount_usd=1.0,
         )
         assert "verified" in result
+
+
 @respx.mock
 @pytest.mark.asyncio
 async def test_verify_external_network_error(router: FacilitatorRouter):
@@ -112,6 +125,8 @@ async def test_verify_external_network_error(router: FacilitatorRouter):
             amount_usd=1.0,
         )
         assert "verified" in result
+
+
 @respx.mock
 @pytest.mark.asyncio
 async def test_verify_external_invalid_json(router: FacilitatorRouter):

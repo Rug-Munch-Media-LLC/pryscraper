@@ -7,12 +7,15 @@
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
+from typing import TYPE_CHECKING
 
 from tests.api_integration_support import (  # noqa: F401 — fixtures for this module
     _mock_all_deps,
     client,
 )
+
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
 
 
 class TestScrapeEndpoint:

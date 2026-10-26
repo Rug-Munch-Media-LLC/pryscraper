@@ -102,7 +102,9 @@ def main(argv: list[str] | None = None) -> int:
     src.add_argument("--input", help="settled CSV, or odds CSV/JSON when --outcomes is given")
     src.add_argument("--synthetic", action="store_true", help="seeded simulation, labelled")
     ap.add_argument("--outcomes", help="settled results CSV/JSON to join onto --input odds")
-    ap.add_argument("--side", default="home", choices=("home", "away"), help="moneyline side to settle")
+    ap.add_argument(
+        "--side", default="home", choices=("home", "away"), help="moneyline side to settle"
+    )
     ap.add_argument("--out", default="backtest_series.csv", help="output CSV path")
     ap.add_argument("--since", help="keep events at/after this epoch or ISO-8601 time")
     ap.add_argument("--limit", type=int, help="keep at most N events (oldest first)")
@@ -119,7 +121,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.outcomes:
             events, pushes = load_series(args.input, args.outcomes, side=args.side)
-            label = f"join:odds={args.input} outcomes={args.outcomes} side={args.side} pushes={pushes}"
+            label = (
+                f"join:odds={args.input} outcomes={args.outcomes} side={args.side} pushes={pushes}"
+            )
         elif args.input:
             events, label = load_csv(args.input), f"csv:{args.input}"
         else:

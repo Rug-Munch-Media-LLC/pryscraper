@@ -41,6 +41,7 @@ class TestDefaultBaseUrlPrecedence:
         import importlib
 
         import pry_mcp.constants as constants
+
         importlib.reload(constants)
         assert constants.DEFAULT_BASE_URL == "http://pry-url.example.com"
 
@@ -51,6 +52,7 @@ class TestDefaultBaseUrlPrecedence:
         import importlib
 
         import pry_mcp.constants as constants
+
         importlib.reload(constants)
         assert constants.DEFAULT_BASE_URL == "http://pry-api-url.example.com"
 
@@ -61,6 +63,7 @@ class TestDefaultBaseUrlPrecedence:
         import importlib
 
         import pry_mcp.constants as constants
+
         importlib.reload(constants)
         assert constants.DEFAULT_BASE_URL == "http://localhost:8002"
 
@@ -71,6 +74,7 @@ class TestDefaultBaseUrlPrecedence:
         import importlib
 
         import pry_mcp.constants as constants
+
         importlib.reload(constants)
         assert constants.DEFAULT_BASE_URL == "http://custom.example.com"
 
@@ -85,7 +89,9 @@ class TestStructuredContentOnSuccess:
         server.register_tool("pry_scrape", scrape_tool)
         return server
 
-    async def _call_rpc(self, server: Any, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def _call_rpc(
+        self, server: Any, method: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         request = {"jsonrpc": "2.0", "id": 1, "method": method}
         if params:
             request["params"] = params
@@ -109,7 +115,11 @@ class TestStructuredContentOnSuccess:
         mock_client.request.return_value = mock_response
 
         with patch("pry_mcp.fallback_server.get_client", return_value=mock_client):
-            result = await self._call_rpc(server, "tools/call", {"name": "pry_scrape", "arguments": {"url": "https://example.com"}})
+            result = await self._call_rpc(
+                server,
+                "tools/call",
+                {"name": "pry_scrape", "arguments": {"url": "https://example.com"}},
+            )
 
         assert "result" in result
         tool_result = result["result"]
@@ -134,7 +144,9 @@ class TestStructuredContentOnSuccess:
             }
 
         with patch.object(server, "call_tool", side_effect=_fake_call):
-            result = await self._call_rpc(server, "tools/call", {"name": "no_schema_tool", "arguments": {}})
+            result = await self._call_rpc(
+                server, "tools/call", {"name": "no_schema_tool", "arguments": {}}
+            )
 
         assert "result" in result
         tool_result = result["result"]
@@ -152,7 +164,9 @@ class TestApiFailureReturnsApiUnavailable:
         server.register_tool("pry_scrape", scrape_tool)
         return server
 
-    async def _call_rpc(self, server: Any, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def _call_rpc(
+        self, server: Any, method: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         request = {"jsonrpc": "2.0", "id": 1, "method": method}
         if params:
             request["params"] = params
@@ -162,7 +176,11 @@ class TestApiFailureReturnsApiUnavailable:
         mock_client = AsyncMock()
         mock_client.request.side_effect = httpx.ConnectError("connection refused")
         with patch("pry_mcp.fallback_server.get_client", return_value=mock_client):
-            result = await self._call_rpc(server, "tools/call", {"name": "pry_scrape", "arguments": {"url": "https://example.com"}})
+            result = await self._call_rpc(
+                server,
+                "tools/call",
+                {"name": "pry_scrape", "arguments": {"url": "https://example.com"}},
+            )
         assert "result" in result
         tool_result = result["result"]
         assert tool_result["isError"] is True
@@ -175,7 +193,11 @@ class TestApiFailureReturnsApiUnavailable:
         mock_client = AsyncMock()
         mock_client.request.side_effect = httpx.TimeoutException("timeout")
         with patch("pry_mcp.fallback_server.get_client", return_value=mock_client):
-            result = await self._call_rpc(server, "tools/call", {"name": "pry_scrape", "arguments": {"url": "https://example.com"}})
+            result = await self._call_rpc(
+                server,
+                "tools/call",
+                {"name": "pry_scrape", "arguments": {"url": "https://example.com"}},
+            )
         assert "result" in result
         tool_result = result["result"]
         assert tool_result["isError"] is True
@@ -192,7 +214,11 @@ class TestApiFailureReturnsApiUnavailable:
         mock_client = AsyncMock()
         mock_client.request.return_value = mock_response
         with patch("pry_mcp.fallback_server.get_client", return_value=mock_client):
-            result = await self._call_rpc(server, "tools/call", {"name": "pry_scrape", "arguments": {"url": "https://example.com"}})
+            result = await self._call_rpc(
+                server,
+                "tools/call",
+                {"name": "pry_scrape", "arguments": {"url": "https://example.com"}},
+            )
         assert "result" in result
         tool_result = result["result"]
         assert tool_result["isError"] is True
@@ -204,7 +230,11 @@ class TestApiFailureReturnsApiUnavailable:
         mock_client = AsyncMock()
         mock_client.request.side_effect = httpx.RequestError("dns resolution failed")
         with patch("pry_mcp.fallback_server.get_client", return_value=mock_client):
-            result = await self._call_rpc(server, "tools/call", {"name": "pry_scrape", "arguments": {"url": "https://example.com"}})
+            result = await self._call_rpc(
+                server,
+                "tools/call",
+                {"name": "pry_scrape", "arguments": {"url": "https://example.com"}},
+            )
         assert "result" in result
         tool_result = result["result"]
         assert tool_result["isError"] is True
@@ -237,7 +267,11 @@ class TestOwnerKeyBypassesX402:
                 return {"verified": True, "reason": "", "settlement": None, "facilitator": "test"}
 
             async def settle(self, **kwargs) -> dict[str, Any]:
-                return {"success": True, "transaction": kwargs.get("tx_hash", ""), "facilitator": "test"}
+                return {
+                    "success": True,
+                    "transaction": kwargs.get("tx_hash", ""),
+                    "facilitator": "test",
+                }
 
         set_facilitator_router(TestRouter())
         handler = X402Handler()
@@ -247,7 +281,9 @@ class TestOwnerKeyBypassesX402:
 
     def test_valid_api_key_bypasses_x402(self, app, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.setenv("PRY_API_KEY", "pry_test_valid_key_12345")
-        response = app.get("/v1/scrape", headers={"Authorization": "Bearer pry_test_valid_key_12345"})
+        response = app.get(
+            "/v1/scrape", headers={"Authorization": "Bearer pry_test_valid_key_12345"}
+        )
         assert response.status_code == 200
         assert response.json() == {"ok": True, "data": "scraped"}
 
@@ -271,13 +307,18 @@ class TestOwnerKeyBypassesX402:
     def test_x402_payment_works_when_no_owner_key(self, app, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.delenv("PRY_API_KEY", raising=False)
         import base64
-        sig = base64.b64encode(json.dumps({
-            "payment_id": "test-pay-123",
-            "tx_hash": "0xabc123",
-            "network": "base",
-            "asset": "USDC",
-            "amount_usd": 0.001,
-        }).encode()).decode()
+
+        sig = base64.b64encode(
+            json.dumps(
+                {
+                    "payment_id": "test-pay-123",
+                    "tx_hash": "0xabc123",
+                    "network": "base",
+                    "asset": "USDC",
+                    "amount_usd": 0.001,
+                }
+            ).encode()
+        ).decode()
         response = app.get("/v1/scrape", headers={"PAYMENT-SIGNATURE": sig})
         assert response.status_code == 200
         assert response.json() == {"ok": True, "data": "scraped"}
@@ -293,7 +334,9 @@ class TestPryScrapeContractShape:
         server.register_tool("pry_scrape", scrape_tool)
         return server
 
-    async def _call_rpc(self, server: Any, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def _call_rpc(
+        self, server: Any, method: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         request = {"jsonrpc": "2.0", "id": 1, "method": method}
         if params:
             request["params"] = params
@@ -317,7 +360,11 @@ class TestPryScrapeContractShape:
         mock_client.request.return_value = mock_response
 
         with patch("pry_mcp.fallback_server.get_client", return_value=mock_client):
-            result = await self._call_rpc(server, "tools/call", {"name": "pry_scrape", "arguments": {"url": "https://example.com/article"}})
+            result = await self._call_rpc(
+                server,
+                "tools/call",
+                {"name": "pry_scrape", "arguments": {"url": "https://example.com/article"}},
+            )
 
         assert "result" in result
         tool_result = result["result"]
@@ -355,10 +402,18 @@ class TestPryScrapeContractShape:
         mock_client.request.return_value = mock_response
 
         with patch("pry_mcp.fallback_server.get_client", return_value=mock_client):
-            result = await self._call_rpc(server, "tools/call", {
-                "name": "pry_scrape",
-                "arguments": {"url": "https://cloudflare-protected.example.com", "bypass_cloudflare": True, "js_render": True}
-            })
+            result = await self._call_rpc(
+                server,
+                "tools/call",
+                {
+                    "name": "pry_scrape",
+                    "arguments": {
+                        "url": "https://cloudflare-protected.example.com",
+                        "bypass_cloudflare": True,
+                        "js_render": True,
+                    },
+                },
+            )
 
         assert "result" in result
         tool_result = result["result"]
@@ -395,10 +450,17 @@ class TestPryScrapeContractShape:
         }
 
         with patch("pry_mcp.fallback_server.get_client", return_value=mock_client):
-            result = await self._call_rpc(server, "tools/call", {
-                "name": "pry_scrape",
-                "arguments": {"url": "https://example.com/products", "extract_schema": extract_schema}
-            })
+            result = await self._call_rpc(
+                server,
+                "tools/call",
+                {
+                    "name": "pry_scrape",
+                    "arguments": {
+                        "url": "https://example.com/products",
+                        "extract_schema": extract_schema,
+                    },
+                },
+            )
 
         assert "result" in result
         tool_result = result["result"]
@@ -410,21 +472,25 @@ class TestPryScrapeContractShape:
 class TestCombinedCoverage:
     def test_constants_module_coverage(self) -> None:
         from pry_mcp import constants
+
         assert constants.DEFAULT_BASE_URL is not None
         assert constants.MCP_PROTOCOL_VERSION == "2026-07-28"
         assert constants.SERVER_NAME == "pry"
 
     def test_fallback_tools_module_coverage(self) -> None:
         from pry_mcp import fallback_tools
+
         assert fallback_tools.TOOL_ROUTES is not None
         assert "pry_scrape" in fallback_tools.TOOL_ROUTES
 
     def test_fallback_factory_module_coverage(self) -> None:
         from pry_mcp import fallback_factory
+
         server = fallback_factory.make_fallback_server()
         assert server is not None
 
     def test_tool_routes_module_coverage(self) -> None:
         from pry_mcp import tool_routes
+
         assert tool_routes.TOOL_ROUTES is not None
         assert len(tool_routes.TOOL_ROUTES) >= 49

@@ -147,9 +147,7 @@ def _nth_of_type(node: Tag) -> str:
     same_tag = [c for c in parent.children if isinstance(c, Tag) and c.name == node.name]
     index = same_tag.index(node) + 1 if node in same_tag else 1
     parent_sel = (
-        synthesize_selector(parent)
-        if parent.name not in ("[document]", "html")
-        else parent.name
+        synthesize_selector(parent) if parent.name not in ("[document]", "html") else parent.name
     )
     return f"{parent_sel} > {node.name}:nth-of-type({index})"
 
@@ -165,6 +163,7 @@ def synthesize_selector(node: Tag) -> str:
         if candidate:
             return candidate
     return _nth_of_type(node)
+
 
 __all__ = [
     "ElementContext",

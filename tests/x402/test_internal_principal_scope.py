@@ -17,8 +17,6 @@ without a name allowlist, one compromised job can impersonate all of them.
 The ASGI harness is the shared one in ``_gate_support`` so these tests exercise
 the real ``X402Middleware``, not a lookalike.
 """
-from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
-from tests.x402._gate_support import db, no_owner_key  # noqa: F401
 
 import time
 
@@ -37,14 +35,17 @@ from pry.payments.x402_middleware.internal_identity import (
     ALLOWED_SERVICES_ENV,
     INTERNAL_SERVICE_HEADER,
 )
-from tests.x402._gate_support import (
+from tests.x402._gate_support import (  # noqa: F401
     CALLER,
     INTERNAL_TOKEN as TOKEN,
     PAID_PATH,
     _call,
     _scope,
     _StubApp,
+    db,
+    no_owner_key,
 )
+from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
 
 SERVICE = "rugbrain"
 

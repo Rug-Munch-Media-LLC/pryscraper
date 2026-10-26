@@ -1,6 +1,5 @@
 """Tests for x402/facilitator.py — FacilitatorRouter, multi-provider fallback."""
-from tests.x402._gate_support import db, no_owner_key  # noqa: F401
-from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
+
 from unittest.mock import patch
 
 import httpx
@@ -8,6 +7,8 @@ import pytest
 import respx
 
 from pry.payments.x402.facilitator import FacilitatorRouter
+from tests.x402._gate_support import db, no_owner_key  # noqa: F401
+from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
 
 
 @respx.mock
@@ -29,6 +30,8 @@ async def test_verify_solana_network(router: FacilitatorRouter):
             amount_usd=5.0,
         )
         assert "reason" in result
+
+
 @respx.mock
 @pytest.mark.asyncio
 async def test_verify_tron_scaffold(router: FacilitatorRouter):
@@ -48,6 +51,8 @@ async def test_verify_tron_scaffold(router: FacilitatorRouter):
             amount_usd=1.0,
         )
         assert "reason" in result
+
+
 @respx.mock
 @pytest.mark.asyncio
 async def test_verify_eip7702_fallback(router: FacilitatorRouter):

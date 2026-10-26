@@ -7,12 +7,16 @@
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import httpx
 import pytest
 import respx
 
-from pry.engine.ultimate_scraper import UltimateScraper
 from tests.ultimate_scraper_support import scraper  # noqa: F401 — fixture for this module
+
+if TYPE_CHECKING:
+    from pry.engine.ultimate_scraper import UltimateScraper
 
 CDX = "https://web.archive.org/cdx/"
 

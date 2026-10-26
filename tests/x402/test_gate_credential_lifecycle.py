@@ -10,11 +10,9 @@ it is refused in:
 
 Each test names the mutation it kills.
 """
-from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
-
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -28,6 +26,7 @@ from tests.x402._gate_support import (
     db as db,  # fixture re-exported for the test params
     no_owner_key,
 )
+from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
 
 pytestmark = pytest.mark.usefixtures(no_owner_key.__name__)
 

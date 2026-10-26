@@ -10,13 +10,16 @@ the /v1/realestate/* router (200 + 502-degradation + query validation).
 All HTTP is mocked with respx (local-router ``respx_mock`` — the version
 of this venv attaches routes to the local router only) — no live network.
 """
-from tests.real_estate._real_estate_support import _hermetic_real_estate  # noqa: F401
-from tests.real_estate._real_estate_support2 import real_estate_app  # noqa: F401
+
 import httpx
 import respx
 
 from datasets.real_estate import listings
-from tests.real_estate._real_estate_support2 import _zumper_search_html
+from tests.real_estate._real_estate_support import _hermetic_real_estate  # noqa: F401
+from tests.real_estate._real_estate_support2 import (
+    _zumper_search_html,
+    real_estate_app,  # noqa: F401
+)
 
 
 @respx.mock(assert_all_mocked=False)
@@ -33,6 +36,8 @@ async def test_search_listings_bot_walls_all_sources_empty(respx_mock) -> None:
     )
     result = await listings.search_listings("Austin, TX", status="for_rent")
     assert result == []
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_search_listings_apartments_bot_wall_falls_to_zumper(respx_mock) -> None:
     respx_mock.get(url__startswith="https://www.apartments.com/austin-tx/").mock(

@@ -26,10 +26,9 @@ import pytest
 from hypothesis import HealthCheck, given, settings, strategies as st
 
 from pry.core.errors import InvalidRequestError
-from pry.engine import url_guard
 from pry.engine.url_guard import validate_redirect_url, validate_url
+
 from ._url_guard_support import _assert_accepted_unchanged, _is_known_stdlib_parse_error
-from pathlib import Path
 
 # Valid hostname alphabet (RFC 1123-ish: letters, digits, hyphen, dot, plus
 # a few extra chars urlparse tolerates) for structured URL generation.
@@ -37,10 +36,6 @@ _HOST_ALPHABET = string.ascii_letters + string.digits + "-._~"
 
 # A private/reserved net used to force rejection without DNS.
 _PRIVATE_NETS_SAMPLE = ["10.0.0.0/8", "192.168.0.0/16", "127.0.0.0/8", "169.254.0.0/16"]
-
-
-
-
 
 
 @pytest.mark.parametrize("url", ["http://[", "http://[::1", "http://[::1]x"])

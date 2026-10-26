@@ -79,9 +79,7 @@ def process_serp(
     if item["status"] != "ok":
         return item
     html = _raw_html(result) or item["content"] or ""
-    rows = _collect_rows(
-        html, bool(options.get("include_ads", True)), _parse_limit(options)
-    )
+    rows = _collect_rows(html, bool(options.get("include_ads", True)), _parse_limit(options))
     if not rows:
         item["status"] = "skipped"
         item["error"] = "no organic results found in page"

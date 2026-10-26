@@ -3,12 +3,12 @@
 x402 charges external callers; the owner key (our CLI/MCP/internal services)
 must pass without payment and stay accepted by the inner auth layer.
 """
-from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
-from tests.x402._gate_support import db, no_owner_key  # noqa: F401
 
 import pytest
 
 from pry.payments.x402_middleware.owner import OWNER_SCOPE_KEY, mark_owner_verified, owner_request
+from tests.x402._gate_support import db, no_owner_key  # noqa: F401
+from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
 
 
 @pytest.fixture

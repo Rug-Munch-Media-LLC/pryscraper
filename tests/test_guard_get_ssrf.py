@@ -76,9 +76,7 @@ def test_normal_public_url_still_suggested(monkeypatch) -> None:
     # validates the URL before any request is made.
     from pry.engine import url_pinning
 
-    monkeypatch.setattr(
-        url_pinning, "pin_request", lambda url: (url, {}, {}), raising=True
-    )
+    monkeypatch.setattr(url_pinning, "pin_request", lambda url: (url, {}, {}), raising=True)
     """Kills: an over-broad guard on ``/v1/suggest`` — deny-by-default
     hostnames, or an allowlist that rejects ordinary internet traffic. Every
     rejection test in this module passes for such a guard; only this one fails.
@@ -109,9 +107,7 @@ def test_normal_public_url_still_suggested(monkeypatch) -> None:
 def test_normal_public_redirect_still_followed(monkeypatch) -> None:
     from pry.engine import url_pinning
 
-    monkeypatch.setattr(
-        url_pinning, "pin_request", lambda url: (url, {}, {}), raising=True
-    )
+    monkeypatch.setattr(url_pinning, "pin_request", lambda url: (url, {}, {}), raising=True)
     """Kills: a fix that re-validates redirects so strictly it refuses to
     follow them. http→https upgrades are the common case; refusing them would
     break every site that redirects.

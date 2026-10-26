@@ -40,7 +40,9 @@ def ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[UnlockLe
     store.close()
 
 
-def _record(method: str, *, ok: int = 0, streak: int = 0, last_ok: float | None = NOW, approved: bool = True) -> MethodRecord:
+def _record(
+    method: str, *, ok: int = 0, streak: int = 0, last_ok: float | None = NOW, approved: bool = True
+) -> MethodRecord:
     return MethodRecord(
         domain="example.com",
         method=method,
@@ -93,6 +95,7 @@ def test_staleness_counter_marks_and_resets(ledger: UnlockLedger) -> None:
 
 def test_repair_records_a_new_winner(ledger: UnlockLedger) -> None:
     """Repair walks the ladder, records every trial, and stores the winner."""
+
     def attempt(method: str) -> tuple[bool, float]:
         return method == "api_endpoint", 40.0
 
@@ -108,6 +111,7 @@ def test_repair_records_a_new_winner(ledger: UnlockLedger) -> None:
 
 def test_repair_bypass_winner_needs_approval_and_is_not_replayed(ledger: UnlockLedger) -> None:
     """A discovered bypass is stored, flagged, and withheld from replay."""
+
     def attempt(method: str) -> tuple[bool, float]:
         return method == "js_render", 900.0
 
@@ -132,26 +136,44 @@ def test_no_secrets_reach_disk(ledger: UnlockLedger, tmp_path: Path) -> None:
         "secure.example.com",
         "headers",
         ok=True,
-        params={"api_key": "sk-live-SECRET", "cookie": "session=abc123", "endpoint": "/api/v1/items"},
+        params={
+            "api_key": "sk-live-SECRET",
+            "cookie": "session=abc123",
+            "endpoint": "/api/v1/items",
+        },
         selector="#grid",
     )
     ledger.close()
     raw = (tmp_path / "ledger.sqlite3").read_bytes()
     assert b"sk-live-SECRET" not in raw
     assert b"session=abc123" not in raw
-    stored = {r.method: r for r in UnlockLedger(path=str(tmp_path / "ledger.sqlite3"), now=lambda: NOW).records("secure.example.com")}["headers"]
-    assert stored.params == {"api_key": "<redacted>", "cookie": "<redacted>", "endpoint": "/api/v1/items"}
+    stored = {
+        r.method: r
+        for r in UnlockLedger(path=str(tmp_path / "ledger.sqlite3"), now=lambda: NOW).records(
+            "secure.example.com"
+        )
+    }["headers"]
+    assert stored.params == {
+        "api_key": "<redacted>",
+        "cookie": "<redacted>",
+        "endpoint": "/api/v1/items",
+    }
     assert stored.selector == "#grid"
 
 
 def test_scrub_and_normalize_helpers() -> None:
     """Host normalization folds scheme/port/www; scrubbing keeps keys only."""
     assert normalize_domain("HTTPS://WWW.Shop.Example.com:443/path?q=1") == "shop.example.com"
-    assert scrub_params({"Authorization": "Bearer x", "wait_ms": 500}) == {"Authorization": "<redacted>", "wait_ms": 500}
+    assert scrub_params({"Authorization": "Bearer x", "wait_ms": 500}) == {
+        "Authorization": "<redacted>",
+        "wait_ms": 500,
+    }
     assert scrub_params(None) == {}
 
 
-def test_choose_method_is_off_unless_flagged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_choose_method_is_off_unless_flagged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Flag off means zero behaviour change for crawling."""
     monkeypatch.delenv("PRY_UNLOCK_LEDGER", raising=False)
     store = UnlockLedger(path=str(tmp_path / "off.sqlite3"), now=lambda: NOW)
@@ -177,10 +199,13 @@ def test_find_similar_domain_uses_embed_lane() -> None:
 
 def test_find_similar_domain_degrades_honestly() -> None:
     """A dead lane reports available=False and falls back to host family."""
+
     def boom(text: str) -> list[float]:
         raise OSError("lane down")
 
-    result = find_similar_domain("shop.example.com", ["cdn.example.com", "other.net"], lane=EmbedLane(embedder=boom))
+    result = find_similar_domain(
+        "shop.example.com", ["cdn.example.com", "other.net"], lane=EmbedLane(embedder=boom)
+    )
     assert not result.available
     assert "embed lane unavailable" in result.reason
     assert result.matches == ["cdn.example.com"]

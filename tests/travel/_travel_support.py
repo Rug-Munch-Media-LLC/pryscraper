@@ -21,6 +21,7 @@ def _hermetic_travel(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(hotels, "RETRY_BASE", 0.0)
     monkeypatch.setattr(hotels, "MAX_BACKOFF", 0.0)
 
+
 def _flights_html() -> str:
     """A Google-Flights-style page with embedded AF_initDataCallback data."""
     data = [
@@ -56,6 +57,7 @@ def _flights_html() -> str:
         "</body></html>"
     )
 
+
 def _flights_html_parent_child() -> str:
     """Google layout variant: price on parent, airline/duration on child."""
     data = [
@@ -77,6 +79,7 @@ def _flights_html_parent_child() -> str:
         + json.dumps(data)
         + "});</script>"
     )
+
 
 def _hotels_google_html() -> str:
     """A Google-Hotels-style page with embedded hotel-rate records."""
@@ -106,6 +109,7 @@ def _hotels_google_html() -> str:
         "</body></html>"
     )
 
+
 def _booking_html() -> str:
     """A Booking.com searchresults page with a data-capla-trace JSON block."""
     payload = {
@@ -126,9 +130,11 @@ def _booking_html() -> str:
         "</body></html>"
     )
 
+
 def _booking_regex_html() -> str:
     """Booking.com page with no JSON blocks — regex price fallback path."""
     return '<html><body><div data-price="210">Some hotel</div><span>\u20ac180</span></body></html>'
+
 
 def _kayak_html() -> str:
     """A Kayak hotel page with an embedded ``window.__INITIAL_STATE__``."""
@@ -146,6 +152,7 @@ def _kayak_html() -> str:
         "</body></html>"
     )
 
+
 def _expedia_html() -> str:
     """An Expedia hotel page with JSON-LD structured data."""
     ld = {
@@ -159,6 +166,7 @@ def _expedia_html() -> str:
         "</head><body></body></html>"
     )
 
+
 @pytest.fixture
 def travel_app() -> FastAPI:
     app = FastAPI()
@@ -169,6 +177,7 @@ def travel_app() -> FastAPI:
 
     app.include_router(travel_router)
     return app
+
 
 def _client(app: FastAPI) -> TestClient:
     return TestClient(app)

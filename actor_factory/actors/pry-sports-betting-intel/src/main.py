@@ -85,9 +85,7 @@ async def _sharp_block(
         sports_sharp_consensus,
     )
 
-    enabled = options.get("include_sharp_intel", True) and (
-        want or report_type == "sharp_only"
-    )
+    enabled = options.get("include_sharp_intel", True) and (want or report_type == "sharp_only")
     if not enabled:
         item["arbitrage"], item["ev"], item["sharp_intel"] = [], [], {}
         return
@@ -106,9 +104,8 @@ async def _sharp_block(
         "alerts": (alert_res or {}).get("data", []),
     }
 
-async def _props_block(
-    item: dict[str, Any], sport: str, report_type: str, want: bool
-) -> None:
+
+async def _props_block(item: dict[str, Any], sport: str, report_type: str, want: bool) -> None:
     if not (want or report_type == "props_only"):
         item["props"] = []
         return
@@ -117,9 +114,8 @@ async def _props_block(
     result = await _guarded(sports_props(player="", sport=sport, market=""))
     item["props"] = (result or {}).get("data", [])
 
-async def _live_block(
-    item: dict[str, Any], sport: str, report_type: str, want: bool
-) -> None:
+
+async def _live_block(item: dict[str, Any], sport: str, report_type: str, want: bool) -> None:
     if not (want or report_type == "live_only"):
         item["live_state"] = {}
         return
@@ -169,13 +165,9 @@ class BettingIntelRunner(PPEScraperRunner):
         )
         item["weather"] = {"available": False, "assessment": None} if weather_on else {}
         pred_on = want and options.get("include_prediction_markets", True)
-        item["prediction_markets"] = (
-            {"available": False, "cross_reference": []} if pred_on else {}
-        )
+        item["prediction_markets"] = {"available": False, "cross_reference": []} if pred_on else {}
         item["kelly_sizing"] = (
-            _kelly_stakes(item["ev"])
-            if want and options.get("include_kelly", True)
-            else {}
+            _kelly_stakes(item["ev"]) if want and options.get("include_kelly", True) else {}
         )
         item["metadata"] = {
             "domain": url.split("/")[2] if "://" in url else url,

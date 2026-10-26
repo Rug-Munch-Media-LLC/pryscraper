@@ -11,8 +11,6 @@ which also owns the shared scaffolding; and of
 ``test_internal_gate_middleware.py`` (gate-level cover that predates the
 timestamp header).
 """
-from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
-from tests.x402._gate_support import db, no_owner_key  # noqa: F401
 
 import pytest
 
@@ -21,6 +19,8 @@ from pry.payments.x402_middleware.internal import (
     internal_max_skew,
     internal_request,
 )
+from tests.x402._gate_support import db, no_owner_key  # noqa: F401
+from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
 from tests.x402.test_internal_freshness_middleware import (
     _assert_challenged,
     _assert_served,

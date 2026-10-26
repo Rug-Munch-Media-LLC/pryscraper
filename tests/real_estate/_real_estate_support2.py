@@ -57,6 +57,7 @@ def _apartments_search_html() -> str:
         + "</script></body></html>"
     )
 
+
 def _zumper_search_html() -> str:
     """A Zumper rent-search page with a ``window.__NUXT__`` state blob."""
     payload = {
@@ -95,6 +96,7 @@ def _zumper_search_html() -> str:
         "</body></html>"
     )
 
+
 def _arcgis_payload() -> dict[str, Any]:
     return {
         "features": [
@@ -116,6 +118,7 @@ def _arcgis_payload() -> dict[str, Any]:
         ]
     }
 
+
 @pytest.fixture
 def real_estate_app() -> FastAPI:
     app = FastAPI()
@@ -126,6 +129,7 @@ def real_estate_app() -> FastAPI:
 
     app.include_router(real_estate_router)
     return app
+
 
 def _client(app: FastAPI) -> TestClient:
     return TestClient(app)

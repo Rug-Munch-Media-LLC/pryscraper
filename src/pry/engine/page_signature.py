@@ -74,4 +74,5 @@ class PageSignature:
             out.append(region)
         self._diff_children(a, b, path, out)
 
+
 __all__ = ["PageSignature"]

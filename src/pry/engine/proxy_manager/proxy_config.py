@@ -158,4 +158,5 @@ class ProxyConfigMixin:
         # active config.
         return self._try_webshare_env() or self._try_premium_env()
 
+
 __all__ = ["ProxyConfigMixin"]

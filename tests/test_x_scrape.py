@@ -34,7 +34,8 @@ def test_normalize_extracts_tweets() -> None:
     tweets = x_parse.normalize_tweets(TIMELINE.read_text(), "elonmusk")
     assert tweets, "recorded fixture must yield at least one tweet"
     first = tweets[0]
-    assert first["id"] and first["text"]
+    assert first["id"]
+    assert first["text"]
     assert first["created_at"]
     assert set(first["metrics"]) == {"likes", "retweets", "replies", "quotes"}
     assert first["url"].startswith("https://x.com/")
@@ -68,7 +69,8 @@ def test_fetch_invalid_handle_makes_no_request() -> None:
             raise AssertionError("must not request an invalid handle")
 
     env = x_syndication.fetch_profile_timeline("bad handle!", client=_Boom())
-    assert env["ok"] is False and env["error"]["code"] == "no_data"
+    assert env["ok"] is False
+    assert env["error"]["code"] == "no_data"
 
 
 @pytest.mark.skipif(not TIMELINE.exists(), reason="no recorded syndication fixture")
@@ -92,9 +94,11 @@ def test_tweet_success() -> None:
 
 def test_tweet_empty_body_is_soft_block() -> None:
     env = x_tweet.fetch_tweet("20", client=_Client(_Resp(200, "{}")))
-    assert env["ok"] is False and env["error"]["code"] == "blocked.ratelimit"
+    assert env["ok"] is False
+    assert env["error"]["code"] == "blocked.ratelimit"
 
 
 def test_tweet_non_json_is_refused() -> None:
     env = x_tweet.fetch_tweet("20", client=_Client(_Resp(200, "<html>nope")))
-    assert env["ok"] is False and env["error"]["code"] == "no_data"
+    assert env["ok"] is False
+    assert env["error"]["code"] == "no_data"

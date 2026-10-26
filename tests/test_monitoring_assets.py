@@ -114,6 +114,7 @@ def test_dashboard_parses_and_panels_resolve() -> None:
     assert targets >= 15, f"only {targets} query targets in dashboard"
     assert not unresolved, f"dashboard queries unknown metrics: {unresolved}"
 
+
 def test_queue_metrics_are_emitted_by_collector() -> None:
     from pry.core.observability import JobQueueCollector
 

@@ -35,7 +35,9 @@ def _clean_operations(operations: list[str] | None) -> list[str]:
     return [str(op) for op in (operations or []) if str(op).strip()]
 
 
-def _identity(options: dict[str, Any], settlement: dict[str, Any], key: str, fallback: str = "") -> str:
+def _identity(
+    options: dict[str, Any], settlement: dict[str, Any], key: str, fallback: str = ""
+) -> str:
     """Explicit option wins, then the settlement record, then a fallback field."""
     return str(options.get(key) or settlement.get(key) or fallback)
 
@@ -58,7 +60,9 @@ def _batch_request(
         tx_hash=_identity(options, settlement, "tx_hash", str(settlement.get("transaction") or "")),
         network=_identity(options, settlement, "network"),
         asset=_identity(options, settlement, "asset"),
-        caller_key=_identity(options, settlement, "caller_key", str(settlement.get("user_id") or "")),
+        caller_key=_identity(
+            options, settlement, "caller_key", str(settlement.get("user_id") or "")
+        ),
     )
 
 

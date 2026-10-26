@@ -12,8 +12,10 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from typing import TYPE_CHECKING
 
-from pry.engine.proxy_manager.proxy_types import ProxyConfig
+if TYPE_CHECKING:
+    from pry.engine.proxy_manager.proxy_types import ProxyConfig
 
 logger = logging.getLogger(__name__)
 

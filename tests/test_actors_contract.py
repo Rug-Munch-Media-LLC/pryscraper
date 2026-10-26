@@ -74,6 +74,7 @@ def _emitted_keys(processor: str) -> set[str]:
     module = _processor_module(processor)
     return _subscript_keys(ast.parse(module.read_text()), f"process_{processor}")
 
+
 def test_actors_exist() -> None:
     assert len(ACTORS) >= 100, f"only {len(ACTORS)} actor packages found"
 
@@ -113,7 +114,7 @@ def test_input_schema_valid_and_in_sync(actor: Path) -> None:
     assert "urls" in props
     assert props["urls"]["type"] == "array"
     assert set(schema.get("required") or []) <= set(props)
-    inline = (_actor_json(actor).get("input") or {})
+    inline = _actor_json(actor).get("input") or {}
     assert json.dumps(inline.get("properties"), sort_keys=True) == json.dumps(
         props, sort_keys=True
     ), "actor.json input block drifted from INPUT_SCHEMA.json"
@@ -123,9 +124,7 @@ def _handler_sources(actor: Path, processor: str | None) -> str:
     src = (actor / "src" / "main.py").read_text()
     sources = [src]
     # The runner is split: input normalisation lives in runner_flow/runner_urls.
-    sources.extend(
-        path.read_text() for path in Path("actor_factory").glob("runner*.py")
-    )
+    sources.extend(path.read_text() for path in Path("actor_factory").glob("runner*.py"))
     if processor:
         sources.extend(p.read_text() for p in Path("actor_factory").glob("processors_*.py"))
     return " ".join(sources)
@@ -193,7 +192,9 @@ def test_unimplementable_capabilities_return_explicit_unavailable() -> None:
     from actor_factory.processors_web import process_sanctions, process_tokensafety
 
     token = process_tokensafety("https://etherscan.io", {"status": "ok"}, {}, {})
-    sanctions = process_sanctions("https://sanctionssearch.ofac.treas.gov", {"status": "ok"}, {}, {})
+    sanctions = process_sanctions(
+        "https://sanctionssearch.ofac.treas.gov", {"status": "ok"}, {}, {}
+    )
     assert token["status"] == "unavailable"
     assert token["unavailable"] == "token_risk_feed_not_configured"
     assert token["signals"] == []

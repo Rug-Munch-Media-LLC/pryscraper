@@ -8,17 +8,17 @@ from typing import Any
 
 import httpx
 
-logger = logging.getLogger(__name__)
-
-from pry.commerce.crm_connectors import (  # noqa: F401 - re-exported API
+from pry.commerce.crm_connectors import (
     _map_to_hubspot,
     _map_to_salesforce,
     sync_to_hubspot,
     sync_to_salesforce,
 )
 
+# Re-exported API surface (imported here so callers keep a stable module path).
+__all__ = ["_map_to_hubspot", "_map_to_salesforce", "sync_to_hubspot", "sync_to_salesforce"]
 
-
+logger = logging.getLogger(__name__)
 
 
 async def sync_to_pipedrive(

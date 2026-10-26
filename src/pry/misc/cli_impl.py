@@ -208,5 +208,3 @@ def cmd_completions(shell: str = "bash") -> None:
     print()
     print(f"{YELLOW}Note:{NC} Pry does not yet wire `_PRY_COMPLETE` itself; once it")
     print("  does, this command will switch to a one-shot installer.")
-
-

@@ -116,9 +116,7 @@ class PPEScraperRunner(BillingMixin, FlowMixin):
             guard = AbuseGuard(
                 skip_counts_as_failure=self.config.processor_name != "monitor",
             )
-            queue: list[tuple[str, int]] = [
-                (u, 0) for u in plan.urls[: self.config.max_items]
-            ]
+            queue: list[tuple[str, int]] = [(u, 0) for u in plan.urls[: self.config.max_items]]
             seen: set[str] = {u for u, _ in queue}
             state["depths"] = dict(queue)
             processed = 0

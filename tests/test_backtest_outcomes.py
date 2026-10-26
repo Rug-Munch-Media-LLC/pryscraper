@@ -90,11 +90,15 @@ def test_unmatched_event_exits_two(tmp_path: Path) -> None:
 
 def test_duplicate_ids_refused_on_both_sides(tmp_path: Path) -> None:
     good = _outcomes(tmp_path, [{"event_id": "a1", "home_score": 1, "away_score": 0}])
-    dup_odds = _odds(tmp_path, "a1,1,2.0,1.9,home,2026-04-10,H,A\na1,2,2.0,1.9,home,2026-04-11,H,A\n")
+    dup_odds = _odds(
+        tmp_path, "a1,1,2.0,1.9,home,2026-04-10,H,A\na1,2,2.0,1.9,home,2026-04-11,H,A\n"
+    )
     dup_out = _outcomes(
         tmp_path / "dup",
-        [{"event_id": "a1", "home_score": 1, "away_score": 0},
-         {"event_id": "a1", "home_score": 2, "away_score": 0}],
+        [
+            {"event_id": "a1", "home_score": 1, "away_score": 0},
+            {"event_id": "a1", "home_score": 2, "away_score": 0},
+        ],
     )
     with pytest.raises(join_mod.JoinError, match="duplicate"):
         join_mod.load_series(dup_odds, good)
@@ -145,12 +149,20 @@ def test_fixture_adapter_parses_scores_and_prices() -> None:
 
     # the recorded pair joins to a settled bet, in memory
     row = {
-        "event_id": game["event_id"], "ts": game["date"],
-        "odds": home["odds"], "closing_odds": home["closing_odds"],
-        "side": "home", "date": game["date"], "home": game["home"], "away": game["away"],
+        "event_id": game["event_id"],
+        "ts": game["date"],
+        "odds": home["odds"],
+        "closing_odds": home["closing_odds"],
+        "side": "home",
+        "date": game["date"],
+        "home": game["home"],
+        "away": game["away"],
     }
-    outcome = {"event_id": game["event_id"], "home_score": game["home_score"],
-               "away_score": game["away_score"]}
+    outcome = {
+        "event_id": game["event_id"],
+        "home_score": game["home_score"],
+        "away_score": game["away_score"],
+    }
     events, _ = join_mod.join([row], {game["event_id"]: outcome})
     assert events[0].won is False
     assert events[0].odds == 1.74

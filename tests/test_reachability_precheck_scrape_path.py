@@ -99,9 +99,7 @@ async def test_a_raising_precheck_still_produces_a_normal_failure(
     assert result["tiers_failed"] == expected
 
 
-async def test_failure_result_reports_the_reachability_fact(
-    monkeypatch, resolved_dns: str
-) -> None:
+async def test_failure_result_reports_the_reachability_fact(monkeypatch, resolved_dns: str) -> None:
     """The wired value is a fact about the TARGET, added to the failure."""
     scraper = UltimateScraper()
     _one_tier_scraper(monkeypatch, scraper)

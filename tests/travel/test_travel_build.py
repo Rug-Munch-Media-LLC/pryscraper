@@ -8,8 +8,9 @@ the /v1/travel/* router (200 + 502-degradation + query validation).
 
 All HTTP is mocked (respx / monkeypatched helpers) — no live network.
 """
-from tests.travel._travel_support import _hermetic_travel, travel_app  # noqa: F401
+
 from datasets.travel.flights import _build_tfs
+from tests.travel._travel_support import _hermetic_travel, travel_app  # noqa: F401
 
 _FLIGHTS_URL = "https://www.google.com/travel/flights/"
 _HOTELS_GOOGLE_URL = "https://www.google.com/travel/hotels"
@@ -17,10 +18,13 @@ _HOTELS_BOOKING_URL = "https://www.booking.com/searchresults.html"
 _HOTELS_KAYAK_URL = "https://www.kayak.com/hotels"
 _HOTELS_EXPEDIA_URL = "https://www.expedia.com/Hotel-Search"
 
+
 def test_build_tfs_matches_known_good_example() -> None:
     expected = "CBwQAhoeEgoyMDI0LTA1LTI4agcIARIDVFBFcgcIARIDTVlKGh4SCjIwMjQtMDUtMzBqBwgBEgNNWUpyBwgBEgNUUEVAAUgBcAGCAQsI______AZgBAQ"
     got = _build_tfs([("2024-05-28", "TPE", "MYJ"), ("2024-05-30", "MYJ", "TPE")])
     assert got == expected
+
+
 def test_build_tfs_one_way_structure() -> None:
     import base64
 

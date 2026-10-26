@@ -10,8 +10,7 @@ the /v1/realestate/* router (200 + 502-degradation + query validation).
 All HTTP is mocked with respx (local-router ``respx_mock`` — the version
 of this venv attaches routes to the local router only) — no live network.
 """
-from tests.real_estate._real_estate_support import _hermetic_real_estate  # noqa: F401
-from tests.real_estate._real_estate_support2 import real_estate_app  # noqa: F401
+
 import json
 
 import httpx
@@ -19,7 +18,11 @@ import pytest
 import respx
 
 from datasets.real_estate import property_records
-from tests.real_estate._real_estate_support2 import _arcgis_payload
+from tests.real_estate._real_estate_support import _hermetic_real_estate  # noqa: F401
+from tests.real_estate._real_estate_support2 import (
+    _arcgis_payload,
+    real_estate_app,  # noqa: F401
+)
 
 
 @respx.mock(assert_all_mocked=False)
@@ -46,6 +49,8 @@ async def test_get_property_wake_nc_success(respx_mock) -> None:
     assert result["sale_history"] == expected
     assert result["details"]["site_address"] == "123 Main St"
     assert result["details"]["year_built"] == 2005
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_get_property_accepts_county_name_variants(respx_mock) -> None:
     respx_mock.get(
@@ -54,9 +59,13 @@ async def test_get_property_accepts_county_name_variants(respx_mock) -> None:
     result = await property_records.get_property("0695327712", "Wake, NC")
     assert result["parcel_id"] == "0695327712"
     assert result["assessed_value"] == 619967
+
+
 async def test_get_property_unknown_county_returns_empty() -> None:
     result = await property_records.get_property("123", "no-such-county")
     assert result == {}
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_get_property_parcel_not_found_returns_empty(respx_mock) -> None:
     respx_mock.get(
@@ -64,6 +73,8 @@ async def test_get_property_parcel_not_found_returns_empty(respx_mock) -> None:
     ).mock(return_value=httpx.Response(200, json={"features": []}))
     result = await property_records.get_property("0000000000", "wake-nc")
     assert result == {}
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_get_property_never_raises_on_network_failure(respx_mock) -> None:
     respx_mock.get(
@@ -71,6 +82,8 @@ async def test_get_property_never_raises_on_network_failure(respx_mock) -> None:
     ).mock(return_value=httpx.Response(503))
     result = await property_records.get_property("0695327712", "wake-nc")
     assert result == {}
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_get_property_env_registry_extra_county(
     respx_mock, monkeypatch: pytest.MonkeyPatch

@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
 import pytest
 
 import datasets.sports_data.injuries as injuries
 import datasets.sports_data.live as live
 import datasets.sports_data.props as props
+from pry.engine.retry import RetryConfig
+
+_ZERO_RETRY = RetryConfig(
+    max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
+)
 
 
 @pytest.fixture(autouse=True)
@@ -16,6 +22,7 @@ def _hermetic_sports(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(injuries, "_RETRY_CONFIG", _ZERO_RETRY)
     monkeypatch.setattr(live, "_RETRY_CONFIG", _ZERO_RETRY)
     monkeypatch.delenv("PRY_ODDS_API_KEY", raising=False)
+
 
 def _props_events_payload() -> list[dict[str, Any]]:
     return [
@@ -27,6 +34,7 @@ def _props_events_payload() -> list[dict[str, Any]]:
             "away_team": "Boston Celtics",
         }
     ]
+
 
 def _props_event_payload() -> dict[str, Any]:
     return {
@@ -80,6 +88,7 @@ def _props_event_payload() -> dict[str, Any]:
         ],
     }
 
+
 def _props_stats_payload() -> dict[str, Any]:
     return {
         "categories": [
@@ -103,6 +112,7 @@ def _props_stats_payload() -> dict[str, Any]:
         ]
     }
 
+
 def _search_payload() -> dict[str, Any]:
     return {
         "count": 1,
@@ -119,6 +129,7 @@ def _search_payload() -> dict[str, Any]:
             }
         ],
     }
+
 
 def _injuries_payload() -> dict[str, Any]:
     return {

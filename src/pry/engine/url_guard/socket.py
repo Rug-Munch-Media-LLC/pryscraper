@@ -16,7 +16,7 @@ SOCK_STREAM = _socket.SOCK_STREAM
 gaierror = _socket.gaierror
 
 
-def getaddrinfo(*args, **kwargs):  # noqa: ANN002, ANN003 - stdlib passthrough
+def getaddrinfo(*args, **kwargs):
     """Resolve through the live stdlib function (patchable at either seam)."""
     return _socket.getaddrinfo(*args, **kwargs)
 

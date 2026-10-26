@@ -22,6 +22,7 @@ def _eip7702_ok(monkeypatch):
 
     monkeypatch.setattr(FacilitatorRouter, "_eip7702_verify", _ok)
 
+
 @pytest.fixture
 def router() -> FacilitatorRouter:
     """Return a fresh FacilitatorRouter with default facilitators."""

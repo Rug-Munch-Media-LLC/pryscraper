@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+
 from pry.core.paths import PRY_DATA_DIR
 
 PROXY_DIR = PRY_DATA_DIR / "proxies"

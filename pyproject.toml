@@ -507,7 +507,11 @@ pythonpath = ["src", "."]
 # containers and sets PRY_DATABASE_URL / PRY_REDIS_URL.
 # `tests/contract/` is also excluded from the default run: pact tests start a
 # native mock service and only make sense in the explicit `contract-test` job.
-addopts = "-p pytest_netmarks -m 'not integration and not slow' --ignore=tests/contract"
+# `-p no:hypothesispytest` is deliberate: hypothesis 6.167's pytest plugin crawls
+# the full rootdir (9.7k tests) at startup, so a bare `pytest --collect-only` hangs
+# for minutes with no output. Disabling only the plugin keeps @given/@settings tests
+# working and drops collection to ~25 s. Remove once the plugin stops the crawl.
+addopts = "-p no:hypothesispytest -p pytest_netmarks -m 'not integration and not slow' --ignore=tests/contract"
 markers = [
     "integration: tests that require live infrastructure (Postgres, Redis, external HTTP). Skipped by default; run with `pytest -m integration`.",
     "fuzz: marks tests as fuzz/property-based tests (can be slow)",

@@ -1,7 +1,8 @@
 """Tests for x402/facilitator.py — FacilitatorRouter, multi-provider fallback."""
+
+from pry.payments.x402.facilitator import FacilitatorConfig
 from tests.x402._gate_support import db, no_owner_key  # noqa: F401
 from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
-from pry.payments.x402.facilitator import FacilitatorConfig
 
 
 def test_facilitator_config_required():
@@ -15,6 +16,8 @@ def test_facilitator_config_required():
     assert cfg.settle_url == "https://test/settle"
     assert cfg.priority == 0
     assert cfg.enabled is True
+
+
 def test_facilitator_config_custom_priority():
     cfg = FacilitatorConfig(
         name="fast",

@@ -9,9 +9,6 @@ malformed payloads degrade to empty output).
 
 All HTTP is mocked with respx — no live network.
 """
-from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
-from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
-from tests.sports._sports_bet_types_support import _hermetic_sports  # noqa: F401
 
 import httpx
 import pytest
@@ -20,7 +17,13 @@ import respx
 import datasets.sports_data.injuries as injuries
 import datasets.sports_data.props as props
 from pry.engine.retry import RetryConfig
-from tests.sports._sports_props_injuries_live_support import _injuries_payload, _props_event_payload
+from tests.sports._sports_bet_types_support import _hermetic_sports
+from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
+from tests.sports._sports_props_injuries_live_support import (
+    _hermetic_sports,  # noqa: F401
+    _injuries_payload,
+    _props_event_payload,
+)
 from tests.sports._sports_props_injuries_live_support2 import (
     _report_scoreboard_payload,
     _team_injuries_html,

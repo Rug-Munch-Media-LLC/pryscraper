@@ -7,17 +7,20 @@
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from pry.engine.ultimate_scraper import UltimateScraper
 from tests.ultimate_scraper_support import (  # noqa: F401 — fixtures for this module
     VALID_HTML,
     VALID_HTML_2,
     VALID_HTML_3,
     scraper,
 )
+
+if TYPE_CHECKING:
+    from pry.engine.ultimate_scraper import UltimateScraper
 
 _ORDERED_TIERS = [
     "_tier_direct",

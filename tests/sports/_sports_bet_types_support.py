@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
 import pytest
 
 import datasets.sports_data.alt_lines as alt_lines
 import datasets.sports_data.halves as halves
 import datasets.sports_data.props as props
+from pry.engine.retry import RetryConfig
+
+_ZERO_RETRY = RetryConfig(
+    max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
+)
 
 
 @pytest.fixture(autouse=True)
@@ -16,6 +22,7 @@ def _hermetic_sports(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(halves, "_RETRY_CONFIG", _ZERO_RETRY)
     monkeypatch.setattr(props, "_RETRY_CONFIG", _ZERO_RETRY)
     monkeypatch.delenv("PRY_ODDS_API_KEY", raising=False)
+
 
 def _event_odds_payload(
     bookmakers: list[dict[str, Any]],
@@ -29,6 +36,7 @@ def _event_odds_payload(
         "away_team": "Boston Celtics",
         "bookmakers": bookmakers,
     }
+
 
 def _comparison_payload() -> dict[str, Any]:
     """``sports_data.odds.get_event_odds`` comparison dict (two books)."""
@@ -84,6 +92,7 @@ def _comparison_payload() -> dict[str, Any]:
         "source": "the_odds_api",
     }
 
+
 def _game_props_records() -> list[dict[str, Any]]:
     """``sports_data.props.get_game_props`` records for DraftKings."""
     return [
@@ -98,6 +107,7 @@ def _game_props_records() -> list[dict[str, Any]]:
             "source": "the_odds_api",
         }
     ]
+
 
 def _espn_scoreboard_payload() -> dict[str, Any]:
     """ESPN scoreboard event with a base spread + total for the Lakers/Celtics."""
@@ -132,6 +142,7 @@ def _espn_scoreboard_payload() -> dict[str, Any]:
             }
         ]
     }
+
 
 def _alt_lines_payload() -> dict[str, Any]:
     return _event_odds_payload(

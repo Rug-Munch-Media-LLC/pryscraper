@@ -46,7 +46,7 @@ def fetch_profile_timeline(
     )
     try:
         response = client.get(URL.format(handle=handle))
-    except Exception as exc:  # transport failure, never a fabricated payload
+    except httpx.HTTPError as exc:  # transport failure, never a fabricated payload
         return refusal(SOURCE, "blocked.challenge", detail=f"transport: {type(exc).__name__}")
     finally:
         if owns_client:

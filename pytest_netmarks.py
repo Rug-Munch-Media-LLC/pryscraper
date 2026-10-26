@@ -3,6 +3,7 @@
 Registered via `-p pytest_netmarks` in pyproject addopts. Marks only; no test
 is skipped here, so a plain `pytest` run behaves exactly as before.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -10,7 +11,9 @@ import re
 
 import pytest
 
-_NET = re.compile(r"^\s*(?:import|from)\s+(requests|httpx|aiohttp|urllib|socket|websockets|websocket)\b", re.M)
+_NET = re.compile(
+    r"^\s*(?:import|from)\s+(requests|httpx|aiohttp|urllib|socket|websockets|websocket)\b", re.M
+)
 _SLEEP = re.compile(r"\b(?:time|asyncio)\.sleep\(")
 _CACHE: dict[str, bool] = {}
 
