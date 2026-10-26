@@ -1,21 +1,10 @@
-"""Mega search — fan out across every engine, merge by cross-engine consensus.
 
-A single engine is one opinion: it can be rate-limited, captcha'd, or simply
-wrong. This module runs the whole engine set *concurrently* - the existing
-:mod:`pry.engine.web_search` chain is a sequential fallback and therefore only
-ever pays for one engine - then merges the answers.
-
-The ranking signal is agreement. A URL surfaced by several independent engines
-is more likely to be relevant than one surfaced by a single engine, so hits are
-scored by how many engines found them, weighted by engine reliability, with
-per-engine position and query-term overlap as tie-breakers.
-
-This module does not modify the engine layer; it imports and calls it.
-"""
+Engines run concurrently under one hard deadline and the call returns as soon as
+two engines agree, so one slow or dead engine cannot hold it. Ranking is
+agreement: a URL found by several independent engines outranks a lone hit.
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
-#
 # Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
@@ -23,6 +12,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -44,14 +35,14 @@ ENGINE_WEIGHTS: dict[str, float] = {
 DEFAULT_ENGINES: tuple[str, ...] = tuple(ENGINE_WEIGHTS)
 
 _PER_ENGINE = 12
-_TRACKING_PREFIXES = ("utm_", "fbclid", "gclid", "mc_", "ref_", "igshid")
-_STRIP_HOST_PREFIXES = ("www.", "m.", "amp.")
+PER_ENGINE_TIMEOUT = 3.0
+_RESPONSE_RESERVE = 0.05
+MIN_CONSENSUS = 2
+_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="mega-search")
 
 Result = dict[str, Any]
 Positions = dict[str, dict[str, int]]
 
-
-# Engine -> (module, attribute); explicit so a module move fails loudly here.
 ENGINE_SOURCES: dict[str, tuple[Any, str]] = {
     "searxng": (ws, "_search_searxng"),
     "duckduckgo": (ws, "_search_ddg"),
@@ -61,57 +52,88 @@ ENGINE_SOURCES: dict[str, tuple[Any, str]] = {
     "mojeek": (engine_mojeek, "search_mojeek"),
 }
 
-
 def _engine_func(name: str) -> Any | None:
-    """Resolve an engine name to its coroutine."""
     source = ENGINE_SOURCES.get(name)
     return getattr(source[0], source[1]) if source else None
 
-
 def _term_overlap(query: str, *fields: str) -> float:
-    """Fraction of meaningful query terms present in the result text."""
     terms = [t for t in query.lower().split() if len(t) > 2]
     if not terms:
         return 0.0
     haystack = " ".join(fields).lower()
     return sum(1 for t in terms if t in haystack) / len(terms)
 
-
-def _score(key: str, entry: Result, positions: Positions, query: str) -> float:
-    """Consensus dominates; weight, position and term overlap only refine it."""
-    engines = positions[key]
+def _score(entry: Result, engines: dict[str, int], query: str) -> float:
     weight = sum(ENGINE_WEIGHTS.get(e, 0.8) for e in engines)
-    best_position = min(engines.values())
     overlap = _term_overlap(query, str(entry.get("title") or ""), str(entry.get("snippet") or ""))
-    return weight + 0.5 / (1 + best_position) + overlap
+    return weight + 0.5 / (1 + min(engines.values())) + overlap
 
+def _run_leg(name: str, func: Any, query: str) -> tuple[str, list[Result], int]:
+    started = time.perf_counter()
+    try:
+        rows = [r for r in asyncio.run(func(query, _PER_ENGINE)) or [] if r.get("url")]
+    except Exception as exc:  # noqa: BLE001 - one leg must not sink the rest
+        logger.debug("mega_search_leg_failed", extra={"engine": name, "error": str(exc)})
+        rows = []
+    return name, rows, int((time.perf_counter() - started) * 1000)
 
-async def _gather(
+def _agreeing(grouped: dict[str, list[Result]]) -> int:
+    seen: dict[str, int] = {}
+    for rows in grouped.values():
+        for row in rows:
+            key = url_key(str(row["url"]))
+            seen[key] = seen.get(key, 0) + 1
+    return sum(1 for count in seen.values() if count >= MIN_CONSENSUS)
+
+async def _fan_out(
     query: str,
     engines: tuple[str, ...],
     resolve: Callable[[str], Any | None] = _engine_func,
-) -> dict[str, list[Result]]:
-    """Run every available engine concurrently; a failed leg yields an empty list.
-
-    ``resolve`` is the injection seam: tests inject an engine lookup rather
-    than patching module state.
-    """
+    per_engine_timeout: float = PER_ENGINE_TIMEOUT,
+) -> dict[str, Any]:
+    started = time.perf_counter()
     usable = {n: f for n in engines if (f := resolve(n)) is not None}
     if not usable:
-        return {}
-
-    async def run(name: str, func: Any) -> tuple[str, list[Result]]:
-        try:
-            return name, [r for r in await func(query, _PER_ENGINE) or [] if r.get("url")]
-        except Exception as exc:  # noqa: BLE001 - one leg must not sink the rest
-            logger.debug("mega_search_leg_failed", extra={"engine": name, "error": str(exc)})
-            return name, []
-
-    return dict(await asyncio.gather(*(run(n, f) for n, f in usable.items())))
-
+        return {
+            "grouped": {},
+            "per_engine_ms": {},
+            "pending": [],
+            "elapsed_ms": 0,
+            "partial": False,
+        }
+    loop = asyncio.get_running_loop()
+    futures = {loop.run_in_executor(_POOL, _run_leg, n, f, query): n for n, f in usable.items()}
+    grouped: dict[str, list[Result]] = {}
+    per_engine_ms: dict[str, int] = {}
+    pending: set[Any] = set(futures)
+    deadline = started + per_engine_timeout - _RESPONSE_RESERVE
+    while pending:
+        remaining = deadline - time.perf_counter()
+        if remaining <= 0:
+            break
+        done, pending = await asyncio.wait(
+            pending, timeout=remaining, return_when=asyncio.FIRST_COMPLETED
+        )
+        for future in done:
+            name, rows, ms = future.result()
+            grouped[name] = rows
+            per_engine_ms[name] = ms
+        hits = sum(1 for rows in grouped.values() if rows)
+        if _agreeing(grouped) >= 1 or hits >= MIN_CONSENSUS:
+            break
+    outstanding = sorted(futures[f] for f in pending)
+    consumed = int((time.perf_counter() - started) * 1000)
+    for name in outstanding:
+        per_engine_ms[name] = consumed
+    return {
+        "grouped": grouped,
+        "per_engine_ms": per_engine_ms,
+        "pending": outstanding,
+        "elapsed_ms": consumed,
+        "partial": bool(outstanding),
+    }
 
 def _collect(grouped: dict[str, list[Result]]) -> tuple[dict[str, Result], Positions]:
-    """Dedupe by normalized URL, keeping the richest payload per unique hit."""
     merged: dict[str, Result] = {}
     positions: Positions = {}
     for engine, rows in grouped.items():
@@ -131,42 +153,34 @@ def _collect(grouped: dict[str, list[Result]]) -> tuple[dict[str, Result], Posit
             entry["engines"].append(engine)
     return merged, positions
 
-
 def _merge(grouped: dict[str, list[Result]], query: str) -> list[Result]:
-    """Rank deduplicated hits by cross-engine consensus."""
     merged, positions = _collect(grouped)
     ranked = sorted(
-        merged.items(),
-        key=lambda kv: (-_score(kv[0], kv[1], positions, query), kv[1]["url"]),
+        merged.values(),
+        key=lambda e: (-_score(e, positions[url_key(str(e["url"]))], query), e["url"]),
     )
-    for key, entry in ranked:
-        entry["consensus"] = len(positions[key])
+    for entry in ranked:
+        engines = positions[url_key(str(entry["url"]))]
+        entry["consensus"] = len(engines)
         entry["sources"] = sorted(set(entry["engines"]))
-    return [entry for _, entry in ranked]
-
+    return ranked
 
 async def mega_search(
     query: str,
     num_results: int = 10,
     engines: tuple[str, ...] | None = None,
     resolve: Callable[[str], Any | None] | None = None,
+    per_engine_timeout: float = PER_ENGINE_TIMEOUT,
 ) -> dict[str, Any]:
-    """Search every configured engine at once and return a consensus ranking.
 
-    Args:
-        query: Search terms.
-        num_results: How many merged results to return.
-        engines: Subset of engines to use; defaults to all of them.
-
-    Returns:
-        ``{"results", "total", "query", "engines", "engines_ok",
-        "engines_failed"}``. Each result carries ``consensus`` (how many engines
-        surfaced it) and ``sources`` (which ones).
-    """
+    ``engines_timeout`` lists legs still pending at the deadline or dropped once
+    consensus was reached; ``partial`` is true when any leg did not contribute.
+    Each result carries ``consensus`` and ``sources``.
     if not query or not query.strip():
         return {}
     chosen = tuple(engines) if engines else DEFAULT_ENGINES
-    grouped = await _gather(query.strip(), chosen, resolve or _engine_func)
+    fan = await _fan_out(query.strip(), chosen, resolve or _engine_func, per_engine_timeout)
+    grouped = fan["grouped"]
     results = _merge(grouped, query.strip())
     ok = [name for name, rows in grouped.items() if rows]
     return {
@@ -176,4 +190,8 @@ async def mega_search(
         "engines": list(chosen),
         "engines_ok": ok,
         "engines_failed": [n for n in chosen if n not in ok],
+        "engines_timeout": fan["pending"],
+        "partial": fan["partial"],
+        "elapsed_ms": fan["elapsed_ms"],
+        "per_engine_ms": fan["per_engine_ms"],
     }
