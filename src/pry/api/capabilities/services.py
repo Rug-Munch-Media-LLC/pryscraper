@@ -56,7 +56,9 @@ def _captcha_capability() -> tuple[bool, str, list[str]]:
         if probes._module_import_state(module) == "ok":
             engines.append(label)
     if not engines:
-        recs.append("pip install 'pryscraper[captcha]' (ddddocr + faster-whisper), or apt-get install tesseract-ocr for the legacy OCR path")
+        recs.append(
+            "pip install 'pryscraper[captcha]' (ddddocr + faster-whisper), or apt-get install tesseract-ocr for the legacy OCR path"
+        )
     return bool(engines), "; ".join(engines) or "no free CAPTCHA engine installed", recs
 
 
