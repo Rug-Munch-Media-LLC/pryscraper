@@ -7,7 +7,9 @@
 
 from __future__ import annotations
 
+import importlib
 import json
+from contextlib import ExitStack
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -17,7 +19,13 @@ import pytest
 from pry_mcp.tools import call_actor_tool
 
 from ._support import _call, _fake_module, _patch_module, _server
-from ._tables import _DOMAIN_TOOLS, _LOCAL_ACTOR_TOOLS, _REST_PROXY_TOOLS
+from ._tables import (
+    _DOMAIN_TOOLS,
+    _LOCAL_ACTOR_TOOLS,
+    _LOCAL_SERVER_TOOLS,
+    _REST_PROXY_TOOLS,
+    _SYNC_DOMAIN_TOOLS,
+)
 
 
 class TestToolRoundTrips:
@@ -65,6 +73,39 @@ class TestToolRoundTrips:
         assert "error" not in resp, f"{tool_name}: {resp.get('error')}"
         assert resp["result"]["content"], f"{tool_name}: empty content"
         assert resp["result"]["isError"] is False
+
+    @pytest.mark.parametrize("tool_name", sorted(_SYNC_DOMAIN_TOOLS))
+    async def test_sync_domain_tool_success(self, tool_name: str) -> None:
+        """Handlers over synchronous, import-bound dependencies still succeed.
+
+        The handler holds a direct reference to the function, so the live
+        module attribute must be patched - replacing the sys.modules entry
+        leaves the already-imported function untouched.
+        """
+        module_name, fns, args = _SYNC_DOMAIN_TOOLS[tool_name]
+        module = importlib.import_module(module_name)
+        with ExitStack() as stack:
+            for fn in fns:
+                stack.enter_context(
+                    patch.object(module, fn, Mock(return_value={"ok": True, "tool": tool_name}))
+                )
+            resp = await _call(_server(), tool_name, args)
+        assert "error" not in resp, f"{tool_name}: {resp.get('error')}"
+        assert resp["result"]["isError"] is False, f"{tool_name}: {resp['result']}"
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert payload.get("ok") is True, f"{tool_name}: {payload}"
+
+    @pytest.mark.parametrize("tool_name", sorted(_LOCAL_SERVER_TOOLS))
+    async def test_local_server_tool_success(self, tool_name: str) -> None:
+        """Locally-served tools answer from in-process state - no network."""
+        srv = _server()
+        resp = await _call(srv, tool_name, _LOCAL_SERVER_TOOLS[tool_name])
+        assert resp["jsonrpc"] == "2.0"
+        assert "error" not in resp, f"{tool_name}: {resp.get('error')}"
+        assert resp["result"]["isError"] is False
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert payload["tool"] == tool_name, f"{tool_name}: {payload}"
+        assert payload["groups"], f"{tool_name}: empty group index"
 
     @pytest.mark.parametrize("tool_name", sorted(_LOCAL_ACTOR_TOOLS))
     async def test_local_actor_tool_success(self, tool_name: str) -> None:
