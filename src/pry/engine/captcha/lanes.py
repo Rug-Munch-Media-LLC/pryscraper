@@ -1,105 +1,99 @@
-"""Pry — individual lanes of the CAPTCHA ladder.
+"""Pry — one function per free rung, plus the dispatch table.
 
-``run_stage`` dispatches one lane by name; each lane is a small function that
-returns a :class:`LaneOutcome`. Free lanes (flaresolverr, image OCR) never need
-a key; paid lanes report ``no_key`` when nothing is provisioned.
+Each rung is a small adapter over its engine module and returns a
+:class:`LaneOutcome`: it never raises, so a broken engine degrades to a typed
+``failed`` and the ladder keeps going. Rungs are addressed by tier id (T0..T5);
+:func:`run_stage` stays as the legacy alias used by the detect routes.
 """
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from pry.core.settings import settings
+from pry.engine.captcha import audio_asr, browser_integrity, image_ocr, t0_profile, vision
 from pry.engine.captcha.flaresolverr import flaresolverr_fetch, looks_unsolved
-from pry.engine.captcha.registry import REGISTRY
-from pry.engine.captcha.token_api import solve_2captcha, solve_capsolver
-
-#: captcha_type -> (2captcha method, capsolver task type)
-TOKEN_METHODS: dict[str, tuple[str, str]] = {
-    "recaptcha_v2": ("userrecaptcha", "ReCaptchaV2Task"),
-    "recaptcha_v3": ("recaptcha_v3", "ReCaptchaV3Task"),
-    "hcaptcha": ("hcaptcha", "HCaptchaTask"),
-    "turnstile": ("turnstile", "TurnstileTask"),
-}
 
 
 @dataclass(frozen=True, slots=True)
 class Challenge:
-    """Everything a solver lane may need about one blocked response."""
+    """Everything a rung may need about one blocked response."""
 
     url: str
     html: str | None = None
     captcha_type: str | None = None
     sitekey: str | None = None
     image: bytes | str | None = None
+    audio: bytes | None = None
+    background: bytes | None = None
+    piece: bytes | None = None
 
 
 @dataclass(slots=True)
 class LaneOutcome:
-    """Result of one lane: solved or why not."""
+    """Result of one rung: solved (with token/html) or why not."""
 
     outcome: str
     kind: str
     token: str | None = None
     html: str | None = None
-    detail: str = ""
+    reason: str = ""
 
 
-async def _flare(challenge: Challenge, remaining: float) -> LaneOutcome:
+async def _t0(challenge: Challenge, remaining: float) -> LaneOutcome:
+    html, reason = await t0_profile.fetch_clean(challenge.url, min(remaining, 20.0))
+    if reason == "solved" and html:
+        return LaneOutcome("solved", "http", html=html)
+    return LaneOutcome(reason, "http")
+
+
+async def _t1(challenge: Challenge, remaining: float) -> LaneOutcome:
     solution = await flaresolverr_fetch(challenge.url, remaining)
     if solution.ok and not looks_unsolved(solution.html):
         return LaneOutcome("solved", "js", token=solution.token, html=solution.html)
     return LaneOutcome("unsolved" if solution.ok else solution.error or "failed", "js")
 
 
-async def _image(challenge: Challenge, _remaining: float) -> LaneOutcome:
-    provider = REGISTRY.get("image")
-    if not challenge.image or provider is None:
-        return LaneOutcome("no_input", "image")
-    text = await provider.solve(image=challenge.image)
-    return LaneOutcome("solved", "image", token=text) if text else LaneOutcome("unsolved", "image")
+async def _t2(challenge: Challenge, remaining: float) -> LaneOutcome:
+    text, reason = await audio_asr.solve_audio(challenge.audio, min(remaining, 30.0))
+    return LaneOutcome(reason, "audio", token=text)
 
 
-async def _paid(stage: str, challenge: Challenge, _remaining: float) -> LaneOutcome:
-    kind = challenge.captcha_type or "token"
-    if challenge.captcha_type not in TOKEN_METHODS or not challenge.sitekey:
-        return LaneOutcome("not_applicable", kind)
-    key = (
-        settings.captcha_capsolver_api_key
-        if stage == "capsolver"
-        else settings.captcha_2captcha_api_key
+async def _t3(challenge: Challenge, remaining: float) -> LaneOutcome:
+    text, reason = await image_ocr.solve_image(challenge.image, min(remaining, 15.0))
+    return LaneOutcome(reason, "image", token=text)
+
+
+async def _t4(challenge: Challenge, remaining: float) -> LaneOutcome:
+    offset, reason = await vision.solve_puzzle(
+        challenge.background,
+        challenge.piece,
+        challenge.captcha_type or "slider",
+        min(remaining, 10.0),
     )
-    if not key:
-        return LaneOutcome("no_key", kind)
-    method = TOKEN_METHODS[challenge.captcha_type]
-    token = (
-        await solve_capsolver(key, method[1], sitekey=challenge.sitekey, url=challenge.url)
-        if stage == "capsolver"
-        else await solve_2captcha(key, method[0], sitekey=challenge.sitekey, url=challenge.url)
+    return LaneOutcome(reason, "vision", token=None if offset is None else str(offset))
+
+
+async def _t5(challenge: Challenge, remaining: float) -> LaneOutcome:
+    token, reason = await browser_integrity.solve_browser(
+        challenge.url, challenge.captcha_type or "unknown", min(remaining, 45.0)
     )
-    return LaneOutcome("solved", kind, token=token) if token else LaneOutcome("unsolved", kind)
+    return LaneOutcome("solved" if reason == "solved" else reason, "browser", token=token)
 
 
-async def _registry(challenge: Challenge, _remaining: float) -> LaneOutcome:
-    kind = challenge.captcha_type or "token"
-    provider = REGISTRY.get(challenge.captcha_type or "")
-    if provider is None or not challenge.sitekey:
-        return LaneOutcome("not_applicable", kind)
-    token = await provider.solve(sitekey=challenge.sitekey, url=challenge.url)
-    return LaneOutcome("solved", kind, token=token) if token else LaneOutcome("unsolved", kind)
+_RUNNERS = {"T0": _t0, "T1": _t1, "T2": _t2, "T3": _t3, "T4": _t4, "T5": _t5}
+
+
+async def run_tier(tier: str, challenge: Challenge, remaining: float) -> LaneOutcome:
+    """Run one free rung by tier id; unknown ids are not applicable."""
+    runner = _RUNNERS.get(tier)
+    if runner is None:
+        return LaneOutcome("not_applicable", "unknown", reason=f"unknown tier {tier}")
+    return await runner(challenge, remaining)
 
 
 async def run_stage(stage: str, challenge: Challenge, remaining: float) -> LaneOutcome:
-    """Run one named lane (free lanes first, paid lanes after)."""
-    if stage == "flaresolverr":
-        return await _flare(challenge, remaining)
-    if stage == "image":
-        return await _image(challenge, remaining)
-    if stage in ("capsolver", "2captcha"):
-        return await _paid(stage, challenge, remaining)
-    return await _registry(challenge, remaining)
+    """Legacy alias: stage names map onto the free tier ids."""
+    alias = {"flaresolverr": "T1", "image": "T3", "token": "T2"}
+    return await run_tier(alias.get(stage, stage), challenge, remaining)

@@ -1,6 +1,6 @@
 """Pry — CAPTCHA provider base class.
 
-Every CAPTCHA backend (image OCR, 2captcha-style token APIs, Capsolver)
+Every free rung that exposes a token-style backend (FlareSolverr, local OCR)
 implements the :class:`CaptchaProvider` interface and registers itself in
 the :data:`captcha.registry.REGISTRY` under its ``captcha_type``.
 """

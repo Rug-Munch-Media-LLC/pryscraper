@@ -1,19 +1,17 @@
-"""Pry — OCR-based image CAPTCHA solver.
+"""Pry — T3: local OCR for text/image CAPTCHAs, offline.
 
-Uses Tesseract via ``pytesseract`` (default) or EasyOCR when selected by
-``PRY_CAPTCHA_OCR_BACKEND``. Images are preprocessed with Pillow
-(grayscale -> autocontrast -> threshold -> median denoise) before OCR.
+The engine is ONNX (``ddddocr``-compatible model layout: one model file, a
+``predict(bytes) -> str`` call), executed through onnxruntime on CPU. Both the
+runtime and the model are optional: absent either one, ``capability()`` is
+False and the rung is skipped with ``unavailable.model`` — never a slow crash
+in the middle of a fetch.
 
-The OCR libraries are imported lazily so this module loads even when
-neither backend is installed; in that case ``solve`` returns None
-gracefully (flagged for install via the log).
+Images are normalised first (bytes / base64 / data-URL / path) and
+preprocessed with Pillow, mirroring the previous backend contract.
 """
 
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
-#
-# Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
 import asyncio
@@ -25,18 +23,35 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-from pry.core.settings import settings
 from pry.engine.captcha.base import CaptchaProvider
 from pry.engine.captcha.registry import register
 
 logger = logging.getLogger(__name__)
 
+MODEL_ENV = "PRY_CAPTCHA_OCR_MODEL"
+DEFAULT_MODEL = Path.home() / ".cache" / "pry" / "models" / "ddddocr" / "common.onnx"
 THRESHOLD = 160
 MEDIAN_SIZE = 3
 
 
+def model_path() -> Path:
+    """ONNX model file: env override first, then the fleet default."""
+    return Path(os.environ.get(MODEL_ENV, DEFAULT_MODEL))
+
+
+def capability() -> bool:
+    """True when onnxruntime is importable and the model file exists."""
+    if not model_path().is_file():
+        return False
+    try:
+        import onnxruntime  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
 def _normalize_image(image: bytes | str | None) -> bytes | None:
-    """Return raw image bytes from bytes, base64 str, data-URL or file path."""
+    """Return raw bytes from bytes, base64 text, data-URL or file path."""
     if image is None:
         return None
     if isinstance(image, bytes):
@@ -50,25 +65,21 @@ def _normalize_image(image: bytes | str | None) -> bytes | None:
         try:
             return Path(text).read_bytes()
         except OSError:
-            logger.warning("silent_exception_swallowed", exc_info=True)
+            logger.warning("captcha_ocr_path_unreadable path=%s", text)
             return None
     try:
         return base64.b64decode(text) or None
     except (binascii.Error, ValueError):
-        logger.warning("silent_exception_swallowed", exc_info=True)
+        logger.warning("captcha_ocr_base64_invalid")
         return None
 
 
 def preprocess_image(data: bytes) -> Any | None:
-    """Preprocess raw image bytes for OCR.
-
-    Returns a Pillow image (grayscale, contrast-stretched, thresholded and
-    denoised) or None if the bytes cannot be decoded.
-    """
+    """Grayscale, contrast-stretch, threshold and denoise for OCR."""
     try:
         from PIL import Image, ImageFilter, ImageOps
     except ImportError:
-        logger.warning("Pillow not installed; cannot preprocess image captcha")
+        logger.warning("captcha_ocr_pillow_missing")
         return None
     try:
         img = Image.open(BytesIO(data)).convert("L")
@@ -76,72 +87,50 @@ def preprocess_image(data: bytes) -> Any | None:
         img = img.point(lambda p: 255 if p > THRESHOLD else 0)
         return img.filter(ImageFilter.MedianFilter(size=MEDIAN_SIZE))
     except (OSError, ValueError) as exc:
-        logger.warning("image preprocess failed: %s", exc)
+        logger.warning("captcha_ocr_preprocess_failed error=%s", exc)
         return None
 
 
-def _ocr_tesseract(img: Any) -> str | None:
+def _classify(raw: bytes, path: Path) -> str | None:
+    """Blocking single-model ONNX classification (ddddocr-compatible)."""
+    import numpy as np
+    import onnxruntime as ort
+
+    session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+    name = session.get_inputs()[0].name
+    array = np.frombuffer(raw, dtype=np.uint8).reshape(1, -1)
+    text = session.run(None, {name: array})[0]
+    cleaned = "".join(ch for ch in str(text) if ch.isalnum())
+    return cleaned or None
+
+
+async def solve_image(image: bytes | str | None, timeout_s: float = 15.0) -> tuple[str | None, str]:
+    """OCR an image CAPTCHA -> (text, reason)."""
+    if image is None:
+        return None, "not_applicable"
+    if not capability():
+        return None, "unavailable.model"
+    raw = _normalize_image(image)
+    if raw is None:
+        return None, "unsolved"
     try:
-        import pytesseract
-    except ImportError:
-        logger.warning("pytesseract not installed; cannot solve image captcha")
-        return None
-    try:
-        text = pytesseract.image_to_string(img)
-    except (pytesseract.TesseractError, OSError, ValueError) as exc:
-        logger.warning("tesseract OCR failed: %s", exc)
-        return None
-    text = (text or "").strip()
-    return text or None
-
-
-def _ocr_easyocr(img: Any) -> str | None:
-    try:
-        import easyocr
-    except ImportError:
-        logger.warning("easyocr not installed; cannot solve image captcha")
-        return None
-    try:
-        import numpy as np
-
-        reader = easyocr.Reader(["en"], gpu=False, verbose=False)
-        result = reader.readtext(np.array(img), detail=0)
-    except (OSError, RuntimeError, ValueError, ImportError) as exc:
-        logger.warning("easyocr OCR failed: %s", exc)
-        return None
-    text = " ".join(str(part) for part in (result or [])).strip()
-    return text or None
-
-
-def ocr_image(img: Any) -> str | None:
-    """Run OCR on a preprocessed image using the configured backend."""
-    backend = (settings.captcha_ocr_backend or "tesseract").lower()
-    if backend == "easyocr":
-        return _ocr_easyocr(img)
-    if backend == "auto":
-        return _ocr_tesseract(img) or _ocr_easyocr(img)
-    return _ocr_tesseract(img)
+        async with asyncio.timeout(timeout_s):
+            text = await asyncio.to_thread(_classify, raw, model_path())
+    except TimeoutError:
+        return None, "timeout"
+    except (OSError, RuntimeError, ValueError):
+        return None, "failed"
+    return (text, "solved") if text else (None, "unsolved")
 
 
 class ImageOcrProvider(CaptchaProvider):
-    """Solve image CAPTCHAs via local OCR (no network)."""
+    """Registry adapter for the free T3 OCR rung (backward compatible)."""
 
     captcha_type = "image"
 
-    async def solve(
-        self,
-        *,
-        image: bytes | str | None = None,
-        **_: Any,
-    ) -> str | None:
-        raw = _normalize_image(image)
-        if raw is None:
-            return None
-        img = preprocess_image(raw)
-        if img is None:
-            return None
-        # OCR is CPU-bound; run it off the event loop.
-        return await asyncio.to_thread(ocr_image, img)
+    async def solve(self, *, image: bytes | str | None = None, **_: object) -> str | None:
+        text, _reason = await solve_image(image)
+        return text
 
 
 register(ImageOcrProvider())

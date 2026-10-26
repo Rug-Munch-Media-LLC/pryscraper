@@ -45,14 +45,7 @@ def _captcha_capability() -> tuple[bool, str, list[str]]:
     ocr_bin = probes.shutil.which("tesseract") is not None
     ocr_ready = ocr_pkg and ocr_bin
 
-    api_keys = [
-        name
-        for name, key in (
-            ("2captcha", settings.captcha_2captcha_api_key),
-            ("capsolver", settings.captcha_capsolver_api_key),
-        )
-        if key
-    ]
+    api_keys: list[str] = []  # paid token solvers retired by policy
 
     parts: list[str] = []
     if ocr_ready:

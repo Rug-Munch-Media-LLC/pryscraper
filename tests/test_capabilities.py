@@ -91,7 +91,6 @@ def test_detect_all_available(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     assert report["proxies"]["detail"] == "http"
     assert report["captcha"]["available"] is True
     assert "local OCR" in report["captcha"]["detail"]
-    assert "2captcha" in report["captcha"]["detail"]
     assert report["llm"]["available"] is True
     assert report["llm"]["detail"] == "openrouter"
     assert report["storage"]["available"] is True
