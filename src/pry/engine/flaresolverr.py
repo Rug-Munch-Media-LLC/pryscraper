@@ -36,10 +36,10 @@ from pry.engine.url_guard import validate_url
 
 logger = logging.getLogger(__name__)
 
-_FLARESOLVERR_URL = os.environ.get("PRY_FLARESOLVERR_URL", "http://flaresolverr-pry:8191/v1")
+_FLARESOLVERR_URL = os.environ.get("PRY_FLARESOLVERR_URL", "http://flaresolverr:8191/v1")
 
 
-_FLARESOLVERR_URL = os.environ.get("PRY_FLARESOLVERR_URL", "http://flaresolverr-pry:8191/v1")
+_FLARESOLVERR_URL = os.environ.get("PRY_FLARESOLVERR_URL", "http://flaresolverr:8191/v1")
 
 
 async def fetch_via_flaresolverr(

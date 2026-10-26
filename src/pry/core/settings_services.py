@@ -33,7 +33,7 @@ class ServicesSettings:
     # being solved by a different flaresolverr depending on which path ran.
     # The -pry suffix is the real compose service name; the bare alias is the
     # one that drifts when an orphan lingers.
-    flaresolverr_url: str = "http://flaresolverr-pry:8191/v1"
+    flaresolverr_url: str = "http://flaresolverr:8191/v1"
     # SECURITY (2026-08-20 audit, P0-4): the original hardcoded default was a
     # published static secret — anyone reading this OSS repo could forge
     # webhook signatures. Now fail-closed with NO static default: if neither
