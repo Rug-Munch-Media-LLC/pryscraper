@@ -44,7 +44,7 @@ _REST_PROXY_TOOLS: dict[str, dict[str, Any]] = {
     "pry_screenshot": {"url": "https://example.com/checkout"},
     "pry_x402_pricing": {},
     "pry_balance": {"api_key": "pry_deadbeef_" + "0" * 32},
-    "pry_buy_pack": {"pack_id": "starter"},
+    "pry_buy_pack": {"pack_id": "starter", "confirm_spend": True},
     "pry_referrals": {"category": "proxies"},
     "pry_scrape_methods": {},
 }
@@ -57,7 +57,37 @@ _LOCAL_ACTOR_TOOLS: dict[str, dict[str, Any]] = {
     "pry_actor_run": {"actor": "universal-scraper", "urls": ["https://example.com"]},
 }
 
+# Locally-served tools: name -> sample arguments. These answer from in-process
+# state (no network, no module patch) and return a fully-formed content payload.
+_LOCAL_SERVER_TOOLS: dict[str, dict[str, Any]] = {
+    "pry_help": {},
+}
+
+# Domain tools whose handler calls a SYNCHRONOUS dependency bound at import
+# time; patched with a plain Mock, not AsyncMock (an AsyncMock would return an
+# un-awaited coroutine). Same (module, fns, args) shape as _DOMAIN_TOOLS.
+_SYNC_DOMAIN_TOOLS: dict[str, tuple[str, tuple[str, ...], dict[str, Any]]] = {
+    "dextools_search": (
+        "pry_mcp.tools.dextools",
+        ("search_or_refusal",),
+        {"query": "WETH", "limit": 5},
+    ),
+}
+
+_COVERED = (
+    set(_DOMAIN_TOOLS)
+    | set(_REST_PROXY_TOOLS)
+    | set(_LOCAL_ACTOR_TOOLS)
+    | set(_LOCAL_SERVER_TOOLS)
+    | set(_SYNC_DOMAIN_TOOLS)
+)
+
 # Guard: the tables must cover every registered tool, or the audit is broken.
-assert set(_DOMAIN_TOOLS) | set(_REST_PROXY_TOOLS) | set(_LOCAL_ACTOR_TOOLS) == set(
-    PRY_TOOL_NAMES
-), "round-trip tables do not cover every PRY_TOOLS entry"
+# The message names the offending tools so the next drift is self-diagnosing;
+# the equality itself is not relaxed.
+if set(PRY_TOOL_NAMES) != _COVERED:
+    _missing = sorted(set(PRY_TOOL_NAMES) - _COVERED)
+    _extra = sorted(_COVERED - set(PRY_TOOL_NAMES))
+    raise AssertionError(
+        f"round-trip tables do not cover every PRY_TOOLS entry: missing={_missing} extra={_extra}"
+    )
