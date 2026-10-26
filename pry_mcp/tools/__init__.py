@@ -27,6 +27,7 @@ from . import (
     crypto,
     data,
     deals,
+    dextools,
     gov,
     jobs,
     legal,
@@ -83,6 +84,7 @@ from .data import (
     call_supply_tool,
 )
 from .deals import _DEALS_TOOL_FNS, call_deals_tool
+from .dextools import call_dextools_tool  # noqa: F401 - discovered by name in tool_standard
 from .gov import (
     _GOV_TOOL_FNS,
     _IP_TOOL_FNS,
@@ -213,6 +215,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
     *news.PRY_TOOLS,
     *compliance.PRY_WATCH_TOOLS,
     *deals.PRY_TOOLS,
+    *dextools.PRY_TOOLS,
     *bidding.PRY_TOOLS,
     *actor.PRY_TOOLS,
 ]

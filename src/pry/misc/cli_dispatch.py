@@ -140,7 +140,7 @@ def _dispatch_completions(args: list[str]) -> None:
 #: legacy ``_COMMANDS`` table. ``mcp`` MUST be here: ``pry mcp --stdio``,
 #: ``pry mcp serve`` and ``pry mcp info`` live on the click group, and an
 #: unlisted command falls through to ``Unknown command: mcp``.
-_CLICK_COMMANDS = frozenset({"mcp", "proxy", "wallets"})
+_CLICK_COMMANDS = frozenset({"mcp", "proxy", "wallets", "dextools"})
 
 
 def _dispatch_click(cmd: str, args: list[str]) -> None:
@@ -174,5 +174,3 @@ _COMMANDS: dict[str, Any] = {
     "completions": _dispatch_completions,
     "autocomplete": _dispatch_completions,
 }
-
-
