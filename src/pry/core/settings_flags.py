@@ -20,8 +20,18 @@ from pydantic import AliasChoices, Field
 class FlagsSettings:
     """Boolean feature toggles and behavior switches."""
 
-    # CAPTCHA solving (see captcha_solver.py + captcha/ package)
-    captcha_enabled: bool = True
+    # CAPTCHA solving ladder (see captcha/ package). ON by default: the
+    # directive is to solve when a challenge blocks the content; the only
+    # refusals are robots-disallowed paths and paid/logged-in APIs.
+    captcha_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("PRY_CAPTCHA_ENABLED", "CAPTCHA_ENABLED"),
+    )
+    # Whole-ladder wall clock budget in seconds.
+    captcha_max_seconds: float = Field(
+        default=60.0,
+        validation_alias=AliasChoices("PRY_CAPTCHA_MAX_SECONDS", "CAPTCHA_MAX_SECONDS"),
+    )
 
     # IP rotation mode (legacy env alias): "off" | "per_request" | ...
     ip_rotation: str = Field(

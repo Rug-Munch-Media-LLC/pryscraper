@@ -75,7 +75,7 @@ MCP       ───┘         ├── src/pry/actors/    named scrape jobs
 | `PRY_HOST`, `PRY_PORT` | bind address for `pry serve` |
 | `PRY_URL` | public base URL, used in generated links |
 | `PRY_FLARESOLVERR_URL` | FlareSolverr endpoint for the Cloudflare tier |
-| `PRY_CAPTCHA_ENABLED`, `PRY_CAPTCHA_OCR_BACKEND` | opt-in captcha solving and its OCR backend |
+| `PRY_CAPTCHA_ENABLED` (default **1**), `PRY_CAPTCHA_MAX_SECONDS` (60), `PRY_CAPTCHA_OCR_BACKEND` | CAPTCHA solver ladder on/off, its wall-clock cap and OCR backend |
 | `PRY_LLM_PROVIDER_ORDER` | provider order for LLM-backed extraction |
 | `PRY_X402_WALLET_SOLANA`, `PRY_X402_WALLET_TRON` | payout addresses if you meter access |
 | `PRY_ODDS_API_KEY` | only for the odds actor |

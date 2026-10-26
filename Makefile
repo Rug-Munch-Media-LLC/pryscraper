@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 PYTHON := python3
 
-.PHONY: help install dev lint format typecheck test security check clean precommit ci actor-build docs-sync
+.PHONY: help install dev lint format typecheck test security check clean precommit ci actor-build docs-sync captcha-keys captcha-doctor
 
 help:
 	@echo "Pry Makefile"
@@ -18,6 +18,12 @@ help:
 	@echo "  precommit     Run ruff + mypy + bandit"
 	@echo "  actor-build   Regenerate .actor/input_schema.json from apify_schema.py"
 	@echo "  docs-sync     Sync doc counts (tools/categories/tiers/tests) from source"
+
+captcha-keys: ## Show where to provision CAPTCHA solver keys (file-first)
+	@$(PYTHON) scripts/captcha_doctor.py --keys-only
+
+captcha-doctor: ## CAPTCHA ladder state: lanes, missing keys, FlareSolverr health
+	@$(PYTHON) scripts/captcha_doctor.py
 
 install:
 	pip install -e ".[dev]"
