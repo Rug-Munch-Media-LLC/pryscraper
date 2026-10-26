@@ -39,9 +39,6 @@ logger = logging.getLogger(__name__)
 _FLARESOLVERR_URL = os.environ.get("PRY_FLARESOLVERR_URL", "http://flaresolverr:8191/v1")
 
 
-_FLARESOLVERR_URL = os.environ.get("PRY_FLARESOLVERR_URL", "http://flaresolverr:8191/v1")
-
-
 async def fetch_via_flaresolverr(
     url: str, timeout_s: float | None = None, proxy: str | None = None
 ) -> str:

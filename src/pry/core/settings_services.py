@@ -25,14 +25,11 @@ from __future__ import annotations
 class ServicesSettings:
     """Endpoints of the sidecar services Pry calls, and their signing secret."""
 
-    # Was http://flaresolverr:8191/v1 — the BARE hostname. The bare compose
-    # alias resolves to a GHOST container (pry-flaresolverr, 7h old) rather
-    # than the live one (pry-flaresolverr-pry), so any caller that read the
-    # default instead of the env var was driving a stale instance. Measured
-    # cost: blog.soliditylang.com flipped between 7/8 and 8/8 because it was
-    # being solved by a different flaresolverr depending on which path ran.
-    # The -pry suffix is the real compose service name; the bare alias is the
-    # one that drifts when an orphan lingers.
+    # ONE canonical solver (retired 2026-10-26): fleet-infra owns the single
+    # FlareSolverr container and attaches it to every consumer network under
+    # the alias `flaresolverr`. The old `-pry` sidecar is gone; this default
+    # is the same string docker-compose.yml passes, so config and code cannot
+    # disagree about the name again.
     flaresolverr_url: str = "http://flaresolverr:8191/v1"
     # SECURITY (2026-08-20 audit, P0-4): the original hardcoded default was a
     # published static secret — anyone reading this OSS repo could forge

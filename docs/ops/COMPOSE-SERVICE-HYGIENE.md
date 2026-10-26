@@ -79,25 +79,27 @@ lines apart in the same service block, which is exactly why they drift.
 
 ---
 
-## The two FlareSolverr services
+## One FlareSolverr, one name
 
-They are not duplicates. Do not consolidate them.
+Retired 2026-10-26 (`7224611d`): there used to be two instances, `flaresolverr`
+and a per-app `flaresolverr-pry`, and Pry **called one while waiting on the
+other**. T1 then dialled `flaresolverr-pry`, which was not running, and failed
+at DNS on every call.
 
-| | `flaresolverr-pry` | `flaresolverr` |
-|---|---|---|
-| Consumer | Pry's browser tier | External callers on the host |
-| Reached at | `http://flaresolverr-pry:8191/v1` (compose network) | `127.0.0.1:8192` (published port) |
-| Pry's `depends_on` | **yes** | no (since `53381ae6`) |
-| Prometheus blackbox target | **yes** | no |
-| `docker-compose.selfhost.yml` | kept | deleted (`!reset null`) |
-| Why it exists | degenfeed saturates the shared instance (queue 40+), starving Pry's fallback ladder | host-level published interface for out-of-repo consumers |
+The single truth now:
 
-**Within pryscraper nothing targets the shared `flaresolverr`.** It is kept
-because the host port is a published interface: the fleet health probe
-(`fleet-infra/compose/gatus/gatus.yml` → `http://127.0.0.1:8192/health`, 120s
-interval) targets it from outside this repo. That is a cross-repo dependency
-invisible to a search of this tree — check the host before concluding a
-published port is unused.
+| | value |
+|---|---|
+| URL (`PRY_FLARESOLVERR_URL`, `settings.flaresolverr_url`) | `http://flaresolverr:8191/v1` |
+| Owner | `fleet-infra/compose/flaresolverr.yml` — one container, published on `127.0.0.1:8192` |
+| How Pry reaches it | that container joins `pryscraper_default` under the alias `flaresolverr` |
+| `depends_on` | **no entry** — the solver is not a pryscraper service, so compose cannot gate on it; `/health` probes it instead |
+| `docker-compose.selfhost.yml` | bundles its own solver and gives it the **alias** `flaresolverr`, so the same URL works with no fleet |
+
+The gatus probe (`fleet-infra/compose/gatus/gatus.yml` →
+`http://127.0.0.1:8192/health`) still targets the published port from outside
+this repo. Never reintroduce a second name: config, code default and
+`depends_on` must all read `flaresolverr`.
 
 > `[REVIEW]` The gatus container is **not currently running** on this host
 > (`docker ps -a` shows no `gatus`), and no established TCP connection to 8192

@@ -52,12 +52,23 @@ class TestSelfhostRuntimeConfig:
         assert not env.get("PRY_REDIS_URL")
 
     def test_flaresolverr_sidecar_is_wired(self, env: dict[str, str]) -> None:
-        assert env["PRY_FLARESOLVERR_URL"] == "http://flaresolverr-pry:8191/v1"
+        assert env["PRY_FLARESOLVERR_URL"] == "http://flaresolverr:8191/v1"
 
     def test_pry_waits_for_the_browser_tier(self) -> None:
         deps = render_compose()["services"]["pry"]["depends_on"]
         expected = {"flaresolverr-pry"}
         assert set(deps) == expected
+
+
+class TestBaseComposeSolver:
+    """The default deployment names one solver — the canonical container."""
+
+    def test_base_url_uses_the_canonical_name(self) -> None:
+        env = render_compose(with_selfhost=False)["services"]["pry"]["environment"]
+        assert env["PRY_FLARESOLVERR_URL"] == "http://flaresolverr:8191/v1"
+
+    def test_no_solver_service_is_declared_in_base(self) -> None:
+        assert "flaresolverr-pry" not in render_compose(with_selfhost=False)["services"]
 
 
 class TestSelfhostEnvTemplate:

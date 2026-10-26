@@ -40,8 +40,12 @@
 #   MCP — ON (default). The free MCP surface is the main reason to self-host;
 #   turning it off would leave a plain scraping API.
 #
-#   FIRESOLVERR — a dedicated instance, because the anti-bot ladder's browser
-#   tier saturates a shared one. Only flaresolverr-pry and pry run here.
+#   FLARESOLVERR — this file is the self-host gate (there is no `--profile`:
+#   you opt in with `-f docker-compose.selfhost.yml`). The base file has NO
+#   solver service and points PRY_FLARESOLVERR_URL at the canonical fleet
+#   container; a self-hoster has no fleet, so this overlay bundles one and
+#   gives it the network alias `flaresolverr`. Same URL string in both
+#   deployments — one truth, no `-pry` name for the code to fall over.
 #
 #   SECRETS — PRY_API_KEY is generated into .env.selfhost (git-ignored) by
 #   scripts/selfhost-init.sh. There is NO gopass requirement and no reference
@@ -111,7 +115,7 @@ services:
       - MAX_RETRIES=3
       - MIN_QUALITY=20
       - RATE_LIMIT_RPM=120
-      - PRY_FLARESOLVERR_URL=http://flaresolverr-pry:8191/v1
+      - PRY_FLARESOLVERR_URL=http://flaresolverr:8191/v1
       # Which peers may set X-Forwarded-For. Docker's bridge range
       # (172.16.0.0/12) plus loopback means a reverse proxy on the same host or
       # in a compose network is trusted, and per-IP rate limits bucket REAL
@@ -186,7 +190,7 @@ services:
       - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
       - PRY_SKIP_MIGRATIONS=1
       - TOR_ENABLED=0
-      - PRY_FLARESOLVERR_URL=http://flaresolverr-pry:8191/v1
+      - PRY_FLARESOLVERR_URL=http://flaresolverr:8191/v1
     # The API container owns the data tier; wait for it to be healthy before
     # accepting MCP traffic. No postgres/redis dependency exists here (both
     # are reset below).
@@ -194,10 +198,23 @@ services:
       pry:
         condition: service_healthy
 
-  # ── flaresolverr-pry: the anti-bot browser tier ─────────────────────
+  # ── flaresolverr: the anti-bot browser tier (self-host instance) ─────
+  # Service name stays `flaresolverr-pry` for the operators who already know
+  # the container, but it ANSWERS to `flaresolverr` on the compose network —
+  # the one name PRY_FLARESOLVERR_URL uses everywhere. The image is declared
+  # here because the base file no longer defines this service at all.
   flaresolverr-pry:
+    image: ghcr.io/flaresolverr/flaresolverr:v3.3.21
     container_name: ${PRY_CONTAINER_PREFIX:-pry-}flaresolverr-pry
     restart: unless-stopped
+    init: true
+    environment:
+      - LOG_LEVEL=info
+      - TZ=UTC
+    networks:
+      default:
+        aliases:
+          - flaresolverr
     # The base file publishes 8192 for the operator's second instance; the
     # self-host profile does not need a second browser, so it is not exposed.
     ports: !reset []
@@ -208,6 +225,13 @@ services:
     # See /root/.knowledge/kernel-2026-10/memory-offenders.md
     mem_limit: 3g
     cpus: 1.5
+    healthcheck:
+      # TCP probe: single event loop queues behind long scrape tasks.
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost', 8191), timeout=5); s.close()"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
 
   # ── Everything below is operator-only; drop it from the self-host run ──
   # `!reset null` removes the whole service, which is what keeps a self-host

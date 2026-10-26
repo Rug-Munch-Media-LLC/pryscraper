@@ -26,7 +26,9 @@ from pry.engine.captcha.registry import register
 
 logger = logging.getLogger(__name__)
 
-LOOPBACK_FALLBACKS = ("http://127.0.0.1:8192/v1", "http://127.0.0.1:8191/v1")
+# 8192 is the host-published port (host-run dev only); 8191 on loopback
+# would be pry itself inside the API container, so it is not a fallback.
+LOOPBACK_FALLBACKS = ("http://127.0.0.1:8192/v1",)
 UNSOLVED_MARKERS = (
     "g-recaptcha",
     "hcaptcha.com",
