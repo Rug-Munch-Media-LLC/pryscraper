@@ -177,9 +177,9 @@ def join(
     events.sort(key=lambda e: e.ts)
     return events, pushes
 
+
 def load_series(
     odds_path: str | Path, outcomes_path: str | Path, side: str = "home"
 ) -> tuple[list[Event], int]:
     """Convenience: read both files and join them."""
     return join(read_rows(odds_path), load_outcomes(outcomes_path), default_side=side)
-

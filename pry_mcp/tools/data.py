@@ -41,8 +41,6 @@ PRY_TOOLS: list[dict[str, Any]] = [
 ]
 
 
-
-
 __all__ = [
     "PRY_TOOLS",
     "_ENERGY_TOOL_FNS",

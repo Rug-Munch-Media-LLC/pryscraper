@@ -10,6 +10,7 @@ Also the shared scaffolding for ``test_internal_replay_middleware.py`` (the
 skew + binding half) and a sibling of ``test_internal_gate_middleware.py``
 (gate-level cover that predates the timestamp header).
 """
+
 import json
 import time
 

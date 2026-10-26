@@ -3,6 +3,7 @@
 x402 charges external callers; the owner key (our CLI/MCP/internal services)
 must pass without payment and stay accepted by the inner auth layer.
 """
+
 import pytest
 
 from pry.payments.x402_middleware.owner import OWNER_SCOPE_KEY, mark_owner_verified, owner_request

@@ -1,4 +1,5 @@
 """Tests for x402/facilitator.py — FacilitatorRouter, multi-provider fallback."""
+
 from unittest.mock import patch
 
 import httpx

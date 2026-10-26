@@ -8,6 +8,7 @@ the /v1/travel/* router (200 + 502-degradation + query validation).
 
 All HTTP is mocked (respx / monkeypatched helpers) — no live network.
 """
+
 import datasets.travel.flights as flights
 from tests.travel._travel_support import _hermetic_travel, travel_app  # noqa: F401
 
@@ -16,6 +17,7 @@ _HOTELS_GOOGLE_URL = "https://www.google.com/travel/hotels"
 _HOTELS_BOOKING_URL = "https://www.booking.com/searchresults.html"
 _HOTELS_KAYAK_URL = "https://www.kayak.com/hotels"
 _HOTELS_EXPEDIA_URL = "https://www.expedia.com/Hotel-Search"
+
 
 def test_date_range_bounded() -> None:
     from datasets.travel.flights import _date_range

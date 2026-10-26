@@ -1,4 +1,5 @@
 """Tests for x402/facilitator.py — FacilitatorRouter, multi-provider fallback."""
+
 from unittest.mock import MagicMock
 
 from pry.payments.x402.facilitator import FacilitatorRouter
@@ -12,6 +13,8 @@ def test_impl_for_network_family_fallback(router: FacilitatorRouter):
     router.register_facilitator("solana", mock_impl)
     result = router._impl_for("solana:mainnet")
     assert result is mock_impl
+
+
 def test_impl_for_exact_match(router: FacilitatorRouter):
     """Exact network match should take precedence over the family fallback."""
     exact = MagicMock()

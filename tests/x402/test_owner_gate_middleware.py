@@ -4,6 +4,7 @@ Runs the real X402Middleware with a stub ASGI app on a paid endpoint. Guards
 the self-hosted access rule (owner key = free, anonymous = 402) so a future
 refactor cannot silently re-gate our own CLI/MCP/internal services.
 """
+
 import json
 
 import pytest

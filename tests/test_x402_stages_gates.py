@@ -70,7 +70,9 @@ class TestPreverifiedPaymentStage:
     async def test_valid_payment_refreshes_then_serves_and_stamps(self):
         handler = _FakeHandler(paid=True)
         handler.batch_settlement_status = lambda *a, **k: {
-            "settled": ["scrape"], "unsettled": [], "all_settled": True
+            "settled": ["scrape"],
+            "unsettled": [],
+            "all_settled": True,
         }
         # P0: verified is not settled — the gate now also requires a receipt.
         handler._settled_txs = {"tx:base:0xabc": {"success": True, "payment_id": "pay_1"}}
@@ -111,7 +113,8 @@ class TestPreverifiedBatchStage:
         monkeypatch.setattr(stages, "is_batch_paid", lambda *a, **k: True)
         # P0: verified is not settled — the batch gate now also needs receipts.
         monkeypatch.setattr(
-            stages, "_batch_settlement_status",
+            stages,
+            "_batch_settlement_status",
             lambda *a, **k: {"settled": ["scrape"], "unsettled": [], "all_settled": True},
         )
         mw = _FakeMW()

@@ -23,6 +23,7 @@ def _hermetic_sports(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(live, "_RETRY_CONFIG", _ZERO_RETRY)
     monkeypatch.delenv("PRY_ODDS_API_KEY", raising=False)
 
+
 def _props_events_payload() -> list[dict[str, Any]]:
     return [
         {
@@ -33,6 +34,7 @@ def _props_events_payload() -> list[dict[str, Any]]:
             "away_team": "Boston Celtics",
         }
     ]
+
 
 def _props_event_payload() -> dict[str, Any]:
     return {
@@ -86,6 +88,7 @@ def _props_event_payload() -> dict[str, Any]:
         ],
     }
 
+
 def _props_stats_payload() -> dict[str, Any]:
     return {
         "categories": [
@@ -109,6 +112,7 @@ def _props_stats_payload() -> dict[str, Any]:
         ]
     }
 
+
 def _search_payload() -> dict[str, Any]:
     return {
         "count": 1,
@@ -125,6 +129,7 @@ def _search_payload() -> dict[str, Any]:
             }
         ],
     }
+
 
 def _injuries_payload() -> dict[str, Any]:
     return {

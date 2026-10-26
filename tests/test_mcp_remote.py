@@ -166,6 +166,7 @@ def test_base_compose_defines_pry_mcp() -> None:
     assert env["PRY_REDIS_URL"].startswith("redis://")
     assert env["PRY_PORT"] == "8006"
 
+
 def test_selfhost_exposes_remote_mcp_by_default() -> None:
     from tests.selfhost.conftest import render_compose
 

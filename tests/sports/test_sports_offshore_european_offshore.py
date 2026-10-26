@@ -9,6 +9,7 @@ Every book degrades independently and never raises — one dead or geo-blocked
 book never blanks the result if another works. All HTTP is mocked with respx
 — no live network.
 """
+
 from urllib.parse import urlencode
 
 import httpx
@@ -50,6 +51,7 @@ _BETFAIR_QUERY = urlencode(
 _BETFAIR_MARKETS = (
     f"https://www.betfair.com/www/sports/exchange/readonly/v1/bymarket?{_BETFAIR_QUERY}"
 )
+
 
 def test_offshore_registry_has_13_books() -> None:
     assert set(offshore.OFFSHORE_BOOKS) == set(offshore.OFFSHORE_BOOK_ORDER)

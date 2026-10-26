@@ -14,15 +14,29 @@ PREFIX_BYTES = 4096
 TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.S | re.I)
 # Only meaningful inside <title>: ordinary pages use these words in their chrome.
 TITLE_MARKERS = (
-    "just a moment", "attention required", "access denied", "are you a robot",
-    "captcha", "checking your browser", "ddos protection", "security check",
+    "just a moment",
+    "attention required",
+    "access denied",
+    "are you a robot",
+    "captcha",
+    "checking your browser",
+    "ddos protection",
+    "security check",
 )
 # Challenge scaffolding no normal page ships in its <head>.
 BODY_MARKERS = (
-    "just a moment", "attention required",  # interstitial phrases, prefix-only
-    "cf-challenge", "cf_chl_opt", "cf_chl_", "challenge-platform", "px-captcha",
-    "enable javascript and cookies", "checking your browser", "ddos protection",
-    "are you a robot", "incapsula",
+    "just a moment",
+    "attention required",  # interstitial phrases, prefix-only
+    "cf-challenge",
+    "cf_chl_opt",
+    "cf_chl_",
+    "challenge-platform",
+    "px-captcha",
+    "enable javascript and cookies",
+    "checking your browser",
+    "ddos protection",
+    "are you a robot",
+    "incapsula",
 )
 
 

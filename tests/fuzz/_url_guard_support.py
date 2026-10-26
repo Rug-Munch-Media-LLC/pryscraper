@@ -3,6 +3,7 @@
 Split out so tests/fuzz/test_url_guard_fuzz.py stays within the 200-line cap
 as the suite grows; the gate blocks growth on grandfathered files.
 """
+
 from __future__ import annotations
 
 from urllib.parse import urlsplit  # noqa: F401  (kept for helper parity)
@@ -17,6 +18,7 @@ def _is_known_stdlib_parse_error(e: BaseException) -> bool:
     silently passing.
     """
     return isinstance(e, ValueError) and "Invalid IPv6 URL" in str(e)
+
 
 def _assert_accepted_unchanged(url: str, result: str) -> None:
     """validate_url is documented to return the URL unchanged when accepted."""

@@ -9,6 +9,7 @@ Every book degrades independently and never raises — one dead or geo-blocked
 book never blanks the result if another works. All HTTP is mocked with respx
 — no live network.
 """
+
 from urllib.parse import urlencode
 
 import httpx

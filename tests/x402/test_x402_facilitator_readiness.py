@@ -1,4 +1,5 @@
 """Tests for x402/facilitator.py — FacilitatorRouter, multi-provider fallback."""
+
 from unittest.mock import patch
 
 from pry.payments.x402.facilitator import FacilitatorRouter
@@ -12,9 +13,13 @@ def test_readiness_returns_dict(router: FacilitatorRouter):
     assert "mode" in status
     assert "ready" in status
     assert "wallet_configured" in status
+
+
 def test_readiness_counts_facilitators(router: FacilitatorRouter):
     status = router.readiness()
     assert status["mode"] in ("self_hosted", "external")
+
+
 def test_readiness_self_hosted():
     """Self-hosted mode readiness should indicate wallet information."""
     with patch("pry.payments.x402.facilitator.X402_WALLET", "0xRealWallet"):

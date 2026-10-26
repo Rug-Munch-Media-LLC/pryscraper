@@ -127,6 +127,7 @@ def test_stdio_entrypoint_handshake() -> None:
         except subprocess.TimeoutExpired:  # pragma: no cover - defensive
             proc.kill()
 
+
 # ── HTTP transport + auth ─────────────────────────────────────────
 
 
@@ -175,8 +176,12 @@ def test_http_tools_call_requires_a_key(
     import pry.core.settings as settings_mod
 
     monkeypatch.setattr(settings_mod.settings, "api_key", "distribution-test-key", raising=False)
-    call = {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
-            "params": {"name": "pry_x402_pricing", "arguments": {}}}
+    call = {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {"name": "pry_x402_pricing", "arguments": {}},
+    }
 
     anonymous = mcp_http.post("/", json=call)
     assert anonymous.status_code == 401
@@ -185,9 +190,7 @@ def test_http_tools_call_requires_a_key(
     wrong = mcp_http.post("/", json=call, headers={"authorization": "Bearer nope"})
     assert wrong.status_code == 401
 
-    keyed = mcp_http.post(
-        "/", json=call, headers={"authorization": "Bearer distribution-test-key"}
-    )
+    keyed = mcp_http.post("/", json=call, headers={"authorization": "Bearer distribution-test-key"})
     assert keyed.status_code != 401, "a valid Bearer key must pass the gate"
 
 
@@ -224,9 +227,14 @@ def test_pulsemcp_manifest_matches_tools() -> None:
 
 
 def test_manifests_have_no_dead_or_foreign_urls() -> None:
-    for name in ("server.json", "glama.json", "pulsemcp.json", "smithery.yaml",
-                 "registry_submissions/mcp_listing.json",
-                 "registry_submissions/x402_listing.json"):
+    for name in (
+        "server.json",
+        "glama.json",
+        "pulsemcp.json",
+        "smithery.yaml",
+        "registry_submissions/mcp_listing.json",
+        "registry_submissions/x402_listing.json",
+    ):
         text = (REPO / name).read_text(encoding="utf-8")
         assert "codeberg" not in text.lower(), f"{name} points at a dead mirror"
         for dead in DEAD_ASSETS:

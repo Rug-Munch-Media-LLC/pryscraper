@@ -10,6 +10,7 @@ the /v1/realestate/* router (200 + 502-degradation + query validation).
 All HTTP is mocked with respx (local-router ``respx_mock`` — the version
 of this venv attaches routes to the local router only) — no live network.
 """
+
 from typing import Any
 
 import pytest
@@ -28,6 +29,8 @@ def test_router_importable() -> None:
     expected = ["get_listing", "get_property", "search_listings"]
     assert re_pkg.__all__ == expected
     assert hasattr(re_router, "router")
+
+
 def test_router_listing_success(real_estate_app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_get_listing(zillow_id: str) -> dict[str, Any]:
         return {"address": "123 Main St", "price": 450000, "zillow_id": zillow_id}
@@ -39,6 +42,8 @@ def test_router_listing_success(real_estate_app: FastAPI, monkeypatch: pytest.Mo
     assert body["success"] is True
     assert body["data"]["price"] == 450000
     assert body["data"]["zillow_id"] == "2064710495"
+
+
 def test_router_listing_empty_data_success_false(
     real_estate_app: FastAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -50,6 +55,8 @@ def test_router_listing_empty_data_success_false(
     assert resp.status_code == 200
     assert resp.json()["success"] is False
     assert resp.json()["data"] == {}
+
+
 def test_router_search_success(real_estate_app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_search(
         location: str, status: str = "for_sale", limit: int = 20
@@ -66,6 +73,8 @@ def test_router_search_success(real_estate_app: FastAPI, monkeypatch: pytest.Mon
     assert body["count"] == 1
     assert body["location"] == "Austin, TX"
     assert body["data"][0]["address"] == "1 Austin, TX"
+
+
 def test_router_property_success(real_estate_app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_property(parcel_id: str, county: str) -> dict[str, Any]:
         return {"parcel_id": parcel_id, "county": county, "assessed_value": 619967}
@@ -77,6 +86,8 @@ def test_router_property_success(real_estate_app: FastAPI, monkeypatch: pytest.M
     assert body["success"] is True
     assert body["data"]["parcel_id"] == "0695327712"
     assert body["data"]["county"] == "wake-nc"
+
+
 def test_router_502_when_module_absent(
     real_estate_app: FastAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -85,6 +96,8 @@ def test_router_502_when_module_absent(
     assert client.get("/v1/realestate/listing/2064710495").status_code == 502
     assert client.get("/v1/realestate/search", params={"location": "Austin"}).status_code == 502
     assert client.get("/v1/realestate/property/wake-nc/0695327712").status_code == 502
+
+
 def test_router_validation_422(real_estate_app: FastAPI) -> None:
     client = _client(real_estate_app)
     # location is required

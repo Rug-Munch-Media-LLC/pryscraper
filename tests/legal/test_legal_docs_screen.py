@@ -8,6 +8,7 @@ degrade to empty output), and the /v1/legal/* router (200 + 502-degradation
 
 All HTTP is mocked with respx — no live network.
 """
+
 import json
 from pathlib import Path
 

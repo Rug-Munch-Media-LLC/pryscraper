@@ -1,4 +1,5 @@
 """Fixture tests for the scrape-matrix verdict mapper. No network by default."""
+
 from __future__ import annotations
 
 import json
@@ -25,8 +26,19 @@ BIG_HTML = "<html><head><title>t</title></head><body><h1>hi</h1></body></html>" 
         (502, 900, 0, "", None, "error"),
         (0, 0, 0, "", "URLError: timed out", "error"),
     ],
-    ids=["ok", "403", "429", "cloudflare-title", "cf-chl", "cf-attention",
-         "tiny", "no-fields", "404", "502", "timeout"],
+    ids=[
+        "ok",
+        "403",
+        "429",
+        "cloudflare-title",
+        "cf-chl",
+        "cf-attention",
+        "tiny",
+        "no-fields",
+        "404",
+        "502",
+        "timeout",
+    ],
 )
 def test_classify_never_promotes_wall_or_empty(status, nbytes, fields, body, error, expected):
     assert sm.classify(status, nbytes, fields, body, error) == expected
@@ -62,15 +74,20 @@ def test_regressions_flags_downgrade_only():
 
 def test_baseline_roundtrip(tmp_path):
     out = tmp_path / "m.json"
-    out.write_text(json.dumps({"counts": {"wall": 1},
-                               "rows": [{"site": "a.com", "verdict": "wall"}]}))
+    out.write_text(
+        json.dumps({"counts": {"wall": 1}, "rows": [{"site": "a.com", "verdict": "wall"}]})
+    )
     assert sm.load_baseline(out) == {"a.com": "wall"}
 
 
 def test_default_sites_are_the_agreed_six():
     assert set(sm.DEFAULT_SITES) == {
-        "syndication.twitter.com", "dexscreener.com", "coingecko.com",
-        "rugcheck.xyz", "docs.anthropic.com", "github.com",
+        "syndication.twitter.com",
+        "dexscreener.com",
+        "coingecko.com",
+        "rugcheck.xyz",
+        "docs.anthropic.com",
+        "github.com",
     }
 
 

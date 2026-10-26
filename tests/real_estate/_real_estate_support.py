@@ -31,6 +31,7 @@ def _hermetic_real_estate(monkeypatch: pytest.MonkeyPatch) -> Any:
     yield
     listings.reset_robots_cache()
 
+
 def _page_with_next_data(payload: dict[str, Any]) -> str:
     return (
         "<!DOCTYPE html><html><head></head><body>"
@@ -38,6 +39,7 @@ def _page_with_next_data(payload: dict[str, Any]) -> str:
         + json.dumps(payload)
         + "</script></body></html>"
     )
+
 
 def _zillow_listing_html() -> str:
     payload = {
@@ -71,6 +73,7 @@ def _zillow_listing_html() -> str:
         }
     }
     return _page_with_next_data(payload)
+
 
 def _zillow_search_html() -> str:
     payload = {
@@ -121,6 +124,7 @@ def _zillow_search_html() -> str:
     }
     return _page_with_next_data(payload)
 
+
 def _redfin_gis_payload() -> dict[str, Any]:
     return {
         "payload": {
@@ -152,6 +156,7 @@ def _redfin_gis_payload() -> dict[str, Any]:
             ]
         }
     }
+
 
 def _redfin_detail_payload() -> dict[str, Any]:
     return {

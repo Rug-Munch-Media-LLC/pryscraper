@@ -56,8 +56,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
                 "data": {
                     "type": "array",
                     "description": (
-                        "Matching articles; empty when every feed is unreachable or "
-                        "rate-limited."
+                        "Matching articles; empty when every feed is unreachable or rate-limited."
                     ),
                     "items": {
                         "type": "object",

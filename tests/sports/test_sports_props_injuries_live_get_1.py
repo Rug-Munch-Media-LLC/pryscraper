@@ -9,6 +9,7 @@ malformed payloads degrade to empty output).
 
 All HTTP is mocked with respx — no live network.
 """
+
 import httpx
 import pytest
 import respx

@@ -47,7 +47,9 @@ async def sync_to_salesforce(
     client = await get_client()
     api_url = instance_url.rstrip("/")
 
-    results = [await _post_salesforce(client, api_url, object_type, access_token, obj) for obj in objects]
+    results = [
+        await _post_salesforce(client, api_url, object_type, access_token, obj) for obj in objects
+    ]
 
     success_count = sum(1 for r in results if r["success"])
     return {
@@ -227,5 +229,3 @@ def _map_to_hubspot(data: dict[str, Any], object_type: str) -> dict[str, str]:
         if data.get(src_key):
             properties[hs_key] = str(data[src_key])[:500]
     return properties
-
-

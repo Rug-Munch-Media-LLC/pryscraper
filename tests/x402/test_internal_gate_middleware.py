@@ -7,6 +7,7 @@ served free. The credential is fail-closed — an unset ``PRY_INTERNAL_TOKEN`` m
 The ASGI harness (``_StubApp`` / ``_scope`` / ``_internal_headers``) is shared
 with ``test_gate_bearer_credential.py`` and lives in ``_gate_support``.
 """
+
 import json
 import time
 

@@ -43,9 +43,7 @@ PUBLIC = "https://competitor.example.com/page"
     ],
     ids=["seo-analyze", "seo-track", "seo-keywords", "structure-check", "structure-monitor"],
 )
-def test_normal_public_url_is_never_blocked(
-    route: str, body: object, resolved_dns: str
-) -> None:
+def test_normal_public_url_is_never_blocked(route: str, body: object, resolved_dns: str) -> None:
     """Kills: an over-broad guard — deny-by-default hostnames, or a
     scheme/host allowlist that refuses ordinary internet traffic.
 
@@ -53,7 +51,9 @@ def test_normal_public_url_is_never_blocked(
     route's response: the SSRF property is "the transport was reached", and
     that stays true whichever way the route handles the body afterwards.
     """
-    target = respx.get(f"https://{resolved_dns}/page").mock(return_value=httpx.Response(200, text=PAGE))
+    target = respx.get(f"https://{resolved_dns}/page").mock(
+        return_value=httpx.Response(200, text=PAGE)
+    )
 
     r = client.post(route, json=body)
 
@@ -121,7 +121,9 @@ def test_normal_public_redirect_is_followed(resolved_dns: str) -> None:
     respx.get(f"http://{resolved_dns}/page").mock(
         return_value=httpx.Response(301, headers={"location": PUBLIC})
     )
-    final = respx.get(f"https://{resolved_dns}/page").mock(return_value=httpx.Response(200, text=PAGE))
+    final = respx.get(f"https://{resolved_dns}/page").mock(
+        return_value=httpx.Response(200, text=PAGE)
+    )
 
     r = client.post("/v1/seo/analyze", json="http://competitor.example.com/page")
 
@@ -139,7 +141,9 @@ def test_public_cross_site_redirect_is_followed(resolved_dns: str) -> None:
     respx.get(f"https://{resolved_dns}/go").mock(
         return_value=httpx.Response(302, headers={"location": PUBLIC})
     )
-    final = respx.get(f"https://{resolved_dns}/page").mock(return_value=httpx.Response(200, text=FINAL_PAGE))
+    final = respx.get(f"https://{resolved_dns}/page").mock(
+        return_value=httpx.Response(200, text=FINAL_PAGE)
+    )
 
     r = client.post("/v1/seo/analyze", json=REDIRECTOR)
 
@@ -154,7 +158,9 @@ def test_upstream_4xx_is_reported_not_swallowed(resolved_dns: str) -> None:
     A public page answering 404 is a real SEO finding; the monitor must say so
     rather than reporting a guard failure the caller cannot act on.
     """
-    respx.get(f"https://{resolved_dns}/page").mock(return_value=httpx.Response(404, text="not found"))
+    respx.get(f"https://{resolved_dns}/page").mock(
+        return_value=httpx.Response(404, text="not found")
+    )
 
     r = client.post("/v1/seo/analyze", json=PUBLIC)
 

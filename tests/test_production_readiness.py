@@ -47,6 +47,7 @@ def _compose(args: list[str]) -> subprocess.CompletedProcess[str]:
 def _docker_available() -> bool:
     return subprocess.run(["which", "docker"], capture_output=True).returncode == 0
 
+
 @pytest.mark.parametrize("compose_file", COMPOSE_FILES)
 def test_compose_renders(compose_file: str) -> None:
     """`docker compose config` must accept every compose file we ship."""
@@ -193,6 +194,7 @@ def test_no_security_gate_is_neutralised() -> None:
             if token and token not in _KNOWN_ADVISORY:
                 offenders.append(f"{workflow.name}:{number} [{current_job}] {line.strip()}")
     assert not offenders, "neutralised security gate(s):\n" + "\n".join(offenders)
+
 
 def test_every_ci_job_has_a_timeout() -> None:
     """An untimed job can pin a runner until the queue stalls."""

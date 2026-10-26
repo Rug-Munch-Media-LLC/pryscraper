@@ -1,4 +1,5 @@
 """Tests for x402/facilitator.py — FacilitatorRouter, multi-provider fallback."""
+
 from unittest.mock import patch
 
 import httpx
@@ -30,6 +31,8 @@ async def test_settle_external_json_error(router: FacilitatorRouter):
         assert result["success"] is True
         assert result["facilitator"] == "eip-7702"
         assert result["transaction"] == "0xabc"
+
+
 @respx.mock
 @pytest.mark.asyncio
 async def test_settle_external_fail_without_receipt_is_not_success(
@@ -56,6 +59,8 @@ async def test_settle_external_fail_without_receipt_is_not_success(
         )
     assert result["success"] is False
     assert result["reason"] == "receipt not found"
+
+
 @pytest.mark.asyncio
 async def test_settle_self_hosted_plain_transfer_gets_eip7702_receipt():
     """A verified plain transfer (no EIP-3009 authorization) must still SETTLE.
@@ -71,6 +76,8 @@ async def test_settle_self_hosted_plain_transfer_gets_eip7702_receipt():
     assert result["facilitator"] == "eip-7702"
     assert result["transaction"] == "0xabc"
     assert result["network"] == "eip155:8453"
+
+
 @pytest.mark.asyncio
 async def test_settle_self_hosted_non_evm_still_fails_honestly():
     """Non-EVM chains have no settlement verifier — must stay an honest failure."""

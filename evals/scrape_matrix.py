@@ -15,6 +15,7 @@ Live calls are opt-in (--live or SCRAPE_MATRIX_LIVE=1) so CI stays offline.
     python evals/scrape_matrix.py --live
     python evals/scrape_matrix.py --live --baseline evals/scrape_matrix.json
 """
+
 from __future__ import annotations
 
 import argparse
@@ -68,8 +69,9 @@ def count_fields(body: str) -> int:
     return sum(1 for marker in FIELD_MARKERS if marker in low)
 
 
-def classify(http_status: int, nbytes: int, parsed_fields: int, body: str,
-             error: str | None = None) -> str:
+def classify(
+    http_status: int, nbytes: int, parsed_fields: int, body: str, error: str | None = None
+) -> str:
     """Map one attempt to ok | wall | empty | error. Never optimistic."""
     if error:
         return "error"
@@ -144,12 +146,18 @@ def line(row: dict) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Scrape success-rate matrix")
-    ap.add_argument("--live", action="store_true",
-                    default=os.environ.get("SCRAPE_MATRIX_LIVE") == "1")
+    ap.add_argument(
+        "--live", action="store_true", default=os.environ.get("SCRAPE_MATRIX_LIVE") == "1"
+    )
     ap.add_argument("--sites", type=Path, help="JSON {site: url} override")
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
-    ap.add_argument("--baseline", nargs="?", const=str(DEFAULT_OUT), default=None,
-                    help="compare with a saved run; exit 1 when a verdict regressed")
+    ap.add_argument(
+        "--baseline",
+        nargs="?",
+        const=str(DEFAULT_OUT),
+        default=None,
+        help="compare with a saved run; exit 1 when a verdict regressed",
+    )
     ap.add_argument("--timeout", type=float, default=TIMEOUT)
     args = ap.parse_args(argv)
 

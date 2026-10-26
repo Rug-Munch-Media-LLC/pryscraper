@@ -45,6 +45,7 @@ def _periods_payload() -> dict[str, Any]:
         ]
     )
 
+
 def _prop_markets_payload() -> dict[str, Any]:
     return _event_odds_payload(
         [
@@ -102,6 +103,7 @@ def _prop_markets_payload() -> dict[str, Any]:
         ]
     )
 
+
 def _props_events_payload() -> list[dict[str, Any]]:
     return [
         {
@@ -112,6 +114,7 @@ def _props_events_payload() -> list[dict[str, Any]]:
             "away_team": "Baltimore Ravens",
         }
     ]
+
 
 def _props_event_payload() -> dict[str, Any]:
     return {

@@ -18,6 +18,7 @@ Each test names the mutation it kills. Any test that would still pass after
 reverting enforcement.py to the old ``Bearer `` prefix+length bypass is
 decoration and must be deleted.
 """
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 import json

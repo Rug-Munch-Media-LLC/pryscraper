@@ -38,10 +38,6 @@ _HOST_ALPHABET = string.ascii_letters + string.digits + "-._~"
 _PRIVATE_NETS_SAMPLE = ["10.0.0.0/8", "192.168.0.0/16", "127.0.0.0/8", "169.254.0.0/16"]
 
 
-
-
-
-
 @pytest.mark.parametrize("url", ["http://[", "http://[::1", "http://[::1]x"])
 def test_unclosed_ipv6_bracket_raises_invalid_request_error(url: str) -> None:
     """An unclosed '[' host must raise InvalidRequestError, not leak stdlib ValueError."""

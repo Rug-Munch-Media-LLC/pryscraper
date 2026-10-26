@@ -17,6 +17,7 @@ without a name allowlist, one compromised job can impersonate all of them.
 The ASGI harness is the shared one in ``_gate_support`` so these tests exercise
 the real ``X402Middleware``, not a lookalike.
 """
+
 import time
 
 import pytest

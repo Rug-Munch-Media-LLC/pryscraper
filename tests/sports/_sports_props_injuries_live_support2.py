@@ -35,6 +35,7 @@ def _report_scoreboard_payload() -> dict[str, Any]:
         ]
     }
 
+
 def _live_scoreboard_payload() -> dict[str, Any]:
     return {
         "events": [
@@ -108,6 +109,7 @@ def _live_scoreboard_payload() -> dict[str, Any]:
         ]
     }
 
+
 def _odds_api_live_payload() -> list[dict[str, Any]]:
     return [
         {
@@ -134,6 +136,7 @@ def _odds_api_live_payload() -> list[dict[str, Any]]:
             ],
         }
     ]
+
 
 def _team_injuries_html() -> str:
     return (

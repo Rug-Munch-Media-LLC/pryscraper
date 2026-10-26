@@ -40,7 +40,9 @@ def _send(monkeypatch, responses: list[httpx.Response]):
     client = _FakeClient(responses)
     monkeypatch.setattr(pry_sdk.httpx, "AsyncClient", lambda **kw: client)
     monkeypatch.setattr(pry_sdk.asyncio, "sleep", fake_sleep)
-    response = asyncio.run(pry_sdk.PryCrawl(base_url="http://test", max_retries=2)._send("GET", "/x"))
+    response = asyncio.run(
+        pry_sdk.PryCrawl(base_url="http://test", max_retries=2)._send("GET", "/x")
+    )
     return response, slept
 
 

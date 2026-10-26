@@ -23,6 +23,7 @@ def _hermetic_sports(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(props, "_RETRY_CONFIG", _ZERO_RETRY)
     monkeypatch.delenv("PRY_ODDS_API_KEY", raising=False)
 
+
 def _event_odds_payload(
     bookmakers: list[dict[str, Any]],
 ) -> dict[str, Any]:
@@ -35,6 +36,7 @@ def _event_odds_payload(
         "away_team": "Boston Celtics",
         "bookmakers": bookmakers,
     }
+
 
 def _comparison_payload() -> dict[str, Any]:
     """``sports_data.odds.get_event_odds`` comparison dict (two books)."""
@@ -90,6 +92,7 @@ def _comparison_payload() -> dict[str, Any]:
         "source": "the_odds_api",
     }
 
+
 def _game_props_records() -> list[dict[str, Any]]:
     """``sports_data.props.get_game_props`` records for DraftKings."""
     return [
@@ -104,6 +107,7 @@ def _game_props_records() -> list[dict[str, Any]]:
             "source": "the_odds_api",
         }
     ]
+
 
 def _espn_scoreboard_payload() -> dict[str, Any]:
     """ESPN scoreboard event with a base spread + total for the Lakers/Celtics."""
@@ -138,6 +142,7 @@ def _espn_scoreboard_payload() -> dict[str, Any]:
             }
         ]
     }
+
 
 def _alt_lines_payload() -> dict[str, Any]:
     return _event_odds_payload(

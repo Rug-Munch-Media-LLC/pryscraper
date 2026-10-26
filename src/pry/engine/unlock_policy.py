@@ -75,7 +75,11 @@ class MethodRecord:
 
     def recently_worked(self, now: float) -> bool:
         """True if it succeeded inside the recency window and has not since rotted."""
-        return self.last_ok_at is not None and (now - self.last_ok_at) <= RECENT_WINDOW_SECONDS and not self.is_stale
+        return (
+            self.last_ok_at is not None
+            and (now - self.last_ok_at) <= RECENT_WINDOW_SECONDS
+            and not self.is_stale
+        )
 
     def rank_key(self, now: float) -> tuple[int, int, int, str]:
         """Total, deterministic order: fresh+working, then working, then stale."""

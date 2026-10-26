@@ -28,7 +28,19 @@ if TYPE_CHECKING:
 FLAG_ENV = "PRY_UNLOCK_LEDGER"
 DEFAULT_PATH = "~/.pry/unlock_ledger.sqlite3"
 # Substrings marking a param key as credential-shaped. The value is never stored.
-SECRET_HINTS = ("token", "key", "secret", "password", "passwd", "auth", "cookie", "session", "bearer", "sig", "credential")
+SECRET_HINTS = (
+    "token",
+    "key",
+    "secret",
+    "password",
+    "passwd",
+    "auth",
+    "cookie",
+    "session",
+    "bearer",
+    "sig",
+    "credential",
+)
 REDACTED = "<redacted>"
 
 _SCHEMA = """
@@ -83,7 +95,10 @@ def normalize_domain(domain: str) -> str:
 
 def scrub_params(params: dict[str, object] | None) -> dict[str, object]:
     """Redact credential-shaped values. Keys survive so the shape is readable."""
-    return {k: (REDACTED if any(h in k.lower() for h in SECRET_HINTS) else v) for k, v in (params or {}).items()}
+    return {
+        k: (REDACTED if any(h in k.lower() for h in SECRET_HINTS) else v)
+        for k, v in (params or {}).items()
+    }
 
 
 class UnlockStore:
@@ -113,7 +128,11 @@ class UnlockStore:
 
     def records(self, domain: str) -> list[MethodRecord]:
         """Every stored recipe for ``domain``."""
-        rows = self._db().execute("SELECT * FROM unlock_method WHERE domain = ?", (normalize_domain(domain),)).fetchall()
+        rows = (
+            self._db()
+            .execute("SELECT * FROM unlock_method WHERE domain = ?", (normalize_domain(domain),))
+            .fetchall()
+        )
         return [
             MethodRecord(
                 domain=row["domain"],

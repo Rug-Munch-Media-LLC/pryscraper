@@ -9,6 +9,7 @@ Every book degrades independently and never raises — one dead or geo-blocked
 book never blanks the result if another works. All HTTP is mocked with respx
 — no live network.
 """
+
 from urllib.parse import urlencode
 
 import httpx
@@ -53,6 +54,7 @@ _BETFAIR_MARKETS = (
     f"https://www.betfair.com/www/sports/exchange/readonly/v1/bymarket?{_BETFAIR_QUERY}"
 )
 
+
 def test_book_status_shape_and_unknown() -> None:
     status = offshore.book_status()
     assert set(status) == set(offshore.OFFSHORE_BOOKS)
@@ -69,6 +71,8 @@ def test_book_status_shape_and_unknown() -> None:
     assert set(entry["availability"]) == expected
     assert offshore.book_status("bogus") == {}
     assert european.book_status("bogus") == {}
+
+
 def test_book_supports() -> None:
     assert offshore.book_supports("bookmaker", "nba")
     assert offshore.book_supports("pinnacle_missing" if False else "mybookie", "nfl")
@@ -77,6 +81,8 @@ def test_book_supports() -> None:
     assert not european.book_supports("pinnacle", "quidditch")
     assert not offshore.book_supports("bogus", "nba")
     assert not european.book_supports("bogus", "nba")
+
+
 def test_book_status_annotates_sibling_registry_when_present(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -115,6 +121,8 @@ def test_book_status_annotates_sibling_registry_when_present(
     assert european_entry["sibling"]["geo_required"] is False
     # Alias mapping: my slug -> sibling id.
     assert offshore.book_status("sportsbetting")["sibling"]["book_id"] == "sportsbetting-ag"
+
+
 def test_book_status_degrades_without_sibling_registry(monkeypatch: pytest.MonkeyPatch) -> None:
     """Without the sibling registry the status surface still works (no sibling key)."""
     monkeypatch.setattr(offshore, "_SIBLING_BOOKS", None)

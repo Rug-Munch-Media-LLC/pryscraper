@@ -10,6 +10,7 @@ the /v1/realestate/* router (200 + 502-degradation + query validation).
 All HTTP is mocked with respx (local-router ``respx_mock`` — the version
 of this venv attaches routes to the local router only) — no live network.
 """
+
 import json
 
 import httpx
@@ -51,6 +52,8 @@ async def test_get_listing_zillow_success(respx_mock) -> None:
     assert result["url"] == "https://www.zillow.com/homedetails/2064710495_zpid/"
     assert result["source"] == "zillow"
     assert result["status"] == "FOR_SALE"
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_get_listing_redfin_fallback_when_zillow_blocked(respx_mock) -> None:
     # Zillow page is unregistered -> auto-mocked empty page -> Redfin fallback.
@@ -66,6 +69,8 @@ async def test_get_listing_redfin_fallback_when_zillow_blocked(respx_mock) -> No
     assert result["days_on_market"] == 22
     assert result["hoa"] == 175.0
     assert result["address"] == "500 Boren Ave N, Seattle, WA 98109"
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_get_listing_falls_back_on_unparseable_page(respx_mock) -> None:
     respx_mock.get("https://www.zillow.com/homedetails/2064710495_zpid/").mock(
@@ -77,10 +82,14 @@ async def test_get_listing_falls_back_on_unparseable_page(respx_mock) -> None:
     result = await listings.get_listing("2064710495")
     assert result["source"] == "redfin"
     assert result["price"] == 1100000
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_get_listing_never_raises_when_everything_blocked(respx_mock) -> None:
     result = await listings.get_listing("2064710495")
     assert result == {}
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_get_listing_http_500_never_raises(respx_mock) -> None:
     respx_mock.get("https://www.zillow.com/homedetails/2064710495_zpid/").mock(
@@ -91,6 +100,8 @@ async def test_get_listing_http_500_never_raises(respx_mock) -> None:
     ).mock(return_value=httpx.Response(403))
     result = await listings.get_listing("2064710495")
     assert result == {}
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_get_listing_apartments_fallback_when_zillow_redfin_fail(respx_mock) -> None:
     respx_mock.get(url__startswith="https://www.apartments.com/2064710495/").mock(
@@ -101,6 +112,8 @@ async def test_get_listing_apartments_fallback_when_zillow_redfin_fail(respx_moc
     assert result["price"] == 1450
     assert result["bed"] == 1
     assert result["status"] == "For rent"
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_get_listing_zumper_fallback_last(respx_mock) -> None:
     respx_mock.get(url__startswith="https://www.apartments.com/2064710495/").mock(
@@ -113,6 +126,8 @@ async def test_get_listing_zumper_fallback_last(respx_mock) -> None:
     assert result["source"] == "zumper"
     assert result["price"] == 2100
     assert result["bed"] == 2
+
+
 @respx.mock(assert_all_mocked=False, assert_all_called=False)
 async def test_get_listing_enforce_robots_blocks_fetch(
     respx_mock, monkeypatch: pytest.MonkeyPatch
@@ -129,6 +144,8 @@ async def test_get_listing_enforce_robots_blocks_fetch(
     result = await listings.get_listing("2064710495")
     assert result == {}
     assert not page_route.called  # blocked before fetching
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_get_listing_robots_advisory_still_fetches(respx_mock) -> None:
     page_route = respx_mock.get("https://www.zillow.com/homedetails/2064710495_zpid/").mock(

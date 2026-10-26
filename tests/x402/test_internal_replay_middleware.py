@@ -11,6 +11,7 @@ which also owns the shared scaffolding; and of
 ``test_internal_gate_middleware.py`` (gate-level cover that predates the
 timestamp header).
 """
+
 import pytest
 
 from pry.payments.x402_middleware.internal import (

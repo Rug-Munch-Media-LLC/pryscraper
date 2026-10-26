@@ -6,6 +6,7 @@
 UNKNOWN (no categorical severity, e.g. a bare CVSS vector) is blocking: an
 unclassifiable advisory must not be treated as low risk.
 """
+
 import json
 import sys
 from pathlib import Path

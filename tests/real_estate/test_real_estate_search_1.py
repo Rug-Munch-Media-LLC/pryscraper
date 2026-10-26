@@ -10,6 +10,7 @@ the /v1/realestate/* router (200 + 502-degradation + query validation).
 All HTTP is mocked with respx (local-router ``respx_mock`` — the version
 of this venv attaches routes to the local router only) — no live network.
 """
+
 import json
 from typing import Any
 
@@ -46,6 +47,8 @@ async def test_search_listings_zillow_success(respx_mock) -> None:
     assert result[0]["days_on_market"] == 5
     assert result[0]["status"] == "For sale"
     assert result[1]["price"] == 520000
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_search_listings_redfin_fallback_when_zillow_fails(respx_mock) -> None:
     respx_mock.get(url__startswith="https://www.redfin.com/stingray/api/gis").mock(
@@ -64,10 +67,14 @@ async def test_search_listings_redfin_fallback_when_zillow_fails(respx_mock) -> 
     assert first["status"] == "Active"
     assert "732 11th Ave E" in first["address"]
     assert first["url"].startswith("https://www.redfin.com")
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_search_listings_never_raises_when_everything_blocked(respx_mock) -> None:
     result = await listings.search_listings("Nowhere, XX")
     assert result == []
+
+
 @respx.mock(assert_all_mocked=False, assert_all_called=False)
 async def test_search_listings_unresolved_region_skips_redfin(respx_mock) -> None:
     route = respx_mock.get(url__startswith="https://www.redfin.com/stingray/api/gis").mock(
@@ -76,6 +83,8 @@ async def test_search_listings_unresolved_region_skips_redfin(respx_mock) -> Non
     result = await listings.search_listings("Atlantis")
     assert result == []
     assert not route.called
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_search_listings_unknown_status_defaults_to_for_sale(respx_mock) -> None:
     respx_mock.get(url__startswith="https://www.zillow.com/homes/for_sale/austin-tx/").mock(
@@ -83,6 +92,8 @@ async def test_search_listings_unknown_status_defaults_to_for_sale(respx_mock) -
     )
     result = await listings.search_listings("Austin, TX", status="totally-bogus")
     assert len(result) == 2
+
+
 async def test_search_listings_clamps_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, int] = {}
 
@@ -95,6 +106,8 @@ async def test_search_listings_clamps_limit(monkeypatch: pytest.MonkeyPatch) -> 
     assert captured["limit"] == 50
     await listings.search_listings("Austin", limit=0)
     assert captured["limit"] == 1
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_search_listings_apartments_fallback_for_rent(respx_mock) -> None:
     respx_mock.get(url__startswith="https://www.apartments.com/austin-tx/").mock(
@@ -112,6 +125,8 @@ async def test_search_listings_apartments_fallback_for_rent(respx_mock) -> None:
     assert first["address"] == "The Aster Apartments, 100 Congress Ave, Austin, TX 78701"
     assert first["url"].startswith("https://www.apartments.com")
     assert result[1]["price"] == 1800
+
+
 @respx.mock(assert_all_mocked=False)
 async def test_search_listings_zumper_fallback_after_apartments_fail(respx_mock) -> None:
     respx_mock.get(url__startswith="https://www.apartments.com/austin-tx/").mock(
@@ -132,6 +147,8 @@ async def test_search_listings_zumper_fallback_after_apartments_fail(respx_mock)
     assert first["address"] == "Charming Bungalow, 701 Rainey St"
     assert first["url"].startswith("https://www.zumper.com")
     assert result[1]["price"] == 2600
+
+
 @respx.mock(assert_all_mocked=False, assert_all_called=False)
 async def test_search_listings_for_sale_skips_rental_sources(respx_mock) -> None:
     apt_route = respx_mock.get(url__startswith="https://www.apartments.com/").mock(

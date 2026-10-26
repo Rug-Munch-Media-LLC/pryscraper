@@ -1,4 +1,5 @@
 """Tests for x402/facilitator.py — FacilitatorRouter, multi-provider fallback."""
+
 from unittest.mock import patch
 
 import httpx
@@ -29,6 +30,8 @@ async def test_verify_solana_network(router: FacilitatorRouter):
             amount_usd=5.0,
         )
         assert "reason" in result
+
+
 @respx.mock
 @pytest.mark.asyncio
 async def test_verify_tron_scaffold(router: FacilitatorRouter):
@@ -48,6 +51,8 @@ async def test_verify_tron_scaffold(router: FacilitatorRouter):
             amount_usd=1.0,
         )
         assert "reason" in result
+
+
 @respx.mock
 @pytest.mark.asyncio
 async def test_verify_eip7702_fallback(router: FacilitatorRouter):

@@ -21,9 +21,6 @@ __all__ = ["_map_to_hubspot", "_map_to_salesforce", "sync_to_hubspot", "sync_to_
 logger = logging.getLogger(__name__)
 
 
-
-
-
 async def sync_to_pipedrive(
     objects: list[dict[str, Any]],
     object_type: str = "person",

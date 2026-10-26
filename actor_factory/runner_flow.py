@@ -95,14 +95,11 @@ class FlowMixin:
     def _should_expand(self, item: dict[str, Any], ctx: CrawlCtx, plan: RunPlan) -> bool:
         return plan.crawl_enabled and ctx.depth < plan.max_depth and item.get("status") == "ok"
 
-    def _expand(
-        self, item: dict[str, Any], url: str, ctx: CrawlCtx, plan: RunPlan
-    ) -> None:
+    def _expand(self, item: dict[str, Any], url: str, ctx: CrawlCtx, plan: RunPlan) -> None:
         discovered = [
             link
             for link in same_domain_links(item.get("content", ""), url)
-            if link not in ctx.seen
-            and (plan.page_cap is None or len(ctx.seen) < plan.page_cap)
+            if link not in ctx.seen and (plan.page_cap is None or len(ctx.seen) < plan.page_cap)
         ]
         for link in discovered:
             ctx.seen.add(link)

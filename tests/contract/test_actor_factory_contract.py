@@ -7,6 +7,7 @@ tests/contract):
 
     pytest tests/contract/test_actor_factory_contract.py -o addopts=""
 """
+
 from __future__ import annotations
 
 import pytest

@@ -57,6 +57,7 @@ def _hermetic(monkeypatch: pytest.MonkeyPatch) -> None:
     webshare_proxy.clear_cache()
     webshare_proxy.reset_rotation()
 
+
 def _betonline_family_html() -> str:
     """BookMaker-family listing row (shared markup with BetOnline)."""
     return """<html><body>
@@ -68,6 +69,7 @@ def _betonline_family_html() -> str:
   <span class="moneyline">+110</span>
 </div>
 </body></html>"""
+
 
 def _betonline_family_embedded_html() -> str:
     """BookMaker-family page with a window.__INITIAL_STATE__ JSON blob."""
@@ -93,6 +95,7 @@ def _betonline_family_embedded_html() -> str:
     }
     return f"<html><body><script>window.__INITIAL_STATE__ = {json.dumps(state)};</script></body></html>"
 
+
 def _decimal_rows_html() -> str:
     """Generic SSR decimal-odds row (MyBookie-style standalone book)."""
     return """<html><body>
@@ -103,6 +106,7 @@ def _decimal_rows_html() -> str:
   <span class="odds">1.90</span>
 </div>
 </body></html>"""
+
 
 def _pinnacle_fixtures_payload() -> dict[str, Any]:
     return {
@@ -120,6 +124,7 @@ def _pinnacle_fixtures_payload() -> dict[str, Any]:
             }
         ]
     }
+
 
 def _pinnacle_odds_payload() -> dict[str, Any]:
     return {
@@ -143,6 +148,7 @@ def _pinnacle_odds_payload() -> dict[str, Any]:
         ]
     }
 
+
 def _marathon_coupon_html() -> str:
     """Marathonbet coupon row (decimal odds, team member links)."""
     return """<html><body>
@@ -153,6 +159,7 @@ def _marathon_coupon_html() -> str:
   <a class="selection-link" href="/en/betting/Basketball/123">1.90</a>
 </div>
 </body></html>"""
+
 
 def _1xbet_payload() -> dict[str, Any]:
     """1xBet LineFeed envelope: base64(gzip(JSON))."""
@@ -179,6 +186,7 @@ def _1xbet_payload() -> dict[str, Any]:
     }
     raw = base64.b64encode(gzip.compress(json.dumps(inner).encode("utf-8"))).decode("ascii")
     return {"Value": raw}
+
 
 def _betfair_page_html() -> str:
     return '<html><body><script>var x = {"marketId":"1.200123456"};</script></body></html>'

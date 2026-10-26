@@ -12,6 +12,7 @@ The shared ASGI harness and the ``db`` / ``no_owner_key`` fixtures come from
 ``tests.x402._gate_support`` (not re-declared), so all three suites drive the
 real ``X402Middleware`` through one definition.
 """
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 from typing import Any

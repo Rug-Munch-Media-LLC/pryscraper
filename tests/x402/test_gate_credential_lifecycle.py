@@ -10,6 +10,7 @@ it is refused in:
 
 Each test names the mutation it kills.
 """
+
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 from datetime import UTC, datetime, timedelta

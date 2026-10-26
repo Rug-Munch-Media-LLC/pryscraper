@@ -180,9 +180,7 @@ def run_fold(test: Sequence[Event], signal: Signal, plan: FoldPlan) -> tuple[lis
     return bets, bankroll
 
 
-def walk_forward(
-    events: Sequence[Event], factory: Factory, **options: Any
-) -> list[dict[str, Any]]:
+def walk_forward(events: Sequence[Event], factory: Factory, **options: Any) -> list[dict[str, Any]]:
     """Rolling walk-forward. Returns one dict per fold.
 
     Train window ``[start, start+train_n-purge_n)``; ``purge_n`` outcomes at its
@@ -207,9 +205,7 @@ def walk_forward(
         signal = factory(history)
         test_start = start + train_n + embargo_n
         test = events[test_start : test_start + test_n]
-        bets, bankroll = run_fold(
-            test, signal, FoldPlan(history, costs, sizing, bankroll)
-        )
+        bets, bankroll = run_fold(test, signal, FoldPlan(history, costs, sizing, bankroll))
         folds.append(
             {
                 "train": (train[0].event_id, train[-1].event_id),

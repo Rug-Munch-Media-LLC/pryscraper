@@ -32,8 +32,10 @@ def _betfair_markets_payload() -> dict[str, Any]:
         ]
     }
 
+
 def _blocked_html() -> str:
     return "<html><body>Just a moment... checking your browser</body></html>"
+
 
 def _record(**kw: Any) -> dict[str, Any]:
     """Canonical odds record with sensible defaults."""
@@ -56,6 +58,7 @@ def _record(**kw: Any) -> dict[str, Any]:
     }
     base.update(kw)
     return base
+
 
 def _schema_keys() -> set[str]:
     return {

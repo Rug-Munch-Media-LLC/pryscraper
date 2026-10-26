@@ -1,4 +1,5 @@
 """Tests for x402/facilitator.py — FacilitatorRouter, multi-provider fallback."""
+
 from unittest.mock import patch
 
 import httpx
@@ -22,6 +23,8 @@ async def test_settle_offline(router: FacilitatorRouter):
         assert result["success"] is True
         assert result["facilitator"] == "offline"
         assert result["transaction"] == "0xabc"
+
+
 @pytest.mark.asyncio
 async def test_settle_no_client_ip(router: FacilitatorRouter):
     """Settle works without needing a client_ip."""
@@ -36,6 +39,8 @@ async def test_settle_no_client_ip(router: FacilitatorRouter):
         assert result["success"] is True
         assert result["facilitator"] == "offline"
         assert result["payment_id"] == "pay_123"
+
+
 @respx.mock
 @pytest.mark.asyncio
 async def test_settle_via_external_facilitator(router: FacilitatorRouter):
@@ -60,6 +65,8 @@ async def test_settle_via_external_facilitator(router: FacilitatorRouter):
         assert result["success"] is True
         assert result["transaction"] == "0xabc"
         assert result["facilitator"] in {f.name for f in router.facilitators if f.settle_url}
+
+
 @respx.mock
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("_eip7702_ok")
@@ -82,6 +89,8 @@ async def test_settle_external_http_error(router: FacilitatorRouter):
         assert result["success"] is True
         assert result["facilitator"] == "eip-7702"
         assert result["transaction"] == "0xabc"
+
+
 @respx.mock
 @pytest.mark.asyncio
 async def test_settle_self_hosted(router: FacilitatorRouter):
@@ -100,6 +109,8 @@ async def test_settle_self_hosted(router: FacilitatorRouter):
         assert result["success"] is True
         assert result["facilitator"] == "eip-7702"
         assert result["transaction"] == "0xabc"
+
+
 @respx.mock
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("_eip7702_ok")

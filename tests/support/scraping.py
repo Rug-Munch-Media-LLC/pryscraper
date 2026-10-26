@@ -114,6 +114,7 @@ GRAPHQL_HTML = """<!DOCTYPE html><html><head>
 <div data-hasura-role="public"></div>
 </body></html>"""
 
+
 class FakeResponse:
     """Minimal playwright response stub carrying a JSON body."""
 

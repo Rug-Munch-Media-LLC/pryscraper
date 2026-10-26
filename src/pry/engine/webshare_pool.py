@@ -60,7 +60,12 @@ def _refresh(budget_s: float | None) -> bool:
         logger.warning("webshare_pool_refresh_failed", extra={"error": type(exc).__name__})
         return False
     _STATE["proxies"] = [
-        {"host": str(r["proxy_address"]), "port": int(r["port"]), "user": str(r.get("username") or ""), "password": str(r.get("password") or "")}
+        {
+            "host": str(r["proxy_address"]),
+            "port": int(r["port"]),
+            "user": str(r.get("username") or ""),
+            "password": str(r.get("password") or ""),
+        }
         for r in rows
     ]
     _STATE["fetched_at"] = time.time()
@@ -96,7 +101,11 @@ def next_proxy(budget_s: float | None = None) -> str | None:
             return None
         pick = live[_STATE["index"] % len(live)]
         _STATE["index"] += 1
-    auth = f"{quote(pick['user'], safe='')}:{quote(pick['password'], safe='')}@" if pick["user"] else ""
+    auth = (
+        f"{quote(pick['user'], safe='')}:{quote(pick['password'], safe='')}@"
+        if pick["user"]
+        else ""
+    )
     return f"http://{auth}{pick['host']}:{pick['port']}"
 
 

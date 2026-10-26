@@ -19,6 +19,7 @@ Covers:
 Every public function is asserted never to raise (HTTP errors and
 malformed payloads degrade to ``[]`` / ``{}``).
 """
+
 from typing import Any
 
 import httpx

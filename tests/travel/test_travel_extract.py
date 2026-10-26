@@ -8,6 +8,7 @@ the /v1/travel/* router (200 + 502-degradation + query validation).
 
 All HTTP is mocked (respx / monkeypatched helpers) — no live network.
 """
+
 import datasets.travel.hotels as hotels
 from datasets.travel.flights import _extract_af_callbacks
 from tests.travel._travel_support import (  # noqa: F401

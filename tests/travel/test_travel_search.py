@@ -8,6 +8,7 @@ the /v1/travel/* router (200 + 502-degradation + query validation).
 
 All HTTP is mocked (respx / monkeypatched helpers) — no live network.
 """
+
 import httpx
 import respx
 

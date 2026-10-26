@@ -30,6 +30,7 @@ def _recap_payload() -> dict[str, Any]:
         ],
     }
 
+
 def _justia_search_html() -> str:
     return """<html><body>
 <div class="case-block">
@@ -41,6 +42,7 @@ def _justia_search_html() -> str:
   <div class="meta">4:21-cv-00420 &middot; Southern District of Texas &middot; filed 2021-06-30</div>
 </div>
 </body></html>"""
+
 
 def _pacer_payload() -> dict[str, Any]:
     return {
@@ -62,6 +64,7 @@ def _pacer_payload() -> dict[str, Any]:
         "panel": None,
     }
 
+
 def _ny_ecourts_html() -> str:
     return """<html><body><table>
 <tr class="data">
@@ -74,6 +77,7 @@ def _ny_ecourts_html() -> str:
 </tr>
 </table></body></html>"""
 
+
 @pytest.fixture
 def legal_app() -> FastAPI:
     app = FastAPI()
@@ -84,6 +88,7 @@ def legal_app() -> FastAPI:
 
     app.include_router(legal_router)
     return app
+
 
 def _client(app: FastAPI) -> TestClient:
     return TestClient(app)
