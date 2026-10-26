@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from dataclasses import dataclass
 
 import httpx
@@ -28,7 +29,10 @@ logger = logging.getLogger(__name__)
 
 # 8192 is the host-published port (host-run dev only); 8191 on loopback
 # would be pry itself inside the API container, so it is not a fallback.
+# Host-published port; inside the API container 8192 is pry itself, so this is
+# opt-in only (PRY_FLARESOLVERR_ALLOW_LOOPBACK=1) and never a silent fallback.
 LOOPBACK_FALLBACKS = ("http://127.0.0.1:8192/v1",)
+CLEARANCE_COOKIES = ("cf_clearance",)
 UNSOLVED_MARKERS = (
     "g-recaptcha",
     "hcaptcha.com",
@@ -57,9 +61,16 @@ def looks_unsolved(html: str) -> bool:
     return any(marker in lowered for marker in UNSOLVED_MARKERS)
 
 
+def cleared_by(cookies: list | None) -> bool:
+    """True when FlareSolverr returned a Cloudflare clearance cookie."""
+    return any((c or {}).get("name") in CLEARANCE_COOKIES for c in (cookies or []))
+
+
 def _endpoints() -> list[str]:
-    """Configured FlareSolverr URL first, then live loopback fallbacks."""
-    ordered = [settings.flaresolverr_url, *LOOPBACK_FALLBACKS]
+    """Configured FlareSolverr URL, plus loopback only when explicitly allowed."""
+    ordered = [settings.flaresolverr_url]
+    if os.environ.get("PRY_FLARESOLVERR_ALLOW_LOOPBACK") == "1":
+        ordered += list(LOOPBACK_FALLBACKS)
     seen: list[str] = []
     for url in ordered:
         if url and url not in seen:
@@ -76,7 +87,9 @@ async def flaresolverr_fetch(url: str, timeout_s: float) -> FlareSolution:
     last_error = "no_endpoint"
     for endpoint in _endpoints():
         try:
-            async with httpx.AsyncClient(timeout=max(timeout_s, 1) + 5) as client:
+            budget = max(timeout_s, 1)
+            limits = httpx.Timeout(connect=2.0, read=budget + 5, write=5.0, pool=5.0)
+            async with httpx.AsyncClient(timeout=limits) as client:
                 resp = await client.post(endpoint, json=payload)
             resp.raise_for_status()
             data = resp.json()
@@ -85,11 +98,13 @@ async def flaresolverr_fetch(url: str, timeout_s: float) -> FlareSolution:
             if data.get("status") != "ok":
                 last_error = str(data.get("message") or data.get("status") or "not_ok")
                 continue
-            token = json.dumps(
-                {"cookies": solution.get("cookies", []), "userAgent": solution.get("userAgent", "")}
-            )
+            cookies = solution.get("cookies") or []
+            token = json.dumps({"cookies": cookies, "userAgent": solution.get("userAgent", "")})
+            # A cleared Cloudflare page is a solve even when the site embeds a
+            # recaptcha widget; markers only decide when no clearance cookie came back.
+            solved = bool(html) and (cleared_by(cookies) or not looks_unsolved(html))
             return FlareSolution(
-                ok=bool(html),
+                ok=solved,
                 html=html,
                 token=token,
                 elapsed_ms=int((time.monotonic() - started) * 1000),
@@ -110,9 +125,7 @@ class FlareSolverrProvider(CaptchaProvider):
         if not url:
             return None
         solution = await flaresolverr_fetch(url, float(settings.captcha_max_seconds))
-        if solution.ok and not looks_unsolved(solution.html):
-            return solution.token
-        return None
+        return solution.token if solution.ok else None
 
 
 register(FlareSolverrProvider())
