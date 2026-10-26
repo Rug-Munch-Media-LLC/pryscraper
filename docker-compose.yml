@@ -94,7 +94,7 @@ services:
       # not land there. Point TMPDIR at the volume.
       - TMPDIR=/app/pry-data/tmp
       - PYTHONDONTWRITEBYTECODE=1
-      - PRY_FLARESOLVERR_URL=http://flaresolverr-pry:8191/v1
+      - PRY_FLARESOLVERR_URL=http://flaresolverr:8191/v1
       # PRY_DATABUS_URL intentionally NOT listed here (gitleaks internal-hostname
       # rule + fleet convention: config lives in /srv/rmi-infra/.env.pry).
       # Set to the public API base + /api/v1/databus/ingest — same backend
@@ -165,8 +165,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      flaresolverr-pry:
         condition: service_healthy
 
   # ── pry-mcp: the Streamable HTTP MCP transport ──────────────────────
@@ -261,35 +259,7 @@ services:
           memory: 256M
           cpus: "0.25"
 
-  # ── flaresolverr-pry: the browser tier Pry actually calls ──────────
-  # THIS is Pry's FlareSolverr. Three things must name this service, and
-  # all three did not agree until 53381ae6:
-  #   * PRY_FLARESOLVERR_URL=http://flaresolverr-pry:8191/v1  (the call)
-  #   * depends_on.flaresolverr-pry: service_healthy          (the wait)
-  #   * prometheus/prometheus.yml -> http://flaresolverr-pry:8191/health
-  # It is a DECLARED service, not an orphan: remove it, run
-  # `docker compose up -d`, and it comes back in seconds.
-  # Do NOT merge it with the shared `flaresolverr` further down — that one
-  # is a separate consumer's endpoint (see its comment).
-  flaresolverr-pry:
-    image: ghcr.io/flaresolverr/flaresolverr:v3.3.21
-    container_name: ${PRY_CONTAINER_PREFIX:-pry-}flaresolverr-pry
-    restart: unless-stopped
-    init: true
-    # Dedicated to Pry: degenfeed saturates the shared instance (queue 40+),
-    # starving the fallback ladder's browser tier.
-    environment:
-      - LOG_LEVEL=info
-      - TZ=UTC
-    mem_limit: 1500m
-    cpus: 1.5
-    healthcheck:
-      # TCP probe: single event loop queues behind long scrape tasks.
-      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost', 8191), timeout=5); s.close()"]
-      interval: 20s
-      timeout: 10s
-      retries: 5
-      start_period: 45s
+  # [flaresolverr-pry] retired 2026-10-26 -> canonical fleet-infra/compose/flaresolverr.yml
   postgres:
     image: postgres:16.4-alpine
     container_name: ${PRY_CONTAINER_PREFIX:-pry-}postgres
@@ -536,63 +506,7 @@ services:
       prometheus:
         condition: service_healthy
 
-  # ── flaresolverr: the SHARED instance — NOT Pry's ─────────────────
-  # A second, independent FlareSolverr on host 127.0.0.1:8192. Pry does
-  # NOT use it: PRY_FLARESOLVERR_URL, pry's depends_on, and the Prometheus
-  # blackbox target all name `flaresolverr-pry` (defined above). It is kept
-  # because the host port is a published interface for consumers outside
-  # this repo — e.g. the fleet health probe
-  # (fleet-infra/compose/gatus/gatus.yml -> http://127.0.0.1:8192/health).
-  # [REVIEW] gatus is declared but not currently running on Talos, and no
-  # live traffic to 8192 was observed. Keep the service until the consumer is
-  # confirmed retired; do not treat "not running" as "unused".
-  # Within pryscraper nothing targets it: prometheus scrapes the -pry one,
-  # and docker-compose.selfhost.yml deletes this service (`!reset null`).
-  # It is a DECLARED service, not an orphan: remove it, run
-  # `docker compose up -d`, and it comes back in seconds.
-  # DO NOT remove it on the grounds that "nothing in this repo uses it" —
-  # it is consumed from outside, and the self-host overlay already treats
-  # it as removable by design. Deleting it from the base file would also
-  # break that overlay's explicit `!reset` entry.
-  flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:v3.3.21
-    container_name: ${PRY_CONTAINER_PREFIX:-pry-}flaresolverr
-    restart: unless-stopped
-    init: true
-    # 8192, not 8191: flaresolverr-pry owns 8191 inside the compose
-    # network and is reachable there by name. This port is the only
-    # reason the shared instance is a host-level interface at all.
-    ports:
-      - "127.0.0.1:8192:8191"
-    environment:
-      - LOG_LEVEL=info
-      - CAPTCHA_SOLVER=none
-    healthcheck:
-      # TCP-connect probe (same rationale as flaresolverr-pry): the single
-      # event loop queues behind long scrape tasks, so an HTTP /health curl
-      # times out under load and falsely marks the service unhealthy.
-      # It no longer gates pry — pry's depends_on points at flaresolverr-pry
-      # (53381ae6). This status is read by the external health probe on
-      # 127.0.0.1:8192/health, not by anything in this repo.
-      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost', 8191), timeout=5); s.close()"]
-      interval: 20s
-      timeout: 10s
-      retries: 5
-      start_period: 45s
-    deploy:
-      resources:
-        limits:
-          # 2026-10-06: raised 512M -> 1536M. FlareSolverr v3 runs a full
-          # headless Chrome; 512M OOM-killed its chromium repeatedly (kernel
-          # memcg OOM at 10:51-10:54 on 2026-10-06 while a session hammered
-          # 127.0.0.1:8192).
-          # 2026-10-23: measured, not guessed. memory.peak on this container
-          # reached 2,685,915,136 B (2.50 GiB) under a retry storm against
-          # 127.0.0.1:8192, i.e. it exceeded the 1536M file limit and the
-          # 2560M live limit. 4 GiB = measured peak x 1.5 headroom for
-          # concurrent chromium. See /root/.knowledge/kernel-2026-10/memory-offenders.md
-          memory: 4096M
-          cpus: "1"
+  # [flaresolverr] retired 2026-10-26 -> canonical fleet-infra/compose/flaresolverr.yml
 
   tor:
     image: dperson/torproxy:latest
