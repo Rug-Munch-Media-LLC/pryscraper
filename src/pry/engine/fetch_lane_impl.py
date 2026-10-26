@@ -141,13 +141,13 @@ class Proxied(Direct):
 
 
 class FlareSolverr:
-    """A real browser via FlareSolverr (host-mapped to 127.0.0.1:8192)."""
+    """A real browser via FlareSolverr (canonical flaresolverr:8191)."""
 
     name = "flaresolverr"
 
     def __init__(self, endpoint: str | None = None) -> None:
         self._endpoint = endpoint or os.getenv(
-            "PRY_FLARESOLVERR_HOST_URL", "http://127.0.0.1:8192/v1"
+            "PRY_FLARESOLVERR_HOST_URL", "http://flaresolverr:8191/v1"
         )
 
     async def get(self, url: str, timeout_s: float) -> Reply:
