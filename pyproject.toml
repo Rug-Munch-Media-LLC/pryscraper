@@ -602,18 +602,15 @@ exclude = ["tests/*", "setup.py", "browser-extension/*", "shopify-app/*", "mutan
 
 # mutmut 3.x — core parsing/extraction scope per AI Test Oracle Policy
 [tool.mutmut]
-source_paths = [
-    "src/pry/engine/parser.py",
-    "src/pry/engine/extraction.py",
-    "src/pry/engine/extractor.py",
-    "src/pry/engine/dedup.py",
-    "src/pry/engine/quality.py",
-]
-pytest_add_cli_args_test_selection = ["tests/test_parser.py", "tests/test_extractor.py", "tests/test_quality.py", "tests/test_dedup.py", "tests/test_dedup_mutation.py", "tests/test_quality_mutation.py"]
-# The mutation sandbox (mutants/) only receives source_paths; the rest of the
-# pry package must be present for imports to resolve. Copy the full src tree
-# pristine — mutmut then writes the mutated engine files on top of it.
-also_copy = ["src"]
+source_paths = ["src/pry/engine/mega_search.py"]
+also_copy = ["src", "tests", "pyproject.toml", "uv.lock"]
+pytest_add_cli_args = ["-o", "addopts=", "-p", "no:cacheprovider"]
+pytest_add_cli_args_test_selection = ["tests/test_mega_search.py"]
 
 [tool.fleet-gates]
 scan-roots = ["src/pry", "tests", "scripts"]
+
+[tool.uv]
+# semgrep (dev) pins mcp==1.29.0 while the project needs mcp>=2.0;
+# its MCP server is an optional feature, so the app pin wins.
+override-dependencies = ["mcp>=2.0,<3.0"]
