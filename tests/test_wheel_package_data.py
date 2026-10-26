@@ -43,7 +43,7 @@ def _build_wheel() -> Path:
     if not importlib.util.find_spec("build"):
         pytest.skip("`build` is not installed; cannot inspect a wheel")
     out = Path(tempfile.mkdtemp(prefix="pry-wheel-"))
-    proc = subprocess.run(
+    proc = subprocess.run(  # noqa: S603 - static argv, shell=False
         [sys.executable, "-m", "build", "--wheel", "--no-isolation", "--outdir", str(out)],
         cwd=ROOT,
         capture_output=True,

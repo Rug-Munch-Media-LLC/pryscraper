@@ -9,6 +9,7 @@ the /v1/travel/* router (200 + 502-degradation + query validation).
 All HTTP is mocked (respx / monkeypatched helpers) — no live network.
 """
 from tests.travel._travel_support import _hermetic_travel, travel_app  # noqa: F401
+
 _FLIGHTS_URL = "https://www.google.com/travel/flights/"
 _HOTELS_GOOGLE_URL = "https://www.google.com/travel/hotels"
 _HOTELS_BOOKING_URL = "https://www.booking.com/searchresults.html"

@@ -10,7 +10,6 @@ the /v1/realestate/* router (200 + 502-degradation + query validation).
 All HTTP is mocked with respx (local-router ``respx_mock`` — the version
 of this venv attaches routes to the local router only) — no live network.
 """
-from tests.real_estate._real_estate_support import _hermetic_real_estate  # noqa: F401
 from typing import Any
 
 import pytest
@@ -18,6 +17,7 @@ from fastapi import FastAPI
 
 import datasets.real_estate as real_estate
 import pry.api.routers.data.real_estate as real_estate_router_mod
+from tests.real_estate._real_estate_support import _hermetic_real_estate  # noqa: F401
 from tests.real_estate._real_estate_support2 import _client
 
 

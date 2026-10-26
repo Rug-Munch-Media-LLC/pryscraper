@@ -33,8 +33,6 @@ from pry.engine.schema_fields import (
     normalize_schema as _normalize_schema,
 )
 from pry.engine.schema_patterns import (
-    jsonld_lookup as _jsonld_lookup,
-    meta_tags as _meta_tags,
     pattern_extract as _pattern_extract,
 )
 from pry.engine.schema_table import parse_table

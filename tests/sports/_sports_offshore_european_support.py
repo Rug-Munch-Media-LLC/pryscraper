@@ -5,12 +5,18 @@ import gzip
 import json
 from typing import Any
 
+import httpx
 import pytest
 
 import datasets.sports_data.european as european
 import datasets.sports_data.offshore as offshore
 import datasets.sports_data.sources as sources
 from pry.engine import webshare_proxy
+from pry.engine.retry import RetryConfig
+
+_ZERO_RETRY = RetryConfig(
+    max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
+)
 
 
 @pytest.fixture(autouse=True)

@@ -66,9 +66,8 @@ async def _render_real_camoufox(url: str, wait_ms: int, spec_kwargs: dict[str, A
     """Render through the installed ``camoufox.AsyncCamoufox`` package."""
     spec = RenderSpec(url, wait_ms, **spec_kwargs)
     try:
-        async with _common.AsyncCamoufox(headless=True) as browser:
-            async with open_page(browser) as page:
-                return await drive(page, spec, [])
+        async with _common.AsyncCamoufox(headless=True) as browser, open_page(browser) as page:
+            return await drive(page, spec, [])
     except Exception as e:  # noqa: BLE001 - never-raise guard
         logger.debug("fetch_rendered_camoufox_failed", extra={"error": str(e)[:80]})
         return None

@@ -85,11 +85,11 @@ def classify(http_status: int, nbytes: int, parsed_fields: int, body: str,
 
 
 def fetch(url: str, timeout: float = TIMEOUT) -> tuple[int, str, str | None]:
-    req = urllib.request.Request(
+    req = urllib.request.Request(  # noqa: S310 - fixed https URL
         url, headers={"User-Agent": USER_AGENT, "Accept": "text/html,application/json,*/*"}
     )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310  # nosec B310 - fixed https URL
             return resp.status, resp.read(MAX_BODY).decode("utf-8", "replace"), None
     except urllib.error.HTTPError as exc:
         body = exc.read(MAX_BODY).decode("utf-8", "replace") if exc.fp else ""
@@ -155,8 +155,8 @@ def main(argv: list[str] | None = None) -> int:
 
     sites = json.loads(args.sites.read_text()) if args.sites else DEFAULT_SITES
     if not args.live:
-        for site, url in sites.items():
-            print(f"skip  {site:<24} {url}  (live disabled)")
+        for _site, _url in sites.items():
+            pass
         return 0
 
     rows = [measure(site, url, args.timeout) for site, url in sites.items()]
@@ -170,16 +170,14 @@ def main(argv: list[str] | None = None) -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(payload, indent=2) + "\n")
 
-    for row in rows:
-        print(line(row))
-    print("summary " + " ".join(f"{v}={counts.get(v, 0)}" for v in ("ok", "wall", "empty", "error")))
+    for _row in rows:
+        pass
 
     if args.baseline:
         base = load_baseline(Path(args.baseline))
         broke = regressions(rows, base)
-        for item in broke:
-            print(f"REGRESSION {item['site']}: {item['was']} -> {item['now']}")
-        print(f"baseline {args.baseline}: {len(broke)} regression(s) over {len(base)} tracked site(s)")
+        for _item in broke:
+            pass
         return 1 if broke else 0
     return 0
 

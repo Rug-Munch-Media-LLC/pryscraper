@@ -9,9 +9,6 @@ Every book degrades independently and never raises — one dead or geo-blocked
 book never blanks the result if another works. All HTTP is mocked with respx
 — no live network.
 """
-from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
-from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
-from tests.sports._sports_bet_types_support import _hermetic_sports  # noqa: F401
 from urllib.parse import urlencode
 
 import httpx
@@ -20,6 +17,9 @@ import pytest
 import datasets.sports_data.european as european
 import datasets.sports_data.offshore as offshore
 from pry.engine.retry import RetryConfig
+from tests.sports._sports_bet_types_support import _hermetic_sports
+from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
+from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
 
 _ZERO_RETRY = RetryConfig(
     max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)

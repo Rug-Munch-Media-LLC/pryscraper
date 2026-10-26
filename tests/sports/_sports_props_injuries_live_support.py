@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
 import pytest
 
 import datasets.sports_data.injuries as injuries
 import datasets.sports_data.live as live
 import datasets.sports_data.props as props
+from pry.engine.retry import RetryConfig
+
+_ZERO_RETRY = RetryConfig(
+    max_retries=1, base_delay=0.0, max_delay=0.0, retryable_exceptions=(httpx.HTTPError,)
+)
 
 
 @pytest.fixture(autouse=True)

@@ -9,20 +9,19 @@ Split out of ``base.py`` (2026-09-06) — see ``base.py`` for the re-export faca
 # Part of Pry — https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
 
-import asyncio
 import json
 from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
 
+from pry.core.outbound_politeness import outbound_backoff
 from pry.intelligence.llm.base_client import (
     LLM_STREAM_RETRY_ATTEMPTS,
     LLM_STREAM_RETRY_BACKOFF,
     LLM_TIMEOUT_SECONDS,
     TRANSIENT_HTTP_STATUSES,
 )
-from pry.core.outbound_politeness import outbound_backoff
 
 
 async def _stream_openai_compatible(

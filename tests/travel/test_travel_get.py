@@ -8,17 +8,17 @@ the /v1/travel/* router (200 + 502-degradation + query validation).
 
 All HTTP is mocked (respx / monkeypatched helpers) — no live network.
 """
-from tests.travel._travel_support import _hermetic_travel, travel_app  # noqa: F401
-
 import httpx
 import respx
 
 import datasets.travel.hotels as hotels
-from tests.travel._travel_support import (
+from tests.travel._travel_support import (  # noqa: F401
     _booking_html,
     _expedia_html,
+    _hermetic_travel,
     _hotels_google_html,
     _kayak_html,
+    travel_app,
 )
 
 _FLIGHTS_URL = "https://www.google.com/travel/flights/"

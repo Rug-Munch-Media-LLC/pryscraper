@@ -9,13 +9,16 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from decimal import Decimal
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy import create_engine
 
 from pry.commerce.billing.subscription_state import _INVOICES, _SUBSCRIPTIONS
 from pry.core.db import models as models_mod
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.fixture

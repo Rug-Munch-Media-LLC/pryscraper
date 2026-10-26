@@ -69,7 +69,6 @@ def authz(tmp_path, monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, str]]
     import pry.core.api_keys_service as aks
     import pry.core.db as db_pkg
     import pry.core.db.models as models
-    import pry.core.db.session as session_mod
     from pry.core.db.session import get_session
     from pry.core.settings import settings
 
@@ -82,8 +81,9 @@ def authz(tmp_path, monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, str]]
     # `pry.core.db.session` is a compatibility facade: the live state lives in
     # `db_engine`, and the facade only forwards *reads*. Patch the owner so
     # get_session() really uses this engine.
-    import pry.core.db.db_engine as db_engine_mod
     from sqlalchemy.orm import sessionmaker
+
+    import pry.core.db.db_engine as db_engine_mod
 
     monkeypatch.setattr(db_pkg, "_engine", engine, raising=False)
     monkeypatch.setattr(db_engine_mod, "_engine", engine, raising=False)

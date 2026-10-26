@@ -22,8 +22,8 @@ from pry.core.errors import InvalidRequestError  # noqa: F401 - re-export surfac
 from pry.engine.body_limits import cap_text
 from pry.engine.camoufox_config import DEFAULT_CONFIGS, resolve_config
 from pry.engine.camoufox_guard import guard_route
-from pry.engine.camoufox_pool import close_pooled, get_pooled
 from pry.engine.camoufox_page import FetchSpec, fetch_page
+from pry.engine.camoufox_pool import close_pooled, get_pooled
 from pry.engine.camoufox_stealth import apply_human_behavior
 from pry.engine.page_lifecycle import BROWSER_TIMEOUT_S, cap_document, open_page, run_bounded
 from pry.engine.url_guard import validate_url

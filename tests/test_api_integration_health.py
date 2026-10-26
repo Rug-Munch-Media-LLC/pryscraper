@@ -7,14 +7,18 @@
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
-from fastapi.testclient import TestClient
 
 from tests.api_integration_support import (  # noqa: F401 — fixtures for this module
     _has_postgres,
     _mock_all_deps,
     client,
 )
+
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
 
 
 class TestHealthEndpoints:

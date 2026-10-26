@@ -1,5 +1,4 @@
 """Tests for x402/facilitator.py — FacilitatorRouter, multi-provider fallback."""
-from tests.x402._gate_support import db, no_owner_key  # noqa: F401
 from unittest.mock import patch
 
 import httpx
@@ -7,6 +6,7 @@ import pytest
 import respx
 
 from pry.payments.x402.facilitator import FacilitatorRouter
+from tests.x402._gate_support import db, no_owner_key  # noqa: F401
 
 
 @pytest.mark.asyncio

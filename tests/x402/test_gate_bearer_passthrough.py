@@ -12,11 +12,8 @@ The shared ASGI harness and the ``db`` / ``no_owner_key`` fixtures come from
 ``tests.x402._gate_support`` (not re-declared), so all three suites drive the
 real ``X402Middleware`` through one definition.
 """
-from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
-
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
-
 from typing import Any
 
 import pytest
@@ -24,6 +21,7 @@ from fastapi import FastAPI
 
 from pry.payments.x402_middleware import X402Middleware
 from tests.x402._gate_support import db as db, no_owner_key  # noqa: F401 — fixture params
+from tests.x402._x402_facilitator_support import _eip7702_ok, router  # noqa: F401
 
 pytestmark = pytest.mark.usefixtures("no_owner_key")
 

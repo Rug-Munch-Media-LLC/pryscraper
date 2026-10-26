@@ -41,7 +41,8 @@ def test_actor_to_dict_exposes_request_response_schema():
     assert payload["price_per_run"] == 0.0
     assert payload["run_count"] == 0
     assert payload["tags"] == []
-    assert isinstance(payload["created_at"], str) and payload["created_at"]
+    assert isinstance(payload["created_at"], str)
+    assert payload["created_at"]
 
 
 def test_actor_visibility_contract_values():
@@ -57,5 +58,6 @@ def test_preset_catalog_shape_contract():
     if not specs:
         pytest.skip("actor_factory presets not installed in this environment")
     for preset_id, spec in specs.items():
-        assert isinstance(preset_id, str) and preset_id
+        assert isinstance(preset_id, str)
+        assert preset_id
         assert spec is not None

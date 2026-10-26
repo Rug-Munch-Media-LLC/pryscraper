@@ -72,9 +72,11 @@ def _cert_days_left(cert: dict[str, Any]) -> int | None:
 def _probe_tls(host: str) -> tuple[dict[str, Any], str]:
     """Live TLS handshake; returns (peer certificate, protocol version)."""
     ctx = ssl.create_default_context()
-    with socket.create_connection((host, 443), timeout=10) as sock:
-        with ctx.wrap_socket(sock, server_hostname=host) as tls:
-            return (tls.getpeercert() or {}, tls.version() or "")
+    with (
+        socket.create_connection((host, 443), timeout=10) as sock,
+        ctx.wrap_socket(sock, server_hostname=host) as tls,
+    ):
+        return (tls.getpeercert() or {}, tls.version() or "")
 
 
 def process_sslcert(

@@ -7,12 +7,15 @@
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from pry.engine.ultimate_scraper import UltimateScraper
 from tests.ultimate_scraper_support import scraper  # noqa: F401 — fixture for this module
+
+if TYPE_CHECKING:
+    from pry.engine.ultimate_scraper import UltimateScraper
 
 
 @pytest.mark.asyncio

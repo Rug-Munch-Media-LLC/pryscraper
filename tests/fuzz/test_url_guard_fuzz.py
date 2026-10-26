@@ -26,10 +26,9 @@ import pytest
 from hypothesis import HealthCheck, given, settings, strategies as st
 
 from pry.core.errors import InvalidRequestError
-from pry.engine import url_guard
 from pry.engine.url_guard import validate_redirect_url, validate_url
+
 from ._url_guard_support import _assert_accepted_unchanged, _is_known_stdlib_parse_error
-from pathlib import Path
 
 # Valid hostname alphabet (RFC 1123-ish: letters, digits, hyphen, dot, plus
 # a few extra chars urlparse tolerates) for structured URL generation.

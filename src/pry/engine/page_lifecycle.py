@@ -12,11 +12,13 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pry.engine.body_limits import cap_text
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Awaitable, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,7 @@ async def close_browser(browser: Any) -> None:
     """Close a browser, logging teardown errors instead of raising."""
     try:
         await browser.close()
-    except Exception:  # noqa: BLE001 - never-raise guard
+    except Exception:
         logger.debug("browser_cleanup_failed", exc_info=True)
 
 
@@ -100,7 +102,7 @@ def attach_json_collector(page: Any, sink: list[str]) -> None:
         try:
             text, _ = cap_text(await response.text(), str(getattr(response, "url", "")))
             sink.append(text)
-        except Exception:  # noqa: BLE001 - never-raise guard
+        except Exception:
             logger.debug("fetch_rendered_json_capture_failed", exc_info=True)
 
     page.on("response", lambda r: asyncio.create_task(_on_response(r)))

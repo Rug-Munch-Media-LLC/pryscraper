@@ -15,8 +15,9 @@ All HTTP is mocked with respx — no live network.
 # Licensed under MIT. See LICENSE.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import httpx
-import pytest
 import respx
 
 from datasets.crypto_market import (
@@ -34,6 +35,9 @@ from tests.crypto_market_support import (  # noqa: F401 — fixtures for this mo
     client,
     mock_dexscreener,
 )
+
+if TYPE_CHECKING:
+    import pytest
 
 
 def test_package_exports_public_contract() -> None:

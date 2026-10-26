@@ -19,17 +19,16 @@ Covers:
 Every public function is asserted never to raise (HTTP errors and
 malformed payloads degrade to ``[]`` / ``{}``).
 """
-from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
-from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
-from tests.sports._sports_bet_types_support import _hermetic_sports  # noqa: F401
-
 import httpx
 import pytest
 import respx
 
 import datasets.sports_data.props as props
 from pry.engine.retry import RetryConfig
+from tests.sports._sports_bet_types_support import _hermetic_sports
 from tests.sports._sports_bet_types_support2 import _props_event_payload, _props_events_payload
+from tests.sports._sports_offshore_european_support import _hermetic  # noqa: F401
+from tests.sports._sports_props_injuries_live_support import _hermetic_sports  # noqa: F401
 
 _ODDS_NBA = "https://api.the-odds-api.com/v4/sports/basketball_nba"
 _ODDS_NFL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl"

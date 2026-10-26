@@ -5,8 +5,6 @@ as the suite grows; the gate blocks growth on grandfathered files.
 """
 from __future__ import annotations
 
-import http.client
-import socket
 from urllib.parse import urlsplit  # noqa: F401  (kept for helper parity)
 
 

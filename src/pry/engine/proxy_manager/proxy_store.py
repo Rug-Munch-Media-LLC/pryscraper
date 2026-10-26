@@ -12,14 +12,16 @@ from __future__ import annotations
 import json
 import logging
 import os
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pry.engine.proxy_manager.proxy_types import (
     CREDENTIALS_MODE,
     ProxyConfig,
     redact_credentials,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 

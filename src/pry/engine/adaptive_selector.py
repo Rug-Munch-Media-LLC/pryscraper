@@ -18,7 +18,7 @@ DOM traversal lives in :mod:`pry.engine.selector_context`, candidate scoring in
 
 from __future__ import annotations
 
-from bs4 import BeautifulSoup
+from typing import TYPE_CHECKING
 
 from pry.engine.page_signature import PageSignature
 from pry.engine.selector_context import (
@@ -32,9 +32,11 @@ from pry.engine.selector_context import (
     structural_path,
     synthesize_selector,
 )
-from pry.engine.selector_match import find_best_match
-from pry.engine.selector_match import MIN_TEXT_SIMILARITY as _MIN_TEXT_SIMILARITY
+from pry.engine.selector_match import MIN_TEXT_SIMILARITY as _MIN_TEXT_SIMILARITY, find_best_match
 from pry.engine.selector_validate import _validate_selector
+
+if TYPE_CHECKING:
+    from bs4 import BeautifulSoup
 
 # Confidence levels.
 _EXACT = 1.0
