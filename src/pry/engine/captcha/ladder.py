@@ -72,6 +72,107 @@ def _elapsed(started: float) -> int:
     return int((time.monotonic() - started) * 1000)
 
 
+@dataclass(slots=True)
+class _Walk:
+    """Mutable state of one ladder run: budget, trail, and breaker keys."""
+
+    challenge: Challenge
+    captcha_class: str
+    started: float
+    deadline: float
+    breaker: TierBreaker
+    attempts: list[TierOutcome] = field(default_factory=list)
+    tried: list[str] = field(default_factory=list)
+    missing: list[str] = field(default_factory=list)
+
+    def solved(self, tier: str, outcome: TierOutcome) -> LadderResult:
+        """Successful run: the rung that solved it plus the full trail."""
+        return LadderResult(
+            status=SOLVED,
+            provider=tier,
+            token=outcome.token,
+            html=outcome.html,
+            attempts=self.attempts,
+            captcha_class=self.captcha_class,
+            tiers_tried=self.tried,
+            elapsed_ms=_elapsed(self.started),
+        )
+
+    def unsolved(self) -> LadderResult:
+        """Nothing solved: name the first missing engine, else blocked."""
+        status = self.missing[0] if self.missing and not self.tried else BLOCKED_UNSOLVED
+        result = LadderResult(
+            status=status,
+            attempts=self.attempts,
+            captcha_class=self.captcha_class,
+            tiers_tried=self.tried,
+            elapsed_ms=_elapsed(self.started),
+        )
+        logger.warning(
+            "captcha_unsolved status=%s class=%s tried=%s trail=%s",
+            status,
+            self.captcha_class,
+            self.tried,
+            [a.line() for a in self.attempts],
+        )
+        return result
+
+
+def _skip(walk: _Walk, tier: str, capability: str, missing: str) -> TierOutcome | None:
+    """Skipped outcome for a closed rung, or None when the rung may run."""
+    key = f"{tier}:{walk.captcha_class}"
+    if walk.breaker.is_open(key):
+        return TierOutcome(tier, SKIPPED, 0, f"breaker.open {key}")
+    if not probes.available(capability):
+        walk.missing.append(missing)
+        return TierOutcome(tier, SKIPPED, 0, f"{missing} {capability}")
+    return None
+
+
+async def _attempt(walk: _Walk, tier: str) -> TierOutcome | None:
+    """Run one rung inside the remaining budget; None once the budget is gone."""
+    remaining = walk.deadline - time.monotonic()
+    if remaining <= 0:
+        walk.attempts.append(TierOutcome(tier, SKIPPED, 0, "deadline"))
+        return None
+    lane_start = time.monotonic()
+    try:
+        async with asyncio.timeout(remaining):
+            lane = await run_tier(tier, walk.challenge, remaining)
+        status, detail, token, html = lane.outcome, lane.reason, lane.token, lane.html
+    except TimeoutError:
+        status, detail, token, html = TIMEOUT, "tier timeout", None, None
+    outcome = TierOutcome(
+        tier, status, int((time.monotonic() - lane_start) * 1000), detail, token, html
+    )
+    logger.info(
+        "captcha_attempt tier=%s status=%s ms=%d reason=%s",
+        outcome.tier,
+        outcome.status,
+        outcome.ms,
+        outcome.reason,
+    )
+    return outcome
+
+
+async def _walk(walk: _Walk) -> LadderResult | None:
+    """Walk the tiers in cost order; return the solved result, else None."""
+    for spec in ordered_tiers():
+        skipped = _skip(walk, spec.tier, spec.capability, spec.missing)
+        if skipped is not None:
+            walk.attempts.append(skipped)
+            continue
+        outcome = await _attempt(walk, spec.tier)
+        if outcome is None:
+            break
+        walk.attempts.append(outcome)
+        walk.tried.append(spec.tier)
+        walk.breaker.record(f"{spec.tier}:{walk.captcha_class}", outcome.status == SOLVED)
+        if outcome.status == SOLVED:
+            return walk.solved(spec.tier, outcome)
+    return None
+
+
 async def solve_ladder(
     challenge: Challenge,
     deadline_s: float | None = None,
@@ -79,8 +180,6 @@ async def solve_ladder(
 ) -> LadderResult:
     """Walk the free tiers in cost order under one time budget."""
     started = time.monotonic()
-    budget = float(deadline_s if deadline_s is not None else settings.captcha_max_seconds)
-    deadline = started + budget
     captcha_class = challenge.captcha_type or "unknown"
     if not settings.captcha_enabled:
         return LadderResult(status=DISABLED, captcha_class=captcha_class)
@@ -90,71 +189,13 @@ async def solve_ladder(
         return LadderResult(
             status=reason, captcha_class=captcha_class, elapsed_ms=_elapsed(started)
         )
-    active = breaker or _BREAKER
-    attempts: list[TierOutcome] = []
-    tried: list[str] = []
-    missing: list[str] = []
-    for tier_spec in ordered_tiers():
-        key = f"{tier_spec.tier}:{captcha_class}"
-        if active.is_open(key):
-            attempts.append(TierOutcome(tier_spec.tier, SKIPPED, 0, f"breaker.open {key}"))
-            continue
-        if not probes.available(tier_spec.capability):
-            missing.append(tier_spec.missing)
-            attempts.append(
-                TierOutcome(
-                    tier_spec.tier, SKIPPED, 0, f"{tier_spec.missing} {tier_spec.capability}"
-                )
-            )
-            continue
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            attempts.append(TierOutcome(tier_spec.tier, SKIPPED, 0, "deadline"))
-            break
-        lane_start = time.monotonic()
-        try:
-            async with asyncio.timeout(remaining):
-                lane = await run_tier(tier_spec.tier, challenge, remaining)
-            status, detail, token, html = lane.outcome, lane.reason, lane.token, lane.html
-        except TimeoutError:
-            status, detail, token, html = TIMEOUT, "tier timeout", None, None
-        outcome = TierOutcome(
-            tier_spec.tier, status, int((time.monotonic() - lane_start) * 1000), detail, token, html
-        )
-        logger.info(
-            "captcha_attempt tier=%s status=%s ms=%d reason=%s",
-            outcome.tier,
-            outcome.status,
-            outcome.ms,
-            outcome.reason,
-        )
-        attempts.append(outcome)
-        tried.append(tier_spec.tier)
-        active.record(key, status == SOLVED)
-        if status == SOLVED:
-            return LadderResult(
-                status=SOLVED,
-                provider=tier_spec.tier,
-                token=token,
-                html=html,
-                attempts=attempts,
-                captcha_class=captcha_class,
-                tiers_tried=tried,
-                elapsed_ms=_elapsed(started),
-            )
-    status = missing[0] if missing and not tried else BLOCKED_UNSOLVED
-    result = LadderResult(
-        status=status,
-        attempts=attempts,
+    budget = float(deadline_s if deadline_s is not None else settings.captcha_max_seconds)
+    walk = _Walk(
+        challenge=challenge,
         captcha_class=captcha_class,
-        tiers_tried=tried,
-        elapsed_ms=_elapsed(started),
+        started=started,
+        deadline=started + budget,
+        breaker=breaker or _BREAKER,
     )
-    logger.warning(
-        "captcha_unsolved status=%s class=%s tried=%s trail=%s",
-        status,
-        captcha_class,
-        tried,
-        [a.line() for a in attempts],
-    )
-    return result
+    solved = await _walk(walk)
+    return solved if solved is not None else walk.unsolved()
