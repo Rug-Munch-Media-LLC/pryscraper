@@ -36,38 +36,28 @@ def _proxy_capability() -> tuple[bool, str, list[str]]:
 
 
 def _captcha_capability() -> tuple[bool, str, list[str]]:
-    """Detect CAPTCHA solving backends (OCR and/or paid token APIs).
+    """Detect the free CAPTCHA engines (OCR, ASR, puzzle CV, browser integrity).
 
-    API keys contribute booleans only — values are never exposed.
+    Paid token services are retired by policy: no key is read and none is
+    recommended. An absent engine is a typed refusal, not an upsell.
     """
     recs: list[str] = []
+    engines: list[str] = []
     ocr_pkg = probes._module_import_state(probes.MOD_PYTESSERACT) == "ok"
     ocr_bin = probes.shutil.which("tesseract") is not None
-    ocr_ready = ocr_pkg and ocr_bin
-
-    api_keys: list[str] = []  # paid token solvers retired by policy
-
-    parts: list[str] = []
-    if ocr_ready:
-        parts.append("local OCR (pytesseract + tesseract)")
-    elif ocr_pkg or ocr_bin:
-        parts.append("incomplete OCR: pytesseract and the tesseract binary are both required")
-        if ocr_pkg and not ocr_bin:
-            recs.append("install the tesseract binary (apt-get install tesseract-ocr)")
-        else:
-            recs.append("pip install pytesseract")
-    else:
-        recs.append("install tesseract-ocr and pip install pytesseract for local OCR")
-
-    if api_keys:
-        parts.append("API keys: " + ", ".join(api_keys))
-    else:
-        recs.append(
-            "set PRY_CAPTCHA_2CAPTCHA_API_KEY or PRY_CAPTCHA_CAPSOLVER_API_KEY "
-            "for paid CAPTCHA solving"
-        )
-
-    return ocr_ready or bool(api_keys), "; ".join(parts), recs
+    if ocr_pkg and ocr_bin:
+        engines.append("local OCR (pytesseract + tesseract)")
+    for module, label in (
+        ("ddddocr", "local OCR (ddddocr)"),
+        ("faster_whisper", "audio ASR (faster-whisper)"),
+        ("cv2", "puzzle CV (opencv)"),
+        ("patchright", "browser integrity (patchright)"),
+    ):
+        if probes._module_import_state(module) == "ok":
+            engines.append(label)
+    if not engines:
+        recs.append("pip install 'pryscraper[captcha]' (ddddocr + faster-whisper), or apt-get install tesseract-ocr for the legacy OCR path")
+    return bool(engines), "; ".join(engines) or "no free CAPTCHA engine installed", recs
 
 
 def _llm_capability() -> tuple[bool, str, list[str]]:
