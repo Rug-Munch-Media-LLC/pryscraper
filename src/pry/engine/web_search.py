@@ -30,8 +30,8 @@ from pry.engine.engine_mojeek import search_mojeek
 from pry.engine.engine_qwant import search_qwant
 from pry.engine.engine_seznam import search_seznam
 from pry.engine.engine_yahoo import search_yahoo
+from pry.engine.fetch_lanes import OK, fetch
 from pry.engine.flaresolverr import fetch_via_flaresolverr
-from pry.engine.url_guard import safe_get
 
 logger = logging.getLogger(__name__)
 
@@ -48,24 +48,17 @@ _DDG_REDIRECT = re.compile(r"[?&]uddg=([^&]+)")
 
 
 async def _fetch_text(url: str, timeout_s: float = 15.0) -> str:
-    """Fetch a URL's text body via the SSRF-safe GET. Returns "" on failure.
+    """Fetch a URL's text through the lane ladder (direct -> webshare -> flare -> tor).
 
-    ``follow_redirects=False`` is mandatory: ``safe_get`` validates every
-    redirect hop, and an httpx client that follows redirects itself would
-    reach a private/metadata target before the guard sees it.
+    The ladder is SSRF-safe (every hop is validated) and bounded by ``timeout_s``
+    across all lanes. Returns "" on refusal.
     """
     try:
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(timeout_s),
-            follow_redirects=False,
-            headers={"User-Agent": _UA, "Accept": "*/*"},
-        ) as client:
-            resp = await safe_get(client, url)
-            resp.raise_for_status()
-            return resp.text
+        got = await fetch(url, timeout_ms=int(timeout_s * 1000))
     except Exception as exc:  # noqa: BLE001 - contract: never raise
         logger.debug("web_search_fetch_failed", extra={"url": url, "error": str(exc)})
         return ""
+    return got["body"] if got["status"] == OK else ""
 
 
 async def _search_searxng(query: str, num_results: int) -> list[dict[str, Any]]:

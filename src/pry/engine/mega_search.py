@@ -23,15 +23,26 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 from pry.engine import engine_mojeek, engine_qwant, engine_seznam, engine_yahoo, web_search as ws
+from pry.engine.fetch_lanes import lane_table
 from pry.engine.url_key import url_key
 
 logger = logging.getLogger(__name__)
 
 ENGINE_WEIGHTS: dict[str, float] = {
-    "searxng": 1.30, "duckduckgo": 1.15, "mojeek": 1.05,
-    "seznam": 1.00, "yahoo": 0.95, "qwant": 0.90,
+    "searxng": 1.30,
+    "duckduckgo": 1.15,
+    "mojeek": 1.05,
+    "seznam": 1.00,
+    "yahoo": 0.95,
+    "qwant": 0.90,
 }
 DEFAULT_ENGINES: tuple[str, ...] = tuple(ENGINE_WEIGHTS)
+# Engine -> host it calls, so the response can name the lane that answered.
+ENGINE_HOSTS: dict[str, str] = {
+    "searxng": "localhost",
+    "duckduckgo": "html.duckduckgo.com",
+    "qwant": "api.qwant.com",
+}
 
 _PER_ENGINE = 12
 PER_ENGINE_TIMEOUT = 3.0
@@ -105,7 +116,13 @@ async def _fan_out(
     started = time.perf_counter()
     usable = {n: f for n in engines if (f := resolve(n)) is not None}
     if not usable:
-        return {"grouped": {}, "per_engine_ms": {}, "pending": [], "elapsed_ms": 0, "partial": False}
+        return {
+            "grouped": {},
+            "per_engine_ms": {},
+            "pending": [],
+            "elapsed_ms": 0,
+            "partial": False,
+        }
     loop = asyncio.get_running_loop()
     futures = {loop.run_in_executor(_POOL, _run_leg, n, f, query): n for n, f in usable.items()}
     grouped: dict[str, list[Result]] = {}
@@ -116,7 +133,9 @@ async def _fan_out(
         remaining = deadline - time.perf_counter()
         if remaining <= 0:
             break
-        done, pending = await asyncio.wait(pending, timeout=remaining, return_when=asyncio.FIRST_COMPLETED)
+        done, pending = await asyncio.wait(
+            pending, timeout=remaining, return_when=asyncio.FIRST_COMPLETED
+        )
         for future in done:
             name, rows, ms = future.result()
             grouped[name] = rows
@@ -129,8 +148,11 @@ async def _fan_out(
     for name in outstanding:
         per_engine_ms[name] = consumed
     return {
-        "grouped": grouped, "per_engine_ms": per_engine_ms, "pending": outstanding,
-        "elapsed_ms": consumed, "partial": bool(outstanding),
+        "grouped": grouped,
+        "per_engine_ms": per_engine_ms,
+        "pending": outstanding,
+        "elapsed_ms": consumed,
+        "partial": bool(outstanding),
     }
 
 
@@ -143,7 +165,9 @@ def _collect(grouped: dict[str, list[Result]]) -> tuple[dict[str, Result], Posit
                 continue
             key = url_key(str(row["url"]))
             positions.setdefault(key, {}).setdefault(engine, index)
-            entry = merged.setdefault(key, {"url": row["url"], "title": "", "snippet": "", "engines": []})
+            entry = merged.setdefault(
+                key, {"url": row["url"], "title": "", "snippet": "", "engines": []}
+            )
             title, snippet = str(row.get("title") or ""), str(row.get("snippet") or "")
             if len(title) > len(str(entry["title"])):
                 entry["title"] = title
@@ -186,9 +210,15 @@ async def mega_search(
     results = _merge(grouped, query.strip())
     ok = [name for name, rows in grouped.items() if rows]
     return {
-        "results": results[: max(1, num_results)], "total": len(results), "query": query.strip(),
-        "engines": list(chosen), "engines_ok": ok,
+        "results": results[: max(1, num_results)],
+        "total": len(results),
+        "query": query.strip(),
+        "engines": list(chosen),
+        "engines_ok": ok,
         "engines_failed": [n for n in chosen if n not in ok],
-        "engines_timeout": fan["pending"], "partial": fan["partial"],
-        "elapsed_ms": fan["elapsed_ms"], "per_engine_ms": fan["per_engine_ms"],
+        "engines_timeout": fan["pending"],
+        "partial": fan["partial"],
+        "elapsed_ms": fan["elapsed_ms"],
+        "per_engine_ms": fan["per_engine_ms"],
+        "per_engine_lane": lane_table(ENGINE_HOSTS),
     }
