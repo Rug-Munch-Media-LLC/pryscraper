@@ -55,6 +55,9 @@ _DOMAIN_DISPATCHERS = (
 
 def register_standard_executors(registry: ToolRegistry) -> ToolRegistry:
     """Register the standard local executor chain on ``registry`` (in order)."""
+    from pry_mcp.tools.tool_help import call_help_tool
+
+    registry.register("call_help_tool", call_help_tool)
     registry.register("call_actor_tool", domain_executor("call_actor_tool"))
     registry.register("crypto_tool_executor", crypto_tool_executor)
     registry.register("marketplace_tool_executor", marketplace_tool_executor)

@@ -106,6 +106,7 @@ from .sports import (
     _sports_tool_kwargs,
     call_sports_tool,
 )
+from .tool_help import PRY_TOOLS as _HELP_TOOLS
 from .travel import call_travel_tool
 
 logger = logging.getLogger(__name__)
@@ -218,6 +219,7 @@ PRY_TOOLS: list[dict[str, Any]] = [
     *dextools.PRY_TOOLS,
     *bidding.PRY_TOOLS,
     *actor.PRY_TOOLS,
+    *_HELP_TOOLS,
 ]
 
 # 2026-09-01 audit: every Pry tool reaches the open web (target sites, public
