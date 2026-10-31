@@ -126,6 +126,7 @@ class ToolRegistry:
             try:
                 result = await executor(name, arguments)
             except ToolNotHandled:
+                logger.debug("best-effort fallback", exc_info=True)
                 continue
             if result is not None:
                 logger.debug(

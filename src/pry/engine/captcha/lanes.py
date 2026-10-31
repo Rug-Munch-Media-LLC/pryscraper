@@ -10,6 +10,7 @@ Each rung is a small adapter over its engine module and returns a
 # Copyright (c) 2026 Rug Munch Media LLC
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 import httpx
@@ -24,6 +25,8 @@ from pry.engine.captcha import (
     vision,
 )
 from pry.engine.captcha.flaresolverr import flaresolverr_fetch, looks_unsolved
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +62,7 @@ async def _cached(item: clearance.Clearance, url: str, remaining: float) -> str 
         async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.get(url, headers=headers)
     except httpx.HTTPError:
+        logger.debug("best-effort fallback", exc_info=True)
         return None
     return (resp.text or None) if resp.status_code == 200 else None
 

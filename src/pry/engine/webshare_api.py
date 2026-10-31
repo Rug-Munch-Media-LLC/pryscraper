@@ -13,10 +13,13 @@ Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 API_URL = "https://proxy.webshare.io/api/v2/proxy/list/"
 KEY_FILE = os.getenv("PRY_WEBSHARE_KEY_FILE", str(Path("~/.config/pry/webshare.env").expanduser()))
@@ -29,6 +32,7 @@ def api_key() -> str:
     try:
         lines = Path(KEY_FILE).read_text(encoding="utf-8").splitlines()
     except OSError:
+        logger.debug("best-effort fallback", exc_info=True)
         lines = []
     for line in lines:
         if line.strip().startswith(f"{KEY_ENV}="):

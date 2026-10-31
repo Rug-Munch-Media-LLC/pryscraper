@@ -12,10 +12,13 @@ box and no key is involved. The model directory is configurable via
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import re
 import tempfile
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 MODEL_ENV = "PRY_CAPTCHA_ASR_MODEL"
 DEFAULT_MODEL = Path.home() / ".cache" / "pry" / "models" / "faster-whisper-base"
@@ -34,6 +37,7 @@ def capability() -> bool:
     try:
         import faster_whisper  # noqa: F401
     except ImportError:
+        logger.debug("best-effort fallback", exc_info=True)
         return False
     return True
 
@@ -65,8 +69,10 @@ async def solve_audio(audio: bytes | None, timeout_s: float = 30.0) -> tuple[str
         async with asyncio.timeout(timeout_s):
             text = await asyncio.to_thread(_transcribe, audio, model_path())
     except TimeoutError:
+        logger.debug("best-effort fallback", exc_info=True)
         return None, "timeout"
     except (OSError, RuntimeError, ValueError):
+        logger.debug("best-effort fallback", exc_info=True)
         return None, "failed"
     answer = normalize(text)
     return (answer, "solved") if answer else (None, "unsolved")

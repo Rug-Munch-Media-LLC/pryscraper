@@ -9,7 +9,10 @@ the network.
 # Copyright (c) 2026 Rug Munch Media LLC
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -48,4 +51,5 @@ def available(capability: str) -> bool:
     try:
         return bool(probe())
     except (ImportError, OSError, RuntimeError, ValueError):
+        logger.debug("best-effort fallback", exc_info=True)
         return False

@@ -141,6 +141,7 @@ async def _attempt(walk: _Walk, tier: str) -> TierOutcome | None:
             lane = await run_tier(tier, walk.challenge, remaining)
         status, detail, token, html = lane.outcome, lane.reason, lane.token, lane.html
     except TimeoutError:
+        logger.debug("best-effort fallback", exc_info=True)
         status, detail, token, html = TIMEOUT, "tier timeout", None, None
     outcome = TierOutcome(
         tier, status, int((time.monotonic() - lane_start) * 1000), detail, token, html

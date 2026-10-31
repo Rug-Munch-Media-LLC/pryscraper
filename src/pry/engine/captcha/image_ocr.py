@@ -46,6 +46,7 @@ def capability() -> bool:
     try:
         import onnxruntime  # noqa: F401
     except ImportError:
+        logger.debug("best-effort fallback", exc_info=True)
         return False
     return True
 
@@ -117,8 +118,10 @@ async def solve_image(image: bytes | str | None, timeout_s: float = 15.0) -> tup
         async with asyncio.timeout(timeout_s):
             text = await asyncio.to_thread(_classify, raw, model_path())
     except TimeoutError:
+        logger.debug("best-effort fallback", exc_info=True)
         return None, "timeout"
     except (OSError, RuntimeError, ValueError):
+        logger.debug("best-effort fallback", exc_info=True)
         return None, "failed"
     return (text, "solved") if text else (None, "unsolved")
 

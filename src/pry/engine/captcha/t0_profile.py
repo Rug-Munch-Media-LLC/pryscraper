@@ -31,11 +31,14 @@ skips the rung with ``unavailable.model``.
 # Copyright (c) 2026 Rug Munch Media LLC
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from pry.engine.captcha.flaresolverr import looks_unsolved
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from curl_cffi.requests import Cookies
@@ -63,6 +66,7 @@ def capability() -> bool:
     try:
         import curl_cffi  # noqa: F401
     except ImportError:
+        logger.debug("best-effort fallback", exc_info=True)
         return False
     return True
 
@@ -133,6 +137,7 @@ async def fetch_clean(url: str, timeout_s: float = TIMEOUT_S) -> tuple[str | Non
     try:
         reply = await _http_get(url, timeout_s, jar)
     except (OSError, RuntimeError, ValueError):
+        logger.debug("best-effort fallback", exc_info=True)
         return None, "failed"
     _merge(jar, reply.cookies)
     reason = classify(reply.status, reply.text)

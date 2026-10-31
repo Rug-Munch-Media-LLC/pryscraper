@@ -24,6 +24,7 @@ def load() -> dict:
     try:
         data = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
     except (OSError, ValueError):
+        logger.debug("best-effort fallback", exc_info=True)
         return {}
     return data if isinstance(data, dict) else {}
 

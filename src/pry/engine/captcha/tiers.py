@@ -17,6 +17,7 @@ package is allowed to name them.
 # Copyright (c) 2026 Rug Munch Media LLC
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from enum import StrEnum
@@ -24,6 +25,8 @@ from typing import TYPE_CHECKING, TypeAlias
 
 from pry.engine.captcha import probes
 from pry.engine.captcha.outcomes import UNAVAILABLE_BROWSER, UNAVAILABLE_MODEL
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -51,6 +54,7 @@ class CaptchaClass(StrEnum):
         try:
             return cls((value or "").strip().lower())
         except ValueError:
+            logger.debug("best-effort fallback", exc_info=True)
             return cls.UNKNOWN
 
 

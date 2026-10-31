@@ -17,11 +17,14 @@ Licensed under MIT. See LICENSE.
 
 from __future__ import annotations
 
+import logging
 import socket
 import ssl
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
 
 
 def process_screenshot(
@@ -94,6 +97,7 @@ def process_sslcert(
     try:
         cert, protocol = _probe_tls(host)
     except (OSError, ssl.SSLError) as exc:
+        logger.debug("best-effort fallback", exc_info=True)
         item["status"] = "error"
         item["error"] = f"tls_error: {str(exc)[:120]}"
         item["certificate"] = {}

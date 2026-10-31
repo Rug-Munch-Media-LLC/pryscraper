@@ -124,7 +124,7 @@ def _usage_summary() -> dict[str, Any]:
             .scalar()
             or 0.0
         )
-        rows = (
+        rows: list[tuple[str, int]] = (
             month.with_entities(Usage.endpoint, func.count().label("calls"))
             .group_by(Usage.endpoint)
             .order_by(func.count().desc())

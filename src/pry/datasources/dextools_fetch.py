@@ -16,7 +16,11 @@ from urllib.parse import urlsplit
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+import logging
+
 from pry.datasources.dextools_types import Refusal
+
+logger = logging.getLogger(__name__)
 
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -58,7 +62,8 @@ def fetch_rendered(
     _throttle(urlsplit(url).netloc)
     try:
         page_html = (renderer or _playwright_html)(url, timeout_ms)
-    except Exception as exc:  # noqa: BLE001 - any transport failure is "unavailable"
+    except Exception as exc:
+        logger.debug("best-effort fallback", exc_info=True)
         detail = str(exc).splitlines()[0][:200] if str(exc) else type(exc).__name__
         retry = _retry_after(exc)
         if retry:

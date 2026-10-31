@@ -148,6 +148,10 @@ dev = [
     "import-linter>=2.15",
     "alembic>=1.14.0",
     "respx>=0.21.0",
+    # tests/test_captcha_t0_profile.py imports curl_cffi.requests.Cookies at
+    # module scope; the scrape extra is optional at runtime but the test suite
+    # is not optional, so the dev extra must carry it or collection fails.
+    "curl_cffi>=0.7.0",
     "commitizen>=3.12.0",
     "hypothesis>=6.0.0",
     # distutils shim: removed from the 3.12 stdlib; undetected_chromedriver
@@ -236,6 +240,8 @@ include = [
     "actor_factory",
     "actor_factory.*",
     "crypto_market",
+    "kol_discovery",
+    "kol_discovery.*",
 ]
 
 [tool.setuptools.package-data]

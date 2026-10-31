@@ -290,6 +290,7 @@ def _parse_body(body: str) -> dict[str, Any] | list[Any] | None:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
+        logger.debug("best-effort fallback", exc_info=True)
         return None
 
 
