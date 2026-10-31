@@ -22,11 +22,14 @@ Licensed under MIT. See LICENSE.
 # Copyright (c) 2026 Rug Munch Media LLC
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from html import unescape as html_unescape
 from typing import Any
 
 from datasets.attention.x_walk import nearest_user
+
+logger = logging.getLogger(__name__)
 
 _LEGACY_TIME = "%a %b %d %H:%M:%S %z %Y"
 
@@ -51,6 +54,7 @@ def iso_from_ms(value: Any) -> str | None:
     try:
         return datetime.fromtimestamp(value / 1000, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     except (OSError, OverflowError, ValueError):
+        logger.debug("best-effort fallback", exc_info=True)
         return None
 
 
@@ -61,6 +65,7 @@ def iso_from_legacy(value: Any) -> str | None:
     try:
         parsed = datetime.strptime(value, _LEGACY_TIME)
     except ValueError:
+        logger.debug("best-effort fallback", exc_info=True)
         return None
     return parsed.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 

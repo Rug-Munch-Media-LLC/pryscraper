@@ -14,6 +14,9 @@ cv2 is optional: absent -> ``capability()`` False -> the rung is skipped with
 from __future__ import annotations
 
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 SUPPORTED = ("slider", "rotate")
 
@@ -23,6 +26,7 @@ def capability() -> bool:
     try:
         import cv2  # noqa: F401
     except ImportError:
+        logger.debug("best-effort fallback", exc_info=True)
         return False
     return True
 
@@ -64,7 +68,9 @@ async def solve_puzzle(
         async with asyncio.timeout(timeout_s):
             offset = await asyncio.to_thread(_match, background, piece)
     except TimeoutError:
+        logger.debug("best-effort fallback", exc_info=True)
         return None, "timeout"
     except (OSError, RuntimeError, ValueError):
+        logger.debug("best-effort fallback", exc_info=True)
         return None, "failed"
     return (offset, "solved") if offset is not None else (None, "unsolved")

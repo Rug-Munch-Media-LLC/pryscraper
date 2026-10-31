@@ -16,10 +16,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import random
 
 from pry.engine.captcha.flaresolverr import looks_unsolved
+
+logger = logging.getLogger(__name__)
 
 _JITTER = random.SystemRandom()
 
@@ -37,6 +40,7 @@ def _engine() -> str | None:
         try:
             __import__(name)
         except ImportError:
+            logger.debug("best-effort fallback", exc_info=True)
             continue
         return name
     return None
@@ -94,8 +98,10 @@ async def solve_browser(
         async with asyncio.timeout(timeout_s):
             html = await _drive(url, engine, timeout_s)
     except TimeoutError:
+        logger.debug("best-effort fallback", exc_info=True)
         return None, "timeout"
     except (OSError, RuntimeError, ValueError):
+        logger.debug("best-effort fallback", exc_info=True)
         return None, "failed"
     if looks_unsolved(html):
         return None, f"blocked.captcha_unsolved class={captcha_class}"

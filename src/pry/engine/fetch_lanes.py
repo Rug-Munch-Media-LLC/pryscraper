@@ -104,6 +104,7 @@ async def _one(pick: Any, name: str, url: str, remaining: float) -> tuple[str, i
     try:
         lane = pick(name)
     except (KeyError, TypeError, AttributeError):
+        logger.debug("best-effort fallback", exc_info=True)
         lane = None
     if lane is None:
         logger.debug("fetch_lane_unavailable", extra={"lane": name, "error": "unknown lane"})
@@ -112,6 +113,7 @@ async def _one(pick: Any, name: str, url: str, remaining: float) -> tuple[str, i
         reply = await asyncio.wait_for(lane.get(url, remaining), remaining)
         return reply.status, reply.code, reply.body
     except TimeoutError:
+        logger.debug("best-effort fallback", exc_info=True)
         return TIMEOUT, 0, ""
     except LaneUnavailable as exc:
         logger.debug("fetch_lane_unavailable", extra={"lane": name, "error": str(exc)[:120]})

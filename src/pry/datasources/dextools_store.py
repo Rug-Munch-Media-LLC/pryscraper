@@ -27,6 +27,7 @@ no CREATE anywhere in ``rugdex``; the DDL above is applied once by an admin.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import urllib.error
 import urllib.request
@@ -34,6 +35,8 @@ from pathlib import Path
 from typing import Any
 
 from pry.datasources.dextools_types import Refusal
+
+logger = logging.getLogger(__name__)
 
 CH_URL = os.environ.get("PRY_CLICKHOUSE_URL", "http://127.0.0.1:8123")
 CH_USER = os.environ.get("PRY_CLICKHOUSE_USER", "rmi")
@@ -95,6 +98,7 @@ class DextoolsStore:
         try:
             return Path(CH_PASS_FILE).read_text(encoding="utf-8").strip()
         except OSError:
+            logger.debug("best-effort fallback", exc_info=True)
             return ""
 
     def sql(self, statement: str) -> str:

@@ -90,7 +90,7 @@ def purge_domain(domain: str, dry_run: bool = True) -> dict[str, Any]:
             (
                 "scrape_jobs",
                 session.query(ScrapeJob).filter(
-                    cast("ScrapeJob.input_data", Text).like(f"%{host}%")
+                    cast("Text", ScrapeJob.input_data).like(f"%{host}%")
                 ),
             ),
         )

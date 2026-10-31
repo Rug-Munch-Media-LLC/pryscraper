@@ -53,6 +53,7 @@ def enabled() -> bool:
 try:  # Redis is a declared dependency; a stub install still degrades to memory.
     from redis.exceptions import RedisError as _RedisError
 except ImportError:  # pragma: no cover
+    logger.debug("best-effort fallback", exc_info=True)
     _RedisError = OSError
 
 
@@ -92,6 +93,7 @@ class Clearance:
                 str(raw["source_tier"]),
             )
         except (KeyError, TypeError, ValueError):
+            logger.debug("best-effort fallback", exc_info=True)
             return None
 
 
@@ -142,6 +144,7 @@ class ClearanceStore:
                 try:
                     item = Clearance.from_dict(json.loads(raw))
                 except ValueError:
+                    logger.debug("best-effort fallback", exc_info=True)
                     item = None
                 if item is not None:
                     return item
@@ -178,6 +181,7 @@ def store() -> ClearanceStore:
     try:
         ttl = float(os.environ.get(TTL_ENV, ""))
     except ValueError:
+        logger.debug("best-effort fallback", exc_info=True)
         ttl = DEFAULT_TTL_S
     backend = os.environ.get(BACKEND_ENV, "memory").strip().lower()
     return ClearanceStore(
@@ -193,6 +197,7 @@ async def record(url: str, token: str, source_tier: str) -> Clearance | None:
     try:
         data = json.loads(token)
     except (TypeError, ValueError):
+        logger.debug("best-effort fallback", exc_info=True)
         return None
     if not isinstance(data, Mapping):
         return None

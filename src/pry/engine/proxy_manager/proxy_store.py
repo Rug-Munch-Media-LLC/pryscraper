@@ -44,6 +44,7 @@ def harden_file(path: Path) -> bool:
     try:
         mode = path.stat().st_mode & 0o777
     except OSError:
+        logger.debug("best-effort fallback", exc_info=True)
         return True  # absent -> nothing to protect
     if mode & 0o077 == 0:
         return True

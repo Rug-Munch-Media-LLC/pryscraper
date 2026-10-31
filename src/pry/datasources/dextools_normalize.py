@@ -11,12 +11,15 @@ from __future__ import annotations
 
 import html as html_mod
 import json
+import logging
 import re
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlsplit
 
 from pry.datasources.dextools_types import ROW_FIELDS
+
+logger = logging.getLogger(__name__)
 
 _META = re.compile(
     r'<meta[^>]+(?:property|name)="(og:[^"]+|twitter:[^"]+)"[^>]+content="([^"]*)"', re.I
@@ -108,5 +111,6 @@ def rows_from_json(payload: str) -> list[dict[str, Any]]:
     try:
         data = json.loads(match.group(1))
     except json.JSONDecodeError:
+        logger.debug("best-effort fallback", exc_info=True)
         return []
     return data.get("rows", []) if isinstance(data, dict) else []

@@ -10,6 +10,7 @@ Split out of ``base.py`` (2026-09-06) — see ``base.py`` for the re-export faca
 # Licensed under MIT. See LICENSE.
 
 import json
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -22,6 +23,8 @@ from pry.intelligence.llm.base_client import (
     LLM_TIMEOUT_SECONDS,
     TRANSIENT_HTTP_STATUSES,
 )
+
+logger = logging.getLogger(__name__)
 
 
 async def _stream_openai_compatible(
@@ -72,6 +75,7 @@ async def _stream_openai_compatible(
                     try:
                         event = json.loads(data)
                     except json.JSONDecodeError:
+                        logger.debug("best-effort fallback", exc_info=True)
                         continue
                     choices = event.get("choices") or []
                     if choices:
