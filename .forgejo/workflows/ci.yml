@@ -636,13 +636,33 @@ jobs:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Install shellcheck
+      - name: Install pinned shellcheck 0.11.0
+        # PINNED STATIC BINARY - never `apt-get install shellcheck`. The distro
+        # package resolves to whatever the runner image ships (0.8/0.9 on jammy,
+        # 0.10 on bookworm, whatever python-nodejs carries) while the Talos
+        # pre-commit hook runs 0.11.0. Same script, different rule set, so a push
+        # that was clean locally failed CI. The version gate below is part of the
+        # step: a silent fallback to another release fails the job.
         run: |
-          apt-get update && apt-get install -y --no-install-recommends shellcheck
-          rm -rf /var/lib/apt/lists/*
+          set -euo pipefail
+          SC_VERSION=0.11.0
+          curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/v${SC_VERSION}/shellcheck-v${SC_VERSION}.linux.x86_64.tar.xz" \
+            | tar -xJ -C /tmp "shellcheck-v${SC_VERSION}/shellcheck"
+          if [ -w /usr/local/bin ]; then
+            dest=/usr/local/bin
+          else
+            dest="$HOME/.local/bin"; mkdir -p "$dest"; echo "$dest" >> "$GITHUB_PATH"
+          fi
+          install -m 0755 "/tmp/shellcheck-v${SC_VERSION}/shellcheck" "$dest/shellcheck"
+          "$dest/shellcheck" --version | grep -qx "version: $SC_VERSION" \
+            || { echo "FATAL: pinned shellcheck $SC_VERSION not installed"; exit 1; }
+          "$dest/shellcheck" --version | head -2
       - name: ShellCheck all shell scripts
+        # Default (style) severity - identical to the pre-commit hook - on the
+        # same pinned 0.11.0 binary. `-type f` is required: a directory whose name
+        # ends in .sh (acme.sh-style) makes shellcheck abort.
         run: |
-          find . -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.venv/*" -not -path "*/sdks/*" -exec shellcheck -x {} +
+          find . -type f -name "*.sh" -not -path "*/node_modules/*" -not -path "*/.venv/*" -not -path "*/sdks/*" -exec shellcheck -x {} +
 
   docker-lock-drift:
     name: docker lock drift check
