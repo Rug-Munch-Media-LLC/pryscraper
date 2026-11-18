@@ -24,31 +24,29 @@ if TYPE_CHECKING:
 
 from pry.engine import engine_mojeek, engine_qwant, engine_seznam, engine_yahoo, web_search as ws
 from pry.engine.fetch_lanes import lane_table
+
+# Re-exported under the historical private names: callers and tests already use
+# `mega_search._term_overlap`, and a rename would be a breaking change for a
+# function that did not change, only move.
+from pry.engine.mega_scoring import (
+    DEFAULT_ENGINES,
+    ENGINE_HOSTS,
+    MIN_CONSENSUS,
+    agreeing,
+    score,
+)
 from pry.engine.url_key import url_key
 
 logger = logging.getLogger(__name__)
 
-ENGINE_WEIGHTS: dict[str, float] = {
-    "searxng": 1.30,
-    "duckduckgo": 1.15,
-    "mojeek": 1.05,
-    "seznam": 1.00,
-    "yahoo": 0.95,
-    "qwant": 0.90,
-}
-DEFAULT_ENGINES: tuple[str, ...] = tuple(ENGINE_WEIGHTS)
+
 # Engine -> host it calls, so the response can name the lane that answered.
-ENGINE_HOSTS: dict[str, str] = {
-    "searxng": "localhost",
-    "duckduckgo": "html.duckduckgo.com",
-    "qwant": "api.qwant.com",
-}
+
 
 _PER_ENGINE = 12
 PER_ENGINE_TIMEOUT = 3.0
 # Reserved out of the budget for merge/response assembly, so wall time stays <= 3 s.
 _RESPONSE_RESERVE = 0.05
-MIN_CONSENSUS = 2
 # A leg may block its own thread (playwright, sync HTTP); a dedicated pool keeps
 # that away from the event loop so the deadline is always enforceable.
 _POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="mega-search")
@@ -72,20 +70,6 @@ def _engine_func(name: str) -> Any | None:
     return getattr(source[0], source[1]) if source else None
 
 
-def _term_overlap(query: str, *fields: str) -> float:
-    terms = [t for t in query.lower().split() if len(t) > 2]
-    if not terms:
-        return 0.0
-    haystack = " ".join(fields).lower()
-    return sum(1 for t in terms if t in haystack) / len(terms)
-
-
-def _score(entry: Result, engines: dict[str, int], query: str) -> float:
-    weight = sum(ENGINE_WEIGHTS.get(e, 0.8) for e in engines)
-    overlap = _term_overlap(query, str(entry.get("title") or ""), str(entry.get("snippet") or ""))
-    return weight + 0.5 / (1 + min(engines.values())) + overlap
-
-
 def _run_leg(name: str, func: Any, query: str) -> tuple[str, list[Result], int]:
     """Run one engine in its own event loop inside this thread; never raise."""
     started = time.perf_counter()
@@ -95,15 +79,6 @@ def _run_leg(name: str, func: Any, query: str) -> tuple[str, list[Result], int]:
         logger.debug("mega_search_leg_failed", extra={"engine": name, "error": str(exc)})
         rows = []
     return name, rows, int((time.perf_counter() - started) * 1000)
-
-
-def _agreeing(grouped: dict[str, list[Result]]) -> int:
-    seen: dict[str, int] = {}
-    for rows in grouped.values():
-        for row in rows:
-            key = url_key(str(row["url"]))
-            seen[key] = seen.get(key, 0) + 1
-    return sum(1 for count in seen.values() if count >= MIN_CONSENSUS)
 
 
 async def _fan_out(
@@ -141,7 +116,14 @@ async def _fan_out(
             grouped[name] = rows
             per_engine_ms[name] = ms
         hits = sum(1 for rows in grouped.values() if rows)
-        if _agreeing(grouped) >= 1 or hits >= MIN_CONSENSUS:
+        # Exit early only once the AGREEMENT threshold is met, not on two hits.
+        # Measured 2026-11-18: this broke at two legs, so searxng (1.4s) plus
+        # mojeek (11s) cancelled seznam/yahoo/ddg while they were still working
+        # and reported them as "failed". With only two legs surviving, every
+        # result carried consensus: 1 -- the cross-engine ranking that is the
+        # whole reason to run six engines was inert. Callers wanting single-engine
+        # latency should call the searxng lane directly.
+        if agreeing(grouped) >= MIN_CONSENSUS and hits >= MIN_CONSENSUS:
             break
     outstanding = sorted(futures[f] for f in pending)
     consumed = int((time.perf_counter() - started) * 1000)
@@ -181,7 +163,7 @@ def _merge(grouped: dict[str, list[Result]], query: str) -> list[Result]:
     merged, positions = _collect(grouped)
     ranked = sorted(
         merged.values(),
-        key=lambda e: (-_score(e, positions[url_key(str(e["url"]))], query), e["url"]),
+        key=lambda e: (-score(e, positions[url_key(str(e["url"]))], query), e["url"]),
     )
     for entry in ranked:
         engines = positions[url_key(str(entry["url"]))]
