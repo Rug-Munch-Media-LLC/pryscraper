@@ -1315,6 +1315,21 @@ jobs:
       image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # The CLAIMS gate below imports the REAL application modules
+      # (`pry.payments.x402...`, `pry_mcp.tools`) to read the tool count, prices
+      # and supported chains. This job used to install nothing, so that gate
+      # died with `ModuleNotFoundError: No module named 'httpx'` after ~37s and
+      # the whole required check went red — on main as well as on branches. The
+      # other six gates are stdlib-only and unaffected; installing the runtime
+      # deps is what makes the seventh able to run at all.
+      - name: Install runtime deps (needed by the claims gate)
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev \
+            && rm -rf /var/lib/apt/lists/*
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
+          uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python -e .
       - name: Structure gate (≤200-line cap, shrink-only)
         run: python3 scripts/check-structure.py --repo . --scan-root src/pry --scan-root src/pry/payments/x402/solana_transfer/ --scan-root src/pry/commerce/reconciliation/ --scan-root tests --scan-root scripts --scan-root datasets/sports_data/derivatives --scan-root datasets/sports_data/parlay_legs/
       - name: Monkeypatch gate (per-repo ratchet)
@@ -1328,7 +1343,7 @@ jobs:
       - name: Test-integrity gate (no NEW tautological tests)
         run: python3 scripts/check-test-integrity.py --repo . --baseline tests/integrity-baseline.json
       - name: Claims gate (tool count, prices, chains, licence)
-        run: python3 scripts/check-claims.py
+        run: .venv/bin/python scripts/check-claims.py
 
   wheel-smoke:
     # Packaging regression gate (P0, 2026-10-18): the wheel shipped ZERO files
