@@ -15,6 +15,8 @@ from fastapi.testclient import TestClient
 # isolation, and mixing fixtures in is how two tests end up coupled.
 from tests.fixtures_samples import sample_html, sample_markdown, sample_schema  # noqa: F401
 
+_log = logging.getLogger(__name__)
+
 
 def _install_sqlite_test_pragmas() -> None:
     """Make every SQLite test database fast, once, for the whole session.
@@ -85,6 +87,8 @@ def pry_event_loop_isolation() -> Generator[None, None, None]:
     try:
         loop = asyncio.get_event_loop_policy().get_event_loop()
     except RuntimeError:
+        # No loop was ever created by this test; nothing to close.
+        _log.debug("event_loop_isolation_no_loop")
         return
     if loop is not None and not loop.is_closed():
         loop.close()

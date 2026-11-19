@@ -59,6 +59,10 @@ async def get_client() -> httpx.AsyncClient:
     try:
         loop: asyncio.AbstractEventLoop | None = asyncio.get_running_loop()
     except RuntimeError:
+        # No running loop in this thread. get_client() is documented as async,
+        # so this only happens when it is called from sync context by mistake --
+        # worth a debug line rather than a silent bind to a thread-local loop.
+        logger.debug("get_client_without_running_loop")
         loop = None
     if http_client is not None and not http_client.is_closed and _client_loop is loop:
         return http_client

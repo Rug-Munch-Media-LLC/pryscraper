@@ -20,11 +20,14 @@ names, not imports), and markdown/docs references (code references only).
 from __future__ import annotations
 
 import ast
+import logging
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -188,7 +191,10 @@ def _referenced(modules: dict[str, Path]) -> set[str]:
             continue
         try:
             text = path.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
+        except (UnicodeDecodeError, OSError) as exc:
+            # A file we cannot decode is not evidence about imports; skip it
+            # rather than abort the scan. Logged so the skip is auditable.
+            logger.debug("zero_importer_skipped_file", extra={"path": str(path), "err": str(exc)[:80]})
             continue
         hits = _names_imported_by(text) & wanted
         if not hits:

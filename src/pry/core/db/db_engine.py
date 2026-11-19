@@ -200,6 +200,9 @@ def dispose_engines() -> None:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
+            # Expected on the sync shutdown path: no loop is running, so take
+            # the asyncio.run branch below. Logged so the swallow is explicit.
+            logger.debug("dispose_engines_no_running_loop")
             loop = None
         if loop is not None:
             loop.create_task(_async_engine.dispose())
