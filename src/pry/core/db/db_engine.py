@@ -186,8 +186,26 @@ def dispose_engines() -> None:
         with suppress(Exception):
             _engine.dispose()
     if _async_engine is not None:
-        with suppress(Exception):
-            asyncio.run(_async_engine.dispose())
+        # `asyncio.run` RAISES if a loop is already running in this thread, and
+        # the surrounding `suppress(Exception)` then swallowed the failure --
+        # so the async engine was never actually disposed and its connections
+        # leaked. That is what produced the
+        #   RuntimeWarning: coroutine 'AsyncEngine.dispose' was never awaited
+        # warning and what left later tests in a full run seeing a stale pool
+        # (six of them failed only in sequence and passed in isolation).
+        #
+        # When a loop is already running we are inside async context, so
+        # schedule the disposal ON that loop instead of trying to start a
+        # second one.
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop is not None:
+            loop.create_task(_async_engine.dispose())
+        else:
+            with suppress(Exception):
+                asyncio.run(_async_engine.dispose())
     _engine = None
     _SessionLocal = None
     _async_engine = None

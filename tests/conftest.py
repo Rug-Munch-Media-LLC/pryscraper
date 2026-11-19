@@ -2,6 +2,7 @@
 # Copyright (c) 2026 Rug Munch Media LLC
 # Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
 # Licensed under MIT. See LICENSE.
+import asyncio
 import logging
 import os
 from collections.abc import Generator
@@ -60,6 +61,34 @@ def _install_sqlite_test_pragmas() -> None:
 
 
 _install_sqlite_test_pragmas()
+
+
+@pytest.fixture(autouse=True)
+def pry_event_loop_isolation() -> Generator[None, None, None]:
+    """Give every test a clean, open event loop and close what it leaves.
+
+    MEASURED 2026-11-19: six tests failed only in a full run, with
+    ``RuntimeError: Event loop is closed`` (test_crm_sync) and wrong response
+    codes from async endpoints (test_routers_health, test_routers_x402_pay,
+    test_x402_final_hardening, test_webhook_delivery). All six pass in
+    isolation, so something earlier left the process-level loop closed and every
+    later ``asyncio.run`` inherited it.
+
+    ``asyncio_mode = "auto"`` gives pytest-asyncio tests their own loop, but a
+    plain sync test calling ``asyncio.run(...)`` uses the interpreter's loop
+    POLICY, which is process-global. Installing a fresh policy per test means a
+    test can neither inherit a closed loop nor leak one, and it costs a single
+    object allocation.
+    """
+    asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+    yield
+    try:
+        loop = asyncio.get_event_loop_policy().get_event_loop()
+    except RuntimeError:
+        return
+    if loop is not None and not loop.is_closed():
+        loop.close()
+
 
 #
 # Production code is unaffected (this conftest only runs in tests).
