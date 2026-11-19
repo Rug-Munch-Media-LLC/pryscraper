@@ -14,6 +14,7 @@ agreement: a URL found by several independent engines outranks a lone hit.
 from __future__ import annotations
 
 import asyncio
+import atexit
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -44,11 +45,30 @@ logger = logging.getLogger(__name__)
 
 
 _PER_ENGINE = 12
-PER_ENGINE_TIMEOUT = 3.0
-# Reserved out of the budget for merge/response assembly, so wall time stays <= 3 s.
+# MEASURED, not guessed (2026-11-18, inside the container, all six engines
+# gathered concurrently): searxng 1.4s, duckduckgo 9.2s, seznam 11.9s,
+# yahoo 12.5s, mojeek 11.1s, qwant 0.4s.
+#
+# The previous value was 3.0s, which is below FIVE of the six engines. Every leg
+# slower than searxng was killed at the deadline and reported as "failed", so a
+# six-engine consensus search silently degenerated into a searxng-only search -
+# strictly worse than calling searxng directly. A budget under the engines' real
+# latency does not make search faster; it makes it single-sourced.
+#
+# This is also the pool's hard deadline (_fan_out waits at most this long), so
+# it must sit above the slowest observed leg with headroom.
+PER_ENGINE_TIMEOUT = 15.0
+# Reserved out of the budget for merge/response assembly, so wall time stays
+# inside PER_ENGINE_TIMEOUT.
 _RESPONSE_RESERVE = 0.05
 # A leg may block its own thread (playwright, sync HTTP); a dedicated pool keeps
 # that away from the event loop so the deadline is always enforceable.
+#
+# The pool is module-level and long-lived on purpose (a fresh pool per call
+# would recreate 8 threads per search), but it MUST be shut down explicitly:
+# non-daemon worker threads keep the interpreter alive after the last test or
+# request, which is why the suite appeared to hang at teardown. `close_pool()`
+# is called from the module-level `atexit` hook below and is safe to call twice.
 _POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="mega-search")
 
 Result = dict[str, Any]
@@ -204,3 +224,19 @@ async def mega_search(
         "per_engine_ms": fan["per_engine_ms"],
         "per_engine_lane": lane_table(ENGINE_HOSTS),
     }
+
+
+def close_pool() -> None:
+    """Shut the shared thread pool down so the interpreter can exit.
+
+    ``ThreadPoolExecutor`` workers are non-daemon: an idle pool keeps the
+    process alive after the last test or request. That presented as the suite
+    "hanging at teardown" rather than failing, because pytest finished every
+    test and then waited on 8 parked threads. Idempotent -- ``atexit`` and an
+    explicit caller may both run it.
+    """
+    if not _POOL._shutdown:
+        _POOL.shutdown(wait=False, cancel_futures=True)
+
+
+atexit.register(close_pool)

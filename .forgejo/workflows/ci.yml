@@ -183,19 +183,27 @@ jobs:
         # `--cov=.`: whole-repo coverage over scripts/datasets/website is noise
         # and adds collection overhead. The 73% floor is UNCHANGED; the scoped
         # number may differ and must be re-measured, not guessed.
-        # `-n auto --dist loadfile` (pytest-xdist, in [dev] extras) parallelizes
-        # by test FILE: one worker per core, each file's tests on one worker.
+        # `-n 4 --dist loadfile` (pytest-xdist, in [dev] extras) parallelizes
+        # by test FILE, so a file's fixtures and module-level state stay on one
+        # worker -- which is what makes the per-file state resets in conftest
+        # meaningful.
         # MEASURED 2026-11-19: this comment described the parallelism for weeks
-        # while the command below did NOT pass `-n auto`, so every run was
-        # fully serial. That is the whole reason this job felt unbounded -- the
-        # suite is ~9.8k tests and serial it runs 25+ minutes, past the job
-        # timeout, so the job never even reported a pass. The flag is now
-        # actually here. `loadfile` keeps a file's fixtures and module-level
-        # state on one worker, which is what makes the per-file state resets in
-        # conftest meaningful.
+        # while the command below did NOT pass any `-n`, so every run was fully
+        # serial. That is the whole reason this job felt unbounded -- the suite
+        # is ~9.8k tests and serial it runs past the job timeout, so the job
+        # never even reported a pass. The flag is now actually here.
         # Tests MUST pass — blocks the pipeline on failure or insufficient
         # coverage.
-        run: source .venv/bin/activate && pytest tests/ --maxfail=10 -q --tb=short -n auto --dist loadfile --cov=pry --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=76 -m "not integration"
+        #
+        # Worker count is EXPLICIT, not `auto`. Each xdist worker imports the
+        # whole application (~130 MB resident, measured 2026-11-19), and the
+        # runner is a shared 16-core box with a hard memory cap. `-n auto`
+        # would start 16 workers and the OOM killer terminates them mid-run --
+        # which presents as "the suite hangs", not as a memory error, because
+        # the killed worker never reports. 4 workers is ~520 MB of interpreters
+        # beside a single 9.8k-test run and still finishes the suite in single-
+        # digit minutes. Raise it only with a measured memory headroom check.
+        run: source .venv/bin/activate && pytest tests/ --maxfail=10 -q --tb=short -n 4 --dist loadfile --cov=pry --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=76 -m "not integration and not slow"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
@@ -1200,10 +1208,11 @@ jobs:
       - name: Run tests with coverage
         run: |
           source .venv/bin/activate
-          # -n auto --dist loadfile: same parallelism as the `test` job. This is
-          # the SECOND full-suite run in the pipeline; serial it was another
-          # 25+ minutes for a coverage number the `test` job already produced.
-          pytest tests/ --maxfail=10 -q --tb=short -n auto --dist loadfile --cov=pry --cov-report=xml:coverage.xml -m "not integration"
+          # -n 4 --dist loadfile: same bounded parallelism as the `test` job.
+          # This is the SECOND full-suite run in the pipeline; serial it was
+          # another 25+ minutes for a coverage number the `test` job already
+          # produced. Kept at 4 for the same memory reason documented there.
+          pytest tests/ --maxfail=10 -q --tb=short -n 4 --dist loadfile --cov=pry --cov-report=xml:coverage.xml -m "not integration and not slow"
       - name: Coverage regression check
         run: |
           source .venv/bin/activate

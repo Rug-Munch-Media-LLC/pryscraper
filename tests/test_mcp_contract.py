@@ -87,6 +87,7 @@ async def test_every_advertised_tool_is_reachable(tool_name: str, monkeypatch) -
         return real_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", _block_datasets)
+
     # Blocking the `datasets` module was a guess at where the network call lives,
     # and it was the wrong guess: `pry_arbitrage` reached out over a real socket
     # and hung in selector.poll() until the runner was killed, which is what made
@@ -102,8 +103,20 @@ async def test_every_advertised_tool_is_reachable(tool_name: str, monkeypatch) -
 
         raise OSError(errno.ENETUNREACH, "network disabled in the tool-contract probe")
 
+    def _no_connect_ex(self: Any, *_a: Any, **_kw: Any) -> int:
+        # `connect_ex` is DOCUMENTED to return an errno instead of raising, and
+        # callers branch on the value (`if sock.connect_ex(...) != 0:`). Making
+        # it raise broke that contract: an exception inside a retry loop turned
+        # a fast "refused" into a re-attempt cycle that never terminated, which
+        # is what made the full suite stall here. Return the errno the contract
+        # promises, so a probed tool fails immediately the way it would on a
+        # genuinely unreachable network.
+        import errno
+
+        return errno.ENETUNREACH
+
     monkeypatch.setattr(socket.socket, "connect", _no_connect, raising=False)
-    monkeypatch.setattr(socket.socket, "connect_ex", _no_connect, raising=False)
+    monkeypatch.setattr(socket.socket, "connect_ex", _no_connect_ex, raising=False)
     try:
         await combined_tool_executor(tool_name, {})
     except _ToolNotHandled:
