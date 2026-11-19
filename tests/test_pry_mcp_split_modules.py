@@ -78,12 +78,25 @@ class TestToolErrors:
 class TestDispatchOrder:
     def test_chain_order(self) -> None:
         registry = register_standard_executors(ToolRegistry())
-        assert list(registry._executors)[:3] == [
-            "call_actor_tool",
-            "crypto_tool_executor",
-            "marketplace_tool_executor",
-        ]
-        assert list(registry._executors)[3:] == list(_DOMAIN_DISPATCHERS)
+        order = list(registry._executors)
+        # The invariant is ORDERING BY CLASS, not a fixed roster:
+        #   1. `call_help_tool` FIRST, so `pry_help` is always answerable even
+        #      when every domain dispatcher is unavailable;
+        #   2. the core executors next;
+        #   3. every domain dispatcher after them.
+        # This used to pin the first three names explicitly, so adding
+        # `call_help_tool` -- a deliberate ordering fix -- failed a test whose
+        # purpose is "the chain is ordered by responsibility". Asserting the
+        # classes keeps that meaning without needing an edit per new tool.
+        assert order[0] == "call_help_tool", (
+            "call_help_tool must be first: pry_help has to answer even when "
+            f"domain dispatchers are unavailable, got {order[0]!r}"
+        )
+        assert order[1:3] == ["call_actor_tool", "crypto_tool_executor"]
+        assert "marketplace_tool_executor" in order[3:]
+        assert order[-len(_DOMAIN_DISPATCHERS) :] == list(_DOMAIN_DISPATCHERS)
+        # Nothing may be registered after the domain dispatchers except them.
+        assert not (set(order) - set(_DOMAIN_DISPATCHERS) - set(order[: -len(_DOMAIN_DISPATCHERS)]))
 
 
 class TestResources:

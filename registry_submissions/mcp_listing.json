@@ -402,22 +402,6 @@
       "description": "Check for drop alerts / limited product restock or flash-sale signals for a product, returning availability windows, price drops, and the merchant for each signal, e.g."
     },
     {
-      "name": "pry_contracts",
-      "description": "Search government contract opportunities and awards by keyword across public procurement feeds, returning agency, solicitation number, award value, status, and deadline for each result."
-    },
-    {
-      "name": "pry_grants",
-      "description": "Search government grant opportunities by keyword across public grant feeds, returning agency, opportunity number, funding amount, eligibility, and deadline for each result."
-    },
-    {
-      "name": "pry_actor_catalog",
-      "description": "List every Pry Apify Store actor (109) with description, category, pricing events and per-event USD price."
-    },
-    {
-      "name": "pry_actor_run",
-      "description": "Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors."
-    },
-    {
       "name": "dextools_search",
       "description": "Search the locally ingested Dextools token store (scraped from allowed public pages with robots.txt respected). Matches symbol, name or address. Every row includes source_url and fetched_at; missing fields are null, never fabricated. Returns a typed `unavailable` refusal when the store is empty.",
       "inputSchema": {
@@ -442,6 +426,22 @@
           "query"
         ]
       }
+    },
+    {
+      "name": "pry_contracts",
+      "description": "Search government contract opportunities and awards by keyword across public procurement feeds, returning agency, solicitation number, award value, status, and deadline for each result."
+    },
+    {
+      "name": "pry_grants",
+      "description": "Search government grant opportunities by keyword across public grant feeds, returning agency, opportunity number, funding amount, eligibility, and deadline for each result."
+    },
+    {
+      "name": "pry_actor_catalog",
+      "description": "List every Pry Apify Store actor (109) with description, category, pricing events and per-event USD price."
+    },
+    {
+      "name": "pry_actor_run",
+      "description": "Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors."
     },
     {
       "name": "pry_help",

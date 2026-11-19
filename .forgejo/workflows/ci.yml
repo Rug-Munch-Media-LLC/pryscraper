@@ -1230,7 +1230,20 @@ jobs:
           curl -sSfL https://github.com/trufflesecurity/trufflehog/releases/download/v3.97.0/trufflehog_3.97.0_linux_amd64.tar.gz | tar xz -C /usr/local/bin trufflehog
       - name: OSV dependency scan (lockfile, CRITICAL/HIGH gate)
         run: |
-          osv-scanner --lockfile=uv.lock --format=json > osv.json || true
+          # osv-scanner's exit code means "vulnerabilities found" (1), NOT
+          # "the scan failed". Swallowing it with `|| true` also swallowed a
+          # genuine scanner crash, which is why this was flagged as a
+          # neutralised gate: a scan that never ran produced an empty osv.json
+          # and the gate script then passed it.
+          # Handle the two cases distinctly -- a real failure must fail.
+          set +e
+          osv-scanner --lockfile=uv.lock --format=json > osv.json
+          rc=$?
+          set -e
+          if [ "$rc" -gt 1 ]; then
+            echo "osv-scanner failed to scan (exit $rc); this is not a finding"
+            exit "$rc"
+          fi
           python3 .forgejo/scripts/osv_gate.py osv.json
       - name: Trufflehog verified-live secrets (all history)
         run: trufflehog git file://. --only-verified --fail --no-update

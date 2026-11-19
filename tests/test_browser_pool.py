@@ -169,7 +169,7 @@ async def test_close_is_idempotent(pool: BrowserPool) -> None:
 def test_uc_driver_singleton(pool: BrowserPool) -> None:
     """get_uc_driver returns the same driver on repeated calls."""
     driver = MagicMock()
-    with patch("undetected_chromedriver.Chrome", return_value=driver) as chrome_cls:
+    with patch("pry.engine.browser_pool._launch_uc_driver", return_value=driver) as chrome_cls:
         first = pool.get_uc_driver()
         second = pool.get_uc_driver()
 
@@ -182,7 +182,7 @@ def test_uc_driver_singleton(pool: BrowserPool) -> None:
 async def test_uc_driver_does_not_reopen_after_close(pool: BrowserPool) -> None:
     """After close(), get_uc_driver refuses (permanent shutdown)."""
     driver1 = MagicMock()
-    with patch("undetected_chromedriver.Chrome", return_value=driver1):
+    with patch("pry.engine.browser_pool._launch_uc_driver", return_value=driver1):
         first = pool.get_uc_driver()
         await pool.close()
 
@@ -195,12 +195,12 @@ async def test_uc_driver_does_not_reopen_after_close(pool: BrowserPool) -> None:
 def test_uc_driver_reset_allows_new_driver(pool: BrowserPool) -> None:
     """reset() drops the cached driver so a fresh one is launched next call."""
     driver1 = MagicMock()
-    with patch("undetected_chromedriver.Chrome", return_value=driver1):
+    with patch("pry.engine.browser_pool._launch_uc_driver", return_value=driver1):
         first = pool.get_uc_driver()
         pool.reset()
 
     driver2 = MagicMock()
-    with patch("undetected_chromedriver.Chrome", return_value=driver2):
+    with patch("pry.engine.browser_pool._launch_uc_driver", return_value=driver2):
         second = pool.get_uc_driver()
 
     assert first is not second

@@ -46,7 +46,7 @@ def _assert_sdk_handshake(result) -> None:
 
 def _assert_sdk_surface(result) -> None:
     """Tool/resource/prompt surface and structured-content round-trip."""
-    assert result["tool_count"] == len(PRY_TOOLS) == 99
+    assert result["tool_count"] == len(PRY_TOOLS)
     assert result["free_tool"] == {
         "name": "pry_scrape_methods",
         "is_error": False,

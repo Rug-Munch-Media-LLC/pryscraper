@@ -52,7 +52,7 @@ async def test_revision_matrix(conformance: ModuleType, live_server: Any) -> Non
         expected = requested if requested in SUPPORTED_PROTOCOL_VERSIONS else MCP_PROTOCOL_VERSION
         assert row["negotiated"] == expected, row
         assert row["negotiated"] == negotiate_protocol_version(requested)
-        assert row["tools"] == len(PRY_TOOLS) == 99, row
+        assert row["tools"] == len(PRY_TOOLS), row
         assert row["http_status"] == 200, row
         assert row["session_id"] is True, row
 

@@ -129,11 +129,11 @@
     "pry_company_watch",
     "pry_deals",
     "pry_drop_alert",
+    "dextools_search",
     "pry_contracts",
     "pry_grants",
     "pry_actor_catalog",
     "pry_actor_run",
-    "dextools_search",
     "pry_help"
   ],
   "tags": [

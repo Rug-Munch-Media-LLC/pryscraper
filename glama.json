@@ -408,22 +408,6 @@
       "description": "Check for drop alerts / limited product restock or flash-sale signals for a product, returning availability windows, price drops, and the merchant for each signal, e.g. product='RTX 5090' to track GPU drops. Use to power restock-notification bots, supply monitoring, or scalper-resistant buying queues. Best-effort over public feeds; degrades to an empty list when no drop signal is found."
     },
     {
-      "name": "pry_contracts",
-      "description": "Search government contract opportunities and awards by keyword across public procurement feeds, returning agency, solicitation number, award value, status, and deadline for each result. Use to monitor public-sector RFPs and awarded contracts, e.g. query='cybersecurity' for current federal bidding data. Best-effort over free public sources; never raises and returns an empty list on failure."
-    },
-    {
-      "name": "pry_grants",
-      "description": "Search government grant opportunities by keyword across public grant feeds, returning agency, opportunity number, funding amount, eligibility, and deadline for each result. Use to find open funding programs for research, nonprofits, or businesses, e.g. query='small business innovation research'. Best-effort over free public sources; never raises and returns an empty list on failure."
-    },
-    {
-      "name": "pry_actor_catalog",
-      "description": "List every Pry Apify Store actor (109) with description, category, pricing events and per-event USD price. Store parity surface: anything runnable on Apify is discoverable here. Filter by optional 'domain' substring (e.g. 'monitor', 'crypto', 'seo'). Supports offset/limit pagination over the full catalog."
-    },
-    {
-      "name": "pry_actor_run",
-      "description": "Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors. Use after pry_actor_catalog: pass the actor name plus target urls; results are the same dataset items the Apify run would produce. x402 pay-per-call: each processed URL bills the actor's first PPE pricing event (see pry_actor_catalog / pry_x402_pricing for per-event USD prices). Examples: actor='news-feed-monitor', actor='universal-scraper', actor='token-safety-scanner'."
-    },
-    {
       "name": "dextools_search",
       "description": "Search the locally ingested Dextools token store (scraped from allowed public pages with robots.txt respected). Matches symbol, name or address. Every row includes source_url and fetched_at; missing fields are null, never fabricated. Returns a typed `unavailable` refusal when the store is empty.",
       "inputSchema": {
@@ -448,6 +432,22 @@
           "query"
         ]
       }
+    },
+    {
+      "name": "pry_contracts",
+      "description": "Search government contract opportunities and awards by keyword across public procurement feeds, returning agency, solicitation number, award value, status, and deadline for each result. Use to monitor public-sector RFPs and awarded contracts, e.g. query='cybersecurity' for current federal bidding data. Best-effort over free public sources; never raises and returns an empty list on failure."
+    },
+    {
+      "name": "pry_grants",
+      "description": "Search government grant opportunities by keyword across public grant feeds, returning agency, opportunity number, funding amount, eligibility, and deadline for each result. Use to find open funding programs for research, nonprofits, or businesses, e.g. query='small business innovation research'. Best-effort over free public sources; never raises and returns an empty list on failure."
+    },
+    {
+      "name": "pry_actor_catalog",
+      "description": "List every Pry Apify Store actor (109) with description, category, pricing events and per-event USD price. Store parity surface: anything runnable on Apify is discoverable here. Filter by optional 'domain' substring (e.g. 'monitor', 'crypto', 'seo'). Supports offset/limit pagination over the full catalog."
+    },
+    {
+      "name": "pry_actor_run",
+      "description": "Run any Pry Apify actor's pipeline locally over URLs - same PPEScraperRunner + processor code path as the deployed store actors. Use after pry_actor_catalog: pass the actor name plus target urls; results are the same dataset items the Apify run would produce. x402 pay-per-call: each processed URL bills the actor's first PPE pricing event (see pry_actor_catalog / pry_x402_pricing for per-event USD prices). Examples: actor='news-feed-monitor', actor='universal-scraper', actor='token-safety-scanner'."
     },
     {
       "name": "pry_help",

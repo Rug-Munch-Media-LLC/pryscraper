@@ -26,6 +26,7 @@ import pytest
 
 from pry.engine import tier_chain, tier_health
 from pry.engine.tier_chain import TierChainMixin
+from pry.engine.tier_health_store import POLICY_VERSION
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -69,7 +70,12 @@ _CONDEMNED = ("camoufox", "archive", "google_cache", "tor")
 def _seed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, **tiers: dict[str, Any]) -> None:
     """Point the filter at a tmp health file. The real one is never touched."""
     path = tmp_path / "tier_health.json"
-    path.write_text(json.dumps(dict(tiers)))
+    # `_policy` must be the CURRENT policy version or `should_skip` returns
+    # "legacy_evidence_probation" and skips nothing at all. Without it every
+    # assertion in this module read the seed as pre-v1 data and the filter
+    # silently never ran -- so the tests were not exercising the filter they
+    # are named for.
+    path.write_text(json.dumps({"_policy": POLICY_VERSION, **tiers}))
     monkeypatch.setattr(tier_health, "DEFAULT_PATH", path, raising=True)
 
 

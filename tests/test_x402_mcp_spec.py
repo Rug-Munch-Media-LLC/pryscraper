@@ -133,7 +133,7 @@ def test_tools_have_input_schema() -> None:
 def test_tools_have_output_schema() -> None:
     """Best practice: tools should declare output schemas."""
     tools_with_output = [t for t in PRY_TOOLS if "outputSchema" in t]
-    assert len(tools_with_output) == len(PRY_TOOLS) == 99
+    assert len(tools_with_output) == len(PRY_TOOLS)
 
 
 def test_resources_have_required_fields() -> None:

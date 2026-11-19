@@ -28,27 +28,31 @@ async def test_tier_undetected_success(scraper: UltimateScraper, resolved_dns: s
     mock_driver = MagicMock()
     mock_driver.page_source = "<html>undetected</html>"
     mock_driver.current_url = "http://example.com"
-    mock_uc = MagicMock()
-    mock_uc.Chrome.return_value = mock_driver
 
+    # `_tier_undetected` no longer calls `undetected_chromedriver.Chrome`
+    # directly -- it reuses the process-wide driver from the browser pool
+    # (`get_browser_pool().get_uc_driver()`), so a driver is launched once
+    # rather than per request. Patching the module therefore did nothing and
+    # this test silently exercised the real path. Patch the pool, which is the
+    # seam the tier actually uses.
     with (
         patch("pry.engine.ultimate_scraper._has_undetected", True),
-        patch.dict(sys.modules, {"undetected_chromedriver": mock_uc}),
+        patch("pry.engine.tiers_browser.get_browser_pool") as pool,
         patch("time.sleep"),
     ):
+        pool.return_value.get_uc_driver.return_value = mock_driver
         result = await scraper._tier_undetected("http://example.com", {})
         assert result == "<html>undetected</html>"
 
 
 @pytest.mark.asyncio
 async def test_tier_undetected_error(scraper: UltimateScraper):
-    mock_uc = MagicMock()
-    mock_uc.Chrome.side_effect = RuntimeError("driver fail")
-
+    # Same seam as the success case: the pool owns driver creation.
     with (
         patch("pry.engine.ultimate_scraper._has_undetected", True),
-        patch.dict(sys.modules, {"undetected_chromedriver": mock_uc}),
+        patch("pry.engine.tiers_browser.get_browser_pool") as pool,
     ):
+        pool.return_value.get_uc_driver.side_effect = RuntimeError("driver fail")
         result = await scraper._tier_undetected("http://example.com", {})
         assert result is None
 
