@@ -56,9 +56,18 @@ class TestRegistryConsistency:
 
     def test_llms_txt_lists_every_tool(self) -> None:
         text = (REPO_ROOT / "llms.txt").read_text(encoding="utf-8")
-        # llms.txt lists each tool as a "### pry_tool_name" heading (not a
+        # llms.txt lists each tool as a "### tool_name" heading (not a
         # "- [pry_...]" bullet) — match the actual file format.
-        listed = set(re.findall(r"^### (pry_[a-z0-9_]+)", text, flags=re.MULTILINE))
+        #
+        # The pattern used to be `### (pry_[a-z0-9_]+)`, which could never match
+        # `dextools_search` (no `pry_` prefix, a deliberate public name). That
+        # made this test UNSATISFIABLE: it asserts `listed == set(PRY_TOOL_NAMES)`,
+        # but one member of that set was unrepresentable by the regex, so the
+        # only way to pass was to delete the tool. Match the advertised names
+        # instead of assuming they all share a prefix.
+        listed = set(
+            re.findall(r"^### ([a-z][a-z0-9_]+)\s*$", text, flags=re.MULTILINE)
+        )
         assert listed == set(PRY_TOOL_NAMES), (
             f"llms.txt drift: missing={sorted(set(PRY_TOOL_NAMES) - listed)} "
             f"extra={sorted(listed - set(PRY_TOOL_NAMES))}"

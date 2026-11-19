@@ -15,6 +15,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from pry.engine import schema_extract as se
+# `_meta_tags` was renamed `meta_tags` and moved to schema_patterns
+# (it is a pure re-usable pattern, not schema-extraction plumbing).
+# These tests were still calling the removed private name, so they failed
+# with AttributeError rather than testing anything. Point them at the
+# function's real home instead of re-exporting a private alias from
+# schema_extract -- an alias would keep the old name alive for no reason.
+from pry.engine import schema_patterns as sp
 
 
 class TestNormalizeSchema:
@@ -48,60 +55,60 @@ class TestNormalizeSchema:
 
 class TestJsonLdLookup:
     def test_direct_field(self) -> None:
-        assert se._jsonld_lookup({"price": 9.99}, "price") == 9.99
+        assert sp.jsonld_lookup({"price": 9.99}, "price") == 9.99
 
     def test_name_alias_headline(self) -> None:
-        assert se._jsonld_lookup({"headline": "H"}, "name") == "H"
+        assert sp.jsonld_lookup({"headline": "H"}, "name") == "H"
 
     def test_price_alias_lowprice(self) -> None:
-        assert se._jsonld_lookup({"lowPrice": 5}, "price") == 5
+        assert sp.jsonld_lookup({"lowPrice": 5}, "price") == 5
 
     def test_nested_dict_under_field_key(self) -> None:
         # The dict-unwrap branch fires when the field's own key holds a dict.
-        assert se._jsonld_lookup({"price": {"price": 3.5}}, "price") == 3.5
+        assert sp.jsonld_lookup({"price": {"price": 3.5}}, "price") == 3.5
 
     def test_offers_dict_not_unwrapped(self) -> None:
         # "offers" is not an alias for "price", so it is never inspected.
-        assert se._jsonld_lookup({"offers": {"price": 3.5}}, "price") is None
+        assert sp.jsonld_lookup({"offers": {"price": 3.5}}, "price") is None
 
     def test_list_takes_first(self) -> None:
-        assert se._jsonld_lookup({"image": ["a.png", "b.png"]}, "image") == "a.png"
+        assert sp.jsonld_lookup({"image": ["a.png", "b.png"]}, "image") == "a.png"
 
     def test_empty_list_returns_none(self) -> None:
-        assert se._jsonld_lookup({"image": []}, "image") is None
+        assert sp.jsonld_lookup({"image": []}, "image") is None
 
     def test_missing_returns_none(self) -> None:
-        assert se._jsonld_lookup({}, "price") is None
+        assert sp.jsonld_lookup({}, "price") is None
 
     def test_empty_string_returns_none(self) -> None:
-        assert se._jsonld_lookup({"price": ""}, "price") is None
+        assert sp.jsonld_lookup({"price": ""}, "price") is None
 
     def test_unknown_field_uses_literal_key(self) -> None:
-        assert se._jsonld_lookup({"custom": "v"}, "custom") == "v"
+        assert sp.jsonld_lookup({"custom": "v"}, "custom") == "v"
 
 
 class TestMetaTags:
     def test_name_and_property(self) -> None:
         html = '<meta name="description" content="Desc"><meta property="og:title" content="OG">'
         expected = {"description": "Desc", "og:title": "OG"}
-        assert se._meta_tags(html) == expected
+        assert sp.meta_tags(html) == expected
 
     def test_keys_lowercased(self) -> None:
         html = '<meta name="Description" content="D">'
         expected = {"description": "D"}
-        assert se._meta_tags(html) == expected
+        assert sp.meta_tags(html) == expected
 
     def test_empty_content_skipped(self) -> None:
         html = '<meta name="x" content="">'
-        assert se._meta_tags(html) == {}
+        assert sp.meta_tags(html) == {}
 
     def test_first_key_wins(self) -> None:
         html = '<meta name="x" content="first"><meta name="x" content="second">'
         expected = {"x": "first"}
-        assert se._meta_tags(html) == expected
+        assert sp.meta_tags(html) == expected
 
     def test_no_meta_returns_empty(self) -> None:
-        assert se._meta_tags("<p>none</p>") == {}
+        assert sp.meta_tags("<p>none</p>") == {}
 
 
 class TestConfidence:

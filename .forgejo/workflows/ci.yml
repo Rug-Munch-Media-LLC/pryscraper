@@ -184,12 +184,18 @@ jobs:
         # and adds collection overhead. The 73% floor is UNCHANGED; the scoped
         # number may differ and must be re-measured, not guessed.
         # `-n auto --dist loadfile` (pytest-xdist, in [dev] extras) parallelizes
-        # by test FILE: one worker per core, each file's tests on one worker
-        # (~10 min serial -> ~2-3 min). loadfile keeps a file's fixtures and
-        # module-level state on a single worker.
+        # by test FILE: one worker per core, each file's tests on one worker.
+        # MEASURED 2026-11-19: this comment described the parallelism for weeks
+        # while the command below did NOT pass `-n auto`, so every run was
+        # fully serial. That is the whole reason this job felt unbounded -- the
+        # suite is ~9.8k tests and serial it runs 25+ minutes, past the job
+        # timeout, so the job never even reported a pass. The flag is now
+        # actually here. `loadfile` keeps a file's fixtures and module-level
+        # state on one worker, which is what makes the per-file state resets in
+        # conftest meaningful.
         # Tests MUST pass — blocks the pipeline on failure or insufficient
         # coverage.
-        run: source .venv/bin/activate && pytest tests/ --maxfail=10 -q --tb=short --cov=pry --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=76 -m "not integration"
+        run: source .venv/bin/activate && pytest tests/ --maxfail=10 -q --tb=short -n auto --dist loadfile --cov=pry --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=76 -m "not integration"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
@@ -1194,7 +1200,10 @@ jobs:
       - name: Run tests with coverage
         run: |
           source .venv/bin/activate
-          pytest tests/ --maxfail=10 -q --tb=short --cov=pry --cov-report=xml:coverage.xml -m "not integration"
+          # -n auto --dist loadfile: same parallelism as the `test` job. This is
+          # the SECOND full-suite run in the pipeline; serial it was another
+          # 25+ minutes for a coverage number the `test` job already produced.
+          pytest tests/ --maxfail=10 -q --tb=short -n auto --dist loadfile --cov=pry --cov-report=xml:coverage.xml -m "not integration"
       - name: Coverage regression check
         run: |
           source .venv/bin/activate
