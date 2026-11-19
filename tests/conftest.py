@@ -136,6 +136,37 @@ def pry_cache_isolation() -> None:
     cache._total_bytes = 0  # type: ignore[attr-defined]
 
 
+@pytest.fixture(autouse=True)
+def pry_scrape_state_isolation(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reset the two process-global scrape states that leak between tests.
+
+    Both were causing real order-dependent failures and one was reaching
+    production data:
+
+    * ``url_terminal_state`` keeps per-URL consecutive failures. After 3 the URL
+      is TERMINAL for a cooldown and ``pre_tier_check`` short-circuits BEFORE
+      any tier runs. Tests reuse ``https://example.com/page``, so a test whose
+      tiers all fail made the next test's ladder never execute at all -- it got
+      ``status: error`` with ``tiers_attempted: []`` while its mocks had been
+      configured for a win. ``reset()`` is the documented hook for exactly this
+      ("tests and long-running workers that rotate targets").
+
+    * ``tier_health.DEFAULT_PATH`` defaults to ``/app/pry-data/tier_health.json``
+      -- the DEPLOYED container's data file. The suite was reading and writing
+      it, so tier evidence accumulated across runs and a test could inherit
+      "archive: 11 attempts" from an unrelated session. Point it at tmp_path so
+      a test run cannot observe or mutate production health state.
+
+    Resetting health also keeps ``should_skip`` decisions local to a test: it
+    reads that same file, so a poisoned store could silently remove a tier from
+    the ladder under test.
+    """
+    from pry.engine import tier_health, url_terminal_state
+
+    url_terminal_state.reset()
+    monkeypatch.setattr(tier_health, "DEFAULT_PATH", tmp_path / "tier_health.json")
+
+
 @pytest.fixture
 def client() -> Generator[TestClient, None, None]:
     from fastapi.testclient import TestClient

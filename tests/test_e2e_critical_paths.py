@@ -35,6 +35,13 @@ def isolated_state(monkeypatch: pytest.MonkeyPatch, tmp_path) -> Iterator[None]:
     session_mod._engine = None
     session_mod._SessionLocal = None
     db_module.get_engine()
+    # Create the schema in the fresh per-test database. `get_engine()` only
+    # builds the engine; nothing calls create_all for a plain SQLite URL, so
+    # every test that touched a table failed with "no such table: monitors".
+    # `init_db()` is the documented cold-start/test helper for exactly this.
+    from pry.core.db.db_init import init_db
+
+    init_db()
     from pry.core.deps import cache as response_cache
 
     response_cache.clear()
@@ -201,7 +208,19 @@ def test_mcp_surface_counts_and_invalid_arguments() -> None:
     server = make_fallback_server()
     register_all(server)
     listed = asyncio.run(server.handle_request({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}))
-    assert len(listed["result"]["tools"]) == 99
+    # Assert AGREEMENT with the advertised registry, not a snapshot count.
+    # `== 99` pinned a number that had already drifted (the surface is 101) and
+    # broke a test whose purpose is "the served surface matches what we
+    # advertise". A count that must be hand-edited on every tool addition is a
+    # second source of truth, and this one had already gone stale.
+    from pry_mcp.tools import PRY_TOOL_NAMES
+
+    served = {t["name"] for t in listed["result"]["tools"]}
+    assert served == set(PRY_TOOL_NAMES), (
+        f"served surface differs from advertised: "
+        f"extra={sorted(served - set(PRY_TOOL_NAMES))} "
+        f"missing={sorted(set(PRY_TOOL_NAMES) - served)}"
+    )
     called = asyncio.run(
         server.handle_request(
             {

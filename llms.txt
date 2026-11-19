@@ -43,7 +43,7 @@ python3 -m pry.api.mcp_production           # stdio MCP server
 - URL: https://api.pryscraper.com/mcp/
 - Transport: SSE, Streamable HTTP, stdio
 - Auth: discovery is keyless; tools/call requires a key (`Authorization: Bearer $PRY_API_KEY`) or an x402 payment (`X-PAYMENT` / `PAYMENT-SIGNATURE`). There is no anonymous tools/call.
-- Tools: 99
+- Tools: 101
 - Categories: 33
 
 ## Endpoints

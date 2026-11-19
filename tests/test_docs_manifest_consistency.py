@@ -62,7 +62,13 @@ def _versions() -> dict[str, str]:
 
 def test_manifest_tools_are_a_subset_of_pry_tools() -> None:
     real = {t["name"] for t in _pry_tools()}
-    assert len(real) == 99
+    # No magic count here. `assert len(real) == 99` pinned a snapshot of the
+    # surface, so adding a legitimate tool broke a test about MANIFEST AGREEMENT
+    # -- which is the thing this test is named for. The real invariant is that
+    # every manifest lists exactly the tools the code advertises, and that is
+    # already asserted below, name by name. A count that must be hand-edited on
+    # every addition is a second source of truth that will drift.
+    assert real, "the advertised tool surface is empty"
     for name in TOOL_MANIFESTS:
         listed = _manifest_tool_names(REPO / name)
         assert listed <= real, f"{name} lists unknown tools: {sorted(listed - real)}"
