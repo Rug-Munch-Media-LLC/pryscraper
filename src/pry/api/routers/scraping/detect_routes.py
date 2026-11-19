@@ -15,7 +15,7 @@ from fastapi import APIRouter, Body
 from pry.api.routers.scraping.seams import bindings
 from pry.core.observability import track_scrape
 from pry.engine.scraping_service import (
-    detect_block as detect_block_service,
+    detect_block_and_solve as detect_block_and_solve_service,
     detect_lazy_content as detect_lazy_service,
 )
 
@@ -24,18 +24,15 @@ router = APIRouter()
 
 @router.post("/v1/detect-block", summary="Detect if a site is blocking the scraper")
 async def detect_block(url: str = Body(...)) -> dict[str, Any]:
-    """Detect anti-bot protection (tier, vendor, confidence)."""
-    result = await detect_block_service(url, bindings().get_client)
-    if result.get("blocked"):
-        from pry.engine.captcha.ladder import solve_ladder
-        from pry.engine.captcha.lanes import Challenge
+    """Detect anti-bot protection (tier, vendor, confidence).
 
-        ladder = await solve_ladder(Challenge(url=url, html=result.get("html")))
-        result["captcha_ladder"] = ladder.as_dict()
-        if ladder.status == "solved":
-            result["blocked"] = False
-            result["solved_by"] = ladder.provider
-    return result
+    Delegates to ONE service function. The captcha-ladder orchestration that
+    used to sit here imported two engine internals from a route module, which
+    is what the thin-router gate forbids; it now lives in
+    ``scraping_service.detect_block_and_solve`` beside the detection it depends
+    on.
+    """
+    return await detect_block_and_solve_service(url, bindings().get_client)
 
 
 @router.post("/v1/capture/lazy", summary="Detect and handle lazy-loaded content")

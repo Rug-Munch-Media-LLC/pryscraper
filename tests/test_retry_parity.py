@@ -14,7 +14,41 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(os.environ.get("XDUP_ROOT", "/srv/work/wt/xdup45"))
+
+def _resolve_root() -> Path | None:
+    """Locate the checkout that holds BOTH pryscraper and rugbrain.
+
+    The parity proof compares against rugbrain's REAL retry implementation, so
+    it needs a tree where both repos sit side by side. That tree is a sibling
+    layout, not a fixed path: this used to default to
+    ``/srv/work/wt/xdup45``, one operator's scratch directory, so the whole
+    module failed with ``FileNotFoundError`` everywhere else -- a red test that
+    said nothing about the code.
+
+    Resolution order, first hit wins:
+      1. ``XDUP_ROOT`` — explicit override, kept for a deliberate comparison
+         against a specific checkout.
+      2. the parent of this repo, when ``<parent>/rugbrain`` also exists
+         (the ``/srv/work/repos`` layout).
+    Returns None when neither applies; callers skip with that reason rather
+    than failing, because "rugbrain is not checked out here" is a fact about
+    the machine, not a defect in pry.
+    """
+    env = os.environ.get("XDUP_ROOT")
+    if env:
+        p = Path(env)
+        return p if (p / "rugbrain").is_dir() else None
+    parent = Path(__file__).resolve().parents[2]
+    if (parent / "rugbrain").is_dir():
+        return parent
+    return None
+
+
+ROOT = _resolve_root()
+pytestmark = pytest.mark.skipif(
+    ROOT is None,
+    reason="needs a checkout holding both pryscraper and rugbrain (set XDUP_ROOT)",
+)
 
 
 def _load(name: str, path: Path):
