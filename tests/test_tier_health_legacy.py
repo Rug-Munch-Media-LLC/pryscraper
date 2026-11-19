@@ -16,6 +16,7 @@ commit). ``probation`` retires that evidence once per store; this pins it.
 from __future__ import annotations
 
 import json
+import time
 from typing import TYPE_CHECKING
 
 from pry.engine import tier_health as th
@@ -24,7 +25,12 @@ from pry.engine.tier_health import health_alerts, record, should_skip
 if TYPE_CHECKING:
     from pathlib import Path
 
-_NOW = 1_792_700_000.0
+# Anchored to the REAL clock, not a literal. A fixed epoch is a time bomb:
+# "_NOW = 1_792_700_000" was 2026-11-02, and once wall time moved ~35 days
+# past it the seeded `last_seen` counted as STALE evidence, so
+# `should_skip` returned "stale_evidence" instead of migrating the record
+# to probation -- three tests started failing with no code change.
+_NOW = time.time()
 _LEGACY = {
     "premium_proxy": {
         "attempts": 41,
