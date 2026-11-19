@@ -1326,10 +1326,13 @@ jobs:
         run: |
           apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev \
             && rm -rf /var/lib/apt/lists/*
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
-          uv venv --python 3.11 .venv
-          uv pip install --python .venv/bin/python -e .
+          # Use the IMAGE's interpreter, not a uv-managed download. `uv venv
+          # --python 3.11` provisions a managed CPython from the network, which
+          # is a second failure mode in a job whose contract is "run seven
+          # static gates". The image already ships Python 3.11.17.
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --quiet --upgrade pip
+          .venv/bin/python -m pip install --quiet -e .
       - name: Structure gate (≤200-line cap, shrink-only)
         run: python3 scripts/check-structure.py --repo . --scan-root src/pry --scan-root src/pry/payments/x402/solana_transfer/ --scan-root src/pry/commerce/reconciliation/ --scan-root tests --scan-root scripts --scan-root datasets/sports_data/derivatives --scan-root datasets/sports_data/parlay_legs/
       - name: Monkeypatch gate (per-repo ratchet)
