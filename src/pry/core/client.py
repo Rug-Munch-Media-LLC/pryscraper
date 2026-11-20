@@ -32,21 +32,49 @@ _default_timeout = httpx.Timeout(
 
 http_client: httpx.AsyncClient | None = None
 
-_client_lock = asyncio.Lock()
+#: The loop the shared client was built on. An ``httpx.AsyncClient`` is bound to
+#: the loop that created it (its connection pool and its ``asyncio.Lock`` are),
+#: so a client built under one loop cannot be used from another -- it fails with
+#: "RuntimeError: Event loop is closed" or silently returns stale results. That
+#: is what made six tests fail only in a full run and pass in isolation: the
+#: first test's loop died, and every later test reused its corpse because
+#: ``is_closed`` stayed False.
+_client_loop: asyncio.AbstractEventLoop | None = None
 
 
 async def get_client() -> httpx.AsyncClient:
-    """Get or create the shared httpx client.
+    """Get or create the shared httpx client FOR THE CURRENT EVENT LOOP.
 
     Uses a double-checked locking pattern guarded by ``_client_lock`` so that
     concurrent first-calls cannot both create an ``AsyncClient`` and orphan the
     loser (which would leak its connection pool / file descriptors).
+
+    The client is rebuilt when the running loop differs from the one it was
+    created on. Without that, a long-lived process that rotates loops (tests,
+    and any host that restarts its loop) keeps a client whose transport points
+    at a closed loop; every request through it then raises
+    "Event loop is closed" rather than opening a new connection.
     """
-    global http_client
-    if http_client is not None and not http_client.is_closed:
+    global http_client, _client_lock, _client_loop
+    try:
+        loop: asyncio.AbstractEventLoop | None = asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop in this thread. get_client() is documented as async,
+        # so this only happens when it is called from sync context by mistake --
+        # worth a debug line rather than a silent bind to a thread-local loop.
+        logger.debug("get_client_without_running_loop")
+        loop = None
+    if http_client is not None and not http_client.is_closed and _client_loop is loop:
         return http_client
+    # The lock is ALSO loop-bound; recreating it when the loop changes keeps the
+    # double-checked section usable instead of raising "attached to a different
+    # loop" on the first concurrent call.
+    if _client_loop is not loop:
+        _client_lock = asyncio.Lock()
+        http_client = None
+        _client_loop = loop
     async with _client_lock:
-        if http_client is not None and not http_client.is_closed:
+        if http_client is not None and not http_client.is_closed and _client_loop is loop:
             return http_client
         http_client = httpx.AsyncClient(
             timeout=_default_timeout,
@@ -57,6 +85,7 @@ async def get_client() -> httpx.AsyncClient:
             # single source of retry behavior.
             transport=httpx.AsyncHTTPTransport(retries=0),
         )
+        _client_loop = loop
         return http_client
 
 

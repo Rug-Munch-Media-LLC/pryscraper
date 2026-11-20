@@ -113,6 +113,22 @@ dependencies = [
     "eth-keys>=0.7.0",
     "eth-account>=0.13.0",
     "eth-hash[pycryptodome]>=0.8.0",
+    # Camoufox (anti-detection Firefox) and curl_cffi (TLS fingerprint
+    # impersonation) back two rungs of the production fallback chain --
+    # `_tier_camoufox` and `_tier_tls_fingerprint`. They were declared only in
+    # the optional `scrape` extra while the Dockerfile hard-installed them
+    # (`pip install "camoufox>=0.4.0" "curl_cffi>=0.7.0"`) outside every lock
+    # file, so the shipped product and the declared packaging disagreed:
+    #   * a plain `pip install pryscraper-mcp` produced a build with two rungs
+    #     silently missing, and the ladder degraded instead of saying so;
+    #   * neither package was pinned by requirements.lock, so the version a
+    #     running container had was not reproducible.
+    # camoufox is MIT and pure-Python (its browser is fetched at first use into
+    # ~/.cache), so there is no licence reason to keep it out of core. The
+    # GPL-3.0 `undetected-chromedriver` stays in `stealth` -- that one IS a
+    # licence constraint, and the tier import-guards it correctly.
+    "camoufox>=0.4.0",
+    "curl_cffi>=0.7.0",
 ]
 
 [project.urls]
@@ -126,7 +142,11 @@ Changelog = "https://git.rugmunch.io/RugMunchMedia/pryscraper/blob/main/CHANGELO
 [project.optional-dependencies]
 captcha-ocr = ["ddddocr==1.6.1; sys_platform == 'linux' or sys_platform == 'darwin'"]
 captcha-audio = ["faster-whisper==1.2.1", "av==15.1.0", "ctranslate2==4.8.4"]
-captcha-browser = ["camoufox==0.5.8; sys_platform == 'linux'"]
+# Kept as an alias so existing `pip install pryscraper-mcp[captcha-browser]`
+# invocations keep working, but it no longer restates a second version: camoufox
+# is a core dependency now (see [project] dependencies), and pinning it in two
+# places is exactly how the packaging drifted from what the Dockerfile installs.
+captcha-browser = []
 captcha = ["ddddocr==1.6.1; sys_platform == 'linux' or sys_platform == 'darwin'",
            "faster-whisper==1.2.1", "av==15.1.0", "ctranslate2==4.8.4"]
 
@@ -138,6 +158,12 @@ dev = [
     # serially; `-n auto --dist loadfile` brings it to ~2-3 min. See ci.yml
     # `test` job and standards/templates/forgejo-ci-python.yml for the form.
     "pytest-xdist>=3.6.0",
+    # pytest-timeout: a hung test must FAIL and name itself, not consume the
+    # whole 60-minute job. It was already being used ad-hoc in local runs and in
+    # the integration job, but was never a declared dev dependency, so the unit
+    # `test` job could not pass `--timeout` at all -- which is exactly how a
+    # single stalled test turned into a 16-minute job timeout with no report.
+    "pytest-timeout>=2.3.1",
     # pytest-randomly: shuffled order exposes order-dependent tests (it found
     # several in this suite); seed it in CI for reproducible failures.
     "pytest-randomly>=3.15.0",
@@ -174,13 +200,16 @@ dev = [
     "pip-audit>=2.10",
 ]
 
-# Optional scraping/parsing backends. These are deliberately NOT core
-# dependencies: every module that uses them guards the import and returns a
-# "pip install X" hint when missing. Install the whole group with
+# Optional parsing/backend extras. These are genuinely optional at runtime:
+# every module that uses them guards the import and returns a "pip install X"
+# hint when missing. Install the whole group with
 # `pip install pryscraper-mcp[scrape]`.
+#
+# NOTE: `camoufox` and `curl_cffi` are NOT here any more -- both back rungs of
+# the production fallback chain and are core dependencies (see [project]
+# dependencies). Listing them in two places is how the packaging drifted from
+# what the Dockerfile actually installed.
 scrape = [
-    "curl_cffi>=0.7.0",
-    "camoufox>=0.4.0",
     "pdfplumber>=0.11.0",
     "pdfminer.six>=20221105",
     "pytesseract>=0.3.10",
@@ -534,6 +563,14 @@ markers = [
 
 [tool.coverage.run]
 branch = true
+# parallel=true: under pytest-xdist each worker writes its own
+# .coverage.<host>.<pid> file instead of four processes racing to append to one
+# file and each holding the full run's state in memory. MEASURED 2026-11-20: the
+# CI `test` job was OOM-killed with anon-rss 8.4GB while single workers stayed
+# well under 900MB locally -- the difference is per-worker coverage
+# accumulation. `coverage combine` (run by pytest-cov automatically) merges them
+# before reporting, so the number reported is unchanged.
+parallel = true
 # Source scope for local `pytest --cov` / `coverage run` runs. CI uses
 # `--cov=.` (see .forgejo/workflows/ci.yml) which measures the whole repo
 # minus `omit`, so this list is the curated local-dev subset. Note:

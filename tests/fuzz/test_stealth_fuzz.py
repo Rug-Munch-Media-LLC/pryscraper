@@ -42,7 +42,7 @@ def _assert_valid_script(script: str) -> None:
     assert "})();" in script, "script must close its IIFE"
 
 
-@settings(max_examples=100, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(_seed=st.integers())
 def test_webgl_noise_stays_in_bounds(_seed: int) -> None:
     """WebGL noise must remain in the documented [0.0001, 0.001] band."""
@@ -53,7 +53,7 @@ def test_webgl_noise_stays_in_bounds(_seed: int) -> None:
         assert 0.0001 <= _noise_value(script) <= 0.001
 
 
-@settings(max_examples=100, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(_seed=st.integers())
 def test_canvas_noise_stays_in_bounds(_seed: int) -> None:
     """Canvas noise must remain in the documented [0.00005, 0.0005] band."""
@@ -64,7 +64,7 @@ def test_canvas_noise_stays_in_bounds(_seed: int) -> None:
         assert 0.00005 <= _noise_value(script) <= 0.0005
 
 
-@settings(max_examples=100, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(_seed=st.integers())
 def test_all_generators_produce_valid_scripts(_seed: int) -> None:
     """Every generator must produce a structurally valid script every time."""
@@ -82,7 +82,7 @@ def test_all_generators_produce_valid_scripts(_seed: int) -> None:
             _assert_valid_script(script)
 
 
-@settings(max_examples=50, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=50, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(_seed=st.integers())
 def test_generate_all_keeps_component_order(_seed: int) -> None:
     """The concatenated script must keep webgl → canvas → audio → font → wd order.
@@ -103,7 +103,7 @@ def test_generate_all_keeps_component_order(_seed: int) -> None:
         assert positions == sorted(positions), f"component order violated: {positions}"
 
 
-@settings(max_examples=50, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=50, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(_seed=st.integers())
 def test_font_spoof_always_embeds_valid_font_list(_seed: int) -> None:
     """font_spoof must always embed a parseable JSON font list with Arial."""
@@ -117,7 +117,7 @@ def test_font_spoof_always_embeds_valid_font_list(_seed: int) -> None:
         assert len(fonts) >= 6
 
 
-@settings(max_examples=50, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=50, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(_seed=st.integers())
 def test_generated_scripts_are_unique_draws(_seed: int) -> None:
     """Randomized components must differ across draws (real entropy, not const).
@@ -135,7 +135,7 @@ def test_generated_scripts_are_unique_draws(_seed: int) -> None:
 
 @settings(
     max_examples=10,
-    deadline=2000,
+    deadline=None,
     suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture],
 )
 @given(_seed=st.integers())

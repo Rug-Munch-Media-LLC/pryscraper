@@ -19,7 +19,7 @@ async def test_fetch_rendered_playwright_html() -> None:
         patch("pry.engine.methods._common._HAS_PLAYWRIGHT", True),
         patch("pry.engine.methods._common.async_playwright", fake_pw),
     ):
-        html = await fetch_rendered("https://example.com/spa")
+        html = await fetch_rendered("https://example.com/spa", prefer="playwright")
     assert html == "<html>rendered</html>"
 
 
@@ -32,7 +32,9 @@ async def test_fetch_rendered_collect_json() -> None:
         patch("pry.engine.methods._common._HAS_PLAYWRIGHT", True),
         patch("pry.engine.methods._common.async_playwright", fake_pw),
     ):
-        result = await fetch_rendered("https://example.com/spa", collect_json=True)
+        result = await fetch_rendered(
+            "https://example.com/spa", collect_json=True, prefer="playwright"
+        )
     assert result is not None
     assert "odds" in result
 
@@ -43,7 +45,9 @@ async def test_fetch_rendered_selector_wait() -> None:
         patch("pry.engine.methods._common._HAS_PLAYWRIGHT", True),
         patch("pry.engine.methods._common.async_playwright", fake_pw),
     ):
-        html = await fetch_rendered("https://example.com/spa", selector="#content")
+        html = await fetch_rendered(
+            "https://example.com/spa", selector="#content", prefer="playwright"
+        )
     assert html == "<html>loaded</html>"
 
 
@@ -53,7 +57,7 @@ async def test_fetch_rendered_never_raises_on_launch_failure() -> None:
         patch("pry.engine.methods._common._HAS_PLAYWRIGHT", True),
         patch("pry.engine.methods._common.async_playwright", fake_pw),
     ):
-        result = await fetch_rendered("https://example.com/spa")
+        result = await fetch_rendered("https://example.com/spa", prefer="playwright")
     assert result is None
 
 

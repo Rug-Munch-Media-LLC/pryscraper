@@ -57,7 +57,21 @@ class TestPublicBaseUrl:
 class TestResolveQuote:
     """Resolving a tier to x402 pricing primitives, fail-closed."""
 
-    def test_purchasable_tier_resolves_primitives(self):
+    def test_purchasable_tier_resolves_primitives(self, monkeypatch):
+        # The resolver fails CLOSED when the receiving wallet is a placeholder
+        # (WalletUnconfigured), and the configured wallets are module-level
+        # values captured at import from the environment. Depending on the
+        # ambient environment meant this passed where an operator wallet was
+        # set and failed in CI with
+        #   WalletUnconfigured: no real receiving wallet configured for
+        #   network 'eip155:8453'
+        # The test is about tier->primitives resolution, so it supplies a real
+        # wallet shape explicitly instead of assuming one exists.
+        monkeypatch.setattr(
+            validation,
+            "resolve_pay_to",
+            lambda chain, wallets=None, evm_wallet=None: "0x" + "1" * 40,
+        )
         quote = validation._resolve_quote("pro")
         assert quote.plan.tier == "pro"
         assert quote.pay_to.startswith("0x")

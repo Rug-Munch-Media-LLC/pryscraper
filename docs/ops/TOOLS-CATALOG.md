@@ -378,7 +378,7 @@ an x402 operation with server-authoritative pricing.
 > 33 categories and 99 tools. The sports sections above are documentation groupings; the
 > registry rolls several of them into `sports_betting` (17).
 
-**Totals: 99 tools across 33 categories.**
+**Totals: 101 tools across 33 categories.**
 
 > **Pricing note.** Price cells marked `$0` indicate the operation is
 > explicitly classified free in `x402_middleware/classification.py`

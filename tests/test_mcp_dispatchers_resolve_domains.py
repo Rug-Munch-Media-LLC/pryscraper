@@ -36,7 +36,21 @@ BARE_DOMAIN_IMPORT = re.compile(r"^\s*from\s+(?P<package>[A-Za-z_][\w]*)\.[\w.]+
 # the scanner must not flag them. `pry.*` resolves through the src-layout
 # namespace package; the rest are real top-level directories.
 NON_DOMAIN_PACKAGES = frozenset(
-    {"actor_factory", "crypto_market", "extraction", "pry", DATASETS_PACKAGE}
+    {
+        "actor_factory",
+        "crypto_market",
+        "extraction",
+        "pry",
+        # `pry_mcp` is the dispatchers' OWN package -- `TOOLS_DIR` is
+        # `pry_mcp/tools`, so `from pry_mcp.x import y` is an intra-package
+        # import, not a reach into the `datasets/` domain tree the resolver
+        # exists to namespace. It was missing here, so `tool_help.py`'s
+        # `from pry_mcp.surface import ...` was reported as a bare DOMAIN
+        # import and the fix would have been to route an intra-package import
+        # through a domain resolver that would then fail to find it.
+        "pry_mcp",
+        DATASETS_PACKAGE,
+    }
 )
 
 

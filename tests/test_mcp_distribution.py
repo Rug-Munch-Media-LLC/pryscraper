@@ -7,7 +7,7 @@
 
 Everything here is transport- and manifest-facing, not unit-level:
 
-* the stdio entry point completes an MCP handshake and lists all 99 tools;
+* the stdio entry point completes an MCP handshake and lists every advertised tool;
 * the HTTP transport answers ``initialize`` / ``tools/list`` / ``health``;
 * ``tools/call`` is gated (anonymous -> 401, valid Bearer -> not 401);
 * every shipped manifest agrees with ``PRY_TOOLS`` and contains no dead
@@ -141,7 +141,11 @@ def test_http_health_reports_full_surface(mcp_http: TestClient) -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ok"
-    assert body["tools_count"] == len(PRY_TOOLS) == 99
+    # Assert the served count equals the advertised surface, not a snapshot.
+    # `== 99` was a second source of truth that had already drifted (the
+    # surface is 101), so this failed for a reason unrelated to what it is
+    # named for: "the HTTP health endpoint reports the full surface".
+    assert body["tools_count"] == len(PRY_TOOLS)
     assert "streamable-http" in body["transports"]
 
 

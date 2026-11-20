@@ -73,7 +73,7 @@ async def test_modern_session_without_initialize(
     outcome = await conformance.run_modern_session(url, key)
 
     assert outcome["errors"] == [], outcome
-    assert outcome["tool_count"] == len(PRY_TOOLS) == 99
+    assert outcome["tool_count"] == len(PRY_TOOLS)
     assert outcome["tools_call"]["http_status"] == 200
     assert outcome["tools_call"]["is_error"] is False
 

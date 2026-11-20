@@ -44,6 +44,12 @@ test.sh
 
 # --- Local data: never ship datasets, scrapes, or coverage into an image ---
 data/
+# `datasets/` is the directory form and `datasets/*` is the glob form. Both are
+# needed: the plain entry is what the readiness gate checks for, and the glob
+# plus the re-includes below are what keep the handful of source packages that
+# legitimately ship (`datasets/__init__.py`, `datasets/attention/`) in the
+# image while excluding every scraped payload beside them.
+datasets/
 datasets/*
 !datasets/__init__.py
 !datasets/attention/

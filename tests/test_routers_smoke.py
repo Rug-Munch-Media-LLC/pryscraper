@@ -74,6 +74,14 @@ NON_ROUTER_HELPERS = {
     # 200-line cap. Each is pure logic injected into its owning router, so
     # none exposes an APIRouter by design.
     "core.health_probes",
+    # Probe implementation split from the health router (2026-10-18 splits,
+    # same pattern as health_probes above): `probe_checks` owns the async probe
+    # functions and `probe_log` owns the failure/timing models. The routes that
+    # call them live in `core.health`, which is covered below. Neither module
+    # contains an APIRouter or an @router decorator — verified, 0 matches each —
+    # so requiring one would mean inventing an empty router to satisfy the gate.
+    "core.probe_checks",
+    "core.probe_log",
     "scraping.http_guards",
     "scraping.seams",
     "scraping.media_formats",

@@ -20,16 +20,62 @@ PRY_TOOLS: list[dict[str, Any]] = [
             "public pages with robots.txt respected). Matches symbol, name or address. "
             "Every row includes source_url and fetched_at; missing fields are null, "
             "never fabricated. Returns a typed `unavailable` refusal when the store "
-            "is empty."
+            "is empty. Use it to resolve a ticker or contract address to the token's "
+            'on-chain identity before a deeper lookup. Example: query="pepe", '
+            'chain="ethereum" returns the stored Pepe rows with their source_url, '
+            'or query="0x6982..." to match by address.'
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "Symbol, name fragment or address."},
                 "chain": {"type": "string", "description": "Optional chain slug filter."},
-                "limit": {"type": "integer", "default": 20, "minimum": 1, "maximum": 200},
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 200,
+                    "description": "Maximum rows to return (1-200, default 20).",
+                },
             },
             "required": ["query"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "description": "`ok` when rows were found, `unavailable` when the store has no match.",
+                },
+                "count": {"type": "integer", "description": "Rows returned."},
+                "results": {
+                    "type": "array",
+                    "description": "Matching store rows; absent fields are null, never fabricated.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "symbol": {"type": "string"},
+                            "name": {"type": "string"},
+                            "address": {"type": "string"},
+                            "chain": {"type": "string"},
+                            "source_url": {
+                                "type": "string",
+                                "description": "Public page the row was scraped from.",
+                            },
+                            "fetched_at": {"type": "string"},
+                        },
+                    },
+                },
+            },
+        },
+        "annotations": {
+            "title": "Dextools token store search",
+            # Reads a local ingested store; never writes, never reaches a
+            # third-party API, and the same query returns the same rows.
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
         },
     }
 ]

@@ -183,13 +183,27 @@ jobs:
         # `--cov=.`: whole-repo coverage over scripts/datasets/website is noise
         # and adds collection overhead. The 73% floor is UNCHANGED; the scoped
         # number may differ and must be re-measured, not guessed.
-        # `-n auto --dist loadfile` (pytest-xdist, in [dev] extras) parallelizes
-        # by test FILE: one worker per core, each file's tests on one worker
-        # (~10 min serial -> ~2-3 min). loadfile keeps a file's fixtures and
-        # module-level state on a single worker.
+        # `-n 4 --dist loadfile` (pytest-xdist, in [dev] extras) parallelizes
+        # by test FILE, so a file's fixtures and module-level state stay on one
+        # worker -- which is what makes the per-file state resets in conftest
+        # meaningful.
+        # MEASURED 2026-11-19: this comment described the parallelism for weeks
+        # while the command below did NOT pass any `-n`, so every run was fully
+        # serial. That is the whole reason this job felt unbounded -- the suite
+        # is ~9.8k tests and serial it runs past the job timeout, so the job
+        # never even reported a pass. The flag is now actually here.
         # Tests MUST pass — blocks the pipeline on failure or insufficient
         # coverage.
-        run: source .venv/bin/activate && pytest tests/ --maxfail=10 -q --tb=short --cov=pry --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=76 -m "not integration"
+        #
+        # Worker count is EXPLICIT, not `auto`. Each xdist worker imports the
+        # whole application (~130 MB resident, measured 2026-11-19), and the
+        # runner is a shared 16-core box with a hard memory cap. `-n auto`
+        # would start 16 workers and the OOM killer terminates them mid-run --
+        # which presents as "the suite hangs", not as a memory error, because
+        # the killed worker never reports. 4 workers is ~520 MB of interpreters
+        # beside a single 9.8k-test run and still finishes the suite in single-
+        # digit minutes. Raise it only with a measured memory headroom check.
+        run: source .venv/bin/activate && pytest tests/ --maxfail=10 -q --tb=short -n 4 --dist loadfile --timeout=120 --timeout-method=thread --cov=pry --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=76 -m "not integration and not slow"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
@@ -1194,7 +1208,11 @@ jobs:
       - name: Run tests with coverage
         run: |
           source .venv/bin/activate
-          pytest tests/ --maxfail=10 -q --tb=short --cov=pry --cov-report=xml:coverage.xml -m "not integration"
+          # -n 4 --dist loadfile: same bounded parallelism as the `test` job.
+          # This is the SECOND full-suite run in the pipeline; serial it was
+          # another 25+ minutes for a coverage number the `test` job already
+          # produced. Kept at 4 for the same memory reason documented there.
+          pytest tests/ --maxfail=10 -q --tb=short -n 4 --dist loadfile --timeout=120 --timeout-method=thread --cov=pry --cov-report=xml:coverage.xml -m "not integration and not slow"
       - name: Coverage regression check
         run: |
           source .venv/bin/activate
@@ -1221,7 +1239,20 @@ jobs:
           curl -sSfL https://github.com/trufflesecurity/trufflehog/releases/download/v3.97.0/trufflehog_3.97.0_linux_amd64.tar.gz | tar xz -C /usr/local/bin trufflehog
       - name: OSV dependency scan (lockfile, CRITICAL/HIGH gate)
         run: |
-          osv-scanner --lockfile=uv.lock --format=json > osv.json || true
+          # osv-scanner's exit code means "vulnerabilities found" (1), NOT
+          # "the scan failed". Swallowing it with `|| true` also swallowed a
+          # genuine scanner crash, which is why this was flagged as a
+          # neutralised gate: a scan that never ran produced an empty osv.json
+          # and the gate script then passed it.
+          # Handle the two cases distinctly -- a real failure must fail.
+          set +e
+          osv-scanner --lockfile=uv.lock --format=json > osv.json
+          rc=$?
+          set -e
+          if [ "$rc" -gt 1 ]; then
+            echo "osv-scanner failed to scan (exit $rc); this is not a finding"
+            exit "$rc"
+          fi
           python3 .forgejo/scripts/osv_gate.py osv.json
       - name: Trufflehog verified-live secrets (all history)
         run: trufflehog git file://. --only-verified --fail --no-update
@@ -1284,6 +1315,24 @@ jobs:
       image: nikolaik/python-nodejs:python3.11-nodejs22
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # The CLAIMS gate below imports the REAL application modules
+      # (`pry.payments.x402...`, `pry_mcp.tools`) to read the tool count, prices
+      # and supported chains. This job used to install nothing, so that gate
+      # died with `ModuleNotFoundError: No module named 'httpx'` after ~37s and
+      # the whole required check went red — on main as well as on branches. The
+      # other six gates are stdlib-only and unaffected; installing the runtime
+      # deps is what makes the seventh able to run at all.
+      - name: Install runtime deps (needed by the claims gate)
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev \
+            && rm -rf /var/lib/apt/lists/*
+          # Use the IMAGE's interpreter, not a uv-managed download. `uv venv
+          # --python 3.11` provisions a managed CPython from the network, which
+          # is a second failure mode in a job whose contract is "run seven
+          # static gates". The image already ships Python 3.11.17.
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --quiet --upgrade pip
+          .venv/bin/python -m pip install --quiet -e .
       - name: Structure gate (≤200-line cap, shrink-only)
         run: python3 scripts/check-structure.py --repo . --scan-root src/pry --scan-root src/pry/payments/x402/solana_transfer/ --scan-root src/pry/commerce/reconciliation/ --scan-root tests --scan-root scripts --scan-root datasets/sports_data/derivatives --scan-root datasets/sports_data/parlay_legs/
       - name: Monkeypatch gate (per-repo ratchet)
@@ -1297,7 +1346,7 @@ jobs:
       - name: Test-integrity gate (no NEW tautological tests)
         run: python3 scripts/check-test-integrity.py --repo . --baseline tests/integrity-baseline.json
       - name: Claims gate (tool count, prices, chains, licence)
-        run: python3 scripts/check-claims.py
+        run: .venv/bin/python scripts/check-claims.py
 
   wheel-smoke:
     # Packaging regression gate (P0, 2026-10-18): the wheel shipped ZERO files

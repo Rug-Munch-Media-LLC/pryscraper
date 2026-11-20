@@ -43,7 +43,7 @@ python3 -m pry.api.mcp_production           # stdio MCP server
 - URL: https://api.pryscraper.com/mcp/
 - Transport: SSE, Streamable HTTP, stdio
 - Auth: discovery is keyless; tools/call requires a key (`Authorization: Bearer $PRY_API_KEY`) or an x402 payment (`X-PAYMENT` / `PAYMENT-SIGNATURE`). There is no anonymous tools/call.
-- Tools: 99
+- Tools: 101
 - Categories: 33
 
 ## Endpoints
@@ -676,3 +676,15 @@ Full game-context bundle for a matchup: venue weather, weather impact on scoring
 ### pry_mega_search
 
 Search the web with EVERY engine at once and return one consensus-ranked list. Six independent engines (SearXNG, DuckDuckGo, Mojeek, Seznam, Yahoo, Qwant) are queried in parallel, results are deduplicated, and each hit is ranked by how many engines independently found it - so a link four engines agree on outranks a link only one returned. Use this when you want the best possible answer to a factual question and do not need page bodies; for full-page reading use pry_search instead. Results carry 'consensus' (engine count) and 'sources'; engines_ok / engines_failed show which legs answered.For example, pry_mega_search(query='best rust web frameworks 2026', num_results=10) returns one deduplicated list where every result reports how many engines found it.
+
+### pry_help
+
+Grouped index of every Pry tool: task group, canonical entry point, one-line purpose, and which tools spend credits. Call this first instead of loading the full tool list. Pass group='search' (or scrape/extract/data/sports/crypto/...) to narrow. Always answers: never spends, never scrapes, no network. For example, pry_help() returns every group and its entry point; pry_help(group='crypto') returns only the token and market tools.
+
+Category: meta
+
+### dextools_search
+
+Search the locally ingested Dextools token store (scraped from allowed public pages with robots.txt respected). Matches symbol, name or address. Every row includes source_url and fetched_at; missing fields are null, never fabricated. Returns a typed `unavailable` refusal when the store is empty. Use it to resolve a ticker or contract address to the token's on-chain identity before a deeper lookup. For example, dextools_search(query='pepe', chain='ethereum') returns the stored Pepe rows with their source_url.
+
+Category: crypto_market

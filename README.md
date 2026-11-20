@@ -51,7 +51,8 @@ The MCP entry points are installed alongside the CLI (`pry-mcp`,
   that need it.
 - **Actors.** Named, parameterised scraping jobs live in `src/pry/actors/`, so a
   recurring target is configuration rather than new code.
-- **MCP server.** Exposes scrape/extract/crawl as MCP tools for agent runtimes.
+- **MCP server.** Exposes scrape/extract/crawl as MCP tools for agent runtimes —
+  101 tools across 33 categories, backed by 110 templates across those categories.
 - **Self-host first.** Postgres/SQLite for job state, Redis optional. No vendor
   account is required for the core path.
 

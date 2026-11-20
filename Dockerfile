@@ -39,11 +39,13 @@ WORKDIR /build
 COPY requirements.docker.lock .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-compile -r requirements.docker.lock
-# Optional scraping backends (camoufox anti-detection Firefox, curl_cffi TLS
-# impersonation). The camoufox browser itself is fetched at first use into
-# $HOME/.cache (now on the pry-data volume), not baked into the image.
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-compile "camoufox>=0.4.0" "curl_cffi>=0.7.0"
+# Camoufox (anti-detection Firefox) and curl_cffi (TLS impersonation) are now
+# CORE dependencies, so they arrive from requirements.docker.lock like every
+# other pinned package. They used to be installed here from a floating range
+# (`"camoufox>=0.4.0"`) outside every lock file, which meant the image's
+# versions were not reproducible and pyproject declared the same two packages
+# as optional. The camoufox browser binary itself is still fetched at first use
+# into $HOME/.cache (on the pry-data volume), not baked into the image.
 # `--no-shell` skips chromium-headless-shell (~260 MB). The full build is the
 # only browser the runtime needs; `channel="chromium"` selects it for headless.
 RUN python -m playwright install --no-shell chromium

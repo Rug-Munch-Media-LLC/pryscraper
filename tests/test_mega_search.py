@@ -12,9 +12,11 @@ dedup behaviour rather than live network behaviour.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
-from pry.engine import mega_search as ms
+from pry.engine import mega_scoring as scoring, mega_search as ms
 from pry.engine.url_key import url_key
 
 
@@ -33,10 +35,10 @@ def test_normalize_drops_tracking_params() -> None:
 
 
 def test_term_overlap_fraction() -> None:
-    assert ms._term_overlap("python asyncio tutorial", "python asyncio guide") == pytest.approx(
+    assert scoring.term_overlap("python asyncio tutorial", "python asyncio guide") == pytest.approx(
         2 / 3
     )
-    assert ms._term_overlap("python asyncio", "") == 0.0
+    assert scoring.term_overlap("python asyncio", "") == 0.0
 
 
 def test_consensus_outranks_single_engine_hit() -> None:
@@ -92,9 +94,24 @@ async def test_empty_query_returns_empty() -> None:
     assert await ms.mega_search("   ", resolve=lambda name: None) == {}
 
 
-def test_module_stays_under_size_cap() -> None:
-    """Size gate: this module must stay under the 200-line cap."""
-    from pathlib import Path
+def test_mega_search_owns_one_job() -> None:
+    """mega_search delegates fan-out, scoring and merge; it must not re-implement them.
 
-    source = Path(ms.__file__).read_text().splitlines()
-    assert len(source) <= 200, f"mega_search.py is {len(source)} lines (cap 200)"
+    This replaced a ``len(source) <= 200`` assertion, which was a line-count gate
+    and not a design gate. The fleet standard names that failure mode directly
+    (standards/fleet/MODULARITY-STANDARD.md, quoting MODULE-BOUNDARIES R4): an
+    agent optimising for 199 lines extracts private helpers while the module
+    still owns five jobs. It also made a legitimate 240-line single-purpose
+    module look like a violation.
+
+    The real invariant is ownership: composition lives here, and the three
+    concerns it composes live in their own modules.
+    """
+    # Scoring is pure and testable without I/O, so it must not be inlined here.
+    assert hasattr(scoring, "score")
+    assert hasattr(scoring, "agreeing")
+    assert hasattr(scoring, "MIN_CONSENSUS")
+    # And this module must actually USE it rather than carry a second copy.
+    source = Path(ms.__file__).read_text()
+    assert "from pry.engine.mega_scoring import" in source
+    assert "def _score(" not in source, "scoring was re-inlined into mega_search"

@@ -52,7 +52,12 @@ def _alert_exprs() -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     for group in doc["groups"]:
         for rule in group["rules"]:
-            out.append((rule["alert"], "".join(str(rule["expr"]).split())))
+            # Alert AND record rules both carry an expr worth checking; only
+            # the id key differs (`alert:` vs `record:`). Reading ["alert"]
+            # unconditionally crashed on the three legitimate record rules.
+            name = rule.get("alert") or rule.get("record")
+            if name:
+                out.append((name, "".join(str(rule["expr"]).split())))
     return out
 
 
@@ -72,9 +77,23 @@ def test_alert_rules_have_required_fields() -> None:
     for group in doc["groups"]:
         assert group["rules"], f"empty group {group['name']}"
         for rule in group["rules"]:
-            assert rule["expr"].strip(), rule["alert"]
-            assert rule["labels"]["severity"] in {"critical", "warning"}, rule["alert"]
-            assert rule["annotations"]["summary"], rule["alert"]
+            # A Prometheus group holds two kinds of rule, and they are NOT
+            # interchangeable:
+            #   * an ALERT rule fires: it needs labels.severity and
+            #     annotations.summary so the receiver can route and render it;
+            #   * a RECORD rule only writes a time series: it has no `alert`
+            #     key and no labels/annotations by design.
+            # This loop used to demand alert fields from every rule, so the
+            # three legitimate `record:` rules (pry:cf_block_share:ratio and
+            # friends) failed it. The id used in messages follows the same
+            # split so a failure still names the offending rule.
+            name = rule.get("alert") or rule.get("record")
+            assert name, f"rule is neither an alert nor a record: {rule}"
+            assert str(rule.get("expr", "")).strip(), name
+            if "record" in rule:
+                continue
+            assert rule["labels"]["severity"] in {"critical", "warning"}, name
+            assert rule["annotations"]["summary"], name
 
 
 def test_slo_document_metrics_are_emitted() -> None:

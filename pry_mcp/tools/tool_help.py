@@ -21,7 +21,10 @@ PRY_HELP_TOOL: dict[str, Any] = {
         "Grouped index of every Pry tool: task group, canonical entry point, one-line purpose, "
         "and which tools spend credits. Call this first instead of loading the full tool list. "
         "Pass group='search' (or scrape/extract/data/sports/crypto/...) to narrow. "
-        "Always answers: never spends, never scrapes, no network."
+        "Always answers: never spends, never scrapes, no network. "
+        "Example: with no arguments it returns every group and its entry point; "
+        "with group='crypto' it returns only the token/market tools, so an agent "
+        "can pick one without listing all 101."
     ),
     "inputSchema": {
         "type": "object",
@@ -37,6 +40,34 @@ PRY_HELP_TOOL: dict[str, Any] = {
             },
         },
         "required": [],
+    },
+    "outputSchema": {
+        "type": "object",
+        "properties": {
+            "groups": {
+                "type": "array",
+                "description": "Task groups, each naming its canonical entry point.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "group": {"type": "string"},
+                        "entry_point": {"type": "string"},
+                        "tools": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {"type": "string"},
+                                    "purpose": {"type": "string"},
+                                    "spends_credits": {"type": "boolean"},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            "total": {"type": "integer", "description": "Tools indexed."},
+        },
     },
     "annotations": {
         "title": "Pry tool index",

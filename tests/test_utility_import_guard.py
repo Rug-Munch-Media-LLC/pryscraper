@@ -1,7 +1,15 @@
 """Fail when a new rate-limit / retry / dedupe module appears outside canon.
 
 Allowlist entries carry a reason and must match a real file, so the list can
-only shrink (tech-debt ratchet). Run against a repo root with ``XDUP_ROOT``.
+only shrink (tech-debt ratchet).
+
+This guard spans THREE repos (pryscraper, rugbrain, rmi-backend), so it can only
+run where all three are checked out side by side. It previously defaulted to
+``/srv/work/wt/xdup45`` -- one operator's scratch directory -- so in a normal
+clone or in CI every allowlist entry looked "stale" and the module failed with a
+30-item list that described the missing checkouts, not real drift. It now
+resolves the tree and SKIPS (with the reason) when the fleet is not present,
+because "this machine holds one repo" is not a finding about the code.
 """
 
 from __future__ import annotations
@@ -10,7 +18,31 @@ import os
 import re
 from pathlib import Path
 
-ROOT = Path(os.environ.get("XDUP_ROOT", "/srv/work/wt/xdup45"))
+import pytest
+
+
+def _resolve_root() -> Path | None:
+    """The tree holding pryscraper + rugbrain + rmi-backend, or None."""
+    candidates: list[Path] = []
+    env = os.environ.get("XDUP_ROOT")
+    if env:
+        candidates.append(Path(env))
+    # `<parent>/pryscraper` is this repo, so its parent is the candidate tree.
+    candidates.append(Path(__file__).resolve().parents[2])
+    for c in candidates:
+        if all((c / repo).is_dir() for repo in ("pryscraper", "rugbrain", "rmi-backend")):
+            return c
+    return None
+
+
+ROOT = _resolve_root()
+pytestmark = pytest.mark.skipif(
+    ROOT is None,
+    reason=(
+        "needs a checkout holding pryscraper, rugbrain and rmi-backend together "
+        "(set XDUP_ROOT); the ratchet spans all three repos"
+    ),
+)
 REPOS = {"pryscraper": "src", "rugbrain": "src", "rmi-backend": "app"}
 SCOPE = re.compile(r"(^|/)_?[\w]*(rate_?limit|retry|backoff|dedup)[\w]*\.py$", re.I)
 

@@ -179,6 +179,54 @@ async def detect_block(url: str, get_client: Any) -> dict[str, Any]:
     return {"success": True, "data": {"url": url, "results": results}}
 
 
+async def detect_block_and_solve(
+    url: str, get_client: Any, *, solve: bool = True
+) -> dict[str, Any]:
+    """Detect blocking AND, when a block is confirmed, run the captcha ladder.
+
+    This orchestration used to live in the router
+    (``api/routers/scraping/detect_routes.py``), which imported
+    ``pry.engine.captcha.ladder`` and ``pry.engine.captcha.lanes`` directly.
+    That is the exact layering the "thin router" gate exists to prevent: the
+    route module reached two engine internals instead of one service function,
+    so the captcha implementation could not change without editing a route.
+
+    It also fixed a real bug. The router checked ``result.get("blocked")`` on
+    the envelope ``detect_block`` returns -- ``{"success": ..., "data": {...}}``
+    -- which has no ``blocked`` key. That expression was therefore always None
+    and the captcha ladder NEVER ran, so ``solved_by`` could never be reported
+    and a solvable block was always returned as blocked.
+
+    Returns the same envelope as :func:`detect_block`, with the block verdict
+    lifted to the top level and the ladder outcome attached when one ran.
+    """
+    result = await detect_block(url, get_client)
+    data = result.get("data") or {}
+    results = data.get("results") or []
+    # A method that answered successfully and whose body did not classify as a
+    # block means the target is reachable; only an affirmative verdict escalates.
+    blocked = any(r.get("blocked") is True for r in results if isinstance(r, dict))
+    data["blocked"] = blocked
+    if blocked and solve:
+        html = next(
+            (r.get("html") or "" for r in results if isinstance(r, dict) and r.get("html")),
+            "",
+        )
+        try:
+            from pry.engine.captcha.ladder import solve_ladder
+            from pry.engine.captcha.lanes import Challenge
+
+            ladder = await solve_ladder(Challenge(url=url, html=html))
+            data["captcha_ladder"] = ladder.as_dict()
+            if ladder.status == "solved":
+                data["blocked"] = False
+                data["solved_by"] = ladder.provider
+        except Exception as e:  # noqa: BLE001 - solver must not fail detection
+            logger.warning("captcha_ladder_failed", extra={"error": str(e)[:120]})
+            data["captcha_ladder"] = {"status": "error", "error": str(e)[:120]}
+    return result
+
+
 async def detect_lazy_content(
     url: str, *, scraper: Any, get_client: Any, auto_scroll: bool, max_scrolls: int
 ) -> dict[str, Any]:
