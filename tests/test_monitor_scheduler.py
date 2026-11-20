@@ -75,6 +75,10 @@ async def test_concurrent_runs_claim_once(temp_db):
     from pry.actors import scheduler as _s
 
     assert not _s._LOCAL, f"stale local claims before the test: {_s._LOCAL}"
+    # Also prove the claim layer itself agrees, so a None token cannot be
+    # blamed on a stale table.
+    assert _s._redis_enabled() is False, "redis claim layer active in a unit test"
+    assert _s.under_pytest() is True, "under_pytest() false: DB row-lock path is live"
     monitor = await create_monitor("claimed", "https://example.com/page")
     scrape = AsyncMock(return_value={"content": "hello"})
 
