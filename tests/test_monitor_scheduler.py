@@ -38,6 +38,17 @@ def temp_db(monkeypatch, tmp_path):
     from pry.core.db import Base
 
     Base.metadata.create_all(db_module.get_engine())
+
+    # Clear the in-process claim table as part of building the DB, not only in
+    # an autouse fixture. The autouse fixture runs at setup, but fixture
+    # ordering with a module-level DB fixture meant a claim left by an earlier
+    # file could still be present when these tests ran -- `run_monitor` then
+    # answered "already_running" and `scrape` was never called (`assert 0 == 1`).
+    # Clearing here makes the guarantee local to the fixture that needs it.
+    from pry.actors import scheduler as _sched
+
+    with _sched._LOCAL_LOCK:
+        _sched._LOCAL.clear()
     yield tmp_path
     for mod in (db_module, db_engine_mod):
         mod._engine = None

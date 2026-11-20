@@ -196,14 +196,20 @@ jobs:
         # coverage.
         #
         # Worker count is EXPLICIT, not `auto`. Each xdist worker imports the
-        # whole application (~130 MB resident, measured 2026-11-19), and the
-        # runner is a shared 16-core box with a hard memory cap. `-n auto`
-        # would start 16 workers and the OOM killer terminates them mid-run --
-        # which presents as "the suite hangs", not as a memory error, because
-        # the killed worker never reports. 4 workers is ~520 MB of interpreters
-        # beside a single 9.8k-test run and still finishes the suite in single-
-        # digit minutes. Raise it only with a measured memory headroom check.
-        run: source .venv/bin/activate && pytest tests/ --maxfail=10 -q --tb=short -n 4 --dist loadfile --timeout=120 --timeout-method=thread --cov=pry --cov-report=xml:coverage.xml --cov-report=lcov:coverage.lcov --cov-fail-under=76 -m "not integration and not slow"
+        # whole application (~190 MB resident, measured 2026-11-20), and the
+        # runner is a shared 16-core box with no job-level memory cap, so
+        # `-n auto` would start 16 workers and let the HOST OOM killer pick
+        # victims -- which presents as "the suite hangs" or "killed at 100%",
+        # never as a memory error, because the killed worker cannot report.
+        # `-n 2` for the coverage pass specifically. The suite is ~9.8k tests and
+        # coverage adds a full model per worker; four workers were OOM-killed on
+        # a contended host ~at 100% (measured: 16-21 oom-kill events, log ending
+        # mid-report with no summary line). Two workers halves the coverage
+        # footprint while staying inside the 60-minute job budget, and WITHOUT
+        # coverage the suite still runs at -n 4 -- coverage is the only reason
+        # the memory scales with worker count, so it is the only part that needs
+        # to be conservative.
+        run: source .venv/bin/activate && pytest tests/ --maxfail=10 -q --tb=short -n 2 --dist loadfile --timeout=120 --timeout-method=thread --cov=pry --cov-report=xml:coverage.xml --cov-fail-under=76 -m "not integration and not slow"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
