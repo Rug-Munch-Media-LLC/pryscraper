@@ -70,6 +70,11 @@ def test_import_does_not_start_the_loop():
 
 @pytest.mark.asyncio
 async def test_concurrent_runs_claim_once(temp_db):
+    # Diagnostic: if this assertion ever fires in CI, these two lines say WHY
+    # rather than leaving "assert 0 == 1" to be re-investigated.
+    from pry.actors import scheduler as _s
+
+    assert not _s._LOCAL, f"stale local claims before the test: {_s._LOCAL}"
     monitor = await create_monitor("claimed", "https://example.com/page")
     scrape = AsyncMock(return_value={"content": "hello"})
 
