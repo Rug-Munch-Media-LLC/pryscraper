@@ -82,7 +82,12 @@ def test_credentials_refused_when_permissions_cannot_be_fixed(
 
 def test_affinity_sticks_then_expires(pm: ProxyManager, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(pm, "_candidate_proxies", lambda: ["http://p1:8080", "http://p2:8080"])
-    pm.affinity_ttl_seconds = 0.05
+    # A GENEROUS TTL, advanced explicitly below. With ttl=0.05 the FIRST
+    # assertion was already timing-dependent: if more than 50ms elapsed between
+    # recording the domain result and reading it -- routine under xdist -- the
+    # affinity had expired and the test failed on scheduler jitter. The clock is
+    # the input, so the clock is what the test moves.
+    pm.affinity_ttl_seconds = 3600
     pm.record_proxy_result("http://p2:8080", True, 1.0, domain="example.com")
     pm.record_proxy_result("http://p1:8080", True, 0.1)
     pm.record_proxy_result("http://p1:8080", True, 0.1)
@@ -95,7 +100,7 @@ def test_affinity_sticks_then_expires(pm: ProxyManager, monkeypatch: pytest.Monk
     # fail for scheduler jitter rather than for a logic change.
     real_time = time.time
     monkeypatch.setattr(
-        "pry.engine.proxy_manager.proxy_rotation.time.time", lambda: real_time() + 1.0
+        "pry.engine.proxy_manager.proxy_rotation.time.time", lambda: real_time() + 7200.0
     )
     assert pm.get_best_proxy("example.com") == "http://p1:8080"
 

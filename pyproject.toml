@@ -563,6 +563,14 @@ markers = [
 
 [tool.coverage.run]
 branch = true
+# parallel=true: under pytest-xdist each worker writes its own
+# .coverage.<host>.<pid> file instead of four processes racing to append to one
+# file and each holding the full run's state in memory. MEASURED 2026-11-20: the
+# CI `test` job was OOM-killed with anon-rss 8.4GB while single workers stayed
+# well under 900MB locally -- the difference is per-worker coverage
+# accumulation. `coverage combine` (run by pytest-cov automatically) merges them
+# before reporting, so the number reported is unchanged.
+parallel = true
 # Source scope for local `pytest --cov` / `coverage run` runs. CI uses
 # `--cov=.` (see .forgejo/workflows/ci.yml) which measures the whole repo
 # minus `omit`, so this list is the curated local-dev subset. Note:
