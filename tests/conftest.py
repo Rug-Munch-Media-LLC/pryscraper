@@ -79,19 +79,26 @@ def pry_event_loop_isolation() -> Generator[None, None, None]:
     ``asyncio_mode = "auto"`` gives pytest-asyncio tests their own loop, but a
     plain sync test calling ``asyncio.run(...)`` uses the interpreter's loop
     POLICY, which is process-global. Installing a fresh policy per test means a
-    test can neither inherit a closed loop nor leak one, and it costs a single
-    object allocation.
+    test can neither inherit a closed loop nor leak one.
+
+    Setting the policy alone is NOT enough: on a fresh policy ``get_event_loop()``
+    still hands back a CLOSED loop in some pytest states, and callers that build a
+    coroutine and hand it to ``asyncio.wait_for`` (the health probes do exactly
+    this via ``bounded()``) then get a failed probe instead of a result. MEASURED
+    2026-11-20: ``/ready`` reported ``{"database": True, "redis": False}`` in a
+    full run because the probe coroutine never ran on the closed loop -- the last
+    two failing tests in the suite, and the reason they passed alone. So an OPEN
+    loop is installed explicitly, not just a new policy.
     """
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     yield
-    try:
-        loop = asyncio.get_event_loop_policy().get_event_loop()
-    except RuntimeError:
-        # No loop was ever created by this test; nothing to close.
-        _log.debug("event_loop_isolation_no_loop")
-        return
-    if loop is not None and not loop.is_closed():
+    # Close the loop this fixture opened so it cannot leak into the next test,
+    # and detach it from the policy first so no later caller can retrieve it.
+    if not loop.is_closed():
         loop.close()
+    asyncio.set_event_loop(None)
 
 
 #
@@ -176,13 +183,60 @@ def _pry_disable_secrets_gopass() -> None:
 
 
 @pytest.fixture(autouse=True)
-def pry_test_auth(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+def pry_test_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Blank the API key for every test, and restore it via monkeypatch.
+
+    The previous version saved ``original = settings.api_key`` and assigned it
+    back by hand in teardown. That lost to monkeypatch: a test that does
+    ``monkeypatch.setattr(settings, "api_key", ...)`` patches the value AFTER
+    this fixture already ran, and its own restore writes back whatever was
+    there when IT patched -- which was this fixture's blanked "". Whichever
+    teardown ran last won, so a run could end with a random per-run master key
+    left in a process-global settings singleton. That is exactly what the
+    global-watch run reported::
+
+        SETTINGS LEAK test_admin_authz.py::...: {'api_key': (<random>, '')}
+
+    Using ``monkeypatch.setattr`` here instead makes pytest own the save and
+    restore, so the ordering is deterministic: every patch is undone in reverse
+    order of application, and the real original always comes back.
+
+    ``settings`` is a module-level singleton built once at import, so it can
+    only be restored by patching an attribute -- not by rebuilding it, which
+    would break every module holding a reference.
+    """
     import pry.core.settings as _settings_mod
 
-    original = _settings_mod.settings.api_key
-    _settings_mod.settings.api_key = ""
+    monkeypatch.setattr(_settings_mod.settings, "api_key", "", raising=False)
+    # No teardown body: pytest undoes the patch itself, in reverse order.
+
+
+@pytest.fixture(autouse=True)
+def pry_facilitator_isolation() -> Generator[None, None, None]:
+    """Restore the global facilitator router after every test.
+
+    MEASURED 2026-11-20: ``set_facilitator_router()`` replaces a MODULE-GLOBAL
+    (``pry.payments.x402.facilitator._facilitator_router``) and nothing put it
+    back. ``tests/test_pry_regression.py`` installs a ``TestRouter`` whose
+    ``verify()`` returns ``verified: True`` unconditionally, so once that file
+    had run, the whole process was using a router that approves every payment
+    AND reports ``ready: False`` from ``readiness()``.
+
+    That single leak caused all four of the remaining full-run failures:
+
+      * /ready and /health returned 503 (the fake router is never ready)
+      * the underpayment test got ``success: True`` for a 0.001 payment
+      * the attestation-signature test got 200 instead of 402
+
+    Restoring the previous router object here makes the leak impossible no
+    matter which test stubs it, rather than patching one file and waiting for
+    the next to do the same thing.
+    """
+    from pry.payments.x402 import facilitator as _fac
+
+    previous = _fac._facilitator_router
     yield
-    _settings_mod.settings.api_key = original
+    _fac._facilitator_router = previous
 
 
 @pytest.fixture(autouse=True)
@@ -261,6 +315,56 @@ def client() -> Generator[TestClient, None, None]:
         pass
 
 
+@pytest.fixture(autouse=True)
+def pry_database_isolation(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Point EVERY test at its own SQLite file, never the live database.
+
+    MEASURED 2026-11-20: with no default isolation, a full run left the engine
+    at ``sqlite:////root/.pry/pry.db`` -- the DEPLOYED service's database, 4.2 MB
+    of real rows. Tests were reading and writing production state: the
+    /health suite reported a live DB while asserting a mocked one, and four
+    tests failed only in a full run because they inherited rows another test
+    had written.
+
+    ``temp_data_dir`` already did this correctly but was OPT-IN, so 34 test
+    modules either reinvented it (billing_support, hosting_support) or forgot.
+    Making it autouse means a new test cannot accidentally touch the real
+    database, and the opt-in fixture below still exists for files that want to
+    assert against the returned path.
+
+    The engine globals are reset before AND after so a disposed or
+    differently-bound engine from a previous test cannot leak in, and the URL is
+    set through monkeypatch so the real environment is restored at teardown.
+    """
+    db_path = tmp_path / "pry-test.db"
+    monkeypatch.setenv("PRY_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{db_path}")
+
+    import pry.core.db as db
+    import pry.core.db.db_engine as db_engine_mod
+
+    def _reset() -> None:
+        for mod in (db, db_engine_mod):
+            for attr in ("_engine", "_SessionLocal", "_async_engine", "_async_session_local"):
+                if hasattr(mod, attr):
+                    setattr(mod, attr, None)
+
+    _reset()
+    # Create the schema in the fresh database. Some tests relied on the live
+    # database already having tables (they got "no such table: users" once the
+    # real file was no longer in play), and a test must never depend on
+    # production rows to exist. `init_db()` is the documented cold-start/test
+    # helper; it honours PRY_ALEMBIC_AUTO.
+    try:
+        from pry.core.db.db_init import init_db
+
+        init_db()
+    except Exception:  # noqa: BLE001 - a schema setup failure must surface as a test failure, not a fixture crash
+        _log.debug("pry_database_isolation_init_failed", exc_info=True)
+    yield
+    _reset()
+
+
 @pytest.fixture
 def temp_data_dir(monkeypatch, tmp_path):
     """Point PRY_DATA_DIR/PRY_DATABASE_URL at a temp dir and reset the engine.
@@ -268,6 +372,10 @@ def temp_data_dir(monkeypatch, tmp_path):
     Hoisted here so every DB-touching test file gets the SAME isolation.
     It was previously copy-pasted per file, which is how a suite ends up with
     two tests pointing at two different databases and blaming each other.
+
+    ``pry_database_isolation`` (autouse) already does the environment part; this
+    fixture remains for tests that need the PATH back, and re-asserts the env so
+    a caller get explicit control.
     """
     monkeypatch.setenv("PRY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{tmp_path}/test.db")
