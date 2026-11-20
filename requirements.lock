@@ -1,220 +1,327 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Rug Munch Media LLC
 # Part of Pry - https://git.rugmunch.io/RugMunchMedia/pryscraper
-# Fully pinned from the tested venv (3,422 tests green 2026-08-23).
-# Regenerate (filter the project's own editable lines — CI installs
-# the project separately via `uv pip install -e ".[dev]"`):
-#   .venv/bin/pip freeze | grep -vE "^-e git\+.*#egg=pry" > requirements.lock
-# Dockerfile and CI install THIS file — requirements.txt is the loose
-# range manifest generated from pyproject.toml (dependency declaration,
-# not an install source).
-
-
+#
+# Fully pinned install source. GENERATED from uv.lock - DO NOT EDIT.
+#   uv export --frozen --no-hashes --no-emit-project --all-extras --all-groups
+#
+# This file used to be produced by `pip freeze` from whatever venv happened
+# to exist, and had drifted 104 packages behind uv.lock -- including certifi,
+# which made the Docker image unbuildable (curl-cffi requires
+# certifi>=2026.10.19 while this file pinned 2026.7.22). uv.lock is the only
+# authoritative resolver here; this file is now a projection of it, so the
+# two cannot disagree.
 aiohappyeyeballs==2.7.1
-aiohttp==3.14.3
-aiohttp_socks==0.12.0
+aiohttp-socks==0.12.0
+aiohttp==3.14.5
 aiosignal==1.4.0
 aiosqlite==0.22.1
-alembic==1.18.5
+alembic==1.20.1
 annotated-doc==0.0.5
 annotated-types==0.8.0
-anyio==4.14.2
-apify==4.0.1
-apify_client==3.1.2
-apify_shared==2.2.1
-argcomplete==3.6.3
-ast_serialize==0.6.0
+ansicon==1.89.0 ; sys_platform == 'win32'
+anyio==4.15.1
+apify-client==3.3.0
+apify==4.1.0
+argcomplete==3.7.2
+ast-serialize==0.13.1
 async-timeout==5.0.1
-asyncpg==0.31.0
+asyncpg==0.32.0
 attrs==26.1.0
+av==15.1.0
 babel==2.18.0
+bandit==1.9.4
 beautifulsoup4==4.15.0
-bitarray==3.10.1
-brotli==1.2.0
-build==1.5.0
-cachetools==7.1.7
+bitarray==3.12.3
+blessed==1.52.0
+boltons==21.0.0
+boolean-py==5.0
+bracex==3.2
+brotli==1.2.1
+cachecontrol==0.14.4
+cachetools==7.2.5
 camoufox==0.5.8
-certifi==2026.7.22
+certifi==2026.10.23
 cffi==2.1.1
-cfgv==3.5.0
-chardet==7.6.0
-charset-normalizer==3.5.1
+chardet==5.2.0
+charset-normalizer==3.5.2
 ckzg==2.1.8
+click-option-group==0.5.9
 click==8.4.2
 cloudscraper==1.2.71
 colorama==0.4.6
-commitizen==4.16.4
+commitizen==4.19.3
 courlan==1.4.0
-coverage==7.15.1
-crawlee==1.9.1
+coverage==7.17.0
+crawlee==1.11.0
 croniter==6.2.4
-cryptography==50.0.0
-cssselect==1.5.0
+cryptography==50.0.2
+cssselect==1.3.0
+ctranslate2==4.8.4
+cuda-bindings==13.4.4 ; python_full_version < '3.15' and sys_platform == 'linux'
+cuda-pathfinder==1.8.4 ; python_full_version < '3.15' and sys_platform == 'linux'
+cuda-toolkit==13.0.3.0 ; sys_platform == 'linux'
 curl-cffi==0.17.0
-cytoolz==1.1.0
-dateparser==1.4.2
+cyclonedx-python-lib==11.12.0
+cython==3.3.0 ; sys_platform == 'darwin'
+cytoolz==1.2.0 ; implementation_name == 'cpython'
+dateparser==1.4.3
+ddddocr==1.6.1 ; sys_platform == 'darwin' or sys_platform == 'linux'
 decli==0.6.3
-Deprecated==1.3.1
-distlib==0.4.3
-dnspython==2.8.0
-docutils==0.23
+defusedxml==0.7.1
+deprecated==1.3.1
+deptry==0.25.1
+dnspython==2.9.0
+easyocr==1.7.2
+editor==2.0.1
 email-validator==2.3.0
-eth-account==0.13.7
+eth-abi==6.0.0
+eth-account==0.14.0
 eth-hash==0.8.0
-eth-keyfile==0.8.1
-eth-keys==0.7.0
-eth-rlp==2.2.0
+eth-keyfile==0.10.0
+eth-keys==0.8.0
+eth-rlp==3.0.0
 eth-typing==6.0.0
 eth-utils==6.0.0
-eth_abi==5.2.0
+exceptiongroup==1.2.2
+execnet==2.1.2
+face==26.0.1
 fastapi==0.141.1
-filelock==3.32.3
+faster-whisper==1.2.1
+filelock==4.2.4
+flatbuffers==25.12.19
+fpgen==1.3.0
 frozenlist==1.8.0
-greenlet==3.5.5
+fsspec==2026.9.0
+glom==25.12.0
+googleapis-common-protos==1.76.0
+greenlet==3.5.6
+grimp==3.17
 h11==0.16.0
-hexbytes==1.3.1
-htmldate==1.10.0
-httpcore2==2.10.0
+hexbytes==2.0.0
+hf-xet==1.8.0 ; platform_machine == 'AMD64' or platform_machine == 'ARM64' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'
+htmldate==1.11.0
+httpcore2==2.16.0 ; sys_platform != 'emscripten'
 httpcore==1.0.9
-httptools==0.8.0
-httpx2==2.10.0
+httptools==0.9.0
+httpx2-jsfetch==1.0 ; python_full_version >= '3.12' and sys_platform == 'emscripten'
+httpx2==2.16.0
 httpx==0.28.1
-hypothesis==6.165.9
-id==1.6.1
-identify==2.6.19
-idna==3.18
-impit==0.13.2
-iniconfig==2.3.0
-jaraco.classes==3.4.0
-jaraco.context==6.1.2
-jaraco.functools==4.6.0
-jeepney==0.9.0
-Jinja2==3.1.6
+huggingface-hub==2.4.0
+hypothesis==6.170.11
+idna==3.20
+imageio==2.38.1
+impit==0.14.1
+import-linter==2.15
+importlib-metadata==8.7.1
+indexed-zstd==1.7.2
+iniconfig==2.3.1
+inquirer==3.4.1
+interrogate==1.7.0
+jinja2==3.1.6
+jinxed==2.1.0
 jsonschema-specifications==2025.9.1
 jsonschema==4.25.1
-jusText==3.0.2
-keyring==25.7.0
-lazy-object-proxy==1.12.0
+justext==3.0.2
+language-tags==1.3.2
+lazy-loader==0.6
+lazy-object-proxy==1.13.0
 libcst==1.9.0
-librt==0.13.0
-linkify-it-py==2.1.0
-lxml==6.1.1
-lxml_html_clean==0.4.5
-Mako==1.3.12
+librt==0.16.0 ; platform_python_implementation != 'PyPy'
+license-expression==30.4.4
+linkify-it-py==2.2.0
+lxml-html-clean==0.4.5
+lxml==6.1.3
+mako==1.4.3
+mando==0.7.1
 markdown-it-py==4.2.0
 markdownify==1.2.3
-MarkupSafe==3.0.3
-mcp-types==2.0.0
-mcp==1.29.0
+markupsafe==3.0.4
+mcp-types==2.3.0
+mcp==2.3.0
 mdit-py-plugins==0.6.1
 mdurl==0.1.2
-more-itertools==11.1.0
-multidict==6.7.1
-mutmut==3.7.0
-mypy==2.3.0
-mypy_extensions==1.1.0
-nh3==0.3.6
-nodeenv==1.10.0
-numpy==2.5.2
+more-itertools==11.2.1
+mpmath==1.3.0
+msgpack==1.2.3
+multidict==7.2.1
+mutmut==3.8.0
+mypy-extensions==1.1.0
+mypy==2.4.0
+networkx==3.6.1 ; python_full_version < '3.12'
+ninja==1.13.2
+numpy==2.4.6 ; python_full_version < '3.12'
+nvidia-cublas==13.1.1.3 ; sys_platform == 'linux'
+nvidia-cuda-cupti==13.0.85 ; (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')
+nvidia-cuda-nvrtc==13.0.88 ; sys_platform == 'linux'
+nvidia-cuda-runtime==13.0.96 ; (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')
+nvidia-cudnn-cu13==9.24.0.43 ; sys_platform == 'linux'
+nvidia-cufft==12.0.0.61 ; (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')
+nvidia-cufile==1.15.1.6 ; (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')
+nvidia-curand==10.4.0.35 ; (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')
+nvidia-cusolver==12.0.4.66 ; (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')
+nvidia-cusparse==12.6.3.3 ; (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')
+nvidia-cusparselt-cu13==0.8.1 ; sys_platform == 'linux'
+nvidia-nccl-cu13==2.30.7 ; sys_platform == 'linux'
+nvidia-nvjitlink==13.4.92 ; (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')
+nvidia-nvshmem-cu13==3.4.5 ; sys_platform == 'linux'
+nvidia-nvtx==13.0.85 ; (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')
+onnxruntime==1.32.0
+opencv-python-headless==5.0.0.93
+opencv-python==5.1.0.95 ; sys_platform == 'darwin'
 opentelemetry-api==1.37.0
+opentelemetry-exporter-otlp-proto-common==1.37.0
+opentelemetry-exporter-otlp-proto-http==1.37.0
+opentelemetry-instrumentation-requests==0.58b0
+opentelemetry-instrumentation-threading==0.58b0
+opentelemetry-instrumentation==0.58b0
+opentelemetry-proto==1.37.0
 opentelemetry-sdk==1.37.0
 opentelemetry-semantic-conventions==0.58b0
+opentelemetry-util-http==0.58b0
+orjson==3.13.0
 outcome==1.3.0.post0
-packaging==26.2
-pact-python-ffi==0.5.4.1
-pact-python==3.4.0
-pandas==3.0.5
+packageurl-python==0.17.6
+packaging==26.3
+pact-python-ffi==0.5.12.1
+pact-python==4.2.0
+pandas==3.1.0
 parsimonious==0.10.0
 pathspec==1.1.1
-pillow==12.3.0
-platformdirs==4.10.0
+pdfminer-six==20260107
+pdfplumber==0.11.10
+peewee==3.19.0
+pillow==13.0.0
+pip-api==0.0.35
+pip-audit==2.10.1
+pip-requirements-parser==32.0.1
+pip==26.2.2
+platformdirs==4.13.5
 playwright-stealth==2.0.3
 playwright==1.62.0
-pluggy==1.6.0
-pre_commit==4.6.0
-prometheus_client==0.26.0
-prompt_toolkit==3.0.51
-propcache==0.5.2
-Protego==0.6.2
+pluggy==1.7.0
+proclimits==0.2.0
+prometheus-client==0.26.0
+prompt-toolkit==3.0.53
+propcache==0.5.4
+protego==0.7.0
+protobuf==6.33.6
 psutil==7.2.2
-psycopg2-binary==2.9.12
-pycparser==3.0
-pycryptodome==3.23.0
-pydantic-settings==2.15.0
-pydantic==2.13.4
-pydantic_core==2.46.4
+psycopg2-binary==2.9.13
+py-ecc==8.0.0
+py-serializable==2.1.0
+py==1.11.0
+pyclipper==1.4.0
+pycparser==3.12 ; implementation_name != 'PyPy'
+pycryptodome==3.24.1
+pydantic-core==2.50.1
+pydantic-settings==2.16.1
+pydantic==2.14.1
 pyee==13.0.1
-Pygments==2.20.0
-PyJWT==2.13.0
-pyparsing==3.3.2
-pypdf==6.16.1
-pyproject_hooks==1.2.0
-PySocks==1.7.1
-pytest-asyncio==1.4.0
+pygments==2.21.0
+pyjwt==2.15.1
+pyobjc-core==12.2.2 ; sys_platform == 'darwin'
+pyobjc-framework-cocoa==12.2.2 ; sys_platform == 'darwin'
+pyparsing==3.3.3
+pypdf==6.21.2
+pypdfium2==5.14.0
+pysocks==1.7.1
+pytesseract==0.3.13
+pytest-asyncio==1.4.1
 pytest-cov==7.1.0
+pytest-randomly==5.0.0
 pytest-timeout==2.4.0
+pytest-xdist==3.8.0
 pytest==9.1.1
-python-dateutil==2.9.0.post0
-python-discovery==1.4.4
+python-bidi==0.6.12
+python-dateutil==3.0.0
 python-docx==1.2.0
-python-dotenv==1.2.3
+python-dotenv==1.2.4
 python-multipart==0.0.32
-python-socks==3.0.0
-pytz==2026.3.post1
-PyYAML==6.0.3
+python-socks==3.1.1
+pytz==2026.5
+pywin32==311 ; sys_platform == 'win32'
+pyyaml-ft==8.0.0 ; python_full_version == '3.13.*'
+pyyaml==6.0.3
 qrcode==8.2
 questionary==2.1.1
-readability-lxml==0.8.4.1
-readme_renderer==45.0
+radon==6.0.1
+readability-lxml==0.9
+readchar==4.2.2
 redis==5.3.1
 referencing==0.37.0
-regex==2026.7.19
+regex==2026.9.29
 requests-file==3.0.1
 requests-toolbelt==1.0.0
 requests==2.34.2
+requirements-parser==0.13.1
 respx==0.23.1
-rfc3986==2.0.0
+rich-click==1.9.9
 rich==15.0.0
-rlp==4.1.0
-rpds-py==2026.6.3
-ruff==0.16.7
-SecretStorage==3.5.0
-selenium==4.47.0
-setproctitle==1.3.7
-setuptools==84.0.0
+rlp==5.0.0
+rpds-py==2026.9.1
+ruamel-yaml-clib==0.2.15
+ruamel-yaml==0.19.1
+ruff==0.17.2
+runs==1.3.0
+scikit-image==0.26.0
+scipy==1.17.1 ; python_full_version < '3.12'
+screeninfo==0.8.1
+selenium==4.51.0
+semantic-version==2.10.0
+semgrep==1.182.1
+setproctitle==1.3.8
+setuptools==84.2.1
+shapely==2.2.0
 six==1.17.0
 sniffio==1.3.1
 sortedcontainers==2.4.0
-soupsieve==2.9.2
-SQLAlchemy==2.0.52
-sse-starlette==3.4.8
-starlette==1.6.0
+soupsieve==2.10 ; python_full_version < '3.11.5'
+sqlalchemy==2.1.6
+sse-starlette==3.6.0
+starlette==1.10.0
+stevedore==5.9.1
 structlog==26.1.0
+sympy==1.14.0
+tabulate==0.10.0
 termcolor==3.3.0
 textual==8.2.8
-tiktoken==0.13.0
+tifffile==2026.3.3 ; python_full_version < '3.12'
+tiktoken==0.14.0
 tld==0.13.2
-tldextract==5.3.2
-tomlkit==0.15.0
-toolz==1.1.0
-trafilatura==2.2.0
+tldextract==5.4.0
+tokenizers==0.23.3
+tomli-w==1.2.0
+tomli==2.4.1
+tomlkit==0.15.2
+toolz==1.2.0 ; implementation_name == 'cpython' or implementation_name == 'pypy'
+torch==2.14.1
+torchvision==0.29.1
+tqdm==4.70.1
+trafilatura==2.3.1
 trio-websocket==0.12.2
 trio==0.34.0
-truststore==0.10.4
-twine==7.0.0
+triton==3.8.0 ; python_full_version < '3.15' and sys_platform == 'linux'
+truststore==0.10.5 ; sys_platform != 'emscripten'
+typing-extensions==4.16.0
 typing-inspection==0.4.4
-typing_extensions==4.16.0
-tzlocal==5.4.4
-uc-micro-py==2.0.0
+tzdata==2026.5
+tzlocal==5.4.5
+ua-parser-builtins==202610
+ua-parser==1.0.2
 undetected-chromedriver==3.5.5
-urllib3==2.7.0
-uvicorn==0.52.3
-uvloop==0.22.1
-virtualenv==21.6.1
-watchfiles==1.2.0
-wcwidth==0.8.2
-websocket-client==1.9.0
-websockets==17.0.1
-wrapt==2.2.2
+urllib3==2.8.0
+uvicorn==0.54.0
+uvloop==0.23.0 ; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'
+vulture==2.16
+watchfiles==1.3.0
+wcmatch==8.5.2
+wcwidth==0.9.4
+websocket-client==1.9.2
+websockets==17.3
+wrapt==1.17.3
 wsproto==1.3.2
-yarl==1.24.5
+xmod==1.10.0
+yarl==1.25.1
+zipp==4.1.2
+zstandard==0.25.0
