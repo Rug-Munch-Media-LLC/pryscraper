@@ -108,6 +108,7 @@ def test_a_different_ip_is_unaffected(monkeypatch):
     assert _client(OTHER).get("/v1/scrape").status_code == 401
 
 
+@pytest.mark.slow
 def test_429_path_throughput(monkeypatch):
     _deny(monkeypatch)
     client = _client()
@@ -120,6 +121,12 @@ def test_429_path_throughput(monkeypatch):
     rps = rounds / elapsed
     # TestClient + structured logging dominate; the limiter itself is measured
     # separately in test_limiter_check_cost_is_not_a_bottleneck.
+    #
+    # Marked `slow` because a WALL-CLOCK threshold is not a unit assertion: the
+    # measurement is of the whole machine, so under xdist with four workers
+    # competing for cores this reads well below the serial number and fails for
+    # load rather than for a regression. The limiter's actual cost is covered by
+    # the dedicated micro-benchmark named above, which isolates it.
     assert rps > 20, f"limiter path too slow: {rps:.1f} req/s"
 
 
