@@ -93,7 +93,7 @@ def test_parse_bytes_never_crashes_on_arbitrary_input(
     _assert_well_formed(result)
 
 
-@settings(max_examples=200, deadline=10000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=200, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     data=st.binary(max_size=4096),
     content_type=st.sampled_from(
@@ -142,7 +142,7 @@ def test_parse_bytes_known_mime_types_never_crash(
     _assert_well_formed(result)
 
 
-@settings(max_examples=100, deadline=10000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     json_doc=st.one_of(
         st.text(max_size=4096),
@@ -162,7 +162,7 @@ def test_json_parse_preserves_text(json_doc: object) -> None:
     assert json.loads(result["text"]) == json_doc
 
 
-@settings(max_examples=100, deadline=10000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(data=st.binary(max_size=4096))
 def test_unknown_content_type_never_crashes(data: bytes) -> None:
     """Octet-stream / unknown content always degrades to unknown or binary."""

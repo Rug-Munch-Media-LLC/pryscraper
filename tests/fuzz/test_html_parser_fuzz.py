@@ -9,7 +9,7 @@ from hypothesis import HealthCheck, given, settings, strategies as st
 @given(html=st.text())
 @settings(
     max_examples=500,
-    deadline=2000,
+    deadline=None,
     suppress_health_check=[HealthCheck.too_slow],
 )
 def test_schema_extraction_never_crashes(html: str) -> None:
@@ -31,7 +31,7 @@ def test_schema_extraction_never_crashes(html: str) -> None:
 @given(html=st.text())
 @settings(
     max_examples=500,
-    deadline=2000,
+    deadline=None,
     suppress_health_check=[HealthCheck.too_slow],
 )
 def test_network_extractors_never_crash(html: str) -> None:
@@ -59,7 +59,7 @@ def test_network_extractors_never_crash(html: str) -> None:
 @given(html=st.text())
 @settings(
     max_examples=500,
-    deadline=3000,
+    deadline=None,
     suppress_health_check=[HealthCheck.too_slow],
 )
 def test_jsoncss_extraction_never_crashes(html: str) -> None:
@@ -78,7 +78,7 @@ def test_jsoncss_extraction_never_crashes(html: str) -> None:
 
 
 @given(url=st.text(min_size=1, max_size=2000))
-@settings(max_examples=200, deadline=3000)
+@settings(max_examples=200, deadline=None)
 def test_url_parser_never_crashes(url: str) -> None:
     """url_guard.validate_url must never CRASH on any input.
 

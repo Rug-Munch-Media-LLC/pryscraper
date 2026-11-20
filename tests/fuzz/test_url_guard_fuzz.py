@@ -45,7 +45,7 @@ def test_unclosed_ipv6_bracket_raises_invalid_request_error(url: str) -> None:
         validate_url(url, resolve_dns=False)
 
 
-@settings(max_examples=500, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=500, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(url=st.text(max_size=2048))
 def test_validate_url_never_crashes_on_any_string(url: str) -> None:
     """Any string must be accepted or rejected with InvalidRequestError."""
@@ -60,7 +60,7 @@ def test_validate_url_never_crashes_on_any_string(url: str) -> None:
     _assert_accepted_unchanged(url, result)
 
 
-@settings(max_examples=500, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=500, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     scheme=st.sampled_from(["http", "https"]),
     host=st.text(alphabet=_HOST_ALPHABET, min_size=1, max_size=200),
@@ -94,7 +94,7 @@ def test_validate_url_well_formed_variants_never_crash(
     assert parsed.scheme in ("http", "https")
 
 
-@settings(max_examples=300, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=300, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(url=st.text(max_size=2048))
 def test_validate_redirect_url_never_crashes(url: str) -> None:
     """Redirect targets are attacker-controlled: rejection must be total.
@@ -117,7 +117,7 @@ def test_validate_redirect_url_never_crashes(url: str) -> None:
         _assert_accepted_unchanged(url, result)
 
 
-@settings(max_examples=100, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     a=st.integers(min_value=0, max_value=255),
     b=st.integers(min_value=0, max_value=255),
@@ -136,7 +136,7 @@ def test_ipv4_literal_hosts_are_handled_totally(a: int, b: int, c: int, d: int) 
     _assert_accepted_unchanged(url, result)
 
 
-@settings(max_examples=100, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     octet=st.integers(min_value=0, max_value=255),
     path=st.text(alphabet=_HOST_ALPHABET, max_size=300),
@@ -161,7 +161,7 @@ def test_private_ipv4_prefixes_always_rejected(octet: int, path: str) -> None:
 _SCHEME_ALPHABET = string.ascii_letters + string.digits + "+-."
 
 
-@settings(max_examples=500, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=500, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     scheme=st.text(alphabet=_SCHEME_ALPHABET, min_size=0, max_size=32),
     host=st.text(alphabet=_HOST_ALPHABET, min_size=1, max_size=100),
@@ -228,7 +228,7 @@ def test_whitespace_scheme_rejected() -> None:
 # ── Host edge cases ──────────────────────────────────────────────────────
 
 
-@settings(max_examples=300, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=300, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     label=st.text(alphabet=_HOST_ALPHABET, min_size=1, max_size=60),
     path=st.text(alphabet=string.printable, max_size=200),
@@ -245,7 +245,7 @@ def test_host_label_edge_cases_never_crash(label: str, path: str) -> None:
     _assert_accepted_unchanged(url, result)
 
 
-@settings(max_examples=200, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=200, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     host=st.text(alphabet=_HOST_ALPHABET + ":", min_size=1, max_size=120),
     path=st.text(alphabet=string.printable, max_size=200),

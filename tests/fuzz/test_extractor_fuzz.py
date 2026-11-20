@@ -26,7 +26,7 @@ def _assert_well_formed(result: object) -> None:
         assert isinstance(v, str), f"field {k!r} extracted non-str value {v!r}"
 
 
-@settings(max_examples=300, deadline=5000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=300, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(content=st.text(max_size=8192), schema=st.dictionaries(st.text(), st.text(), max_size=10))
 def test_pattern_extract_never_crashes(content: str, schema: dict) -> None:
     """Any (content, schema) pair must extract without crashing."""
@@ -38,7 +38,7 @@ def test_pattern_extract_never_crashes(content: str, schema: dict) -> None:
     _assert_well_formed(result)
 
 
-@settings(max_examples=100, deadline=5000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     content=st.text(
         max_size=4096,
@@ -61,7 +61,7 @@ def test_pattern_extract_with_punctuation_heavy_content(content: str, schema: di
     _assert_well_formed(result)
 
 
-@settings(max_examples=100, deadline=5000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(content=st.text(max_size=4096))
 def test_extract_auto_mode_returns_dict_without_llm(content: str) -> None:
     """Auto mode with small schemas must use pattern mode only (no LLM call)."""

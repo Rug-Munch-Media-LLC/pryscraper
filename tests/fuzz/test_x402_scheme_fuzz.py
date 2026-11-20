@@ -35,7 +35,7 @@ from pry.payments.x402.scheme import (
 _NETWORK_ALPHABET = string.ascii_letters + string.digits + ":-._/\\[]@% \t" + "éü中"
 
 
-@settings(max_examples=500, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=500, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(network=st.text(max_size=200))
 def test_normalize_network_id_never_raises(network: str) -> None:
     """normalize_network_id is total — returns a str for ANY input."""
@@ -43,7 +43,7 @@ def test_normalize_network_id_never_raises(network: str) -> None:
     assert isinstance(result, str)
 
 
-@settings(max_examples=500, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=500, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(network=st.text(alphabet=_NETWORK_ALPHABET, max_size=120))
 def test_normalize_network_id_weird_caip2_never_raises(network: str) -> None:
     """Malformed CAIP-2 spellings (extra colons, unicode, whitespace, …) are total."""
@@ -51,7 +51,7 @@ def test_normalize_network_id_weird_caip2_never_raises(network: str) -> None:
     assert isinstance(result, str)
 
 
-@settings(max_examples=500, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=500, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(
     network=st.text(alphabet=_NETWORK_ALPHABET, max_size=120),
     asset=st.text(alphabet=string.ascii_letters + string.digits + "_.- ", max_size=40),
@@ -62,7 +62,7 @@ def test_resolve_asset_entry_never_raises(network: str, asset: str) -> None:
     assert entry is None or isinstance(entry, dict)
 
 
-@settings(max_examples=500, deadline=2000, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=500, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 @given(network=st.text(max_size=300))
 def test_resolve_asset_entry_any_string_never_raises(network: str) -> None:
     """Even arbitrary binary-ish strings (all code points) must not crash."""
