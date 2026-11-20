@@ -88,7 +88,15 @@ def test_affinity_sticks_then_expires(pm: ProxyManager, monkeypatch: pytest.Monk
     pm.record_proxy_result("http://p1:8080", True, 0.1)
 
     assert pm.get_best_proxy("example.com") == "http://p2:8080"
-    time.sleep(0.06)
+    # Advance the CLOCK instead of sleeping. `proxy_rotation` stamps affinity
+    # with `time.time()`, so patching that module's `time` moves the window
+    # deterministically; `time.sleep(0.06)` against a 0.05s TTL left a 10ms
+    # margin, which is not enough under xdist contention and made this test
+    # fail for scheduler jitter rather than for a logic change.
+    real_time = time.time
+    monkeypatch.setattr(
+        "pry.engine.proxy_manager.proxy_rotation.time.time", lambda: real_time() + 1.0
+    )
     assert pm.get_best_proxy("example.com") == "http://p1:8080"
 
 

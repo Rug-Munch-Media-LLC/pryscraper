@@ -58,7 +58,18 @@ def _assert_well_formed(result: object) -> None:
     assert "pages" in result and isinstance(result["pages"], int)
 
 
-@settings(max_examples=300, deadline=10000, suppress_health_check=[HealthCheck.too_slow])
+# deadline=None: this is a NEVER-CRASH invariant, not a latency assertion. A
+# 10s per-example deadline measures the machine, and under xdist (four workers
+# contending for cores, each importing pypdf/lxml on first use) a single example
+# can exceed it and Hypothesis reports FlakyFailure -- "failed on the first call
+# but not on a subsequent one" -- which is load noise, not a parser defect.
+# Every other fuzz module in this directory already runs without a deadline for
+# the same reason.
+@settings(
+    max_examples=300,
+    deadline=None,
+    suppress_health_check=[HealthCheck.too_slow],
+)
 @given(
     data=st.binary(max_size=8192),
     content_type=st.text(max_size=200),
