@@ -722,12 +722,15 @@ pytest==9.1.1
     #   pytest-asyncio
     #   pytest-cov
     #   pytest-randomly
+    #   pytest-timeout
     #   pytest-xdist
 pytest-asyncio==1.4.1
     # via pryscraper-mcp
 pytest-cov==7.1.0
     # via pryscraper-mcp
 pytest-randomly==5.0.0
+    # via pryscraper-mcp
+pytest-timeout==2.4.0
     # via pryscraper-mcp
 pytest-xdist==3.8.0
     # via pryscraper-mcp

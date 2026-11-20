@@ -158,6 +158,12 @@ dev = [
     # serially; `-n auto --dist loadfile` brings it to ~2-3 min. See ci.yml
     # `test` job and standards/templates/forgejo-ci-python.yml for the form.
     "pytest-xdist>=3.6.0",
+    # pytest-timeout: a hung test must FAIL and name itself, not consume the
+    # whole 60-minute job. It was already being used ad-hoc in local runs and in
+    # the integration job, but was never a declared dev dependency, so the unit
+    # `test` job could not pass `--timeout` at all -- which is exactly how a
+    # single stalled test turned into a 16-minute job timeout with no report.
+    "pytest-timeout>=2.3.1",
     # pytest-randomly: shuffled order exposes order-dependent tests (it found
     # several in this suite); seed it in CI for reproducible failures.
     "pytest-randomly>=3.15.0",
