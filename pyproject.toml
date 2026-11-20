@@ -553,6 +553,20 @@ pythonpath = ["src", "."]
 # for minutes with no output. Disabling only the plugin keeps @given/@settings tests
 # working and drops collection to ~25 s. Remove once the plugin stops the crawl.
 addopts = "-p no:hypothesispytest -p pytest_netmarks -m 'not integration and not slow' --ignore=tests/contract"
+# Keep only the CURRENT session's tmp_path, and always delete it.
+#
+# MEASURED 2026-11-20: /tmp/pytest-of-root had grown to 20GB across 27 session
+# roots (pytest-583 .. pytest-1484), with 8,949 directories per xdist worker
+# from the actor-staging tests, which copy the whole src tree per preset. That
+# filled the disk and saturated it with journal/flush I/O (74 processes in
+# D-state, wa=43%, load1 peaked at 630). The host's CI kill-switch then
+# correctly stopped the Actions runners on load, which is why every job was
+# being cancelled before it could report -- the "flaky CI" was a full disk.
+#
+# `failed` keeps artifacts ONLY for failures (the useful case) and `always`
+# deletes the rest, so a green run leaves nothing behind.
+tmp_path_retention_policy = "failed"
+tmp_path_retention_count = 1
 markers = [
     "integration: tests that require live infrastructure (Postgres, Redis, external HTTP). Skipped by default; run with `pytest -m integration`.",
     "fuzz: marks tests as fuzz/property-based tests (can be slow)",
