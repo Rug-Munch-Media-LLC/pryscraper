@@ -129,6 +129,26 @@ dependencies = [
     # licence constraint, and the tier import-guards it correctly.
     "camoufox>=0.4.0",
     "curl_cffi>=0.7.0",
+    # alembic is a RUNTIME dependency, not a dev tool: docker-entrypoint.sh runs
+    # `alembic upgrade head` on every container start (line 145). It was declared
+    # only in the `dev` group, and that was invisible while the runtime lock was
+    # built by copying everything; once the lock became the real runtime closure
+    # the image lost the migration binary and every container failed health with
+    # "alembic not found on PATH; cannot migrate".
+    "alembic>=1.14.0",
+    # Postgres drivers, and ALL THREE are needed:
+    #   asyncpg   -- the async engine rewrites postgresql:// to +asyncpg
+    #   psycopg   -- SQLAlchemy 2.x maps a BARE postgresql:// to psycopg v3, and
+    #                `alembic upgrade head` opens PRY_DATABASE_URL verbatim, so
+    #                the migration step needs this one
+    #   psycopg2  -- baseline.py and migrations.py rewrite to +psycopg2 for the
+    #                sync path
+    # Declaring only some of them produced "ModuleNotFoundError: No module named
+    # 'psycopg'" from alembic on a clean image, which the healthcheck turns into
+    # a restart loop.
+    "asyncpg>=0.29.0",
+    "psycopg[binary]>=3.2.0",
+    "psycopg2-binary>=2.9.9",
 ]
 
 [project.urls]
@@ -172,7 +192,6 @@ dev = [
     "bandit>=1.9.0",
     "semgrep>=1.176.0",
     "import-linter>=2.15",
-    "alembic>=1.14.0",
     "respx>=0.21.0",
     # tests/test_captcha_t0_profile.py imports curl_cffi.requests.Cookies at
     # module scope; the scrape extra is optional at runtime but the test suite
@@ -191,8 +210,13 @@ dev = [
     # async engine (PRY_DATABASE_URL=postgresql+asyncpg://); psycopg2-binary
     # by the sync engine (db.session.session_scope). Both are required by
     # tests/test_integration_db_redis.py and the `integration-nightly` CI job.
-    "asyncpg>=0.29.0",
-    "psycopg2-binary>=2.9.9",
+    # NOTE: asyncpg / psycopg2-binary are declared in [project] dependencies,
+    # not here. They are RUNTIME drivers -- production runs
+    # PRY_DATABASE_URL=postgresql://... (docker-compose.yml), the async engine
+    # rewrites it to postgresql+asyncpg://, and the sync engine uses psycopg2.
+    # Declaring them dev-only was invisible while the runtime lock copied
+    # everything; as a real runtime closure the image had no Postgres driver at
+    # all.
     "vulture>=2.16",
     "radon>=6.0",
     "interrogate>=1.7",
