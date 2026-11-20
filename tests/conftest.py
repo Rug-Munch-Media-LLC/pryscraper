@@ -390,7 +390,13 @@ def pry_database_isolation(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> No
     except Exception:  # noqa: BLE001 - a schema setup failure must surface as a test failure, not a fixture crash
         _log.debug("pry_database_isolation_init_failed", exc_info=True)
     yield
-    _reset()
+    # NO teardown reset. It is unnecessary -- this fixture's own setup calls
+    # _reset() before every test, so a stale engine can never be inherited -- and
+    # it is HARMFUL: teardown runs in reverse fixture order, so this fired while
+    # a module-level fixture like `test_monitor_scheduler.temp_db` was still
+    # tearing down and needed the engine IT built. That cleared `_engine` under
+    # it and produced `assert 0 == 1` ("scrape never happened") in three monitor
+    # tests that had passed for months.
 
 
 @pytest.fixture
