@@ -18,14 +18,20 @@ from pry.core.db import Monitor, MonitorRun, session_scope
 
 @pytest.fixture
 def temp_db(monkeypatch, tmp_path):
+    # Reset BOTH engine holders. `pry.core.db` is a compatibility facade and the
+    # live state lives in `db_engine`; clearing only the facade leaves a stale
+    # engine bound to a previous test's file, which is why these tests passed
+    # alone and failed under xdist when another file had already built one.
     import pry.core.db as db_module
+    import pry.core.db.db_engine as db_engine_mod
 
     db_path = tmp_path / "test.db"
     monkeypatch.setenv("PRY_DATABASE_URL", f"sqlite:///{db_path}")
     monkeypatch.setenv("PRY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("PRY_MONITOR_RETRY_BACKOFF_S", "0")
-    db_module._engine = None
-    db_module._SessionLocal = None
+    for mod in (db_module, db_engine_mod):
+        mod._engine = None
+        mod._SessionLocal = None
     db_module.get_engine()
     # Schema authority is Alembic; get_engine() deliberately does not
     # create_all. A test that needs tables must ask for them.
@@ -33,6 +39,9 @@ def temp_db(monkeypatch, tmp_path):
 
     Base.metadata.create_all(db_module.get_engine())
     yield tmp_path
+    for mod in (db_module, db_engine_mod):
+        mod._engine = None
+        mod._SessionLocal = None
     db_module._engine = None
     db_module._SessionLocal = None
 

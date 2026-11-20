@@ -212,6 +212,34 @@ def pry_test_auth(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def pry_scheduler_lock_isolation() -> Generator[None, None, None]:
+    """Clear the in-process monitor claim table between tests.
+
+    ``scheduler._LOCAL`` is a process-global ``{monitor_id: expiry}`` dict with a
+    default TTL of 900 seconds, and ``claim_monitor`` returns "already held"
+    for anything still inside that window. Nothing cleared it between tests, so
+    once one test claimed a monitor id, every later test using the same id saw
+    its ``scrape`` skipped and got zero runs.
+
+    MEASURED 2026-11-20: this is why ``test_monitor_scheduler`` passed alone and
+    failed under xdist -- the two callers in a single test are sequential in one
+    process, but a *previous file on the same worker* had already left the claim
+    in place. Serial full runs happened to order the files open, which is why
+    the failure only appeared with parallelism.
+
+    A test that asserts the claim behaviour still works: it claims and checks
+    within its own body, starting from an empty table.
+    """
+    from pry.actors import scheduler as _sched
+
+    with _sched._LOCAL_LOCK:
+        _sched._LOCAL.clear()
+    yield
+    with _sched._LOCAL_LOCK:
+        _sched._LOCAL.clear()
+
+
+@pytest.fixture(autouse=True)
 def pry_facilitator_isolation() -> Generator[None, None, None]:
     """Restore the global facilitator router after every test.
 
