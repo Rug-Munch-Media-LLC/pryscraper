@@ -65,9 +65,7 @@ class TestRegistryConsistency:
         # but one member of that set was unrepresentable by the regex, so the
         # only way to pass was to delete the tool. Match the advertised names
         # instead of assuming they all share a prefix.
-        listed = set(
-            re.findall(r"^### ([a-z][a-z0-9_]+)\s*$", text, flags=re.MULTILINE)
-        )
+        listed = set(re.findall(r"^### ([a-z][a-z0-9_]+)\s*$", text, flags=re.MULTILINE))
         assert listed == set(PRY_TOOL_NAMES), (
             f"llms.txt drift: missing={sorted(set(PRY_TOOL_NAMES) - listed)} "
             f"extra={sorted(listed - set(PRY_TOOL_NAMES))}"

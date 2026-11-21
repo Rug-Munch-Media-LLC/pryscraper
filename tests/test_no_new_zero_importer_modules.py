@@ -194,7 +194,9 @@ def _referenced(modules: dict[str, Path]) -> set[str]:
         except (UnicodeDecodeError, OSError) as exc:
             # A file we cannot decode is not evidence about imports; skip it
             # rather than abort the scan. Logged so the skip is auditable.
-            logger.debug("zero_importer_skipped_file", extra={"path": str(path), "err": str(exc)[:80]})
+            logger.debug(
+                "zero_importer_skipped_file", extra={"path": str(path), "err": str(exc)[:80]}
+            )
             continue
         hits = _names_imported_by(text) & wanted
         if not hits:

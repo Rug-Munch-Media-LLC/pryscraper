@@ -12,6 +12,7 @@ from pry.api.routers.core.health import router
 app = FastAPI()
 app.include_router(router)
 
+
 async def _await_probe(coro, *_a, **_k):
     """Await a probe directly instead of through `bounded()`.
 
@@ -24,6 +25,7 @@ async def _await_probe(coro, *_a, **_k):
     depending on loop hygiene elsewhere in the suite.
     """
     return await coro
+
 
 client = TestClient(app, raise_server_exceptions=False)
 
@@ -94,7 +96,6 @@ def test_health_check_ollama_down(mock_get_client):
         # assertion is about the health CONTRACT, not about loop hygiene.
         patch("pry.api.routers.core.health.bounded", _await_probe),
     ):
-
         r = client.get("/health")
         assert r.status_code in (200, 503, 422, 500)
 
@@ -153,9 +154,7 @@ def test_health_stays_ok_when_all_optional_deps_down(mock_get_client):
         # making a healthy dependency report as down. Stub the wrapper so the
         # assertion is about the health CONTRACT, not about loop hygiene.
         patch("pry.api.routers.core.health.bounded", _await_probe),
-        patch(
-            "pry.api.routers.core.health._check_database", AsyncMock(return_value=True)
-        ),
+        patch("pry.api.routers.core.health._check_database", AsyncMock(return_value=True)),
     ):
         r = client.get("/health")
     assert r.status_code == 200
@@ -217,9 +216,7 @@ def test_ready_ignores_optional_deps(mock_get_client):
         # making a healthy dependency report as down. Stub the wrapper so the
         # assertion is about the health CONTRACT, not about loop hygiene.
         patch("pry.api.routers.core.health.bounded", _await_probe),
-        patch(
-            "pry.api.routers.core.health._check_database", AsyncMock(return_value=True)
-        ),
+        patch("pry.api.routers.core.health._check_database", AsyncMock(return_value=True)),
     ):
         r = client.get("/ready")
     assert r.status_code == 200
