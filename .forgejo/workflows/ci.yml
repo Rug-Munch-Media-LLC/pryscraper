@@ -159,7 +159,7 @@ jobs:
 
   test:
     runs-on: docker-x64
-    timeout-minutes: 60
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -230,7 +230,7 @@ jobs:
     # Run locally with:  pytest -m integration  (requires PG+Redis reachable)
     if: github.event_name == 'schedule'
     runs-on: docker-x64
-    timeout-minutes: 60
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     services:
@@ -330,7 +330,7 @@ jobs:
     name: Integration gate (Postgres + Redis)
     if: github.event_name == 'pull_request'
     runs-on: docker-x64
-    timeout-minutes: 60
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     services:
@@ -428,7 +428,7 @@ jobs:
     # does not exist. Fixing the baseline schema is a scripts/ + data/ change
     # and belongs to whichever lane owns those files.
     runs-on: docker-x64
-    timeout-minutes: 60
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
@@ -1052,7 +1052,7 @@ jobs:
   mutation-test:
     name: Mutation testing (mutmut)
     runs-on: docker-x64
-    timeout-minutes: 60
+    timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
     steps:
