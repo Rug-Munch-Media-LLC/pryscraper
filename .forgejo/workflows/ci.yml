@@ -43,7 +43,34 @@ jobs:
           apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl
           rm -rf /var/lib/apt/lists/*
           pip install pre-commit
+      - name: Restore pre-commit hook cache
+        # PRE-COMMIT INSTALLS FIVE HOOK ENVIRONMENTS FROM SOURCE EVERY RUN, and
+        # that install is the step being killed. `actions/cache` routes to the
+        # runner's persistent host cache directory, so the
+        # second run onwards skips the build entirely.
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pre-commit
+          key: precommit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            precommit-${{ runner.os }}-
       - name: Run ALL pre-commit hooks on all files
+        # CACHE THE HOOK ENVIRONMENTS (2026-11-21).
+        #
+        # Five hook repos install from source on every run (ruff-pre-commit,
+        # mirrors-mypy, gitleaks, bandit, pre-commit-hooks) and pre-commit says so
+        # itself: "Installing environment for ... This may take a few minutes".
+        # That install is the longest step in the job, and on this box it is
+        # repeatedly killed by an overlay2 fault:
+        #     RWLayer of container <id> is unexpectedly nil
+        #     failed to remove container: ... already in progress
+        # Measured: 9 of 9 runs failed on pryscraper while other repos' identical
+        # job passed, because their trees are small enough to finish first.
+        #
+        # `PRE_COMMIT_HOME` inside the workspace is not enough (a fresh container
+        # each run), so the cache is keyed and restored with the runner's own
+        # cache action -- install once, reuse afterwards.
+        env:
         run: pre-commit run --all-files --show-diff-on-failure
 
   semgrep:
