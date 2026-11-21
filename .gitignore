@@ -15,18 +15,22 @@ secrets*
 # .env.selfhost (with PRY_API_KEY) stays ignored by the rules above.
 !.env.selfhost.example
 # Python
-__pycache__/
+__pycache__
 *.py[cod]
 *.egg-info/
-.venv/
-venv/
+.venv
+# No trailing slash ON PURPOSE. `.venv/` matches only a DIRECTORY, so a file or
+# symlink named `.venv` slipped past it and was committed (2026-11-21), which
+# broke every CI job with "failed to create directory `.venv`: File exists".
+# Without the slash the pattern matches the name whatever it is.
+venv
 *.egg
-.mypy_cache/
-.ruff_cache/
-.pytest_cache/
-.hypothesis/
+.mypy_cache
+.ruff_cache
+.pytest_cache
+.hypothesis
 # Node
-node_modules/
+node_modules
 .npm/
 .yarn/
 # Build
