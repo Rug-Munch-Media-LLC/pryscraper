@@ -96,6 +96,13 @@ paths = [
   # The push hook runs 'gitleaks detect --source . --no-git', so an uncommitted
   # file here DOES get scanned - hence this entry.
   '''\.methodology-patterns''',
+  # uv.lock carries PyPI artifact URLs whose SHA-256 fragment is a 64-hex string.
+  # The ethereum-private-key rule matches any 64-hex run, so every lockfile entry
+  # becomes a "leak" (measured: 4 hits, all `sdist = { url = "https://files.
+  # pythonhosted.org/..." }`). A lockfile cannot hold a secret: it is generated
+  # from the registry, and the hash is the artifact digest the resolver verified.
+  # Excluding the file is the narrow fix; the rule stays active everywhere else.
+  '''^uv\.lock$''',
   '''node_modules/''',
   # Fleet gate toolkit: pattern literals, not secrets (mirrors rugbrain)
   '''scripts/''',
