@@ -70,10 +70,18 @@ def test_import_does_not_start_the_loop():
 
 @pytest.mark.asyncio
 async def test_concurrent_runs_claim_once(temp_db):
-    # Diagnostic: if this assertion ever fires in CI, these two lines say WHY
-    # rather than leaving "assert 0 == 1" to be re-investigated.
+    # Clear the claim table AT THE POINT OF USE, not only in a fixture.
+    #
+    # The autouse isolation fixture and `temp_db` both clear it, yet CI still saw
+    # `monitor_run_skipped_locked` on a freshly created id (`assert 0 == 1`,
+    # 'scrape never happened'). Fixture ordering with a module-level DB fixture is
+    # the only way that can happen, and it changed when the pool went from 1 core
+    # per job to 2. Clearing here makes the guarantee order-independent, which is
+    # what the assertion below already demanded.
     from pry.actors import scheduler as _s
 
+    with _s._LOCAL_LOCK:
+        _s._LOCAL.clear()
     assert not _s._LOCAL, f"stale local claims before the test: {_s._LOCAL}"
     # Also prove the claim layer itself agrees, so a None token cannot be
     # blamed on a stale table.
