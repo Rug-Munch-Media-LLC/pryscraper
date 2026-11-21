@@ -139,8 +139,8 @@ def test_advertised_names_are_unique_and_well_formed() -> None:
     # not written down anywhere. Assert the rule WITH its exception rather than
     # failing on reality, and keep the set explicit so a third exception has to
     # be argued for here instead of slipping in.
-    NON_PREFIXED = {"dextools_search"}
-    offenders = [n for n in names if not n.startswith("pry_") and n not in NON_PREFIXED]
+    non_prefixed = {"dextools_search"}
+    offenders = [n for n in names if not n.startswith("pry_") and n not in non_prefixed]
     assert not offenders, f"non-pry tools advertised outside the allowance: {offenders}"
 
 

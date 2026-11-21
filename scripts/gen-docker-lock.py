@@ -23,7 +23,7 @@ CI drift-checks this file (``docker lock drift check``), so the output must be
 deterministic: sorted by name, one pin per line, no hashes.
 """
 
-import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -45,9 +45,9 @@ HEADER = (
 
 def main() -> int:
     try:
-        out = subprocess.run(
+        out = subprocess.run(  # noqa: S603 - fixed argv, no shell
             [
-                "uv",
+                shutil.which("uv") or "uv",
                 "export",
                 "--frozen",
                 "--no-hashes",
@@ -68,7 +68,7 @@ def main() -> int:
     pins: dict[str, str] = {}
     for line in out.splitlines():
         s = line.strip()
-        if not s or s.startswith("#") or s.startswith("-") or "==" not in s:
+        if not s or s.startswith(("#", "-")) or "==" not in s:
             continue
         name = s.split("==")[0].split("[")[0].strip()
         pins[name.lower().replace("_", "-")] = s
