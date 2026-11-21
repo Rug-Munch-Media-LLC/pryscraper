@@ -22,6 +22,14 @@ on:
 env:
   UV_BIN: $HOME/.local/bin/uv
 
+# Cancel superseded runs. Without this, every push to a PR starts a fresh
+# 32-job run while the previous one keeps burning CPU to completion -- pure
+# waste, and on this host it is what pushed load high enough for the CI
+# kill-switch to stop the runners entirely.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   pre-commit-mirror:
     runs-on: docker-x64
@@ -177,39 +185,33 @@ jobs:
           # installs it to exercise the real blocking path.
           curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar xz -C /usr/local/bin gitleaks
       - name: Test with coverage
-        # Coverage floor: 73% (measured 73.7% in CI 2026-09-12; ratchet back
-        # toward the 76% local baseline as env-dependent skips are reduced).
-        # Scope is `--cov=pry` (the shipped package under src/pry/) rather than
-        # `--cov=.`: whole-repo coverage over scripts/datasets/website is noise
-        # and adds collection overhead. The 73% floor is UNCHANGED; the scoped
-        # number may differ and must be re-measured, not guessed.
-        # `-n 4 --dist loadfile` (pytest-xdist, in [dev] extras) parallelizes
-        # by test FILE, so a file's fixtures and module-level state stay on one
-        # worker -- which is what makes the per-file state resets in conftest
-        # meaningful.
-        # MEASURED 2026-11-19: this comment described the parallelism for weeks
-        # while the command below did NOT pass any `-n`, so every run was fully
-        # serial. That is the whole reason this job felt unbounded -- the suite
-        # is ~9.8k tests and serial it runs past the job timeout, so the job
-        # never even reported a pass. The flag is now actually here.
-        # Tests MUST pass — blocks the pipeline on failure or insufficient
-        # coverage.
+        # TWO passes, deliberately split (fleet gate: xdist-coverage).
         #
-        # Worker count is EXPLICIT, not `auto`. Each xdist worker imports the
-        # whole application (~190 MB resident, measured 2026-11-20), and the
-        # runner is a shared 16-core box with no job-level memory cap, so
-        # `-n auto` would start 16 workers and let the HOST OOM killer pick
-        # victims -- which presents as "the suite hangs" or "killed at 100%",
-        # never as a memory error, because the killed worker cannot report.
-        # `-n 2` for the coverage pass specifically. The suite is ~9.8k tests and
-        # coverage adds a full model per worker; four workers were OOM-killed on
-        # a contended host ~at 100% (measured: 16-21 oom-kill events, log ending
-        # mid-report with no summary line). Two workers halves the coverage
-        # footprint while staying inside the 60-minute job budget, and WITHOUT
-        # coverage the suite still runs at -n 4 -- coverage is the only reason
-        # the memory scales with worker count, so it is the only part that needs
-        # to be conservative.
-        run: source .venv/bin/activate && pytest tests/ --maxfail=10 -q --tb=short -n 2 --dist loadfile --timeout=120 --timeout-method=thread --cov=pry --cov-report=xml:coverage.xml --cov-fail-under=76 -m "not integration and not slow"
+        # `-n <N> --cov` in ONE call gives every xdist worker its own coverage
+        # tracer plus a merge at the end: N interpreters AND N coverage processes
+        # for zero extra parallelism, because coverage parallelises nothing. That
+        # is what pushed this job into the host OOM killer at ~100% (measured
+        # 16-21 oom-kill events, log ending mid-report with no summary line).
+        #
+        # Pass 1: parallel, NO coverage -- fast, low memory, decides red/green.
+        # Pass 2: coverage serially (-p no:xdist) -- one tracer, ~550MB peak.
+        run: |
+          source .venv/bin/activate
+          pytest tests/ --maxfail=10 -q --tb=short -n 4 --dist loadfile \
+            --timeout=120 --timeout-method=thread -m "not integration and not slow"
+          pytest tests/ --maxfail=10 -q --tb=short -p no:xdist \
+            --timeout=120 --timeout-method=thread \
+            --cov=pry --cov-report=xml:coverage.xml --cov-fail-under=76 \
+            -m "not integration and not slow"
+      # Publish the report so the diff-cover gate can CONSUME it instead of
+      # re-running the whole suite for the same number. `test` is the only job
+      # that executes the tests; everything downstream reads its output.
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          retention-days: 3
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
@@ -1187,48 +1189,34 @@ jobs:
   # HIGH/CRITICAL) is the single dependency-security gate.
 
   coverage-regression-gate:
+    # WAS: a second full `pytest` run purely to produce coverage.xml for
+    # diff-cover -- same suite, same runner pool, ~11 minutes, for a number the
+    # `test` job had already computed. It now CONSUMES test's artifact instead.
+    # The delta check it performs (lines changed in this PR vs main) is unique and
+    # is kept; only the duplicate execution is gone.
     name: Coverage regression (diff-cover)
+    if: github.event_name == 'pull_request'
+    needs: [test]
     runs-on: docker-x64
-    timeout-minutes: 30
+    timeout-minutes: 10
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
-    if: github.event_name == 'pull_request'
     steps:
-      - name: Install Node.js for actions/checkout
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
-          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-          apt-get install -y --no-install-recommends nodejs
-          rm -rf /var/lib/apt/lists/*
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - name: Install uv + setup
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev curl ca-certificates && rm -rf /var/lib/apt/lists/*
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
-          uv python install 3.12
-          uv venv --python 3.12 .venv
-          uv pip install --python .venv/bin/python -e ".[dev]"
-      - name: Run tests with coverage
-        run: |
-          source .venv/bin/activate
-          # -n 4 --dist loadfile: same bounded parallelism as the `test` job.
-          # This is the SECOND full-suite run in the pipeline; serial it was
-          # another 25+ minutes for a coverage number the `test` job already
-          # produced. Kept at 4 for the same memory reason documented there.
-          pytest tests/ --maxfail=10 -q --tb=short -n 4 --dist loadfile --timeout=120 --timeout-method=thread --cov=pry --cov-report=xml:coverage.xml -m "not integration and not slow"
+      - name: Download coverage from the test job
+        uses: actions/download-artifact@v3
+        with:
+          name: coverage-xml
       - name: Coverage regression check
         run: |
-          source .venv/bin/activate
-          pip install diff-cover
+          python3 -m pip install --quiet diff-cover
           diff-cover coverage.xml --compare-branch=origin/main --fail-under=75 || {
-            echo "❌ Coverage regression detected (below 75% or dropped vs main)"
+            echo "coverage regression: changed lines below 75% or dropped vs main"
             exit 1
           }
 
-# Append these jobs under `jobs:` in any repo's ci.yml. Self-contained.
   supply-chain:
     runs-on: docker-x64
     timeout-minutes: 30
