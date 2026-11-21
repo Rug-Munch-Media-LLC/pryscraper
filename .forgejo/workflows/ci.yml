@@ -44,10 +44,19 @@ jobs:
           rm -rf /var/lib/apt/lists/*
           pip install pre-commit
       - name: Restore pre-commit hook cache
-        # PRE-COMMIT INSTALLS FIVE HOOK ENVIRONMENTS FROM SOURCE EVERY RUN, and
-        # that install is the step being killed. `actions/cache` routes to the
-        # runner's persistent host cache directory, so the
-        # second run onwards skips the build entirely.
+        # PRE-COMMIT INSTALLS FIVE HOOK ENVIRONMENTS FROM SOURCE ON EVERY RUN
+        # (ruff-pre-commit, mirrors-mypy, gitleaks, bandit, pre-commit-hooks) and
+        # says so itself: "Installing environment for ... This may take a few
+        # minutes". Measured locally: those environments are 425MB.
+        #
+        # That build is the longest step in this job, and on this host it is
+        # repeatedly killed by an overlay2 fault (`RWLayer ... is unexpectedly
+        # nil`, 169 occurrences in 24h). Measured: 9 of 9 runs failed here while
+        # the identical job passed on two smaller repos.
+        #
+        # `actions/cache` routes to the runner's persistent host cache, so the
+        # build happens once. Keyed on the hook config's hash, so changing a hook
+        # correctly invalidates it.
         uses: actions/cache@v3
         with:
           path: ~/.cache/pre-commit
@@ -55,22 +64,6 @@ jobs:
           restore-keys: |
             precommit-${{ runner.os }}-
       - name: Run ALL pre-commit hooks on all files
-        # CACHE THE HOOK ENVIRONMENTS (2026-11-21).
-        #
-        # Five hook repos install from source on every run (ruff-pre-commit,
-        # mirrors-mypy, gitleaks, bandit, pre-commit-hooks) and pre-commit says so
-        # itself: "Installing environment for ... This may take a few minutes".
-        # That install is the longest step in the job, and on this box it is
-        # repeatedly killed by an overlay2 fault:
-        #     RWLayer of container <id> is unexpectedly nil
-        #     failed to remove container: ... already in progress
-        # Measured: 9 of 9 runs failed on pryscraper while other repos' identical
-        # job passed, because their trees are small enough to finish first.
-        #
-        # `PRE_COMMIT_HOME` inside the workspace is not enough (a fresh container
-        # each run), so the cache is keyed and restored with the runner's own
-        # cache action -- install once, reuse afterwards.
-        env:
         run: pre-commit run --all-files --show-diff-on-failure
 
   semgrep:
