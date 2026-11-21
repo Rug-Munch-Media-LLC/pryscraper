@@ -102,7 +102,10 @@ paths = [
   # pythonhosted.org/..." }`). A lockfile cannot hold a secret: it is generated
   # from the registry, and the hash is the artifact digest the resolver verified.
   # Excluding the file is the narrow fix; the rule stays active everywhere else.
-  '''^uv\.lock$''',
+  # NOT anchored: gitleaks reports paths relative to the scan root, which in CI is
+  # `./uv.lock` and locally is `uv.lock`. An anchored ^uv\.lock$ matched only the
+  # local form, so CI still reported the same 4 false positives.
+  '''uv\.lock$''',
   '''node_modules/''',
   # Fleet gate toolkit: pattern literals, not secrets (mirrors rugbrain)
   '''scripts/''',
