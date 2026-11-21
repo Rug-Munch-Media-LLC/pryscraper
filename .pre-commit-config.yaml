@@ -42,7 +42,48 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        # SCRAPED HTML FIXTURES MUST KEEP THEIR EXACT BYTES (2026-11-21).
+        #
+        # `tests/fixtures/scrape/*.html` are captures of real pages. Stripping
+        # trailing whitespace from them edits the very markup the extractor is
+        # tested against -- the fixture stops representing a real page, and the
+        # test starts asserting about our reformatting instead of about the web.
+        #
+        # Measured: `pre-commit run --all-files` rewrote this fixture and then
+        # failed on the diff (`files were modified by this hook`), so the
+        # gate failed while reporting no problem with the code. A fixture that
+        # is data, not source, belongs outside a source-formatting hook.
+        # CAPTURED FIXTURE DATA KEEPS ITS EXACT BYTES (2026-11-21).
+        #
+        # These trees are byte-for-byte captures of real pages and real API
+        # responses, kept so parsers are tested against what the web actually
+        # returns. `pre-commit run --all-files` rewrote THREE of them and then
+        # failed on its own diff (`files were modified by this hook`), so the
+        # gate reported a failure while the code was correct:
+        #     Fixing tests/fixtures/x/timeline_page.html
+        #     Fixing tests/fixtures/x/tweet_result.json
+        #     Fixing datasets/sports_data/fixtures/espn_scoreboard_nba_20260410.json
+        # Whitespace IS the payload in HTML/JSON fixtures; stripping it changes
+        # what the test asserts. Excluded per hook rather than per repo so the
+        # formatting rules stay active on all real source.
+        exclude: ^(tests/fixtures/|datasets/.*/fixtures/)
       - id: end-of-file-fixer
+        # Same reasoning as trailing-whitespace above: a missing final newline in
+        # a captured page is part of the capture.
+        # CAPTURED FIXTURE DATA KEEPS ITS EXACT BYTES (2026-11-21).
+        #
+        # These trees are byte-for-byte captures of real pages and real API
+        # responses, kept so parsers are tested against what the web actually
+        # returns. `pre-commit run --all-files` rewrote THREE of them and then
+        # failed on its own diff (`files were modified by this hook`), so the
+        # gate reported a failure while the code was correct:
+        #     Fixing tests/fixtures/x/timeline_page.html
+        #     Fixing tests/fixtures/x/tweet_result.json
+        #     Fixing datasets/sports_data/fixtures/espn_scoreboard_nba_20260410.json
+        # Whitespace IS the payload in HTML/JSON fixtures; stripping it changes
+        # what the test asserts. Excluded per hook rather than per repo so the
+        # formatting rules stay active on all real source.
+        exclude: ^(tests/fixtures/|datasets/.*/fixtures/)
       - id: check-yaml
         # docker-compose.selfhost.yml is valid Compose: it uses the `!reset`
         # and `!override` tags (Compose merge directives) that the hook's plain

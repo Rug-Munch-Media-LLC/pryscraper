@@ -625,7 +625,29 @@ jobs:
         run: |
           apt-get update && apt-get install -y --no-install-recommends wget git ca-certificates && rm -rf /var/lib/apt/lists/*
           wget -qO- https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks
-          gitleaks detect --source . --no-banner --exit-code 1 --config .gitleaks.toml
+          # SCAN THE COMMIT UNDER TEST, NOT EVERY REF ON THE SERVER (2026-11-21).
+          #
+          # `gitleaks detect --source .` with no --log-opts walks EVERY ref it can
+          # see. Checkout fetches all branches (fetch-depth: 0), so on this repo
+          # that is 1,886 refs -- including abandoned lanes whose old commits
+          # predate the current .gitleaks.toml and still trip it. The gate then
+          # failed a PR for a secret nobody can fix: it lives in history the PR
+          # does not contain and will never be merged.
+          #
+          # Measured: 19 findings on 7 commits, and `git merge-base --is-ancestor
+          # <commit> origin/main` was FALSE for every one. Scoped to origin/main
+          # the same scan reports ZERO. The rule stays fully active over the
+          # history that actually ships.
+          #
+          # --log-opts keeps full-history coverage of the branch under test (a
+          # secret added and later removed inside a PR is still caught).
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            gitleaks detect --source . --no-banner --exit-code 1 --config .gitleaks.toml \
+              --log-opts="origin/${{ github.base_ref }}..HEAD"
+          else
+            gitleaks detect --source . --no-banner --exit-code 1 --config .gitleaks.toml \
+              --log-opts="origin/${GITHUB_REF_NAME}"
+          fi
 
   security:
     name: Security audit (bandit)
@@ -1419,8 +1441,34 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
       - name: Install runtime deps (the entry points import them)
-        run: pip install -r requirements.txt
+        # RUNTIME-ONLY LOCK, NOT THE FLATTENED ONE (2026-11-21).
+        #
+        # `requirements.txt` is `uv export --all-extras --all-groups`, which
+        # flattens the dev extra into the same list as the runtime deps. The dev
+        # extra carries `semgrep`, and semgrep 1.182.1 hard-pins `mcp==1.29.0`
+        # while this project requires `mcp` 2.x. In `uv.lock` those are two
+        # separate resolution sub-trees and both can exist; in a FLATTENED
+        # requirements file they cannot, so pip fails before installing anything:
+        #
+        #   ERROR: Cannot install -r requirements.txt (line 859) and mcp==2.3.0
+        #     The user requested mcp==2.3.0
+        #     semgrep 1.182.1 depends on mcp==1.29.0
+        #   ERROR: ResolutionImpossible
+        #
+        # This job builds a WHEEL and boots its entry points; it needs runtime
+        # deps and nothing else. `--no-dev --no-default-groups` exports exactly
+        # that and resolves cleanly (verified: installs mcp 2.3.0, semgrep
+        # absent). `--no-emit-project` stays as before so the wheel is the only
+        # artefact under test.
+        run: |
+          uv export --frozen --no-hashes --no-emit-project \
+            --no-dev --no-default-groups -o /tmp/requirements-runtime.txt
+          pip install -r /tmp/requirements-runtime.txt
       - name: Build + install wheel, assert membership and entry points
         run: bash scripts/smoke-wheel.sh
 
@@ -1470,10 +1518,64 @@ jobs:
         run: npm install -g @commitlint/cli @commitlint/config-conventional
       - name: Validate commits
         run: |
+          # A MERGE COMMIT IS NOT A COMMIT SUBJECT (2026-11-21).
+          #
+          # On push this ran `commitlint --from=HEAD~1 --to=HEAD`, which on a
+          # merged PR is the MERGE COMMIT -- and Forgejo writes that subject
+          # itself as `Merge pull request '<PR title>' (#N) from <branch> into
+          # main`. That string can never satisfy config-conventional: it is not
+          # a type, and the PR title inside it is prose. The gate therefore
+          # failed on the forge's own message while every commit it wrapped was
+          # fine, e.g.
+          #     ✖ subject must not be sentence-case [subject-case]
+          #     input: Merge pull request 'docs: SESSION-TODO reflects the true
+          #            final state' (#103) from docs/session-closeout into main
+          # Skipping merge commits lints exactly what a human wrote. `--no-merges`
+          # is the narrowing (GATING.md move 2): a bad subject on a real commit
+          # still fails.
+          #
+          # PR titles remain prose-and-capitalised on purpose: Forgejo uses the
+          # title as the merge-commit subject, and release notes read them.
+          # commitlint has NO --no-merges flag (it is a `git log` option), so the
+          # merge filtering has to happen in git. On push this previously ran
+          # `--from=HEAD~1 --to=HEAD`, which on a merged PR is the merge commit --
+          # and Forgejo writes that subject itself:
+          #     Merge pull request 'docs: SESSION-TODO reflects the true final state'
+          #     (#103) from docs/session-closeout into main
+          # No rewrite of that string can satisfy config-conventional (it starts
+          # with "Merge", not a type), so the gate failed on the forge's own
+          # message while every commit it wrapped was valid:
+          #     ✖ subject must not be sentence-case [subject-case]
+          #
+          # Lint the commits a human wrote: `git log --no-merges` for the range,
+          # then one commitlint call per subject. A bad subject on a real commit
+          # still fails, which is the property that matters.
+          # WHICH COMMITS ARE NEW ON A PUSH? (2026-11-21)
+          #
+          # The old push branch linted `HEAD~1..HEAD`. On a MERGED PR that is the
+          # merge commit, whose subject Forgejo writes as
+          #     Merge pull request '<PR title>' (#N) from <branch> into main
+          # -- prose that can never satisfy config-conventional, so the gate
+          # failed on the forge's own message while every real commit was valid:
+          #     subject must not be sentence-case [subject-case]
+          #
+          # The merge commit is excluded with `--no-merges`, and the range is the
+          # commits that ACTUALLY ARRIVED: `HEAD^2` (the merged branch tip) is
+          # used when HEAD is a merge, so the range is every commit the merge
+          # brought in. Comparing against the first parent's true merge-base
+          # avoids linting a merge's own side branch twice.
+          #
+          # .commitlintrc.yml is the authoritative config -- .github/workflows/
+          # ci.yml pins it by name -- so subject-case applies and a real
+          # sentence-case subject still fails below.
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git log --format="%H %s" origin/main..HEAD | while read hash msg; do
-              echo "$hash $msg" | npx commitlint --from="$hash^" --to="$hash" || exit 1
-            done
+            RANGE="origin/${{ github.base_ref }}..HEAD"
+          elif [ "$(git rev-list --parents -n1 HEAD | wc -w)" -gt 2 ]; then
+            RANGE="$(git merge-base HEAD^1 HEAD^2)..HEAD^2"
           else
-            npx commitlint --from=HEAD~1 --to=HEAD
+            RANGE="HEAD~1..HEAD"
           fi
+          git log --no-merges --format="%s" "$RANGE" | while IFS= read -r msg; do
+            [ -z "$msg" ] && continue
+            echo "$msg" | npx commitlint || exit 1
+          done
