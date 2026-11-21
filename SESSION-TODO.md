@@ -2,17 +2,26 @@
 
 ## State
 
-`main` is at `4a6a6853`. Three PRs from this session are merged (#91, #94, #95).
-The suite passes in CI (`test` green in 11m13s; it previously never completed).
-The Docker image builds again and both containers run healthy, pinned to
-`pryscraper:main-4a6a6853`.
+`main` is at `a25e7f09`. Seven PRs from this session are merged in pryscraper
+(#91, #94, #95, #98, #100) and three in fleet-infra (#476, #479, #485, #487, #488).
+
+**The suite runs green**: `pytest tests/ -n 4 --dist loadfile` → 9,760 passed in
+4m53s locally. In CI, `lint` (218s) and `typecheck` (172s) both pass now — they
+failed on every run for the whole session and were fixed here.
 
 The single most important thing this session established: **most of what looked
-like flaky tests was a full disk.** `/tmp/pytest-of-root` had grown to 20GB over
-27 sessions (8,949 directories per xdist worker from actor staging). That
-saturated I/O (`wa=43%`, 74 processes in D-state, load1 630 on 64 cores), and the
-host's CI kill-switch then correctly stopped the runners — so jobs were cancelled
-before they could report, which read as "test keeps failing" with no log.
+like flaky tests was infrastructure.** Four separate faults, in order of damage:
+
+1. **The queue reaper cancelled every `main` run** — `branch_head()` passed the
+   full ref (`refs/heads/main`) to an API that wants the short name, got a 404,
+   read it as `__gone__` = "superseded", and cancelled. 211 runs. Fixed + 6 tests.
+2. **A `.venv` symlink was committed** (by my own `git add -A` in 4488a8af), so
+   checkout wrote a FILE where `uv venv` needed a DIRECTORY: every job died in
+   42s. Removed; `.gitignore` had `.venv/` (trailing slash ignores only dirs).
+3. **The runner pool was inverted**: 6 "slots" over four 2-core cpusets meant two
+   jobs sharing two cores — 1 core each. Now 4 slots x 2 cores x 4GB.
+4. **`runner.timeout: 20m` was below the workflows' own 30m budget**, so jobs
+   were reaped, not failed. Now 35m.
 
 ## Done (verified — with the command that proved it)
 
@@ -53,21 +62,29 @@ before they could report, which read as "test keeps failing" with no log.
 
 ## Open (with the exact next command)
 
-- [ ] **`main`'s `push` runs are red on 13 jobs**, but the set is unchanged from
-      before this session and does not include `test`'s content. Check before
-      touching: `docker exec -i rmi-postgres psql -U rmi -d forgejo -tAF'|' -c
-      "select j.name,j.status from action_run_job j where j.run_id=(select max(id)
-      from action_run where workflow_id='ci.yml')"`. Several are `slow`/nightly
-      tiers that are advisory by design.
+- [ ] **7 jobs still fail on `main`'s push runs** — all fast (25-261s), none of
+      them `test`: `Code complexity`, `Mutation testing`, `Secret scan`,
+      `k6-smoke`, `pre-commit-mirror`, `supply-chain`, `wheel-smoke`. They are the
+      jobs PR #98 moved off the PR path; they still run on main by design.
+      Next: the CI job table in the forge database — select job names where the newest
+      `ci.yml` run's job status is failed.
+- [ ] **`fleet-gates` can now be made a required check.** It passes on
+      fleet-infra main for the first time (PR #488, 5 ok / 0 fail), which was the
+      blocker. Next: add `CI / fleet-gates (pull_request)` to
+      `status_check_contexts` in that repo's branch protection — a red gate that
+      cannot block is the "decoration" GATING.md warns about.
+- [ ] **`vulture` flags `scan()` in scripts/antipattern_rules.py as unused**
+      (60% confidence). It is used — imported dynamically by
+      check-antipatterns.py:110. A false positive, recorded so nobody "fixes" it.
 - [ ] **`/readyz` returns 503** with `{mode: self_hosted, wallet_configured:
       False}` while `/health` is 200 and the app serves. Pre-existing, not caused
       here. Next: decide whether the readiness gate should require a wallet in
-      self-hosted mode — `docker exec pry python3 -c "from
+      self-hosted mode — inspect the readiness value in the running container, from
       pry.payments.x402 import get_facilitator_router;
       print(get_facilitator_router().readiness())"`.
 - [ ] **Host over-subscription**: 4 runners at 6 slots × `-n 2` on a box already
       running the production fleet. Seen 7 concurrent CI containers and load 212.
-      This is `fleet-infra` territory (`/srv/ci/runner/*/config.y*ml` `capacity:`),
+      This is `fleet-infra` territory (the runner pool config's `capacity:` key),
       deliberately NOT changed here.
 - [ ] `pry-redis-exporter` is unhealthy (5+ days). Pre-existing, unrelated.
 
@@ -82,11 +99,11 @@ before they could report, which read as "test keeps failing" with no log.
   `run:` line.
 - **`-m` on the CLI REPLACES `-m` in `addopts`; it does not intersect.**
 - **Forgejo logs are readable**: `/data/gitea/data/actions_log/<owner>/<repo>/*/
-  <task_id>.log.zst` inside `rmi-forgejo`; task id comes from
+  <task_id>.log.zst` inside the forge container; task id comes from
   `action_task WHERE job_id=<id>`. Zstd, no `zstd` binary in the container — copy
   out and decompress with the `zstandard` module. Do not conclude "logs are not
   exposed" from the 404s on the API.
-- **`/srv/work/repos/pryscraper` is another lane's checkout** on
+- **The shared `pryscraper` checkout is another lane's** on
   `fix/ci-context-budget` with many dirty files. Never commit from it; work in a
   worktree off `origin/main`.
 - **The deployed image must be tagged `main-<merge-sha>`** and both containers
