@@ -428,6 +428,12 @@ jobs:
     # does not exist. Fixing the baseline schema is a scripts/ + data/ change
     # and belongs to whichever lane owns those files.
     runs-on: docker-x64
+    # ADVISORY ON MAIN ONLY (2026-11-21). Every step in this job ends in
+    # `|| true`, so it cannot block a merge -- yet it held a runner slot on every
+    # PR. With 6 pool slots and 35 jobs, those 10 advisory jobs were a third of
+    # the queue, which is what starved other repos' PRs behind one repo's run.
+    # They still run, on main/nightly, where a human reads the result.
+    if: github.event_name != 'pull_request'
     timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
@@ -786,6 +792,12 @@ jobs:
 
   pip-audit:
     runs-on: docker-x64
+    # ADVISORY ON MAIN ONLY (2026-11-21). Every step in this job ends in
+    # `|| true`, so it cannot block a merge -- yet it held a runner slot on every
+    # PR. With 6 pool slots and 35 jobs, those 10 advisory jobs were a third of
+    # the queue, which is what starved other repos' PRs behind one repo's run.
+    # They still run, on main/nightly, where a human reads the result.
+    if: github.event_name != 'pull_request'
     timeout-minutes: 30
     needs: test
     container:
@@ -807,6 +819,12 @@ jobs:
 
   deps-freshness:
     runs-on: docker-x64
+    # ADVISORY ON MAIN ONLY (2026-11-21). Every step in this job ends in
+    # `|| true`, so it cannot block a merge -- yet it held a runner slot on every
+    # PR. With 6 pool slots and 35 jobs, those 10 advisory jobs were a third of
+    # the queue, which is what starved other repos' PRs behind one repo's run.
+    # They still run, on main/nightly, where a human reads the result.
+    if: github.event_name != 'pull_request'
     timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
@@ -866,6 +884,12 @@ jobs:
 
   fuzz:
     runs-on: docker-x64
+    # ADVISORY ON MAIN ONLY (2026-11-21). Every step in this job ends in
+    # `|| true`, so it cannot block a merge -- yet it held a runner slot on every
+    # PR. With 6 pool slots and 35 jobs, those 10 advisory jobs were a third of
+    # the queue, which is what starved other repos' PRs behind one repo's run.
+    # They still run, on main/nightly, where a human reads the result.
+    if: github.event_name != 'pull_request'
     timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
@@ -1027,6 +1051,12 @@ jobs:
     # → runner pull 404). Runs on the standard image; installs Go only if the
     # distro provides it and degrades to a skip otherwise (advisory job).
     runs-on: docker-x64
+    # ADVISORY ON MAIN ONLY (2026-11-21). Every step in this job ends in
+    # `|| true`, so it cannot block a merge -- yet it held a runner slot on every
+    # PR. With 6 pool slots and 35 jobs, those 10 advisory jobs were a third of
+    # the queue, which is what starved other repos' PRs behind one repo's run.
+    # They still run, on main/nightly, where a human reads the result.
+    if: github.event_name != 'pull_request'
     timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
@@ -1052,6 +1082,12 @@ jobs:
   mutation-test:
     name: Mutation testing (mutmut)
     runs-on: docker-x64
+    # ADVISORY ON MAIN ONLY (2026-11-21). Every step in this job ends in
+    # `|| true`, so it cannot block a merge -- yet it held a runner slot on every
+    # PR. With 6 pool slots and 35 jobs, those 10 advisory jobs were a third of
+    # the queue, which is what starved other repos' PRs behind one repo's run.
+    # They still run, on main/nightly, where a human reads the result.
+    if: github.event_name != 'pull_request'
     timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
@@ -1117,6 +1153,12 @@ jobs:
   complexity-gate:
     name: Code complexity (radon + xenon)
     runs-on: docker-x64
+    # ADVISORY ON MAIN ONLY (2026-11-21). Every step in this job ends in
+    # `|| true`, so it cannot block a merge -- yet it held a runner slot on every
+    # PR. With 6 pool slots and 35 jobs, those 10 advisory jobs were a third of
+    # the queue, which is what starved other repos' PRs behind one repo's run.
+    # They still run, on main/nightly, where a human reads the result.
+    if: github.event_name != 'pull_request'
     timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
@@ -1149,6 +1191,12 @@ jobs:
   dead-code-gate:
     name: Dead code detection (vulture)
     runs-on: docker-x64
+    # ADVISORY ON MAIN ONLY (2026-11-21). Every step in this job ends in
+    # `|| true`, so it cannot block a merge -- yet it held a runner slot on every
+    # PR. With 6 pool slots and 35 jobs, those 10 advisory jobs were a third of
+    # the queue, which is what starved other repos' PRs behind one repo's run.
+    # They still run, on main/nightly, where a human reads the result.
+    if: github.event_name != 'pull_request'
     timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
@@ -1219,6 +1267,12 @@ jobs:
 
   supply-chain:
     runs-on: docker-x64
+    # ADVISORY ON MAIN ONLY (2026-11-21). Every step in this job ends in
+    # `|| true`, so it cannot block a merge -- yet it held a runner slot on every
+    # PR. With 6 pool slots and 35 jobs, those 10 advisory jobs were a third of
+    # the queue, which is what starved other repos' PRs behind one repo's run.
+    # They still run, on main/nightly, where a human reads the result.
+    if: github.event_name != 'pull_request'
     timeout-minutes: 30
     container:
       image: nikolaik/python-nodejs:python3.12-nodejs22
@@ -1369,6 +1423,12 @@ jobs:
   guardian:
     name: Guardian (dangerous-diff)
     runs-on: docker-x64
+    # ADVISORY ON MAIN ONLY (2026-11-21). Every step in this job ends in
+    # `|| true`, so it cannot block a merge -- yet it held a runner slot on every
+    # PR. With 6 pool slots and 35 jobs, those 10 advisory jobs were a third of
+    # the queue, which is what starved other repos' PRs behind one repo's run.
+    # They still run, on main/nightly, where a human reads the result.
+    if: github.event_name != 'pull_request'
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
