@@ -11,25 +11,29 @@ concurrency:
   group: tests-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  # PR gate reduced to the ONE thing ci.yml does not already do (2026-11-21).
+  #
+  # This job used to also run a "smoke tier": the whole suite restricted to
+  # `-m "not network and not slow and not integration"` over a directory subset.
+  # ci.yml's `test` job already runs EVERY test with `not integration and not
+  # slow`, so that step was a strict subset of a gate that already blocks --
+  # same runner pool, same install, twice the wall clock. Removed.
+  #
+  # The collect-only step is kept because it is genuinely unique: it proves every
+  # test module IMPORTS without executing anything, which catches a broken import
+  # in seconds instead of 12 minutes into the real run. That is the cheap gate;
+  # the expensive duplicate is gone.
   smoke:
-    if: github.event_name == 'pull_request'
-    runs-on: docker
-    timeout-minutes: 12
+    runs-on: docker-x64
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - run: python3 -m pip install -e '.[dev]' pytest-xdist pytest-timeout
       - name: collect (import gate, must be 9627 of 9638)
         run: python3 -m pytest tests --collect-only -q
-      - name: smoke tier
-        run: >-
-          python3 -m pytest -q -n 4 --timeout=60
-          -m "not network and not slow and not integration"
-          tests/sports tests/legal tests/travel tests/real_estate tests/x402
-          tests/test_actor_catalog_contracts.py tests/test_actor_metadata.py
-          tests/test_15_tier_system.py
   full:
     if: github.event_name == 'schedule'
-    runs-on: docker
+    runs-on: docker-x64
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4

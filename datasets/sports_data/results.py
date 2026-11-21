@@ -43,7 +43,7 @@ def _get_json(url: str) -> Any:
     req = urllib.request.Request(  # noqa: S310 - fixed https URL
         url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"}
     )
-    with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:  # noqa: S310 - fixed https hosts
+    with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:  # noqa: S310  # nosec B310 - fixed https hosts
         return json.loads(resp.read().decode("utf-8"))
 
 

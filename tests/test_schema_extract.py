@@ -14,14 +14,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from pry.engine import schema_extract as se
 # `_meta_tags` was renamed `meta_tags` and moved to schema_patterns
 # (it is a pure re-usable pattern, not schema-extraction plumbing).
 # These tests were still calling the removed private name, so they failed
 # with AttributeError rather than testing anything. Point them at the
 # function's real home instead of re-exporting a private alias from
 # schema_extract -- an alias would keep the old name alive for no reason.
-from pry.engine import schema_patterns as sp
+from pry.engine import schema_extract as se, schema_patterns as sp
 
 
 class TestNormalizeSchema:

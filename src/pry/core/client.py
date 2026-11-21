@@ -41,6 +41,15 @@ http_client: httpx.AsyncClient | None = None
 #: ``is_closed`` stayed False.
 _client_loop: asyncio.AbstractEventLoop | None = None
 
+#: Guards the double-checked creation below. Module-level so it exists before the
+#: first call, and REPLACED by get_client() when the running loop changes (an
+#: asyncio.Lock is bound to the loop that created it, so a lock from a dead loop
+#: raises "attached to a different loop"). My earlier edit dropped this line while
+#: moving the lock into the loop-change branch, which left the name undefined on
+#: first use -- mypy caught it, the tests did not, because every test that hit
+#: this path had already created the client once.
+_client_lock = asyncio.Lock()
+
 
 async def get_client() -> httpx.AsyncClient:
     """Get or create the shared httpx client FOR THE CURRENT EVENT LOOP.
