@@ -62,6 +62,15 @@ like flaky tests was infrastructure.** Four separate faults, in order of damage:
 
 ## Open (with the exact next command)
 
+- [x] **The 3 intermittent monitor tests were a fixture leak, now fixed.**
+      `empty_scrape` shadowed `scraper.scrape` on the INSTANCE permanently;
+      its "restore" only re-created the shadow. Deterministic 10s repro added
+      to the do-not-re-derive list above. Verified: two full-suite runs at
+      randomised order, 9760 passed / 0 failed.
+- [ ] **`test` on `main` should now be green in one pass.** It was two passes
+      (parallel then serial-coverage) and blew the 30-minute budget at 1507s;
+      it is now one `-n 4 --cov` pass measuring 379s / 78.66% locally. Confirm
+      on the next `main` run before claiming it.
 - [ ] **7 jobs still fail on `main`'s push runs** — all fast (25-261s), none of
       them `test`: `Code complexity`, `Mutation testing`, `Secret scan`,
       `k6-smoke`, `pre-commit-mirror`, `supply-chain`, `wheel-smoke`. They are the
@@ -90,6 +99,20 @@ like flaky tests was infrastructure.** Four separate faults, in order of damage:
 
 ## Do not re-derive
 
+- **A fixture that stubs a singleton INSTANCE must restore with `del`, not by
+  re-assigning the original.** `empty_scrape` did `scraper.scrape = AsyncMock()`
+  then `scraper.scrape = real_scrape`; the second line only RE-CREATES the
+  instance attribute, so the class attribute stays shadowed for the rest of the
+  worker. Every later `patch("...PryScraper.scrape")` then patches a class the
+  singleton no longer consults, and the assertion reads `await_count == 0` with
+  no error anywhere. Reproduce in ten seconds: `pytest
+  tests/test_router_ssrf_reject.py tests/test_monitor_scheduler.py` -> 3 failed
+  before the fix, 21 passed after. This, not flakiness, was the three monitor
+  tests.
+- **Pinning `--randomly-seed` to make a flaky suite "reproducible" is a trap.**
+  seed=1 happened to BE the failing order, so it pinned the failure and hid the
+  cause. Randomised order is what surfaced a real cross-file fixture leak; leave
+  it randomised and fix what it finds.
 - **A "flaky test" that only fails under parallelism is usually environment, not
   the test.** Check disk, D-state and load BEFORE bisecting tests. The 20GB
   pytest temp leak cost most of this session and presented as everything except
