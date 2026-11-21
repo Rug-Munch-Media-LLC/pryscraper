@@ -104,7 +104,7 @@ jobs:
       - name: Setup Python
         run: |
           uv python install 3.12
-          uv venv --python 3.12 .venv
+          uv venv --allow-existing --python 3.12 .venv
 
       - name: Install dependencies
         run: |
@@ -144,7 +144,7 @@ jobs:
           ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
           ln -sf $HOME/.local/bin/uvx /usr/local/bin/uvx
           uv python install 3.12
-          uv venv --python 3.12 .venv
+          uv venv --allow-existing --python 3.12 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Type check (mypy)
         # Keep the production scope intact while adding only the Solana x402
@@ -178,7 +178,7 @@ jobs:
           ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
           ln -sf $HOME/.local/bin/uvx /usr/local/bin/uvx
           uv python install 3.12
-          uv venv --python 3.12 .venv
+          uv venv --allow-existing --python 3.12 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
           # The staged-package secret-scan test shells out to gitleaks; the
           # scanner fails open when the binary is missing (by design), so CI
@@ -271,7 +271,7 @@ jobs:
           ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
           ln -sf $HOME/.local/bin/uvx /usr/local/bin/uvx
           uv python install 3.12
-          uv venv --python 3.12 .venv
+          uv venv --allow-existing --python 3.12 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Run integration tests (Postgres + Redis)
         env:
@@ -375,7 +375,7 @@ jobs:
           ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
           ln -sf $HOME/.local/bin/uvx /usr/local/bin/uvx
           uv python install 3.12
-          uv venv --python 3.12 .venv
+          uv venv --allow-existing --python 3.12 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Run integration tests (blocking on PR)
         env:
@@ -461,7 +461,7 @@ jobs:
           ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
           ln -sf $HOME/.local/bin/uvx /usr/local/bin/uvx
           uv python install 3.12
-          uv venv --python 3.12 .venv
+          uv venv --allow-existing --python 3.12 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
 
       - name: Backtest the ladder against the committed baseline
@@ -910,7 +910,7 @@ jobs:
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
-          uv python install 3.12 && uv venv --python 3.12 .venv
+          uv python install 3.12 && uv venv --allow-existing --python 3.12 .venv
           uv pip install --python .venv/bin/python -e ".[dev]" hypothesis
       - name: Run fuzz tests
         run: |
@@ -942,7 +942,7 @@ jobs:
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
-          uv python install 3.12 && uv venv --python 3.12 .venv
+          uv python install 3.12 && uv venv --allow-existing --python 3.12 .venv
           uv pip install --python .venv/bin/python -e ".[dev]" pact-python
       - name: Run consumer contract tests
         run: |
@@ -1112,7 +1112,7 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           ln -sf $HOME/.local/bin/uv /usr/local/bin/uv
           uv python install 3.12
-          uv venv --python 3.12 .venv
+          uv venv --allow-existing --python 3.12 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
       - name: Run mutation tests (targeted)
         run: |
