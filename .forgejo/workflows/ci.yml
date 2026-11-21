@@ -1465,10 +1465,19 @@ jobs:
         # that and resolves cleanly (verified: installs mcp 2.3.0, semgrep
         # absent). `--no-emit-project` stays as before so the wheel is the only
         # artefact under test.
+        # USE `uv pip`, NOT `pip` (2026-11-21). MEASURED on the same
+        # requirements file: `pip install` 322s, `uv pip install` 2s. The step has
+        # a ~5 minute budget inside the job's own timeout, so pip was killed at
+        # 287s mid-install and the job then failed in its teardown path --
+        # reported as a container-removal race, which was a symptom.
+        #
+        # `uv` is already installed by the step above, so this removes a
+        # dependency rather than adding one: no new tool, no cache config, just
+        # the resolver that is already in the image.
         run: |
           uv export --frozen --no-hashes --no-emit-project \
             --no-dev --no-default-groups -o /tmp/requirements-runtime.txt
-          pip install -r /tmp/requirements-runtime.txt
+          uv pip install --system -r /tmp/requirements-runtime.txt
       - name: Build + install wheel, assert membership and entry points
         run: bash scripts/smoke-wheel.sh
 
