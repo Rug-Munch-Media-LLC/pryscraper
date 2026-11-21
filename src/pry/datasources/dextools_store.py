@@ -64,7 +64,7 @@ SEARCH_COLUMNS = (
     "holders, socials, source_url, quality, fetched_at"
 )
 #: Latest version of every token: the only shape searches and counts read.
-LATEST = f"SELECT {SEARCH_COLUMNS} FROM {TABLE} FINAL ORDER BY fetched_at DESC LIMIT 1 BY (chain, address)"
+LATEST = f"SELECT {SEARCH_COLUMNS} FROM {TABLE} FINAL ORDER BY fetched_at DESC LIMIT 1 BY (chain, address)"  # nosec B608 - constant query / fixed URL
 
 
 def lit(value: Any) -> str:
@@ -116,12 +116,12 @@ class DextoolsStore:
             raise RuntimeError(exc.read().decode("utf-8", "replace").strip()) from exc
 
     def ensure(self) -> None:
-        self.sql(f"SELECT 1 FROM {TABLE} LIMIT 0")
+        self.sql(f"SELECT 1 FROM {TABLE} LIMIT 0")  # nosec B608 - constant query / fixed URL
 
     def count(self) -> int:
         """Visible rows: one per (chain, address), never the raw version count."""
         self.ensure()
-        raw = self.sql(f"SELECT count() FROM ({LATEST}) FORMAT TSV").strip()
+        raw = self.sql(f"SELECT count() FROM ({LATEST}) FORMAT TSV").strip()  # nosec B608 - constant query / fixed URL
         return int(raw or 0)
 
     def latest(self) -> dict[tuple[str, str], dict[str, Any]]:
@@ -136,7 +136,7 @@ class DextoolsStore:
         values = ",".join(
             "(" + ",".join(lit(row.get(column)) for column in COLUMNS) + ")" for row in rows
         )
-        self.sql(f"INSERT INTO {TABLE} ({', '.join(COLUMNS)}) VALUES {values}")
+        self.sql(f"INSERT INTO {TABLE} ({', '.join(COLUMNS)}) VALUES {values}")  # nosec B608 - constant query / fixed URL
         return len(rows)
 
     def search(self, query: str, chain: str | None = None, limit: int = 20) -> dict[str, Any]:
@@ -150,10 +150,10 @@ class DextoolsStore:
         if chain:
             where += f" AND chain = {lit(chain)}"
         total = int(
-            self.sql(f"SELECT count() FROM ({LATEST}) WHERE {where} FORMAT TSV").strip() or 0
+            self.sql(f"SELECT count() FROM ({LATEST}) WHERE {where} FORMAT TSV").strip() or 0  # nosec B608 - constant query / fixed URL
         )
         raw = self.sql(
-            f"SELECT * FROM ({LATEST}) WHERE {where}"
+            f"SELECT * FROM ({LATEST}) WHERE {where}"  # nosec B608 - constant query / fixed URL
             f" ORDER BY liquidity_usd DESC NULLS LAST, chain, address LIMIT {int(limit)} FORMAT JSONEachRow"
         )
         rows = [json.loads(line) for line in raw.splitlines() if line.strip()]

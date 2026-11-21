@@ -131,7 +131,7 @@ def plan(
 
 def read_pairs(store: DextoolsStore, limit: int = 5000) -> list[dict[str, Any]]:
     raw = store.sql(  # nosec B608 - constant query
-        "SELECT chain, token_address, pair_address, token_name, token_symbol,"
+        "SELECT chain, token_address, pair_address, token_name, token_symbol,"  # nosec B608 - constant query / fixed URL
         " liquidity_usd, price_usd, source_url"
         f" FROM {PAIRS} FINAL LIMIT {int(limit)} FORMAT JSONEachRow"
     )

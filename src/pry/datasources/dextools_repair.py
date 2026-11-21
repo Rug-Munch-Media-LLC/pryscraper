@@ -60,7 +60,7 @@ FROM (
     ) AS rn
     FROM {PAIRS} FINAL
 ) WHERE rn = 1
-"""
+"""  # nosec B608 - constant query, module constants only
 
 UP = [
     f"DROP TABLE IF EXISTS {STAGE}",
@@ -76,7 +76,7 @@ SELECT count() AS rows, uniqExact(chain, token_address) AS keys,
        countIf(price_usd > 0) AS priced, countIf(source_url != '') AS sourced,
        countIf(token_symbol NOT LIKE '%[0-9]%' OR token_symbol = '') AS tickers
 FROM {PAIRS} FINAL
-"""
+"""  # nosec B608 - constant query, module constants only
 
 
 def _run(store: DextoolsStore, statements: list[str]) -> None:
@@ -87,7 +87,7 @@ def _run(store: DextoolsStore, statements: list[str]) -> None:
 def counts(store: DextoolsStore) -> dict[str, Any]:
     """Row/key census - valid before the repair, when price_usd/source_url do not exist yet."""
     raw = (
-        store.sql(f"SELECT count(), uniqExact(chain, token_address) FROM {PAIRS} FINAL FORMAT TSV")
+        store.sql(f"SELECT count(), uniqExact(chain, token_address) FROM {PAIRS} FINAL FORMAT TSV")  # nosec B608 - constant query / fixed URL
         .strip()
         .split("\t")
     )
