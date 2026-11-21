@@ -185,24 +185,26 @@ jobs:
           # installs it to exercise the real blocking path.
           curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar xz -C /usr/local/bin gitleaks
       - name: Test with coverage
-        # TWO passes, deliberately split (fleet gate: xdist-coverage).
+        # ONE pass. The previous two-pass split (parallel with no coverage, then
+        # a serial `-p no:xdist` coverage run) was correct about coverage not
+        # parallelising, but it DOUBLED the wall clock: pass 1 measured 468s and
+        # pass 2 needed ~1000s more on the same 2 cores, so the job was killed at
+        # the 30-minute budget with every test already green.
         #
-        # `-n <N> --cov` in ONE call gives every xdist worker its own coverage
-        # tracer plus a merge at the end: N interpreters AND N coverage processes
-        # for zero extra parallelism, because coverage parallelises nothing. That
-        # is what pushed this job into the host OOM killer at ~100% (measured
-        # 16-21 oom-kill events, log ending mid-report with no summary line).
+        # `-n 4 --cov` keeps coverage in ONE worker set. The original reason to
+        # avoid it was memory: four workers each carrying a coverage model were
+        # OOM-killed at 2.5GB. That limit is now 4GB per job with one job per
+        # 2-core cpuset, which is exactly the headroom that argument assumed was
+        # missing.
         #
-        # Pass 1: parallel, NO coverage -- fast, low memory, decides red/green.
-        # Pass 2: coverage serially (-p no:xdist) -- one tracer, ~550MB peak.
-        run: |
-          source .venv/bin/activate
-          pytest tests/ --maxfail=10 -q --tb=short -n 4 --dist loadfile \
-            --timeout=120 --timeout-method=thread -m "not integration and not slow"
-          pytest tests/ --maxfail=10 -q --tb=short -p no:xdist \
-            --timeout=120 --timeout-method=thread \
-            --cov=pry --cov-report=xml:coverage.xml --cov-fail-under=76 \
-            -m "not integration and not slow"
+        # `--cov-fail-under=76` is unchanged: the floor is the signal, not the
+        # number of passes that produce it.
+        #
+        # NO `--randomly-seed` pin. The intermittency was a real fixture bug
+        # (see `empty_scrape` in tests/conftest.py), not an order that needed
+        # freezing -- pinning a seed would have pinned whichever order happened
+        # to fail and hidden the cause. Randomised order is what surfaced it.
+        run: source .venv/bin/activate && pytest tests/ --maxfail=10 -q --tb=short -n 4 --dist loadfile --timeout=120 --timeout-method=thread --cov=pry --cov-report=xml:coverage.xml --cov-fail-under=76 -m "not integration and not slow"
       # Publish the report so the diff-cover gate can CONSUME it instead of
       # re-running the whole suite for the same number. `test` is the only job
       # that executes the tests; everything downstream reads its output.

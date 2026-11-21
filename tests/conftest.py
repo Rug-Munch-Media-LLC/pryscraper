@@ -437,17 +437,35 @@ def empty_scrape() -> Generator[None, None, None]:
 
     ``/v1/shadow-dom`` and ``/v1/extract/css`` only run their own guarded fetch
     when the scraper produced no HTML; without this the real scraper attempts a
-    live call, fails, and the guard is never reached. DI seam, not patching:
-    ``scraper`` is the injected singleton, restored below.
+    live call, fails, and the guard is never reached.
+
+    RESTORE BY ``del``, NEVER BY RE-ASSIGNMENT (2026-11-21). Assigning to
+    ``scraper.scrape`` creates an INSTANCE attribute that shadows the class for
+    the rest of the worker's life. "Restoring" it with ``scraper.scrape =
+    real_scrape`` only re-creates that instance attribute, so every later test
+    that patches the CLASS -- ``patch("pry.engine.scraper.PryScraper.scrape")``,
+    as ``tests/test_monitor_scheduler.py`` does -- patches a class the live
+    singleton no longer consults. The mock there then never gets called and its
+    assertion reads ``await_count == 0``.
+
+    That is the mechanism behind three intermittently-failing monitor tests:
+    the failure needed this fixture to run on the same xdist worker first, so it
+    tracked file-to-worker assignment rather than anything in the monitor code.
+    ``del`` removes the instance attribute and lets the class attribute show
+    through again, which is what "restored" was meant to mean.
     """
     from unittest.mock import AsyncMock
 
     from pry.core.deps import scraper
 
-    real_scrape = scraper.scrape
+    had_own = "scrape" in scraper.__dict__
+    real_scrape = scraper.__dict__.get("scrape")
     scraper.scrape = AsyncMock(return_value={"status": "ok", "raw_html": "", "content": ""})
     yield
-    scraper.scrape = real_scrape
+    if had_own:
+        scraper.scrape = real_scrape
+    else:
+        del scraper.scrape
 
 
 # GDPR erasure fixtures live in tests/gdpr_fixtures.py: the suite was 311 lines
