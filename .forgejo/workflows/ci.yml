@@ -200,17 +200,11 @@ jobs:
         # `--cov-fail-under=76` is unchanged: the floor is the signal, not the
         # number of passes that produce it.
         #
-        # `--randomly-seed=1` PINS the test order. Without it every run reshuffles
-        # and the suite is intermittently red on the SAME three monitor tests
-        # (measured: 3 failed / 9757 passed on one run, 9760 passed on the next,
-        # identical code). A fixed seed makes a failure reproducible instead of
-        # a coin flip, which is the difference between debuggable and not.
-        # Rotate the seed deliberately when the ordering needs re-exploring.
-        run: source .venv/bin/activate && pytest tests/ --maxfail=10 -q --tb=short -n 4 --dist loadfile --randomly-seed=1 --timeout=120 --timeout-method=thread --cov=pry --cov-report=xml:coverage.xml --cov-fail-under=76 -m "not integration and not slow"
-          pytest tests/ --maxfail=10 -q --tb=short -p no:xdist \
-            --timeout=120 --timeout-method=thread \
-            --cov=pry --cov-report=xml:coverage.xml --cov-fail-under=76 \
-            -m "not integration and not slow"
+        # NO `--randomly-seed` pin. The intermittency was a real fixture bug
+        # (see `empty_scrape` in tests/conftest.py), not an order that needed
+        # freezing -- pinning a seed would have pinned whichever order happened
+        # to fail and hidden the cause. Randomised order is what surfaced it.
+        run: source .venv/bin/activate && pytest tests/ --maxfail=10 -q --tb=short -n 4 --dist loadfile --timeout=120 --timeout-method=thread --cov=pry --cov-report=xml:coverage.xml --cov-fail-under=76 -m "not integration and not slow"
       # Publish the report so the diff-cover gate can CONSUME it instead of
       # re-running the whole suite for the same number. `test` is the only job
       # that executes the tests; everything downstream reads its output.
